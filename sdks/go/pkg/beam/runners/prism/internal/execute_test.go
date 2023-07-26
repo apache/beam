@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
@@ -437,6 +438,30 @@ func TestRunner_Pipelines(t *testing.T) {
 				}, flat)
 				passert.NonEmpty(s, flat)
 			},
+		}, {
+			name: "gbk_into_gbk",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofnKV, imp)
+				gbk1 := beam.GroupByKey(s, col1)
+				col2 := beam.ParDo(s, dofnGBKKV, gbk1)
+				gbk2 := beam.GroupByKey(s, col2)
+				out := beam.ParDo(s, dofnGBK, gbk2)
+				passert.Equals(s, out, int64(9), int64(12))
+			},
+		}, {
+			name: "lperror_gbk_into_cogbk_shared_input",
+			pipeline: func(s beam.Scope) {
+				want := beam.CreateList(s, []int{0})
+				fruits := beam.CreateList(s, []int64{42, 42, 42})
+				fruitsKV := beam.AddFixedKey(s, fruits)
+
+				fruitsGBK := beam.GroupByKey(s, fruitsKV)
+				fooKV := beam.ParDo(s, toFoo, fruitsGBK)
+				fruitsFooCoGBK := beam.CoGroupByKey(s, fruitsKV, fooKV)
+				got := beam.ParDo(s, toID, fruitsFooCoGBK)
+				passert.Equals(s, got, want)
+			},
 		},
 	}
 	// TODO: Explicit DoFn Failure case.
@@ -533,8 +558,28 @@ func TestFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected pipeline failure, but got a success")
 	}
-	// Job failure state reason isn't communicated with the state change over the API
-	// so we can't check for a reason here.
+	if want := "doFnFail: failing as intended"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected pipeline failure with %q, but was %v", want, err)
+	}
+}
+
+func toFoo(et beam.EventTime, id int, _ func(*int64) bool) (int, string) {
+	return id, "ooo"
+}
+
+func toID(et beam.EventTime, id int, fruitIter func(*int64) bool, fooIter func(*string) bool) int {
+	var fruit int64
+	for fruitIter(&fruit) {
+	}
+	var foo string
+	for fooIter(&foo) {
+	}
+	return id
+}
+
+func init() {
+	register.Function3x2(toFoo)
+	register.Function4x1(toID)
 }
 
 // TODO: PCollection metrics tests, in particular for element counts, in multi transform pipelines

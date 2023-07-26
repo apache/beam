@@ -50,6 +50,8 @@ func init() {
 	register.Function2x0(dofnKV2)
 	register.Function3x0(dofnGBK)
 	register.Function3x0(dofnGBK2)
+	register.Function3x0(dofnGBKKV)
+	register.Emitter2[string, int64]()
 	register.DoFn3x0[beam.Window, int64, func(int64)]((*int64Check)(nil))
 	register.DoFn2x0[string, func(string)]((*stringCheck)(nil))
 	register.Function2x0(dofnKV3)
@@ -249,6 +251,14 @@ func dofnGBK2(k int64, vs func(*string) bool, emit func(string)) {
 		sum += v
 	}
 	emit(sum)
+}
+
+func dofnGBKKV(k string, vs func(*int64) bool, emit func(string, int64)) {
+	var v, sum int64
+	for vs(&v) {
+		sum += v
+	}
+	emit(k, sum)
 }
 
 type testRow struct {

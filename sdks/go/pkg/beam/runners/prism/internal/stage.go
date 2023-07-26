@@ -64,7 +64,6 @@ type stage struct {
 	envID        string
 
 	exe              transformExecuter
-	outputCount      int
 	inputTransformID string
 	inputInfo        engine.PColInfo
 	desc             *fnpb.ProcessBundleDescriptor
@@ -76,16 +75,19 @@ type stage struct {
 }
 
 func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) {
-	tid := s.transforms[0]
-	slog.Debug("Execute: starting bundle", "bundle", rb, slog.String("tid", tid))
+	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
 	inputData := em.InputForBundle(rb, s.inputInfo)
 	var dataReady <-chan struct{}
 	switch s.envID {
 	case "": // Runner Transforms
+		if len(s.transforms) != 1 {
+			panic(fmt.Sprintf("unexpected number of runner transforms, want 1: %+v", s))
+		}
+		tid := s.transforms[0]
 		// Runner transforms are processed immeadiately.
-		b = s.exe.ExecuteTransform(tid, comps.GetTransforms()[tid], comps, rb.Watermark, inputData)
+		b = s.exe.ExecuteTransform(s.ID, tid, comps.GetTransforms()[tid], comps, rb.Watermark, inputData)
 		b.InstID = rb.BundleID
 		slog.Debug("Execute: runner transform", "bundle", rb, slog.String("tid", tid))
 

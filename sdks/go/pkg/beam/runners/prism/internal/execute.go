@@ -130,7 +130,7 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 type transformExecuter interface {
 	ExecuteUrns() []string
 	ExecuteWith(t *pipepb.PTransform) string
-	ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
+	ExecuteTransform(stageID, tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
 }
 
 type processor struct {
@@ -300,7 +300,7 @@ func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, cod
 	wcID := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
 	return makeWindowCoders(coders[wcID])
 }
-
+ 
 func getOnlyValue[K comparable, V any](in map[K]V) V {
 	if len(in) != 1 {
 		panic(fmt.Sprintf("expected single value map, had %v - %v", len(in), in))

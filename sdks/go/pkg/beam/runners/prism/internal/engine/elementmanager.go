@@ -570,7 +570,7 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 
 	var toProcess, notYet []element
 	for _, e := range ss.pending {
-		if !ss.aggregate || ss.aggregate && ss.strat.EarliestCompletion(e.window) <= watermark {
+		if !ss.aggregate || ss.aggregate && ss.strat.EarliestCompletion(e.window) < watermark {
 			toProcess = append(toProcess, e)
 		} else {
 			notYet = append(notYet, e)
