@@ -114,6 +114,4 @@ jobs:
       - name: Add website link to the summary if cron
         if: ${{ github.event_name != 'push' }} || ${{github.event_name != 'pull_request_target'}}
         run: |
-          echo "baseUrl=${{ github.actor }}-${GITHUB_REF##*/}" >> $GITHUB_ENV
-          echo $baseUrl
-          echo "Website published to http://$gcsbucket.storage.googleapis.com/${{ github.actor }}-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY
+          echo "Website published to http://$gcsbucket.storage.googleapis.com/$USER-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY
