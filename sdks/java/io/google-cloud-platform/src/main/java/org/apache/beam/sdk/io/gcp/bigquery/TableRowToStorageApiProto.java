@@ -344,7 +344,7 @@ public class TableRowToStorageApiProto {
             new SchemaInformation(
                 field, Iterables.concat(this.parentSchemas, ImmutableList.of(this)));
         subFields.add(schemaInformation);
-        subFieldsByName.put(field.getName(), schemaInformation);
+        subFieldsByName.put(field.getName().toLowerCase(), schemaInformation);
       }
     }
 
@@ -365,9 +365,9 @@ public class TableRowToStorageApiProto {
     }
 
     public SchemaInformation getSchemaForField(String name) {
-      SchemaInformation schemaInformation = subFieldsByName.get(name);
+      SchemaInformation schemaInformation = subFieldsByName.get(name.toLowerCase());
       if (schemaInformation == null) {
-        throw new RuntimeException("Schema field not found: " + name);
+        throw new RuntimeException("Schema field not found: " + name.toLowerCase());
       }
       return schemaInformation;
     }
