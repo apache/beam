@@ -94,7 +94,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 * Apache ID and Password;
 * GitHub ID and Password.
 * DockerHub ID and Password. (You should be a member of maintainer team; email at dev@ if you are not.)
-* Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail to pabloem@google.com to request access)
+* Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail to dev@ to request access)
 
 ### One-time setup instructions
 
