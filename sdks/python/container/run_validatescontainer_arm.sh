@@ -70,8 +70,9 @@ PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${P
 
 function cleanup_container {
   # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
-    do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
+    do docker rmi $image || echo "Built container image was not removed. Possibly, it was not not saved locally."
   done
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)")
