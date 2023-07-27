@@ -18,18 +18,15 @@
 package org.apache.beam.runners.flink;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -37,7 +34,6 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,41 +99,12 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     LOG.info("Translating pipeline to Flink program.");
     env.translate(pipeline);
 
-    JobExecutionResult result;
     try {
       LOG.info("Starting execution of Flink program.");
-      result = env.executePipeline();
+      return env.executePipeline();
     } catch (Exception e) {
       LOG.error("Pipeline execution failed", e);
       throw new RuntimeException("Pipeline execution failed", e);
-    }
-    return createPipelineResult(result, options);
-  }
-
-  static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
-    String resultClassName = result.getClass().getCanonicalName();
-    if (resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
-      LOG.info("Pipeline submitted in Detached mode");
-      // no metricsPusher because metrics are not supported in detached mode
-      return new FlinkDetachedRunnerResult();
-    } else {
-      LOG.info("Execution finished in {} msecs", result.getNetRuntime());
-      Map<String, Object> accumulators = result.getAllAccumulatorResults();
-      if (accumulators != null && !accumulators.isEmpty()) {
-        LOG.info("Final accumulator values:");
-        for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-          LOG.info("{} : {}", entry.getKey(), entry.getValue());
-        }
-      }
-      FlinkRunnerResult flinkRunnerResult =
-          new FlinkRunnerResult(accumulators, result.getNetRuntime());
-      MetricsPusher metricsPusher =
-          new MetricsPusher(
-              flinkRunnerResult.getMetricsContainerStepMap(),
-              options.as(MetricsOptions.class),
-              flinkRunnerResult);
-      metricsPusher.start();
-      return flinkRunnerResult;
     }
   }
 

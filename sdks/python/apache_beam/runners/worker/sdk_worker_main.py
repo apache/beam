@@ -52,7 +52,7 @@ def _import_beam_plugins(plugins):
   for plugin in plugins:
     try:
       importlib.import_module(plugin)
-      _LOGGER.info('Imported beam-plugin %s', plugin)
+      _LOGGER.debug('Imported beam-plugin %s', plugin)
     except ImportError:
       try:
         _LOGGER.debug((
@@ -61,7 +61,7 @@ def _import_beam_plugins(plugins):
                       plugin)
         module, _ = plugin.rsplit('.', 1)
         importlib.import_module(module)
-        _LOGGER.info('Imported %s for beam-plugin %s', module, plugin)
+        _LOGGER.debug('Imported %s for beam-plugin %s', module, plugin)
       except ImportError as exc:
         _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
 

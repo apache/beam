@@ -164,11 +164,11 @@ func launchSDKProcess() error {
 		if err != nil {
 			return errors.New(
 				"failed to create a virtual environment. If running on Ubuntu systems, " +
-				"you might need to install `python3-venv` package. " +
-				"To run the SDK process in default environment instead, " +
-				"set the environment variable `RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1`. " +
-				"In custom Docker images, you can do that with an `ENV` statement. " +
-				fmt.Sprintf("Encountered error: %v", err))
+					"you might need to install `python3-venv` package. " +
+					"To run the SDK process in default environment instead, " +
+					"set the environment variable `RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1`. " +
+					"In custom Docker images, you can do that with an `ENV` statement. " +
+					fmt.Sprintf("Encountered error: %v", err))
 		}
 		cleanupFunc := func() {
 			os.RemoveAll(venvDir)
