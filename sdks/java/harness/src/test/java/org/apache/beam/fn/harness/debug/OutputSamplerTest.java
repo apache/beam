@@ -90,7 +90,7 @@ public class OutputSamplerTest {
   @Test
   public void testSamplesFirstN() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10, false);
 
     // Purposely go over maxSamples and sampleEveryN. This helps to increase confidence.
     for (int i = 0; i < 15; ++i) {
@@ -112,7 +112,7 @@ public class OutputSamplerTest {
     WindowedValue.WindowedValueCoder<Integer> coder =
         WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
 
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10, false);
     outputSampler.sample(WindowedValue.valueInGlobalWindow(0));
 
     // The expected list is only 0..9 inclusive.
@@ -125,7 +125,7 @@ public class OutputSamplerTest {
   public void testNonWindowedValueSample() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
 
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10, false);
     outputSampler.sample(WindowedValue.valueInGlobalWindow(0));
 
     // The expected list is only 0..9 inclusive.
@@ -142,7 +142,7 @@ public class OutputSamplerTest {
   @Test
   public void testActsLikeCircularBuffer() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     for (int i = 0; i < 100; ++i) {
       outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
@@ -171,7 +171,7 @@ public class OutputSamplerTest {
   @Test
   public void testCanSampleExceptions() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
@@ -197,7 +197,7 @@ public class OutputSamplerTest {
   @Test
   public void testNoDuplicateExceptions() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     ElementSample<Integer> elementSampleA =
         outputSampler.sample(WindowedValue.valueInGlobalWindow(1));
@@ -227,7 +227,7 @@ public class OutputSamplerTest {
   @Test
   public void testExceptionOnlySampledIfNonNullProcessBundle() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
@@ -244,15 +244,14 @@ public class OutputSamplerTest {
   }
 
   /**
-   * Tests that multiple samples don't push out exception samples. TODO: test that the exception
-   * metadata is set.
+   * Tests that multiple samples don't push out exception samples.
    *
    * @throws IOException when encoding fails (shouldn't happen).
    */
   @Test
   public void testExceptionSamplesAreNotRemoved() throws IOException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(0);
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
@@ -282,6 +281,32 @@ public class OutputSamplerTest {
   }
 
   /**
+   * Test that elements the onlySampleExceptions flag works.
+   *
+   * @throws IOException when encoding fails (shouldn't happen).
+   */
+  @Test
+  public void testOnlySampleExceptions() throws IOException {
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, true);
+
+    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    outputSampler.sample(WindowedValue.valueInGlobalWindow(2));
+    ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
+
+    Exception exception = new RuntimeException("Test exception");
+    String ptransformId = "ptransform";
+    String processBundleId = "processBundle";
+    outputSampler.exception(elementSample, exception, ptransformId, processBundleId);
+
+    List<BeamFnApi.SampledElement> expected = new ArrayList<>();
+    expected.add(encodeException(1, exception.toString(), ptransformId, processBundleId));
+
+    List<BeamFnApi.SampledElement> samples = outputSampler.samples();
+    assertThat(samples, containsInAnyOrder(expected.toArray()));
+  }
+
+  /**
    * Test that sampling a PCollection while retrieving samples from multiple threads is ok.
    *
    * @throws IOException, InterruptedException
@@ -289,7 +314,7 @@ public class OutputSamplerTest {
   @Test
   public void testConcurrentSamples() throws IOException, InterruptedException {
     VarIntCoder coder = VarIntCoder.of();
-    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 2);
+    OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 2, false);
 
     CountDownLatch startSignal = new CountDownLatch(1);
     CountDownLatch doneSignal = new CountDownLatch(2);
