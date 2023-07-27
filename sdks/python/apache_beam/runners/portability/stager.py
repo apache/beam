@@ -304,9 +304,14 @@ class Stager(object):
                 'The --sdk_location option was used with an unsupported '
                 'type of location: %s' % sdk_location)
 
-        elif sdk_location == 'default' or sdk_location == 'container':
+        elif sdk_location == 'default':
+          # Use default location for a runner.
           pass
-
+        elif sdk_location == 'container':
+          # Used in the past to indicate that SDK should be used from container
+          # image instead of being staged.
+          # Equivalent to 'default' now, leaving for backwards compatibility.
+          pass
         else:
           if os.path.isdir(setup_options.sdk_location):
             sdk_path = os.path.join(
