@@ -65,12 +65,23 @@ command -v gcloud
 docker -v
 gcloud -v
 
+# Verify docker image has been built.
+docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
+
+TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
-TAG="$(grep 'unique_tag' job_PostCommit_Python_ValidatesContainer_Dataflow.groovy | cut -d'=' -f2)"
+echo "Using container $CONTAINER"
+
+# Tag the docker container.
+docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
+
+# Push the container.
+gcloud docker -- push $CONTAINER:$TAG
 
 function cleanup_container {
   # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
