@@ -108,7 +108,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :website:stageWebsite
-          arguments: -PwebsiteBucket=$gcsbucket
+          arguments: -PwebsiteBucket=$gcsbucket \
       - name: Add website link to the summary
         if: steps.findPr.outputs.pr != null || github.event.issue.number != null
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
