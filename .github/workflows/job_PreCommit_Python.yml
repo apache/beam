@@ -51,6 +51,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python:
+    name: beam_PreCommit_Python (Run Python PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:

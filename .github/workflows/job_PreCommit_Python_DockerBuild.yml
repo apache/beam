@@ -50,6 +50,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_PythonDocker:
+    name: beam_PreCommit_PythonDocker (Run PythonDocker PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:

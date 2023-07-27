@@ -57,7 +57,7 @@ jobs:
           github.event_name == 'schedule' ||
           github.event.comment.body == 'Run Whitespace PreCommit'
         runs-on: [self-hosted, ubuntu-20.04, main]
-        name: beam_PreCommit_Whitespace
+        name: beam_PreCommit_Whitespace (Run Whitespace PreCommit)
         steps:       
           - name: Git checkout
             uses: actions/checkout@v3

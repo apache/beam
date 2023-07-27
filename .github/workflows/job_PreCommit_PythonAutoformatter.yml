@@ -50,6 +50,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_PythonFormatter:
+    name: beam_PreCommit_PythonFormatter (Run PythonFormatter PreCommit)
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 

@@ -50,6 +50,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Examples:
+    name: beam_PreCommit_Python_Examples (Run Python_Examples PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:

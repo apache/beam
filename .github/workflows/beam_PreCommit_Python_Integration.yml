@@ -52,7 +52,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Integration:
-    name: beam_PreCommit_Python_Integration
+    name: beam_PreCommit_Python_Integration (Run Python_Integration PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:
