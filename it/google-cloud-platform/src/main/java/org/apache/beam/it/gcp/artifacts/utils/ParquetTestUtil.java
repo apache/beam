@@ -82,11 +82,10 @@ public class ParquetTestUtil {
     return records;
   }
 
-  // @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private static File createTempFile() throws IOException {
     File tempFile = File.createTempFile(ParquetTestUtil.class.getSimpleName(), ".tmp");
     tempFile.deleteOnExit();
-    tempFile.delete();
+    boolean unused = tempFile.delete();
     return tempFile;
   }
 
