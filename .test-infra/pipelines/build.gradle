@@ -50,6 +50,7 @@ def nettyVersion = "1.53.0"
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation library.java.google_api_services_bigquery
+    implementation library.java.guava
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
