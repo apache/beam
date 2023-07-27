@@ -93,21 +93,8 @@ You can do this by changing runs-on: [self-hosted, ubuntu-20.04, main] (self-hos
 
 ## Testing Workflow Updates
 
-If you need to make more changes to the workflow yaml file after it has been added to the repo, you can develop normally on a branch (using your fork or the main Beam repo if you are a committer).
-To do so:
-
-1) Make your change on a development branch.
-2) Open a PR. This may automatically kick off a run of your job using the old yaml config, so any results should be ignored.
-3) Ask a committer to kick off a manual run of your updated action workflow.
-
-Committers can kick off runs of updated yaml workflow files by:
-1) Validating that the yaml files don't contain any malicious code.
-2) Navigating to the correct workflow in the [Actions tab](https://github.com/apache/beam/actions).
-3) Clicking run workflow. Before clicking submit, update to run on the correct branch.
-
-### Alternate flow: developing without creating a PR (not recommended for non-committers or anyone working on a fork)
-
-If you'd like to update a workflow without creating a PR, you can use the following flow. It has several caveats mentioned below.
+If you need to make more changes to the workflow yaml file after it has been added to the repo, you can develop normally on a branch (using your fork or the main Beam repo if you are a committer). If you are a non-committer, this flow has several caveats mentioned below.
+To do this:
 
 1) Make your change on a development branch.
 2) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions). If your changes are on a fork, navigate to the fork's Actions tab instead. If you don't see the correct action, make sure that your fork's main branch is up to date with Beam's master branch.
