@@ -5140,7 +5140,7 @@ programming guide, take a look at the
 &lt;/ul>
 &lt;/nav>
 &lt;p class="language-py">The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.&lt;/p>
-&lt;p class="language-go">The Go SDK supports Go v1.19+. SDK release 2.32.0 is the last experimental version.&lt;/p>
+&lt;p class="language-go">The &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go SDK&lt;/a> supports Go v1.20+.&lt;/p>
 &lt;p class="language-typescript">The Typescript SDK supports Node v16+ and is still experimental.&lt;/p>
 &lt;h2 id="overview">1. Overview&lt;/h2>
 &lt;p>To use Beam, you need to first create a driver program using the classes in one

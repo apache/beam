@@ -1176,7 +1176,7 @@ limitations under the License.
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="set-up-your-environment">Set up your environment&lt;/h2>
-&lt;p>The Beam SDK for Go requires &lt;code>go&lt;/code> version 1.19 or newer. It can be downloaded &lt;a href="https://golang.org/">here&lt;/a>. Check that you have at least version 1.19 by running:&lt;/p>
+&lt;p>The Beam SDK for Go requires &lt;code>go&lt;/code> version 1.20 or newer. It can be downloaded &lt;a href="https://golang.org/">here&lt;/a>. Check what go version you have by running:&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
