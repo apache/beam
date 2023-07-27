@@ -1,13 +1,10 @@
-name: Go PreCommit
+name: Go PostCommit Dataflow ARM
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PreCommit_Go.yml']
-  pull_request_target:
-    branches: ['master', 'release-*' ]
-    paths: ['model/**', 'sdks/go.**', 'release/**']
+    paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml']
   issue_comment:
     types: [created]
   schedule:
@@ -32,24 +29,23 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Go:
+  beam_PostCommit_Go_Dataflow_ARM:
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Go PreCommit'
+      github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_Go (Run Go PreCommit)
+    name: beam_PostCommit_Go_Dataflow_ARM
     steps:       
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run Go PreCommit'
+        if: github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -70,5 +66,5 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run goPreCommit script
-        run: ./gradlew :goPreCommit
+      - name: run goPostCommitDataflowARM test
+        run: ./gradlew :goPostCommitDataflowARM

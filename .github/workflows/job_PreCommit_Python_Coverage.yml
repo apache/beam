@@ -25,7 +25,9 @@ on:
     branches: ['master', 'release-*']
     paths: [ "model/**","sdks/python/**","release/**", ".github/workflows/job_PreCommit_Python_Coverage.yml"]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -49,6 +51,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Coverage:
+    name: beam_PreCommit_Python_Coverage (Run Python_Coverage PreCommit)
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 

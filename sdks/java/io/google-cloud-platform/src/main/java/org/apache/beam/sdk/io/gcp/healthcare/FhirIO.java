@@ -584,7 +584,7 @@ public class FhirIO {
         ReadResourceFn() {}
 
         /**
-         * Instantiate healthcare client.
+         * Instantiate healthcare client (version v1).
          *
          * @throws IOException the io exception
          */
@@ -1460,7 +1460,7 @@ public class FhirIO {
       }
 
       /**
-       * Initialize healthcare client.
+       * Initialize healthcare client (version v1).
        *
        * @throws IOException If the Healthcare client cannot be created.
        */
@@ -1964,7 +1964,7 @@ public class FhirIO {
       }
 
       /**
-       * Instantiate healthcare client.
+       * Instantiate healthcare client (version v1).
        *
        * @throws IOException the io exception
        */

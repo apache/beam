@@ -26,7 +26,8 @@ on:
     branches: ['master', 'release-*']
     paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_Python_Integration.yml"]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -51,7 +52,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Integration:
-    name: beam_PreCommit_Python_Integration
+    name: beam_PreCommit_Python_Integration (Run Python_Integration PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:

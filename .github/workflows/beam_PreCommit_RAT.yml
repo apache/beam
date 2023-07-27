@@ -24,7 +24,8 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -55,7 +56,7 @@ jobs:
       github.event.comment.body == 'Run RAT PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04]
-    name: beam_PreCommit_RAT
+    name: beam_PreCommit_RAT (Run RAT PreCommit)
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3

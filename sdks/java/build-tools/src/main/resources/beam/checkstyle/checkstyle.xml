@@ -53,7 +53,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
   <module name="JavadocPackage"/>
 
   <module name="SuppressionFilter">
-    <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
+    <property name="file" value="${config_loc}/suppressions.xml" />
   </module>
 
   <!-- All Java AST specific tests live under TreeWalker module. -->
@@ -270,7 +270,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]{1,})*$"/>
       <property name="severity" value="error"/>
     </module>
- 
+
     <module name="PackageDeclaration" />
 
     <module name="TypeNameCheck">

@@ -24,7 +24,9 @@ on:
     branches: ['master', 'release-*']
     paths: [ "model/**","sdks/python/**","release/**",".github/workflows/job_PreCommit_Python_Dataframes.yml"]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'  
+  workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -48,6 +50,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Dataframes:
+    name: beam_PreCommit_Python_Dataframes (Run Python_Dataframes PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:

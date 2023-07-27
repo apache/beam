@@ -25,7 +25,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -50,7 +50,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_CommunityMetrics:
-    name: beam_PreCommit_CommunityMetrics
+    name: beam_PreCommit_CommunityMetrics (Run CommunityMetrics PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||
