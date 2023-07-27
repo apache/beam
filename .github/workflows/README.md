@@ -83,7 +83,12 @@ To test new workflows, we recommend the following pattern:
 
 1) Fork the Beam repo
 2) Add your proposed workflow to the main branch of your fork.
-3) Run the workflow in the [Actions tab](https://github.com/apache/beam/actions) of your fork using the `Run workflow` button
+3) Run the workflow in the [Actions tab](https://github.com/apache/beam/actions) of your fork using the `Run workflow` button.
+
+Note: most workflows use [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners)
+with the main and ubuntu labels to execute ([example](https://github.com/apache/beam/blob/5a54ee6ddd8cb8444c41802929a364fe2561001e/.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml#L41)).
+If you are testing on a fork, you likely will not have self-hosted runners set up.
+To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
 
 ## Testing Workflow Updates
 
@@ -91,8 +96,21 @@ If you need to make more changes to the workflow yaml file after it has been add
 To do so:
 
 1) Make your change on a development branch.
-3) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions). If your changes are on a fork, navigate to the fork's Actions tab instead. If you don't see the correct action, make sure that your fork's main branch is up to date with Beam's master branch.
-4) Click run workflow. Before clicking submit, update to run on your branch.
+2) Open a PR. This may automatically kick off a run of your job using the old yaml config, so any results should be ignored.
+3) Ask a committer to kick off a manual run of your updated action workflow.
+
+Committers can kick off runs of updated yaml workflow files by:
+1) Validating that the yaml files don't contain any malicious code.
+2) Navigating to the correct workflow in the [Actions tab](https://github.com/apache/beam/actions).
+3) Clicking run workflow. Before clicking submit, update to run on the correct branch.
+
+### Alternate flow: developing without creating a PR (not recommended for non-committers or anyone working on a fork)
+
+If you'd like to update a workflow without creating a PR, you can use the following flow. It has several caveats mentioned below.
+
+1) Make your change on a development branch.
+2) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions). If your changes are on a fork, navigate to the fork's Actions tab instead. If you don't see the correct action, make sure that your fork's main branch is up to date with Beam's master branch.
+3) Click run workflow. Before clicking submit, update to run on your branch.
 
 Note: If you run a workflow from your fork of Beam, it will not have access to secrets stored in the Beam repository.
 This will cause some things like authenticating to external services to fail, which may cause your workflow to fail.
@@ -100,6 +118,9 @@ If you run into this issue, you can either:
 1) Ask for a committers help to add the workflow to a branch on the main apache/beam repo.
 2) Upload secrets to your repo mirroring the secrets used in the main Beam repo.
 3) Wait until the changes are merged into Beam to test (this should only be done rarely).
+
+Additionally, as mentioned above your fork likely will not have self-hosted runners set up.
+To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
 
 # Workflows
 Please note that jobs with matrix need to have matrix element in the comment. Example:
