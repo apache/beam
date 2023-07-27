@@ -440,10 +440,6 @@ tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
-tasks.register("goPostCommitDataflowARM") {
-  dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
-}
-
 tasks.register("goPostCommit") {
   dependsOn(":goIntegrationTests")
 }
