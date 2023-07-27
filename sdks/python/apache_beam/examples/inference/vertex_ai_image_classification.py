@@ -85,7 +85,7 @@ def parse_known_args(argv):
       dest='experiment',
       type=str,
       required=False,
-      help='GCP experiment to pass to init')
+      help='Vertex AI experiment label to apply to queries')
   parser.add_argument(
       '--private',
       dest='private',
