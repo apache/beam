@@ -113,7 +113,7 @@ jobs:
         if: steps.findPr.outputs.pr != null || github.event.issue.number != null
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary if cron
-        if: steps.findPr.outputs.pr == null && github.event.issue.number != null
+        if: steps.findPr.outputs.pr == null && github.event.issue.number == null
         run: |
           USERNAME="$(whoami)"
           echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY 
