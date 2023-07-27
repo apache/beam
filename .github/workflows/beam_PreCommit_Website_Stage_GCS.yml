@@ -83,7 +83,7 @@ jobs:
         with:
           state: open
       - name: Echo PR number
-        if: success() && steps.findPr.outputs.number
+        if: ${{ steps.findPr.outputs.number != null }}
         run: echo "ghprbPullId=${{ steps.findPr.outputs.pr }}" >> $GITHUB_ENV
       - name: Echo PR number on comment
         if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
