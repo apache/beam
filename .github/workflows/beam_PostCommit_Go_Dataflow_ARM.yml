@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  USER: GithubAction
+  USER: github-actions
 
 jobs:
   beam_PostCommit_Go_Dataflow_ARM:
