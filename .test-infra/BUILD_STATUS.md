@@ -133,9 +133,6 @@
         </a><br>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_Py_ValCont/lastCompletedBuild/">
           <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Py_ValCont/lastCompletedBuild/badge/icon?subject=ValCont">
-        </a><br>
-        <a href="https://ci-beam.apache.org/job/beam_PostCommit_Py_Dataflow_Arm/lastCompletedBuild/">
-          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_Py_Dataflow_Arm/lastCompletedBuild/badge/icon?subject=Arm">
         </a>
       </td>
       <td>

@@ -66,7 +66,6 @@ Run Python 3.11 PostCommit
 Run Python Dataflow V2 ValidatesRunner
 Run Python Dataflow ValidatesContainer
 Run Python Dataflow ValidatesRunner
-Run Python Dataflow Arm
 Run Python Examples_Dataflow
 Run Python Examples_Direct
 Run Python Examples_Flink
