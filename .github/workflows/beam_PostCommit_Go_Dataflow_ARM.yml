@@ -42,7 +42,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
-    runs-on: [ubuntu-20.04, main]
+    runs-on: [ubuntu-20.04]
     name: beam_PostCommit_Go_Dataflow_ARM
     steps:       
       - uses: actions/checkout@v3
