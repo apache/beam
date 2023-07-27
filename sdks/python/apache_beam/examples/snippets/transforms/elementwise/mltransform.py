@@ -16,6 +16,10 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+# pylint: disable=reimported
+# pylint:disable=line-too-long
+
 
 def mltransform_scale_to_0_1(test=None):
   # [START mltransform_scale_to_0_1]
@@ -47,11 +51,9 @@ def mltransform_scale_to_0_1(test=None):
         | MLTransform(artifact_location=artifact_location).with_transform(
             scale_to_0_1_fn)
         | beam.Map(print))
-
-
-# [END mltransform_scale_to_0_1]
-  if test:
-    test(transformed_data)
+    # [END mltransform_scale_to_0_1]
+    if test:
+      test(transformed_data)
 
 
 def ml_transform_compute_and_apply_vocabulary(test=None):
@@ -59,22 +61,58 @@ def ml_transform_compute_and_apply_vocabulary(test=None):
   import apache_beam as beam
   from apache_beam.ml.transforms.base import MLTransform
   from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
-  from apache_beam.ml.transforms.utils import ArtifactsFetcher
   import tempfile
 
   artifact_location = tempfile.mkdtemp()
   data = [
       {
-          'x': ['a', 'b', 'c']
+          'x': ['I', 'love', 'Beam']
       },
       {
-          'x': ['d', 'e', 'f']
+          'x': ['Beam', 'is', 'awesome']
+      },
+  ]
+  compute_and_apply_vocabulary_fn = ComputeAndApplyVocabulary(columns=['x'])
+  with beam.Pipeline() as p:
+    transformed_data = (
+        p
+        | beam.Create(data)
+        | MLTransform(artifact_location=artifact_location).with_transform(
+            compute_and_apply_vocabulary_fn)
+        | beam.Map(print))
+  # [END ml_transform_compute_and_apply_vocabulary]
+  if test:
+    test(transformed_data)
+
+
+def ml_transform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
+  # [START ml_transform_compute_and_apply_vocabulary_with_scalar]
+  import apache_beam as beam
+  from apache_beam.ml.transforms.base import MLTransform
+  from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
+  import tempfile
+  data = [
+      {
+          'x': 'I'
       },
       {
-          'x': ['g', 'h', 'i']
+          'x': 'love'
+      },
+      {
+          'x': 'Beam'
+      },
+      {
+          'x': 'Beam'
+      },
+      {
+          'x': 'is'
+      },
+      {
+          'x': 'awesome'
       },
   ]
 
+  artifact_location = tempfile.mkdtemp()
   compute_and_apply_vocabulary_fn = ComputeAndApplyVocabulary(columns=['x'])
 
   with beam.Pipeline() as p:
@@ -85,54 +123,6 @@ def ml_transform_compute_and_apply_vocabulary(test=None):
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
 
-  # fetching artifacts, vocabulary file, produced by ComputeAndApplyVocabulary.
-  artifacts_fetcher = ArtifactsFetcher(artifact_location)
-  vocab_list = artifacts_fetcher.get_vocab_list()
-  print(vocab_list)
-  # [END ml_transform_compute_and_apply_vocabulary]
-  if test:
-    test(transformed_data)
-
-
-def mltransform_multiple_transforms(test=None):
-  # [START mltransform_multiple_transforms]
-  import apache_beam as beam
-  from apache_beam.ml.transforms.base import MLTransform
-  from apache_beam.ml.transforms.tft import ScaleTo01
-  from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
-  import tempfile
-
-  data = [
-      {
-          'x': [1, 2, 3], 'y': ['a', 'b', 'c']
-      },
-      {
-          'x': [4, 5, 6], 'y': ['d', 'e', 'f']
-      },
-      {
-          'x': [7, 8, 9], 'y': ['g', 'h', 'i']
-      },
-  ]
-
-  artifact_location = tempfile.mkdtemp()
-
-  scale_to_0_1_fn = ScaleTo01(columns=['x'])
-  compute_and_apply_vocabulary_fn = ComputeAndApplyVocabulary(columns=['y'])
-
-  transforms = [scale_to_0_1_fn, compute_and_apply_vocabulary_fn]
-
-  with beam.Pipeline() as p:
-    transformed_data = (
-        p
-        | beam.Create(data)
-        # you can specify multiple transforms in a list or
-        # you can chain them using with_transform method
-        | MLTransform(
-            artifact_location=artifact_location, transforms=transforms)
-        | beam.Map(print))
-
-
-# [END mltransform_multiple_transforms]
-
+  # [END ml_transform_compute_and_apply_vocabulary_with_scalar]
   if test:
     test(transformed_data)
