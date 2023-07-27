@@ -48,10 +48,13 @@ class AbstractDoFnWrapper(DoFn):
   def __init__(self, dofn):
     super().__init__()
     self.dofn = dofn
-    if hasattr(dofn, 'on_window_timer'):
-      self.on_window_timer = dofn.on_window_timer
-    if hasattr(dofn, 'on_buffering_timer'):
-      self.on_buffering_timer = dofn.on_buffering_timer
+
+  def __getattribute__(self, name):
+    if (name.startswith('__') or name in self.__dict__ or
+        hasattr(type(self), name)):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self.dofn, name)
 
   def _inspect_start_bundle(self):
     return self.dofn.get_function_arguments('start_bundle')
