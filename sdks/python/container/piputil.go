@@ -53,25 +53,17 @@ func pipInstallRequirements(files []string, dir, name string) error {
 	return nil
 }
 
-
+// isPackageInstalled checks if the given package is installed in the
+// environment.
 func isPackageInstalled(pkgName string) (bool, error) {
-	// run pip list and capture the output
-	out, err := exec.Command("python", "-m", "pip", "list").Output()
-	if err != nil {
-		return false, fmt.Errorf("failed to fetch pip list: %v", err)
+	cmd := exec.Command("python", "-m", "pip", "show", pkgName)
+	if err := cmd.Run(); err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return false, nil
+		}
 	}
-
-	// Convert byte array to string
-	output := string(out[:])
-
-	// Check if package name is in the output
-	if strings.Contains(output, pkgName) {
-		return true, nil
-	}
-
-	return false, nil
+	return true, nil
 }
-
 
 // pipInstallPackage installs the given package, if present.
 func pipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {

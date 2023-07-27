@@ -372,15 +372,10 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 	}
 
 	pkgName := "apache-beam"
-	isSdkInstalled, err := isPackageInstalled(pkgName)
-	if err != nil {
-		return fmt.Errorf("failed to check if Apache Beam %s is installed: %v", pkgName, err)
-	}
-
+	isSdkInstalled := isPackageInstalled(pkgName)
 	if !isSdkInstalled {
-		log.Printf("Apache Beam is not installed on the custom container. Please make sure Apache Beam is installed in the custom container. Look at the docummentation https://beam.apache.org/documentation/runtime/environments/ on custom containers for more details.")
+		return fmt.Errorf("Apache Beam is not installed in the runtime environment. If you use a custom container image, you must install apache-beam package in the custom image using same version of Beam as in the pipeline submission environment. For more information, see: the https://beam.apache.org/documentation/runtime/environments/.")
 	}
-
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
