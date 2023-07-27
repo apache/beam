@@ -62,6 +62,7 @@ dependencies {
   implementation library.java.joda_time
   runtimeOnly library.java.kafka_clients
   implementation library.java.slf4j_api
+  implementation library.java.guava
 
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
