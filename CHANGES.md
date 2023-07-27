@@ -72,7 +72,7 @@
 ## Breaking Changes
 
 * Legacy runner support removed from Dataflow, all pipelines must use runner v2.
-* [Python]Beam SDK will not be staged from PyPI in the --staging_location for DataflowRunner. If the custom container doesn't include Apache Beam, it will no longer be installed using the staged Beam SDK.([#26996](https://github.com/apache/beam/issues/26996))
+* [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Deprecations
 
