@@ -32,9 +32,6 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 
-env:
-  USER: github-actions
-
 jobs:
   beam_PostCommit_Go_Dataflow_ARM:
     if: |
@@ -72,4 +69,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: run Go dataflowValidatesRunnerARM64 test
-        run: ./gradlew :sdks:go:test:dataflowValidatesRunnerARM64
+        run: ./gradlew :goPostCommitDataflowARM
+        env:
+          USER: github-actions
