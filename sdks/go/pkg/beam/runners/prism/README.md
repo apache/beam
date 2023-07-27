@@ -148,7 +148,7 @@ can have features selectively disabled to ensure
   * The transform must be finite (and eventually return a stop process continuation)
 * Basic Metrics support
 * Stand alone execution support
-  * Web UI available when run as a standalone command. 
+  * Web UI available when run as a standalone command.
 * Progess tracking
     * Channel Splitting
     * Dynamic Splitting
