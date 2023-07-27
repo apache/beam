@@ -807,6 +807,7 @@ class BeamModulePlugin implements Plugin<Project> {
         tephra                                      : "org.apache.tephra:tephra-api:0.15.0-incubating",
         testcontainers_azure                        : "org.testcontainers:azure:$testcontainers_version",
         testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
+        testcontainers_cassandra                    : "org.testcontainers:cassandra:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
