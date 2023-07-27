@@ -33,6 +33,7 @@ dependencies {
 
     implementation library.java.auto_value_annotations
     implementation library.java.slf4j_api
+    implementation library.java.guava
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation "com.google.zetasketch:zetasketch:$zetasketch_version"
