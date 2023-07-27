@@ -26,6 +26,15 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*wc)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*testProto)(nil)).Elem())
+}
+
 type wc struct {
 	K string
 	V int
