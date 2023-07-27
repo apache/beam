@@ -19,7 +19,6 @@
 # pytype: skip-file
 
 import unittest
-from typing import Dict
 
 import apache_beam as beam
 from apache_beam.coders.coders import FastPrimitivesCoder

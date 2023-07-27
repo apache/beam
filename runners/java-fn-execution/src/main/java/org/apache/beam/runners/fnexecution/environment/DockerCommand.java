@@ -53,20 +53,28 @@ class DockerCommand {
   // but we _should_ always capture full ids.
   private static final Pattern CONTAINER_ID_PATTERN = Pattern.compile("\\p{XDigit}{64}");
 
+  /**
+   * Return a DockerCommand instance with default timeout settings: pull timeout 10 min and other
+   * command timeout 2 min.
+   */
   public static DockerCommand getDefault() {
-    return forExecutable(DEFAULT_DOCKER_COMMAND, Duration.ofMinutes(2));
+    return forExecutable(DEFAULT_DOCKER_COMMAND, Duration.ofMinutes(2), Duration.ofMinutes(10));
   }
 
-  static DockerCommand forExecutable(String dockerExecutable, Duration commandTimeout) {
-    return new DockerCommand(dockerExecutable, commandTimeout);
+  static DockerCommand forExecutable(
+      String dockerExecutable, Duration commandTimeout, Duration pullTimeout) {
+    return new DockerCommand(dockerExecutable, commandTimeout, pullTimeout);
   }
 
   private final String dockerExecutable;
   private final Duration commandTimeout;
+  // pull remote image can take longer time
+  private final Duration pullTimeout;
 
-  private DockerCommand(String dockerExecutable, Duration commandTimeout) {
+  private DockerCommand(String dockerExecutable, Duration commandTimeout, Duration pullTimeout) {
     this.dockerExecutable = dockerExecutable;
     this.commandTimeout = commandTimeout;
+    this.pullTimeout = pullTimeout;
   }
 
   /**
@@ -83,7 +91,8 @@ class DockerCommand {
     // Pull the image from docker repo. This will be no-op if the image already exists.
     try {
       runShortCommand(
-          ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build());
+          ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build(),
+          pullTimeout);
     } catch (IOException | TimeoutException | InterruptedException e) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Unable to pull docker image {}", imageTag, e);
@@ -134,7 +143,8 @@ class DockerCommand {
     checkArgument(
         CONTAINER_ID_PATTERN.matcher(containerId).matches(),
         "Container ID must be a 64-character hexadecimal string");
-    return runShortCommand(Arrays.asList(dockerExecutable, "logs", containerId), true, "\n");
+    return runShortCommand(
+        Arrays.asList(dockerExecutable, "logs", containerId), true, "\n", commandTimeout);
   }
 
   /**
@@ -168,7 +178,12 @@ class DockerCommand {
 
   private String runShortCommand(List<String> invocation)
       throws IOException, TimeoutException, InterruptedException {
-    return runShortCommand(invocation, false, "");
+    return runShortCommand(invocation, false, "", commandTimeout);
+  }
+
+  private String runShortCommand(List<String> invocation, Duration timeout)
+      throws IOException, TimeoutException, InterruptedException {
+    return runShortCommand(invocation, false, "", timeout);
   }
 
   /**
@@ -182,7 +197,10 @@ class DockerCommand {
    * @throws TimeoutException if command has not finished by {@link DockerCommand#commandTimeout}
    */
   private String runShortCommand(
-      List<String> invocation, boolean redirectErrorStream, CharSequence delimiter)
+      List<String> invocation,
+      boolean redirectErrorStream,
+      CharSequence delimiter,
+      Duration timeout)
       throws IOException, TimeoutException, InterruptedException {
     ProcessBuilder pb = new ProcessBuilder(invocation);
     pb.redirectErrorStream(redirectErrorStream);
@@ -216,7 +234,7 @@ class DockerCommand {
               });
     }
     // TODO: Retry on interrupt?
-    boolean processDone = process.waitFor(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
+    boolean processDone = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
     if (!processDone) {
       process.destroy();
       throw new TimeoutException(
@@ -228,7 +246,7 @@ class DockerCommand {
     if (exitCode != 0) {
       String errorString;
       try {
-        errorString = errorFuture.get(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        errorString = errorFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
       } catch (Exception stderrEx) {
         errorString =
             String.format("Error capturing %s: %s", errorStringName, stderrEx.getMessage());
@@ -242,8 +260,7 @@ class DockerCommand {
               errorString));
     }
     try {
-      // TODO: Consider a stricter timeout.
-      return resultString.get(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
+      return resultString.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       // Recast any exceptions in reading output as IOExceptions.

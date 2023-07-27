@@ -154,7 +154,7 @@ public class DicomIO {
       FetchStudyMetadataFn() {}
 
       /**
-       * Instantiate the healthcare client.
+       * Instantiate the healthcare client (version v1).
        *
        * @throws IOException
        */

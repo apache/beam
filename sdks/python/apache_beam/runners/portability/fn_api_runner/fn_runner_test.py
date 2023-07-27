@@ -1375,6 +1375,15 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_pack_combiners(self):
     self._test_pack_combiners(assert_using_counter_names=True)
 
+  def test_group_by_key_with_empty_pcoll_elements(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([('test_key', 'test_value')])
+          | beam.Filter(lambda x: False)
+          | beam.GroupByKey())
+      assert_that(res, equal_to([]))
+
 
 # These tests are kept in a separate group so that they are
 # not ran in the FnApiRunnerTestWithBundleRepeat which repeats
@@ -1830,15 +1839,6 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
-
-  def test_group_by_key_with_empty_pcoll_elements(self):
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create([('test_key', 'test_value')])
-          | beam.Filter(lambda x: False)
-          | beam.GroupByKey())
-      assert_that(res, equal_to([]))
 
   def test_metrics(self):
     raise unittest.SkipTest("This test is for a single worker only.")
