@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Beam PreCommit RAT
+name: PreCommit RAT
 
 on:
   push:
@@ -50,13 +50,14 @@ concurrency:
 
 jobs:
   beam_PreCommit_RAT:
+    name: beam_PreCommit_RAT (Run RAT PreCommit)
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run RAT PreCommit' || 
       github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04]
-    name: beam_PreCommit_RAT (Run RAT PreCommit)
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
@@ -81,4 +82,6 @@ jobs:
         with:
           cache-read-only: false
       - name: run RAT script
-        run: ./gradlew :rat
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :rat
