@@ -187,7 +187,7 @@ public class FhirIOPatientEverything
     private HealthcareApiClient client;
 
     /**
-     * Instantiate healthcare client.
+     * Instantiate healthcare client (version v1).
      *
      * @throws IOException the io exception
      */
