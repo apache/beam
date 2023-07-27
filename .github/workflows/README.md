@@ -87,12 +87,19 @@ To test new workflows, we recommend the following pattern:
 
 ## Testing Workflow Updates
 
-Once a workflow has been added to the repo, you can develop normally on a branch (using your fork or the main Beam repo if you are a committer).
+If you need to make more changes to the workflow yaml file after it has been added to the repo, you can develop normally on a branch (using your fork or the main Beam repo if you are a committer).
 To do so:
 
 1) Make your change on a development branch.
-2) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions). If your changes are on a fork, navigate to the fork's Actions tab instead. If you don't see the correct action, make sure that your fork's main branch is up to date with Beam's master branch.
-3) Click run workflow. Before clicking submit, update to run on your branch.
+3) Navigate to your workflow in the [Actions tab](https://github.com/apache/beam/actions). If your changes are on a fork, navigate to the fork's Actions tab instead. If you don't see the correct action, make sure that your fork's main branch is up to date with Beam's master branch.
+4) Click run workflow. Before clicking submit, update to run on your branch.
+
+Note: If you run a workflow from your fork of Beam, it will not have access to secrets stored in the Beam repository.
+This will cause some things like authenticating to external services to fail, which may cause your workflow to fail.
+If you run into this issue, you can either:
+1) Ask for a committers help to add the workflow to a branch on the main apache/beam repo.
+2) Upload secrets to your repo mirroring the secrets used in the main Beam repo.
+3) Wait until the changes are merged into Beam to test (this should only be done rarely).
 
 # Workflows
 Please note that jobs with matrix need to have matrix element in the comment. Example:
