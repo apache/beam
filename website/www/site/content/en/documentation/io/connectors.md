@@ -79,7 +79,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>TextIO</td>
+    <td>TextIO (<a href="/performance/textio">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -200,7 +200,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>GcsFileSystem</td>
+    <td>GcsFileSystem (<a href="/performance/textio">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -522,7 +522,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>)</td>
+    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>) (<a href="/performance/bigquery">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -545,7 +545,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigTableIO</td>
+    <td>BigTableIO (<a href="/performance/bigtable">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">

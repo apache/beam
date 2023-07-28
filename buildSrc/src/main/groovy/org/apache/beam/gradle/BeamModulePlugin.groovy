@@ -492,7 +492,11 @@ class BeamModulePlugin implements Plugin<Project> {
         // Ensure we always publish the expected containers.
         return ["amd64"];
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
-        return project.rootProject.findProperty("container-architecture-list").split(',')
+        def containerArchitectures = project.rootProject.findProperty("container-architecture-list").split(',')
+        if (containerArchitectures.size() > 1 && !project.rootProject.hasProperty("push-containers")) {
+          throw new GradleException("A multi-arch image can't be saved in the local image store, please append the -Ppush-containers flag and specify a repository to push in the -Pdocker-repository-root flag.");
+        }
+        return containerArchitectures
       } else {
         return [project.nativeArchitecture()]
       }
@@ -548,7 +552,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def kafka_version = "2.4.1"
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
-    def netty_version = "4.1.77.Final"
+    // Try to keep netty_version consistent with the netty version in grpc_bom (includes grpc_netty) in google_cloud_platform_libraries_bom
+    def netty_version = "4.1.87.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
@@ -559,7 +564,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
-    def spark3_version = "3.1.2"
+    def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
@@ -640,6 +645,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
+        failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
@@ -652,7 +658,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20220924-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20220828-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20220818-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230510-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230301-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
@@ -805,14 +811,20 @@ class BeamModulePlugin implements Plugin<Project> {
         tephra                                      : "org.apache.tephra:tephra-api:0.15.0-incubating",
         testcontainers_azure                        : "org.testcontainers:azure:$testcontainers_version",
         testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
+        testcontainers_cassandra                    : "org.testcontainers:cassandra:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
+        testcontainers_jdbc                         : "org.testcontainers:jdbc:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
+        testcontainers_mssqlserver                  : "org.testcontainers:mssqlserver:$testcontainers_version",
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
+        testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
+        truth                                       : "com.google.truth:truth:1.0.1",
+        threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
@@ -1256,13 +1268,13 @@ class BeamModulePlugin implements Plugin<Project> {
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
       project.apply plugin: 'checkstyle'
-      project.tasks.withType(Checkstyle) {
-        configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+      project.checkstyle {
+        configDirectory = project.rootProject.layout.projectDirectory.dir("sdks/java/build-tools/src/main/resources/beam/checkstyle")
+        configFile = project.rootProject.layout.projectDirectory.file("sdks/java/build-tools/src/main/resources/beam/checkstyle/checkstyle.xml").asFile
         showViolations = true
         maxErrors = 0
+        toolVersion = "8.23"
       }
-      project.checkstyle { toolVersion = "8.23" }
       // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
       // command-line. This is useful for pre-commit which runs checkStyle separately.
       def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
@@ -2083,7 +2095,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.20.5"
+      project.ext.goVersion = "go1.20.6"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

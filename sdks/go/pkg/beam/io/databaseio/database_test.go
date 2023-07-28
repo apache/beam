@@ -27,6 +27,10 @@ import (
 	_ "github.com/proullon/ramsql/driver"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 type Address struct {
 	Street        string
 	Street_number int

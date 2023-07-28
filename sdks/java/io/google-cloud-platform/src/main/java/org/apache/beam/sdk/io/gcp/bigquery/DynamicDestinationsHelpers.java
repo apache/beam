@@ -421,12 +421,17 @@ class DynamicDestinationsHelpers {
       }
     }
 
-    /** Returns the table schema for the destination. */
+    /**
+     * Returns the table schema for the destination. If possible, will return the existing table
+     * schema.
+     */
     @Override
     public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       @Nullable Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
-      if (existingTable == null || existingTable.getSchema() == null) {
+      if (existingTable == null
+          || existingTable.getSchema() == null
+          || existingTable.getSchema().isEmpty()) {
         return super.getSchema(destination);
       } else {
         return existingTable.getSchema();
