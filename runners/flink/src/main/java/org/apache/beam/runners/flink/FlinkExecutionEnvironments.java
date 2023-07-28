@@ -40,8 +40,10 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -128,6 +130,17 @@ public class FlinkExecutionEnvironments {
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
       flinkBatchEnv.setParallelism(options.getParallelism());
     }
+
+    // Only RemoteEnvironment support detached mode, other batch environment enforce to use attached
+    // mode
+    if (!options.getAttachedMode()) {
+      if (flinkBatchEnv instanceof RemoteEnvironment) {
+        flinkBatchEnv.getConfiguration().set(DeploymentOptions.ATTACHED, options.getAttachedMode());
+      } else {
+        LOG.warn("Detached mode is only supported in RemoteEnvironment for batch");
+      }
+    }
+
     // Set the correct parallelism, required by UnboundedSourceWrapper to generate consistent
     // splits.
     final int parallelism;
@@ -236,6 +249,18 @@ public class FlinkExecutionEnvironments {
 
     if (!options.getOperatorChaining()) {
       flinkStreamEnv.disableOperatorChaining();
+    }
+
+    // Only RemoteStreamEnvironment support detached mode, other stream environment enforce to use
+    // attached mode.
+    if (!options.getAttachedMode()) {
+      if (flinkStreamEnv instanceof RemoteStreamEnvironment) {
+        ((RemoteStreamEnvironment) flinkStreamEnv)
+            .getClientConfiguration()
+            .set(DeploymentOptions.ATTACHED, options.getAttachedMode());
+      } else {
+        LOG.warn("Detached mode is only supported in RemoteStreamEnvironment for streaming");
+      }
     }
 
     // default to event time

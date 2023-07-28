@@ -24,7 +24,9 @@ on:
     branches: ['master', 'release-*']
     paths: [ "model/**","sdks/python/**","release/**",".github/workflows/job_PreCommit_Python_Examples.yml"]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -43,11 +45,12 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
   beam_PreCommit_Python_Examples:
+    name: beam_PreCommit_Python_Examples (Run Python_Examples PreCommit 3.x)
     strategy:
       fail-fast: false
       matrix:

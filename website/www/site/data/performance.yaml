@@ -1,0 +1,108 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+host: https://storage.googleapis.com
+path: public_looker_explores_us_a3853f40
+looks:
+  bigquery:
+    read:
+      folder: 30
+      test_name:
+        - id: nwQxvsnQFdBPTk27pZYxjcGNm2rRfNJk
+          title: Runtime and Estimated Cost by Test Name
+      date:
+        - id: 7QKbMmgT5NgPH6RsDfVQmKMdjJysS37x
+          title: AvgOutputThroughputBytesPerSec by Date
+        - id: hSqCyCkHkh4whNZSpdVFwB8ksPWrbScb
+          title: AvgOutputThroughputElementsPerSec by Date
+      version:
+        - id: SghzxqjMb5QQwgZn7yHw4MnpGXBgXQft
+          title: AvgOutputThroughputBytesPerSec by Version
+        - id: QT6X4GTCnxxykSZ7tpXyBfBFCKMgdzs7
+          title: AvgOutputThroughputElementsPerSec by Version
+    write:
+      folder: 31
+      test_name:
+        - id: sHyRfwCfGCPqSwsTWXSsxfbHKH5hXjzc
+          title: Write BigQuery RunTime and EstimatedCost
+      date:
+        - id: p2qnxS58WdWdZTzJhXfSbkhxGyDXMYfY
+          title: AvgInputThroughputBytesPerSec by Date
+        - id: Bmg6sv8XPtcn3cGtgPtKP26Zj4cyd2XK
+          title: AvgInputThroughputElementsPerSec by Date
+      version:
+        - id: Q6QvktyfSFrSPq4TSDgQQyV9jttjwQJp
+          title: AvgInputThroughputBytesPerSec by Version
+        - id: ktfyZ7Th8yRFFwWgb4WSxngBpmSfz8xh
+          title: AvgInputThroughputElementsPerSec by Version
+  bigtable:
+    read:
+      folder: 32
+      test_name:
+        - id: YQ2W3wdNnBXMgDgpzCRbmQWMHjyPvZny
+          title: Read BigTable RunTime and EstimatedCost
+      date:
+        - id: szvwNfPrwTtmRmMHWv3QFh6wTKxm26TF
+          title: AvgOutputThroughputBytesPerSec by Date
+        - id: ZRQw7np2mj35kQHcvgtNDwVGgP855QNF
+          title: AvgOutputThroughputElementsPerSec by Date
+      version:
+        - id: X7y2hQQkJnYY8ctnr2y7NnNx7xrMkjt2
+          title: AvgOutputThroughputBytesPerSec by Version
+        - id: B3HwmTtn9nBfzwRC7s3WfQSjf7ckrfXx
+          title: AvgOutputThroughputElementsPerSec by Version
+    write:
+      folder: 33
+      test_name:
+        - id: 2sC27RQwWy2MP9DXVHjbvTYSNFYpFvxj
+          title: Write BigTable RunTime and EstimatedCost
+      date:
+      - id: X22sDqD8krBQQ4mRXTFMmpKFvgkZ529g
+        title: AvgInputThroughputBytesPerSec by Date
+      - id: WqHVhrjQVrrjpczqgJB9s9k8fvt3Vc2d
+        title: AvgInputThroughputElementsPerSec by Date
+      version:
+      - id: j72shCBz6rJhQP8JwYB3JcVrhv9BWGpD
+        title: AvgInputThroughputBytesPerSec by Version
+      - id: 6DyhkfvcNfkJg53hwFnRzxqbJDdGb5t7
+        title: AvgInputThroughputElementsPerSec by Version
+  textio:
+    read:
+      folder: 34
+      test_name:
+        - id: SsfFgvwyMthnHjdRwBjWGNbvfNgym4wb
+          title: Read TextIO RunTime and EstimatedCost
+      date:
+        - id: Pr8MBG66JVgBmdQbDr6HXtRprjr3ybj6
+          title: AvgOutputThroughputBytesPerSec by Date
+        - id: CTZYK4KVYM65Zjn6jWgDYYNBWckDYKRQ
+          title: AvgOutputThroughputElementsPerSec by Date
+      version:
+        - id: Dcvfh3XFZySrsmPY4Rm8NYyMg5QQRBF6
+          title: AvgOutputThroughputBytesPerSec by Version
+        - id: dN8mTZsVZc7vGDYKJCT8S67BCXzVJT4s
+          title: AvgOutputThroughputElementsPerSec by Version
+    write:
+      folder: 35
+      test_name:
+        - id: Mm2j2QPc2x4hZqYNSpZC4bDpH2fgvqvp
+          title: Write TextIO RunTime and EstimatedCost
+      date:
+      - id: J9VXhp3ry5zbPFFGsYNfDRypGNVNMbPV
+        title: AvgInputThroughputBytesPerSec by Date
+      - id: KwSCnyz75wMpXhGpZQ8FRp6cwt8pjhfD
+        title: AvgInputThroughputElementsPerSec by Date
+      version:
+      - id: VFXbPV9JGJxmNYnGsypQzH97RPDFjpPN
+        title: AvgInputThroughputBytesPerSec by Version
+      - id: fVVHhXCrHNgBG52TJsTjR8VbmWCCQnVN
+        title: AvgInputThroughputElementsPerSec by Version

@@ -29,6 +29,17 @@ import (
 	"google.golang.org/api/option"
 )
 
+func TestMain(m *testing.M) {
+	// TODO(https://github.com/apache/beam/issues/27549): Make tests compatible with portable runners.
+	// To work on this change, replace call with `ptest.Main(m)`
+	ptest.MainWithDefault(m, "direct")
+}
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*Foo)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*Bar)(nil)).Elem())
+}
+
 // fake client type implements datastoreio.clientType
 type fakeClient struct {
 	runCounter   int
@@ -75,7 +86,7 @@ func Test_query(t *testing.T) {
 		}
 
 		itemType := reflect.TypeOf(tc.v)
-		itemKey := runtime.RegisterType(itemType)
+		itemKey, _ := runtime.TypeKey(itemType)
 
 		p, s := beam.NewPipelineWithRoot()
 		query(s, "project", "Item", tc.shard, itemType, itemKey, newClient)
@@ -93,7 +104,12 @@ func Test_query(t *testing.T) {
 	}
 }
 
+// Baz is intentionally unregistered.
+type Baz struct {
+}
+
 func Test_query_Bad(t *testing.T) {
+	fooKey, _ := runtime.TypeKey(reflect.TypeOf(Foo{}))
 	testCases := []struct {
 		v            any
 		itemType     reflect.Type
@@ -103,8 +119,8 @@ func Test_query_Bad(t *testing.T) {
 	}{
 		// mismatch typeKey parameter
 		{
-			Foo{},
-			reflect.TypeOf(Foo{}),
+			Baz{},
+			reflect.TypeOf(Baz{}),
 			"MismatchType",
 			"No type registered MismatchType",
 			nil,
@@ -113,7 +129,7 @@ func Test_query_Bad(t *testing.T) {
 		{
 			Foo{},
 			reflect.TypeOf(Foo{}),
-			runtime.RegisterType(reflect.TypeOf(Foo{})),
+			fooKey,
 			"fake client error",
 			errors.New("fake client error"),
 		},
