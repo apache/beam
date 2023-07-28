@@ -85,7 +85,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       project: the GCP project name where the endpoint is deployed
       location: the GCP location where the endpoint is deployed
       experiment: optional. experiment label to apply to the
-        queries. See 
+        queries. See
         https://cloud.google.com/vertex-ai/docs/experiments/intro-vertex-ai-experiments
         for more information.
       network: optional. the full name of the Compute Engine
