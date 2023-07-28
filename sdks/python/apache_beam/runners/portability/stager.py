@@ -291,7 +291,6 @@ class Stager(object):
 
       if hasattr(setup_options, 'sdk_location'):
         sdk_location = setup_options.sdk_location
-        # check if it is remote location
         if Stager._is_remote_path(sdk_location):
           try:
             resources.extend(
