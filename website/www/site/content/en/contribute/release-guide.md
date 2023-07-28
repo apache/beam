@@ -167,7 +167,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
           </servers>
         </settings>
 
-#### Submit your GPG public key into MIT PGP Public Key Server
+#### Submit your GPG public key into Ubuntu OpenPGP Key Server
 In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
 
@@ -200,7 +200,7 @@ You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi
 Ask on the mailing list for assistance.
 
 #### Login to DockerHub
-If you are a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers), run following command manually.
+If you are a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam), run following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
 
 ```
@@ -215,7 +215,7 @@ For example,
 }
 ```
 
-If you are not already a member of the `beammaintainers` team, please email `dev@` for help with any DockerHub related tasks. We are not able
+If you are not already a member of the `beam` team, please email `dev@` for help with any DockerHub related tasks. We are not able
 to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
 
 ### Create a new milestone in GitHub
@@ -318,7 +318,7 @@ There are 2 ways to perform this verification, either running automation script(
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
-  1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
+  1. Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
      You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
      See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
@@ -327,9 +327,6 @@ There are 2 ways to perform this verification, either running automation script(
 * **Tasks included in the script**
   1. Installs ```hub``` with your agreement and setup local git repo;
   1. Create a test PR against release branch;
-
-The [`beam_Release_Gradle_Build`](https://ci-beam.apache.org/job/beam_Release_Gradle_Build/) Jenkins job runs `./gradlew build -PisRelease`.
-This only verifies that everything builds with unit tests passing.
 
 #### Verify the build succeeds
 
@@ -522,6 +519,7 @@ You don't need to wait for the action to complete to start running the script.
 * **The script will:**
   1. Clone the repo at the selected RC tag.
   1. Run gradle publish to push java artifacts into Maven staging repo.
+  1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
 
 #### Tasks you need to do manually
 
@@ -548,10 +546,12 @@ You don't need to wait for the action to complete to start running the script.
 * **The script will:**
   1. Clone the repo at the selected RC tag.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
-Note: if you are not a member of the [`beammaintainers` DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers) you will need
-help with this step. Please email `dev@` and ask a member of the `beammaintainers` DockerHub team for help.
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
+Note: if you are not a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam) you will need
+help with this step. Please email `dev@` and ask a member of the `beam` DockerHub team for help.
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
@@ -1148,8 +1148,8 @@ All wheels should be published, in addition to the zip of the release source.
 
 ### Deploy docker images to DockerHub
 
-Note: if you are not a member of the [beammaintainers DockerHub team](https://hub.docker.com/orgs/apache/teams/beammaintainers),
-you will need help with this step. Please email dev@ and ask a member of the beammaintainers DockerHub team for help.
+Note: if you are not a member of the [beam DockerHub team](https://hub.docker.com/orgs/apache/teams/beam),
+you will need help with this step. Please email dev@ and ask a member of the beam DockerHub team for help.
 
 * **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * **Usage**

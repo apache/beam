@@ -28,6 +28,9 @@ angoenka:
 anton:
   name: Anton Kedin
   email: anton@apache.org
+bvolpato:
+  name: Bruno Volpato
+  email: bvolpato@google.com
 ccy:
   name: Charles Chen
   email: ccy@apache.org
@@ -263,3 +266,6 @@ sysede:
 riteshghorse:
   name: Ritesh Ghorse
   email: riteshghorse@apache.org
+yhu:
+  name: Yi Hu
+  email: yhu@apache.org

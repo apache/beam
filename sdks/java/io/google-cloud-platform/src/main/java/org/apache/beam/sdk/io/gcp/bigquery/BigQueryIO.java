@@ -2918,7 +2918,7 @@ public class BigQueryIO {
 
     /**
      * If true, enables using a dynamically determined number of shards to write to BigQuery. This
-     * can be used for both {@link Method#FILE_LOADS}, {@link Method#STREAMING_INSERTS} and {@link
+     * can be used for {@link Method#FILE_LOADS}, {@link Method#STREAMING_INSERTS} and {@link
      * Method#STORAGE_WRITE_API}. Only applicable to unbounded data. If using {@link
      * Method#FILE_LOADS}, numFileShards set via {@link #withNumFileShards} will be ignored.
      */

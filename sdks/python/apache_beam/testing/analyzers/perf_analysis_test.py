@@ -16,21 +16,27 @@
 #
 # pytype: skip-file
 
+import datetime
 import logging
 import os
+import re
 import unittest
 
 import mock
+import numpy as np
 import pandas as pd
 
 # pylint: disable=ungrouped-imports
 try:
   import apache_beam.testing.analyzers.perf_analysis as analysis
   from apache_beam.testing.analyzers import constants
+  from apache_beam.testing.analyzers import github_issues_utils
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
+  from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
+
 except ImportError as e:
   analysis = None  # type: ignore
 
@@ -44,17 +50,19 @@ def get_fake_data_with_no_change_point(**kwargs):
 
 
 def get_fake_data_with_change_point(**kwargs):
+  # change point will be at index 13.
   num_samples = 20
-  metric_values = [0] * (num_samples // 2) + [1] * (num_samples // 2)
+  metric_values = [0] * 12 + [3] + [4] * 7
   timestamps = [i for i in range(num_samples)]
   return metric_values, timestamps
 
 
 def get_existing_issue_data(**kwargs):
-  # change point found at index 10. So passing 10 in the
+  # change point found at index 13. So passing 13 in the
   # existing issue data in mock method.
   return pd.DataFrame([{
-      constants._CHANGE_POINT_TIMESTAMP_LABEL: 10, constants._ISSUE_NUMBER: 0
+      constants._CHANGE_POINT_TIMESTAMP_LABEL: 13,
+      constants._ISSUE_NUMBER: np.array([0])
   }])
 
 
@@ -70,7 +78,7 @@ class TestChangePointAnalysis(unittest.TestCase):
     ] * 20
     self.timestamps = list(range(5))
     self.params = {
-        'test_name': 'fake_test',
+        'test_description': 'fake_description',
         'metrics_dataset': 'fake_dataset',
         'metrics_table': 'fake_table',
         'project': 'fake_project',
@@ -102,7 +110,7 @@ class TestChangePointAnalysis(unittest.TestCase):
 
   def test_validate_config(self):
     test_keys = {
-        'test_name',
+        'test_description',
         'metrics_dataset',
         'metrics_table',
         'project',
@@ -146,7 +154,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_no_alerts_when_no_change_points(self):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_id=self.test_id,
+        test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
 
@@ -167,7 +175,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_alert_on_data_with_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_id=self.test_id,
+        test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertTrue(is_alert)
 
@@ -187,9 +195,32 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_alert_on_data_with_reported_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_id=self.test_id,
+        test_name=self.test_id,
         big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
+
+  def test_change_point_has_anomaly_marker_in_gh_description(self):
+    metric_values, timestamps = get_fake_data_with_change_point()
+    timestamps = [datetime.datetime.fromtimestamp(ts) for ts in timestamps]
+    change_point_index = find_latest_change_point_index(metric_values)
+
+    description = github_issues_utils.get_issue_description(
+        test_name=self.test_id,
+        test_description=self.params['test_description'],
+        metric_name=self.params['metric_name'],
+        metric_values=metric_values,
+        timestamps=timestamps,
+        change_point_index=change_point_index,
+        max_results_to_display=(
+            constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
+
+    runs_info = next((
+        line for line in description.split(2 * os.linesep)
+        if re.match(r'timestamp: .*, metric_value: .*', line.strip())),
+                     '')
+    pattern = (r'timestamp: .+ (\d{4}), metric_value: (\d+.\d+) <---- Anomaly')
+    match = re.search(pattern, runs_info)
+    self.assertTrue(match)
 
 
 if __name__ == '__main__':

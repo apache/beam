@@ -16,6 +16,7 @@
 package worker
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -56,6 +57,8 @@ type B struct {
 	Resp chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
+
+	Error string // Set on Respond.
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -86,6 +89,11 @@ func (b *B) LogValue() slog.Value {
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	if resp.GetError() != "" {
+		b.Error = resp.GetError()
+		close(b.Resp)
+		return
+	}
 	b.Resp <- resp.GetProcessBundle()
 }
 
@@ -137,18 +145,22 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Unlock()
 }
 
-func (b *B) Progress(wk *W) *fnpb.ProcessBundleProgressResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
+	resp := wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
 			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
 				InstructionId: b.InstID,
 			},
 		},
-	}).GetProcessBundleProgress()
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("progress[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetProcessBundleProgress(), nil
 }
 
-func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessBundleSplitResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
+	resp := wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
 			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
 				InstructionId: b.InstID,
@@ -161,5 +173,9 @@ func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessB
 				},
 			},
 		},
-	}).GetProcessBundleSplit()
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("split[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetProcessBundleSplit(), nil
 }

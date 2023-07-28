@@ -17,159 +17,418 @@
 
 # pytype: skip-file
 
+import sys
+import time
+import traceback
 import unittest
+from typing import Any
+from typing import List
+from typing import Optional
 
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder
-from apache_beam.coders.coders import Coder
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
 
+MAIN_TRANSFORM_ID = 'transform'
+MAIN_PCOLLECTION_ID = 'pcoll'
+PRIMITIVES_CODER = FastPrimitivesCoder()
+
 
 class DataSamplerTest(unittest.TestCase):
+  def make_test_descriptor(
+      self,
+      outputs: Optional[List[str]] = None,
+      transforms: Optional[List[str]] = None
+  ) -> beam_fn_api_pb2.ProcessBundleDescriptor:
+    outputs = outputs or [MAIN_PCOLLECTION_ID]
+    transforms = transforms or [MAIN_TRANSFORM_ID]
+
+    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
+    for transform_id in transforms:
+      transform = descriptor.transforms[transform_id]
+      for output in outputs:
+        transform.outputs[output] = output
+
+    return descriptor
+
+  def setUp(self):
+    self.data_sampler = DataSampler(sample_every_sec=0.1)
+
+  def tearDown(self):
+    self.data_sampler.stop()
+
+  def primitives_coder_factory(self, _):
+    return PRIMITIVES_CODER
+
+  def gen_sample(
+      self,
+      data_sampler: DataSampler,
+      element: Any,
+      output_index: int,
+      transform_id: str = MAIN_TRANSFORM_ID):
+    """Generates a sample for the given transform's output."""
+    element_sampler = self.data_sampler.sampler_for_output(
+        transform_id, output_index).element_sampler
+    element_sampler.el = element
+    element_sampler.has_element = True
+
   def test_single_output(self):
     """Simple test for a single sample."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
+    descriptor = self.make_test_descriptor()
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
 
-    output_sampler = data_sampler.sample_output('1', coder)
-    output_sampler.sample('a')
+    self.gen_sample(self.data_sampler, 'a', output_index=0)
 
-    self.assertEqual(data_sampler.samples(), {'1': [coder.encode_nested('a')]})
+    expected_sample = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            MAIN_PCOLLECTION_ID: beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('a'))
+                ])
+        })
+    samples = self.data_sampler.wait_for_samples([MAIN_PCOLLECTION_ID])
+    self.assertEqual(samples, expected_sample)
+
+  def test_not_initialized(self):
+    """Tests that transforms fail gracefully if not properly initialized."""
+    with self.assertLogs() as cm:
+      self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 0)
+    self.assertRegex(cm.output[0], 'Out-of-bounds access.*')
+
+  def map_outputs_to_indices(
+      self, outputs, descriptor, transform_id=MAIN_TRANSFORM_ID):
+    tag_list = list(descriptor.transforms[transform_id].outputs)
+    return {output: tag_list.index(output) for output in outputs}
+
+  def test_sampler_mapping(self):
+    """Tests that the ElementSamplers are created for the correct output."""
+    # Initialize the DataSampler with the following outputs. The order here may
+    # get shuffled when inserting into the descriptor.
+    pcollection_ids = ['o0', 'o1', 'o2']
+    descriptor = self.make_test_descriptor(outputs=pcollection_ids)
+    samplers = self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
+
+    # Create a map from the PCollection id to the index into the transform
+    # output. This mirrors what happens when operators are created. The index of
+    # an output is where in the PTransform.outputs it is located (when the map
+    # is converted to a list).
+    outputs = self.map_outputs_to_indices(pcollection_ids, descriptor)
+
+    # Assert that the mapping is correct, i.e. that we can go from the
+    # PCollection id -> output index and that this is the same as the created
+    # samplers.
+    index = outputs['o0']
+    self.assertEqual(
+        self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID,
+                                             index).element_sampler,
+        samplers[index].element_sampler)
+
+    index = outputs['o1']
+    self.assertEqual(
+        self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID,
+                                             index).element_sampler,
+        samplers[index].element_sampler)
+
+    index = outputs['o2']
+    self.assertEqual(
+        self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID,
+                                             index).element_sampler,
+        samplers[index].element_sampler)
 
   def test_multiple_outputs(self):
     """Tests that multiple PCollections have their own sampler."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
+    pcollection_ids = ['o0', 'o1', 'o2']
+    descriptor = self.make_test_descriptor(outputs=pcollection_ids)
+    outputs = self.map_outputs_to_indices(pcollection_ids, descriptor)
 
-    data_sampler.sample_output('1', coder).sample('a')
-    data_sampler.sample_output('2', coder).sample('a')
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
 
-    self.assertEqual(
-        data_sampler.samples(), {
-            '1': [coder.encode_nested('a')], '2': [coder.encode_nested('a')]
+    self.gen_sample(self.data_sampler, 'a', output_index=outputs['o0'])
+    self.gen_sample(self.data_sampler, 'b', output_index=outputs['o1'])
+    self.gen_sample(self.data_sampler, 'c', output_index=outputs['o2'])
+
+    samples = self.data_sampler.wait_for_samples(['o0', 'o1', 'o2'])
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o0': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('a'))
+                ]),
+            'o1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('b'))
+                ]),
+            'o2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('c'))
+                ]),
         })
+    self.assertEqual(samples, expected_samples)
 
-  def gen_samples(self, data_sampler: DataSampler, coder: Coder):
-    data_sampler.sample_output('a', coder).sample('1')
-    data_sampler.sample_output('a', coder).sample('2')
-    data_sampler.sample_output('b', coder).sample('3')
-    data_sampler.sample_output('b', coder).sample('4')
-    data_sampler.sample_output('c', coder).sample('5')
-    data_sampler.sample_output('c', coder).sample('6')
+  def test_multiple_transforms(self):
+    """Test that multiple transforms with the same PCollections can be sampled.
+    """
+    # Initialize two transform both with the same two outputs.
+    pcollection_ids = ['o0', 'o1']
+    descriptor = self.make_test_descriptor(
+        outputs=pcollection_ids, transforms=['t0', 't1'])
+    t0_outputs = self.map_outputs_to_indices(
+        pcollection_ids, descriptor, transform_id='t0')
+    t1_outputs = self.map_outputs_to_indices(
+        pcollection_ids, descriptor, transform_id='t1')
+
+    self.data_sampler.initialize_samplers(
+        't0', descriptor, self.primitives_coder_factory)
+
+    self.data_sampler.initialize_samplers(
+        't1', descriptor, self.primitives_coder_factory)
+
+    # The OutputSampler is on a different thread so we don't test the same
+    # PCollections to ensure that no data race occurs.
+    self.gen_sample(
+        self.data_sampler,
+        'a',
+        output_index=t0_outputs['o0'],
+        transform_id='t0')
+    self.gen_sample(
+        self.data_sampler,
+        'd',
+        output_index=t1_outputs['o1'],
+        transform_id='t1')
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o0': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('a'))
+                ]),
+            'o1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('d'))
+                ]),
+        })
+    samples = self.data_sampler.wait_for_samples(['o0', 'o1'])
+    self.assertEqual(samples, expected_samples)
+
+    self.gen_sample(
+        self.data_sampler,
+        'b',
+        output_index=t0_outputs['o1'],
+        transform_id='t0')
+    self.gen_sample(
+        self.data_sampler,
+        'c',
+        output_index=t1_outputs['o0'],
+        transform_id='t1')
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o0': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('c'))
+                ]),
+            'o1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('b'))
+                ]),
+        })
+    samples = self.data_sampler.wait_for_samples(['o0', 'o1'])
+    self.assertEqual(samples, expected_samples)
 
   def test_sample_filters_single_pcollection_ids(self):
     """Tests the samples can be filtered based on a single pcollection id."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
+    pcollection_ids = ['o0', 'o1', 'o2']
+    descriptor = self.make_test_descriptor(outputs=pcollection_ids)
+    outputs = self.map_outputs_to_indices(pcollection_ids, descriptor)
 
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(pcollection_ids=['a']),
-        {'a': [coder.encode_nested('1'), coder.encode_nested('2')]})
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
 
-    self.assertEqual(
-        data_sampler.samples(pcollection_ids=['b']),
-        {'b': [coder.encode_nested('3'), coder.encode_nested('4')]})
+    self.gen_sample(self.data_sampler, 'a', output_index=outputs['o0'])
+    self.gen_sample(self.data_sampler, 'b', output_index=outputs['o1'])
+    self.gen_sample(self.data_sampler, 'c', output_index=outputs['o2'])
+
+    samples = self.data_sampler.wait_for_samples(['o0'])
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o0': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('a'))
+                ]),
+        })
+    self.assertEqual(samples, expected_samples)
+
+    samples = self.data_sampler.wait_for_samples(['o1'])
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('b'))
+                ]),
+        })
+    self.assertEqual(samples, expected_samples)
+
+    samples = self.data_sampler.wait_for_samples(['o2'])
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('c'))
+                ]),
+        })
+    self.assertEqual(samples, expected_samples)
 
   def test_sample_filters_multiple_pcollection_ids(self):
     """Tests the samples can be filtered based on a multiple pcollection ids."""
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
+    pcollection_ids = ['o0', 'o1', 'o2']
+    descriptor = self.make_test_descriptor(outputs=pcollection_ids)
+    outputs = self.map_outputs_to_indices(pcollection_ids, descriptor)
 
-    self.gen_samples(data_sampler, coder)
-    self.assertEqual(
-        data_sampler.samples(pcollection_ids=['a', 'c']),
-        {
-            'a': [coder.encode_nested('1'), coder.encode_nested('2')],
-            'c': [coder.encode_nested('5'), coder.encode_nested('6')]
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
+
+    self.gen_sample(self.data_sampler, 'a', output_index=outputs['o0'])
+    self.gen_sample(self.data_sampler, 'b', output_index=outputs['o1'])
+    self.gen_sample(self.data_sampler, 'c', output_index=outputs['o2'])
+
+    samples = self.data_sampler.wait_for_samples(['o0', 'o2'])
+    expected_samples = beam_fn_api_pb2.SampleDataResponse(
+        element_samples={
+            'o0': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('a'))
+                ]),
+            'o2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                elements=[
+                    beam_fn_api_pb2.SampledElement(
+                        element=PRIMITIVES_CODER.encode_nested('c'))
+                ]),
         })
+    self.assertEqual(samples, expected_samples)
 
+  def test_can_sample_exceptions(self):
+    """Tests that exceptions sampled can be queried by the DataSampler."""
+    descriptor = self.make_test_descriptor()
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
+    sampler = self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 0)
 
-class FakeClock:
-  def __init__(self):
-    self.clock = 0
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
 
-  def time(self):
-    return self.clock
+    sampler.sample_exception('a', exc_info, MAIN_TRANSFORM_ID, 'instid')
+
+    samples = self.data_sampler.wait_for_samples([MAIN_PCOLLECTION_ID])
+    self.assertGreater(len(samples.element_samples), 0)
 
 
 class OutputSamplerTest(unittest.TestCase):
-  def setUp(self):
-    self.fake_clock = FakeClock()
+  def tearDown(self):
+    self.sampler.stop()
 
-  def control_time(self, new_time):
-    self.fake_clock.clock = new_time
+  def wait_for_samples(self, output_sampler: OutputSampler, expected_num: int):
+    """Waits for the expected number of samples for the given sampler."""
+    now = time.time()
+    end = now + 30
 
-  def test_samples_first_n(self):
-    """Tests that the first elements are always sampled."""
-    coder = FastPrimitivesCoder()
-    sampler = OutputSampler(coder)
+    while now < end:
+      time.sleep(0.1)
+      now = time.time()
+      samples = output_sampler.flush(clear=False)
 
-    for i in range(15):
-      sampler.sample(i)
+      if not samples:
+        continue
 
+      if len(samples) == expected_num:
+        return samples
+
+    self.assertLess(now, end, 'Timed out waiting for samples')
+
+  def test_can_sample(self):
+    """Tests that the underlying timer can sample."""
+    self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0.05)
+    element_sampler = self.sampler.element_sampler
+    element_sampler.el = 'a'
+    element_sampler.has_element = True
+
+    self.wait_for_samples(self.sampler, expected_num=1)
     self.assertEqual(
-        sampler.flush(), [coder.encode_nested(i) for i in range(10)])
+        self.sampler.flush(),
+        [
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested('a'))
+        ])
 
   def test_acts_like_circular_buffer(self):
     """Tests that the buffer overwrites old samples."""
-    coder = FastPrimitivesCoder()
-    sampler = OutputSampler(coder, max_samples=2)
+    self.sampler = OutputSampler(
+        PRIMITIVES_CODER, max_samples=2, sample_every_sec=0)
+    element_sampler = self.sampler.element_sampler
 
     for i in range(10):
-      sampler.sample(i)
+      element_sampler.el = i
+      element_sampler.has_element = True
+      self.sampler.sample()
 
-    self.assertEqual(sampler.flush(), [coder.encode_nested(i) for i in (8, 9)])
+    self.assertEqual(
+        self.sampler.flush(),
+        [
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested(i)) for i in (8, 9)
+        ])
 
-  def test_samples_every_n_secs(self):
-    """Tests that the buffer overwrites old samples."""
-    coder = FastPrimitivesCoder()
-    sampler = OutputSampler(
-        coder, max_samples=1, sample_every_sec=10, clock=self.fake_clock)
+  def test_samples_multiple_times(self):
+    """Tests that the underlying timer repeats."""
+    self.sampler = OutputSampler(
+        PRIMITIVES_CODER, max_samples=10, sample_every_sec=0.05)
 
     # Always samples the first ten.
     for i in range(10):
-      sampler.sample(i)
-    self.assertEqual(sampler.flush(), [coder.encode_nested(9)])
+      self.sampler.element_sampler.el = i
+      self.sampler.element_sampler.has_element = True
+      self.wait_for_samples(self.sampler, i + 1)
 
-    # Start at t=0
-    sampler.sample(10)
-    self.assertEqual(len(sampler.flush()), 0)
-
-    # Still not over threshold yet.
-    self.control_time(9)
-    for i in range(100):
-      sampler.sample(i)
-    self.assertEqual(len(sampler.flush()), 0)
-
-    # First sample after 10s.
-    self.control_time(10)
-    sampler.sample(10)
-    self.assertEqual(sampler.flush(), [coder.encode_nested(10)])
-
-    # No samples between tresholds.
-    self.control_time(15)
-    for i in range(100):
-      sampler.sample(i)
-    self.assertEqual(len(sampler.flush()), 0)
-
-    # Second sample after 20s.
-    self.control_time(20)
-    sampler.sample(11)
-    self.assertEqual(sampler.flush(), [coder.encode_nested(11)])
+    self.assertEqual(
+        self.sampler.flush(),
+        [
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested(i)) for i in range(10)
+        ])
 
   def test_can_sample_windowed_value(self):
     """Tests that values with WindowedValueCoders are sampled wholesale."""
-    data_sampler = DataSampler()
     coder = WindowedValueCoder(FastPrimitivesCoder())
     value = WindowedValue('Hello, World!', 0, [GlobalWindow()])
-    data_sampler.sample_output('1', coder).sample(value)
+
+    self.sampler = OutputSampler(coder, sample_every_sec=0)
+    element_sampler = self.sampler.element_sampler
+    element_sampler.el = value
+    element_sampler.has_element = True
+    self.sampler.sample()
 
     self.assertEqual(
-        data_sampler.samples(), {'1': [coder.encode_nested(value)]})
+        self.sampler.flush(),
+        [beam_fn_api_pb2.SampledElement(element=coder.encode_nested(value))])
 
   def test_can_sample_non_windowed_value(self):
     """Tests that windowed values with WindowedValueCoders sample only the
@@ -179,13 +438,78 @@ class OutputSamplerTest(unittest.TestCase):
     even if the coder is not a WindowedValueCoder. In this case, the value must
     be retrieved from the WindowedValue to match the correct coder.
     """
-    data_sampler = DataSampler()
-    coder = FastPrimitivesCoder()
-    data_sampler.sample_output('1', coder).sample(
-        WindowedValue('Hello, World!', 0, [GlobalWindow()]))
+    value = WindowedValue('Hello, World!', 0, [GlobalWindow()])
+
+    self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0)
+    element_sampler = self.sampler.element_sampler
+    element_sampler.el = value
+    element_sampler.has_element = True
+    self.sampler.sample()
 
     self.assertEqual(
-        data_sampler.samples(), {'1': [coder.encode_nested('Hello, World!')]})
+        self.sampler.flush(),
+        [
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested('Hello, World!'))
+        ])
+
+  def test_can_sample_exceptions(self):
+    """Tests that exceptions are sampled."""
+    val = WindowedValue('Hello, World!', 0, [GlobalWindow()])
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+      err_string = ''.join(traceback.format_exception(*exc_info))
+
+    self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0)
+    self.sampler.sample_exception(
+        el=val, exc_info=exc_info, transform_id='tid', instruction_id='instid')
+
+    self.assertEqual(
+        self.sampler.flush(),
+        [
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested('Hello, World!'),
+                exception=beam_fn_api_pb2.SampledElement.Exception(
+                    instruction_id='instid',
+                    transform_id='tid',
+                    error=err_string))
+        ])
+
+  def test_can_sample_multiple_exceptions(self):
+    """Tests that multiple exceptions in the same PCollection are sampled."""
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+      err_string = ''.join(traceback.format_exception(*exc_info))
+
+    self.sampler = OutputSampler(PRIMITIVES_CODER, sample_every_sec=0)
+    self.sampler.sample_exception(
+        el='a', exc_info=exc_info, transform_id='tid', instruction_id='instid')
+
+    self.sampler.sample_exception(
+        el='b', exc_info=exc_info, transform_id='tid', instruction_id='instid')
+
+    self.assertEqual(
+        self.sampler.flush(),
+        [
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested('a'),
+                exception=beam_fn_api_pb2.SampledElement.Exception(
+                    instruction_id='instid',
+                    transform_id='tid',
+                    error=err_string)),
+            beam_fn_api_pb2.SampledElement(
+                element=PRIMITIVES_CODER.encode_nested('b'),
+                exception=beam_fn_api_pb2.SampledElement.Exception(
+                    instruction_id='instid',
+                    transform_id='tid',
+                    error=err_string)),
+        ])
 
 
 if __name__ == '__main__':

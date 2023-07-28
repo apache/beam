@@ -28,7 +28,6 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -57,7 +56,7 @@ public class JdbcReadSchemaTransformProvider
     return new JdbcReadSchemaTransform(configuration);
   }
 
-  static class JdbcReadSchemaTransform implements SchemaTransform, Serializable {
+  static class JdbcReadSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcReadSchemaTransformConfiguration config;
 
@@ -85,32 +84,22 @@ public class JdbcReadSchemaTransformProvider
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          String query = config.getReadQuery();
-          if (query == null) {
-            query = String.format("SELECT * FROM %s", config.getLocation());
-          }
-          JdbcIO.ReadRows readRows =
-              JdbcIO.readRows()
-                  .withDataSourceConfiguration(dataSourceConfiguration())
-                  .withQuery(query);
-          Short fetchSize = config.getFetchSize();
-          if (fetchSize != null && fetchSize > 0) {
-            readRows = readRows.withFetchSize(fetchSize);
-          }
-          Boolean outputParallelization = config.getOutputParallelization();
-          if (outputParallelization != null) {
-            readRows = readRows.withOutputParallelization(outputParallelization);
-          }
-          return PCollectionRowTuple.of("output", input.getPipeline().apply(readRows));
-        }
-      };
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      String query = config.getReadQuery();
+      if (query == null) {
+        query = String.format("SELECT * FROM %s", config.getLocation());
+      }
+      JdbcIO.ReadRows readRows =
+          JdbcIO.readRows().withDataSourceConfiguration(dataSourceConfiguration()).withQuery(query);
+      Short fetchSize = config.getFetchSize();
+      if (fetchSize != null && fetchSize > 0) {
+        readRows = readRows.withFetchSize(fetchSize);
+      }
+      Boolean outputParallelization = config.getOutputParallelization();
+      if (outputParallelization != null) {
+        readRows = readRows.withOutputParallelization(outputParallelization);
+      }
+      return PCollectionRowTuple.of("output", input.getPipeline().apply(readRows));
     }
   }
 

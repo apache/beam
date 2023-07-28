@@ -46,6 +46,52 @@ import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
+
+// Describes transforms necessary to execute Beam over the FnAPI but are
+// implementation details rather than part of the core model.
+message FnApiTransforms {
+  enum Runner {
+    // DataSource is a Root Transform, and a source of data for downstream
+    // transforms in the same ProcessBundleDescriptor. 
+    // It represents a stream of values coming in from an external source/over
+    // a data channel, typically from the runner. It's not the PCollection itself
+    // but a description of how to get the portion of the PCollection for a given
+    // bundle.
+    //
+    // The DataSource transform is implemented in each SDK and not explicitly
+    // provided during pipeline construction. A runner inserts the transform
+    // in ProcessBundleDescriptors to indicate where the bundle
+    // can retrieve data for an associated ProcessBundleRequest.
+    // Data for the same request will be retrieved with the matching instruction ID,
+    // and transform ID determined by the runner.
+    //
+    // The DataSource transform will take a stream of bytes from the remote
+    // source for the matching instruction ID and decode them as windowed
+    // values using the provided coder ID, which must be a windowed value coder.
+    //
+    // Payload: RemoteGrpcPort
+    DATA_SOURCE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:runner:source:v1"];
+
+    // DataSink is a transform that sends PCollection elements to a remote
+    // port using the Data API.
+    //
+    // The DataSink transform is implemented in each SDK and not explicitly
+    // provided during pipeline construction. A runner inserts the transform in
+    // ProcessBundleDescriptors to indicate where the bundle can send
+    // data for each associated ProcessBundleRequest. Data for the same
+    // request will be sent with the matching instruction ID and transform ID.
+    // Each PCollection that exits the ProcessBundleDescriptor subgraph will have
+    // it's own DataSink, keyed by a transform ID determined by the runner.
+    //  
+    // The DataSink will take in a stream of elements for a given instruction ID
+    // and encode them for transmission to the remote sink. The coder ID must be
+    // for a windowed value coder.
+    //
+    // Payload: RemoteGrpcPort
+    DATA_SINK = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:runner:sink:v1"];
+  }
+}
+
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
@@ -155,20 +201,32 @@ message SampleDataRequest {
   repeated string pcollection_ids = 1;
 }
 
-
 // An element sampled when the SDK is processing a bundle. This is a proto
 // message to allow for additional per-element metadata.
 message SampledElement {
-  // Required. Sampled raw bytes for an element. This is a
+  // (Required) Sampled raw bytes for an element. This is a
   // single encoded element in the nested context.
   bytes element = 1;
 
-  // FUTURE WORK: Capture lull detections and exceptions.
-  //
-  // Optional. Present if there was an exception
-  // processing the above element.
-  //
-  // LogEntry exception_entry = 2;
+  // (Required) Timestamp of when the sample was taken.
+  google.protobuf.Timestamp sample_timestamp = 2;
+
+  message Exception {
+    // (Required) The instruction ID of the associated ProcessBundleRequest.
+    string instruction_id = 1;
+
+    // (Required) The transform ID of the executing PTransform during the
+    // exception.
+    string transform_id = 2;
+
+    // (Required) The error message to be displayed to the user. Can use the
+    // other fields to query for contextual logs.
+    string error = 3;
+  }
+
+  // (Optional) This will be set if this element was sampled because of a user
+  // exception.
+  Exception exception = 3;
 }
 
 // If supported, the `SampleDataResponse` will contain samples from PCollections
@@ -181,27 +239,6 @@ message SampleDataResponse {
 
   // Map from PCollection id to sampled elements.
   map<string, ElementList> element_samples = 1;
-
-  // FUTURE WORK: Investigate ways of storing multiple interesting types of
-  // sampled elements. There are two ways of accomplishing this:
-  // 1) Maps of typed elements: include multiple maps here with typed element
-  // proto messages, ex.
-  //
-  // message SlowElement {...}
-  // message ErroredElement {...}
-  // map<string, SlowElement> slow_elements
-  // map<string, ErroredElement> errored_elements
-  //
-  // However, this forces an element into a single category. It disallows
-  // classification across multiple characteristics (like a slow and errored
-  // element).
-  //
-  // 2) Compositional types: allow for URN and payloads on the base
-  // SampledElement message for interesting characteristics. The base class
-  // can then be queried for specific URNs. This allows for multiple
-  // attributes on the same element.
-  //
-  // For a longer conversation, see https://github.com/apache/beam/pull/25065.
 }
 
 // A request to provide full MonitoringInfo associated with the entire SDK

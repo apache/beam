@@ -1,0 +1,71 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+name: Build and Version Runner Docker Image
+
+on:
+  push:
+    branches: ['master']
+    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/build_runner_image.yml']
+  pull_request_target:
+    branches: ['master']
+    paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
+env:
+  docker_registry: us-central1-docker.pkg.dev
+  docker_repo: apache-beam-testing/beam-github-actions/beam-arc-runner
+jobs:
+  build-and-version-runner:
+    env:
+        working-directory: .github/gh-actions-self-hosted-runners/arc/images/
+    runs-on: [self-hosted, ubuntu-20.04]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+    - name: Authenticate on GCP
+      uses: google-github-actions/setup-gcloud@v0
+      with:
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        export_default_credentials: true
+    - name: GCloud Docker credential helper
+      run: |
+        gcloud auth configure-docker ${{env.docker_registry}}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Build and Load to docker
+      uses: docker/build-push-action@v4
+      with:
+        context: ${{ env.working-directory }}
+        load: true
+        tags: |
+          ${{env.docker_registry}}/${{env.docker_repo}}:latest
+          ${{env.docker_registry}}/${{env.docker_repo}}:${{ github.sha }}
+    - name: Push Docker image
+      if: github.event_name == 'push'
+      id: docker_build
+      uses: docker/build-push-action@v4
+      with:
+        context: ${{ env.working-directory }}
+        push: true
+        tags: |
+          ${{env.docker_registry}}/${{env.docker_repo}}:latest
+          ${{env.docker_registry}}/${{env.docker_repo}}:${{ github.sha }}

@@ -17,24 +17,39 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
-
 import com.google.api.client.util.Clock;
 import com.google.auto.service.AutoService;
+import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.utils.JsonUtils;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Pub/Sub reads configured using
@@ -44,203 +59,191 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
-@Internal
 @AutoService(SchemaTransformProvider.class)
 public class PubsubReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubReadSchemaTransformConfiguration> {
-  static final String OUTPUT_TAG = "OUTPUT";
 
-  /** Returns the expected class of the configuration. */
+  public static final String VALID_FORMATS_STR = "AVRO,JSON";
+  public static final Set<String> VALID_DATA_FORMATS =
+      Sets.newHashSet(VALID_FORMATS_STR.split(","));
+
+  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
+
   @Override
-  protected Class<PubsubReadSchemaTransformConfiguration> configurationClass() {
+  public Class<PubsubReadSchemaTransformConfiguration> configurationClass() {
     return PubsubReadSchemaTransformConfiguration.class;
   }
 
-  /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(PubsubReadSchemaTransformConfiguration configuration) {
-    PubsubMessageToRow toRowTransform =
-        PubsubSchemaTransformMessageToRowFactory.from(configuration).buildMessageToRow();
-    return new PubsubReadSchemaTransform(configuration, toRowTransform);
-  }
-
-  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
-  @Override
-  public String identifier() {
-    return "beam:schematransform:org.apache.beam:pubsub_read:v1";
-  }
-
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
-   * no input is expected, this returns an empty list.
-   */
-  @Override
-  public List<String> inputCollectionNames() {
-    return Collections.emptyList();
-  }
-
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
-   * a single output is expected, this returns a list with a single name.
-   */
-  @Override
-  public List<String> outputCollectionNames() {
-    return Collections.singletonList(OUTPUT_TAG);
-  }
-
-  /**
-   * An implementation of {@link SchemaTransform} for Pub/Sub reads configured using {@link
-   * PubsubReadSchemaTransformConfiguration}.
-   */
-  static class PubsubReadSchemaTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
-
-    private final PubsubReadSchemaTransformConfiguration configuration;
-    private final PubsubMessageToRow pubsubMessageToRow;
-
-    private PubsubClient.PubsubClientFactory clientFactory;
-
-    private Clock clock;
-
-    private PubsubReadSchemaTransform(
-        PubsubReadSchemaTransformConfiguration configuration,
-        PubsubMessageToRow pubsubMessageToRow) {
-      this.configuration = configuration;
-      this.pubsubMessageToRow = pubsubMessageToRow;
+  public SchemaTransform from(PubsubReadSchemaTransformConfiguration configuration) {
+    if (configuration.getSubscription() == null && configuration.getTopic() == null) {
+      throw new IllegalArgumentException(
+          "To read from Pubsub, a subscription name or a topic name must be provided");
     }
 
-    /**
-     * Sets the {@link PubsubClient.PubsubClientFactory}.
-     *
-     * <p>Used for testing.
-     */
-    void setClientFactory(PubsubClient.PubsubClientFactory value) {
-      this.clientFactory = value;
+    if (configuration.getSubscription() != null && configuration.getTopic() != null) {
+      throw new IllegalArgumentException(
+          "To read from Pubsub, a subscription name or a topic name must be provided. Not both.");
     }
 
-    /**
-     * Sets the {@link Clock}.
-     *
-     * <p>Used for testing.
-     */
-    void setClock(Clock clock) {
+    if ((Strings.isNullOrEmpty(configuration.getSchema())
+            && !Strings.isNullOrEmpty(configuration.getFormat()))
+        || (!Strings.isNullOrEmpty(configuration.getSchema())
+            && Strings.isNullOrEmpty(configuration.getFormat()))) {
+      throw new IllegalArgumentException(
+          "A schema was provided without a data format (or viceversa). Please provide "
+              + "both of these parameters to read from Pubsub, or if you would like to use the Pubsub schema service,"
+              + " please leave both of these blank.");
+    }
+
+    Schema beamSchema;
+    SerializableFunction<byte[], Row> valueMapper;
+
+    if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Format %s not supported. Only supported formats are %s",
+              configuration.getFormat(), VALID_FORMATS_STR));
+    }
+    beamSchema =
+        Objects.equals(configuration.getFormat(), "JSON")
+            ? JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema())
+            : AvroUtils.toBeamSchema(
+                new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
+    valueMapper =
+        Objects.equals(configuration.getFormat(), "JSON")
+            ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
+            : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+
+    PubsubReadSchemaTransform transform =
+        new PubsubReadSchemaTransform(
+            configuration.getTopic(), configuration.getSubscription(), beamSchema, valueMapper);
+
+    if (configuration.getClientFactory() != null) {
+      transform.setClientFactory(configuration.getClientFactory());
+    }
+    if (configuration.getClock() != null) {
+      transform.setClock(configuration.getClock());
+    }
+
+    return transform;
+  }
+
+  private static class PubsubReadSchemaTransform extends SchemaTransform implements Serializable {
+    final Schema beamSchema;
+    final SerializableFunction<byte[], Row> valueMapper;
+    final @Nullable String topic;
+    final @Nullable String subscription;
+    @Nullable PubsubTestClientFactory clientFactory;
+    @Nullable Clock clock;
+
+    PubsubReadSchemaTransform(
+        @Nullable String topic,
+        @Nullable String subscription,
+        Schema beamSchema,
+        SerializableFunction<byte[], Row> valueMapper) {
+      this.topic = topic;
+      this.subscription = subscription;
+      this.beamSchema = beamSchema;
+      this.valueMapper = valueMapper;
+    }
+
+    private static class ErrorCounterFn extends DoFn<PubsubMessage, Row> {
+      private Counter pubsubErrorCounter;
+      private Long errorsInBundle = 0L;
+      private SerializableFunction<byte[], Row> valueMapper;
+
+      ErrorCounterFn(String name, SerializableFunction<byte[], Row> valueMapper) {
+        this.pubsubErrorCounter = Metrics.counter(PubsubReadSchemaTransformProvider.class, name);
+        this.valueMapper = valueMapper;
+      }
+
+      @ProcessElement
+      public void process(@DoFn.Element PubsubMessage message, MultiOutputReceiver receiver) {
+
+        try {
+          receiver.get(OUTPUT_TAG).output(valueMapper.apply(message.getPayload()));
+        } catch (Exception e) {
+          errorsInBundle += 1;
+          receiver
+              .get(ERROR_TAG)
+              .output(
+                  Row.withSchema(ERROR_SCHEMA)
+                      .addValues(e.toString(), message.getPayload())
+                      .build());
+        }
+      }
+
+      @FinishBundle
+      public void finish(FinishBundleContext c) {
+        pubsubErrorCounter.inc(errorsInBundle);
+        errorsInBundle = 0L;
+      }
+    }
+
+    void setClientFactory(@Nullable PubsubTestClientFactory factory) {
+      this.clientFactory = factory;
+    }
+
+    void setClock(@Nullable Clock clock) {
       this.clock = clock;
     }
 
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
+    @SuppressWarnings("nullness")
+    PubsubIO.Read<PubsubMessage> buildPubsubRead() {
+      PubsubIO.Read<PubsubMessage> pubsubRead = PubsubIO.readMessages();
+      if (!Strings.isNullOrEmpty(topic)) {
+        pubsubRead = pubsubRead.fromTopic(topic);
+      } else {
+        pubsubRead = pubsubRead.fromSubscription(subscription);
+      }
+      if (clientFactory != null && clock != null) {
+        pubsubRead = pubsubRead.withClientFactory(clientFactory);
+        pubsubRead = clientFactory.setClock(pubsubRead, clock);
+      } else if (clientFactory != null || clock != null) {
+        throw new IllegalArgumentException(
+            "Both PubsubTestClientFactory and Clock need to be specified for testing, but only one is provided");
+      }
+      return pubsubRead;
     }
 
-    /** Validates the {@link PubsubReadSchemaTransformConfiguration}. */
-    @Override
-    public void validate(@Nullable PipelineOptions options) {
-      if (configuration.getSubscription() == null && configuration.getTopic() == null) {
-        throw new IllegalArgumentException(
-            String.format(
-                "%s needs to set either the topic or the subscription",
-                PubsubReadSchemaTransformConfiguration.class));
-      }
-
-      if (configuration.getSubscription() != null && configuration.getTopic() != null) {
-        throw new IllegalArgumentException(
-            String.format(
-                "%s should not set both the topic or the subscription",
-                PubsubReadSchemaTransformConfiguration.class));
-      }
-
-      try {
-        PayloadSerializers.getSerializer(
-            configuration.getFormat(), configuration.getDataSchema(), new HashMap<>());
-      } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid %s, no serializer provider exists for format `%s`",
-                PubsubReadSchemaTransformConfiguration.class, configuration.getFormat()));
-      }
-    }
-
-    /** Reads from Pub/Sub according to {@link PubsubReadSchemaTransformConfiguration}. */
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      if (!input.getAll().isEmpty()) {
-        throw new IllegalArgumentException(
-            String.format(
-                "%s %s input is expected to be empty",
-                input.getClass().getSimpleName(), getClass().getSimpleName()));
-      }
+      PubsubIO.Read<PubsubMessage> pubsubRead = buildPubsubRead();
 
-      PCollectionTuple rowsWithDlq =
+      PCollectionTuple outputTuple =
           input
               .getPipeline()
-              .apply("ReadFromPubsub", buildPubsubRead())
-              .apply("PubsubMessageToRow", pubsubMessageToRow);
+              .apply(pubsubRead)
+              .apply(
+                  ParDo.of(new ErrorCounterFn("PubSub-read-error-counter", valueMapper))
+                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      writeToDeadLetterQueue(rowsWithDlq);
-
-      return PCollectionRowTuple.of(OUTPUT_TAG, rowsWithDlq.get(MAIN_TAG));
+      return PCollectionRowTuple.of(
+          "output",
+          outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
+          "errors",
+          outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
+  }
 
-    private void writeToDeadLetterQueue(PCollectionTuple rowsWithDlq) {
-      PubsubIO.Write<PubsubMessage> deadLetterQueue = buildDeadLetterQueueWrite();
-      if (deadLetterQueue == null) {
-        return;
-      }
-      rowsWithDlq.get(DLQ_TAG).apply("WriteToDeadLetterQueue", deadLetterQueue);
-    }
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+    return "beam:schematransform:org.apache.beam:pubsub_read:v1";
+  }
 
-    /**
-     * Builds {@link PubsubIO.Write} dead letter queue from {@link
-     * PubsubReadSchemaTransformConfiguration}.
-     */
-    PubsubIO.Write<PubsubMessage> buildDeadLetterQueueWrite() {
-      if (configuration.getDeadLetterQueue() == null) {
-        return null;
-      }
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
+      inputCollectionNames() {
+    return Collections.emptyList();
+  }
 
-      PubsubIO.Write<PubsubMessage> writeDlq =
-          PubsubIO.writeMessages().to(configuration.getDeadLetterQueue());
-
-      if (configuration.getTimestampAttribute() != null) {
-        writeDlq = writeDlq.withTimestampAttribute(configuration.getTimestampAttribute());
-      }
-
-      return writeDlq;
-    }
-
-    /** Builds {@link PubsubIO.Read} from a {@link PubsubReadSchemaTransformConfiguration}. */
-    PubsubIO.Read<PubsubMessage> buildPubsubRead() {
-      PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes();
-
-      if (configuration.getSubscription() != null) {
-        read = read.fromSubscription(configuration.getSubscription());
-      }
-
-      if (configuration.getTopic() != null) {
-        read = read.fromTopic(configuration.getTopic());
-      }
-
-      if (configuration.getTimestampAttribute() != null) {
-        read = read.withTimestampAttribute(configuration.getTimestampAttribute());
-      }
-
-      if (configuration.getIdAttribute() != null) {
-        read = read.withIdAttribute(configuration.getIdAttribute());
-      }
-
-      if (clientFactory != null) {
-        read = read.withClientFactory(clientFactory);
-      }
-
-      if (clock != null) {
-        read = read.withClock(clock);
-      }
-
-      return read;
-    }
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
+      outputCollectionNames() {
+    return Arrays.asList("output", "errors");
   }
 }

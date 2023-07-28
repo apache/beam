@@ -174,7 +174,8 @@ class GcsIO(object):
           http=get_new_http(),
           response_encoding='utf8',
           additional_http_headers={
-              "User-Agent": "apache-beam-%s" % apache_beam.__version__
+              "User-Agent": "apache-beam/%s (GPN:Beam)" %
+              apache_beam.__version__
           })
     self.client = storage_client
     self._rewrite_cb = None
@@ -823,7 +824,6 @@ class GcsUploader(Uploader):
     self._upload_thread.join()
     # Check for exception since the last put() call.
     if self._upload_thread.last_error is not None:
+      e = self._upload_thread.last_error
       raise type(self._upload_thread.last_error)(
-          "Error while uploading file %s: %s",
-          self._path,
-          self._upload_thread.last_error.message)  # pylint: disable=raising-bad-type
+          "Error while uploading file %s" % self._path) from e  # pylint: disable=raising-bad-type

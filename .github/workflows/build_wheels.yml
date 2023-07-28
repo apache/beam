@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EVENT_NAME: ${{ github.event_name }}
-      PY_VERSIONS_FULL: "cp37-* cp38-* cp39-* cp310-* cp311-*"
+      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -91,7 +91,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: python -m pip install -r build-requirements.txt
@@ -255,7 +255,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: 3.8
     - uses: docker/setup-qemu-action@v1
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
@@ -269,7 +269,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
@@ -295,7 +295,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython  numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums

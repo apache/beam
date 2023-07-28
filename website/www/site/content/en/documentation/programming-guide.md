@@ -2568,9 +2568,7 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go">}}
 **Timer and State:**
-User defined State parameters can be used in a stateful DoFn. Timers aren't implemented in the Go SDK yet;
-see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer
-parameters can be used in a stateful DoFn.
+User defined State and Timer parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
@@ -6147,7 +6145,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" bag_state >}}
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -6270,7 +6268,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" event_time_timer >}}
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -6322,7 +6320,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" processing_time_timer >}}
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -6383,7 +6381,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" dynamic_timer_tags >}}
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -6435,6 +6433,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_bad >}}
+{{< /highlight >}}
+
 The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
 from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
 to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
@@ -6471,7 +6473,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
         ? Instant.now().plus(Duration.standardMinutes(1)) : new Instant(timerTimestampMs);
     // Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the
     // timer fires. This allows outputting all the elements with their timestamp.
-    timer.withOutputTimestamp(minTimestamp.read()).set(timerToSet).
+    timer.withOutputTimestamp(minTimestamp.read()).s et(timerToSet).
     timerTimestamp.write(timerToSet.getMillis());
   }
 
@@ -6494,7 +6496,7 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_good >}}
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -6624,7 +6626,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_garbage_collection >}}
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6764,6 +6766,11 @@ _ = (p | 'EventsPerLinkId' >> ReadPerLinkEvents()
        | 'Join DoFn' >> beam.ParDo(JoinDoFn()))
 {{< /highlight >}}
 
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" join_dofn_example >}}
+{{< /highlight >}}
+
 #### 11.5.2. Batching RPCs {#batching-rpcs}
 
 In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
@@ -6829,6 +6836,12 @@ class BufferDoFn(DoFn):
     is_timer_set.clear()
 
 {{< /highlight >}}
+
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" batching_dofn_example >}}
+{{< /highlight >}}
+
 
 ## 12. Splittable `DoFns` {#splittable-dofns}
 
@@ -7664,7 +7677,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
             | beam.Create(['a', 'b']).with_output_types(unicode)
             | beam.ExternalTransform(
                 TEST_PREFIX_URN,
-                ImplicitSchemaPayloadBuilder({'data': u'0'}),
+                ImplicitSchemaPayloadBuilder({'data': '0'}),
                 <expansion service>))
         assert_that(res, equal_to(['0a', '0b']))
     ```

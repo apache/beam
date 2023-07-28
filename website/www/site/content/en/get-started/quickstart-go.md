@@ -25,21 +25,13 @@ If you're interested in contributing to the Apache Beam Go codebase, see the [Co
 
 ## Set up your environment
 
-The Beam SDK for Go requires `go` version 1.19 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.19 by running:
+The Beam SDK for Go requires `go` version 1.19 or newer. It can be downloaded [here](https://golang.org/). Check that you have at least version 1.19 by running:
 
 {{< highlight >}}
 $ go version
 {{< /highlight >}}
 
-## Get the SDK and the examples
-
-The easiest way to obtain the Apache Beam Go SDK is via `go get`:
-
-{{< highlight >}}
-$ go get -u github.com/apache/beam/sdks/v2/go/pkg/beam
-{{< /highlight >}}
-
-For development of the Go SDK itself, see [BUILD.md](https://github.com/apache/beam/blob/master/sdks/go/BUILD.md) for details.
+If you are unfamiliar with Go, see the [Get Started With Go Tutorial](https://go.dev/doc/tutorial/getting-started).
 
 ## Run wordcount
 
@@ -51,22 +43,18 @@ required arguments described in the examples.
 For example, to run `wordcount`, run:
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
-$ wordcount --input <PATH_TO_INPUT_FILE> --output counts
+$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input "gs://apache-beam-samples/shakespeare/kinglear.txt" --output counts
+$ less counts
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
-# As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
-$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --region your-gcp-region \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apache/beam_go_sdk:latest
+            --staging_location gs://<your-gcs-bucket>/binaries/
 {{< /runner >}}
 
 {{< runner spark >}}
@@ -75,8 +63,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 $ ./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 
 # In a separate terminal, run:
-$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
-$ wordcount --input <PATH_TO_INPUT_FILE> \
+$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input <PATH_TO_INPUT_FILE> \
             --output counts \
             --runner spark \
             --endpoint localhost:8099
@@ -87,6 +74,7 @@ $ wordcount --input <PATH_TO_INPUT_FILE> \
 * Learn more about the [Beam SDK for Go](/documentation/sdks/go/)
   and look through the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
+* Clone the [Beam Go starter project](https://github.com/apache/beam-starter-go).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 * Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
