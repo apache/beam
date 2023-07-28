@@ -45,11 +45,12 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
   beam_PreCommit_PythonLint:
+    name: beam_PreCommit_PythonLint (Run PythonLint PreCommit)
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 

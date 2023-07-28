@@ -66,5 +66,9 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run goPostCommitDataflowARM test
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: run Go dataflowValidatesRunnerARM64 test
         run: ./gradlew :goPostCommitDataflowARM
+        env:
+          USER: github-actions
