@@ -50,7 +50,7 @@ class AbstractDoFnWrapper(DoFn):
     self.dofn = dofn
 
   def __getattribute__(self, name):
-    if (name.startswith('__') or name in self.__dict__ or
+    if (name.startswith('_') or name in self.__dict__ or
         hasattr(type(self), name)):
       return object.__getattribute__(self, name)
     else:
