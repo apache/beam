@@ -1854,6 +1854,8 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStreaming);
     assumeTrue(useStorageApi);
     thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Auto schema update currently only supported when ignoreUnknownValues also set.");
     p.apply("create", Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -1864,6 +1866,46 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testWriteValidateFailsWithoutTriggeringFrequency() {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate);
+    p.enableAbandonedNodeEnforcement(false);
+    Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API");
+    thrown.expectMessage("triggering frequency must be specified");
+
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withMethod(method)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
+  }
+
+  @Test
+  public void testWriteValidateFailsStorageAtLeastOnceWithTriggeringFrequency() {
+    assumeTrue(useStorageApiApproximate);
+    p.enableAbandonedNodeEnforcement(false);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API");
+
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(1);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
   }
 
   @SuppressWarnings({"unused"})
@@ -2140,17 +2182,17 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithBatchAutoSharding() {
-    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Auto-sharding is only applicable to an unbounded PCollection.");
+    thrown.expectMessage(
+        "Auto-sharding is only applicable to an unbounded PCollection, but the input PCollection is BOUNDED.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
                 .to("dataset.table")
                 .withSchema(new TableSchema())
-                .withMethod(Method.STREAMING_INSERTS)
                 .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }

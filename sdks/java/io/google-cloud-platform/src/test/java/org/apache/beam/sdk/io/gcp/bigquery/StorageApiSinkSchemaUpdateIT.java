@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Table;
@@ -353,8 +352,8 @@ public class StorageApiSinkSchemaUpdateIT {
     int expectedCount = useIgnoreUnknownValues ? MAX_N : numOriginalRows;
     boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API) ? true : false;
     checkRowCompleteness(tableSpec, expectedCount, checkNoDuplication);
-    if (useAutoSchemaUpdate) {
-      checkRowsWithUpdatedSchema(tableSpec, extraField, numOriginalRows);
+    if (useIgnoreUnknownValues) {
+      checkRowsWithUpdatedSchema(tableSpec, extraField, numOriginalRows, useAutoSchemaUpdate);
     }
   }
 
@@ -380,14 +379,15 @@ public class StorageApiSinkSchemaUpdateIT {
     }
   }
 
-  public void checkRowsWithUpdatedSchema(String tableSpec, String extraField, int numOriginalRows)
+  public void checkRowsWithUpdatedSchema(
+      String tableSpec, String extraField, int numOriginalRows, boolean useAutoSchemaUpdate)
       throws IOException, InterruptedException {
     List<TableRow> actualRows =
         BQ_CLIENT.queryUnflattened(
             String.format("SELECT id, %s FROM %s", extraField, tableSpec), PROJECT, true, false);
 
     for (TableRow row : actualRows) {
-      if (Integer.parseInt((String) row.get("id")) < numOriginalRows) {
+      if (Integer.parseInt((String) row.get("id")) < numOriginalRows || !useAutoSchemaUpdate) {
         assertTrue(row.get(extraField) == null);
       } else {
         assertTrue(row.get(extraField) != null);
@@ -412,6 +412,11 @@ public class StorageApiSinkSchemaUpdateIT {
   }
 
   @Test
+  public void testExactlyOnceOnSchemaChangeWithIgnoreUnknownValues() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true, 0, true);
+  }
+
+  @Test
   public void testExactlyOnceOnSchemaChangeWithAutoSchemaUpdate() throws Exception {
     runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, 1, true, 0, true);
   }
@@ -423,35 +428,14 @@ public class StorageApiSinkSchemaUpdateIT {
   }
 
   @Test
+  public void testAtLeastOnceOnSchemaChangeWithIgnoreUnknownValues() throws Exception {
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, true, 0, true);
+  }
+
+  @Test
   public void testAtLeastOnceOnSchemaChangeWithAutoSchemaUpdate() throws Exception {
     runStreamingPipelineWithSchemaChange(
         Write.Method.STORAGE_API_AT_LEAST_ONCE, true, 0, false, 0, true);
-  }
-
-  @Test
-  public void testExceptionOnWriteExactlyOnceWithZeroTriggeringFreq() throws Exception {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            runStreamingPipelineWithSchemaChange(
-                Write.Method.STORAGE_WRITE_API, false, 0, true, 0, false));
-  }
-
-  @Test
-  public void testExceptionOnAutoSchemaUpdateWithoutIgnoreUnknownValues() throws Exception {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            runStreamingPipelineWithSchemaChange(
-                Write.Method.STORAGE_WRITE_API, true, 1, true, 0, false));
-  }
-
-  @Test
-  public void testExceptionOnWriteAtLeastOnceWithTriggeringFreq() throws Exception {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            runStreamingPipelineWithSchemaChange(
-                Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 1, true, 0, false));
   }
 }

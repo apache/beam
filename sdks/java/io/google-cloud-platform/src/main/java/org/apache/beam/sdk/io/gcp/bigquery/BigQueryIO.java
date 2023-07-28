@@ -3143,7 +3143,8 @@ public class BigQueryIO {
                   + "triggering frequency must be specified");
         } else {
           checkArgument(
-              getTriggeringFrequency() == null,
+              getTriggeringFrequency() == null
+                  && getStorageApiTriggeringFrequency(bqOptions) == null,
               "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
               method);
         }
@@ -3178,14 +3179,9 @@ public class BigQueryIO {
           LOG.warn("Setting the number of Storage API streams" + error);
         }
       }
-      if (method == Method.STORAGE_API_AT_LEAST_ONCE) {
-        if (getAutoSharding()) {
-          LOG.warn("Autosharding is only supported when using STORAGE_WRITE_API");
-        }
-        if (getStorageApiNumStreams(bqOptions) != 0) {
-          LOG.warn(
-              "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
-        }
+      if (method == Method.STORAGE_API_AT_LEAST_ONCE && getStorageApiNumStreams(bqOptions) != 0) {
+        LOG.warn(
+            "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
       }
 
       if (method != Method.STORAGE_WRITE_API && method != Method.STORAGE_API_AT_LEAST_ONCE) {
