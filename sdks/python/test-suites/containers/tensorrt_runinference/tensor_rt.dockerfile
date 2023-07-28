@@ -29,7 +29,7 @@ RUN pip install --upgrade pip \
     && pip install torch>=1.7.1 \
     && pip install torchvision>=0.8.2 \
     && pip install pillow>=8.0.0 \
-    && pip install transformers>=4.18.0 \
+    && pip install transformers==4.30.0 \
     && pip install cuda-python
 
 ENTRYPOINT [ "/opt/apache/beam/boot" ]
