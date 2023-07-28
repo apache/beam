@@ -241,12 +241,10 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:extensions-java:metrics:build")
-  // lowest and highest supported flink versions
+  // lowest supported flink version
   var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
   dependsOn(":runners:flink:${flinkVersions[0]}:build")
   dependsOn(":runners:flink:${flinkVersions[0]}:job-server:build")
-  dependsOn(":runners:flink:${flinkVersions[flinkVersions.size - 1]}:build")
-  dependsOn(":runners:flink:${flinkVersions[flinkVersions.size - 1]}:job-server:build")
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
@@ -358,10 +356,10 @@ tasks.register("javaioPreCommit") {
 }
 
 // a precommit task testing additional supported flink versions not covered by
-// the main Java PreCommit (lowest and highest supported version)
+// the main Java PreCommit (lowest supported version)
 tasks.register("flinkPreCommit") {
   var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
-  for (version in flinkVersions.slice(1..flinkVersions.size - 2)) {
+  for (version in flinkVersions.slice(1..flinkVersions.size - 1)) {
     dependsOn(":runners:flink:${version}:build")
     dependsOn(":runners:flink:${version}:job-server:build")
   }

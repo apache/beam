@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Java Flink Runner PreCommit
+name: Java Flink Versions PreCommit
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
       - 'model/**'
       - 'runners/flink/**'
       - 'release/**'
-      - '.github/workflows/beam_PreCommit_Java_Flink.yml'
+      - '.github/workflows/beam_PreCommit_Java_Flink_Versions.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
@@ -57,19 +57,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Java_Flink:
+  beam_PreCommit_Java_Flink_Versions:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java_Flink PreCommit'
+      github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_Java_Flink (Run Java_Flink PreCommit)
+    name: beam_PreCommit_Java_Flink_Versions (Run Java_Flink_Versions PreCommit)
     steps:
     - name: Git checkout
       uses: actions/checkout@v3
     - name: Rerun on comment
-      if: github.event.comment.body == 'Run Java_Flink PreCommit'
+      if: github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
       uses: ./.github/actions/rerun-job-action
       with:
         pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -90,5 +90,5 @@ jobs:
       uses: gradle/gradle-build-action@v2
       with:
         cache-read-only: false
-    - name: run Java Flink PreCommit script
+    - name: run Java Flink Versions PreCommit script
       run: ./gradlew :flinkPreCommit
