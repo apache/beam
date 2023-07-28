@@ -818,6 +818,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_jdbc                         : "org.testcontainers:jdbc:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
+        testcontainers_mongodb                      : "org.testcontainers:mongodb:$testcontainers_version",
         testcontainers_mssqlserver                  : "org.testcontainers:mssqlserver:$testcontainers_version",
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
         testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",

@@ -105,6 +105,7 @@ include(":it:google-cloud-platform")
 include(":it:jdbc")
 include(":it:testcontainers")
 include(":it:truthmatchers")
+include(":it:mongodb")
 
 include(":learning:tour-of-beam:frontend")
 
