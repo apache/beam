@@ -37,6 +37,8 @@ dependencies {
     implementation project(":sdks:java:extensions:schemaio-expansion-service")
     permitUnusedDeclared project(":sdks:java:extensions:schemaio-expansion-service") // BEAM-11761
     runtimeOnly library.java.slf4j_jdk14
+    implementation library.java.guava
+    permitUnusedDeclared library.java.guava
 }
 
 task runExpansionService (type: JavaExec) {
