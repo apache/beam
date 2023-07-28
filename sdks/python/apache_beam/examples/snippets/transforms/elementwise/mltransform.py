@@ -24,20 +24,16 @@
 def mltransform_scale_to_0_1(test=None):
   # [START mltransform_scale_to_0_1]
   import apache_beam as beam
-  # TODO: refactor this import
   from apache_beam.ml.transforms.base import MLTransform
   from apache_beam.ml.transforms.tft import ScaleTo01
   import tempfile
 
   data = [
       {
-          'x': [1, 2, 3]
+          'x': [1, 5, 3]
       },
       {
-          'x': [4, 5, 6]
-      },
-      {
-          'x': [7, 8, 9]
+          'x': [4, 2, 8]
       },
   ]
 
@@ -56,8 +52,8 @@ def mltransform_scale_to_0_1(test=None):
       test(transformed_data)
 
 
-def ml_transform_compute_and_apply_vocabulary(test=None):
-  # [START ml_transform_compute_and_apply_vocabulary]
+def mltransform_compute_and_apply_vocabulary(test=None):
+  # [START mltransform_compute_and_apply_vocabulary]
   import apache_beam as beam
   from apache_beam.ml.transforms.base import MLTransform
   from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
@@ -80,13 +76,13 @@ def ml_transform_compute_and_apply_vocabulary(test=None):
         | MLTransform(artifact_location=artifact_location).with_transform(
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
-  # [END ml_transform_compute_and_apply_vocabulary]
+  # [END mltransform_compute_and_apply_vocabulary]
   if test:
     test(transformed_data)
 
 
-def ml_transform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
-  # [START ml_transform_compute_and_apply_vocabulary_with_scalar]
+def mltransform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
+  # [START mltransform_compute_and_apply_vocabulary_with_scalar]
   import apache_beam as beam
   from apache_beam.ml.transforms.base import MLTransform
   from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
@@ -123,6 +119,6 @@ def ml_transform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
 
-  # [END ml_transform_compute_and_apply_vocabulary_with_scalar]
+  # [END mltransform_compute_and_apply_vocabulary_with_scalar]
   if test:
     test(transformed_data)
