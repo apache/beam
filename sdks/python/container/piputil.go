@@ -55,14 +55,14 @@ func pipInstallRequirements(files []string, dir, name string) error {
 
 // isPackageInstalled checks if the given package is installed in the
 // environment.
-func isPackageInstalled(pkgName string) (bool, error) {
+func isPackageInstalled(pkgName string) bool {
 	cmd := exec.Command("python", "-m", "pip", "show", pkgName)
 	if err := cmd.Run(); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			return false, nil
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
 // pipInstallPackage installs the given package, if present.
