@@ -104,7 +104,7 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
           if (autoUpdateSchema) {
             try {
               @Nullable TableRow unknownFields = payload.getUnknownFields();
-              if (unknownFields != null) {
+              if (unknownFields != null && !unknownFields.isEmpty()) {
                 // Protocol buffer serialization format supports concatenation. We serialize any new
                 // "known" fields
                 // into a proto and concatenate to the existing proto.

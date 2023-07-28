@@ -572,15 +572,11 @@ public class BigqueryClient {
   }
 
   public void updateTableSchema(
-      String projectId, String datasetId, String tableId, TableSchema newSchema) {
-    try {
-      this.bqClient
-          .tables()
-          .patch(projectId, datasetId, tableId, new Table().setSchema(newSchema))
-          .execute();
-      LOG.info("Successfully updated the schema of table: " + tableId);
-    } catch (Exception e) {
-      LOG.debug("Exceptions caught when updating table schema: " + e.getMessage());
-    }
+      String projectId, String datasetId, String tableId, TableSchema newSchema) throws IOException {
+    this.bqClient
+        .tables()
+        .patch(projectId, datasetId, tableId, new Table().setSchema(newSchema))
+        .execute();
+    LOG.info("Successfully updated the schema of table {}:{}.{}. New schema:\n{}", projectId, datasetId, tableId, newSchema.toPrettyString());
   }
 }
