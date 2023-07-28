@@ -52,7 +52,7 @@ concurrency:
 
 jobs:
   beam_PreCommit_Go:
-    name: beam_PreCommit_Go  (Run Go PreCommit)
+    name: beam_PreCommit_Go (Run Go PreCommit)
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
