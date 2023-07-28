@@ -104,7 +104,8 @@ public class HBaseIOTest {
 
     // We don't use the full htu.startMiniCluster() to avoid starting unneeded HDFS/MR daemons
     htu.startMiniZKCluster();
-    StartMiniClusterOption option = StartMiniClusterOption.builder().numMasters(1).numRegionServers(4).build();
+    StartMiniClusterOption option =
+        StartMiniClusterOption.builder().numMasters(1).numRegionServers(4).build();
     MiniHBaseCluster hbm = htu.startMiniHBaseCluster(option);
     hbm.waitForActiveAndReadyMaster();
 
