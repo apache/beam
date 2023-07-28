@@ -424,7 +424,8 @@ echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
 cd ../..
 
 if [[ "$RUNNER" == "dataflow" ]]; then
-  # Delete the container remotely
+  # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
