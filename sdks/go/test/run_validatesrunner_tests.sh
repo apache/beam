@@ -358,9 +358,16 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   TAG=$(date +%Y%m%d-%H%M%S)
   CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
   echo "Using container $CONTAINER"
+
+  # TODO(https://github.com/apache/beam/issues/27674): remove this branch once the jenkins VM can build multiarch, or jenkins is deprecated.
   if [[ "$USER" == "jenkins" ]]; then
-    # TODO(https://github.com/apache/beam/issues/27674): remove this branch once the jenkins VM can build multiarch, or jenkins is deprecated.
-    ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Ppush-containers
+    ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
+
+    # Verify it exists
+    docker images | grep $TAG
+
+    # Push the container
+    gcloud docker -- push $CONTAINER:$TAG
   else 
     ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
   fi
