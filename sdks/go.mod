@@ -31,7 +31,7 @@ require (
 	cloud.google.com/go/spanner v1.47.0
 	cloud.google.com/go/storage v1.31.0
 	github.com/aws/aws-sdk-go-v2 v1.19.1
-	github.com/aws/aws-sdk-go-v2/config v1.18.29
+	github.com/aws/aws-sdk-go-v2/config v1.18.30
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.29
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.73
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.37.0
@@ -88,7 +88,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.36 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.30 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.36 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.37 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.27 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.30 // indirect
