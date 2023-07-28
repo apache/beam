@@ -285,6 +285,7 @@ func (n *DataSource) makeReStream(ctx context.Context, cv ElementDecoder, bcr *b
 	}
 
 	if onlyStream {
+		log.Warnf(ctx, "ONLY STREAM bytes read: %v, iter size: %v", bcr.count, size)
 		// If we know the stream won't be re-iterated,
 		// decode elements on demand instead to reduce memory usage.
 		switch {
