@@ -52,6 +52,7 @@ permissions:
 
 env:
   gcsbucket: apache-beam-website-pull-requests  
+  
 
 jobs:
   beam_PreCommit_Website_Stage_GCS:
@@ -84,11 +85,6 @@ jobs:
           state: open
       - name: Echo PR number
         run: echo "ghprbPullId=${{ steps.findPr.outputs.pr || github.event.issue.number }}" >> $GITHUB_ENV
-        # if: ${{ steps.findPr.outputs.number != null }}
-        # run: echo "ghprbPullId=${{ steps.findPr.outputs.pr }}" >> $GITHUB_ENV
-      - name: Echo PR number on comment
-        if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
-        run: echo "ghprbPullId=${{ github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
@@ -118,4 +114,3 @@ jobs:
         run: |
           USERNAME="$(whoami)"
           echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY 
-# commit
