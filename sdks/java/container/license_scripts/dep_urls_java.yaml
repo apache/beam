@@ -34,6 +34,10 @@ antlr-runtime:
   '3.1.2':
     license: "https://raw.githubusercontent.com/antlr/antlr4/master/LICENSE.txt"
     type: "3-Clause BSD"
+guava-parent:
+  '32.1.1-jre':
+    license: "https://github.com/google/guava/blob/master/LICENSE"
+    type: "Apache License 2.0"
 jcip-annotations:
   '1.0':
     license: "https://raw.githubusercontent.com/stephenc/jcip-annotations/master/LICENSE.txt"
