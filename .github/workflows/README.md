@@ -89,7 +89,7 @@ Note: most workflows use [self-hosted runners](https://docs.github.com/en/action
 with the main and ubuntu labels to execute ([example](https://github.com/apache/beam/blob/5a54ee6ddd8cb8444c41802929a364fe2561001e/.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml#L41)).
 If you are testing on a fork, you likely will not have self-hosted runners set up.
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
-You can do this by changing runs-on: [self-hosted, ubuntu-20.04, main] (self-hosted, use in your PR) to runs-on: ubuntu-20.04 (GitHub hosted, use for local testing).
+You can do this by changing `runs-on: [self-hosted, ubuntu-20.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
 
 ## Testing Workflow Updates
 
