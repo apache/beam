@@ -103,6 +103,7 @@ include(":it:conditions")
 include(":it:elasticsearch")
 include(":it:google-cloud-platform")
 include(":it:jdbc")
+include(":it:kafka")
 include(":it:testcontainers")
 include(":it:truthmatchers")
 
