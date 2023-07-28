@@ -233,7 +233,7 @@ func (p *Plan) Down(ctx context.Context) error {
 
 func (p *Plan) String() string {
 	var units []string
-	for i := len(units) - 1; i >= 0; i-- {
+	for i := len(p.units) - 1; i >= 0; i-- {
 		u := p.units[i]
 		units = append(units, fmt.Sprintf("%v: %v", u.ID(), u))
 	}
