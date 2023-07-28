@@ -303,7 +303,7 @@ def create_monitoring_info(urn, type_urn, payload, labels=None):
     return metrics_pb2.MonitoringInfo(
         urn=urn, type=type_urn, labels=labels or {}, payload=payload)
   except TypeError as e:
-    raise Exception(
+    raise RuntimeError(
         f'Failed to create MonitoringInfo for urn {urn} type {type} labels ' +
         '{labels} and payload {payload}') from e
 
