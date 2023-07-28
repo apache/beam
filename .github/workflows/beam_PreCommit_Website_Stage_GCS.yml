@@ -52,6 +52,7 @@ permissions:
 
 env:
   gcsbucket: apache-beam-website-pull-requests  
+  ghprbPullId:
 
 jobs:
   beam_PreCommit_Website_Stage_GCS:
@@ -83,11 +84,7 @@ jobs:
         with:
           state: open
       - name: Echo PR number
-        if: success() && steps.findPr.outputs.number
-        run: echo "ghprbPullId=${{ steps.findPr.outputs.pr }}" >> $GITHUB_ENV
-      - name: Echo PR number on comment
-        if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
-        run: echo "ghprbPullId=${{ github.event.issue.number }}" >> $GITHUB_ENV
+        run: echo "ghprbPullId=${{ steps.findPr.outputs.pr || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
@@ -110,10 +107,10 @@ jobs:
           gradle-command: :website:stageWebsite
           arguments: -PwebsiteBucket=$gcsbucket
       - name: Add website link to the summary if pr
-        if: steps.findPr.outputs.pr != null || github.event.issue.number != null
+        if: env.ghprbPullId != null
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY
       - name: Add website link to the summary
-        if: steps.findPr.outputs.pr == null && github.event.issue.number == null
+        if: env.ghprbPullId == null
         run: |
           USERNAME="$(whoami)"
-          echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY 
+          echo "Website published to http://$gcsbucket.storage.googleapis.com/$USERNAME-${GITHUB_REF##*/}/index.html" >> $GITHUB_STEP_SUMMARY
