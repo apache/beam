@@ -223,7 +223,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			// Decode key or parallel element.
 			pe, err := cp.Decode(bcr)
 			if err != nil {
-				return errors.Wrap(err, "source decode failed")
+				return errors.Wrapf(err, "source decode failed: ws %v, t %v, pn %v, pe %+v", ws, t, pn, pe)
 			}
 			pe.Timestamp = t
 			pe.Windows = ws
