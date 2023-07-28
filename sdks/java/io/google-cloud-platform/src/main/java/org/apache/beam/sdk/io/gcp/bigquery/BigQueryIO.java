@@ -3163,14 +3163,13 @@ public class BigQueryIO {
           }
         }
       } else { // PCollection is bounded
-        String error = String.format(" is only applicable to an unbounded PCollection, but the input PCollection is %s.", input.isBounded());
-        checkArgument(
-            getTriggeringFrequency() == null,
-            "Triggering frequency" + error);
+        String error =
+            String.format(
+                " is only applicable to an unbounded PCollection, but the input PCollection is %s.",
+                input.isBounded());
+        checkArgument(getTriggeringFrequency() == null, "Triggering frequency" + error);
         checkArgument(!getAutoSharding(), "Auto-sharding" + error);
-        checkArgument(
-            getNumFileShards() == 0,
-            "Number of file shards" + error);
+        checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
           LOG.warn("Storage API triggering frequency" + error);
@@ -3184,7 +3183,8 @@ public class BigQueryIO {
           LOG.warn("Autosharding is only supported when using STORAGE_WRITE_API");
         }
         if (getStorageApiNumStreams(bqOptions) != 0) {
-          LOG.warn("Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
+          LOG.warn(
+              "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
         }
       }
 

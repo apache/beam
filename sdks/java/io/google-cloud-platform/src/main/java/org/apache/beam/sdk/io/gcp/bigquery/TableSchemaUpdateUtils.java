@@ -85,7 +85,9 @@ public class TableSchemaUpdateUtils {
     List<TableFieldSchema> updatedSchema = Lists.newArrayList();
     boolean isEquivalent = oldSchema.size() == newSchema.size();
     for (TableFieldSchema tableFieldSchema : oldSchema) {
-      @Nullable TableFieldSchema newTableFieldSchema = newSchemaMap.get(tableFieldSchema.getName().toLowerCase());
+      @Nullable
+      TableFieldSchema newTableFieldSchema =
+          newSchemaMap.get(tableFieldSchema.getName().toLowerCase());
       if (newTableFieldSchema == null) {
         // We don't support deleting fields!
         return Result.empty();
