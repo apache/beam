@@ -109,7 +109,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
-			urns.TransformAssignWindows:
+			urns.TransformAssignWindows,
+			urns.TransformReshuffle:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
 		case "":
@@ -141,7 +142,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	if len(errs) > 0 {
 		jErr := &joinError{errs: errs}
 		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
-		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), jErr)
+		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v:\n%v", len(errs), req.GetJobName(), jErr)
 		job.Failed(err)
 		return nil, err
 	}

@@ -95,7 +95,7 @@ func New(id string) *W {
 
 		D: &DataService{},
 	}
-	slog.Info("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
+	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
 	fnpb.RegisterBeamFnControlServer(wk.server, wk)
 	fnpb.RegisterBeamFnDataServer(wk.server, wk)
 	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
