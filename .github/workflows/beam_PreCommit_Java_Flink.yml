@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Java Flink Versions PreCommit
+name: PreCommit Java Flink Versions
 
 on:
   push:
@@ -68,6 +68,8 @@ jobs:
     steps:
     - name: Git checkout
       uses: actions/checkout@v3
+      with:
+          ref: ${{ github.event.pull_request.head.sha }}
     - name: Rerun on comment
       if: github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
       uses: ./.github/actions/rerun-job-action
@@ -91,4 +93,11 @@ jobs:
       with:
         cache-read-only: false
     - name: run Java Flink Versions PreCommit script
-      run: ./gradlew :flinkPreCommit
+      uses: ./.github/actions/gradle-command-self-hosted-action
+      with:
+        gradle-command: :flinkPreCommit
+    - name: Archive JUnit Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: JUnit Test Results
+        path: '**/build/test-results/**/*.xml'
