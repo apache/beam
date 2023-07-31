@@ -174,7 +174,7 @@ You can use several tools to build reproducible Python environments:
 
 * **Use [requirements files](https://pip.pypa.io/en/stable/user_guide/#requirements-files).**  After you install dependencies, generate the requirements file by using `pip freeze > requirements.txt`. To recreate an environment, install dependencies from the requirements.txt file by using `pip install -r requirements.txt`.
 
-* **Use [constraint files](https://pip.pypa.io/en/stable/user_guide/#constraints-files).** You can use the constraint list to  restrict the installation of packages, allowing only  specified versions.
+* **Use [constraint files](https://pip.pypa.io/en/stable/user_guide/#constraints-files).** You can use the constraint list to restrict the installation of packages, allowing only specified versions.
 
 * **Use lock files.** Use dependency management tools like [PipEnv](https://pipenv.pypa.io/en/latest/), [Poetry](https://python-poetry.org/), and [pip-tools](https://github.com/jazzband/pip-tools) to specify top-level dependencies, to generate lock files of all transitive dependencies with pinned versions, and to create virtual environments from these lockfiles.
 
