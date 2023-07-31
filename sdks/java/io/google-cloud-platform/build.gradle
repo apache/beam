@@ -61,7 +61,6 @@ dependencies {
   implementation library.java.google_api_common
   implementation library.java.google_api_services_bigquery
   implementation library.java.google_api_services_healthcare
-  implementation library.java.google_api_services_healthcare_v1beta1
   implementation library.java.google_api_services_pubsub
   implementation library.java.google_api_services_storage
   implementation library.java.google_auth_library_credentials
