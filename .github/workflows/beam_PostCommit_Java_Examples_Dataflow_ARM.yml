@@ -61,8 +61,6 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
-      matrix:
-        java_version: ['8','11','17']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
@@ -103,12 +101,28 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev
-      - name: run javaExamplesDataflowARMPostCommit script
+      - name: run javaExamplesDataflowARMPostCommit script for Java8
         run: |
-            JAVA_VER=${{ matrix.java_version }}
             TAG=$(date +"%Y%m%d-%H%M%S%N")
-            ./gradlew :javaExamplesDataflowARMPostCommit 
-                -PjavathonVersion=${JAVA_VER}
+            ./gradlew :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
+                -Pcontainer-architecture-list=arm64,amd64
+                -Ppush-containers
+                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm
+                -Pdocker-tag=${TAG}
+      - name: run javaExamplesDataflowARMPostCommit script for Java11
+        run: |
+            TAG=$(date +"%Y%m%d-%H%M%S%N")
+            ./gradlew :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
+                -compileAndRunTestsWithJava11
+                -Pcontainer-architecture-list=arm64,amd64
+                -Ppush-containers
+                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm
+                -Pdocker-tag=${TAG}
+      - name: run javaExamplesDataflowARMPostCommit script for Java17
+        run: |
+            TAG=$(date +"%Y%m%d-%H%M%S%N")
+            ./gradlew :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
+                -compileAndRunTestsWithJava17
                 -Pcontainer-architecture-list=arm64,amd64
                 -Ppush-containers
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm
