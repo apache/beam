@@ -111,24 +111,24 @@ cd sdks/python
 SDK_LOCATION=$2
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-  pytest -o junit_suite_name=$IMAGE_NAME \
-    -m=$TEST_SUITE_TAG \
-    --show-capture=no \
-    --numprocesses=1 \
-    --timeout=1800 \
-    --junitxml=$XUNIT_FILE \
-    --ignore-glob '.*py3\d?\.py$' \
-    --log-cli-level=INFO \
-    --test-pipeline-options=" \
-      --runner=TestDataflowRunner \
-      --project=$PROJECT \
-      --region=$REGION \
-      --sdk_container_image=$CONTAINER:$TAG \
-      --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
-      --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
-      --output=$GCS_LOCATION/output \
-      --sdk_location=$SDK_LOCATION \
-      --num_workers=1 \
-      --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
-
+ pytest -o junit_suite_name=$IMAGE_NAME \
+  -m=$TEST_SUITE_TAG \
+  --show-capture=no \
+  --numprocesses=1 \
+  --timeout=1800 \
+  --junitxml=$XUNIT_FILE \
+  --ignore-glob '.*py3\d?\.py$' \
+  --log-cli-level=INFO \
+  --test-pipeline-options=" \
+    --runner=TestDataflowRunner \
+    --project=$PROJECT \
+    --region=$REGION \
+    --sdk_container_image=$CONTAINER:$TAG \
+    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
+    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
+    --output=$GCS_LOCATION/output \
+    --sdk_location=$SDK_LOCATION \
+    --num_workers=1 \
+    --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
+     
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
