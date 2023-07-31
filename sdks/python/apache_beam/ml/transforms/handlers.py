@@ -20,7 +20,6 @@ import collections
 import hashlib
 import os
 import typing
-import uuid
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -461,8 +460,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
 
     raw_data_list = (keyed_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
 
-    temp_dir = os.path.join(self.artifact_location, uuid.uuid4().hex)
-    with tft_beam.Context(temp_dir=temp_dir):
+    temp_dir = os.path.join(self.artifact_location, 'tmp')
+    with tft_beam.Context(temp_dir=temp_dir, use_deep_copy_optimization=True):
       data = (raw_data_list, raw_data_metadata)
       if self.artifact_mode == ArtifactMode.PRODUCE:
         transform_fn = (
