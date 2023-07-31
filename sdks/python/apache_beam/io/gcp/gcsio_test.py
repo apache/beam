@@ -428,7 +428,8 @@ class TestGCSIO(unittest.TestCase):
 
     with mock.patch('apache_beam.io.gcp.gcsio.BeamBlobReader') as reader:
       self.gcs.open(file_name, read_buffer_size=read_buffer_size)
-      reader.assert_called_with(blob, chunk_size=read_buffer_size)
+      reader.assert_called_with(
+          blob, chunk_size=read_buffer_size, raw_download=False)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'

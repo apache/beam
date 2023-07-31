@@ -150,7 +150,10 @@ class GCSFileSystemTest(unittest.TestCase):
     _ = self.fs.create('gs://bucket/from1', 'application/octet-stream')
 
     gcsio_mock.open.assert_called_once_with(
-        'gs://bucket/from1', 'wb', mime_type='application/octet-stream')
+        'gs://bucket/from1',
+        'wb',
+        mime_type='application/octet-stream',
+        raw_download=True)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_open(self, mock_gcsio):
@@ -161,7 +164,10 @@ class GCSFileSystemTest(unittest.TestCase):
     _ = self.fs.open('gs://bucket/from1', 'application/octet-stream')
 
     gcsio_mock.open.assert_called_once_with(
-        'gs://bucket/from1', 'rb', mime_type='application/octet-stream')
+        'gs://bucket/from1',
+        'rb',
+        mime_type='application/octet-stream',
+        raw_download=True)
 
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_copy_file(self, mock_gcsio):
