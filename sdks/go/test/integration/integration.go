@@ -68,6 +68,7 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
@@ -114,6 +115,7 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -142,6 +144,7 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
@@ -171,6 +174,7 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -209,6 +213,7 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -249,7 +254,7 @@ var dataflowFilters = []string{
 	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
-	// Can't handle the test spanner container or access a local spanner. 
+	// Can't handle the test spanner container or access a local spanner.
 	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
