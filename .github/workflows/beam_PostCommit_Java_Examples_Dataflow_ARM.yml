@@ -55,6 +55,10 @@ permissions:
   repository-projects: read
   security-events: read
   statuses: read
+
+env:
+  TAG: $(date +"%Y%m%d-%H%M%S%N")
+
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
     name: beam_PostCommit_Java_Examples__Dataflow_ARM (Run Java_Examples_Dataflow_ARM PostCommit)
@@ -103,7 +107,6 @@ jobs:
           gcloud auth configure-docker us-central1-docker.pkg.dev
       - name: run javaExamplesDataflowARMPostCommit script for Java8
         run: |
-            TAG=$(date +"%Y%m%d-%H%M%S%N")
             ./gradlew :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
                 -Pcontainer-architecture-list=arm64,amd64
                 -Ppush-containers
@@ -111,7 +114,6 @@ jobs:
                 -Pdocker-tag=${TAG}
       - name: run javaExamplesDataflowARMPostCommit script for Java11
         run: |
-            TAG=$(date +"%Y%m%d-%H%M%S%N")
             ./gradlew :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
                 -compileAndRunTestsWithJava11
                 -Pcontainer-architecture-list=arm64,amd64
@@ -120,7 +122,6 @@ jobs:
                 -Pdocker-tag=${TAG}
       - name: run javaExamplesDataflowARMPostCommit script for Java17
         run: |
-            TAG=$(date +"%Y%m%d-%H%M%S%N")
             ./gradlew :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
                 -compileAndRunTestsWithJava17
                 -Pcontainer-architecture-list=arm64,amd64
