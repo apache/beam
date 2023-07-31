@@ -51,20 +51,28 @@ concurrency:
 jobs:
   beam_PreCommit_Python_Dataframes:
     name: beam_PreCommit_Python_Dataframes (Run Python_Dataframes PreCommit 3.x)
+    runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
-      startsWith(github.event.comment.body, 'Run Python_Dataframes PreCommit') ||
-      github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.comment.body, 'Run Python_Dataframes PreCommit')
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
+        if: contains(fromJSON('["push", "pull_request_target", "schedule", "workflow_dispatch"]'), github.event_name)
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check out repository code if comment
+        uses: actions/checkout@v3
+        if: startsWith(github.event.comment.body, 'Run Python_Dataframes PreCommit')
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
       - name: Set comment body with matrix
         id: set_comment_body
         run: |

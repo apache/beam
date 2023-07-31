@@ -26,6 +26,7 @@ on:
     types: [created]
   schedule:
     - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -56,9 +57,19 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run CommunityMetrics PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
+        if: contains(fromJSON('["push", "pull_request_target", "schedule", "workflow_dispatch"]'), github.event_name)
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check out repository code if comment
+        uses: actions/checkout@v3
+        if: github.event.comment.body == 'Run CommunityMetrics PreCommit'
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:

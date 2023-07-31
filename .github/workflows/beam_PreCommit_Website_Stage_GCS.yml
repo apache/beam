@@ -56,19 +56,26 @@ env:
 
 jobs:
   beam_PreCommit_Website_Stage_GCS:
+    name: beam_PreCommit_Website_Stage_GCS (Run Website_Stage_GCS PreCommit)
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Website_Stage_GCS PreCommit' 
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_Website_Stage_GCS (Run Website_Stage_GCS PreCommit)
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
     steps:
-      - name: Git checkout
+      - name: Check out repository code
         uses: actions/checkout@v3
+        if: contains(fromJSON('["push", "pull_request_target", "schedule", "workflow_dispatch"]'), github.event_name)
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check out repository code if comment
+        uses: actions/checkout@v3
+        if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
       - name: Rerun on comment
         if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
         uses: ./.github/actions/rerun-job-action
