@@ -45,11 +45,15 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
 
+"""Inputs to DaskOps."""
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
+
+"""Value types for PCollections (possibly Windowed Values)."""
 PCollVal = t.Union[WindowedValue, t.Any]
 
 
 def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
+  """Wraps a value (item) inside a Window."""
   if isinstance(item, TaggedOutput):
     item = item.value
 
@@ -66,6 +70,7 @@ def get_windowed_value(item: t.Any, window_fn: WindowFn) -> WindowedValue:
 
 
 def defenestrate(x):
+  """Extracts the underlying item from a Window."""
   if isinstance(x, WindowedValue):
     return x.value
   return x
@@ -73,6 +78,7 @@ def defenestrate(x):
 
 @dataclasses.dataclass
 class TaggingReceiver(Receiver):
+  """A Receiver that handles tagged `WindowValue`s."""
   tag: str
   values: t.List[PCollVal]
 
@@ -86,6 +92,7 @@ class TaggingReceiver(Receiver):
 
 @dataclasses.dataclass
 class OneReceiver(dict):
+  """A Receiver that tags value via dictionary lookup key."""
   values: t.List[PCollVal] = field(default_factory=list)
 
   def __missing__(self, key):
@@ -96,6 +103,15 @@ class OneReceiver(dict):
 
 @dataclasses.dataclass
 class DaskBagOp(abc.ABC):
+  """Abstract Base Class for all Dask-supported Operations.
+
+  All DaskBagOps must support an `apply()` operation, which invokes the dask
+  bag upon the previous op's input.
+
+  Attributes
+    applied: The underlying `AppliedPTransform` which holds the code for the
+      target operation.
+  """
   applied: AppliedPTransform
 
   @property
@@ -108,11 +124,13 @@ class DaskBagOp(abc.ABC):
 
 
 class NoOp(DaskBagOp):
+  """An identity on a dask bag: returns the input as-is."""
   def apply(self, input_bag: OpInput) -> db.Bag:
     return input_bag
 
 
 class Create(DaskBagOp):
+  """The beginning of a Beam pipeline; the input must be `None`."""
   def apply(self, input_bag: OpInput) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
@@ -121,6 +139,10 @@ class Create(DaskBagOp):
 
 
 class ParDo(DaskBagOp):
+  """Apply a pure function in an embarrassingly-parallel way.
+
+  This consumes a sequence of items and returns a sequence of items.
+  """
   def apply(self, input_bag: db.Bag) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.transform)
 
@@ -174,6 +196,7 @@ class ParDo(DaskBagOp):
 
 
 class GroupByKey(DaskBagOp):
+  """Group a PCollection into a mapping of keys to elements."""
   def apply(self, input_bag: db.Bag) -> db.Bag:
     def key(item):
       return item[0]
@@ -186,6 +209,7 @@ class GroupByKey(DaskBagOp):
 
 
 class Flatten(DaskBagOp):
+  """Produces a flattened bag from a collection of bags."""
   def apply(self, input_bag: t.List[db.Bag]) -> db.Bag:
     assert type(input_bag) is list, 'Must take a sequence of bags!'
     return db.concat(input_bag)
