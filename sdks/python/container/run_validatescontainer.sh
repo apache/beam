@@ -24,10 +24,14 @@
 # REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python3.8 container:
+#     test Python3.8 x86 container:
 #         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
-#     or test all supported python versions together:
+#     or test Python3.8 ARM container:
+#         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainerARM
+#     or test all supported python versions x86 containers together:
 #         ./gradlew :sdks:python:test-suites:dataflow:validatesContainer
+#     or test all supported python versions ARM containers together:
+#         ./gradlew :sdks:python:test-suites:dataflow:validatesContainerARM
 
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
@@ -65,23 +69,27 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# Verify docker image has been built.
-docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
-
-TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
 
-# Tag the docker container.
-docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
+# TODO(https://github.com/apache/beam/issues/27674): change this branch once jenkins is deprecated.
+  if [[ "$USER" == "jenkins" ]]; then
+    # Verify docker image has been built.
+    docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
 
-# Push the container.
-gcloud docker -- push $CONTAINER:$TAG
+    TAG=$(date +%Y%m%d-%H%M%S%N)
+
+    # Tag the docker container.
+    docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
+
+    # Push the container
+    gcloud docker -- push $CONTAINER:$TAG
+  fi
 
 function cleanup_container {
   # Delete the container locally and remotely
-  docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
+  docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
@@ -100,25 +108,51 @@ cd sdks/python
 SDK_LOCATION=$2
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
-echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-pytest -o junit_suite_name=$IMAGE_NAME \
-  -m="it_validatescontainer" \
-  --show-capture=no \
-  --numprocesses=1 \
-  --timeout=1800 \
-  --junitxml=$XUNIT_FILE \
-  --ignore-glob '.*py3\d?\.py$' \
-  --log-cli-level=INFO \
-  --test-pipeline-options=" \
-    --runner=TestDataflowRunner \
-    --project=$PROJECT \
-    --region=$REGION \
-    --sdk_container_image=$CONTAINER:$TAG \
-    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
-    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
-    --output=$GCS_LOCATION/output \
-    --sdk_location=$SDK_LOCATION \
-    --num_workers=1 \
-    --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
+# TODO(https://github.com/apache/beam/issues/27674): change this branch once jenkins is deprecated.
+if [[ "$USER" == "jenkins" ]]; then
+  echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
+  pytest -o junit_suite_name=$IMAGE_NAME \
+    -m="it_validatescontainer" \
+    --show-capture=no \
+    --numprocesses=1 \
+    --timeout=1800 \
+    --junitxml=$XUNIT_FILE \
+    --ignore-glob '.*py3\d?\.py$' \
+    --log-cli-level=INFO \
+    --test-pipeline-options=" \
+      --runner=TestDataflowRunner \
+      --project=$PROJECT \
+      --region=$REGION \
+      --sdk_container_image=$CONTAINER:$TAG \
+      --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
+      --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
+      --output=$GCS_LOCATION/output \
+      --sdk_location=$SDK_LOCATION \
+      --num_workers=1 \
+      --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
-echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
+  echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
+else
+  echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER ARM TEST"
+  pytest -o junit_suite_name=$IMAGE_NAME \
+    -m="it_dataflow_arm" \
+    --show-capture=no \
+    --numprocesses=1 \
+    --timeout=1800 \
+    --junitxml=$XUNIT_FILE \
+    --ignore-glob '.*py3\d?\.py$' \
+    --log-cli-level=INFO \
+    --test-pipeline-options=" \
+      --runner=TestDataflowRunner \
+      --project=$PROJECT \
+      --region=$REGION \
+      --sdk_container_image=$CONTAINER:$TAG \
+      --staging_location=$GCS_LOCATION/staging-dataflow-arm-test \
+      --temp_location=$GCS_LOCATION/temp-dataflow-arm-test \
+      --output=$GCS_LOCATION/output \
+      --sdk_location=$SDK_LOCATION \
+      --num_workers=1 \
+      --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH \
+
+  echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER ARM TEST"
+fi

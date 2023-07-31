@@ -25,14 +25,14 @@
 #
 # Execute from the root of the repository:
 #     test Python3.8 container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py38:dataflowArm
+#         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainerARM
 #     or test all supported python versions together:
-#         ./gradlew :sdks:python:test-suites:dataflow:dataflowArm
+#         ./gradlew :sdks:python:test-suites:dataflow:validatesContainerARM
 
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
 if [[ $# != 2 ]]; then
-  printf "Usage: \n$> ./sdks/python/container/run_dataflow_arm.sh <python_version> <sdk_location>"
+  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer_arm.sh <python_version> <sdk_location>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
   printf " Sample value: 3.9"
   exit 1
@@ -109,6 +109,5 @@ pytest -o junit_suite_name=$IMAGE_NAME \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH \
-    --machine_type=t2a-standard-1"
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER ARM TEST"

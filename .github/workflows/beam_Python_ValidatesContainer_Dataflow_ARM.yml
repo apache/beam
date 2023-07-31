@@ -81,11 +81,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
-        with:
-          distribution: 'zulu'
-          java-version: '8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
