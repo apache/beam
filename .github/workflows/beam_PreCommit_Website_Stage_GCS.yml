@@ -87,7 +87,7 @@ jobs:
             const result = await github.rest.repos.listPullRequestsAssociatedWithCommit({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                commit_sha: sha,
+                commit_sha: ${{ github.event.pull_request.head.sha || github.sha }},
             });
             const prs = result.data.filter((el) => state === 'all' || el.state === state);
             const pr =
