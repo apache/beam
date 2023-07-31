@@ -54,6 +54,7 @@ jobs:
     name: beam_PreCommit_Python_Coverage (Run Python_Coverage PreCommit)
     if: |
       github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' || 
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run Python_Coverage PreCommit' || 
       github.event_name == 'schedule'

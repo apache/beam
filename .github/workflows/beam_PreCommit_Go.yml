@@ -38,7 +38,8 @@ concurrency:
 jobs:
   beam_PreCommit_Go:
     if: |
-      github.event_name == 'push' ||
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PreCommit'

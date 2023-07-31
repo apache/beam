@@ -35,7 +35,8 @@ concurrency:
 jobs:
   beam_PostCommit_Go_Dataflow_ARM:
     if: |
-      github.event_name == 'push' ||
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
     runs-on: [self-hosted, ubuntu-20.04, main]

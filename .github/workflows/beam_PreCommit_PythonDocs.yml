@@ -55,6 +55,7 @@ jobs:
     name: beam_PreCommit_PythonDocs (Run PythonDocs PreCommit)
     if: |
       github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' || 
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run PythonDocs PreCommit' || 
       github.event_name == 'schedule'

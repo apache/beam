@@ -56,7 +56,8 @@ jobs:
     name: beam_PreCommit_Typescript (Run Typescript PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
-      github.event_name == 'push' ||
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Typescript PreCommit'   
