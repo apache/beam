@@ -67,10 +67,7 @@ test {
 }
 
 configurations {
-  validatesRunner
-  coreSDKJavaIntegrationTest
   examplesJavaIntegrationTest
-  googleCloudPlatformIntegrationTest
 }
 
 dependencies {
@@ -116,151 +113,50 @@ dependencies {
   testImplementation project(path: ":sdks:java:extensions:avro")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:extensions:python", configuration: "testRuntimeMigration")
   testImplementation library.java.google_cloud_dataflow_java_proto_library_all
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation library.java.mockito_core
-  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
-  validatesRunner library.java.hamcrest
-  coreSDKJavaIntegrationTest project(project.path)
-  coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
-  googleCloudPlatformIntegrationTest project(project.path)
-  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
-def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
-def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
-def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-upload-tests'
-def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
-def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
-
 def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
-def dockerJavaImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
-def dockerPythonImageContainer = "${dockerImageRoot}/python"
+def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
-ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
-ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
+ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}"
 
-def runnerV2PipelineOptions = [
+def runnerV2PipelineOptionsARMARM = [
   "--runner=TestDataflowRunner",
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${DockerJavaMultiarchImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--machine_type=t2a-standard-1",
 ]
-
-def commonRunnerV2ExcludeCategories = [
-        'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-        'org.apache.beam.sdk.testing.UsesSetState',
-        'org.apache.beam.sdk.testing.UsesMapState',
-        'org.apache.beam.sdk.testing.UsesMultimapState',
-        'org.apache.beam.sdk.testing.UsesMetricsPusher',
-        'org.apache.beam.sdk.testing.UsesOrderedListState',
-        'org.apache.beam.sdk.testing.UsesTestStream',
-        'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
-        'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-]
-
-def createRunnerV2ValidatesRunnerTest = { Map args ->
-  def name = args.name
-  def pipelineOptions = args.pipelineOptions ?: runnerV2PipelineOptions
-  def excludedTests = args.excludedTests ?: []
-  def excludedCategories = args.excludedCategories ?: []
-
-  return tasks.create(name: name, type: Test, group: "Verification") {
-    dependsOn buildAndPushDockerJavaContainer
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
-
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
-    classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
-    useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      commonRunnerV2ExcludeCategories.each {
-        excludeCategories it
-      }
-      excludedCategories.each {
-        excludeCategories it
-      }
-      filter {
-        excludedTests.each {
-          excludeTestsMatching it
-        }
-      }
-    }
-  }
-}
 
 // Build and push multi-arch docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
+// task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
-def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
+def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
   def javaVer = "java"+project.getProperty("javaVersion")
   dependsOn ":sdks:java:container:${javaVer}:docker"
 }
 
 // Clean up built Java images
-def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
+def cleanUpDockerJavaMultiarchImages = tasks.register("cleanUpDockerJavaMultiarchImages") {
   doLast {
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${DockerJavaMultiarchImageName}"
     }
     exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
-    }
-  }
-}
-
-// Push docker images to a container registry for use within tests.
-// NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerPythonContainer'). This ensures the correct
-// task ordering such that the registry doesn't get cleaned up prior to task completion.
-def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonContainer") {
-  if (!project.project(":sdks:python").buildFile.exists()) {
-    System.err.println 'Python build file not found. Skipping buildAndPushDockerPythonContainer task.'
-    return
-  }
-  project.evaluationDependsOn(":sdks:python")
-  def pythonVer = project.project(':sdks:python').pythonVersion
-  dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
-  def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
-  doLast {
-    exec {
-      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
-    }
-    exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
-    }
-  }
-}
-
-// Clean up built Python images
-def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
-  doLast {
-    exec {
-      commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
-    }
-    exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonImageName}"
-    }
-    exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonImageContainer}"
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${DockerJavaMultiarchImageContainer}"
     }
   }
 }
@@ -268,189 +164,28 @@ def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
-    if (t.dependsOn.contains(buildAndPushDockerJavaContainer) && !t.name.equalsIgnoreCase('printRunnerV2PipelineOptions')) {
-      t.finalizedBy cleanUpDockerJavaImages
-    }
-    if (t.dependsOn.contains(buildAndPushDockerPythonContainer)) {
-      t.finalizedBy cleanUpDockerPythonImages
+    if (t.dependsOn.contains(buildAndPushDockerJavaMultiarchContainer) && !t.name.equalsIgnoreCase('printrunnerV2PipelineOptionsARM')) {
+      t.finalizedBy cleanUpDockerJavaMultiarchImages
     }
   }
 }
 
-task printRunnerV2PipelineOptions {
-  dependsOn buildAndPushDockerJavaContainer
+task printrunnerV2PipelineOptionsARM {
+  dependsOn buildAndPushDockerJavaMultiarchContainer
 
   doLast {
-    println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
-    println runnerV2PipelineOptions.join(' ')
+    println "To run a Dataflow job with runner V2 on ARM, add the following pipeline options to your command-line:"
+    println runnerV2PipelineOptionsARM.join(' ')
     println "Please delete your image upon completion with the following command:"
-    println "gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
+    println "gcloud container images delete --force-delete-tags ${DockerJavaMultiarchImageName}"
   }
 }
 
-def setupXVR = tasks.register("setupXVR") {
-  dependsOn buildAndPushDockerJavaContainer
-  dependsOn buildAndPushDockerPythonContainer
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-}
-
-def cleanupXVR = tasks.register("cleanupXVR") {
-  finalizedBy cleanUpDockerJavaImages
-  finalizedBy cleanUpDockerPythonImages
-}
-
-createCrossLanguageValidatesRunnerTask(
-  startJobServer: setupXVR,
-  cleanupJobServer: cleanupXVR,
-  classpath: configurations.validatesRunner,
-  numParallelTests: Integer.MAX_VALUE,
-  needsSdkLocation: true,
-  semiPersistDir: "/var/opt/google",
-  pythonPipelineOptions: [
-    "--runner=TestDataflowRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
-    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
-  ],
-  javaPipelineOptions: [
-    "--runner=TestDataflowRunner",
-    "--project=${dataflowProject}",
-    "--region=${dataflowRegion}",
-    "--tempRoot=${dataflowValidatesTempRoot}",
-    "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
-    "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
-  ],
-  pytestOptions: [
-    "--capture=no",
-    "--numprocesses=8",
-    "--timeout=4500",
-    "--log-cli-level=INFO",
-  ],
-  goScriptOptions: [
-    "--runner dataflow",
-    "--project ${dataflowProject}",
-    "--dataflow_project ${dataflowProject}",
-    "--region ${dataflowRegion}",
-    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
-    "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
-  ],
-)
-
-task validatesRunnerV2 {
+task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
   group = "Verification"
-  description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
-  dependsOn(createRunnerV2ValidatesRunnerTest(
-    name: 'validatesRunnerV2Test',
-    pipelineOptions: runnerV2PipelineOptions,
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
-      'org.apache.beam.sdk.testing.UsesStatefulParDo',
-      'org.apache.beam.sdk.testing.UsesTimersInParDo',
-      'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
-      'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
-    ],
-    excludedTests: [
-      'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
+  dependsOn buildAndPushDockerJavaMultiarchContainer
 
-      // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys100MB',
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testLargeKeys10MB',
-      // TODO(https://github.com/apache/beam/issues/20931): Identify whether it's bug or a feature gap.
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
-
-      // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    ]
-  ))
-}
-
-task validatesRunnerV2Streaming {
-  group = "Verification"
-  description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
-  dependsOn(createRunnerV2ValidatesRunnerTest(
-    name: 'validatesRunnerV2TestStreaming',
-    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
-      'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
-      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-      'org.apache.beam.sdk.testing.UsesTriggeredSideInputs',
-    ],
-    excludedTests: [
-      // TestStream only (partially) supported on UW
-      'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-
-      // TestStream with processing time control not supported
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
-
-      // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-
-      // TODO(https://github.com/apache/beam/issues/20931): Identify whether it's bug or a feature gap.
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
-
-      // TODO(https://github.com/apache/beam/issues/21424)
-      'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
-      // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    ]
-  ))
-}
-
-task copyGoogleCloudPlatformTestResources(type: Copy) {
-  from project(':sdks:java:io:google-cloud-platform').fileTree("src/test/resources")
-  into "$buildDir/resources/test/"
-}
-
-task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDockerJavaContainer
-
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
-
-  include '**/*IT.class'
-  exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/SpannerWriteIT.class'
-  exclude '**/*KmsKeyIT.class'
-  exclude '**/FhirIOReadIT.class'
-  exclude '**/FhirIOWriteIT.class'
-  exclude '**/FhirIOLROIT.class'
-  exclude '**/FhirIOSearchIT.class'
-  exclude '**/FhirIOPatientEverythingIT.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
-
-  maxParallelForks 4
-  classpath = configurations.googleCloudPlatformIntegrationTest
-  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
-task examplesJavaRunnerV2IntegrationTest(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDockerJavaContainer
-
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.
@@ -466,66 +201,4 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit { }
-}
-
-task coreSDKJavaRunnerV2IntegrationTest(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDockerJavaContainer
-
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
-
-  include '**/*IT.class'
-  // TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
-  exclude '**/RequiresStableInputIT.class'
-  maxParallelForks 4
-  classpath = configurations.coreSDKJavaIntegrationTest
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
-task postCommitRunnerV2 {
-  group = "Verification"
-  description = "Various integration tests using the Dataflow runner V2."
-  dependsOn googleCloudPlatformRunnerV2IntegrationTest
-  dependsOn examplesJavaRunnerV2IntegrationTest
-  dependsOn coreSDKJavaRunnerV2IntegrationTest
-}
-
-def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
-def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
-def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
-def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
-
-// Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
-  runner: 'Dataflow',
-  gcpProject: gcpProject,
-  gcpRegion: gcpRegion,
-  gcsBucket: gcsBucket)
-
-// Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
-createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
-  runner: 'Dataflow',
-  gcpProject: gcpProject,
-  gcpRegion: gcpRegion,
-  gcsBucket: gcsBucket,
-  bqDataset: bqDataset,
-  pubsubTopic: pubsubTopic)
-
-// Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
-createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
-        runner: 'DataflowBom',
-        gcpProject: gcpProject,
-        gcpRegion: gcpRegion,
-        gcsBucket: gcsBucket,
-        bqDataset: bqDataset,
-        pubsubTopic: pubsubTopic)
-
-// Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
-task GCSUpload(type: JavaExec) {
-  mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
-  classpath = sourceSets.test.runtimeClasspath
-  args "--stagingLocation=${dataflowUploadTemp}/staging",
-       "--filesToStage=${testFilesToStage}"
 }
