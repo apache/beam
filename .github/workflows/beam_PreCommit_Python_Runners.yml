@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Python PreCommit Transforms
+name: PreCommit Python Runners
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
@@ -23,7 +23,7 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/job_PreCommit_Python_Transforms.yml"]
+    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Runners.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -50,7 +50,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Python_Transforms:
+  beam_PreCommit_Python_Runners:
+    name: beam_PreCommit_Python_Runners (Run Python_Runners PreCommit 3.x)
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -59,19 +61,21 @@ jobs:
       github.event_name == 'push' || 
       github.event_name == 'workflow_dispatch' || 
       github.event_name == 'pull_request_target' || 
-      startsWith(github.event.comment.body, 'Run Python_Transforms PreCommit') ||
+      startsWith(github.event.comment.body, 'Run Python_Runners PreCommit') ||
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
-          echo "comment_body=Run Python_Transforms PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
+          echo "comment_body=Run Python_Runners PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body 
+        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -79,7 +83,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: "${{ github.job }} (${{ matrix.python_version }})"
           github_current_run_id: ${{ github.run_id }}
-      - uses: actions/setup-python@v4
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
       - name: Install Java
@@ -91,13 +96,21 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Run pythonPreCommit
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:tox:py${PY_VER//.}:preCommitPy${PY_VER//.} -Pposargs=apache_beam/transforms/ -PpythonVersion=${PY_VER}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Run pythonPreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
+          arguments: |
+            -Pposargs=apache_beam/runners/ \
+            -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"
-
