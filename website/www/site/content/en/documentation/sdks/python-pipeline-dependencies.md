@@ -166,7 +166,7 @@ or by specifying a pipeline dependency requirement).
 
 To run a Python pipeline on a remote runner, Apache Beam translates the pipeline into a [runner-independent representation](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto) and submits it for execution. Translation happens in the **launch environment**. You can launch the pipeline from a Python virtual environment with the installed Beam SDK, or with tools like [Dataflow Flex Templates](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates), [Notebook environments](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development), [Apache Airflow](https://airflow.apache.org/), and more.
 
-The [**runtime environment**](https://beam.apache.org/documentation/runtime/environments/) is the Python environment that a runner uses during pipeline execution. This environment is where the pipeline code runs to perform data  processing. The runtime environment includes Apache Beam and pipeline runtime dependencies.
+The [**runtime environment**](https://beam.apache.org/documentation/runtime/environments/) is the Python environment that a runner uses during pipeline execution. This environment is where the pipeline code runs to when it performs data  processing. The runtime environment includes Apache Beam and pipeline runtime dependencies.
 
 ### Create reproducible environments {#create-reproducible-environments}
 
