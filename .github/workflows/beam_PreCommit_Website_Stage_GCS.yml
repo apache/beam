@@ -79,23 +79,12 @@ jobs:
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
       - name: Find Current Pull Request
-        uses: actions/github-script@v6
+        uses: jwalton/gh-find-current-pr@v1
         id: findPr
         with:
-          script: |
-            const result = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                commit_sha: sha,
-            });
-            const prs = result.data.filter((el) => state === 'all' || el.state === state);
-            const pr =
-                prs.find((el) => {
-                    return context.payload.ref === `refs/heads/${el.head.ref}`;
-                }) || prs[0];
-            const prNumber = (pr && pr.number) || context.event.issue.number;
-            console.log(prNumber)
-            core.setOutput('ghprbPullId', prNumber);
+          state: open
+      - name: Echo PR number
+        run: echo "ghprbPullId=${{ steps.findPr.outputs.pr || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
