@@ -70,8 +70,8 @@ command -v gcloud
 docker -v
 gcloud -v
 
-CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 TAG=$(date +%Y%m%d-%H%M%S%N)
+CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
 
@@ -87,6 +87,7 @@ if [[ "$ARCH" != "ARM" ]]; then
 else
   # Reset the test suite tag to run ARM pipelines.
   TEST_SUITE_TAG="it_dataflow_arm"
+
   # Reset the Python SDK container image tag.
   TAG=$ARM_TAG
 fi
