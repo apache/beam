@@ -107,6 +107,7 @@ include(":it:kafka")
 include(":it:testcontainers")
 include(":it:truthmatchers")
 include(":it:mongodb")
+include(":it:splunk")
 
 include(":learning:tour-of-beam:frontend")
 
