@@ -206,7 +206,7 @@ If you need to recreate or upgrade the runtime environment, do so in a controlle
 
 The launch environment runs the **production version** of the pipeline. While developing the pipeline locally, you might use a **development environment** that includes dependencies for development, such as Jupyter or Pylint. The launch environment for production pipelines might not need these additional dependencies. You can construct and maintain it separately from the dev environment.
 
-To reduce side-effects on pipeline submissions, it is best to able to [recreate launch environment in a reproducible manner](#create-reproducible-environments).
+To reduce side-effects on pipeline submissions, it is best to able to [recreate the launch environment in a reproducible manner](#create-reproducible-environments).
 
 [Dataflow Flex Templates](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates) provide an example of a containerized, reproducible launch environment.
 
