@@ -92,7 +92,7 @@ jobs:
             const pr =
                 result.data.find((el) => {
                     return context.payload.ref === `refs/heads/${el.head.ref}`;
-                }) || prs[0];
+                }) || result.data[0];
             const prNumber = (pr && pr.number) || context.event.issue.number;
             console.log(prNumber)
             core.setOutput('ghprbPullId', prNumber);
