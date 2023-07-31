@@ -184,7 +184,7 @@ Use version control for the configuration files that define the environment.
 
 ### Make the pipeline runtime environment reproducible
 
-When a pipeline uses a reproducible runtime environment on a remote runner, the workers on the runner use  the same dependencies each time the pipeline runs. A reproducible environment is immune to side-effects caused by releases of the pipeline's direct or transitive dependencies. It doesn’t require dependency resolution at runtime.
+When a pipeline uses a reproducible runtime environment on a remote runner, the workers on the runner use the same dependencies each time the pipeline runs. A reproducible environment is immune to side-effects caused by releases of the pipeline's direct or transitive dependencies. It doesn’t require dependency resolution at runtime.
 
 You can create a reproducible runtime environment in the following ways:
 
