@@ -30,14 +30,14 @@ on:
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow.yml'
   pull_request_target:
-   branches: ['master', 'release-*']
-   paths:
-     - 'model/**'
-     - 'sdks/java/**'
-     - 'runners/google-cloud-dataflow-java/**'
-     - 'examples/java/**'
-     - 'examples/kotlin/**'
-     - 'release/**'
+    branches: ['master', 'release-*']
+    paths:
+      - 'model/**'
+      - 'sdks/java/**'
+      - 'runners/google-cloud-dataflow-java/**'
+      - 'examples/java/**'
+      - 'examples/kotlin/**'
+      - 'release/**'
   issue_comment:
     types: [created]
   schedule:
@@ -67,6 +67,7 @@ permissions:
 jobs:
   beam_PreCommit_Java_Examples_Dataflow:
     name: beam_PreCommit_Java_Examples_Dataflow (Run Java_Examples_Dataflow PreCommit)
+    timeout-minutes: 60
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||
@@ -105,9 +106,12 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       - name: run javaExamplesDataflowPrecommit script
-        run: ./gradlew :javaExamplesDataflowPrecommit
-          -PdisableSpotlessCheck=true
-          -PdisableCheckStyle=true
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :javaExamplesDataflowPrecommit
+          arguments: |
+            -PdisableSpotlessCheck=true \
+            -PdisableCheckStyle=true \
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:

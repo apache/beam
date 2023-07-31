@@ -12,17 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python PreCommit Formatter
+
+name: PreCommit Python Lint
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "sdks/python/apache_beam/**"]
+    paths: ["sdks/python/**","release/**"]
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "sdks/python/apache_beam/**",".github/workflows/job_PreCommit_PythonAutoformatter.yml"]
+    paths: ["sdks/python/**","release/**",".github/workflows/beam_PreCommit_PythonLint.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -49,20 +50,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_PythonFormatter:
-    name: beam_PreCommit_PythonFormatter (Run PythonFormatter PreCommit)
+  beam_PreCommit_PythonLint:
+    name: beam_PreCommit_PythonLint (Run PythonLint PreCommit)
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      github.event.comment.body == 'Run PythonFormatter PreCommit' || 
+      github.event.comment.body == 'Run PythonLint PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run PythonFormatter PreCommit'
+        if: github.event.comment.body == 'Run PythonLint PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -75,12 +78,19 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
-      - uses: actions/setup-python@v4
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.16'
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonDockerPreCommit script
-        run: ./gradlew :pythonFormatterPreCommit
+      - name: run pythonLintPreCommit script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :pythonLintPreCommit
