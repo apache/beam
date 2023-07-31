@@ -293,7 +293,8 @@ public class BigqueryClient {
       String query, String projectId, boolean typed, boolean useStandardSql)
       throws IOException, InterruptedException {
     Random rnd = new Random(System.currentTimeMillis());
-    String temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
+    String temporaryDatasetId =
+        String.format("_dataflow_temporary_dataset_%s_%s", System.nanoTime(), rnd.nextInt(1000000));
     String temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
     TableReference tempTableReference =
         new TableReference()

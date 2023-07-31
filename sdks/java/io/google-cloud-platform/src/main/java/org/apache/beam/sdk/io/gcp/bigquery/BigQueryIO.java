@@ -3157,7 +3157,7 @@ public class BigQueryIO {
             && getStorageApiTriggeringFrequency(bqOptions) != null) {
           LOG.warn(
               "Storage API triggering frequency option will be ignored is it can only be specified only "
-                  + "when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
+                  + "when writing via STORAGE_WRITE_API, but the method was {}.",
               method);
         }
         if (getAutoSharding()) {

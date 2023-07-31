@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Table;
@@ -35,7 +36,6 @@ import java.util.Random;
 import java.util.Set;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -70,11 +72,18 @@ import org.slf4j.LoggerFactory;
 public class StorageApiSinkSchemaUpdateIT {
   @Parameterized.Parameters
   public static Iterable<Object[]> data() {
-    return ImmutableList.of(new Object[] {true}, new Object[] {false});
+    return ImmutableList.of(
+        new Object[] {false, false},
+        new Object[] {false, true},
+        new Object[] {true, false},
+        new Object[] {true, true});
   }
 
   @Parameterized.Parameter(0)
   public boolean useInputSchema;
+
+  @Parameterized.Parameter(1)
+  public boolean changeTableSchema;
 
   @Rule public TestName testName = new TestName();
 
@@ -82,8 +91,8 @@ public class StorageApiSinkSchemaUpdateIT {
 
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("StorageApiSinkSchemaChangeIT");
-  private static final String PROJECT =
-      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static final String PROJECT = "google.com:clouddfe";
+  //      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_schema_change_" + System.nanoTime();
 
@@ -101,7 +110,7 @@ public class StorageApiSinkSchemaUpdateIT {
     "TIMESTAMP"
   };
 
-  private static final int MAX_N = 35;
+  private static final int TOTAL_N = 35;
 
   private final Random randomGenerator = new Random();
 
@@ -122,6 +131,9 @@ public class StorageApiSinkSchemaUpdateIT {
     String tableId = Iterables.get(Splitter.on('[').split(testName.getMethodName()), 0);
     if (useInputSchema) {
       tableId += "WithInputSchema";
+    }
+    if (changeTableSchema) {
+      tableId += "OnSchemaChange";
     }
     BQ_CLIENT.deleteTable(PROJECT, BIG_QUERY_DATASET_ID, tableId);
     BQ_CLIENT.createNewTable(
@@ -264,12 +276,7 @@ public class StorageApiSinkSchemaUpdateIT {
   }
 
   private void runStreamingPipelineWithSchemaChange(
-      Write.Method method,
-      boolean useAutoSchemaUpdate,
-      int triggeringFreq,
-      boolean useAutoSharding,
-      int numShards,
-      boolean useIgnoreUnknownValues)
+      Write.Method method, boolean useAutoSchemaUpdate, boolean useIgnoreUnknownValues)
       throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
@@ -310,7 +317,7 @@ public class StorageApiSinkSchemaUpdateIT {
     // These rows should only reach the table if ignoreUnknownValues is set,
     // and the extra field should be present only when autoSchemaUpdate is set
     GenerateRowFunc updatedSchemaFunc = new GenerateRowFunc(fieldNamesWithExtra);
-    for (long i = numOriginalRows; i < MAX_N; i++) {
+    for (long i = numOriginalRows; i < TOTAL_N; i++) {
       testStream = testStream.addElements(updatedSchemaFunc.apply(i));
       testStream = testStream.advanceProcessingTime(Duration.standardSeconds(5));
     }
@@ -323,34 +330,41 @@ public class StorageApiSinkSchemaUpdateIT {
             .withMethod(method)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND);
+    if (method == Write.Method.STORAGE_WRITE_API) {
+      write = write.withTriggeringFrequency(Duration.standardSeconds(1));
+    }
     if (useInputSchema) {
       write = write.withSchema(inputSchema);
-    }
-    if (useAutoSharding) {
-      write = write.withAutoSharding();
     }
     if (useIgnoreUnknownValues) {
       write = write.ignoreUnknownValues();
     }
-    if (triggeringFreq > 0) {
-      write = write.withTriggeringFrequency(Duration.standardSeconds(triggeringFreq));
-    }
-    if (numShards > 0) {
-      write = write.withNumStorageWriteApiStreams(numShards);
-    }
 
-    // run pipeline
-    p.apply("Generate numbers", testStream.advanceWatermarkToInfinity())
-        // UpdateSchemaDoFn uses state, so need to have KV input
-        .apply("Add a dummy key", WithKeys.of(1))
-        .apply(
-            "Update Schema",
-            ParDo.of(new UpdateSchemaDoFn(PROJECT, BIG_QUERY_DATASET_ID, tableId, updatedSchema)))
-        .apply("Stream to BigQuery", write);
-
+    // build pipeline
+    PCollection<TableRow> rows = p.apply("Generate rows", testStream.advanceWatermarkToInfinity());
+    if (changeTableSchema) {
+      rows =
+          rows
+              // UpdateSchemaDoFn uses state, so need to have a KV input
+              .apply("Add a dummy key", WithKeys.of(1))
+              .apply(
+                  "Update Schema",
+                  ParDo.of(
+                      new UpdateSchemaDoFn(PROJECT, BIG_QUERY_DATASET_ID, tableId, updatedSchema)));
+    }
+    WriteResult result = rows.apply("Stream to BigQuery", write);
+    if (useIgnoreUnknownValues) {
+      // We ignore the extra fields, so no rows should have been sent to DLQ
+      PAssert.that(result.getFailedStorageApiInserts()).empty();
+    } else {
+      // When we don't set ignoreUnknownValues, the rows with extra fields should be sent to DLQ.
+      PAssert.that(result.getFailedStorageApiInserts())
+          .satisfies(new VerifyPCollectionSize(TOTAL_N - numOriginalRows, extraField));
+    }
     p.run().waitUntilFinish();
 
-    int expectedCount = useIgnoreUnknownValues ? MAX_N : numOriginalRows;
+    // Check row completeness, non-duplication, and that schema update works as intended.
+    int expectedCount = useIgnoreUnknownValues ? TOTAL_N : numOriginalRows;
     boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API) ? true : false;
     checkRowCompleteness(tableSpec, expectedCount, checkNoDuplication);
     if (useIgnoreUnknownValues) {
@@ -358,6 +372,34 @@ public class StorageApiSinkSchemaUpdateIT {
     }
   }
 
+  private static class VerifyPCollectionSize
+      implements SerializableFunction<Iterable<BigQueryStorageApiInsertError>, Void> {
+    int expectedSize;
+    String extraField;
+
+    VerifyPCollectionSize(int expectedSize, String extraField) {
+      this.expectedSize = expectedSize;
+      this.extraField = extraField;
+    }
+
+    @Override
+    public Void apply(Iterable<BigQueryStorageApiInsertError> input) {
+      List<BigQueryStorageApiInsertError> itemList = new ArrayList<>();
+      for (BigQueryStorageApiInsertError err : input) {
+        itemList.add(err);
+        // Check the error message is due to schema mismatch from the extra field.
+        assertTrue(err.getErrorMessage().contains("SchemaTooNarrowException"));
+        assertTrue(err.getErrorMessage().contains(extraField));
+      }
+      // Check we have the expected number of rows in DLQ.
+      // Should be equal to number of rows with extra fields.
+      assertEquals(expectedSize, itemList.size());
+      return null;
+    }
+  }
+
+  // Check the expected number of rows reached the table.
+  // If appropriate (using STORAGE_WRITE_API), check no duplication happened.
   private static void checkRowCompleteness(
       String tableSpec, int expectedCount, boolean checkNoDuplication)
       throws IOException, InterruptedException {
@@ -374,21 +416,29 @@ public class StorageApiSinkSchemaUpdateIT {
 
     LOG.info("total distinct count = {}, total count = {}", distinctCount, totalCount);
 
-    assertTrue(distinctCount == expectedCount);
+    assertEquals(expectedCount, distinctCount);
     if (checkNoDuplication) {
-      assertTrue(distinctCount == totalCount);
+      assertEquals(distinctCount, totalCount);
     }
   }
 
+  // Performs checks on the table's rows under different conditions.
+  // Note: these should only be performed when ignoreUnknownValues is set.
   public void checkRowsWithUpdatedSchema(
       String tableSpec, String extraField, int numOriginalRows, boolean useAutoSchemaUpdate)
       throws IOException, InterruptedException {
     List<TableRow> actualRows =
         BQ_CLIENT.queryUnflattened(
-            String.format("SELECT id, %s FROM %s", extraField, tableSpec), PROJECT, true, false);
+            String.format("SELECT * FROM %s", tableSpec), PROJECT, true, false);
 
     for (TableRow row : actualRows) {
-      if (Integer.parseInt((String) row.get("id")) < numOriginalRows || !useAutoSchemaUpdate) {
+      // Rows written to the table should not have the extra field if
+      // 1. The original row didn't have it in the first place
+      // 2. We didn't set autoSchemaUpdate (the extra field would just be dropped)
+      // 3. We didn't change the table's schema (again, the extra field would be dropped)
+      if (Integer.parseInt((String) row.get("id")) < numOriginalRows
+          || !useAutoSchemaUpdate
+          || !changeTableSchema) {
         assertTrue(row.get(extraField) == null);
       } else {
         assertTrue(row.get(extraField) != null);
@@ -397,46 +447,37 @@ public class StorageApiSinkSchemaUpdateIT {
   }
 
   @Test
-  public void testExactlyOnceOnSchemaChange() throws Exception {
+  public void testExactlyOnce() throws Exception {
     runStreamingPipelineWithSchemaChange(
         Write.Method.STORAGE_WRITE_API,
         /** autoSchemaUpdate */
         false,
-        /** triggeringFreq */
-        1,
-        /** autoSharding */
-        true,
-        /** numShards */
-        0,
         /** ignoreUnknownvalues */
         false);
   }
 
   @Test
-  public void testExactlyOnceOnSchemaChangeWithIgnoreUnknownValues() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, 1, true, 0, true);
+  public void testExactlyOnceWithIgnoreUnknownValues() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, true);
   }
 
   @Test
-  public void testExactlyOnceOnSchemaChangeWithAutoSchemaUpdate() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, 1, true, 0, true);
+  public void testExactlyOnceWithAutoSchemaUpdate() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, true);
   }
 
   @Test
-  public void testAtLeastOnceOnSchemaChange() throws Exception {
-    runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, false, 0, false);
+  public void testAtLeastOnce() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false);
   }
 
   @Test
-  public void testAtLeastOnceOnSchemaChangeWithIgnoreUnknownValues() throws Exception {
-    runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, 0, true, 0, true);
+  public void testAtLeastOnceWithIgnoreUnknownValues() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, true);
   }
 
   @Test
-  public void testAtLeastOnceOnSchemaChangeWithAutoSchemaUpdate() throws Exception {
-    runStreamingPipelineWithSchemaChange(
-        Write.Method.STORAGE_API_AT_LEAST_ONCE, true, 0, false, 0, true);
+  public void testAtLeastOnceWithAutoSchemaUpdate() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, true);
   }
 }
