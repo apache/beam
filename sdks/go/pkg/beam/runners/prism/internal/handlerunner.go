@@ -91,11 +91,11 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 	// since the input collection and output collection types match.
 
 	// Get the input and output PCollections, there should only be 1 each.
-	if len(t.GetOutputs()) != 1 {
-		panic("Expected single putput PCollection in reshuffle: " + prototext.Format(t))
+	if len(t.GetInputs()) != 1 {
+		panic("Expected single input PCollection in reshuffle: " + prototext.Format(t))
 	}
 	if len(t.GetOutputs()) != 1 {
-		panic("Expected single putput PCollection in reshuffle: " + prototext.Format(t))
+		panic("Expected single output PCollection in reshuffle: " + prototext.Format(t))
 	}
 
 	inColID := getOnlyValue(t.GetInputs())
