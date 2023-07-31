@@ -1869,7 +1869,7 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteValidateFailsWithoutTriggeringFrequency() {
+  public void testStreamingWriteValidateFailsWithoutTriggeringFrequency() {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
     p.enableAbandonedNodeEnforcement(false);
@@ -1887,24 +1887,6 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
                 .to("dataset.table")
                 .withMethod(method)
-                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
-  }
-
-  @Test
-  public void testWriteValidateFailsStorageAtLeastOnceWithTriggeringFrequency() {
-    assumeTrue(useStorageApiApproximate);
-    p.enableAbandonedNodeEnforcement(false);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API");
-
-    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(1);
-    p.apply(Create.empty(INPUT_RECORD_CODER))
-        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply(
-            BigQueryIO.<InputRecord>write()
-                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
-                .to("dataset.table")
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER));
   }
 

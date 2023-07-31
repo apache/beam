@@ -36,6 +36,7 @@ import java.util.Random;
 import java.util.Set;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -91,8 +92,8 @@ public class StorageApiSinkSchemaUpdateIT {
 
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("StorageApiSinkSchemaChangeIT");
-  private static final String PROJECT = "google.com:clouddfe";
-  //      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static final String PROJECT =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_schema_change_" + System.nanoTime();
 
