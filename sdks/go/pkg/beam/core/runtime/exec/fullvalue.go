@@ -269,7 +269,6 @@ type singleUseMultiChunkReStream struct {
 
 // Open returns the Stream from the start of the in-memory ReStream. Returns error if called twice.
 func (n *singleUseMultiChunkReStream) Open() (Stream, error) {
-	fmt.Println("CCCC singleUseMultiChunkReStream.Open")
 	if n.r == nil {
 		return nil, errors.New("decodeReStream opened twice")
 	}
@@ -299,7 +298,8 @@ func (s *decodeMultiChunkStream) Close() error {
 	// so we can avoid allocating the values in the first place.
 
 	for {
-		// If we have a stream, we're with the available bytes, we move to close it after this loop.
+		// If we have a stream, we're finished with the available bytes from the reader,
+		// so we move to close it after this loop.
 		if s.stream != nil {
 			break
 		}

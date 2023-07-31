@@ -83,7 +83,6 @@ func (n *DataSource) ID() UnitID {
 
 // Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
-	// TODO(https://github.com/apache/beam/issues/23043) - Reenable single iteration or more fully rip this out.
 	safeToSingleIterate := true
 	switch n.Out.(type) {
 	case *Expand, *Multiplex:
@@ -131,9 +130,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 	bcr := byteCountReader{reader: &r, count: &byteCount}
 
 	splitPrimaryComplete := map[string]bool{}
-	count := -1
 	for {
-		count++
 		var err error
 		select {
 		case e, ok := <-elms:
@@ -225,7 +222,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			// Decode key or parallel element.
 			pe, err := cp.Decode(bcr)
 			if err != nil {
-				return errors.Wrapf(err, "source decode failed: ws %v, t %v, pn %v, pe %+v", ws, t, pn, pe)
+				return errors.Wrap(err, "source decode failed")
 			}
 			pe.Timestamp = t
 			pe.Windows = ws
