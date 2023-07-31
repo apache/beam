@@ -57,6 +57,7 @@ PY_VERSION=$1
 IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}_sdk"
 CONTAINER_PROJECT="sdks:python:container:py${PY_VERSION//.}"  # Note: we substitute away the dot in the version.
 PY_INTERPRETER="python${PY_VERSION}"
+TEST_SUITE_TAG="it_validatescontainer"
 
 XUNIT_FILE="pytest-$IMAGE_NAME.xml"
 
@@ -70,22 +71,24 @@ docker -v
 gcloud -v
 
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
+TAG=$(date +%Y%m%d-%H%M%S%N)
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
 
-# TODO(https://github.com/apache/beam/issues/27674): change this branch once jenkins is deprecated.
-  if [[ "$USER" == "jenkins" ]]; then
-    # Verify docker image has been built.
-    docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
+if [[ "$ARCH" != "ARM" ]]; then
+  # Verify docker image has been built.
+  docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
 
-    TAG=$(date +%Y%m%d-%H%M%S%N)
+  # Tag the docker container.
+  docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
 
-    # Tag the docker container.
-    docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
-
-    # Push the container
-    gcloud docker -- push $CONTAINER:$TAG
-  fi
+  # Push the container
+  gcloud docker -- push $CONTAINER:$TAG
+else
+  # Reset the test suite tag to run ARM pipelines.
+  TEST_SUITE_TAG="it_dataflow_arm"
+  TAG=$ARM_TAG
+fi
 
 function cleanup_container {
   # Delete the container locally and remotely
@@ -107,12 +110,9 @@ echo ">>> Successfully built and push container $CONTAINER"
 cd sdks/python
 SDK_LOCATION=$2
 
-# Run ValidatesRunner tests on Google Cloud Dataflow service
-# TODO(https://github.com/apache/beam/issues/27674): change this branch once jenkins is deprecated.
-if [[ "$USER" == "jenkins" ]]; then
-  echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
+echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
   pytest -o junit_suite_name=$IMAGE_NAME \
-    -m="it_validatescontainer" \
+    -m=$TEST_SUITE_TAG \
     --show-capture=no \
     --numprocesses=1 \
     --timeout=1800 \
@@ -131,28 +131,4 @@ if [[ "$USER" == "jenkins" ]]; then
       --num_workers=1 \
       --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
-  echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-else
-  echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER ARM TEST"
-  pytest -o junit_suite_name=$IMAGE_NAME \
-    -m="it_dataflow_arm" \
-    --show-capture=no \
-    --numprocesses=1 \
-    --timeout=1800 \
-    --junitxml=$XUNIT_FILE \
-    --ignore-glob '.*py3\d?\.py$' \
-    --log-cli-level=INFO \
-    --test-pipeline-options=" \
-      --runner=TestDataflowRunner \
-      --project=$PROJECT \
-      --region=$REGION \
-      --sdk_container_image=$CONTAINER:$TAG \
-      --staging_location=$GCS_LOCATION/staging-dataflow-arm-test \
-      --temp_location=$GCS_LOCATION/temp-dataflow-arm-test \
-      --output=$GCS_LOCATION/output \
-      --sdk_location=$SDK_LOCATION \
-      --num_workers=1 \
-      --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH \
-
-  echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER ARM TEST"
-fi
+echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

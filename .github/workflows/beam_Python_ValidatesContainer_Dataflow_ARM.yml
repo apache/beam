@@ -86,7 +86,7 @@ jobs:
         with:
           cache-read-only: false
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -97,13 +97,30 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev
-      - name: run Python validatesContainerARM script
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:dataflow:py${PY_VER//.}:validatesContainerARM -PpythonVersion=${PY_VER} -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Set current time as docker container image tag
+        id: set_tag
+        run: |
+          echo "buildtime=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
+      - name: run Python validatesContainerARM script
+        id: run_script
+        run: |
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM 
+          arguments: |
+            -PpythonVersion=${{ matrix.python_version }} \
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Pdocker-repository=us.gcr.io/apache-beam-testing/github-actions \
+            -Pdocker-tag=${{ steps.set_tag.outputs.buildtime }} \
+            -Ppush-containers
           env:
+            ARM_TAG: ${{ steps.set_tag.outputs.buildtime }}
+            ARCH: ARM
             USER: github-actions
-            TAG: $(date +"%Y%m%d-%H%M%S%N")
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
