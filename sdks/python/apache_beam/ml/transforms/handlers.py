@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 # pytype: skip-file
-# pylint: skip-file
 
 import collections
 import hashlib
@@ -505,14 +504,14 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # columns that are transformed by any of the transforms. So we will
       # join the missing columns from the raw_data to the transformed_dataset
       # using the hash key.
-      # transformed_dataset = (
-      #     (transformed_dataset, columns_not_in_schema_with_hash)
-      #     | beam.CoGroupByKey()
-      #     | beam.ParDo(MergeDicts()))
+      transformed_dataset = (
+          (transformed_dataset, columns_not_in_schema_with_hash)
+          | beam.CoGroupByKey()
+          | beam.ParDo(MergeDicts()))
 
       # The schema only contains the columns that are transformed.
-      # transformed_dataset = (
-      #     transformed_dataset | "ConvertToRowType" >>
-      #     beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
+      transformed_dataset = (
+          transformed_dataset | "ConvertToRowType" >>
+          beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
 
       return transformed_dataset
