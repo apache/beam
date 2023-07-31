@@ -105,15 +105,12 @@ EOT
 # https://stackoverflow.com/questions/39577984/what-is-pkg-resources-0-0-0-in-output-of-pip-freeze-command
 pip freeze | grep -v pkg_resources >> "$REQUIREMENTS_FILE"
 
-# Check if the generated .txt file has the line "tensorflow==".
 if grep -q "tensorflow==" "$REQUIREMENTS_FILE"; then
-
-# Get the version of tensorflow from the .txt file.
-VERSION=$(grep -Po "tensorflow==\K[^;]+" "$REQUIREMENTS_FILE")
-
-# Write the line tensorflow-cpu-aws==${VERSION};platform_machine=="aarch64" to the .txt file.
-echo "tensorflow-cpu-aws==${VERSION};platform_machine==\"aarch64\"" >> "$REQUIREMENTS_FILE"
-
+  # Get the version of tensorflow from the .txt file.
+  TF_VERSION=$(grep -Po "tensorflow==\K[^;]+" "$REQUIREMENTS_FILE")
+  TF_ENTRY="tensorflow==${TF_VERSION}"
+  TF_AARCH64_ENTRY="tensorflow-cpu-aws==${TF_VERSION};platform_machine==\"aarch64\""
+  sed -i "s/${TF_ENTRY}/${TF_ENTRY}\n${TF_AARCH64_ENTRY}/g" $REQUIREMENTS_FILE
 fi
 
 rm -rf "$ENV_PATH"
