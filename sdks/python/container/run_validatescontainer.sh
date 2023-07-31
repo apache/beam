@@ -87,6 +87,7 @@ if [[ "$ARCH" != "ARM" ]]; then
 else
   # Reset the test suite tag to run ARM pipelines.
   TEST_SUITE_TAG="it_dataflow_arm"
+  # Reset the Python SDK container image tag.
   TAG=$ARM_TAG
 fi
 
@@ -111,7 +112,7 @@ cd sdks/python
 SDK_LOCATION=$2
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
- pytest -o junit_suite_name=$IMAGE_NAME \
+pytest -o junit_suite_name=$IMAGE_NAME \
   -m=$TEST_SUITE_TAG \
   --show-capture=no \
   --numprocesses=1 \
@@ -130,5 +131,5 @@ echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
-     
+
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
