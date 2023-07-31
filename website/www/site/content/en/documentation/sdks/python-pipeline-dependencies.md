@@ -196,7 +196,7 @@ A self-contained runtime environment is usually reproducible. To check if the  r
 
 If you need to recreate or upgrade the runtime environment, do so in a controlled way with visibility into changed dependencies:
 
-* Do not modify container images when running pipelines are still using them.
+* Do not modify container images when they are in use by running pipelines.
 
 * Avoid using the tag `:latest` with your custom images. Tag your builds with a date or a unique identifier. If something goes wrong, using this type of tag might make it possible to revert the pipeline execution to a previously known working configuration and allow for an inspection of changes.
 
