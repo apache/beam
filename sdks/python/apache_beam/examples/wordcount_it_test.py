@@ -114,8 +114,7 @@ class WordCountIT(unittest.TestCase):
 
   @pytest.mark.it_dataflow_arm
   def test_wordcount_fnapi_it_arm(self):
-    self._run_wordcount_it(
-        wordcount.run, machine_type='t2a-standard-1')
+    self._run_wordcount_it(wordcount.run, machine_type='t2a-standard-1')
 
   @pytest.mark.it_dataflow_arm
   def test_wordcount_it_with_use_sibling_sdk_workers_arm(self):
