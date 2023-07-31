@@ -204,7 +204,7 @@ If you need to recreate or upgrade the runtime environment, do so in a controlle
 
 ### Make the pipeline launch environment reproducible
 
-The launch environment runs the **production version** of the pipeline. While developing the pipeline locally, you might use a **development environment** that includes dependencies for development, such as Jupyter or Pylint. The launch environment for production pipelines might not need these additional dependencies. You can construct and maintain it separately from the dev environment.
+The launch environment runs the **production version** of the pipeline. While developing the pipeline locally, you might use a **development environment** that includes dependencies for development, such as Jupyter or Pylint. The launch environment for production pipelines might not need these additional dependencies. You can construct and maintain it separately from the development environment.
 
 To reduce side-effects on pipeline submissions, it is best to able to [recreate the launch environment in a reproducible manner](#create-reproducible-environments).
 
