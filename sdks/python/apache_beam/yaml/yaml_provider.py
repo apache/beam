@@ -415,7 +415,8 @@ def create_builtin_provider():
           'Flatten': Flatten,
           'WindowInto': WindowInto,
           'GroupByKey': beam.GroupByKey,
-          'SumPerKey': lambda: beam.CombinePerKey(sum),
+          'CombinePerKey': lambda combine_fn: beam.CombinePerKey(
+              python_callable.PythonCallableWithSource(combine_fn)),
           'TopNLargest': lambda n,
           key=None: beam.combiners.Top.Largest(
               n=n, key=python_callable.PythonCallableWithSource(key))
