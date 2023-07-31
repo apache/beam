@@ -12,7 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python PreCommit Dataframes
+
+name: PreCommit Python Runners
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
@@ -22,9 +23,9 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/job_PreCommit_Python_Dataframes.yml"]
+    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Runners.yml"]
   schedule:
-    - cron: '0 */6 * * *'  
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -49,9 +50,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Python_Dataframes:
-    name: beam_PreCommit_Python_Dataframes (Run Python_Dataframes PreCommit 3.x)
+  beam_PreCommit_Python_Runners:
+    name: beam_PreCommit_Python_Runners (Run Python_Runners PreCommit 3.x)
     runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -61,7 +63,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Python_Dataframes PreCommit')
+      startsWith(github.event.comment.body, 'Run Python_Runners PreCommit')
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
@@ -70,15 +72,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Check out repository code if comment
         uses: actions/checkout@v3
-        if: startsWith(github.event.comment.body, 'Run Python_Dataframes PreCommit')
+        if: startsWith(github.event.comment.body, 'Run Python_Runners PreCommit')
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
-          echo "comment_body=Run Python_Dataframes PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
+          echo "comment_body=Run Python_Runners PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body 
+        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -86,7 +88,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: "${{ github.job }} (${{ matrix.python_version }})"
           github_current_run_id: ${{ github.run_id }}
-      - uses: actions/setup-python@v4
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
       - name: Install Java
@@ -98,10 +101,19 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Run pythonPreCommit
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:tox:py${PY_VER//.}:preCommitPy${PY_VER//.} -Pposargs=apache_beam/dataframe/ -PpythonVersion=${PY_VER}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Run pythonPreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
+          arguments: |
+            -Pposargs=apache_beam/runners/ \
+            -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:

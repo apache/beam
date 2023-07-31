@@ -12,17 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python PreCommit Lint
+
+name: PreCommit Python Examples
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["sdks/python/**","release/**"]
+    paths: [ "model/**","sdks/python/**","release/**"]
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["sdks/python/**","release/**",".github/workflows/job_PreCommit_PythonLint.yml"]
+    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Examples.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -49,15 +50,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_PythonLint:
-    name: beam_PreCommit_PythonLint (Run PythonLint PreCommit)
+  beam_PreCommit_Python_Examples:
+    name: beam_PreCommit_Python_Examples (Run Python_Examples PreCommit 3.x)
     runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run PythonLint PreCommit'
+      startsWith(github.event.comment.body, 'Run Python_Examples PreCommit')
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
@@ -66,32 +72,50 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Check out repository code if comment
         uses: actions/checkout@v3
-        if: github.event.comment.body == 'Run PythonLint PreCommit'
+        if: startsWith(github.event.comment.body, 'Run Python_Examples PreCommit')
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
+      - name: Set comment body with matrix
+        id: set_comment_body
+        run: |
+          echo "comment_body=Run Python_Examples PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run PythonLint PreCommit'
+        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
           github_repository: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
+          github_job: "${{ github.job }} (${{ matrix.python_version }})"
           github_current_run_id: ${{ github.run_id }}
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
       - name: Install Java
-        uses: actions/setup-java@v3.8.0
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '8'
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.16'
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonLintPreCommit script
-        run: ./gradlew :pythonLintPreCommit
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
+        run: |
+          PY_VER=${{ matrix.python_version }}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Run pythonPreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
+          arguments: |
+            -Pposargs=apache_beam/examples/ \
+            -PpythonVersion=${{ matrix.python_version }} \
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-code-coverage-report
+          path: "**/pytest*.xml"

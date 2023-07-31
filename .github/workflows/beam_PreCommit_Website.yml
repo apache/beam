@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Website PreCommit
+name: PreCommit Website
 
 on:
   push:
@@ -54,6 +54,7 @@ jobs:
   beam_PreCommit_Website:
     name: beam_PreCommit_Website (Run Website PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, small]
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -90,4 +91,6 @@ jobs:
         with:
           cache-read-only: false
       - name: run websitePreCommit script
-        run: ./gradlew :websitePreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :websitePreCommit

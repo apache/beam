@@ -54,6 +54,7 @@ permissions:
 jobs:
   beam_PreCommit_Typescript:
     name: beam_PreCommit_Typescript (Run Typescript PreCommit)
+    timeout-minutes: 120
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||
@@ -91,4 +92,6 @@ jobs:
         with:
           cache-read-only: false
       - name: run typescriptPreCommit script
-        run: ./gradlew :typescriptPreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :typescriptPreCommit
