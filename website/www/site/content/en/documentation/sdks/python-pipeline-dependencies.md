@@ -198,7 +198,7 @@ If you need to recreate or upgrade the runtime environment, do so in a controlle
 
 * Do not modify container images when running pipelines are still using them.
 
-* Avoid using the tag `:latest`  with your custom images. Tag your builds with a date or a unique identifier.  If something goes wrong, using this type of tag might make it possible to revert the pipeline execution to a previously known working configuration  and allow for an inspection of changes.
+* Avoid using the tag `:latest` with your custom images. Tag your builds with a date or a unique identifier. If something goes wrong, using this type of tag might make it possible to revert the pipeline execution to a previously known working configuration and allow for an inspection of changes.
 
 * Consider storing the output of `pip freeze` or the contents of `requirements.txt` in the version control system.
 
