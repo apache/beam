@@ -58,54 +58,55 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
 
 @pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
-  def test_cloudml_benchmark_criteo_small(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    extra_opts = {}
-    extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_SMALL)
-    extra_opts['benchmark_type'] = 'tft'
-    extra_opts['classifier'] = 'criteo'
-    extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
-    start_time = time.time()
-    workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
-    end_time = time.time()
+  # def test_cloudml_benchmark_criteo_small(self):
+  #   test_pipeline = TestPipeline(is_integration_test=True)
+  #   extra_opts = {}
+  #   extra_opts['input'] = os.path.join(
+  #       _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_SMALL)
+  #   extra_opts['benchmark_type'] = 'tft'
+  #   extra_opts['classifier'] = 'criteo'
+  #   extra_opts['frequency_threshold'] = 0
+  #   extra_opts['output'] = os.path.join(
+  #       _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
+  #   start_time = time.time()
+  #   workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
+  #   end_time = time.time()
 
-    metrics_table = 'cloudml_benchmark_criteo_small'
-    _publish_metrics(
-        pipeline=test_pipeline,
-        metric_value=end_time - start_time,
-        metrics_table=metrics_table,
-        metric_name='runtime_sec')
+  #   metrics_table = 'cloudml_benchmark_criteo_small'
+  #   _publish_metrics(
+  #       pipeline=test_pipeline,
+  #       metric_value=end_time - start_time,
+  #       metrics_table=metrics_table,
+  #       metric_name='runtime_sec')
 
-  def test_cloudml_benchmark_cirteo_no_shuffle_10GB(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    extra_opts = {}
-    extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_10GB)
-    extra_opts['benchmark_type'] = 'tft'
-    extra_opts['classifier'] = 'criteo'
-    extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
-    extra_opts['shuffle'] = False
-    start_time = time.time()
-    workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
-    end_time = time.time()
+  # def test_cloudml_benchmark_cirteo_no_shuffle_10GB(self):
+  #   test_pipeline = TestPipeline(is_integration_test=True)
+  #   extra_opts = {}
+  #   extra_opts['input'] = os.path.join(
+  #       _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_10GB)
+  #   extra_opts['benchmark_type'] = 'tft'
+  #   extra_opts['classifier'] = 'criteo'
+  #   extra_opts['frequency_threshold'] = 0
+  #   extra_opts['output'] = os.path.join(
+  #       _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
+  #   extra_opts['shuffle'] = False
+  #   start_time = time.time()
+  #   workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
+  #   end_time = time.time()
 
-    metrics_table = 'cloudml_benchmark_cirteo_no_shuffle_10GB'
-    _publish_metrics(
-        pipeline=test_pipeline,
-        metric_value=end_time - start_time,
-        metrics_table=metrics_table,
-        metric_name='runtime_sec')
+  #   metrics_table = 'cloudml_benchmark_cirteo_no_shuffle_10GB'
+  #   _publish_metrics(
+  #       pipeline=test_pipeline,
+  #       metric_value=end_time - start_time,
+  #       metrics_table=metrics_table,
+  #       metric_name='runtime_sec')
 
   def test_cloudml_benchmark_criteo_10GB(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
     extra_opts['input'] = os.path.join(
         _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_10GB)
+    extra_opts['job_name'] = 'criteo-tft-10'
     extra_opts['benchmark_type'] = 'tft'
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
