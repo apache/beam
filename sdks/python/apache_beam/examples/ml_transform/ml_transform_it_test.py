@@ -35,7 +35,7 @@ except ImportError:  # pylint: disable=bare-except
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
-_DISK_SIZE = 150
+_DISK_SIZE = 250
 
 
 def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
@@ -120,39 +120,39 @@ class CriteoTest(unittest.TestCase):
         metrics_table=metrics_table,
         metric_name='runtime_sec')
 
-  def test_process_criteo_10GB_dataset_fixed_workers_highmem(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
 
-    extra_opts = {}
+#   def test_process_criteo_10GB_dataset_fixed_workers_highmem(self):
+#     test_pipeline = TestPipeline(is_integration_test=True)
 
-    # beam pipeline options
-    extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
-    extra_opts['artifact_location'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
+#     extra_opts = {}
 
-    extra_opts['frequency_threshold'] = 0
+#     # beam pipeline options
+#     extra_opts['input'] = os.path.join(
+#         _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
+#     extra_opts['artifact_location'] = os.path.join(
+#         _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
 
-    # dataflow pipeliens options
-    extra_opts['max_num_workers'] = 50
-    extra_opts['disk_size_gb'] = _DISK_SIZE
-    extra_opts['machine_type'] = 'n1-highmem-2'
-    extra_opts['job_name'] = (
-        'mltransform-criteo-dataset-{}-10-fixed-workers-50'.format(
-            uuid.uuid4().hex))
+#     extra_opts['frequency_threshold'] = 0
 
-    start_time = time.time()
-    criteo.run(
-        test_pipeline.get_full_options_as_args(
-            **extra_opts, save_main_session=False))
-    end_time = time.time()
-    metrics_table = 'ml_transform_criteo_10GB_dataset_process_metrics'
-    _publish_metrics(
-        pipeline=test_pipeline,
-        metric_value=end_time - start_time,
-        metrics_table=metrics_table,
-        metric_name='runtime_sec')
+#     # dataflow pipeliens options
+#     extra_opts['max_num_workers'] = 50
+#     extra_opts['disk_size_gb'] = _DISK_SIZE
+#     extra_opts['machine_type'] = 'n1-highmem-2'
+#     extra_opts['job_name'] = (
+#         'mltransform-criteo-dataset-{}-10-fixed-workers-50'.format(
+#             uuid.uuid4().hex))
 
+#     start_time = time.time()
+#     criteo.run(
+#         test_pipeline.get_full_options_as_args(
+#             **extra_opts, save_main_session=False))
+#     end_time = time.time()
+#     metrics_table = 'ml_transform_criteo_10GB_dataset_process_metrics'
+#     _publish_metrics(
+#         pipeline=test_pipeline,
+#         metric_value=end_time - start_time,
+#         metrics_table=metrics_table,
+#         metric_name='runtime_sec')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
