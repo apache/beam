@@ -91,7 +91,7 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
 
 @pytest.mark.uses_tft
 class CriteoTest(unittest.TestCase):
-  def test_process_criteo_10GB_dataset(self):
+  def test_process_criteo_10GB_dataset_highmem(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
 
@@ -105,7 +105,7 @@ class CriteoTest(unittest.TestCase):
 
     # dataflow pipeliens options
     extra_opts['disk_size_gb'] = _DISK_SIZE
-    extra_opts['machine_type'] = 'n1-standard-4'
+    extra_opts['machine_type'] = 'n1-highmen-2'
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     start_time = time.time()
@@ -120,7 +120,7 @@ class CriteoTest(unittest.TestCase):
         metrics_table=metrics_table,
         metric_name='runtime_sec')
 
-  def test_process_criteo_10GB_dataset_fixed_workers(self):
+  def test_process_criteo_10GB_dataset_fixed_workers_highmem(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     extra_opts = {}
@@ -136,7 +136,7 @@ class CriteoTest(unittest.TestCase):
     # dataflow pipeliens options
     extra_opts['max_num_workers'] = 50
     extra_opts['disk_size_gb'] = _DISK_SIZE
-    extra_opts['machine_type'] = 'n1-standard-4'
+    extra_opts['machine_type'] = 'n1-highmem-2'
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10-fixed-workers-50'.format(
             uuid.uuid4().hex))
