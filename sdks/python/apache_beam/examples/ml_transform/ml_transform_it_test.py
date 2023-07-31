@@ -91,7 +91,7 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
 
 @pytest.mark.uses_tft
 class CriteoTest(unittest.TestCase):
-  def test_process_criteo_10GB_dataset_highmem(self):
+  def test_process_criteo_10GB_dataset(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
 
@@ -99,13 +99,13 @@ class CriteoTest(unittest.TestCase):
     extra_opts['input'] = os.path.join(
         _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
     extra_opts['artifact_location'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
+        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
 
     extra_opts['frequency_threshold'] = 0
 
     # dataflow pipeliens options
     extra_opts['disk_size_gb'] = _DISK_SIZE
-    extra_opts['machine_type'] = 'n1-highmen-2'
+    extra_opts['machine_type'] = 'n1-highmem-2'
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     start_time = time.time()
@@ -121,7 +121,7 @@ class CriteoTest(unittest.TestCase):
         metric_name='runtime_sec')
 
 
-#   def test_process_criteo_10GB_dataset_fixed_workers_highmem(self):
+#   def test_process_criteo_10GB_dataset_fixed_workers(self):
 #     test_pipeline = TestPipeline(is_integration_test=True)
 
 #     extra_opts = {}
