@@ -269,6 +269,7 @@ type singleUseMultiChunkReStream struct {
 
 // Open returns the Stream from the start of the in-memory ReStream. Returns error if called twice.
 func (n *singleUseMultiChunkReStream) Open() (Stream, error) {
+	fmt.Println("CCCC singleUseMultiChunkReStream.Open")
 	if n.r == nil {
 		return nil, errors.New("decodeReStream opened twice")
 	}
@@ -296,12 +297,19 @@ func (s *decodeMultiChunkStream) Close() error {
 	// TODO(https://github.com/apache/beam/issues/22901):
 	// Optimize the case where we have length prefixed values
 	// so we can avoid allocating the values in the first place.
-	for s.next < s.chunk {
-		err := s.d.DecodeTo(s.r, &s.ret)
-		if err != nil {
-			return errors.Wrap(err, "decodeStream value decode failed on close")
+
+	for {
+		// If we have a stream, we're with the available bytes, we move to close it after this loop.
+		if s.stream != nil {
+			break
 		}
-		s.next++
+		// Drain the whole available iterable to ensure the reader is in the right position.
+		_, err := s.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
 	}
 	if s.stream != nil {
 		s.stream.Close()
