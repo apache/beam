@@ -63,6 +63,7 @@ dependencies {
   runtimeOnly library.java.kafka_clients
   implementation library.java.slf4j_api
   implementation library.java.guava
+  permitUnusedDeclared library.java.guava
 
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")

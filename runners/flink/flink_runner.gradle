@@ -131,6 +131,7 @@ dependencies {
   compileOnly project(":sdks:java:build-tools")
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.guava
+  permitUnusedDeclared library.java.guava
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(":runners:core-construction-java")
