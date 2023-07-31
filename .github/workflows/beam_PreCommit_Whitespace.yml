@@ -53,7 +53,7 @@ jobs:
     beam_PreCommit_Whitespace:
         if: |
           github.event_name == 'push' || 
-      github.event_name == 'workflow_dispatch' ||
+          github.event_name == 'workflow_dispatch' ||
           github.event_name == 'pull_request_target' ||
           github.event_name == 'schedule' ||
           github.event.comment.body == 'Run Whitespace PreCommit'
