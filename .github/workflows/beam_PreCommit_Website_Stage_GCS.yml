@@ -90,7 +90,7 @@ jobs:
                 commit_sha: '${{ github.event.pull_request.head.sha || github.sha }}',
             });
             const pr =
-                result.data..find((el) => {
+                result.data.find((el) => {
                     return context.payload.ref === `refs/heads/${el.head.ref}`;
                 }) || prs[0];
             const prNumber = (pr && pr.number) || context.event.issue.number;
