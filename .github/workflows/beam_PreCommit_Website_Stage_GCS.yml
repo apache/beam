@@ -89,6 +89,7 @@ jobs:
                 repo: context.repo.repo,
                 commit_sha: '${{ github.event.pull_request.head.sha || github.sha }}',
             });
+            console.log(result)
             const pr =
                 result.data.find((el) => {
                     return context.payload.ref === `refs/heads/${el.head.ref}`;
