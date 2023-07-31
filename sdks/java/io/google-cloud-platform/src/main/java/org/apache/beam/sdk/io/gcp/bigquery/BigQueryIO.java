@@ -3143,18 +3143,32 @@ public class BigQueryIO {
                   + "triggering frequency must be specified");
         } else {
           checkArgument(
-              getTriggeringFrequency() == null
-                  && getStorageApiTriggeringFrequency(bqOptions) == null,
+              getTriggeringFrequency() == null,
               "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
+              method);
+        }
+        if (method != Method.FILE_LOADS) {
+          checkArgument(
+              getNumFileShards() == 0,
+              "Number of file shards can be specified only when writing via FILE_LOADS, but the method was %s.",
+              method);
+        }
+        if (method == Method.STORAGE_API_AT_LEAST_ONCE
+            && getStorageApiTriggeringFrequency(bqOptions) != null) {
+          LOG.warn(
+              "Storage API triggering frequency option will be ignored is it can only be specified only "
+                  + "when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
               method);
         }
         if (getAutoSharding()) {
           if (method == Method.STORAGE_WRITE_API && getStorageApiNumStreams(bqOptions) > 0) {
             LOG.warn(
-                "Both numStorageWriteApiStreams and auto-sharding options are set. Will default to auto-sharding. To set a fixed number of streams, do not enable auto-sharding.");
+                "Both numStorageWriteApiStreams and auto-sharding options are set. Will default to auto-sharding."
+                    + " To set a fixed number of streams, do not enable auto-sharding.");
           } else if (method == Method.FILE_LOADS && getNumFileShards() > 0) {
             LOG.warn(
-                "Both numFileShards and auto-sharding options are set. Will default to auto-sharding. To set a fixed number of file shards, do not enable auto-sharding.");
+                "Both numFileShards and auto-sharding options are set. Will default to auto-sharding."
+                    + " To set a fixed number of file shards, do not enable auto-sharding.");
           } else if (method == Method.STORAGE_API_AT_LEAST_ONCE) {
             LOG.warn(
                 "The setting of auto-sharding is ignored. It is only supported when writing an"
