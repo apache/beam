@@ -152,7 +152,8 @@ class GcsIO(object):
       filename,
       mode='r',
       read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
-      mime_type='application/octet-stream'):
+      mime_type='application/octet-stream',
+      raw_download=False):
     """Open a GCS file path for reading or writing.
 
     Args:
@@ -172,7 +173,8 @@ class GcsIO(object):
 
     if mode == 'r' or mode == 'rb':
       blob = bucket.get_blob(blob_name)
-      return BeamBlobReader(blob, chunk_size=read_buffer_size)
+      return BeamBlobReader(
+          blob, chunk_size=read_buffer_size, raw_download=raw_download)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.get_blob(blob_name)
       if not blob:
@@ -478,6 +480,13 @@ class GcsIO(object):
         updated.microsecond / 1000000.0)
 
 
+class BeamBlobReader(BlobReader):
+  def __init__(
+      self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE, raw_download=False):
+    super().__init__(blob, chunk_size=chunk_size, raw_download=raw_download)
+    self.mode = "r"
+
+
 class BeamBlobWriter(BlobWriter):
   def __init__(
       self, blob, content_type, chunk_size=16 * 1024 * 1024, ignore_flush=True):
@@ -487,9 +496,3 @@ class BeamBlobWriter(BlobWriter):
         chunk_size=chunk_size,
         ignore_flush=ignore_flush)
     self.mode = "w"
-
-
-class BeamBlobReader(BlobReader):
-  def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):
-    super().__init__(blob, chunk_size=chunk_size)
-    self.mode = "r"
