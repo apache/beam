@@ -407,7 +407,7 @@ public class StorageApiSinkSchemaUpdateIT {
     TableRow queryResponse =
         Iterables.getOnlyElement(
             BQ_CLIENT.queryUnflattened(
-                String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM %s", tableSpec),
+                String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM [%s]", tableSpec),
                 PROJECT,
                 true,
                 false));
@@ -430,7 +430,7 @@ public class StorageApiSinkSchemaUpdateIT {
       throws IOException, InterruptedException {
     List<TableRow> actualRows =
         BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM %s", tableSpec), PROJECT, true, false);
+            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false);
 
     for (TableRow row : actualRows) {
       // Rows written to the table should not have the extra field if
