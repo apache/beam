@@ -39,8 +39,6 @@ dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:extensions:sql:udf")
   implementation library.java.vendored_calcite_1_28_0
-  implementation library.java.guava
-  permitUnusedDeclared library.java.guava
   implementation library.java.grpc_api
   implementation library.java.joda_time
   implementation library.java.protobuf_java

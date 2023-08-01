@@ -30,7 +30,6 @@ configurations { dataflowStreamingRunnerPreCommit }
 dependencies {
   testRuntimeOnly project(path: ":examples:java", configuration: "testRuntimeMigration")
   testRuntimeOnly project(":runners:google-cloud-dataflow-java")
-  testRuntimeOnly library.java.guava
 }
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'

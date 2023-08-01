@@ -143,7 +143,6 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_26_0_jre
-  implementation library.java.guava
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
 
@@ -168,12 +167,6 @@ dependencies {
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema
   provided library.java.everit_json_schema
-}
-
-configurations.all {
-  resolutionStrategy.capabilitiesResolution.withCapability("com.google.guava:listenablefuture") {
-    select("com.google.guava:guava:0")
-  }
 }
 
 // Don't pull in newer versions of the checker framework from dependencies.
