@@ -35,7 +35,7 @@ except ImportError:  # pylint: disable=bare-except
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
-_DISK_SIZE = 250
+_DISK_SIZE = 150
 
 
 def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
@@ -101,7 +101,7 @@ class CriteoTest(unittest.TestCase):
 
     # beam pipeline options
     extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_SMALL_100MB)
+        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
     extra_opts['artifact_location'] = os.path.join(
         _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
 
@@ -109,7 +109,7 @@ class CriteoTest(unittest.TestCase):
 
     # dataflow pipeliens options
     extra_opts['disk_size_gb'] = _DISK_SIZE
-    # extra_opts['machine_type'] = 'n1-standard-2'
+    extra_opts['machine_type'] = 'e2-highmem-2'
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     # start_time = time.time()
