@@ -84,15 +84,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: Authenticate on GCP
+        id: auth
         uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: GCloud Docker credential helper
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev
+      - uses: 'docker/login-action@v1'
+        with:
+          registry: 'us.gcr.io'
+          username: 'oauth2accesstoken'
+          password: '${{ steps.auth.outputs.access_token }}'
       - name: run goPostCommitDataflowARM script
         run: ./gradlew :goPostCommitDataflowARM
         env:
