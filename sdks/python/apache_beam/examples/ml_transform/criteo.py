@@ -95,6 +95,7 @@ def run(argv=None, ):
         # For numerical features, set negatives to zero. Then take log(x+1).
         | "NegsToZeroLog" >> beam.ParDo(NegsToZeroLog())
         | beam.Map(lambda x: str(x).split(csv_delimiter))
+        # Creates 50 GB data.
         | beam.Map(lambda x: {ordered_columns[i]: x[i]
                               for i in range(len(x))})
         | beam.Map(convert_str_to_int))
