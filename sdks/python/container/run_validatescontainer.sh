@@ -88,8 +88,8 @@ else
   # Reset the test suite tag to run ARM pipelines.
   TEST_SUITE_TAG="it_dataflow_arm"
 
-  # Reset the Python SDK container image tag.
-  TAG=$ARM_TAG
+  # Reset the multi-arch Python SDK container image tag.
+  TAG=$MULTIARCH_TAG
 fi
 
 function cleanup_container {
