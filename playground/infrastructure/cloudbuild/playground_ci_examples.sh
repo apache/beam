@@ -84,7 +84,7 @@ export STEP=CI
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
 export GRADLE_VERSION=7.5.1
-export GO_VERSION=1.18 
+export GO_VERSION=1.20 
 
 LogOutput "Installing python java8 and dependencies"
 apt-get update > /dev/null
@@ -224,7 +224,7 @@ do
     --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
     if [ $? -eq 0 ]
     then
-        LogOutput "Example validation for $sdk SDK successfully completed"
+        LogOutput "Example validation for $sdk SDKLOGP successfully completed"
         eval "ci_${sdk}_passed"='True'
     else
         LogOutput "Example validation for $sdk SDK failed"
