@@ -224,7 +224,7 @@ do
     --subdirs ${SUBDIRS} >> ${LOG_PATH} 2>&1
     if [ $? -eq 0 ]
     then
-        LogOutput "Example validation for $sdk SDKLOGP successfully completed"
+        LogOutput "Example validation for $sdk SDK successfully completed"
         eval "ci_${sdk}_passed"='True'
     else
         LogOutput "Example validation for $sdk SDK failed"
