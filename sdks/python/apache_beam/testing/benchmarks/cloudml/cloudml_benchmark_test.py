@@ -19,7 +19,7 @@ import time
 import unittest
 import uuid
 
-# import pytest
+import pytest
 
 try:
   import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as lib
@@ -31,7 +31,6 @@ except ImportError:  # pylint: disable=bare-except
   raise unittest.SkipTest('Dependencies are not installed')
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
-_CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
 
 
@@ -56,7 +55,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
-# @pytest.mark.uses_tft
+@pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
   def test_cloudml_benchmark_criteo_small(self):
     test_pipeline = TestPipeline(is_integration_test=True)

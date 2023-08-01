@@ -17,25 +17,21 @@
 
 import logging
 import os
-# import time
+import time
 import unittest
 import uuid
 
 import pytest
 
 try:
-  import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as constants
-  #   from apache_beam.examples.ml_transform import vocab_tfidf_processing
+  from apache_beam.examples.ml_transform import vocab_tfidf_processing
   from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
   from apache_beam.testing.test_pipeline import TestPipeline
-  from apache_beam.examples.ml_transform import criteo
 except ImportError:  # pylint: disable=bare-except
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
-_INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
-_DISK_SIZE = 150
 
 
 def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
@@ -59,104 +55,35 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
-# @pytest.mark.uses_tft
-# class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
-#   def test_process_large_movie_review_dataset(self):
-#     input_data_dir = 'gs://apache-beam-ml/datasets/aclImdb'
-#     artifact_location = os.path.join(
-#         'gs://temp-storage-for-end-to-end-tests/tft/artifacts',
-#         uuid.uuid4().hex)
-#     output_dir = os.path.join(
-#         'gs://temp-storage-for-end-to-end-tests/tft/output', uuid.uuid4().hex)
-#     extra_opts = {
-#         'input_data_dir': input_data_dir,
-#         'output_dir': output_dir,
-#         'artifact_location': artifact_location,
-#     }
-
-#     extra_opts[
-#         'job_name'] = 'mltransform-large-movie-review-dataset-{}-10'.format(
-#             uuid.uuid4().hex)
-
-#     test_pipeline = TestPipeline(is_integration_test=True)
-#     start_time = time.time()
-#     vocab_tfidf_processing.run(
-#         test_pipeline.get_full_options_as_args(
-#             **extra_opts, save_main_session=False),
-#     )
-#     end_time = time.time()
-#     metrics_table = 'ml_transform_large_movie_review_dataset_process_metrics'
-#     _publish_metrics(
-#         pipeline=test_pipeline,
-#         metric_value=end_time - start_time,
-#         metrics_table=metrics_table,
-#         metric_name='runtime_sec')
-
-
 @pytest.mark.uses_tft
-class CriteoTest(unittest.TestCase):
-  def test_process_criteo_10GB_dataset(self):
+class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
+  def test_process_large_movie_review_dataset(self):
+    input_data_dir = 'gs://apache-beam-ml/datasets/aclImdb'
+    artifact_location = os.path.join(_OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
+    output_dir = os.path.join(_OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
+    extra_opts = {
+        'input_data_dir': input_data_dir,
+        'output_dir': output_dir,
+        'artifact_location': artifact_location,
+    }
+
+    extra_opts['job_name'] = 'mltransform-large-movie-review-dataset-{}'.format(
+        uuid.uuid4().hex)
+
     test_pipeline = TestPipeline(is_integration_test=True)
-    extra_opts = {}
-
-    # beam pipeline options
-    extra_opts['input'] = os.path.join(
-        _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
-    extra_opts['artifact_location'] = os.path.join(
-        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
-
-    extra_opts['frequency_threshold'] = 0
-
-    # dataflow pipeliens options
-    extra_opts['disk_size_gb'] = _DISK_SIZE
-    extra_opts['machine_type'] = 'e2-highmem-2'
-    extra_opts['job_name'] = (
-        'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
-    # start_time = time.time()
-    criteo.run(
+    start_time = time.time()
+    vocab_tfidf_processing.run(
         test_pipeline.get_full_options_as_args(
-            **extra_opts, save_main_session=False))
-    # end_time = time.time()
-    # metrics_table = 'ml_transform_criteo_10GB_dataset_process_metrics'
-    # _publish_metrics(
-    #     pipeline=test_pipeline,
-    #     metric_value=end_time - start_time,
-    #     metrics_table=metrics_table,
-    #     metric_name='runtime_sec')
+            **extra_opts, save_main_session=False),
+    )
+    end_time = time.time()
+    metrics_table = 'ml_transform_large_movie_review_dataset_process_metrics'
+    _publish_metrics(
+        pipeline=test_pipeline,
+        metric_value=end_time - start_time,
+        metrics_table=metrics_table,
+        metric_name='runtime_sec')
 
-
-#   def test_process_criteo_10GB_dataset_fixed_workers(self):
-#     test_pipeline = TestPipeline(is_integration_test=True)
-
-#     extra_opts = {}
-
-#     # beam pipeline options
-#     extra_opts['input'] = os.path.join(
-#         _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
-#     extra_opts['artifact_location'] = os.path.join(
-#         _OUTPUT_GCS_BUCKET_ROOT, 'tft_artifacts', uuid.uuid4().hex)
-
-#     extra_opts['frequency_threshold'] = 0
-
-#     # dataflow pipeliens options
-#     extra_opts['max_num_workers'] = 50
-#     extra_opts['disk_size_gb'] = _DISK_SIZE
-#     extra_opts['machine_type'] = 'n1-highmem-2'
-#     extra_opts['job_name'] = (
-#         'mltransform-criteo-dataset-{}-10-fixed-workers-50'.format(
-#             uuid.uuid4().hex))
-
-#     start_time = time.time()
-#     criteo.run(
-#         test_pipeline.get_full_options_as_args(
-#             **extra_opts, save_main_session=False))
-#     end_time = time.time()
-#     metrics_table = 'ml_transform_criteo_10GB_dataset_process_metrics'
-#     _publish_metrics(
-#         pipeline=test_pipeline,
-#         metric_value=end_time - start_time,
-#         metrics_table=metrics_table,
-#         metric_name='runtime_sec')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
