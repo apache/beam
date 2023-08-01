@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint: disable=ungrouped-imports
 
 import unittest
 from io import StringIO
@@ -26,6 +27,8 @@ import mock
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
+  # fail when tft is not installed.
+  import tensorflow_transform as tft  # pylint: disable=unused-import
   from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_scale_to_0_1
   from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_compute_and_apply_vocabulary
   from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_compute_and_apply_vocabulary_with_non_columnar_data
