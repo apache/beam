@@ -35,9 +35,11 @@
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
 if [[ $# < 2 ]]; then
-  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version> <sdk_location> <optional_cpu_architecture>"
+  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version> <sdk_location> <cpu_architecture>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
   printf " Sample value: 3.9"
+  printf "\n\tcpu_architecture: [optional] CPU architecture used for container build and run tests."
+  printf " Sample value: ARM or x86"
   exit 1
 fi
 
