@@ -103,11 +103,9 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - uses: 'docker/login-action@v1'
-        with:
-          registry: 'us.gcr.io'
-          username: 'oauth2accesstoken'
-          password: '${{ steps.auth.outputs.access_token }}'
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker us.gcr.io
       - name: run javaExamplesDataflowARMPostCommit script for Java8
         run: |
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
