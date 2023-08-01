@@ -210,6 +210,8 @@ class DataflowRunner(PipelineRunner):
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
               last_error_msg = m.messageText
+          else:
+            _LOGGER.info(message)
         if not page_token:
           break
 
