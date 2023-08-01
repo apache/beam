@@ -78,8 +78,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
-      - name: script
-        if: github.ref_name != 'master'
+      - name: Get PR number on push
+        if: github.ref_name != 'master' && startsWith(github.ref_name , 'release-') == false
         uses: actions/github-script@v6
         id: get_issue_number
         with:
