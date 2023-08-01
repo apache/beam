@@ -85,6 +85,7 @@ if [[ "$ARCH" != "ARM" ]]; then
   # Push the container
   gcloud docker -- push $CONTAINER:$TAG
 else
+  # Note: multi-arch Python SDK containers are already pushed during build.
   # Reset the test suite tag to run ARM pipelines.
   TEST_SUITE_TAG="it_dataflow_arm"
 
