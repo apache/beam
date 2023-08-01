@@ -1017,8 +1017,6 @@ class RunInferenceBaseTest(unittest.TestCase):
     model1 = sh1.acquire()
     self.assertEqual(1, model1.predict(10))
     model1.increment_state(5)
-    self.assertEqual(6, model1.predict(10))
-    sh1.release(model1)
 
     tag2 = mm.load('key2')
     tag3 = mm.load('key3')
@@ -1033,7 +1031,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     sh2.release(model2)
     sh3.release(model3)
 
-    # This should get recreated, so it shouldn't have the state updates
+    # model1 should have retained a valid reference to the model until released
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    # This should now have been garbage collected, so it now it should get
+    # recreated and shouldn't have the state updates
     model1 = multi_process_shared.MultiProcessShared(
         mh1.load_model, tag=tag1).acquire()
     self.assertEqual(1, model1.predict(10))

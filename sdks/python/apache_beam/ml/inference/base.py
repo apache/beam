@@ -34,6 +34,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import OrderedDict
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -759,20 +760,8 @@ class _ModelManager:
     """
     self._max_models = max_models
     self._mh_map = mh_map
-    self._loaded_keys = []
     self._proxy_map = {}
-    self._tag_map = {}
-
-  def _get_tag(self, key: str) -> str:
-    """
-    Args:
-      key: the key associated with the model we'd like to load.
-    Returns:
-      the tag we can use to load the model using multi_process_shared.py
-    """
-    if key not in self._tag_map:
-      self._tag_map[key] = uuid.uuid4().hex
-    return self._tag_map[key]
+    self._tag_map = OrderedDict()
 
   def load(self, key: str) -> str:
     """
@@ -782,31 +771,31 @@ class _ModelManager:
     Returns:
       the tag we can use to access the model using multi_process_shared.py.
     """
-    tag = self._get_tag(key)
-    if key in self._loaded_keys:
-      if self._max_models is not None:
-        # move key to the back of the list
-        self._loaded_keys.append(
-            self._loaded_keys.pop(self._loaded_keys.index(key)))
-      return tag
+    # Map the key for a model to a unique tag that will persist until the model
+    # is released. This needs to be unique between releasing/reacquiring th
+    # model because otherwise the ProxyManager will try to reuse the model that
+    # has been released and deleted.
+    if key in self._tag_map:
+      tag = self._tag_map[key]
+      del self._tag_map[key]
+      self._tag_map[key] = tag
+    else:
+      self._tag_map[key] = uuid.uuid4().hex
 
+    tag = self._tag_map[key]
     mh = self._mh_map[key]
-    if self._max_models is not None and self._max_models <= len(
-        self._loaded_keys):
-      # If we're about to exceed our LRU size,
-      # remove the front model from the list from memory.
-      key_to_remove = self._loaded_keys[0]
-      tag_to_remove = self._get_tag(key_to_remove)
+
+    if self._max_models is not None and self._max_models < len(self._tag_map):
+      # If we're about to exceed our LRU size, release the last used model.
+      tag_to_remove = self._tag_map.popitem(last=False)[1]
       shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
       shared_handle.release(model_to_remove)
-      del self._tag_map[key]
 
     # Load the new model
     shared_handle = multi_process_shared.MultiProcessShared(
         mh.load_model, tag=tag)
     model_reference = shared_handle.acquire()
     self._proxy_map[tag] = (shared_handle, model_reference)
-    self._loaded_keys.append(key)
 
     return tag
 
