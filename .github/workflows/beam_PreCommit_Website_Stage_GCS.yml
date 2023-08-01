@@ -79,7 +79,7 @@ jobs:
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
       - name: script
-        if: ${{ github.ref != 'ref/heads/master' }}
+        if: github.ref != 'ref/heads/master'
         uses: actions/github-script@v6
         id: get_issue_number
         with:
