@@ -38,7 +38,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   private final DoFnRunner<InputT, OutputT> simpleDoFnRunner;
   private final StreamingSideInputFetcher<InputT, W> sideInputFetcher;
 
-  public StreamingSideInputDoFnRunner(
+  public StreamingSideInputDoFnRunner (
       DoFnRunner<InputT, OutputT> simpleDoFnRunner,
       StreamingSideInputFetcher<InputT, W> sideInputFetcher) {
     this.simpleDoFnRunner = simpleDoFnRunner;

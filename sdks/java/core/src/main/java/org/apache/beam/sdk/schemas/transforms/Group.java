@@ -21,6 +21,8 @@ import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
+
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -998,6 +1000,8 @@ public class Group {
 
     abstract @Nullable Fanout getFanout();
 
+    abstract Boolean getFewKeys();
+
     abstract ByFields<InputT> getByFields();
 
     abstract SchemaAggregateFn.Inner getSchemaAggregateFn();
@@ -1011,6 +1015,8 @@ public class Group {
     @AutoValue.Builder
     abstract static class Builder<InputT> {
       public abstract Builder<InputT> setFanout(@Nullable Fanout value);
+
+      public abstract Builder<InputT> setFewKeys(Boolean fewKeys);
 
       abstract Builder<InputT> setByFields(ByFields<InputT> byFields);
 
@@ -1033,6 +1039,7 @@ public class Group {
           .setSchemaAggregateFn(schemaAggregateFn)
           .setKeyField(keyField)
           .setValueField(valueField)
+              .setFewKeys(false)
           .build();
     }
 
@@ -1267,7 +1274,7 @@ public class Group {
             throw new RuntimeException("Unexpected kind: " + fanout.getKind());
         }
       }
-      return Combine.perKey(fn);
+      return getFewKeys() ? Combine.fewKeys(fn) : Combine.perKey(fn);
     }
 
     @Override
