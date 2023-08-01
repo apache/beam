@@ -59,7 +59,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
-# @pytest.mark.uses_tft
+@pytest.mark.uses_tft
 class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
   def test_process_large_movie_review_dataset(self):
     input_data_dir = 'gs://apache-beam-ml/datasets/aclImdb'
@@ -73,6 +73,10 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
         'output_dir': output_dir,
         'artifact_location': artifact_location,
     }
+
+    extra_opts[
+        'job_name'] = 'mltransform-large-movie-review-dataset-{}-10'.format(
+            uuid.uuid4().hex)
 
     test_pipeline = TestPipeline(is_integration_test=True)
     start_time = time.time()
@@ -89,7 +93,7 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
         metric_name='runtime_sec')
 
 
-@pytest.mark.uses_tft
+# @pytest.mark.uses_tft
 class CriteoTest(unittest.TestCase):
   def test_process_criteo_10GB_dataset(self):
     test_pipeline = TestPipeline(is_integration_test=True)
