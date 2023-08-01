@@ -26,12 +26,11 @@
 # Execute from the root of the repository:
 #     test Python3.8 x86 container:
 #         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
-#     or test Python3.8 ARM container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainerARM
 #     or test all supported python versions x86 containers together:
 #         ./gradlew :sdks:python:test-suites:dataflow:validatesContainer
-#     or test all supported python versions ARM containers together:
-#         ./gradlew :sdks:python:test-suites:dataflow:validatesContainerARM
+#
+# Note: ARM test suites only run on github actions. For example, to test Python3.8 ARM containers,
+# commenting `Run Python ValidatesContainer Dataflow ARM (3.8)` will trigger the test.
 
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
@@ -85,7 +84,7 @@ if [[ "$ARCH" != "ARM" ]]; then
   # Push the container
   gcloud docker -- push $CONTAINER:$TAG
 else
-  # Note: multi-arch Python SDK containers are already pushed during build.
+  # Note: ARM test suites only run on github actions, where multi-arch Python SDK containers are already pushed during build.
   # Reset the test suite tag to run ARM pipelines.
   TEST_SUITE_TAG="it_dataflow_arm"
 
