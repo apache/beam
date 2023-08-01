@@ -43,10 +43,9 @@ import logging
 import os
 
 import apache_beam as beam
-
 from apache_beam.ml.transforms.base import MLTransform
-from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 from apache_beam.ml.transforms.tft import TFIDF
+from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 
 RAW_DATA_KEY = 'raw_data'
 REVIEW_COLUMN = 'review'
