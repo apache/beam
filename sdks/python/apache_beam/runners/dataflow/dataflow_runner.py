@@ -205,7 +205,7 @@ class DataflowRunner(PipelineRunner):
             _LOGGER.info(message)
           elif message_importance == 'JOB_MESSAGE_WARNING':
             _LOGGER.warning(message)
-          elif str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
+          elif message_importance == 'JOB_MESSAGE_ERROR':
             _LOGGER.error(message)
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
