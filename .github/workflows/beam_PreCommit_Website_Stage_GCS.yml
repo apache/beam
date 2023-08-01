@@ -78,13 +78,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
-      - name: Find Current Pull Request
-        uses: jwalton/gh-find-current-pr@v1
-        id: findPr
-        with:
-          state: open
       - name: Echo PR number
-        run: echo "ghprbPullId=${{ steps.findPr.outputs.pr || github.event.issue.number }}" >> $GITHUB_ENV
+        run: echo "ghprbPullId=${{ github.event.pull_request.number || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
