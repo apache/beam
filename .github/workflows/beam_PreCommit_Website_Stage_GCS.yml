@@ -17,8 +17,8 @@ name: PreCommit Website Stage GCS
 
 on:
   push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
+   tags: ['v*']
+   branches: ['master', 'release-*']
     paths: ['website/**','.github/workflows/beam_PreCommit_Website_Stage_GCS.yml']
   pull_request_target:
     branches: ['master', 'release-*']
@@ -26,7 +26,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0/20 * * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 # # This allows a subsequently queued workflow run to interrupt previous runs
@@ -61,8 +61,7 @@ jobs:
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
+      github.event.comment.body == 'Run Website_Stage_GCS PreCommit' 
     runs-on: [self-hosted, ubuntu-20.04, main]
     name: beam_PreCommit_Website_Stage_GCS (Run Website_Stage_GCS PreCommit)
     steps:
@@ -78,29 +77,9 @@ jobs:
           github_repository: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
-      - name: Get PR number on push
-        if: github.ref_name != 'master' && startsWith(github.ref_name , 'release-') == false
-        uses: actions/github-script@v6
-        id: get_issue_number
-        with:
-          script: |
-            if (context.issue.number) {
-              // Return issue number if present
-              return context.issue.number;
-            } else {
-              // Otherwise return issue number from commit
-              return (
-                await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                  commit_sha: context.sha,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                })
-              ).data[0].number;
-            }
-          result-encoding: string
+          github_current_run_id: ${{ github.run_id }}  
       - name: Echo PR number
-        run: echo "ghprbPullId=${{ steps.get_issue_number.outputs.result || github.event.issue.number }}" >> $GITHUB_ENV
+        run: echo "ghprbPullId=${{ github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
