@@ -98,8 +98,6 @@ jobs:
               ).data[0].number;
             }
           result-encoding: string
-      - name: Issue number
-        run: echo '${{steps.get_issue_number.outputs.result}}'
       - name: Echo PR number
         run: echo "ghprbPullId=${{ steps.get_issue_number.outputs.result || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
