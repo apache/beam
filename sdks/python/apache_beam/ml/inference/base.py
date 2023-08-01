@@ -776,9 +776,7 @@ class _ModelManager:
     # model because otherwise the ProxyManager will try to reuse the model that
     # has been released and deleted.
     if key in self._tag_map:
-      tag = self._tag_map[key]
-      del self._tag_map[key]
-      self._tag_map[key] = tag
+      self._tag_map.move_to_end(key)
     else:
       self._tag_map[key] = uuid.uuid4().hex
 
