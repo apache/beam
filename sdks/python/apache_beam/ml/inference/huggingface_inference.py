@@ -73,6 +73,10 @@ PipelineInferenceFn = Callable[
 
 
 class PipelineTask(str, Enum):
+  """
+  PipelineTask lists all the tasks supported by the Hugging Face Pipelines.
+  Only these tasks can be passed to HuggingFacePipelineModelHandler.
+  """
   AudioClassification = 'audio-classification'
   AutomaticSpeechRecognition = 'automatic-speech-recognition'
   Conversational = 'conversational'
@@ -152,8 +156,9 @@ def is_gpu_available_tensorflow(device):
 def _validate_constructor_args_hf_pipeline(task, model):
   if not task and not model:
     raise RuntimeError(
-        'Please provide both task and model to HuggingFacePipelineModelHandler.'
-        'If the model already defines the task, no need to specify the task.')
+        'Please provide either task or model to the '
+        'HuggingFacePipelineModelHandler. If the model already defines the '
+        'task, no need to specify the task.')
 
 
 def _run_inference_torch_keyed_tensor(
@@ -549,8 +554,8 @@ def _convert_to_result(
 
 
 def _default_pipeline_inference_fn(
-    batch, model, inference_args) -> Iterable[PredictionResult]:
-  predicitons = model(batch, **inference_args)
+    batch, pipeline, inference_args) -> Iterable[PredictionResult]:
+  predicitons = pipeline(batch, **inference_args)
   return predicitons
 
 
@@ -563,7 +568,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       model=None,
       *,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      load_pipeline_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
@@ -573,8 +578,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
 
     **Note:** To specify which device to use (CPU/GPU),
-    use the load_model_args with key-value as you would do in the usual
-    Hugging Face pipeline. Ex: load_model_args={'device':0})
+    use the load_pipeline_args with key-value as you would do in the usual
+    Hugging Face pipeline. Ex: load_pipeline_args={'device':0})
 
     Example Usage model::
       pcoll | RunInference(HuggingFacePipelineModelHandler(
@@ -588,8 +593,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         no need to specify the task parameter.
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
-      load_model_args (Dict[str, Any]): keyword arguments to provide load
-        options while loading models from Hugging Face Hub. Defaults to None.
+      load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
+        options while loading pipelines from Hugging Face. Defaults to None.
       inference_args (Dict[str, Any]): Non-batchable arguments
         required as inputs to the model's inference function.
         Defaults to None.
@@ -608,7 +613,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._task = task
     self._model = model
     self._inference_fn = inference_fn
-    self._load_model_args = load_model_args if load_model_args else {}
+    self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
     self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._framework = "torch"
@@ -621,12 +626,13 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     _validate_constructor_args_hf_pipeline(self._task, self._model)
 
   def load_model(self):
-    return pipeline(task=self._task, model=self._model, **self._load_model_args)
+    return pipeline(
+        task=self._task, model=self._model, **self._load_pipeline_args)
 
   def run_inference(
       self,
       batch: Sequence[str],
-      model: Pipeline,
+      pipeline: Pipeline,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
@@ -636,17 +642,24 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
 
     Args:
       batch: A sequence of strings resources.
-      model: A Hugging Face Pipeline.
+      pipeline: A Hugging Face Pipeline.
       inference_args: Non-batchable arguments required as inputs to the model's
         inference function.
     Returns:
       An Iterable of type PredictionResult.
     """
     inference_args = {} if not inference_args else inference_args
-    predictions = self._inference_fn(batch, model, inference_args)
+    predictions = self._inference_fn(batch, pipeline, inference_args)
     return _convert_to_result(batch, predictions)
 
   def update_model_path(self, model_path: Optional[str] = None):
+    """
+    Updates the pretrained model used by the Hugging Face Pipeline task.
+    Make sure that the new model does the same task as initial model.
+    Args:
+        model_path (Optional[str], optional): Path to the new trained model
+          from Hugging Face. Defaults to None.
+    """
     self._model = model_path if model_path else self._model
 
   def get_num_bytes(self, batch: Sequence[str]) -> int:

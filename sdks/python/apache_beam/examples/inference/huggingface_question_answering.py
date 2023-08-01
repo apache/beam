@@ -56,12 +56,30 @@ class PostProcessor(beam.DoFn):
 
 
 def preprocess(text):
+  """
+  preprocess separates the text into question and context
+  by splitting on semi-colon.
+
+  Args:
+      text (str): string with question and context separated by semi-colon.
+
+  Yields:
+      (str, str): yields question and context from text.
+  """
   if len(text.strip()) > 0:
     question, context = text.split(';')
     yield (question, context)
 
 
 def create_squad_example(text):
+  """Creates SquadExample objects to be fed to QuestionAnsweringPipeline
+  supported by Hugging Face.
+
+  Check out https://huggingface.co/docs/transformers/main_classes/pipelines#transformers.QuestionAnsweringPipeline.__call__.X #pylint: disable=line-too-long
+  to learn about valid input types for QuestionAnswering Pipeline.
+  Args:
+      text (Tupl[str,str]): a tuple of question and context.
+  """
   question, context = text
   yield question, QuestionAnsweringPipeline.create_sample(question, context)
 
