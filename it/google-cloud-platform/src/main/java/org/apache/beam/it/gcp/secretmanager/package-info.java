@@ -15,5 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Package that contains reusable BigQuery conditions. */
-package org.apache.beam.it.gcp.bigquery.conditions;
+
+/** Package for managing Secret Manager resources within integration tests. */
+package org.apache.beam.it.gcp.secretmanager;

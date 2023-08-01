@@ -15,5 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Package that contains reusable BigQuery conditions. */
-package org.apache.beam.it.gcp.bigquery.conditions;
+package org.apache.beam.it.gcp.secretmanager;
+
+/**
+ * Custom exception for {@link
+ * com.google.cloud.teleport.it.secretmanager.SecretManagerResourceManager} implementations.
+ */
+public class SecretManagerResourceManagerException extends RuntimeException {
+
+  public SecretManagerResourceManagerException(String errorMessage, Throwable err) {
+    super(errorMessage, err);
+  }
+
+  public SecretManagerResourceManagerException(String errorMessage) {
+    super(errorMessage);
+  }
+}
