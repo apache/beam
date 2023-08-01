@@ -78,13 +78,28 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
-      - name: Find Current Pull Request
-        uses: jwalton/gh-find-current-pr@v1
-        id: findPr
+      - name: Get PR number on push
+        if: github.ref_name != 'master' && startsWith(github.ref_name , 'release-') == false
+        uses: actions/github-script@v6
+        id: get_issue_number
         with:
-          state: open
+          script: |
+            if (context.issue.number) {
+              // Return issue number if present
+              return context.issue.number;
+            } else {
+              // Otherwise return issue number from commit
+              return (
+                await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  commit_sha: context.sha,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                })
+              ).data[0].number;
+            }
+          result-encoding: string
       - name: Echo PR number
-        run: echo "ghprbPullId=${{ steps.findPr.outputs.pr || github.event.issue.number }}" >> $GITHUB_ENV
+        run: echo "ghprbPullId=${{ steps.get_issue_number.outputs.result || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
