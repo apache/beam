@@ -79,7 +79,7 @@ jobs:
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
       - name: test
-        run: echo "${github.ref} and ${GITHUB_REF##*/} and $github.ref"
+        run: echo " ${{ github.ref_name }} or $GITHUB_REF_NAME or ${{env.GITHUB_REF_NAME}}"
       - name: script
         if: github.ref != 'ref/heads/master'
         uses: actions/github-script@v6
