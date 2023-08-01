@@ -1555,7 +1555,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<>(fn, fnDisplayData, hotKeyFanout);
+      return new PerKeyWithHotKeyFanout<>(fn, fnDisplayData, hotKeyFanout, fewKeys);
     }
 
     /**
@@ -1577,7 +1577,8 @@ public class Combine {
             public Integer apply(K unused) {
               return hotKeyFanout;
             }
-          });
+          },
+          fewKeys);
     }
 
     /** Returns the {@link GlobalCombineFn} used by this Combine operation. */
@@ -1624,13 +1625,17 @@ public class Combine {
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
+    private final boolean fewKeys;
+
     private PerKeyWithHotKeyFanout(
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
-        SerializableFunction<? super K, Integer> hotKeyFanout) {
+        SerializableFunction<? super K, Integer> hotKeyFanout,
+        boolean fewKeys) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.hotKeyFanout = hotKeyFanout;
+      this.fewKeys = fewKeys;
     }
 
     @Override
@@ -1919,6 +1924,10 @@ public class Combine {
       }
 
       // Combine the hot and cold keys separately.
+      Combine.PerKey<KV<K, Integer>, InputT, AccumT> hotPreCombineTransform =
+          fewKeys
+              ? Combine.fewKeys(hotPreCombine, fnDisplayData)
+              : Combine.perKey(hotPreCombine, fnDisplayData);
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> precombinedHot =
           split
               .get(hot)
@@ -1927,7 +1936,7 @@ public class Combine {
                       KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                       inputCoder.getValueCoder()))
               .setWindowingStrategyInternal(preCombineStrategy)
-              .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
+              .apply("PreCombineHot", hotPreCombineTransform)
               .apply(
                   "StripNonce",
                   MapElements.via(
@@ -1962,10 +1971,14 @@ public class Combine {
               .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));
 
       // Combine the union of the pre-processed hot and cold key results.
+      Combine.PerKey<K, InputOrAccum<InputT, AccumT>, OutputT> postCombineTransform =
+          fewKeys
+              ? Combine.fewKeys(postCombine, fnDisplayData)
+              : Combine.perKey(postCombine, fnDisplayData);
       return PCollectionList.of(precombinedHot)
           .and(preprocessedCold)
           .apply(Flatten.pCollections())
-          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
+          .apply("PostCombine", postCombineTransform);
     }
 
     @Override
