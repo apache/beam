@@ -658,7 +658,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Make sure that the new model does the same task as initial model.
 
     Args:
-      model_path (Optional[str], optional): Path to the new trained model
+      model_path (str): (Optional) Path to the new trained model
         from Hugging Face. Defaults to None.
     """
     self._model = model_path if model_path else self._model

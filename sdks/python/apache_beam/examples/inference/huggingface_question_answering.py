@@ -78,7 +78,7 @@ def create_squad_example(text):
   Check out https://huggingface.co/docs/transformers/main_classes/pipelines#transformers.QuestionAnsweringPipeline.__call__.X #pylint: disable=line-too-long
   to learn about valid input types for QuestionAnswering Pipeline.
   Args:
-      text (Tupl[str,str]): a tuple of question and context.
+      text (Tuple[str,str]): a tuple of question and context.
   """
   question, context = text
   yield question, QuestionAnsweringPipeline.create_sample(question, context)
