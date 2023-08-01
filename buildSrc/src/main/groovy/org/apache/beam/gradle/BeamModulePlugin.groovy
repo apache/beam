@@ -836,6 +836,7 @@ class BeamModulePlugin implements Plugin<Project> {
     ]
 
     /** ***********************************************************************************************/
+
     // Returns a string representing the relocated path to be used with the shadow plugin when
     // given a suffix such as "com.google.common".
     project.ext.getJavaRelocatedPath = { String suffix ->
