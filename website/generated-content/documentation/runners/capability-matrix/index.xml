@@ -840,11 +840,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
-&lt;p>Yes : &lt;/p>
+&lt;p>Partially : &lt;/p>
 &lt;/b>
 &lt;br>
+Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
@@ -902,9 +903,9 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
-&lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
+&lt;p>No : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -964,9 +965,9 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
-&lt;p>Yes : &lt;/p>
+&lt;p>Partially : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1088,9 +1089,9 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
-&lt;p>Partially : Only portable Flink Runner supports this with checkpointing enabled.&lt;/p>
+&lt;p>No : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
