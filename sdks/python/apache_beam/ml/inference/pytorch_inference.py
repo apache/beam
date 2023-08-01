@@ -132,6 +132,8 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   environment it must be converted back to CPU.
   """
   if examples.device != device:
+    if device == torch.device('cuda') and not torch.cuda.is_available():
+      return examples
     examples = examples.to(device)
   return examples
 
