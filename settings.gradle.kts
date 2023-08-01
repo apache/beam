@@ -97,6 +97,7 @@ include(":playground:backend:containers:scio")
 include(":playground:terraform")
 include(":playground:kafka-emulator")
 
+include(":it:cassandra")
 include(":it:common")
 include(":it:conditions")
 include(":it:google-cloud-platform")

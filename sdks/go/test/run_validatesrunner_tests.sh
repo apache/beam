@@ -358,13 +358,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   TAG=$(date +%Y%m%d-%H%M%S)
   CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
   echo "Using container $CONTAINER"
-  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
-
-  # Verify it exists
-  docker images | grep $TAG
-
-  # Push the container
-  gcloud docker -- push $CONTAINER:$TAG
+  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
@@ -431,7 +425,7 @@ cd ../..
 
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
-  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then

@@ -492,7 +492,11 @@ class BeamModulePlugin implements Plugin<Project> {
         // Ensure we always publish the expected containers.
         return ["amd64"];
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
-        return project.rootProject.findProperty("container-architecture-list").split(',')
+        def containerArchitectures = project.rootProject.findProperty("container-architecture-list").split(',')
+        if (containerArchitectures.size() > 1 && !project.rootProject.hasProperty("push-containers")) {
+          throw new GradleException("A multi-arch image can't be saved in the local image store, please append the -Ppush-containers flag and specify a repository to push in the -Pdocker-repository-root flag.");
+        }
+        return containerArchitectures
       } else {
         return [project.nativeArchitecture()]
       }
@@ -654,7 +658,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20220924-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20220828-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20220818-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230510-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230301-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
@@ -807,6 +811,7 @@ class BeamModulePlugin implements Plugin<Project> {
         tephra                                      : "org.apache.tephra:tephra-api:0.15.0-incubating",
         testcontainers_azure                        : "org.testcontainers:azure:$testcontainers_version",
         testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
+        testcontainers_cassandra                    : "org.testcontainers:cassandra:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
@@ -2087,7 +2092,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.20.5"
+      project.ext.goVersion = "go1.20.6"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
