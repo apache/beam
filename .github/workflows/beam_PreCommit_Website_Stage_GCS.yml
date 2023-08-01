@@ -80,8 +80,7 @@ jobs:
           github_current_run_id: ${{ github.run_id }}
       - name: script
         if: |
-          ${{ github.event_name == 'push' || 
-          github.event_name == 'pull_request_target' }} &&
+          ${{ github.event_name == 'push' || github.event_name == 'pull_request_target' }} &&
           ${{ github.ref != 'ref/heads/master' }}
         uses: actions/github-script@v6
         id: get_issue_number
