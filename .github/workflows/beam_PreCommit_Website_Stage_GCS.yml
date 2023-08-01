@@ -80,7 +80,7 @@ jobs:
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}  
       - name: Echo PR number
-        run: echo "ghprbPullId=${{ github.event.issue.number }}" >> $GITHUB_ENV
+        run: echo "ghprbPullId=${{ github.event.pull_request.number || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
