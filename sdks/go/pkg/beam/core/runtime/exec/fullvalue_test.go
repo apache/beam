@@ -403,7 +403,7 @@ func TestDecodeMultiChunkStream(t *testing.T) {
 			t.Errorf("unexpected configuration after decodeStream.Close: got %v, want %v", got, want)
 		}
 		if dds.stream != nil {
-			t.Errorf("got non-nil stream after close: %#v", dds.stream)	
+			t.Errorf("got non-nil stream after close: %#v", dds.stream)
 		}
 
 		// Check that a 2nd stream will fail:
