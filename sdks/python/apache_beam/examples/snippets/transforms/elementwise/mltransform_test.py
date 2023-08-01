@@ -40,8 +40,7 @@ def check_mltransform_compute_and_apply_vocab():
   expected = '''[START mltransform_compute_and_apply_vocab]
 Row(x=array([4, 1, 0]))
 Row(x=array([0, 2, 3]))
-  [END mltransform_compute_and_apply_vocab]
-'''.splitlines()[1:-1]
+  [END mltransform_compute_and_apply_vocab] '''.splitlines()[1:-1]
   return expected
 
 
@@ -49,8 +48,7 @@ def check_mltransform_scale_to_0_1():
   expected = '''[START mltransform_scale_to_0_1]
 Row(x=array([0.       , 0.5714286, 0.2857143], dtype=float32), x_max=array([8.], dtype=float32), x_min=array([1.], dtype=float32))
 Row(x=array([0.42857143, 0.14285715, 1.        ], dtype=float32), x_max=array([8.], dtype=float32), x_min=array([1.], dtype=float32))
-  [END mltransform_scale_to_0_1]
-'''.splitlines()[1:-1]
+  [END mltransform_scale_to_0_1] '''.splitlines()[1:-1]
   return expected
 
 
@@ -61,7 +59,7 @@ Row(x=array([1]))
 Row(x=array([0]))
 Row(x=array([2]))
 Row(x=array([3]))
-  [END mltransform_compute_and_apply_vocab_scalar]'''.splitlines()[1:-1]
+  [END mltransform_compute_and_apply_vocab_scalar] '''.splitlines()[1:-1]
   return expected
 
 
