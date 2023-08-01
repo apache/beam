@@ -358,7 +358,8 @@ task validatesContainerARM() {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
               "${project.ext.pythonVersion} " +
-              "${project.ext.sdkLocation}"
+              "${project.ext.sdkLocation}" +
+              "ARM"
     }
   }
 }
