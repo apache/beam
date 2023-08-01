@@ -78,8 +78,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ github.job }}
           github_current_run_id: ${{ github.run_id }}
+      - name: test
+        run: echo "${github.ref} and ${GITHUB_REF##*/} and $github.ref"
       - name: script
-        if: github.event_name == 'pull_request_target'
+        if: github.ref != 'ref/heads/master'
         uses: actions/github-script@v6
         id: get_issue_number
         with:
