@@ -31,9 +31,9 @@ func init() {
 	register.Function1x1(greaterThanOne)
 }
 
-func alwaysTrue(a int) bool { return true }
-func alwaysFalse(a int) bool { return false }
-func isOne(a int) bool { return a == 1 }
+func alwaysTrue(a int) bool     { return true }
+func alwaysFalse(a int) bool    { return false }
+func isOne(a int) bool          { return a == 1 }
 func greaterThanOne(a int) bool { return a > 1 }
 
 func TestInclude(t *testing.T) {

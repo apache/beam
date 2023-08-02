@@ -128,7 +128,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 			pre := newPreprocessor([]transformPreparer{&testPreparer{}})
 
 			gotStages := pre.preProcessGraph(test.input)
-			if diff := cmp.Diff(test.wantStages, gotStages, cmp.AllowUnexported(stage{}), cmp.AllowUnexported(link{}), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(test.wantStages, gotStages, cmp.AllowUnexported(stage{}, link{}), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("preProcessGraph(%q) stages diff (-want,+got)\n%v", test.name, diff)
 			}
 

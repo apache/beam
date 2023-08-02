@@ -145,7 +145,7 @@ var prismFilters = []string{
 
 	// TODO(https://github.com/apache/beam/issues/21058): Xlang ios don't yet work on prism.
 	"TestKafkaIO.*",
-	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow prism runners.
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
 	"TestSpannerIO.*",
 	// The prism runner does not support pipeline drain for SDF.

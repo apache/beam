@@ -14,7 +14,6 @@
 // limitations under the License.
 
 package internal_test
-package internal_test
 
 import (
 	"context"
@@ -41,7 +40,6 @@ import (
 func initRunner(t *testing.T) {
 	t.Helper()
 	if *jobopts.Endpoint == "" {
-		s := jobservices.NewServer(0, internal.RunPipeline)
 		s := jobservices.NewServer(0, internal.RunPipeline)
 		*jobopts.Endpoint = s.Endpoint()
 		go s.Serve()

@@ -24,6 +24,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 func isA(input string) bool        { return input == "a" }
 func isB(input string) bool        { return input == "b" }
 func lessThan13(input int) bool    { return input < 13 }

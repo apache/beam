@@ -145,21 +145,21 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	}
 
 	// Inspect Windowing strategies for unsupported features.
-	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
+	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
-		// These are used by reshuffle
-		// TODO have a more aware blocking for reshuffle specifically.
-		// check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
-		// check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
-		// // Non nil triggers should fail.
-		// if ws.GetTrigger().GetDefault() == nil {
-		// 	 check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
-		// }
+		if !bypassedWindowingStrategies[wsID] {
+			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
+			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
+			// Non nil triggers should fail.
+			if ws.GetTrigger().GetDefault() == nil {
+				check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+			}
+		}
 	}
 	if len(errs) > 0 {
 		jErr := &joinError{errs: errs}

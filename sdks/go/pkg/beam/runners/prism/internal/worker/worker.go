@@ -267,7 +267,10 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	for {
 		select {
 		case req := <-wk.InstReqs:
-			ctrl.Send(req)
+			err := ctrl.Send(req)
+			if err != nil {
+				return err
+			}
 		case <-ctrl.Context().Done():
 			slog.Debug("Control context canceled")
 			return ctrl.Context().Err()
@@ -323,7 +326,10 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 	}()
 	for {
 		select {
-		case req := <-wk.DataReqs:
+		case req, ok := <-wk.DataReqs:
+			if !ok {
+				return nil
+			}
 			if err := data.Send(req); err != nil {
 				slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
 			}

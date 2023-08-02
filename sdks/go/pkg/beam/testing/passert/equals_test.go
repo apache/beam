@@ -180,7 +180,7 @@ func ExampleEqualsList_mismatch() {
 	list := [3]string{"wrong", "inputs", "here"}
 
 	EqualsList(s, col, list)
-	ptest.DefaultRunner()
+
 	err := ptest.Run(p)
 	err = unwrapError(err)
 

@@ -14,14 +14,8 @@
 // limitations under the License.
 
 package internal_test
-package internal_test
 
 import (
-	"context"
-	"fmt"
-	"sort"
-	"time"
-
 	"context"
 	"fmt"
 	"sort"
@@ -72,16 +66,6 @@ func init() {
 	register.Emitter1[int64]()
 	register.Emitter2[int64, int64]()
 }
-
-// The Test DoFns live outside of the test files to get coverage information on DoFn
-// Lifecycle method execution. This inflates binary size, but ensures the runner is
-// exercising the expected feature set.
-//
-// Once there's enough confidence in the runner, we can move these into a dedicated testing
-// package along with the pipelines that use them.
-
-// Registrations should happen in the test files, so the compiler can prune these
-// when they are not in use.
 
 func dofnEmpty(imp []byte, emit func(int64)) {
 }
