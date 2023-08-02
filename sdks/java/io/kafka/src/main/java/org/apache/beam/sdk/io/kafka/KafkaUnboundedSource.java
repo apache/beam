@@ -93,8 +93,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     }
 
     partitions.sort(
-        Comparator.comparing(TopicPartition::topic)
-            .thenComparing(Comparator.comparingInt(TopicPartition::partition)));
+        Comparator.comparing(TopicPartition::topic).thenComparingInt(TopicPartition::partition));
 
     checkArgument(desiredNumSplits > 0);
     checkState(
@@ -176,7 +175,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaUnboundedSource.class);
 
-  private final Read<K, V> spec; // Contains all the relevant configuratiton of the source.
+  private final Read<K, V> spec; // Contains all the relevant configuration of the source.
   private final int id; // split id, mainly for debugging
 
   public KafkaUnboundedSource(Read<K, V> spec, int id) {

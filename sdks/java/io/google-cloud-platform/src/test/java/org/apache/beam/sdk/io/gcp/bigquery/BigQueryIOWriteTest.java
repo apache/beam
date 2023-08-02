@@ -1824,7 +1824,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new SimpleFunction<Long, TableRow>() {
                       @Override
                       public TableRow apply(Long input) {
-                        return new TableRow().set("name", "name " + input).set("number", input);
+                        return new TableRow().set("NaMe", "name " + input).set("numBEr", input);
                       }
                     }))
             .setCoder(TableRowJsonCoder.of());
