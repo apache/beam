@@ -57,6 +57,7 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
+* The Go SDK has a new default local runner, called Prism ([#24789](https://github.com/apache/beam/issues/24789)).
 
 ## I/Os
 
@@ -70,10 +71,19 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * The Go SDK now requires Go 1.20 to build. ([#27558](https://github.com/apache/beam/issues/27558))
+* The Go SDK has a new default local runner, Prism. ([#24789](https://github.com/apache/beam/issues/24789)).
+  * Prism is a portable runner that executes each transform independantly, ensuring coders.
+  * At this point it supercedes the Go direct runner in functionality. The Go direct runner is now deprecated.
+  * See https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/runners/prism/README.md for the goals and features of Prism.
 
 ## Breaking Changes
 
-* Legacy runner support removed from Dataflow, all pipelines must use runner v2.
+* Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
+* The Go Direct Runner is now Deprecated. It remains available to reduce migration churn.
+  * Tests can be set back to the direct runner by overriding TestMain: `func TestMain(m *testing.M) { ptest.MainWithDefault(m, "direct") }`
+  * It's recommended to fix issues seen in tests using Prism, as they can also happen on any portable runner.
+  * Use the generic register package for your pipeline DoFns to ensure pipelines function on portable runners, like prism.
+  * Do not rely on closures or using package globals for DoFn configuration. They don't function on portable runners. 
 
 ## Deprecations
 
