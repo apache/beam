@@ -68,7 +68,8 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java_Examples_Dataflow_ARM PostCommit'
+      github.event.comment.body == 'Run Java_Examples_Dataflow_ARM PostCommit' ||
+      github. event_name == 'workflow_dispatch'
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
