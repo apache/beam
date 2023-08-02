@@ -38,11 +38,15 @@ jcip-annotations:
   '1.0':
     license: "https://raw.githubusercontent.com/stephenc/jcip-annotations/master/LICENSE.txt"
     type: "Apache License 2.0"
+guava-parent:
+  '32.1.2-jre':
+    license: "https://raw.githubusercontent.com/google/guava/master/LICENSE"
+    type: "Apache License 2.0"
 jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '26.17.0':
+  '26.21.0':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:

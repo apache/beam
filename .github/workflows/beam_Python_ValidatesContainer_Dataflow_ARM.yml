@@ -12,17 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Python PreCommit Examples
+
+name: Python ValidatesContainer Dataflow ARM
+
 on:
-  pull_request_target:
-    branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**"]
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/job_PreCommit_Python_Examples.yml"]
+    paths: ["sdks/python/**",".github/workflows/beam_Python_ValidatesContainer_Dataflow_ARM.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -45,33 +44,34 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Python_Examples:
-    name: beam_PreCommit_Python_Examples (Run Python_Examples PreCommit 3.x)
+  beam_Python_ValidatesContainer_Dataflow_ARM:
+    name: beam_Python_ValidatesContainer_Dataflow_ARM
     strategy:
       fail-fast: false
       matrix:
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
-      startsWith(github.event.comment.body, 'Run Python_Examples PreCommit') ||
+      github.event_name == 'push' ||
+      startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM') || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
+    env:
+      MULTIARCH_TAG: $(date +'%Y%m%d-%H%M%S%N')
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
-          echo "comment_body=Run Python_Dataframes PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
-
+          echo "comment_body=Run Python ValidatesContainer Dataflow ARM (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body 
+        if: github.event.comment.body == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -79,22 +79,45 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: "${{ github.job }} (${{ matrix.python_version }})"
           github_current_run_id: ${{ github.run_id }}
-      - uses: actions/setup-python@v4
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python_version }}
-      - name: Install Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '8'
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Run pythonPreCommit
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Authenticate on GCP
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker us.gcr.io
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:tox:py${PY_VER//.}:preCommitPy${PY_VER//.} -Pposargs=apache_beam/examples/ -PpythonVersion=${PY_VER}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: run Python validatesContainerARM script
+        id: run_script
+        run: |
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM 
+          arguments: |
+            -PpythonVersion=${{ matrix.python_version }} \
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Pdocker-repository=us.gcr.io/apache-beam-testing/github-actions \
+            -Pdocker-tag=${{ env.MULTIARCH_TAG }} \
+            -Ppush-containers
+          env:
+            MULTIARCH_TAG: ${{ env.MULTIARCH_TAG }}
+            USER: github-actions
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
