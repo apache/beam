@@ -49,7 +49,7 @@ concurrency:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: beam_Python_ValidatesContainer_Dataflow_ARM
+    name: beam_Python_ValidatesContainer_Dataflow_ARM (Run Python ValidatesContainer Dataflow ARM 3.x)
     strategy:
       fail-fast: false
       matrix:
