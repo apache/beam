@@ -115,7 +115,7 @@ jobs:
             -Pcontainer-architecture-list=arm64,amd64 \
             -Pdocker-repository=us.gcr.io/apache-beam-testing/github-actions \
             -Pdocker-tag=${{ env.MULTIARCH_TAG }} \
-            -Ppush-containers
+            -Ppush-containers \
         env:
           MULTIARCH_TAG: ${{ env.MULTIARCH_TAG }}
           USER: github-actions
