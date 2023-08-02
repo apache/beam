@@ -143,8 +143,6 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
 
   include '**/*IT.class'
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
   exclude '**/TopWikipediaSessionsIT.class'
   exclude '**/AutoCompleteIT.class'
   // TODO(https://github.com/apache/beam/issues/20593): test times out.

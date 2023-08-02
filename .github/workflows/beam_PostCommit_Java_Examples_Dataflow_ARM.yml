@@ -107,31 +107,34 @@ jobs:
         run: |
           gcloud auth configure-docker us.gcr.io
       - name: run javaExamplesDataflowARMPostCommit script for Java8
-        run: |
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             arguments: |
-                -Pcontainer-architecture-list=arm64,amd64
-                -Ppush-containers
-                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm
-                -Pdocker-tag=${{env.TAG}}
+                -Pcontainer-architecture-list=arm64,amd64 \
+                -Ppush-containers \
+                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm \
+                -Pdocker-tag=${{env.TAG}} \
       - name: run javaExamplesDataflowARMPostCommit script for Java11
-        run: |
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             arguments: |
-                -compileAndRunTestsWithJava11
-                -Pcontainer-architecture-list=arm64,amd64
-                -Ppush-containers
-                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm
-                -Pdocker-tag=${{env.TAG}}
+                -PcompileAndRunTestsWithJava11 \
+                -Pcontainer-architecture-list=arm64,amd64 \
+                -Ppush-containers \
+                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm \
+                -Pdocker-tag=${{env.TAG}} \
       - name: run javaExamplesDataflowARMPostCommit script for Java17
-        run: |
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             arguments: |
-                -compileAndRunTestsWithJava17
-                -Pcontainer-architecture-list=arm64,amd64
-                -Ppush-containers
-                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm
-                -Pdocker-tag=${{env.TAG}}
+                -PcompileAndRunTestsWithJava17 \
+                -Pcontainer-architecture-list=arm64,amd64 \
+                -Ppush-containers \
+                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm \
+                -Pdocker-tag=${{env.TAG}} \
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:
