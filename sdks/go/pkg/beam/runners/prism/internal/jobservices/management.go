@@ -24,6 +24,7 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -101,7 +102,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	}
 
 	// Inspect Transforms for unsupported features.
-	for _, t := range job.Pipeline.GetComponents().GetTransforms() {
+	bypassedWindowingStrategies := map[string]bool{}
+	ts := job.Pipeline.GetComponents().GetTransforms()
+	for _, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
 		case urns.TransformImpulse,
@@ -112,6 +115,23 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
+		case urns.TransformReshuffle:
+			// Reshuffles use features we don't yet support, but we would like to
+			// support them by making them the no-op they are, and be precise about
+			// what we're ignoring.
+			var cols []string
+			for _, stID := range t.GetSubtransforms() {
+				st := ts[stID]
+				// Only check the outputs, since reshuffle re-instates any previous WindowingStrategy
+				// so we still validate the strategy used by the input, avoiding skips.
+				cols = append(cols, maps.Values(st.GetOutputs())...)
+			}
+
+			pcs := job.Pipeline.GetComponents().GetPcollections()
+			for _, col := range cols {
+				wsID := pcs[col].GetWindowingStrategyId()
+				bypassedWindowingStrategies[wsID] = true
+			}
 		case "":
 			// Composites can often have no spec
 			if len(t.GetSubtransforms()) > 0 {
@@ -124,24 +144,26 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	}
 
 	// Inspect Windowing strategies for unsupported features.
-	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
+	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
-		check("WindowingStrategy.OnTimerBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
-		check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
-		// Non nil triggers should fail.
-		if ws.GetTrigger().GetDefault() == nil {
-			check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+		if !bypassedWindowingStrategies[wsID] {
+			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
+			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
+			// Non nil triggers should fail.
+			if ws.GetTrigger().GetDefault() == nil {
+				check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+			}
 		}
 	}
 	if len(errs) > 0 {
 		jErr := &joinError{errs: errs}
 		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
-		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), jErr)
+		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v:\n%v", len(errs), req.GetJobName(), jErr)
 		job.Failed(err)
 		return nil, err
 	}
@@ -186,8 +208,19 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 	for {
 		for (curMsg >= job.maxMsg || len(job.msgs) == 0) && curState > job.stateIdx {
 			switch state {
-			case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_FAILED, jobpb.JobState_UPDATED:
+			case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED:
 				// Reached terminal state.
+				return nil
+			case jobpb.JobState_FAILED:
+				// Ensure we send an error message with the cause of the job failure.
+				stream.Send(&jobpb.JobMessagesResponse{
+					Response: &jobpb.JobMessagesResponse_MessageResponse{
+						MessageResponse: &jobpb.JobMessage{
+							MessageText: job.failureErr.Error(),
+							Importance:  jobpb.JobMessage_JOB_MESSAGE_ERROR,
+						},
+					},
+				})
 				return nil
 			}
 			job.streamCond.Wait()

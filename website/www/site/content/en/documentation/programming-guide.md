@@ -39,7 +39,7 @@ The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
-The Go SDK supports Go v1.19+. SDK release 2.32.0 is the last experimental version.
+The [Go SDK](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam) supports Go v1.20+.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript">}}

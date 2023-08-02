@@ -80,6 +80,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
           CloudObjectTranslators.map(),
+          CloudObjectTranslators.timestampedValue(),
           CloudObjectTranslators.nullable(),
           CloudObjectTranslators.union(),
           CloudObjectTranslators.coGroupByKeyResult(),

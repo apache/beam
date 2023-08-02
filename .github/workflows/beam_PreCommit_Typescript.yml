@@ -28,11 +28,12 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
   
   # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -52,13 +53,14 @@ permissions:
   statuses: read
 jobs:
   beam_PreCommit_Typescript:
-    name: beam_PreCommit_Typescript
+    name: beam_PreCommit_Typescript (Run Typescript PreCommit)
+    timeout-minutes: 120
     runs-on: [self-hosted, ubuntu-20.04, main]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Typescript PreCommit'   
+      github.event.comment.body == 'Run Typescript PreCommit'
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
@@ -83,4 +85,6 @@ jobs:
         with:
           cache-read-only: false
       - name: run typescriptPreCommit script
-        run: ./gradlew :typescriptPreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :typescriptPreCommit

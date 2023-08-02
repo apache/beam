@@ -97,6 +97,17 @@ include(":playground:backend:containers:scio")
 include(":playground:terraform")
 include(":playground:kafka-emulator")
 
+include(":it:cassandra")
+include(":it:common")
+include(":it:conditions")
+include(":it:elasticsearch")
+include(":it:google-cloud-platform")
+include(":it:jdbc")
+include(":it:kafka")
+include(":it:testcontainers")
+include(":it:truthmatchers")
+include(":it:mongodb")
+
 include(":learning:tour-of-beam:frontend")
 
 include(":runners:core-construction-java")

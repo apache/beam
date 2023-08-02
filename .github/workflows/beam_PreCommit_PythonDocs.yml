@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Python PreCommit Docs
+name: PreCommit Python Docs
 
 on:
   pull_request_target:
@@ -26,7 +26,9 @@ on:
     branches: ['master', 'release-*']
     paths: ["sdks/python/**",".github/workflows/beam_PreCommit_PythonDocs.yml"]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -43,9 +45,15 @@ permissions:
   security-events: read
   statuses: read
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
+
 jobs:
   beam_PreCommit_PythonDocs:
-    name: beam_PreCommit_PythonDocs
+    name: beam_PreCommit_PythonDocs (Run PythonDocs PreCommit)
+    timeout-minutes: 30
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
@@ -79,5 +87,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: run PythonDocsPrecommit script
-        run: ./gradlew :pythonDocsPreCommit
+      - name: run pythonDocsPreCommit script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :pythonDocsPreCommit

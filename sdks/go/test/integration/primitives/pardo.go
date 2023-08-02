@@ -31,6 +31,7 @@ func init() {
 	register.Function1x2(splitStringPair)
 	register.Function3x2(asymJoinFn)
 	register.Function5x0(splitByName)
+	register.Function2x0(emitPipelineOptions)
 
 	register.Iter1[int]()
 	register.Iter2[int, int]()
