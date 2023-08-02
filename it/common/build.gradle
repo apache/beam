@@ -41,7 +41,10 @@ dependencies {
     implementation library.java.google_http_client
     implementation library.java.guava
 
-    testImplementation library.java.truth
+    // TODO: excluding Guava until Truth updates it to >32.1.x
+    testImplementation(library.java.truth) {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
     testImplementation library.java.junit
     testImplementation library.java.mockito_inline
     testRuntimeOnly library.java.slf4j_simple

@@ -337,7 +337,8 @@ class BigtableServiceImpl implements BigtableService {
       this.serviceCallMetric = serviceCallMetric;
       this.buffer = new ArrayDeque<>();
       // Asynchronously refill buffer when there is 10% of the elements are left
-      this.refillSegmentWaterMark = (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE);
+      this.refillSegmentWaterMark =
+          Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
       this.attemptTimeout = attemptTimeout;
       this.operationTimeout = operationTimeout;
     }

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package internal_test
 
 import (
 	"context"
@@ -43,9 +43,6 @@ func TestUnimplemented(t *testing.T) {
 	}{
 		// These tests don't terminate, so can't be run.
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
-		// {pipeline: primitives.Checkpoints},  // Doesn't self terminate?
-		// {pipeline: primitives.Flatten}, // Times out, should be quick.
-		// {pipeline: primitives.FlattenDup}, // Times out, should be quick.
 
 		{pipeline: primitives.TestStreamBoolSequence},
 		{pipeline: primitives.TestStreamByteSliceSequence},
@@ -72,10 +69,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
-		// Reshuffle (Due to missing windowing strategy features)
-		{pipeline: primitives.Reshuffle},
-		{pipeline: primitives.ReshuffleKV},
-
 		// State API
 		{pipeline: primitives.BagStateParDo},
 		{pipeline: primitives.BagStateParDoClear},
@@ -98,6 +91,36 @@ func TestUnimplemented(t *testing.T) {
 			_, err := executeWithT(context.Background(), t, p)
 			if err == nil {
 				t.Fatalf("pipeline passed, but feature should be unimplemented in Prism")
+			}
+		})
+	}
+}
+
+// TODO move these to a more appropriate location.
+// Mostly placed here to have structural parity with the above test
+// and make it easy to move them to a "it works" expectation.
+func TestImplemented(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.Reshuffle},
+		{pipeline: primitives.Flatten},
+		{pipeline: primitives.FlattenDup},
+		{pipeline: primitives.Checkpoints},
+
+		{pipeline: primitives.CoGBK},
+		{pipeline: primitives.ReshuffleKV},
+	}
+
+	for _, test := range tests {
+		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
 			}
 		})
 	}

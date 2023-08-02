@@ -648,8 +648,8 @@ public class DatastoreV1 {
      *       chosen dynamically at runtime based on the query data size.
      *   <li>Any value greater than {@link Read#NUM_QUERY_SPLITS_MAX} will be capped at {@code
      *       NUM_QUERY_SPLITS_MAX}.
-     *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be ignored
-     *       and no split will be performed.
+     *   <li>If the {@code query} has a user limit set, or contains inequality filters, then {@code
+     *       numQuerySplits} will be ignored and no split will be performed.
      *   <li>Under certain cases Cloud Datastore is unable to split query to the requested number of
      *       splits. In such cases we just use whatever the Cloud Datastore returns.
      * </ul>
