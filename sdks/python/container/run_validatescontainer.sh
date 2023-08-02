@@ -38,7 +38,7 @@ if [[ $# < 2 ]]; then
   printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version> <sdk_location> <cpu_architecture>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
   printf " Sample value: 3.9"
-  printf "\n\tcpu_architecture: [optional] CPU architecture used for container build and run tests."
+  printf "\n\tcpu_architecture: [optional] CPU architecture used for container build and run tests, default as x86."
   printf " Sample value: ARM or x86"
   exit 1
 fi
@@ -86,13 +86,16 @@ if [[ "$ARCH" == "x86" ]]; then
 
   # Push the container
   gcloud docker -- push $CONTAINER:$TAG
-else
+elif [[ "$ARCH" == "ARM" ]]; then
   # Note: ARM test suites only run on github actions, where multi-arch Python SDK containers are already pushed during build.
   # Reset the test suite tag to run ARM pipelines.
   TEST_SUITE_TAG="it_dataflow_arm"
 
   # Reset the multi-arch Python SDK container image tag.
   TAG=$MULTIARCH_TAG
+else
+  printf "Please give a valid CPU architecture, either x86 or ARM."
+  exit 1
 fi
 
 function cleanup_container {
