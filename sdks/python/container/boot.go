@@ -180,7 +180,10 @@ func launchSDKProcess() error {
 	dir := filepath.Join(*semiPersistDir, "staged")
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve staged files: %v", err)
+		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
+		// Send error message to logging service before returning up the call stack
+		logger.Errorf(ctx, fmtErr.Error())
+		return fmtErr
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It
@@ -198,7 +201,10 @@ func launchSDKProcess() error {
 	}
 
 	if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
-		return fmt.Errorf("failed to install required packages: %v", setupErr)
+		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
+		// Send error message to logging service before returning up the call stack
+		logger.Errorf(ctx, fmtErr.Error())
+		return fmtErr
 	}
 
 	// (3) Invoke python
@@ -242,7 +248,7 @@ func launchSDKProcess() error {
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
 				time.Sleep(5 * time.Second)
 				if err := syscall.Kill(-pid, syscall.SIGKILL); err == nil {
-					logger.Printf(ctx, "Worker process %v did not respond, killed it.", pid)
+					logger.Warnf(ctx, "Worker process %v did not respond, killed it.", pid)
 				}
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
@@ -278,7 +284,7 @@ func launchSDKProcess() error {
 					// DoFns throwing exceptions.
 					errorCount += 1
 					if errorCount < 4 {
-						logger.Printf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
+						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
 						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
