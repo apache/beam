@@ -28,7 +28,7 @@ on:
       - 'examples/java/**'
       - 'examples/kotlin/**'
       - 'release/**'
-      - '.github/workflows/beam_PostCommit_Java_Examples__Dataflow_ARM.yml'
+      - '.github/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml'
   issue_comment:
     types: [created]
   schedule:
