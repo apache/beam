@@ -32,7 +32,10 @@ dependencies {
     implementation library.java.mongo_java_driver
 
     testImplementation library.java.mockito_core
-    testImplementation library.java.truth
+    // TODO: excluding Guava until Truth updates it to >32.1.x
+    testImplementation(library.java.truth) {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
     testImplementation library.java.commons_lang3
     testRuntimeOnly library.java.slf4j_simple
 }

@@ -104,6 +104,18 @@ public class PipelineOptionsFactoryTest {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(PipelineOptionsFactory.class);
 
   @Test
+  public void testRevision() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    assertEquals(1, options.revision());
+    for (int i = 0; i < 10; i++) {
+      options.setJobName("other" + i);
+      // updates are idempotent, the 2nd call won't increment the revision
+      options.setJobName("other" + i);
+    }
+    assertEquals(11, options.revision());
+  }
+
+  @Test
   public void testAutomaticRegistrationOfPipelineOptions() {
     assertTrue(PipelineOptionsFactory.getRegisteredOptions().contains(RegisteredTestOptions.class));
   }

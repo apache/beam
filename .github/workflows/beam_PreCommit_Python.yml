@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python Integration
+name: PreCommit Python
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["model/**", "sdks/python/**", "release/**"]
+    paths: [ "model/**","sdks/python/**","release/**"]
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_Python_Integration.yml"]
+    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -50,17 +50,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Python_Integration:
-    name: beam_PreCommit_Python_Integration (Run Python_Integration PreCommit 3.x)
+  beam_PreCommit_Python:
+    name: beam_PreCommit_Python (Run Python PreCommit 3.x)
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        python_version: ['3.8', '3.11']
+        python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
-      startsWith(github.event.comment.body, 'Run Python_Integration PreCommit') || 
+      github.event.comment.body == 'Run Python PreCommit' || 
+      startsWith(github.event.comment.body, 'Run Python PreCommit') ||
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
@@ -71,9 +72,9 @@ jobs:
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
-          echo "comment_body=Run Python_Integration PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
+          echo "comment_body=Run Python PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body == steps.set_comment_body.outputs.comment_body
+        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -86,7 +87,7 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
       - name: Install Java
-        uses: actions/setup-java@v3.8.0
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '8'
@@ -100,19 +101,12 @@ jobs:
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
-      - name: run Python Integration PreCommit batch script
+      - name: Run pythonPreCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_batch
+          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
           arguments: |
-            -PuseWheelDistribution \
-            -PpythonVersion=${{ matrix.python_version }} \
-      - name: run Python Integration PreCommit streaming script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_streaming
-          arguments: |
-            -PuseWheelDistribution \
+            -Pposargs="--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/" \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
