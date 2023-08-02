@@ -102,6 +102,11 @@ def parse_known_args(argv):
       dest='model_name',
       default="deepset/roberta-base-squad2",
       help='Model repository-id from Hugging Face Models Hub.')
+  parser.add_argument(
+      '--revision',
+      dest='revision',
+      help=
+      'Specific model version to use - branch name, tag name, or a commit-id.')
   return parser.parse_known_args(argv)
 
 
@@ -124,7 +129,9 @@ def run(
   model_handler = HuggingFacePipelineModelHandler(
       task=PipelineTask.QuestionAnswering,
       model=known_args.model_name,
-      load_model_args={'framework': 'pt'})
+      load_model_args={
+          'framework': 'pt', 'revision': known_args.revision
+      })
   if not known_args.input:
     text = (
         pipeline | 'CreateSentences' >> beam.Create([

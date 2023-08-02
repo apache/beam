@@ -84,6 +84,7 @@ class HuggingFaceInference(unittest.TestCase):
     extra_opts = {
         'input': input_file,
         'output': output_file,
+        'revision': 'deedc3e42208524e0df3d9149d1f26aa6934f05f',
     }
     huggingface_question_answering.run(
         test_pipeline.get_full_options_as_args(**extra_opts),
