@@ -2503,9 +2503,12 @@ class BeamModulePlugin implements Plugin<Project> {
             "suite": config.name,
             "collect": config.collectMarker,
           ]
+          //Configure kafkaJar to run Kafka Xlang Tests
+          def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
+            environment "LOCAL_KAFKA_JAR", kafkaJar
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
             executable 'sh'
