@@ -150,10 +150,9 @@ class GCSFileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    if compression_type == CompressionTypes.UNCOMPRESSED:
-      return self._gcsIO().open(
-          path, mode, mime_type=mime_type, raw_download=True)
     raw_file = self._gcsIO().open(path, mode, mime_type=mime_type)
+    if compression_type == CompressionTypes.UNCOMPRESSED:
+      return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
 
   def create(

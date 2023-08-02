@@ -152,8 +152,7 @@ class GcsIO(object):
       filename,
       mode='r',
       read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
-      mime_type='application/octet-stream',
-      raw_download=True):
+      mime_type='application/octet-stream'):
     """Open a GCS file path for reading or writing.
 
     Args:
@@ -173,8 +172,7 @@ class GcsIO(object):
 
     if mode == 'r' or mode == 'rb':
       blob = bucket.get_blob(blob_name)
-      return BeamBlobReader(
-          blob, chunk_size=read_buffer_size, raw_download=raw_download)
+      return BeamBlobReader(blob, chunk_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.get_blob(blob_name)
       if not blob:
@@ -481,9 +479,8 @@ class GcsIO(object):
 
 
 class BeamBlobReader(BlobReader):
-  def __init__(
-      self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE, raw_download=True):
-    super().__init__(blob, chunk_size=chunk_size, raw_download=raw_download)
+  def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):
+    super().__init__(blob, chunk_size=chunk_size)
     self.mode = "r"
 
 
