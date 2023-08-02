@@ -83,7 +83,7 @@
   * Tests can be set back to the direct runner by overriding TestMain: `func TestMain(m *testing.M) { ptest.MainWithDefault(m, "direct") }`
   * It's recommended to fix issues seen in tests using Prism, as they can also happen on any portable runner.
   * Use the generic register package for your pipeline DoFns to ensure pipelines function on portable runners, like prism.
-  * Do not rely on closures or using package globals for DoFn configuration. They don't function on portable runners. 
+  * Do not rely on closures or using package globals for DoFn configuration. They don't function on portable runners.
 
 ## Deprecations
 
