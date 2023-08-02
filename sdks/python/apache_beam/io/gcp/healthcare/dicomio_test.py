@@ -116,6 +116,13 @@ class FakeHttpClient():
     self.dicom_metadata.append(metadata_dict)
     return None, 200
 
+  def dicomweb_search_instance(
+      self, project_id, region, dataset_id, dicom_store_id, credential=None):
+    if project_id != self.project_id or region != self.region or \
+      dataset_id != self.dataset_id or dicom_store_id != self.dicom_store_id:
+      return [], 204
+    return self.dicom_metadata, 200
+
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestFormatToQido(unittest.TestCase):

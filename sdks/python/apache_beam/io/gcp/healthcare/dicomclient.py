@@ -124,3 +124,23 @@ class DicomApiHttpClient:
     response = session.post(dicomweb_path, data=dcm_file, headers=headers)
 
     return None, response.status_code
+
+  def dicomweb_search_instance(
+      self, project_id, region, dataset_id, dicom_store_id, credential=None):
+    """Handles the GET requests specified in DICOMweb standard."""
+
+    api_endpoint = "{}/projects/{}/locations/{}".format(
+        self.healthcare_base_url, project_id, region)
+
+    dicomweb_path = "{}/datasets/{}/dicomStores/{}/dicomWeb/instances".format(
+        api_endpoint, dataset_id, dicom_store_id)
+
+    # Make an authenticated API request
+    session = self.get_session(credential)
+    content_type = "application/dicom"
+    headers = {"Content-Type": content_type}
+
+    response = session.get(dicomweb_path, headers=headers)
+    instances = response.json()
+
+    return instances, response.status_code
