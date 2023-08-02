@@ -2443,7 +2443,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(config.expansionProjectPath)
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
-      project.evaluationDependsOn(":sdks:java:testing:kafka-service")
+      project.evaluationDependsOn(":sdks:java:testing:kafka-service:buildTestKafkaServiceJar")
 
       // Setting up args to launch the expansion service
       def pythonDir = project.project(":sdks:python").projectDir
