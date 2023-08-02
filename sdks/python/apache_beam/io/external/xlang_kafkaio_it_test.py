@@ -20,7 +20,6 @@
 import contextlib
 import logging
 import os
-import pytest
 import socket
 import subprocess
 import sys
@@ -28,6 +27,8 @@ import time
 import typing
 import unittest
 import uuid
+
+import pytest
 
 import apache_beam as beam
 from apache_beam.coders.coders import VarIntCoder
@@ -115,7 +116,6 @@ class CrossLanguageKafkaIO(object):
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")
 class CrossLanguageKafkaIOTest(unittest.TestCase):
-
   @pytest.mark.uses_gcp_java_expansion_service
   def test_kafkaio_populated_key(self):
     kafka_topic = 'xlang_kafkaio_test_populated_key_{}'.format(uuid.uuid4())

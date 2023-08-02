@@ -2443,6 +2443,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(config.expansionProjectPath)
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
+      project.evaluationDependsOn(":sdks:java:testing:kafka-service")
 
       // Setting up args to launch the expansion service
       def pythonDir = project.project(":sdks:python").projectDir
@@ -2504,7 +2505,7 @@ class BeamModulePlugin implements Plugin<Project> {
             "collect": config.collectMarker,
           ]
           //Configure kafkaJar to run Kafka Xlang Tests
-          def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+          def kafkaJar = project.project(":sdks:java:testing:kafka-service").buildTestKafkaServiceJar.archivePath
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
