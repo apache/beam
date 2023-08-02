@@ -65,29 +65,17 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run PythonDocker PreCommit')
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-        if: contains(fromJSON('["push", "pull_request_target", "schedule", "workflow_dispatch"]'), github.event_name)
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Check out repository code if comment
-        uses: actions/checkout@v3
-        if: startsWith(github.event.comment.body, 'Run PythonDocker PreCommit')
-        with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
+      - uses: actions/checkout@v3
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
-          echo "comment_body=Run PythonDocker PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
-      - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
-        uses: ./.github/actions/rerun-job-action
+          echo "comment_body=Run Python PythonDocker (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: ${{ steps.set_comment_body.outputs.comment_body }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: "${{ github.job }} (${{ matrix.python_version }})"
-          github_current_run_id: ${{ github.run_id }}
       - name: Install Java
         uses: actions/setup-java@v3
         with:
