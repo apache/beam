@@ -494,7 +494,7 @@ public class Preconditions {
       @Nullable String errorMessageTemplate,
       @Nullable Object... errorMessageArgs) {
     if (obj == null) {
-      throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, errorMessageArgs));
+      throw new IllegalStateException(lenientFormat(errorMessageTemplate, errorMessageArgs));
     }
     return obj;
   }
