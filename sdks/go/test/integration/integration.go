@@ -137,25 +137,24 @@ var portableFilters = []string{
 }
 
 var prismFilters = []string{
-	// The portable runner does not support the TestStream primitive
+	// The prism runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
-	// TODO(https://github.com/apache/beam/issues/21058): Python portable runner times out on Kafka reads.
+
+	// TODO(https://github.com/apache/beam/issues/21058): Xlang ios don't yet work on prism.
 	"TestKafkaIO.*",
-	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow prism runners.
 	"TestBigQueryIO.*",
 	"TestSpannerIO.*",
-	// The portable runner does not support self-checkpointing
-	"TestCheckpointing",
-	// The portable runner does not support pipeline drain for SDF.
+	// The prism runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-	// The portable runner does not support user state.
+	// The prism runner does not support user state.
 	"TestValueState",
 	"TestValueStateWindowed",
 	"TestValueStateClear",
@@ -328,8 +327,6 @@ func CheckFilters(t *testing.T) {
 		filters = prismFilters
 	case "portable", "PortableRunner":
 		filters = portableFilters
-	case "prism", "PrismRunner":
-		filters = prismFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
 	case "samza", "SamzaRunner":

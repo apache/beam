@@ -139,11 +139,6 @@ progress:
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
 				break progress
 			}
-			resp, err := b.Progress(wk)
-			if err != nil {
-				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
-				break progress
-			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
 				md := wk.MonitoringMetadata(unknownIDs)
@@ -410,7 +405,7 @@ func handleSideInputs(tid string, t *pipepb.PTransform, comps *pipepb.Components
 		for _, prep := range prepSides {
 			prep(b, watermark)
 		}
-	}, nil 
+	}, nil
 }
 
 // handleSideInput returns a closure that will look up the data for a side input appropriate for the given watermark.

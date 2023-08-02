@@ -145,7 +145,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	}
 
 	// Inspect Windowing strategies for unsupported features.
-	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
+	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
