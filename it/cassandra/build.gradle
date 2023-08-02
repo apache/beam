@@ -30,7 +30,10 @@ dependencies {
     implementation library.java.testcontainers_cassandra
     implementation 'com.datastax.oss:java-driver-core:4.15.0'
 
-    testImplementation library.java.truth
+    // TODO: excluding Guava until Truth updates it to >32.1.x
+    testImplementation(library.java.truth) {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
     testImplementation library.java.mockito_core
     testRuntimeOnly library.java.slf4j_simple
 }
