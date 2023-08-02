@@ -107,7 +107,8 @@ jobs:
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: run Python validatesContainerARM script
         id: run_script
-        run: |
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM 
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
@@ -115,9 +116,9 @@ jobs:
             -Pdocker-repository=us.gcr.io/apache-beam-testing/github-actions \
             -Pdocker-tag=${{ env.MULTIARCH_TAG }} \
             -Ppush-containers
-          env:
-            MULTIARCH_TAG: ${{ env.MULTIARCH_TAG }}
-            USER: github-actions
+        env:
+          MULTIARCH_TAG: ${{ env.MULTIARCH_TAG }}
+          USER: github-actions
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
