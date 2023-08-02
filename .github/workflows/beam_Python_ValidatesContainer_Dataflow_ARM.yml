@@ -77,7 +77,7 @@ jobs:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
           github_repository: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "${{ github.job }} (${{ matrix.python_version }})"
+          github_job: "beam_Python_ValidatesContainer_Dataflow_ARM (Run Python ValidatesContainer Dataflow ARM 3.x) (${{ matrix.python_version }})"
           github_current_run_id: ${{ github.run_id }}
       - name: Install Python
         uses: actions/setup-python@v4
