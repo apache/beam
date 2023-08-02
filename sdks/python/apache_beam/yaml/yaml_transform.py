@@ -725,7 +725,9 @@ def preprocess(spec, verbose=False):
       preprocess_flattened_inputs,
       ensure_errors_consumed,
       preprocess_windowing,
-      lift_config,
+      # TODO(robertwb): Consider enabling this by default, or as an option.
+      # lift_config,
+      ensure_config,
   ]:
     spec = apply(phase, spec)
     if verbose:
