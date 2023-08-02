@@ -18,14 +18,13 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
@@ -99,7 +98,7 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 
 // installExtraPackages installs all the packages declared in the extra
 // packages manifest file.
-func installExtraPackages(ctx context.Context, files []string, extraPackagesFile, dir string) error {
+func installExtraPackages(files []string, extraPackagesFile, dir string) error {
 	// First check that extra packages manifest file is present.
 	for _, file := range files {
 		if file != extraPackagesFile {
@@ -117,7 +116,7 @@ func installExtraPackages(ctx context.Context, files []string, extraPackagesFile
 
 		for s.Scan() {
 			extraPackage := s.Text()
-			log.Infof(ctx, "Installing extra package: %s", extraPackage)
+			log.Printf("Installing extra package: %s", extraPackage)
 			if err = pipInstallPackage(files, dir, extraPackage, true, false, nil); err != nil {
 				return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
 			}
@@ -127,12 +126,12 @@ func installExtraPackages(ctx context.Context, files []string, extraPackagesFile
 	return nil
 }
 
-func findBeamSdkWhl(ctx context.Context, files []string, acceptableWhlSpecs []string) string {
+func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
 	for _, file := range files {
 		if strings.HasPrefix(file, "apache_beam") {
 			for _, s := range acceptableWhlSpecs {
 				if strings.HasSuffix(file, s) {
-					log.Infof(ctx, "Found Apache Beam SDK wheel: %v", file)
+					log.Printf("Found Apache Beam SDK wheel: %v", file)
 					return file
 				}
 			}
@@ -146,8 +145,8 @@ func findBeamSdkWhl(ctx context.Context, files []string, acceptableWhlSpecs []st
 // assume that the pipleine was started with the Beam SDK found in the wheel
 // file, and we try to install it. If not successful, we fall back to installing
 // SDK from source tarball provided in sdkSrcFile.
-func installSdk(ctx context.Context, files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
-	sdkWhlFile := findBeamSdkWhl(ctx, files, acceptableWhlSpecs)
+func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
+	sdkWhlFile := findBeamSdkWhl(files, acceptableWhlSpecs)
 
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed
@@ -156,7 +155,7 @@ func installSdk(ctx context.Context, files []string, workDir string, sdkSrcFile 
 		if err == nil {
 			return nil
 		}
-		log.Infof(ctx, "Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
+		log.Printf("Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
 	}
 	if !required {
 		_, err := os.Stat(filepath.Join(workDir, sdkSrcFile))

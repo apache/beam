@@ -23,6 +23,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -35,7 +36,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -75,9 +75,9 @@ const (
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
+
 	if *setupOnly {
-		processArtifactsInSetupOnlyMode(ctx)
+		processArtifactsInSetupOnlyMode()
 		os.Exit(0)
 	}
 
@@ -90,23 +90,23 @@ func main() {
 			"--service_port=50000",
 			"--container_executable=/opt/apache/beam/boot",
 		}
-		log.Infof(ctx, "Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
+		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
 		if err := execx.Execute("python", args...); err != nil {
-			log.Fatalf(ctx, "Python SDK worker pool exited with error: %v", err)
+			log.Fatalf("Python SDK worker pool exited with error: %v", err)
 		}
-		log.Info(ctx, "Python SDK worker pool exited.")
+		log.Print("Python SDK worker pool exited.")
 		os.Exit(0)
 	}
 
 	if *id == "" {
-		log.Fatalf(ctx, "No id provided.")
+		log.Fatalf("No id provided.")
 	}
 	if *provisionEndpoint == "" {
-		log.Fatalf(ctx, "No provision endpoint provided.")
+		log.Fatalf("No provision endpoint provided.")
 	}
 
 	if err := launchSDKProcess(); err != nil {
-		log.Fatal(ctx, err)
+		log.Fatal(err)
 	}
 }
 
@@ -115,9 +115,9 @@ func launchSDKProcess() error {
 
 	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
-		log.Fatalf(ctx, "Failed to obtain provisioning information: %v", err)
+		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
-	log.Infof(ctx, "Provision info:\n%v", info)
+	log.Printf("Provision info:\n%v", info)
 
 	// TODO(BEAM-8201): Simplify once flags are no longer used.
 	if info.GetLoggingEndpoint().GetUrl() != "" {
@@ -131,13 +131,13 @@ func launchSDKProcess() error {
 	}
 
 	if *loggingEndpoint == "" {
-		log.Fatalf(ctx, "No logging endpoint provided.")
+		log.Fatalf("No logging endpoint provided.")
 	}
 	if *artifactEndpoint == "" {
-		log.Fatalf(ctx, "No artifact endpoint provided.")
+		log.Fatalf("No artifact endpoint provided.")
 	}
 	if *controlEndpoint == "" {
-		log.Fatalf(ctx, "No control endpoint provided.")
+		log.Fatalf("No control endpoint provided.")
 	}
 	logger := &tools.Logger{Endpoint: *loggingEndpoint}
 	logger.Printf(ctx, "Initializing python harness: %v", strings.Join(os.Args, " "))
@@ -200,7 +200,7 @@ func launchSDKProcess() error {
 		}
 	}
 
-	if setupErr := installSetupPackages(ctx, fileNames, dir, requirementsFiles); setupErr != nil {
+	if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
 		logger.Errorf(ctx, fmtErr.Error())
@@ -370,17 +370,17 @@ func setupAcceptableWheelSpecs() error {
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(ctx context.Context, files []string, workDir string, requirementsFiles []string) error {
-	log.Infof(ctx, "Installing setup packages ...")
+func installSetupPackages(files []string, workDir string, requirementsFiles []string) error {
+	log.Printf("Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
-		log.Infof(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
-	if err := installSdk(ctx, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
+	if err := installSdk(files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	// The staged files will not disappear due to restarts because workDir is a
@@ -390,7 +390,7 @@ func installSetupPackages(ctx context.Context, files []string, workDir string, r
 			return fmt.Errorf("failed to install requirements: %v", err)
 		}
 	}
-	if err := installExtraPackages(ctx, files, extraPackagesFile, workDir); err != nil {
+	if err := installExtraPackages(files, extraPackagesFile, workDir); err != nil {
 		return fmt.Errorf("failed to install extra packages: %v", err)
 	}
 	if err := pipInstallPackage(files, workDir, workflowFile, false, true, nil); err != nil {
@@ -405,38 +405,38 @@ func installSetupPackages(ctx context.Context, files []string, workDir string, r
 // process the provided artifacts and skip the actual worker program start up.
 // The mode is useful for building new images with dependencies pre-installed so
 // that the installation can be skipped at the pipeline runtime.
-func processArtifactsInSetupOnlyMode(ctx context.Context) {
+func processArtifactsInSetupOnlyMode() {
 	if *artifacts == "" {
-		log.Fatal(ctx, "No --artifacts provided along with --setup_only flag.")
+		log.Fatal("No --artifacts provided along with --setup_only flag.")
 	}
 	workDir := filepath.Dir(*artifacts)
 	metadata, err := os.ReadFile(*artifacts)
 	if err != nil {
-		log.Fatalf(ctx, "Unable to open artifacts metadata file %v with error %v", *artifacts, err)
+		log.Fatalf("Unable to open artifacts metadata file %v with error %v", *artifacts, err)
 	}
 	var infoJsons []string
 	if err := json.Unmarshal(metadata, &infoJsons); err != nil {
-		log.Fatalf(ctx, "Unable to parse metadata, error: %v", err)
+		log.Fatalf("Unable to parse metadata, error: %v", err)
 	}
 
 	files := make([]string, len(infoJsons))
 	for i, info := range infoJsons {
 		var artifactInformation pipepb.ArtifactInformation
 		if err := jsonpb.UnmarshalString(info, &artifactInformation); err != nil {
-			log.Fatalf(ctx, "Unable to unmarshal artifact information from json string %v", info)
+			log.Fatalf("Unable to unmarshal artifact information from json string %v", info)
 		}
 
 		// For now we only expect artifacts in file type. The condition should be revisited if the assumption is not valid any more.
 		if artifactInformation.GetTypeUrn() != standardArtifactFileTypeUrn {
-			log.Fatalf(ctx, "Expect file artifact type in setup only mode, found %v.", artifactInformation.GetTypeUrn())
+			log.Fatalf("Expect file artifact type in setup only mode, found %v.", artifactInformation.GetTypeUrn())
 		}
 		filePayload := &pipepb.ArtifactFilePayload{}
 		if err := proto.Unmarshal(artifactInformation.GetTypePayload(), filePayload); err != nil {
-			log.Fatal(ctx, "Unable to unmarshal artifact information type payload.")
+			log.Fatal("Unable to unmarshal artifact information type payload.")
 		}
 		files[i] = filePayload.GetPath()
 	}
-	if setupErr := installSetupPackages(ctx, files, workDir, []string{requirementsFile}); setupErr != nil {
-		log.Fatalf(ctx, "Failed to install required packages: %v", setupErr)
+	if setupErr := installSetupPackages(files, workDir, []string{requirementsFile}); setupErr != nil {
+		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
 }
