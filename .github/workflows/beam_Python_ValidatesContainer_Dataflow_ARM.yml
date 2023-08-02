@@ -13,15 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Go Dataflow ARM
+name: Python ValidatesContainer Dataflow ARM
 
 on:
+  issue_comment:
+    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml']
-  issue_comment:
-    types: [created]
+    paths: ["sdks/python/**",".github/workflows/beam_Python_ValidatesContainer_Dataflow_ARM.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -48,42 +48,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PostCommit_Go_Dataflow_ARM:
+  beam_Python_ValidatesContainer_Dataflow_ARM:
+    name: beam_Python_ValidatesContainer_Dataflow_ARM
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
+      startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM') || 
+      github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PostCommit_Go_Dataflow_ARM (Run Go PostCommit Dataflow ARM)
-    steps:       
-      - uses: actions/checkout@v3
+    env:
+      MULTIARCH_TAG: $(date +'%Y%m%d-%H%M%S%N')
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set comment body with matrix
+        id: set_comment_body
+        run: |
+          echo "comment_body=Run Python ValidatesContainer Dataflow ARM (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
+        if: github.event.comment.body == steps.set_comment_body.outputs.comment_body
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
           github_repository: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
+          github_job: "${{ github.job }} (${{ matrix.python_version }})"
           github_current_run_id: ${{ github.run_id }}
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
-          distribution: 'zulu'
-          java-version: '8'
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.20'
+          python-version: ${{ matrix.python_version }}
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -94,7 +99,27 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
-      - name: run goPostCommitDataflowARM script
-        run: ./gradlew :goPostCommitDataflowARM
-        env:
-          USER: github-actions
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
+        run: |
+          PY_VER=${{ matrix.python_version }}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: run Python validatesContainerARM script
+        id: run_script
+        run: |
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM 
+          arguments: |
+            -PpythonVersion=${{ matrix.python_version }} \
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Pdocker-repository=us.gcr.io/apache-beam-testing/github-actions \
+            -Pdocker-tag=${{ env.MULTIARCH_TAG }} \
+            -Ppush-containers
+          env:
+            MULTIARCH_TAG: ${{ env.MULTIARCH_TAG }}
+            USER: github-actions
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-code-coverage-report
+          path: "**/pytest*.xml"
