@@ -74,6 +74,12 @@ dependencies {
     examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
+def javaVer = "java8"
+if(project.hasProperty('compileAndRunTestsWithJava17')) {
+  javaVer = "java17"
+} else if(project.hasProperty('compileAndRunTestsWithJava11')) {
+  javaVer = "java11"
+}
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
@@ -99,12 +105,6 @@ def runnerV2PipelineOptionsARMARM = [
 // task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
-  def javaVer = "java8"
-  if(project.hasProperty('compileAndRunTestsWithJava17')) {
-    javaVer = "java17"
-  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-    javaVer = "java11"
-  }
   dependsOn ":sdks:java:container:${javaVer}:docker"
 }
 
