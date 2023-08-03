@@ -15,29 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PreCommit Java Examples Dataflow Java11
+name: PreCommit Java Spark3 Versions
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
-      - 'model/**'
-      - 'sdks/java/**'
-      - 'runners/google-cloud-dataflow-java/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - 'release/**'
-      - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml'
+      - 'runners/spark/**'
+      - '.github/workflows/beam_PreCommit_Java_Spark3_Versions.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - 'model/**'
-      - 'sdks/java/**'
-      - 'runners/google-cloud-dataflow-java/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - 'release/**'
+      - 'runners/spark/**'
   issue_comment:
     types: [created]
   schedule:
@@ -66,22 +56,22 @@ permissions:
   statuses: read
 
 jobs:
-  beam_PreCommit_Java_Examples_Dataflow_Java11:
-    name: beam_PreCommit_Java_Examples_Dataflow_Java11 (Run Java_Examples_Dataflow_Java11 PreCommit)
+  beam_PreCommit_Java_Spark3_Versions:
+    name: beam_PreCommit_Java_Spark3_Versions (Run Java_Spark3_Versions PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 60
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_Examples_Dataflow_Java11 PreCommit'
+      github.event.comment.body == 'Run Java_Spark3_Versions PreCommit'
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Java_Examples_Dataflow_Java11 PreCommit'
+          comment_phrase: 'Run Java_Spark3_Versions PreCommit'
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
@@ -90,21 +80,18 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: Set up Java
+      - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: run javaExamplesDataflowPrecommit script
+          distribution: 'zulu'
+          java-version: '8'
+          cache: 'gradle'
+          check-latest: true
+      - name: run sparkVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :javaExamplesDataflowPrecommit
-          arguments: |
-            -PdisableSpotlessCheck=true \
-            -PdisableCheckStyle=true \
-            -PskipCheckerFramework \
-            -PcompileAndRunTestsWithJava11 \
-            -Pjava11Home=$JAVA_HOME_11_X64 \
+          gradle-command: :runners:spark:3:sparkVersionsTest
+          arguments: -PdisableSpotlessCheck=true
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:
