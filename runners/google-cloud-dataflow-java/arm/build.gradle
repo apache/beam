@@ -66,8 +66,11 @@ test {
   }
 }
 
+configurations { examplesJavaIntegrationTest }
+
 dependencies {
-    dockerDependency project(path: ":runners:google-cloud-dataflow-java", configuration: "examplesJavaIntegrationTest")
+    examplesJavaIntegrationTest project(project.path)
+    examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
