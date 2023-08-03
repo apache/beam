@@ -199,10 +199,10 @@ public class KryoCoder<T> extends CustomCoder<T> {
     outputChunked.setOutputStream(outStream);
     try {
       kryoState.getKryo().writeClassAndObject(outputChunked, value);
-      outputChunked.endChunks();
+      outputChunked.endChunk();
       outputChunked.flush();
     } catch (KryoException e) {
-      outputChunked.clear();
+      outputChunked.reset();
       if (e.getCause() instanceof EOFException) {
         throw (EOFException) e.getCause();
       }
@@ -284,7 +284,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
   @Override
   public boolean equals(@Nullable Object other) {
     if (other != null && getClass().equals(other.getClass())) {
-      return instanceId.equals(((KryoCoder) other).instanceId);
+      return instanceId.equals(((KryoCoder<?>) other).instanceId);
     }
     return false;
   }
