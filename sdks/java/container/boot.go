@@ -247,7 +247,8 @@ func main() {
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
 }
 
-// makePipelineOptionsFile writes the pipeline opt
+// makePipelineOptionsFile writes the pipeline options to a file.
+// Assumes the options string is JSON formatted.
 func makePipelineOptionsFile(options string) error {
 	f, err := os.Create("pipeline_options.json")
 	if err != nil {
