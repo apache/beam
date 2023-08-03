@@ -2443,7 +2443,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(config.expansionProjectPath)
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
-      project.evaluationDependsOn(":sdks:java:testing:kafka-service:buildTestKafkaServiceJar")
+      project.evaluationDependsOn(":sdks:java:testing:kafka-service")
 
       // Setting up args to launch the expansion service
       def pythonDir = project.project(":sdks:python").projectDir
@@ -2495,6 +2495,7 @@ class BeamModulePlugin implements Plugin<Project> {
         description = "Runs Python SDK pipeline tests that use a Java expansion service"
         dependsOn setupTask
         dependsOn config.startJobServer
+        dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
