@@ -173,7 +173,7 @@ public class DirectRunnerClient implements PipelineLauncher {
     }
 
     public Builder setCredentials(Credentials value) {
-      this.credentials = value;
+      credentials = value;
       return this;
     }
 
