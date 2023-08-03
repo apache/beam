@@ -40,21 +40,21 @@ public final class SpannerResourceManagerUtilsTest {
   }
 
   @Test
-  public void testGenerateDatabaseIdShouldReplaceDigitLastCharWithLetter() {
-    String testBaseString = "test_database_0";
+  public void testGenerateDatabaseIdShouldNotReplaceDigitLastCharWithLetter() {
+    String testBaseString = "db_0";
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).matches("test_database_[a-z]");
+    assertThat(actual).matches("db_0_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseIdShouldReplaceDollarSignWithUnderscore() {
-    String testBaseString = "test$database";
+    String testBaseString = "t$db";
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).isEqualTo("test_database");
+    assertThat(actual).matches("t_db_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
@@ -63,7 +63,7 @@ public final class SpannerResourceManagerUtilsTest {
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).isEqualTo("test_database");
+    assertThat(actual).matches("test_da_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
@@ -72,34 +72,25 @@ public final class SpannerResourceManagerUtilsTest {
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).isEqualTo("test_database");
+    assertThat(actual).matches("test_da_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseIdShouldReplaceNonLetterFirstCharWithLetter() {
-    String testBaseString = "0_test_database";
+    String testBaseString = "0_database";
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).matches("[a-z]_test_database");
+    assertThat(actual).matches("[a-z]_datab_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseIdShouldReplaceUpperCaseLettersWithLowerCase() {
-    String testBaseString = "Test_Database";
+    String testBaseString = "TDa";
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).isEqualTo("test_database");
-  }
-
-  @Test
-  public void testGenerateDatabaseIdShouldTrimTrailingHyphen() {
-    String testBaseString = "test_database---";
-
-    String actual = generateDatabaseId(testBaseString);
-
-    assertThat(actual).isEqualTo("test_database");
+    assertThat(actual).matches("tda_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
@@ -108,19 +99,12 @@ public final class SpannerResourceManagerUtilsTest {
 
     String actual = generateDatabaseId(testBaseString);
 
-    assertThat(actual).isEqualTo("test_database");
+    assertThat(actual).matches("test_da_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseIdShouldThrowErrorWithEmptyInput() {
     String testBaseString = "";
-
-    assertThrows(IllegalArgumentException.class, () -> generateDatabaseId(testBaseString));
-  }
-
-  @Test
-  public void testGenerateDatabaseIdShouldThrowErrorWhenInputContainsNoLettersOrNumbers() {
-    String testBaseString = "---___$...__";
 
     assertThrows(IllegalArgumentException.class, () -> generateDatabaseId(testBaseString));
   }

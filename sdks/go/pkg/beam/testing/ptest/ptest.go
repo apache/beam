@@ -25,11 +25,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners" // common runner flag.
 
-	// ptest uses the direct runner to execute pipelines by default.
+	// ptest uses the prism runner to execute pipelines by default.
+	// but includes the direct runner for legacy fallback reasons to
+	// support users overriding the default back to the direct runner.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 )
-
-// TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
 
 // Create creates a pipeline and a PCollection with the given values.
 func Create(values []any) (*beam.Pipeline, beam.Scope, beam.PCollection) {
@@ -65,7 +66,7 @@ func CreateList2(a, b any) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.P
 // to function.
 var (
 	Runner        = runners.Runner
-	defaultRunner = "direct"
+	defaultRunner = "prism"
 	mainCalled    = false
 )
 

@@ -16,5 +16,5 @@
 #
 
 torch>=1.7.1
-transformers>=4.18.0
+transformers==4.30.0
 tensorflow>=2.12.0
