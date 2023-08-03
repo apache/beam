@@ -60,27 +60,31 @@ func CreateList2(a, b any) (*beam.Pipeline, beam.Scope, beam.PCollection, beam.P
 	return p, s, beam.CreateList(s, a), beam.CreateList(s, b)
 }
 
+const (
+	defaultRunner = "prism"
+)
+
 // Runner is a flag that sets which runner pipelines under test will use.
 //
 // The test file must have a TestMain that calls Main or MainWithDefault
 // to function.
 var (
-	Runner        = runners.Runner
-	defaultRunner = "prism"
-	mainCalled    = false
+	Runner                = runners.Runner
+	defaultRunnerOverride = defaultRunner
+	mainCalled            = false
 )
 
 func getRunner() string {
 	r := *Runner
 	if r == "" {
-		r = defaultRunner
+		r = defaultRunnerOverride
 	}
 	return r
 }
 
 // DefaultRunner returns the default runner name for the test file.
 func DefaultRunner() string {
-	return defaultRunner
+	return defaultRunnerOverride
 }
 
 // MainCalled returns true iff Main or MainRet has been called.
@@ -133,7 +137,7 @@ func BuildAndRun(t *testing.T, build func(s beam.Scope)) beam.PipelineResult {
 //		ptest.Main(m)
 //	}
 func Main(m *testing.M) {
-	MainWithDefault(m, "direct")
+	MainWithDefault(m, defaultRunner)
 }
 
 // MainWithDefault is an implementation of testing's TestMain to permit testing
@@ -141,7 +145,7 @@ func Main(m *testing.M) {
 // runner to use.
 func MainWithDefault(m *testing.M, runner string) {
 	mainCalled = true
-	defaultRunner = runner
+	defaultRunnerOverride = runner
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -149,7 +153,7 @@ func MainWithDefault(m *testing.M, runner string) {
 	os.Exit(m.Run())
 }
 
-// MainRet is equivelant to Main, but returns an exit code to pass to os.Exit().
+// MainRet is equivalent to Main, but returns an exit code to pass to os.Exit().
 //
 // Example:
 //
@@ -157,14 +161,14 @@ func MainWithDefault(m *testing.M, runner string) {
 //		os.Exit(ptest.Main(m))
 //	}
 func MainRet(m *testing.M) int {
-	return MainRetWithDefault(m, "direct")
+	return MainRetWithDefault(m, defaultRunner)
 }
 
-// MainRetWithDefault is equivelant to MainWithDefault but returns an exit code
+// MainRetWithDefault is equivalent to MainWithDefault but returns an exit code
 // to pass to os.Exit().
 func MainRetWithDefault(m *testing.M, runner string) int {
 	mainCalled = true
-	defaultRunner = runner
+	defaultRunnerOverride = runner
 	if !flag.Parsed() {
 		flag.Parse()
 	}
