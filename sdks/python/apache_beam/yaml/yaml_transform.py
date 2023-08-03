@@ -193,7 +193,7 @@ class Scope(LightweightScope):
         return only_element(outputs.values())
       else:
         error_output = self._transforms_by_uuid[self.get_transform_id(
-            name)].get('error_handling', {}).get('output')
+            name)]['config'].get('error_handling', {}).get('output')
         if error_output and error_output in outputs and len(outputs) == 2:
           return next(
               output for tag, output in outputs.items() if tag != error_output)
@@ -239,28 +239,20 @@ class Scope(LightweightScope):
           'No available provider for type %r at %s' %
           (spec['type'], identify_object(spec)))
 
-    if 'args' in spec:
-      args = spec['args']
-      if not isinstance(args, dict):
-        raise ValueError(
-            'Arguments for transform at %s must be a mapping.' %
-            identify_object(spec))
-    else:
-      args = {
-          key: value
-          for (key, value) in spec.items()
-          if key not in ('type', 'name', 'input', 'output')
-      }
-    real_args = SafeLineLoader.strip_metadata(args)
+    config = SafeLineLoader.strip_metadata(spec.get('config', {}))
+    if not isinstance(config, dict):
+      raise ValueError(
+          'Config for transform at %s must be a mapping.' %
+          identify_object(spec))
     try:
       # pylint: disable=undefined-loop-variable
       ptransform = provider.create_transform(
-          spec['type'], real_args, self.create_ptransform)
+          spec['type'], config, self.create_ptransform)
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = dict(
           yaml_type=spec['type'],
-          yaml_args=json.dumps(real_args),
+          yaml_args=json.dumps(config),
           yaml_provider=json.dumps(provider.to_json()),
           **ptransform.annotations())
       ptransform.annotations = lambda: annotations
@@ -538,6 +530,9 @@ def push_windowing_to_roots(spec):
 def preprocess_windowing(spec):
   if spec['type'] == 'WindowInto':
     # This is the transform where it is actually applied.
+    if 'windowing' in spec:
+      spec['config'] = spec.get('config', {})
+      spec['config']['windowing'] = spec.pop('windowing')
     return spec
   elif 'windowing' not in spec:
     # Nothing to do.
@@ -674,17 +669,40 @@ def ensure_errors_consumed(spec):
         scope.get_transform_id_and_output_name(output)
         for output in spec['output'].values())
     for t in spec['transforms']:
-      if 'error_handling' in t:
-        if 'output' not in t['error_handling']:
+      config = t.get('config', t)
+      if 'error_handling' in config:
+        if 'output' not in config['error_handling']:
           raise ValueError(
               f'Missing output in error_handling of {identify_object(t)}')
-        to_handle[t['__uuid__'], t['error_handling']['output']] = t
+        to_handle[t['__uuid__'], config['error_handling']['output']] = t
       for _, input in t['input'].items():
         if input not in spec['input']:
           consumed.add(scope.get_transform_id_and_output_name(input))
     for error_pcoll, t in to_handle.items():
       if error_pcoll not in consumed:
         raise ValueError(f'Unconsumed error output for {identify_object(t)}.')
+  return spec
+
+
+def lift_config(spec):
+  if 'config' not in spec:
+    common_params = 'name', 'type', 'input', 'output', 'transforms'
+    return {
+        'config': {k: v
+                   for (k, v) in spec.items() if k not in common_params},
+        **{
+            k: v
+            for (k, v) in spec.items()  #
+            if k in common_params or k in ('__line__', '__uuid__')
+        }
+    }
+  else:
+    return spec
+
+
+def ensure_config(spec):
+  if 'config' not in spec:
+    spec['config'] = {}
   return spec
 
 
@@ -699,13 +717,18 @@ def preprocess(spec, verbose=False):
           spec, transforms=[apply(phase, t) for t in spec['transforms']])
     return spec
 
-  for phase in [ensure_transforms_have_types,
-                preprocess_source_sink,
-                preprocess_chain,
-                normalize_inputs_outputs,
-                preprocess_flattened_inputs,
-                ensure_errors_consumed,
-                preprocess_windowing]:
+  for phase in [
+      ensure_transforms_have_types,
+      preprocess_source_sink,
+      preprocess_chain,
+      normalize_inputs_outputs,
+      preprocess_flattened_inputs,
+      ensure_errors_consumed,
+      preprocess_windowing,
+      # TODO(robertwb): Consider enabling this by default, or as an option.
+      # lift_config,
+      ensure_config,
+  ]:
     spec = apply(phase, spec)
     if verbose:
       print('=' * 20, phase, '=' * 20)
