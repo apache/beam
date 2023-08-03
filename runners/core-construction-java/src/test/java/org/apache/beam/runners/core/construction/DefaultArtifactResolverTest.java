@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

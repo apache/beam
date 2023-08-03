@@ -171,7 +171,7 @@ dependencies {
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
   implementation library.java.vendored_grpc_1_54_0
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
@@ -364,7 +364,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   // Register various other classes used in tests
   systemProperty 'spark.kryo.classesToRegister',
     'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
-    'org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RegularImmutableList'
+    'org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RegularImmutableList'
   jvmArgs += sparkTestJvmArgs()
   jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
 

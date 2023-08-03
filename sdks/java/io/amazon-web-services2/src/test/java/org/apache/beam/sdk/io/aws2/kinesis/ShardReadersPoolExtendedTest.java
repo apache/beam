@@ -28,7 +28,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;

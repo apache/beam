@@ -23,7 +23,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
 @AutoValue

@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

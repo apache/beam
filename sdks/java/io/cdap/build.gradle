@@ -58,14 +58,14 @@ dependencies {
     implementation library.java.slf4j_api
     implementation library.java.spark_streaming
     implementation library.java.tephra
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:io:sparkreceiver:2")
     implementation project(":sdks:java:io:hadoop-format")
     testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.hadoop_common
-    testImplementation library.java.vendored_guava_26_0_jre
+    testImplementation library.java.vendored_guava_32_1_2_jre
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
     testImplementation library.java.testcontainers_postgresql
