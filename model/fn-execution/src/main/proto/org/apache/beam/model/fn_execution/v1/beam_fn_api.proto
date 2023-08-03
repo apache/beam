@@ -577,8 +577,8 @@ message ProcessBundleSplitRequest {
 // Let's say the SDK is processing elements [A B C D E]. These elements make
 // up the 0-indexed channel.
 //
-// - First Split:
-// Channel Split = [ A B C D || E ]
+// - First Split: (A B C D) (E)
+// Channel Split = [ A B C D <> E ]
 // Primary Roots = [] (No elements were split)
 // Residual Roots = []
 //
@@ -588,7 +588,7 @@ message ProcessBundleSplitRequest {
 // process E in the future. 
 //
 // - Second Split: (A B1 C1) | (B2 C2 D)
-// Channel Split = [ A | (B C) | D E ]
+// Channel Split = [ A < B C >  D E ]
 // Primary Roots = [B1 C1]
 // Residual Roots = [B2 C2]
 //
@@ -601,7 +601,7 @@ message ProcessBundleSplitRequest {
 // from the prior split) in the future.
 //
 // - Third Split: (A B1a) | (B1b C1)
-// Channel Split = [ A | (B C) | D E ]
+// Channel Split = [ A < B C > D E ]
 // Primary Roots = [B1a]
 // Residual Roots [B1b C1]
 // Yet another future split request could
