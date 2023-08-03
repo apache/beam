@@ -84,19 +84,12 @@ jobs:
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Portable_Python PreCommit'
     steps:
-      - name: Git checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          ref: ${{github.event.pull_request.head.sha}}
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run Portable_Python PreCommit'
-        uses: ./.github/actions/rerun-job-action
-        with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: 'Run Portable_Python PreCommit'
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
