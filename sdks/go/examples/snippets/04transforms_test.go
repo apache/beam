@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
@@ -205,6 +206,14 @@ func TestSideInputs(t *testing.T) {
 	ptest.RunAndValidate(t, p)
 }
 
+func emitOnTestKey(k string, v int, emit func(int)) {
+	if k == "test" {
+		emit(v)
+	}
+}
+
+func init() { register.Function3x0(emitOnTestKey) }
+
 func TestComposite(t *testing.T) {
 	p, s, lines := ptest.CreateList([]string{
 		"this test dataset has the word test",
@@ -215,11 +224,7 @@ func TestComposite(t *testing.T) {
 	// A Composite PTransform function is called like any other function.
 	wordCounts := CountWords(s, lines) // returns a PCollection<KV<string,int>>
 	// [END countwords_composite_call]
-	testCount := beam.ParDo(s, func(k string, v int, emit func(int)) {
-		if k == "test" {
-			emit(v)
-		}
-	}, wordCounts)
+	testCount := beam.ParDo(s, emitOnTestKey, wordCounts)
 	passert.Equals(s, testCount, 4)
 	ptest.RunAndValidate(t, p)
 }

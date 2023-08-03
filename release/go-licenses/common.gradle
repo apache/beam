@@ -25,6 +25,8 @@ docker {
   noCache false
   buildArgs(['sdk_location': "github.com/apache/beam/sdks/v2/${sdkName}/container"])
   // If Docker buildx builder is used, explicitly load the image into the local repository.
+  // Set the buildx flag to pick up the load flag.
+  buildx true
   load true
 }
 
