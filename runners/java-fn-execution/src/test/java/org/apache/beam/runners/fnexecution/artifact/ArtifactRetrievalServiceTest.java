@@ -113,6 +113,7 @@ public class ArtifactRetrievalServiceTest {
     return all.toStringUtf8();
   }
 
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   public void testRetrieveArtifacts() throws IOException, InterruptedException {
     Map<String, String> artifacts =

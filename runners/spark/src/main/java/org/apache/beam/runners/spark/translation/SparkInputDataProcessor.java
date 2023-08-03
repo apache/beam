@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.CheckForNull;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -141,7 +142,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
     }
 
     @Override
-    protected Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
+    protected @CheckForNull Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
       try {
         // Process each element from the (input) iterator, which produces, zero, one or more
         // output elements (of type V) in the output iterator. Note that the output
@@ -304,7 +305,7 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
     }
 
     @Override
-    protected Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
+    protected @CheckForNull Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
 
       if (outputProducerTask == null) {
         outputProducerTask = startOutputProducerTask();

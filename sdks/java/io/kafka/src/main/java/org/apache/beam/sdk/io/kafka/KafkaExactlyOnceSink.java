@@ -654,7 +654,7 @@ class KafkaExactlyOnceSink<K, V>
                 .<Integer, ShardWriter<K, V>>removalListener(
                     notification -> {
                       if (notification.getCause() != RemovalCause.EXPLICIT) {
-                        ShardWriter<K, V> writer = notification.getValue();
+                        ShardWriter<K, V> writer = checkNotNull(notification.getValue());
                         LOG.info(
                             "{} : Closing idle shard writer {} after 1 minute of idle time.",
                             writer.shard,

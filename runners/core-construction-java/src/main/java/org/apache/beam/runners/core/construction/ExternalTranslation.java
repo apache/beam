@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -120,7 +121,8 @@ public class ExternalTranslation {
               entry
                   .getValue()
                   .toBuilder()
-                  .setCoderId(coderRenameMap.getOrDefault(coderId, coderId))
+                  .setCoderId(
+                      Preconditions.checkNotNull(coderRenameMap.getOrDefault(coderId, coderId)))
                   .build());
         }
       }
@@ -141,12 +143,14 @@ public class ExternalTranslation {
         for (Map.Entry<String, String> inputEntry : proto.getInputsMap().entrySet()) {
           transformBuilder.putInputs(
               inputEntry.getKey(),
-              pColRenameMap.getOrDefault(inputEntry.getValue(), inputEntry.getValue()));
+              Preconditions.checkNotNull(
+                  pColRenameMap.getOrDefault(inputEntry.getValue(), inputEntry.getValue())));
         }
         for (Map.Entry<String, String> outputEntry : proto.getOutputsMap().entrySet()) {
           transformBuilder.putOutputs(
               outputEntry.getKey(),
-              pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue()));
+              Preconditions.checkNotNull(
+                  pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue())));
         }
         mergingComponentsBuilder.putTransforms(entry.getKey(), transformBuilder.build());
       }
@@ -161,7 +165,8 @@ public class ExternalTranslation {
       for (Map.Entry<String, String> outputEntry : expandedTransform.getOutputsMap().entrySet()) {
         rootTransformBuilder.putOutputs(
             outputEntry.getKey(),
-            pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue()));
+            Preconditions.checkNotNull(
+                pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue())));
       }
       components.mergeFrom(mergingComponentsBuilder.build(), null);
 

@@ -664,6 +664,7 @@ public class GroupIntoBatchesTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   @Category({
     ValidatesRunner.class,
