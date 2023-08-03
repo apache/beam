@@ -17,8 +17,6 @@
  */
 package org.apache.beam.it.gcp.storage;
 
-import static org.apache.beam.it.gcp.artifacts.utils.ArtifactUtils.createRunId;
-import static org.apache.beam.it.gcp.artifacts.utils.ArtifactUtils.createStorageClient;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.paging.Page;
@@ -45,6 +43,7 @@ import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.gcp.artifacts.Artifact;
 import org.apache.beam.it.gcp.artifacts.ArtifactClient;
 import org.apache.beam.it.gcp.artifacts.GcsArtifact;
+import org.apache.beam.it.gcp.artifacts.utils.ArtifactUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
@@ -67,10 +66,10 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
   private final String runId;
 
   public GcsResourceManager(Builder builder) {
-    this.client = createStorageClient(builder.credentials);
+    this.client = ArtifactUtils.createStorageClient(builder.credentials);
     this.bucket = builder.bucket;
     this.testClassName = builder.testClassName;
-    this.runId = createRunId();
+    this.runId = ArtifactUtils.createRunId();
 
     managedTempDirs.add(joinPathParts(testClassName, runId));
   }
@@ -80,7 +79,7 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
     this.client = client;
     this.bucket = bucket;
     this.testClassName = testClassName;
-    this.runId = createRunId();
+    this.runId = ArtifactUtils.createRunId();
 
     managedTempDirs.add(joinPathParts(testClassName, runId));
   }
@@ -249,7 +248,7 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
               List<Boolean> deleted = client.delete(blobIds);
               for (int i = 0; i < deleted.size(); ++i) {
                 if (deleted.get(i)) {
-                  LOG.info("Blob '{}' was deleted", blobIds.get(i).getName());
+                  LOG.debug("Blob '{}' was deleted", blobIds.get(i).getName());
                 } else {
                   LOG.warn("Blob '{}' not deleted", blobIds.get(i).getName());
                 }

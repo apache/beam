@@ -35,4 +35,10 @@ dependencies {
     }
     testImplementation library.java.mockito_core
     testRuntimeOnly library.java.slf4j_simple
+    // TODO: Remove the below dependencies after KafkaIOLT has been moved to the right directory.
+    testImplementation project(path: ":it:google-cloud-platform")
+    testImplementation project(path: ":sdks:java:io:kafka")
+    testImplementation project(path: ":sdks:java:io:synthetic")
+    testImplementation project(path: ":runners:direct-java")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
 }
