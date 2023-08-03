@@ -21,8 +21,6 @@ import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
-
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -1039,7 +1037,9 @@ public class Group {
           .setSchemaAggregateFn(schemaAggregateFn)
           .setKeyField(keyField)
           .setValueField(valueField)
-              .setFewKeys(false)
+          .setFewKeys(
+              true) // We are often selecting only certain fields, so combiner lifting usually
+          // helps.
           .build();
     }
 
@@ -1051,6 +1051,17 @@ public class Group {
     /** Set the name of the value field in the resulting schema. */
     public CombineFieldsByFields<InputT> witValueField(String valueField) {
       return toBuilder().setValueField(valueField).build();
+    }
+
+    /**
+     * Enable precombining.
+     *
+     * <p>This is on by default. In certain cases (e.g. if there are many unique field values and
+     * the combiner's intermediate state is larger than the average row size) precombining makes
+     * things worse, in which case it can be turned off.
+     */
+    public CombineFieldsByFields<InputT> withPrecombining(boolean value) {
+      return toBuilder().setFewKeys(value).build();
     }
 
     public CombineFieldsByFields<InputT> withHotKeyFanout(int n) {

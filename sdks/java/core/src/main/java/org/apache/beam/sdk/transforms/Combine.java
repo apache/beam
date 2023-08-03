@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -207,7 +206,7 @@ public class Combine {
   /** Returns a {@link PerKey Combine.PerKey}, and set fewKeys in {@link GroupByKey}. */
   @Internal
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
-          GlobalCombineFn<? super InputT, ?, OutputT> fn) {
+      GlobalCombineFn<? super InputT, ?, OutputT> fn) {
     return new PerKey<>(fn, displayDataForFn(fn), true /*fewKeys*/);
   }
 
