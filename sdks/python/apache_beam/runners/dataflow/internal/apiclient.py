@@ -671,8 +671,8 @@ class DataflowApplicationClient(object):
     start_time = time.time()
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
     try:
-      from google.cloud.storage import BlobWriter
       from google.cloud.storage import Blob
+      from google.cloud.storage.fileio import BlobWriter
       bucket = self._storage_client.get_bucket(bucket_name)
       blob = bucket.get_blob(blob_name)
       if not blob:
