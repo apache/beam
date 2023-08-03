@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -124,7 +125,9 @@ func main() {
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
 	os.Setenv("HARNESS_ID", *id)
-	os.Setenv("PIPELINE_OPTIONS", options)
+	if err := makePipelineOptionsFile(options); err != nil {
+		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
+	}
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
@@ -242,6 +245,20 @@ func main() {
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
+}
+
+// makePipelineOptionsFile writes the pipeline opt
+func makePipelineOptionsFile(options string) error {
+	f, err := os.Create("pipeline_options.json")
+	if err != nil {
+		return fmt.Errorf("unable to create pipeline_options.json: %w", err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(options); err != nil || err != io.EOF {
+		return fmt.Errorf("error writing pipeline_options.json: %w", err)
+	}
+	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
+	return nil
 }
 
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
