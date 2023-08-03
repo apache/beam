@@ -150,7 +150,7 @@ public interface DataflowPipelineOptions
       "The URL for the Dataflow API. If the string contains \"://\", this"
           + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
   @Override
-  @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
+  @Default.InstanceFactory(DefaultDataflowEndpointFactory.class)
   String getDataflowEndpoint();
 
   @Override
