@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.resourcehints;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardResourceHints;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ProtocolMessageEnum;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;

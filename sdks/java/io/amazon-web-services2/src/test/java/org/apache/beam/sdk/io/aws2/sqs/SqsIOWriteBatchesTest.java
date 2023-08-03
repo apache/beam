@@ -59,7 +59,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
-import org.apache.commons.lang3.RandomUtils;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
