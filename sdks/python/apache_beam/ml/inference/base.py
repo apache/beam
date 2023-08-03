@@ -759,9 +759,10 @@ class _ModelManager:
         allow unlimited models.
     """
     self._max_models = max_models
-    self._mh_map = mh_map
-    self._proxy_map = {}
-    self._tag_map = OrderedDict()
+    self._mh_map: Dict[str, ModelHandler] = mh_map
+    self._proxy_map: Dict[str, str] = {}
+    self._tag_map: Dict[
+        str, multi_process_shared.MultiProcessShared] = OrderedDict()
 
   def load(self, key: str) -> str:
     """
