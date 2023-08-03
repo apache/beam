@@ -59,13 +59,13 @@ jobs:
   beam_PreCommit_Java_Spark3_Versions:
     name: beam_PreCommit_Java_Spark3_Versions (Run Java_Spark3_Versions PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Spark3_Versions PreCommit'
-    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository

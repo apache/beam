@@ -69,13 +69,13 @@ jobs:
   beam_PreCommit_Java_Examples_Dataflow_Java11:
     name: beam_PreCommit_Java_Examples_Dataflow_Java11 (Run Java_Examples_Dataflow_Java11 PreCommit)
     runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Examples_Dataflow_Java11 PreCommit'
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
