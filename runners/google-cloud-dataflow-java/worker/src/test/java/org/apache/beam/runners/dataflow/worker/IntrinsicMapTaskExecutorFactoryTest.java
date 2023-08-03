@@ -117,6 +117,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "DoNotMock", // TODO: Use NetworkBuilder to create a real instance
 })
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";

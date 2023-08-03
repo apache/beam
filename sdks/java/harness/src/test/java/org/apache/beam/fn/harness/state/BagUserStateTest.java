@@ -110,6 +110,7 @@ public class BagUserStateTest {
     assertThrows(IllegalStateException.class, () -> userState.append("A4"));
   }
 
+  @SuppressWarnings("InlineMeInliner")
   @Test
   public void testAppendBatchingLimit() throws Exception {
     String a1 = "A1";

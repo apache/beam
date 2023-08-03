@@ -302,10 +302,9 @@ public class MongoDbReadWriteIT {
             .append(
                 "$or",
                 ImmutableList.of(
-                        new Document("c_varchar", "varchar"),
-                        new Document(
-                            "c_varchar", new Document("$not", new Document("$eq", "fakeString"))))
-                    .asList())
+                    new Document("c_varchar", "varchar"),
+                    new Document(
+                        "c_varchar", new Document("$not", new Document("$eq", "fakeString")))))
             .append("c_boolean", true)
             .append("c_integer", 2147483647);
     final Schema expectedSchema =
