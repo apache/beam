@@ -89,7 +89,7 @@ def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_ima
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
 ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}"
 
-def runnerV2PipelineOptionsARMARM = [
+def runnerV2PipelineOptionsARM = [
   "--runner=TestDataflowRunner",
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
