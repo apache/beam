@@ -72,6 +72,8 @@ public class PartitionReconciler {
   private final List<NewPartition> newPartitions = new ArrayList<>();
   private final MetadataTableDao metadataTableDao;
   private final ChangeStreamMetrics metrics;
+  // Ensure that we added the missing partitions before writing the missing partitions to the
+  // metadata table.
   private boolean hasAddedMissingPartitions = false;
 
   // The amount of delay allowed before we consider a partition to be probably missing.
@@ -173,9 +175,14 @@ public class PartitionReconciler {
    * @return reconciled PartitionRecord.
    */
   public List<PartitionRecord> getPartitionsToReconcile(Instant lowWatermark, Instant startTime) {
+    // We update the metadata table with the partitions that are still missing after reconciliation.
+    // So we must ensure that we have already added the missing partitions, otherwise, we will
+    // update the metadata table with an empty list of missing partitions.
     if (!hasAddedMissingPartitions) {
       return Collections.emptyList();
     }
+    // Reset to ensure we get an updated list of missing partitions before reconciling again.
+    hasAddedMissingPartitions = false;
     // This value is calculated in case that we reconcile without continuation tokens, we will use
     // an hour prior to low watermark because low watermark is only an estimate. By reading back 1
     // hour, it should cover any changes missed. We also want to make sure that the reconcile time
