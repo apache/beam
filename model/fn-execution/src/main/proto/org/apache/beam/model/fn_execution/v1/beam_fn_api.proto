@@ -577,7 +577,7 @@ message ProcessBundleSplitRequest {
 // Let's say the SDK is processing elements [A B C D E]. These elements make
 // up the 0-indexed channel.
 //
-// ** First Split: (A B C D) (E) **
+// ** First Split: (A B C D) | (E) **
 // Channel Split = [ A B C D <> E ]
 // Primary Roots = [] (No elements were split)
 // Residual Roots = []
