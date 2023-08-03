@@ -58,47 +58,41 @@ concurrency:
 
 jobs:
   beam_PreCommit_Java_Flink_Versions:
+    name: beam_PreCommit_Java_Flink_Versions (Run Java_Flink_Versions PreCommit)
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_Java_Flink_Versions (Run Java_Flink_Versions PreCommit)
-    timeout-minutes: 120
     steps:
-    - name: Git checkout
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-    - name: Rerun on comment
-      if: github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
-      uses: ./.github/actions/rerun-job-action
-      with:
-        pull_request_url: ${{ github.event.issue.pull_request.url }}
-        github_repository: ${{ github.repository }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        github_job: ${{ github.job }}
-        github_current_run_id: ${{ github.run_id }}
-    - name: Install Java
-      uses: actions/setup-java@v3.8.0
-      with:
-        distribution: 'zulu'
-        java-version: '8'
-    - name: Install Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
-      with:
-        cache-read-only: false
-    - name: run Java Flink Versions PreCommit script
-      uses: ./.github/actions/gradle-command-self-hosted-action
-      with:
-        gradle-command: :flinkPreCommit
-    - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v3
-      with:
-        name: JUnit Test Results
-        path: '**/build/test-results/**/*.xml'
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: 'Run CommunityMetrics PreCommit'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run Java Flink Versions PreCommit script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :flinkPreCommit
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: JUnit Test Results
+          path: '**/build/test-results/**/*.xml'
