@@ -34,7 +34,7 @@ import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequestError;
 import org.apache.beam.testinfra.pipelines.dataflow.JobMetricsWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.StageSummaryWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.WorkerDetailsWithAppendedDetails;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 

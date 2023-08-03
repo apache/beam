@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;

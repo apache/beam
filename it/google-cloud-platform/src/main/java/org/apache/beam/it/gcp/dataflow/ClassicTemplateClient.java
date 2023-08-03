@@ -19,7 +19,7 @@ package org.apache.beam.it.gcp.dataflow;
 
 import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 import static org.apache.beam.it.common.utils.RetryUtil.clientRetryPolicy;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.util.Utils;
 import com.google.api.services.dataflow.Dataflow;

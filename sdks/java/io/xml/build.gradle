@@ -26,7 +26,7 @@ dependencies {
   implementation library.java.jaxb_api
   implementation library.java.jaxb_impl
   permitUnusedDeclared library.java.jaxb_impl // BEAM-11761
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.stax2_api
   implementation "javax.xml.stream:stax-api:1.0-2"

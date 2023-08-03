@@ -18,7 +18,7 @@
 package org.apache.beam.it.gcp.artifacts.utils;
 
 import static java.util.Arrays.stream;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auth.Credentials;
 import com.google.cloud.storage.Storage;
@@ -27,7 +27,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /** Utilities for working with test artifacts. */
 public final class ArtifactUtils {

@@ -19,12 +19,12 @@ package org.apache.beam.it.gcp.spanner.utils;
 
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.generatePadding;
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateResourceId;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 import org.apache.beam.it.gcp.spanner.SpannerResourceManager;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CharMatcher;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
 
 /** Utilities for {@link SpannerResourceManager} implementations. */
 public final class SpannerResourceManagerUtils {
