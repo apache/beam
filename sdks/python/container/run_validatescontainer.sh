@@ -104,7 +104,7 @@ function cleanup_container {
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
-  # Note: We don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
+  # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
   # the associated container images can't be deleted because they are not tagged. However, the multi-arch containers
   # are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
   if [[ "$ARCH" == "x86" ]]; then
