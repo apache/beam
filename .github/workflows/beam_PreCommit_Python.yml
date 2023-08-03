@@ -52,36 +52,30 @@ concurrency:
 jobs:
   beam_PreCommit_Python:
     name: beam_PreCommit_Python (Run Python PreCommit 3.x)
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
-      github.event.comment.body == 'Run Python PreCommit' || 
-      startsWith(github.event.comment.body, 'Run Python PreCommit') ||
-      github.event_name == 'schedule'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.comment.body, 'Run Python PreCommit')
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@v3
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
           echo "comment_body=Run Python PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
-      - name: Rerun on comment
-        if: github.event.comment.body  == steps.set_comment_body.outputs.comment_body
-        uses: ./.github/actions/rerun-job-action
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: ${{ steps.set_comment_body.outputs.comment_body }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: "${{ github.job }} (${{ matrix.python_version }})"
-          github_current_run_id: ${{ github.run_id }}
       - name: Install Python
         uses: actions/setup-python@v4
         with:

@@ -13,17 +13,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python Docker
+name: PreCommit Portable Python
+
 on:
-  pull_request_target:
-    branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**"]
-  issue_comment:
-    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_PythonDocker.yml"]
+    paths:
+      - 'model/**'
+      - 'runners/core-construction-java/**'
+      - 'runners/core-java/**'
+      - 'runners/extensions-java/**'
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'runners/reference/**'
+      - 'sdks/python/**'
+      - 'release/**'
+      - '.github/workflows/beam_PreCommit_Portable_Python.yml'
+  pull_request_target:
+    branches: ['master', 'release-*']
+    paths:
+      - 'model/**'
+      - 'runners/core-construction-java/**'
+      - 'runners/core-java/**'
+      - 'runners/extensions-java/**'
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'runners/reference/**'
+      - 'sdks/python/**'
+      - 'release/**'
+  issue_comment:
+    types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -50,64 +70,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_PythonDocker:
-    name: beam_PreCommit_PythonDocker (Run PythonDocker PreCommit 3.x)
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 30
+  beam_PreCommit_Portable_Python:
+    name: beam_PreCommit_Portable_Python (Run Portable_Python PreCommit)
+    timeout-minutes: 120
+    runs-on: ['self-hosted', ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
-        python_version: ['3.8','3.9','3.10','3.11']
+        python_version: ['3.8', '3.11']
     if: |
-      github.event_name == 'push' || 
+      github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run PythonDocker PreCommit')
+      github.event.comment.body == 'Run Portable_Python PreCommit'
     steps:
-      - uses: actions/checkout@v3
-      - name: Set comment body with matrix
-        id: set_comment_body
-        run: |
-          echo "comment_body=Run Python PythonDocker (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
+      - name: Git checkout
+        uses: actions/checkout@v3
         with:
-          comment_phrase: ${{ steps.set_comment_body.outputs.comment_body }}
+          ref: ${{github.event.pull_request.head.sha}}
+      - name: Rerun on comment
+        if: github.event.comment.body == 'Run Portable_Python PreCommit'
+        uses: ./.github/actions/rerun-job-action
+        with:
+          pull_request_url: ${{ github.event.issue.pull_request.url }}
+          github_repository: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "${{ github.job }} (${{ matrix.python_version }})"
+          github_job: ${{ github.job }}
+          github_current_run_id: ${{ github.run_id }}
       - name: Install Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v3.8.0
         with:
           distribution: 'zulu'
           java-version: '8'
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.16'
+          cache: 'gradle'
+          check-latest: true
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python_version }}
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          install: true
-          driver: 'docker'
+          python-version: |
+            ${{matrix.python_version}}
+            3.8
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
-      - name: Run pythonDockerBuildPreCommit
+      - name: run Portable Python script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:container:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:docker
-          arguments: |
-            -Pposargs=apache_beam/dataframe/ \
-            -PpythonVersion=${{ matrix.python_version }}
+          gradle-command: :sdks:python:test-suites:portable:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
