@@ -24,20 +24,8 @@ inputs:
   github_token:
     description: "The GitHub token"
     required: true
-  pull_request_url:
-    description: "The URL of the PR"
-    required: false
-    default: ''
-  github_repository:
-    description: "The GitHub repository"
-    required: false
-    default: ''
   github_job:
     description: "The GitHub job"
-    required: false
-    default: ''
-  github_current_run_id:
-    description: "The GitHub current run id. Not the same that is fetched in this action"
     required: false
     default: ''
 
@@ -64,6 +52,3 @@ runs:
       with:
         github_token: ${{ inputs.github_token }}
         github_job: ${{ inputs.github_job || github.job }}
-        github_repository: ${{ inputs.github_repository || github.repository }}     
-        github_current_run_id: ${{ inputs.github_current_run_id || github.run_id }}
-        pull_request_url: ${{ inputs.pull_request_url || github.event.issue.pull_request.url }}

@@ -43,7 +43,7 @@ The `push`/`pull_request_target` triggers should only run when appropriate paths
 
 ## Checkout step
 
-Because we use the `pull_request_target` trigger instead of `pull_request`, we need an explicit checkout of the correct commit. This can be done as the first step of any jobs in your workflow. See https://github.com/apache/beam/blob/907c5110163b0efe52e9e12127fd013c7fc455d7/.github/workflows/beam_PreCommit_Go.yml#L46 for an example (you can copy and paste this into your workflow).
+Because we use the `pull_request_target` trigger instead of `pull_request`, we need an explicit checkout of the correct commit. This can be done as a step that uses the `setup-action` action in your workflow. See https://github.com/apache/beam/blob/0ee2dc73ec6f555a5bf1a643dffd37f4927be67e/.github/workflows/beam_PreCommit_Go.yml#L65-L70 for an example (you can copy and paste this into your workflow). Please make sure that you checkout the code before using the composite action.
 
 ## Token Permissions
 
@@ -71,7 +71,7 @@ this defines the following groups:
 In order to make it easier for non-committers to interact with workflows, workflows should implement comment triggering support. This requires 3 additional components beyond the ones mentioned above:
 
 1) Each job should be gated on an if condition that maps to that workflow's comment trigger (example: https://github.com/apache/beam/blob/907c5110163b0efe52e9e12127fd013c7fc455d7/.github/workflows/beam_PreCommit_Go.yml#L38)
-2) Each job should have the rerun action immediately after its checkout step. This should be gated on the comment trigger (example: https://github.com/apache/beam/blob/907c5110163b0efe52e9e12127fd013c7fc455d7/.github/workflows/beam_PreCommit_Go.yml#L49)
+2) Each job should have the rerun action immediately after its checkout step. You can add a step that uses the `setup-action` action in your workflow, which encapsulates the checkout and rerun logic in one place. This should be gated on the comment trigger (example: https://github.com/apache/beam/blob/0ee2dc73ec6f555a5bf1a643dffd37f4927be67e/.github/workflows/beam_PreCommit_Go.yml#L65-L70)
 3) Each job should have a descriptive name that includes the comment trigger (example: https://github.com/apache/beam/blob/ba8fc935222aeb070668fbafd588bc58e7a21289/.github/workflows/beam_PreCommit_CommunityMetrics.yml#L48)
 
 # Testing new workflows or workflow updates
