@@ -56,28 +56,22 @@ env:
 
 jobs:
   beam_PreCommit_Website_Stage_GCS:
+    name: beam_PreCommit_Website_Stage_GCS (Run Website_Stage_GCS PreCommit)
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Website_Stage_GCS PreCommit' 
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_Website_Stage_GCS (Run Website_Stage_GCS PreCommit)
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
     steps:
-      - name: Git checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
-        uses: ./.github/actions/rerun-job-action
-        with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: 'Run Website_Stage_GCS PreCommit'
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
       - name: Echo PR number
         run: echo "ghprbPullId=${{ github.event.pull_request.number || github.event.issue.number }}" >> $GITHUB_ENV
       - name: Setup self-hosted
