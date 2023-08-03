@@ -72,7 +72,7 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run CommunityMetrics PreCommit'
+          comment_phrase: 'Run Java_Flink_Versions PreCommit'
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Java
         uses: actions/setup-java@v3.8.0
