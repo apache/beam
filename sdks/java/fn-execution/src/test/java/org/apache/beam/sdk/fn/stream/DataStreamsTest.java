@@ -141,11 +141,11 @@ public class DataStreamsTest {
 
       WeightedList<String> weightedListA = decoder.decodeFromChunkBoundaryToChunkBoundary();
       assertThat(weightedListA.getBacking(), contains("A"));
-      assertThat(weightedListA.getWeight(), equalTo(2L));
+      assertThat(weightedListA.getWeight(), equalTo(10L)); // 2 + 8
 
       WeightedList<String> weightedListBC = decoder.decodeFromChunkBoundaryToChunkBoundary();
       assertThat(weightedListBC.getBacking(), contains("B", "BigElementC"));
-      assertThat(weightedListBC.getWeight(), equalTo(14L));
+      assertThat(weightedListBC.getWeight(), equalTo(32L)); // 1 + 8 + 4 + 11 + 8
 
       assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary().getBacking(), contains("D"));
       assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary().getBacking(), is(empty()));
