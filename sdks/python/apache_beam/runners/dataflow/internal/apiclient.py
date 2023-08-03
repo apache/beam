@@ -667,10 +667,17 @@ class DataflowApplicationClient(object):
         f.write(stream.read())
       return
     gcs_location = FileSystems.join(gcs_or_local_path, file_name)
+    bucket_name, blob_name = gcs_location[5:].split('/', 1)
     start_time = time.time()
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
     try:
-      with FileSystems.create(gcs_location) as f:
+      from google.cloud.storage import BlobWriter
+      from google.cloud.storage import Blob
+      bucket = self._storage_client.get_bucket(bucket_name)
+      blob = bucket.get_blob(blob_name)
+      if not blob:
+        blob = Blob(blob_name, bucket)
+      with BlobWriter(blob) as f:
         f.write(stream.read())
       return
     except Exception as e:
