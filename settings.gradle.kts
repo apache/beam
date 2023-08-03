@@ -108,6 +108,7 @@ include(":it:testcontainers")
 include(":it:truthmatchers")
 include(":it:mongodb")
 include(":it:splunk")
+include(":it:neo4j")
 
 include(":learning:tour-of-beam:frontend")
 
