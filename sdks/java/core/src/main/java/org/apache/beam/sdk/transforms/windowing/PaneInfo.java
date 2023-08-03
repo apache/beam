@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -357,7 +358,7 @@ public final class PaneInfo {
     @Override
     public PaneInfo decode(final InputStream inStream) throws CoderException, IOException {
       byte keyAndTag = (byte) inStream.read();
-      PaneInfo base = BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F));
+      PaneInfo base = Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F)));
       long index, onTimeIndex;
       switch (Encoding.fromTag(keyAndTag)) {
         case FIRST:
