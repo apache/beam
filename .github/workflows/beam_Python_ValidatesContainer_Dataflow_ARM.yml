@@ -63,23 +63,17 @@ jobs:
     env:
       MULTIARCH_TAG: $(date +'%Y%m%d-%H%M%S%N')
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@v3
       - name: Set comment body with matrix
         id: set_comment_body
         run: |
           echo "comment_body=Run Python ValidatesContainer Dataflow ARM (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
-      - name: Rerun on comment
-        if: github.event.comment.body == steps.set_comment_body.outputs.comment_body
-        uses: ./.github/actions/rerun-job-action
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: ${{ steps.set_comment_body.outputs.comment_body }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: "beam_Python_ValidatesContainer_Dataflow_ARM (Run Python ValidatesContainer Dataflow ARM 3.x) (${{ matrix.python_version }})"
-          github_current_run_id: ${{ github.run_id }}
       - name: Install Python
         uses: actions/setup-python@v4
         with:
