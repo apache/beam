@@ -71,6 +71,8 @@
   * Prism is a portable runner that executes each transform independantly, ensuring coders.
   * At this point it supercedes the Go direct runner in functionality. The Go direct runner is now deprecated.
   * See https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/runners/prism/README.md for the goals and features of Prism.
+* Hugging Face Model Handler for RunInference added to Python SDK. ([#26632](https://github.com/apache/beam/pull/26632))
+* Hugging Face Pipelines support for RunInference added to Python SDK. ([#27399](https://github.com/apache/beam/pull/27399))
 
 ## Breaking Changes
 
