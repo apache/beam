@@ -41,6 +41,9 @@ import org.apache.beam.it.truthmatchers.RecordsSubject;
  * Subject that has assertion operations for artifact lists (GCS files), usually coming from the
  * result of a template.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ArtifactsSubject extends Subject {
 
   private final List<Artifact> actual;

@@ -814,23 +814,17 @@ public class Neo4jIO {
       // We could actually read and write here depending on the type of transaction
       // we picked.  As long as the Cypher statement returns values it's fine.
       //
-      TransactionWork<Void> transactionWork =
+      TransactionWork<List<OutputT>> transactionWork =
           transaction -> {
             Result result = transaction.run(cypher, parametersMap);
-            while (result.hasNext()) {
-              Record record = result.next();
-              try {
-                OutputT outputT = rowMapper.mapRow(record);
-                processContext.output(outputT);
-              } catch (Exception e) {
-                throw new RuntimeException("error mapping Neo4j record to row", e);
-              }
-            }
-
-            // We deliver no specific Neo4j transaction output beyond what goes to the context
-            // output
-            //
-            return null;
+            return result.list(
+                record -> {
+                  try {
+                    return rowMapper.mapRow(record);
+                  } catch (Exception e) {
+                    throw new RuntimeException("error mapping Neo4j record to row", e);
+                  }
+                });
           };
 
       if (logCypher) {
@@ -852,11 +846,13 @@ public class Neo4jIO {
       if (driverSession.session == null) {
         throw new RuntimeException("neo4j session was not initialized correctly");
       } else {
+        List<OutputT> outputs;
         if (writeTransaction) {
-          driverSession.session.writeTransaction(transactionWork, transactionConfig);
+          outputs = driverSession.session.writeTransaction(transactionWork, transactionConfig);
         } else {
-          driverSession.session.readTransaction(transactionWork, transactionConfig);
+          outputs = driverSession.session.readTransaction(transactionWork, transactionConfig);
         }
+        outputs.forEach(processContext::output);
       }
     }
   }

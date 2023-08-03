@@ -64,6 +64,8 @@ dependencies {
     implementation 'com.google.api.grpc:proto-google-cloud-kms-v1'
     implementation 'com.google.cloud:google-cloud-dlp'
     implementation 'com.google.api.grpc:proto-google-cloud-dlp-v2'
+    implementation 'com.google.cloud:google-cloud-secretmanager'
+    provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
 
     testImplementation project(path: ":sdks:java:testing:test-utils")
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
