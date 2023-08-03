@@ -1,0 +1,13 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "jrmccluskey",
+    "java": "kennknowles",
+    "go": "lostluck",
+    "build": "damccorm"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
