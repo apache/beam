@@ -74,7 +74,8 @@ PipelineInferenceFn = Callable[
 
 class PipelineTask(str, Enum):
   """
-  PipelineTask lists all the tasks supported by the Hugging Face Pipelines.
+  PipelineTask defines all the tasks supported by the Hugging Face Pipelines
+  listed at https://huggingface.co/docs/transformers/main_classes/pipelines.
   Only these tasks can be passed to HuggingFacePipelineModelHandler.
   """
   AudioClassification = 'audio-classification'
@@ -626,6 +627,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     _validate_constructor_args_hf_pipeline(self._task, self._model)
 
   def load_model(self):
+    """Loads and initializes the pipeline for processing."""
     return pipeline(
         task=self._task, model=self._model, **self._load_pipeline_args)
 
@@ -664,6 +666,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._model = model_path if model_path else self._model
 
   def get_num_bytes(self, batch: Sequence[str]) -> int:
+    """
+    Returns:
+      The number of bytes of input batch elements.
+    """
     return sum(sys.getsizeof(element) for element in batch)
 
   def batch_elements_kwargs(self):
@@ -673,4 +679,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     return self._large_model
 
   def get_metrics_namespace(self) -> str:
+    """
+    Returns:
+       A namespace for metrics collected by the RunInference transform.
+    """
     return 'BeamML_HuggingFacePipelineModelHandler'
