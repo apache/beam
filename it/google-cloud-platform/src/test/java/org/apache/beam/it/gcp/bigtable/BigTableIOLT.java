@@ -77,7 +77,8 @@ public class BigTableIOLT extends IOLoadTestBase {
 
   @Before
   public void setup() throws IOException {
-    resourceManager = BigtableResourceManager.builder(testName, project).build();
+    resourceManager =
+        BigtableResourceManager.builder(testName, project, CREDENTIALS_PROVIDER).build();
 
     String testConfig =
         TestProperties.getProperty("configuration", "small", TestProperties.Type.PROPERTY);

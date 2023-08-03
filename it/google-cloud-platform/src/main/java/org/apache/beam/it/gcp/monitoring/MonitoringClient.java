@@ -18,8 +18,6 @@
 package org.apache.beam.it.gcp.monitoring;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.monitoring.v3.MetricServiceClient;
 import com.google.cloud.monitoring.v3.MetricServiceClient.ListTimeSeriesPagedResponse;
 import com.google.cloud.monitoring.v3.MetricServiceSettings;
@@ -64,8 +62,8 @@ public final class MonitoringClient {
     return new MonitoringClient(metricServiceClient);
   }
 
-  public static Builder builder() throws IOException {
-    return new Builder();
+  public static Builder builder(CredentialsProvider credentialsProvider) {
+    return new Builder(credentialsProvider);
   }
 
   /**
@@ -449,9 +447,8 @@ public final class MonitoringClient {
   public static final class Builder {
     private CredentialsProvider credentialsProvider;
 
-    private Builder() throws IOException {
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+    private Builder(CredentialsProvider credentialsProvider) {
+      this.credentialsProvider = credentialsProvider;
     }
 
     public CredentialsProvider getCredentialsProvider() {

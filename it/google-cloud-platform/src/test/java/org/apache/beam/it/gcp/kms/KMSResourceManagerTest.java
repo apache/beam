@@ -71,7 +71,7 @@ public class KMSResourceManagerTest {
   public void setUp() throws IOException {
     testManager =
         new KMSResourceManager(
-            kmsClientFactory, KMSResourceManager.builder(PROJECT_ID).setRegion(REGION));
+            kmsClientFactory, KMSResourceManager.builder(PROJECT_ID, null).setRegion(REGION));
   }
 
   @Test

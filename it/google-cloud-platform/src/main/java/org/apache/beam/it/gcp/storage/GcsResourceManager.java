@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -85,11 +84,12 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
   }
 
   /** Returns a new {@link Builder} for configuring a client. */
-  public static Builder builder(String bucket, String testClassName) throws IOException {
+  public static Builder builder(String bucket, String testClassName, Credentials credentials)
+      throws IOException {
     checkArgument(!bucket.equals(""));
     checkArgument(!testClassName.equals(""));
 
-    return new Builder(bucket, testClassName);
+    return new Builder(bucket, testClassName, credentials);
   }
 
   @Override
@@ -286,10 +286,10 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
     private final String testClassName;
     private Credentials credentials;
 
-    private Builder(String bucket, String testClassName) throws IOException {
+    private Builder(String bucket, String testClassName, Credentials credentials) {
       this.bucket = bucket;
       this.testClassName = testClassName;
-      this.credentials = GoogleCredentials.getApplicationDefault();
+      this.credentials = credentials;
     }
 
     public Builder setCredentials(Credentials credentials) {

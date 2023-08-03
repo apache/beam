@@ -48,7 +48,7 @@ public class BigtableResourceManagerIT extends GCPBaseIT {
   @Before
   public void setUp() throws IOException {
     bigtableResourceManager =
-        BigtableResourceManager.builder("dummy", PROJECT)
+        BigtableResourceManager.builder("dummy", PROJECT, null)
             .setCredentialsProvider(credentialsProvider)
             .build();
   }

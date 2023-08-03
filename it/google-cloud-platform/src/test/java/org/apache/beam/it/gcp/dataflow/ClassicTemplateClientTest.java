@@ -81,7 +81,7 @@ public final class ClassicTemplateClientTest {
   @Test
   public void testCreateWithCredentials() throws IOException {
     Credentials credentials = mock(Credentials.class);
-    ClassicTemplateClient.builder().setCredentials(credentials).build();
+    ClassicTemplateClient.builder(credentials).build();
     // Lack of exception is all we really can test
   }
 
