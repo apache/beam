@@ -21,6 +21,7 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.dataflow',
+  publish: false,
   classesTriggerCheckerBugs: [
     'PrimitiveParDoSingleFactory': 'https://github.com/typetools/checker-framework/issues/3791',
     // TODO(https://github.com/apache/beam/issues/21068): This currently crashes with checkerframework 3.10.0
