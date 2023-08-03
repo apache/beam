@@ -821,6 +821,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_mongodb                      : "org.testcontainers:mongodb:$testcontainers_version",
         testcontainers_mssqlserver                  : "org.testcontainers:mssqlserver:$testcontainers_version",
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
+        testcontainers_neo4j                        : "org.testcontainers:neo4j:$testcontainers_version",
         testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
