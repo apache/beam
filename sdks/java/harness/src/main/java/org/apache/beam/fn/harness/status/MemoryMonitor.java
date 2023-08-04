@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -202,16 +203,18 @@ public class MemoryMonitor implements Runnable {
   private final File localDumpFolder;
 
   public static MemoryMonitor fromOptions(PipelineOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
     String uploadFilePath = options.getTempLocation();
     PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
     boolean canDumpHeap = uploadFilePath != null && portableOptions.getEnableHeapDumps();
+    double gcThrashingPercentagePerPeriod = sdkHarnessOptions.getGCThrashingPercentagePerPeriod();
 
     return new MemoryMonitor(
         new SystemGCStatsProvider(),
         DEFAULT_SLEEP_TIME_MILLIS,
         DEFAULT_SHUT_DOWN_AFTER_NUM_GCTHRASHING,
         canDumpHeap,
-        GC_THRASHING_PERCENTAGE_PER_PERIOD,
+        gcThrashingPercentagePerPeriod,
         uploadFilePath,
         getLoggingDir());
   }
