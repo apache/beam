@@ -320,7 +320,8 @@ class _ModelManager:
 # mix well across the board for all versions:
 # https://github.com/python/typing/issues/653
 class KeyMhMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
-  def __init__(self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
+  def __init__(
+      self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
     self.keys = keys
     self.mh = mh
 
@@ -369,7 +370,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self._unkeyed = unkeyed
       return
 
-    self._id_to_mh_map: Dict[str, ModelHandler[ExampleT, PredictionT, ModelT]] = {}
+    self._id_to_mh_map: Dict[str, ModelHandler[ExampleT, PredictionT,
+                                               ModelT]] = {}
     self._key_to_id_map: Dict[str, str] = {}
     for mh_tuple in unkeyed:
       mh = mh_tuple.mh
@@ -383,28 +385,34 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       hints = mh.get_resource_hints()
       if len(hints) > 0:
         logging.warning(
-            f'mh {mh} defines the following resource hints {hints} which will '
+            'mh %s defines the following resource hints %s which will '
             'be ignored. Resource hints are not respected when more than one '
             'model handler is used in a KeyedModelHandler. If you would like '
             'to specify resource hints, you can do so by overriding this '
-            'KeyedModelHandler and defining the get_resource_hints function.')
+            'KeyedModelHandler and defining the get_resource_hints function.',
+            mh,
+            hints)
       batch_kwargs = mh.batch_elements_kwargs()
       if len(hints) > 0:
         logging.warning(
-            f'mh {mh} defines the following batching kwargs {batch_kwargs} '
+            'mh %s defines the following batching kwargs %s '
             'which will be ignored. Batching kwargs are not respected when '
             'more than one model handler is used in a KeyedModelHandler. If '
             'you would like to specify resource hints, you can do so by '
             'overriding this KeyedModelHandler and defining the '
-            'batch_elements_kwargs function.')
+            'batch_elements_kwargs function.',
+            hints,
+            batch_kwargs)
       env_vars = mh._env_vars
       if len(hints) > 0:
         logging.warning(
-            f'mh {mh} defines the following _env_vars {env_vars} '
+            'mh %s defines the following _env_vars %s '
             'which will be ignored. _env_vars are not respected when '
             'more than one model handler is used in a KeyedModelHandler. '
             'If you need env vars set at inference time, you can do so with '
-            'a custom inference function.')
+            'a custom inference function.',
+            mh,
+            env_vars)
 
       if len(keys) == 0:
         raise ValueError(
@@ -487,9 +495,10 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     if not self._many_models:
       return self._unkeyed.update_model_path(model_path=model_path)
     if model_path is not None:
-      raise RuntimeError('Model updates are currently not supported for '+
-                        'KeyedModelHandlers with multiple different per-key '+
-                        'ModelHandlers.')
+      raise RuntimeError(
+          'Model updates are currently not supported for ' +
+          'KeyedModelHandlers with multiple different per-key ' +
+          'ModelHandlers.')
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return []
