@@ -231,7 +231,10 @@ def MapToFields(
       query += " WHERE " + keep
 
     result = pcoll | yaml_create_transform({
-        'type': 'Sql', 'query': query, **language_keywords
+        'type': 'Sql',
+        'config': {
+            'query': query, **language_keywords
+        },
     }, [pcoll])
     if explode:
       # TODO(yaml): Implement via unnest.
@@ -242,15 +245,17 @@ def MapToFields(
   elif language == 'python':
     return pcoll | yaml_create_transform({
         'type': 'PyTransform',
-        'constructor': __name__ + '._PythonProjectionTransform',
-        'kwargs': {
-            'fields': fields,
-            'keep': keep,
-            'explode': explode,
-            'cross_product': cross_product,
-            'error_handling': error_handling,
+        'config': {
+            'constructor': __name__ + '._PythonProjectionTransform',
+            'kwargs': {
+                'fields': fields,
+                'keep': keep,
+                'explode': explode,
+                'cross_product': cross_product,
+                'error_handling': error_handling,
+            },
+            **language_keywords
         },
-        **language_keywords
     }, [pcoll])
 
   else:

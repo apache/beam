@@ -44,30 +44,25 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
   beam_PostCommit_Go_Dataflow_ARM:
     if: |
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
     runs-on: [self-hosted, ubuntu-20.04, main]
     name: beam_PostCommit_Go_Dataflow_ARM (Run Go PostCommit Dataflow ARM)
-    steps:       
+    steps:
       - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
-        uses: ./.github/actions/rerun-job-action
-        with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: 'Run Go PostCommit Dataflow ARM'
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
@@ -92,7 +87,7 @@ jobs:
           export_default_credentials: true
       - name: GCloud Docker credential helper
         run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev
+          gcloud auth configure-docker us.gcr.io
       - name: run goPostCommitDataflowARM script
         run: ./gradlew :goPostCommitDataflowARM
         env:

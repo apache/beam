@@ -18,7 +18,6 @@
 package org.apache.beam.it.gcp.artifacts.matchers;
 
 import static com.google.common.truth.Truth.assertAbout;
-import static org.apache.beam.it.gcp.artifacts.matchers.ArtifactsSubject.genericRecordToRecords;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
 
 import java.util.List;
@@ -58,6 +57,6 @@ public class ArtifactAsserts {
    * @return Truth Subject to chain assertions.
    */
   public static RecordsSubject assertThatGenericRecords(List<GenericRecord> records) {
-    return assertThatRecords(genericRecordToRecords(records));
+    return assertThatRecords(ArtifactsSubject.genericRecordToRecords(records));
   }
 }

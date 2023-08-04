@@ -539,7 +539,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.56.1"
-    def guava_version = "32.1.1-jre"
+    def guava_version = "32.1.2-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
@@ -639,7 +639,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_collections                         : "commons-collections:commons-collections:3.2.2",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
-        commons_io                                  : "commons-io:commons-io:2.7",
+        commons_io                                  : "commons-io:commons-io:2.13.0",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
@@ -667,7 +667,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigtable                       : "com.google.cloud:google-cloud-bigtable", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigtable_client_core_config    : "com.google.cloud.bigtable:bigtable-client-core-config:1.28.0",
-        google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.147.3",
+        google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator", // google_cloud_platform_libraries_bom sets version
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
@@ -677,9 +677,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The release notes shows the versions set by the BOM:
-        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.20.0
+        // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.21.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.20.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.21.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -800,7 +800,7 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jul_to_slf4j                          : "org.slf4j:jul-to-slf4j:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
-        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.0",
+        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.3",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
@@ -821,6 +821,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_mongodb                      : "org.testcontainers:mongodb:$testcontainers_version",
         testcontainers_mssqlserver                  : "org.testcontainers:mssqlserver:$testcontainers_version",
         testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
+        testcontainers_neo4j                        : "org.testcontainers:neo4j:$testcontainers_version",
         testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
@@ -1137,10 +1138,6 @@ class BeamModulePlugin implements Plugin<Project> {
         // test libraries classes causing version conflicts. Users should rely
         // on using the yyy-core package instead of the yyy-all package.
         exclude group: "org.hamcrest", module: "hamcrest-all"
-
-        // https://github.com/google/guava/releases/tag/v32.1.0#user-content-overlap
-        // Guava starting on v32.1.0 report classes as duplicate
-        exclude group: "com.google.guava", module: "listenablefuture"
       }
 
       // Force usage of the libraries defined within our common set found in the root

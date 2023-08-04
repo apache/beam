@@ -626,21 +626,8 @@ public class BigQueryUtils {
     // 2. TableSchema objects are not serializable and are therefore harder to propagate through a
     // pipeline.
     return rowSchema.getFields().stream()
-        .map(field -> toBeamRowFieldValue(field, jsonBqRow.get(field.getName())))
+        .map(field -> toBeamValue(field, jsonBqRow.get(field.getName())))
         .collect(toRow(rowSchema));
-  }
-
-  private static Object toBeamRowFieldValue(Field field, Object bqValue) {
-    if (bqValue == null) {
-      if (field.getType().getNullable()) {
-        return null;
-      } else {
-        throw new IllegalArgumentException(
-            "Received null value for non-nullable field \"" + field.getName() + "\"");
-      }
-    }
-
-    return toBeamValue(field.getType(), bqValue);
   }
 
   /**
@@ -664,11 +651,22 @@ public class BigQueryUtils {
 
     return IntStream.range(0, rowSchema.getFieldCount())
         .boxed()
-        .map(index -> toBeamValue(rowSchema.getField(index).getType(), rawJsonValues.get(index)))
+        .map(index -> toBeamValue(rowSchema.getField(index), rawJsonValues.get(index)))
         .collect(toRow(rowSchema));
   }
 
-  private static @Nullable Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
+  private static @Nullable Object toBeamValue(Field field, Object jsonBQValue) {
+    FieldType fieldType = field.getType();
+
+    if (jsonBQValue == null) {
+      if (fieldType.getNullable()) {
+        return null;
+      } else {
+        throw new IllegalArgumentException(
+            "Received null value for non-nullable field \"" + field.getName() + "\"");
+      }
+    }
+
     if (jsonBQValue instanceof String
         || jsonBQValue instanceof Number
         || jsonBQValue instanceof Boolean) {
@@ -710,7 +708,7 @@ public class BigQueryUtils {
                       (!innerTypeIsMap && v instanceof Map)
                           ? ((Map<String, Object>) v).get("v")
                           : v)
-              .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+              .map(v -> toBeamValue(field.withType(fieldType.getCollectionElementType()), v))
               .collect(toList());
     }
 

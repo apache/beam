@@ -438,8 +438,12 @@ cd ../..
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
-  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-
+  # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
+  # the associated container images can't be deleted because they are not tagged. However, the multi-arch containers
+  # are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
+  if [[ "$USER" == "jenkins" ]]; then
+    gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  fi
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     # Delete the java cross-language container locally and remotely
     docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"
