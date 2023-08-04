@@ -120,6 +120,9 @@ jobs:
                 -Ppush-containers \
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
                 -Pdocker-tag=${{env.TAG}} \
+                -PdisableSpotlessCheck=true \
+                -PdisableCheckStyle=true \
+                -PskipCheckerFramework \
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:
