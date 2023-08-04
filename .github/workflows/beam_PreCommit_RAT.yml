@@ -50,8 +50,12 @@ concurrency:
 
 jobs:
   beam_PreCommit_RAT:
-    name: beam_PreCommit_RAT (Run RAT PreCommit)
+    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_RAT]
+        job_phrase: [Run RAT PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
@@ -64,8 +68,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run RAT PreCommit'
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:

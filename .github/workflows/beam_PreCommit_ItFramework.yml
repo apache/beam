@@ -56,8 +56,12 @@ permissions:
   statuses: read
 jobs:
   beam_PreCommit_ItFramework:
-    name: beam_PreCommit_ItFramework (Run It_Framework PreCommit)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_ItFramework]
+        job_phrase: [Run It_Framework PreCommit]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -69,8 +73,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run It_Framework PreCommit'
+          comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:

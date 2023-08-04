@@ -19,13 +19,71 @@
 
 On top of normal Actions workflow steps, all new CI workflows (excluding release workflows or other workflow automation) should have the following:
 
-1) A set of specific triggers
-2) An explicit checkout step
-3) A set of GitHub token permissions
-4) Concurrency Groups
-5) Comment Triggering Support
+1) Name and phrase set via matrix for re-run to work (See below)
+2) A set of specific triggers
+3) An explicit checkout step
+4) A set of GitHub token permissions
+5) Concurrency Groups
+6) Comment Triggering Support
 
 Each of these is described in more detail below.
+## Name and Phrase
+Due to specifics on how the comment triggered rerun is handled it is required that all jobs have name and phrase set via matrix elements. See the following example:
+```
+jobs:
+  beam_job_name:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: [beam_job_name]
+        job_phrase: [Run Job Phrase]
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Job Phrase'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+
+```
+And in case when the workflow already utilizes matrix do the following:
+```
+jobs:
+  beam_job_with_matrix:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: ["beam_job_with_matrix"]
+        job_phrase: ["Run Job With Matrix"]
+        python_version: ['3.8','3.9','3.10','3.11']
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'pull_request_target' || 
+      github.event_name == 'schedule' ||
+      (github.event.comment.body == 'Run Job With Matrix 3.8' || 
+      github.event.comment.body == 'Job With Matrix 3.9' ||
+      github.event.comment.body == 'Job With Matrix 3.10' ||
+      github.event.comment.body == 'Job With Matrix 3.11')
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{matrix.job_phrase}}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+```
+Notice how the matrix element of `python_version` is appended to the name.
 
 ## Workflow triggers
 

@@ -51,31 +51,32 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Examples:
-    name: beam_PreCommit_Python_Examples (Run Python_Examples PreCommit 3.x)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
+        job_name: ['beam_PreCommit_Python_Examples']
+        job_phrase: ['Run Python_Examples PreCommit']
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Python_Examples PreCommit')
+      (github.event.comment.body == 'Run Python_Examples PreCommit 3.8' || 
+      github.event.comment.body == 'Run Python_Examples PreCommit 3.9' ||
+      github.event.comment.body == 'Run Python_Examples PreCommit 3.10' ||
+      github.event.comment.body == 'Run Python_Examples PreCommit 3.11')
     steps:
       - uses: actions/checkout@v3
-      - name: Set comment body with matrix
-        id: set_comment_body
-        run: |
-          echo "comment_body=Run Python_Examples PreCommit (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ steps.set_comment_body.outputs.comment_body }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "${{ github.job }} (${{ matrix.python_version }})"
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Install Python
         uses: actions/setup-python@v4
         with:

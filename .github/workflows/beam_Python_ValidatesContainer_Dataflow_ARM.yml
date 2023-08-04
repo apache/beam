@@ -49,31 +49,33 @@ concurrency:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: beam_Python_ValidatesContainer_Dataflow_ARM (Run Python ValidatesContainer Dataflow ARM 3.x)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
     strategy:
       fail-fast: false
       matrix:
+        job_name: [beam_Python_ValidatesContainer_Dataflow_ARM]
+        job_phrase: [Run Python ValidatesContainer Dataflow ARM]
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
-      startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM') || 
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.comment.body == 'Run Python ValidatesContainer Dataflow ARM 3.8' || 
+      github.event.comment.body == 'Run Python ValidatesContainer Dataflow ARM 3.9' ||
+      github.event.comment.body == 'Run Python ValidatesContainer Dataflow ARM 3.10' ||
+      github.event.comment.body == 'Run Python ValidatesContainer Dataflow ARM 3.11')
+
     runs-on: [self-hosted, ubuntu-20.04, main]
     env:
       MULTIARCH_TAG: $(date +'%Y%m%d-%H%M%S%N')
     steps:
       - uses: actions/checkout@v3
-      - name: Set comment body with matrix
-        id: set_comment_body
-        run: |
-          echo "comment_body=Run Python ValidatesContainer Dataflow ARM (${{ matrix.python_version }})" >> $GITHUB_OUTPUT
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ steps.set_comment_body.outputs.comment_body }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "beam_Python_ValidatesContainer_Dataflow_ARM (Run Python ValidatesContainer Dataflow ARM 3.x) (${{ matrix.python_version }})"
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Install Python
         uses: actions/setup-python@v4
         with:

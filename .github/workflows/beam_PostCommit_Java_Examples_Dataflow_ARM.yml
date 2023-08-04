@@ -61,11 +61,14 @@ env:
 
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
-    name: beam_PostCommit_Java_Examples__Dataflow_ARM (Run Java_Examples_Dataflow_ARM PostCommit)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
       fail-fast: false
+      matrix: 
+        job_name: [beam_PostCommit_Java_Examples__Dataflow_ARM]
+        job_phrase: [Run Java_Examples_Dataflow_ARM PostCommit]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
@@ -76,9 +79,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Java_Examples_Dataflow_ARM PostCommit'
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "beam_PostCommit_Java_Examples__Dataflow_ARM (Run Java_Examples_Dataflow_ARM PostCommit)"
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
