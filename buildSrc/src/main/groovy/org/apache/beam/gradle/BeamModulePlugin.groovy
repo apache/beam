@@ -57,7 +57,7 @@ import java.net.ServerSocket
  *   <li>Java   - Configures plugins commonly found in Java projects
  *   <li>Go     - Configures plugins commonly found in Go projects
  *   <li>Docker - Configures plugins commonly used to build Docker containers
- *   <li>Grpc   - Configures plugins commonly used to generate source from protos
+ *   <li>Grpc   - Configures plugins commonly used to generate source from Protos
  *   <li>Avro   - Configures plugins commonly used to generate source from Avro specifications
  * </ul>
  *
