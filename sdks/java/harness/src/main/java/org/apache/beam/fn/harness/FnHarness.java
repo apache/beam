@@ -154,7 +154,7 @@ public class FnHarness {
    *
    * @param id Harness ID
    * @param options The options for this pipeline
-   * @param runnerCapabilites
+   * @param runnerCapabilities
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
    * @param statusApiServiceDescriptor
@@ -163,7 +163,7 @@ public class FnHarness {
   public static void main(
       String id,
       PipelineOptions options,
-      Set<String> runnerCapabilites,
+      Set<String> runnerCapabilities,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
@@ -180,7 +180,7 @@ public class FnHarness {
     main(
         id,
         options,
-        runnerCapabilites,
+        runnerCapabilities,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
         statusApiServiceDescriptor,
