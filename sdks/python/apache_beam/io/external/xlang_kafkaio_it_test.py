@@ -74,7 +74,8 @@ class CrossLanguageKafkaIO(object):
     if expansion_service is not None:
       self.expansion_service = expansion_service
     elif os.environ.get('EXPANSION_PORT') is not None:
-      self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
+      self.expansion_service = (
+          'localhost:%s' % os.environ.get('EXPANSION_PORT'))
     else:
       self.expansion_service = None
     self.sum_counter = Metrics.counter('source', 'elements_sum')
