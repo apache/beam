@@ -94,16 +94,21 @@ class FirestoreStatefulComponentFactory implements Serializable {
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
             .setEndpoint(firestoreOptions.getHost());
-        headers.put("x-goog-request-params", "project_id=" + gcpOptions.getProject() + "&database_id=" + firestoreOptions.getFirestoreDb());
+        headers.put(
+            "x-goog-request-params",
+            "project_id="
+                + gcpOptions.getProject()
+                + "&database_id="
+                + firestoreOptions.getFirestoreDb());
       }
 
       builder.setHeaderProvider(
-        new FixedHeaderProvider() {
-          @Override
-          public Map<@NonNull String, @NonNull String> getHeaders() {
-            return headers.build();
-          }
-      });
+          new FixedHeaderProvider() {
+            @Override
+            public Map<@NonNull String, @NonNull String> getHeaders() {
+              return headers.build();
+            }
+          });
 
       ClientContext clientContext = ClientContext.create(builder.build());
       return GrpcFirestoreStub.create(clientContext);
