@@ -102,7 +102,7 @@ def runnerV2PipelineOptionsARM = [
 
 // Build and push multi-arch docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer'). 
+// task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer').
 // Note: we don't delete the multi-arch containers here because the multi-arch containers
 // are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
 def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
