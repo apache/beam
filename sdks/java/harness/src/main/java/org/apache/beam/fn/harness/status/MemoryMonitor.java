@@ -98,14 +98,6 @@ public class MemoryMonitor implements Runnable {
   private static final double GC_THRASHING_PERCENTAGE_PER_SERVER = 60.0;
 
   /**
-   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
-   * percentage of CPU time is spent in garbage collection.
-   *
-   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
-   */
-  private static final double GC_THRASHING_PERCENTAGE_PER_PERIOD = 50.0;
-
-  /**
    * The amount of memory (in bytes) we should pre-allocate, in order to be able to dump the heap.
    *
    * <p>Since the server is in GC thrashing when we try to dump the heap, we might not be able to
