@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.WeightedList;
@@ -190,22 +191,24 @@ public class DataStreams {
      * elements till at the next boundary.
      */
     public WeightedList<T> decodeFromChunkBoundaryToChunkBoundary() {
-      inbound.currentStream = inputByteStrings.next().newInput();
+      ByteString byteString = inputByteStrings.next();
+      inbound.currentStream = byteString.newInput();
       inbound.position = 0;
 
       try {
         InputStream previousStream = inbound.currentStream;
-        WeightedList<T> rvals = new WeightedList<>(new ArrayList<>(), 0L);
-        long beforeBytes = 0;
+        List<T> rvals = new ArrayList<>();
         while (previousStream == inbound.currentStream && inbound.currentStream.available() != 0) {
           T next = next();
-
-          // Estimates the number of bytes used for the heap to cache this specific element
-          long elementBytes = inbound.getBytesRead() - beforeBytes + BYTES_LIST_ELEMENT_OVERHEAD;
-          rvals.add(next, elementBytes);
-          beforeBytes = inbound.getBytesRead();
+          rvals.add(next);
         }
-        return rvals;
+
+        // Uses the size of the ByteString as an approximation for the heap size occupied by the
+        // page, considering an overhead of {@link BYTES_LIST_ELEMENT_OVERHEAD} for each element.
+        long elementOverhead = rvals.size() * BYTES_LIST_ELEMENT_OVERHEAD;
+        long totalWeight = byteString.size() + elementOverhead;
+
+        return new WeightedList<>(rvals, totalWeight);
       } catch (IOException e) {
         throw new IllegalStateException(e);
       }
@@ -271,7 +274,6 @@ public class DataStreams {
      */
     private class Inbound extends InputStream {
       private int position; // Position within the current input stream.
-      private long bytesReadCount; // The running number of bytes read for instance
       private InputStream currentStream;
 
       public Inbound() {
@@ -321,7 +323,6 @@ public class DataStreams {
           position = 0;
         }
         position += 1;
-        bytesReadCount += 1;
         return read;
       }
 
@@ -337,7 +338,6 @@ public class DataStreams {
             if (!inputByteStrings.hasNext()) {
               int bytesRead = len - remainingLen;
               position += bytesRead;
-              bytesReadCount += bytesRead;
               return bytesRead > 0 ? bytesRead : -1;
             }
             currentStream = inputByteStrings.next().newInput();
@@ -346,12 +346,7 @@ public class DataStreams {
           remainingLen -= read;
         }
         position += len;
-        bytesReadCount += len;
         return len;
-      }
-
-      public long getBytesRead() {
-        return bytesReadCount;
       }
     }
   }
