@@ -36,7 +36,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 @pytest.mark.it_postcommit
 class JuliaSetTestIT(unittest.TestCase):
-  GRID_SIZE = 10
+  GRID_SIZE = 1000
 
   def test_run_example_with_setup_file(self):
     pipeline = TestPipeline(is_integration_test=True)
