@@ -67,10 +67,10 @@ jobs:
         job_phrase: ["Run Job With Matrix"]
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      (github.event.comment.body == 'Run Job With Matrix 3.8' || 
+      (github.event.comment.body == 'Run Job With Matrix 3.8' ||
       github.event.comment.body == 'Run Job With Matrix 3.9' ||
       github.event.comment.body == 'Run Job With Matrix 3.10' ||
       github.event.comment.body == 'Run Job With Matrix 3.11')
