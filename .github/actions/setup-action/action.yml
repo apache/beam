@@ -36,16 +36,20 @@ runs:
       uses: actions/checkout@v3
       if: |
         github.event_name == 'push' ||
-        github.event_name == 'pull_request_target' ||
         github.event_name == 'schedule' ||
         github.event_name == 'workflow_dispatch'
       with:
         ref: ${{ github.event.pull_request.head.sha }}
+    - name: Check out repository code if pull request commit
+      uses: actions/checkout@v3
+      if: ${{ github.event_name == 'pull_request_target' }}
+      with:
+        ref: refs/pull/${{ github.event.number }}/merge
     - name: Check out repository code if comment phrase
       uses: actions/checkout@v3
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
       with:
-        ref: refs/pull/${{ github.event.issue.number }}/head
+        ref: refs/pull/${{ github.event.issue.number }}/merge
     - name: Rerun if comment phrase
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
       uses: ./.github/actions/rerun-job-action
