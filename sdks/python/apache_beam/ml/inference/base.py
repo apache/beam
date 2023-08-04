@@ -344,10 +344,11 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     model handlers corresponding to the keys for which that ModelHandler should
     be used. For example, the following configuration could be used to map keys
     1-3 to ModelHandler1 and keys 4-5 to ModelHandler2:
-      KeyedModelHandler([
-        KeyMhMapping(['k1', 'k2', 'k3'], mh1),
-        KeyMhMapping(['k4', 'k5'], mh2)
-        ])
+
+        k1 = ['k1', 'k2', 'k3']
+        k2 = ['k4', 'k5']
+        KeyedModelHandler([KeyMhMapping(k1, mh1), KeyMhMapping(k2, mh2)])
+
     Note that a single copy of each of these models may all be held in memory
     at the same time; be careful not to load too many large models or your
     pipeline may cause Out of Memory exceptions.
