@@ -108,7 +108,7 @@ jobs:
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
             -Pcontainer-architecture-list=arm64,amd64 \
-            -Pdocker-repository=us.gcr.io/apache-beam-testing/github-actions \
+            -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
             -Pdocker-tag=${{ env.MULTIARCH_TAG }} \
             -Ppush-containers \
         env:
