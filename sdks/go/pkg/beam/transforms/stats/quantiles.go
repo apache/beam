@@ -47,7 +47,7 @@ func init() {
 	beam.RegisterCoder(weightedElementType, encodeWeightedElement, decodeWeightedElement)
 
 	register.Function1x2(fixedKey)
-	//register.Function2x1(makeWeightedElement) // TODO make prism fail faster when this is commented out.
+	register.Function2x1(makeWeightedElement)
 }
 
 // Opts contains settings used to configure how approximate quantiles are computed.

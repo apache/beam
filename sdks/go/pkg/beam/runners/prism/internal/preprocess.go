@@ -244,6 +244,7 @@ func defaultFusion(topological []string, comps *pipepb.Components) []*stage {
 			continue
 		}
 		cs := pcolConsumers[pcolID]
+
 		for _, c := range cs {
 			stg.transforms = append(stg.transforms, c.transform)
 			consumed[c.transform] = true

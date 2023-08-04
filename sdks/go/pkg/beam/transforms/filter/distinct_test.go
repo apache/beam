@@ -23,10 +23,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
 
-func TestMain(m *testing.M) {
-	ptest.Main(m)
-}
-
 type s struct {
 	A int
 	B string

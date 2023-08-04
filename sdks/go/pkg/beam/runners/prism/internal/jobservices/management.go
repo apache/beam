@@ -112,8 +112,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
-			urns.TransformAssignWindows,
-			urns.TransformReshuffle:
+			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
 		case urns.TransformReshuffle:
@@ -213,6 +212,7 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 				// Reached terminal state.
 				return nil
 			case jobpb.JobState_FAILED:
+				// Ensure we send an error message with the cause of the job failure.
 				stream.Send(&jobpb.JobMessagesResponse{
 					Response: &jobpb.JobMessagesResponse_MessageResponse{
 						MessageResponse: &jobpb.JobMessage{

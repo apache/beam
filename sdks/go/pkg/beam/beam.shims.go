@@ -44,10 +44,13 @@ func init() {
 	runtime.RegisterFunction(schemaDec)
 	runtime.RegisterFunction(schemaEnc)
 	runtime.RegisterFunction(swapKVFn)
+	runtime.RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*createFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
 	schema.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
 	schema.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*createFn)(nil)).Elem(), wrapMakerCreateFn)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, typex.T) ([]byte, error))(nil)).Elem(), funcMakerReflect۰TypeTypex۰TГSliceOfByteError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteEmitTypex۰TГError)
@@ -59,6 +62,13 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) typex.Y)(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰Y)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) (typex.Y, typex.X))(nil)).Elem(), funcMakerTypex۰XTypex۰YГTypex۰YTypex۰X)
 	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T))(nil)).Elem(), emitMakerTypex۰T)
+}
+
+func wrapMakerCreateFn(fn any) map[string]reflectx.Func {
+	dfn := fn.(*createFn)
+	return map[string]reflectx.Func{
+		"ProcessElement": reflectx.MakeFunc(func(a0 []byte, a1 func(typex.T)) error { return dfn.ProcessElement(a0, a1) }),
+	}
 }
 
 type callerReflect۰TypeSliceOfByteГTypex۰TError struct {

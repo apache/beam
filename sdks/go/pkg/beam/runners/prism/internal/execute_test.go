@@ -325,8 +325,7 @@ func TestRunner_Pipelines(t *testing.T) {
 			pipeline: func(s beam.Scope) {
 				imp := beam.Impulse(s)
 				col0 := beam.ParDo(s, dofn1, imp)
-				//	col1 := beam.ParDo(s, dofn2, col0)
-				// Doesn't matter which of col1 or col2 is used.
+				// Doesn't matter which of col0 or col1 is used.
 				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col0})
 				beam.ParDo(s, &int64Check{
 					Name: "sum sideinput check",
@@ -339,7 +338,7 @@ func TestRunner_Pipelines(t *testing.T) {
 				imp := beam.Impulse(s)
 				col0 := beam.ParDo(s, dofn1, imp)
 				col1 := beam.ParDo(s, dofn2, col0)
-				// Doesn't matter which of col1 or col2 is used.
+				// Doesn't matter which of col0 or col1 is used.
 				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col1})
 				beam.ParDo(s, &int64Check{
 					Name: "sum sideinput check",
@@ -501,6 +500,21 @@ func TestRunner_Metrics(t *testing.T) {
 	})
 }
 
+func TestFailure(t *testing.T) {
+	initRunner(t)
+
+	p, s := beam.NewPipelineWithRoot()
+	imp := beam.Impulse(s)
+	beam.ParDo(s, doFnFail, imp)
+	_, err := executeWithT(context.Background(), t, p)
+	if err == nil {
+		t.Fatalf("expected pipeline failure, but got a success")
+	}
+	if want := "doFnFail: failing as intended"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected pipeline failure with %q, but was %v", want, err)
+	}
+}
+
 func TestRunner_Passert(t *testing.T) {
 	initRunner(t)
 	tests := []struct {
@@ -545,21 +559,6 @@ func TestRunner_Passert(t *testing.T) {
 				test.metrics(t, pr)
 			}
 		})
-	}
-}
-
-func TestFailure(t *testing.T) {
-	initRunner(t)
-
-	p, s := beam.NewPipelineWithRoot()
-	imp := beam.Impulse(s)
-	beam.ParDo(s, doFnFail, imp)
-	_, err := executeWithT(context.Background(), t, p)
-	if err == nil {
-		t.Fatalf("expected pipeline failure, but got a success")
-	}
-	if want := "doFnFail: failing as intended"; !strings.Contains(err.Error(), want) {
-		t.Fatalf("expected pipeline failure with %q, but was %v", want, err)
 	}
 }
 

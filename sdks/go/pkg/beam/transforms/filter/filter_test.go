@@ -24,6 +24,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 func init() {
 	register.Function1x1(alwaysTrue)
 	register.Function1x1(alwaysFalse)

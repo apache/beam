@@ -35,6 +35,11 @@ func TestMain(m *testing.M) {
 	ptest.MainWithDefault(m, "direct")
 }
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*Foo)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*Bar)(nil)).Elem())
+}
+
 // fake client type implements datastoreio.clientType
 type fakeClient struct {
 	runCounter   int

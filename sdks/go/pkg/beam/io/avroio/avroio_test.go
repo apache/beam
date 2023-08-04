@@ -44,6 +44,11 @@ func init() {
 	register.Function2x0(toJSONString)
 }
 
+func toJSONString(user TwitterUser, emit func(string)) {
+	b, _ := json.Marshal(user)
+	emit(string(b))
+}
+
 type Tweet struct {
 	Stamp int64  `json:"timestamp"`
 	Tweet string `json:"tweet"`
@@ -135,11 +140,6 @@ const userSchema = `{
 	]
 }`
 
-func toJSONString(user TwitterUser, emit func(string)) {
-	b, _ := json.Marshal(user)
-	emit(string(b))
-}
-
 func TestWrite(t *testing.T) {
 	avroFile := "./user.avro"
 	testUsername := "user1"
@@ -153,6 +153,7 @@ func TestWrite(t *testing.T) {
 	t.Cleanup(func() {
 		os.Remove(avroFile)
 	})
+
 	ptest.RunAndValidate(t, p)
 
 	if _, err := os.Stat(avroFile); errors.Is(err, os.ErrNotExist) {
