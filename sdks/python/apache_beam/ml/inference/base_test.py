@@ -254,6 +254,42 @@ class RunInferenceBaseTest(unittest.TestCase):
           base.KeyedModelHandler(FakeModelHandler()))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_impl_with_keyed_examples_many_model_handlers(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      expected[0] = (0, 200)
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      mhs = [base.KeyMhMapping([0], FakeModelHandler(state=200, multi_process_shared=True)),
+             base.KeyMhMapping([1, 2, 3], FakeModelHandler(multi_process_shared=True))]
+      actual = pcoll | base.RunInference(base.KeyedModelHandler(mhs))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_keyed_many_model_handlers_validation(self):
+    def mult_two(example: str) -> int:
+      return int(example) * 2
+    
+    mhs = [base.KeyMhMapping([0], FakeModelHandler(state=200, multi_process_shared=True).with_preprocess_fn(mult_two)),
+            base.KeyMhMapping([1, 2, 3], FakeModelHandler(multi_process_shared=True))]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+    mhs = [base.KeyMhMapping([0], FakeModelHandler(state=200, multi_process_shared=True).with_postprocess_fn(mult_two)),
+            base.KeyMhMapping([1, 2, 3], FakeModelHandler(multi_process_shared=True))]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+    mhs = [base.KeyMhMapping([0], FakeModelHandler(state=200, multi_process_shared=True)),
+            base.KeyMhMapping([0, 1, 2, 3], FakeModelHandler(multi_process_shared=True))]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+    mhs = [base.KeyMhMapping([], FakeModelHandler(state=200, multi_process_shared=True)),
+            base.KeyMhMapping([0, 1, 2, 3], FakeModelHandler(multi_process_shared=True))]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
   def test_run_inference_impl_with_maybe_keyed_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
