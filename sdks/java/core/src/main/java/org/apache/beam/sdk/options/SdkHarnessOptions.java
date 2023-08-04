@@ -194,6 +194,22 @@ public interface SdkHarnessOptions extends PipelineOptions {
   void setMaxCacheMemoryUsageMbClass(Class<? extends MaxCacheMemoryUsageMb> kls);
 
   /**
+   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
+   * percentage of CPU time is spent in garbage collection. Harness will force fail tasks after
+   * sustained periods of thrashing.
+   *
+   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
+   */
+  @Description(
+      "The GC thrashing threshold percentage. A given period of time is considered \"thrashing\" if this "
+          + "percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after "
+          + "sustained periods of thrashing.")
+  @Default.Double(50.0)
+  Double getGCThrashingPercentagePerPeriod();
+
+  void setGCThrashingPercentagePerPeriod(Double value);
+
+  /**
    * A {@link DefaultValueFactory} which constructs an instance of the class specified by {@link
    * #getMaxCacheMemoryUsageMbClass maxCacheMemoryUsageMbClass} to compute the maximum amount of
    * memory to allocate to the process wide cache within an SDK harness instance.
