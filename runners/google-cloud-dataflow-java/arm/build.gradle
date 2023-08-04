@@ -102,31 +102,11 @@ def runnerV2PipelineOptionsARM = [
 
 // Build and push multi-arch docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer'). This ensures the correct
-// task ordering such that the registry doesn't get cleaned up prior to task completion.
+// task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer'). 
+// Note: we don't delete the multi-arch containers here because the multi-arch containers
+// are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
 def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
   dependsOn ":sdks:java:container:${javaVer}:docker"
-}
-
-// Clean up built Java images
-def cleanUpDockerJavaMultiarchImages = tasks.register("cleanUpDockerJavaMultiarchImages") {
-  doLast {
-    exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${DockerJavaMultiarchImageName}"
-    }
-    exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${DockerJavaMultiarchImageContainer}"
-    }
-  }
-}
-
-afterEvaluate {
-  // Ensure all tasks which use published docker images run before they are cleaned up
-  tasks.each { t ->
-    if (t.dependsOn.contains(buildAndPushDockerJavaMultiarchContainer) && !t.name.equalsIgnoreCase('printrunnerV2PipelineOptionsARM')) {
-      t.finalizedBy cleanUpDockerJavaMultiarchImages
-    }
-  }
 }
 
 task printrunnerV2PipelineOptionsARM {
@@ -135,8 +115,6 @@ task printrunnerV2PipelineOptionsARM {
   doLast {
     println "To run a Dataflow job with runner V2 on ARM, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptionsARM.join(' ')
-    println "Please delete your image upon completion with the following command:"
-    println "gcloud container images delete --force-delete-tags ${DockerJavaMultiarchImageName}"
   }
 }
 
