@@ -67,7 +67,7 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.job_phrase }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
