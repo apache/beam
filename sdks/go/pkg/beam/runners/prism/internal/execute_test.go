@@ -325,7 +325,6 @@ func TestRunner_Pipelines(t *testing.T) {
 			pipeline: func(s beam.Scope) {
 				imp := beam.Impulse(s)
 				col0 := beam.ParDo(s, dofn1, imp)
-				// Doesn't matter which of col0 or col1 is used.
 				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col0})
 				beam.ParDo(s, &int64Check{
 					Name: "sum sideinput check",
