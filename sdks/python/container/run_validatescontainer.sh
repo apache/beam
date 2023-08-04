@@ -104,7 +104,12 @@ function cleanup_container {
   for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
-  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
+  # the associated container images can't be deleted because they are not tagged. However, the multi-arch containers
+  # are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
+  if [[ "$ARCH" == "x86" ]]; then
+    gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  fi
   for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)")
     do gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
   done

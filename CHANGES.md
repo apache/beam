@@ -73,10 +73,12 @@
   * See https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/runners/prism/README.md for the goals and features of Prism.
 * Hugging Face Model Handler for RunInference added to Python SDK. ([#26632](https://github.com/apache/beam/pull/26632))
 * Hugging Face Pipelines support for RunInference added to Python SDK. ([#27399](https://github.com/apache/beam/pull/27399))
+* Upgraded the Kryo extension for the Java SDK to Kryo 5.5.0. This brings in bug fixes, performance improvements, and serialization of Java 14 records. ([#27635](https://github.com/apache/beam/issues/27635))
 
 ## Breaking Changes
 
 * Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
+* [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Deprecations
 
@@ -109,7 +111,6 @@
 * Disabled `pip` cache when installing packages on the workers. This reduces the size of prebuilt Python container images ([#27035](https://github.com/apache/beam/pull/27035)).
 * Select dedicated avro datum reader and writer (Java) ([#18874](https://github.com/apache/beam/issues/18874)).
 * Timer API for the Go SDK (Go) ([#22737](https://github.com/apache/beam/issues/22737)).
-* Upgraded the Kryo extension for the Java SDK to Kryo 5.5.0. This brings in bug fixes, performance improvements, and serialization of Java 14 records. ([#27635](https://github.com/apache/beam/issues/27635))
 
 ## Deprecations
 
