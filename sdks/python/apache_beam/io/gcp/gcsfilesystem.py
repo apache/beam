@@ -140,6 +140,21 @@ class GCSFileSystem(FileSystem):
   def _gcsIO(self):
     return gcsio.GcsIO(pipeline_options=self._pipeline_options)
 
+  def _path_open(
+      self,
+      path,
+      mode,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    """Helper functions to open a file in the provided mode.
+    """
+    compression_type = FileSystem._get_compression_type(path, compression_type)
+    mime_type = CompressionTypes.mime_type(compression_type, mime_type)
+    raw_file = self._gcsIO().open(path, mode, mime_type=mime_type)
+    if compression_type == CompressionTypes.UNCOMPRESSED:
+      return raw_file
+    return CompressedFile(raw_file, compression_type=compression_type)
+
   def create(
       self,
       path,
@@ -156,11 +171,7 @@ class GCSFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    compression_type = FileSystem._get_compression_type(path, compression_type)
-    raw_file = self._gcsIO().open(path, 'wb', mime_type=mime_type)
-    if compression_type == CompressionTypes.UNCOMPRESSED:
-      return raw_file
-    return CompressedFile(raw_file, compression_type=compression_type)
+    return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(
       self,
@@ -178,11 +189,7 @@ class GCSFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    compression_type = FileSystem._get_compression_type(path, compression_type)
-    raw_file = self._gcsIO().open(path, 'rb', mime_type=mime_type)
-    if compression_type == CompressionTypes.UNCOMPRESSED:
-      return raw_file
-    return CompressedFile(raw_file, compression_type=compression_type)
+    return self._path_open(path, 'rb', mime_type, compression_type)
 
   def copy(self, source_file_names, destination_file_names):
     """Recursively copy the file tree from the source to the destination
