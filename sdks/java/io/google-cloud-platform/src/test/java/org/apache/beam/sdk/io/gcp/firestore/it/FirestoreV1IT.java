@@ -55,6 +55,7 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteFailure;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -133,7 +134,7 @@ public final class FirestoreV1IT extends BaseFirestoreIT {
               assertFalse(iterator.hasNext());
               return null;
             });
-    testPipeline.run(this.options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     ApiFuture<QuerySnapshot> actualDocsQuery =
         helper.getBaseDocument().collection(collectionId).orderBy("__name__").get();

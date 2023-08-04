@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package internal_test
 
 import (
 	"context"
@@ -27,6 +27,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
@@ -38,7 +40,7 @@ import (
 func initRunner(t *testing.T) {
 	t.Helper()
 	if *jobopts.Endpoint == "" {
-		s := jobservices.NewServer(0, RunPipeline)
+		s := jobservices.NewServer(0, internal.RunPipeline)
 		*jobopts.Endpoint = s.Endpoint()
 		go s.Serve()
 		t.Cleanup(func() {
@@ -319,6 +321,61 @@ func TestRunner_Pipelines(t *testing.T) {
 				}, sum)
 			},
 		}, {
+			name: "sideinput_sameAsMainInput",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col0})
+				beam.ParDo(s, &int64Check{
+					Name: "sum sideinput check",
+					Want: []int{13, 14, 15},
+				}, sum)
+			},
+		}, {
+			name: "sideinput_sameAsMainInput+Derived",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				col1 := beam.ParDo(s, dofn2, col0)
+				// Doesn't matter which of col0 or col1 is used.
+				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col0}, beam.SideInput{Input: col1})
+				beam.ParDo(s, &int64Check{
+					Name: "sum sideinput check",
+					Want: []int{16, 17, 18},
+				}, sum)
+			},
+		}, {
+			// Main input is getting duplicated data, since it's being executed twice...
+			// But that doesn't make any sense
+			name: "sideinput_2iterable1Data2",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				col1 := beam.ParDo(s, dofn2, col0)
+				col2 := beam.ParDo(s, dofn2, col0)
+				// Doesn't matter which of col1 or col2 is used.
+				sum := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: col2}, beam.SideInput{Input: col1})
+				beam.ParDo(s, &int64Check{
+					Name: "iter sideinput check",
+					Want: []int{19, 20, 21},
+				}, sum)
+			},
+		}, {
+			// Re-use the same side inputs sequentially (the two consumers should be in the same stage.)
+			name: "sideinput_two_2iterable1Data",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col0 := beam.ParDo(s, dofn1, imp)
+				sideIn1 := beam.ParDo(s, dofn1, imp)
+				sideIn2 := beam.ParDo(s, dofn1, imp)
+				col1 := beam.ParDo(s, dofn3x1, col0, beam.SideInput{Input: sideIn1}, beam.SideInput{Input: sideIn2})
+				sum := beam.ParDo(s, dofn3x1, col1, beam.SideInput{Input: sideIn1}, beam.SideInput{Input: sideIn2})
+				beam.ParDo(s, &int64Check{
+					Name: "check_sideinput_re-use",
+					Want: []int{25, 26, 27},
+				}, sum)
+			},
+		}, {
 			name: "combine_perkey",
 			pipeline: func(s beam.Scope) {
 				imp := beam.Impulse(s)
@@ -379,6 +436,30 @@ func TestRunner_Pipelines(t *testing.T) {
 				}, flat)
 				passert.NonEmpty(s, flat)
 			},
+		}, {
+			name: "gbk_into_gbk",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofnKV, imp)
+				gbk1 := beam.GroupByKey(s, col1)
+				col2 := beam.ParDo(s, dofnGBKKV, gbk1)
+				gbk2 := beam.GroupByKey(s, col2)
+				out := beam.ParDo(s, dofnGBK, gbk2)
+				passert.Equals(s, out, int64(9), int64(12))
+			},
+		}, {
+			name: "lperror_gbk_into_cogbk_shared_input",
+			pipeline: func(s beam.Scope) {
+				want := beam.CreateList(s, []int{0})
+				fruits := beam.CreateList(s, []int64{42, 42, 42})
+				fruitsKV := beam.AddFixedKey(s, fruits)
+
+				fruitsGBK := beam.GroupByKey(s, fruitsKV)
+				fooKV := beam.ParDo(s, toFoo, fruitsGBK)
+				fruitsFooCoGBK := beam.CoGroupByKey(s, fruitsKV, fooKV)
+				got := beam.ParDo(s, toID, fruitsFooCoGBK)
+				passert.Equals(s, got, want)
+			},
 		},
 	}
 	// TODO: Explicit DoFn Failure case.
@@ -428,8 +509,75 @@ func TestFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected pipeline failure, but got a success")
 	}
-	// Job failure state reason isn't communicated with the state change over the API
-	// so we can't check for a reason here.
+	if want := "doFnFail: failing as intended"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected pipeline failure with %q, but was %v", want, err)
+	}
+}
+
+func TestRunner_Passert(t *testing.T) {
+	initRunner(t)
+	tests := []struct {
+		name     string
+		pipeline func(s beam.Scope)
+		metrics  func(t *testing.T, pr beam.PipelineResult)
+	}{
+		{
+			name: "Empty",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofnEmpty, imp)
+				passert.Empty(s, col1)
+			},
+		}, {
+			name: "Equals-TwoEmpty",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofnEmpty, imp)
+				col2 := beam.ParDo(s, dofnEmpty, imp)
+				passert.Equals(s, col1, col2)
+			},
+		}, {
+			name: "Equals",
+			pipeline: func(s beam.Scope) {
+				imp := beam.Impulse(s)
+				col1 := beam.ParDo(s, dofn1, imp)
+				col2 := beam.ParDo(s, dofn1, imp)
+				passert.Equals(s, col1, col2)
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			pr, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.metrics != nil {
+				test.metrics(t, pr)
+			}
+		})
+	}
+}
+
+func toFoo(et beam.EventTime, id int, _ func(*int64) bool) (int, string) {
+	return id, "ooo"
+}
+
+func toID(et beam.EventTime, id int, fruitIter func(*int64) bool, fooIter func(*string) bool) int {
+	var fruit int64
+	for fruitIter(&fruit) {
+	}
+	var foo string
+	for fooIter(&foo) {
+	}
+	return id
+}
+
+func init() {
+	register.Function3x2(toFoo)
+	register.Function4x1(toID)
 }
 
 // TODO: PCollection metrics tests, in particular for element counts, in multi transform pipelines

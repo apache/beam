@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Website PreCommit
+name: PreCommit Website
 
 on:
   push:
@@ -26,7 +26,9 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -45,24 +47,26 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
   beam_PreCommit_Website:
+    name: beam_PreCommit_Website (Run Website PreCommit)
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
       github.event.comment.body == 'Run Website PreCommit' || 
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, small]
-    name: beam_PreCommit_Website
-    steps:       
-      - uses: actions/checkout@v3
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Rerun on comment
-        if: github.event.comment.body == 'Run Python_Coverage PreCommit'
+        if: github.event.comment.body == 'Run Website PreCommit'
         uses: ./.github/actions/rerun-job-action
         with:
           pull_request_url: ${{ github.event.issue.pull_request.url }}
@@ -80,4 +84,6 @@ jobs:
         with:
           cache-read-only: false
       - name: run websitePreCommit script
-        run: ./gradlew :websitePreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :websitePreCommit

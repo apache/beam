@@ -45,6 +45,30 @@ task dataflowValidatesRunner() {
   }
 }
 
+// ValidatesRunner tests for Dataflow. Runs tests in the integration directory
+// with Dataflow to validate that the runner behaves as expected, on arm64 machines.
+task dataflowValidatesRunnerARM64() {
+  group = "Verification"
+
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+
+  doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--machine_type=t2a-standard-1",
+    ]
+    def options = [
+        "--runner dataflow",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
 // ValidatesRunner tests for Flink. Runs tests in the integration directory
 // with Flink to validate that the runner behaves as expected.
 task flinkValidatesRunner {

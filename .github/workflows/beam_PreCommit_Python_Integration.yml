@@ -14,7 +14,6 @@
 # limitations under the License.
 
 name: PreCommit Python Integration
-
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
@@ -26,7 +25,8 @@ on:
     branches: ['master', 'release-*']
     paths: ["model/**", "sdks/python/**", "release/**", ".github/workflows/beam_PreCommit_Python_Integration.yml"]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -46,12 +46,13 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
   beam_PreCommit_Python_Integration:
-    name: beam_PreCommit_Python_Integration
+    name: beam_PreCommit_Python_Integration (Run Python_Integration PreCommit 3.x)
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -93,14 +94,26 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
+        run: |
+          PY_VER=${{ matrix.python_version }}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: run Python Integration PreCommit batch script
-        run: |
-          PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:dataflow:py${PY_VER//.}:preCommitIT_batch -PuseWheelDistribution -PpythonVersion=${PY_VER}
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_batch
+          arguments: |
+            -PuseWheelDistribution \
+            -PpythonVersion=${{ matrix.python_version }} \
       - name: run Python Integration PreCommit streaming script
-        run: |
-          PY_VER=${{ matrix.python_version }}
-          ./gradlew :sdks:python:test-suites:dataflow:py${PY_VER//.}:preCommitIT_streaming -PuseWheelDistribution -PpythonVersion=${PY_VER}
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_streaming
+          arguments: |
+            -PuseWheelDistribution \
+            -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:

@@ -1389,6 +1389,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setReplaceJobId(jobIdToUpdate);
     }
     if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
+      newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
     }
 
