@@ -179,7 +179,7 @@ configurations.implementation {
 }
 
 /**
- * These are integration tests with the real Pubsub service and the DirectRunner.
+ * These are integration tests with the real Pubsub service and the DirectRunner
  */
 task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
