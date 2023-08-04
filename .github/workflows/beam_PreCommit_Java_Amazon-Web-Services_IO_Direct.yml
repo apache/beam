@@ -76,25 +76,19 @@ jobs:
     name: beam_PreCommit_Java_Amazon-Web-Services_IO_Direct (Run Java_Amazon-Web-Services_IO_Direct PreCommit)
     timeout-minutes: 60
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
-      github.event.comment.body == 'Run Java_Amazon-Web-Services_IO_Direct PreCommit' || 
-      github.event_name == 'schedule'
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Java_Amazon-Web-Services_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run Java_Amazon-Web-Services_IO_Direct PreCommit'
-        uses: ./.github/actions/rerun-job-action
-        with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: 'Run Java_Amazon-Web-Services_IO_Direct PreCommit'
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
       - name: run Amazon-Web-Services IO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
