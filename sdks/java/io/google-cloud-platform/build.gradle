@@ -207,10 +207,6 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryToTableIT.class'
   exclude '**/BigQueryIOJsonTest.class'
 
-  // Failing due to Firestore service-side changes
-  // https://github.com/apache/beam/issues/25851
-  exclude '**/firestore/it/**/*.class'
-
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
