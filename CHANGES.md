@@ -74,6 +74,7 @@
 * Hugging Face Model Handler for RunInference added to Python SDK. ([#26632](https://github.com/apache/beam/pull/26632))
 * Hugging Face Pipelines support for RunInference added to Python SDK. ([#27399](https://github.com/apache/beam/pull/27399))
 * Upgraded the Kryo extension for the Java SDK to Kryo 5.5.0. This brings in bug fixes, performance improvements, and serialization of Java 14 records. ([#27635](https://github.com/apache/beam/issues/27635))
+* The Go, Python and Java SDK container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image), supporting both x86 and ARM CPU architectures. ([#27674](https://github.com/apache/beam/issues/27674))
 
 ## Breaking Changes
 
