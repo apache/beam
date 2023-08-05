@@ -36,8 +36,13 @@
   },
   "dependencies": {
     "@google-cloud/pubsub": "^2.19.4",
+
+    "@grpc/grpc-js": "^1.8.14",
+    "@protobuf-ts/grpc-transport": "^2.1.0",
+
     "@grpc/grpc-js": "^1.4.6",
     "@protobuf-ts/grpc-transport": "^2.9.0",
+
     "@protobuf-ts/plugin": "^2.1.0",
     "bson": "^4.7.2",
     "capture-console": "^1.0.1",
