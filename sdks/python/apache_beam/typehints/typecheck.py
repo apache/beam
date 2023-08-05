@@ -68,9 +68,6 @@ class AbstractDoFnWrapper(DoFn):
   def wrapper(self, method, args, kwargs):
     return method(*args, **kwargs)
 
-  def setup(self):
-    return self.dofn.setup()
-
   def start_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.start_bundle, args, kwargs)
 
@@ -79,9 +76,6 @@ class AbstractDoFnWrapper(DoFn):
 
   def finish_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.finish_bundle, args, kwargs)
-
-  def teardown(self):
-    return self.dofn.teardown()
 
 
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
