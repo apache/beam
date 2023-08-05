@@ -68,8 +68,12 @@ import org.joda.time.Duration;
  * <p>The Google Ads API does not use service account credentials in the same way as Google Cloud
  * Platform APIs do. Service account credentials are typically only used to delegate (using
  * domain-wide delegation) access through end user accounts. Providing credentials using the OAuth2
- * desktop flow may be preferable over domain wide delegation. Defaults for OAuth 2.0 credentials,
- * refresh token and developer token can be provided using the following flags:
+ * desktop flow may be preferable over domain wide delegation. Please refer to the <a
+ * href="https://developers.google.com/google-ads/api/docs/oauth/overview">Google Ads API
+ * documentation</a> for more information on OAuth2 in the Google Ads API.
+ *
+ * <p>Defaults for OAuth 2.0 credentials, refresh token and developer token can be provided using
+ * the following flags:
  *
  * <pre>
  *   --googleAdsClientId=your-client-id
