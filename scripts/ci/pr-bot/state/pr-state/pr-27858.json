@@ -1,11 +1,11 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "bvolpato",
+    "java": "kennknowles",
     "io": "ahmedabu98"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
