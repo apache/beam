@@ -458,6 +458,8 @@ public class GoogleAdsV14 {
      */
     @VisibleForTesting
     static class ReadAllFn extends DoFn<SearchGoogleAdsStreamRequest, GoogleAdsRow> {
+      // The default retry configuration is based on that of services with a comparable
+      // potential volume of requests to the Google Ads API.
       private static final int MAX_RETRIES = 5;
       private static final FluentBackoff BACKOFF =
           FluentBackoff.DEFAULT
