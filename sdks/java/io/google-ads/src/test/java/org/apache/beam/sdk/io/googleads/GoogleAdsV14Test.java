@@ -103,7 +103,7 @@ public class GoogleAdsV14Test {
     @Test
     public void testReadAllExpandWithoutValidGoogleAdsClientFactory() throws Exception {
       Assert.assertThrows(
-          "Non-empty googleAdsClientFactory required but not provided",
+          "Non-null googleAdsClientFactory required but not provided",
           IllegalArgumentException.class,
           () ->
               pipeline
@@ -114,7 +114,7 @@ public class GoogleAdsV14Test {
     @Test
     public void testReadAllExpandWithoutValidRateLimitPolicy() throws Exception {
       Assert.assertThrows(
-          "Non-empty rateLimitPolicy required but not provided",
+          "Non-null rateLimitPolicy required but not provided",
           IllegalArgumentException.class,
           () ->
               pipeline
@@ -174,7 +174,7 @@ public class GoogleAdsV14Test {
     @Test
     public void testReadExpandWithoutValidGoogleAdsClientFactory() throws Exception {
       Assert.assertThrows(
-          "Non-empty googleAdsClientFactory required but not provided",
+          "Non-null googleAdsClientFactory required but not provided",
           IllegalArgumentException.class,
           () ->
               pipeline
@@ -205,7 +205,7 @@ public class GoogleAdsV14Test {
     @Test
     public void testReadExpandWithoutValidRateLimitPolicy() throws Exception {
       Assert.assertThrows(
-          "Non-empty rateLimitPolicy required but not provided",
+          "Non-null rateLimitPolicy required but not provided",
           IllegalArgumentException.class,
           () ->
               pipeline
