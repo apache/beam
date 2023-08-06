@@ -31,6 +31,7 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.MemoryMonitorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
@@ -53,7 +54,8 @@ public interface DataflowPipelineOptions
         StreamingOptions,
         DataflowWorkerLoggingOptions,
         DataflowProfilingOptions,
-        PubsubOptions {
+        PubsubOptions,
+        MemoryMonitorOptions {
 
   @Description(
       "Project id. Required when running a Dataflow in the cloud. "
