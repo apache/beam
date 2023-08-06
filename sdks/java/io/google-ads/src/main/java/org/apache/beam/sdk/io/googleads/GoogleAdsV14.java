@@ -36,10 +36,9 @@ import com.google.protobuf.Message;
 import com.google.protobuf.util.Durations;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.io.googleads.GoogleAdsV14.DefaultRateLimitPolicy;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
@@ -53,11 +52,9 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.RateLimiter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -82,21 +79,24 @@ import org.joda.time.Duration;
  *   --googleAdsDeveloperToken=your-developer-token
  * </pre>
  *
- * <p>Use {@link GoogleAdsV14#read()} to read a bounded {@link PCollection} of {@link GoogleAdsRow}
- * from a query using {@link Read#withQuery(String)} and one or a few customer IDs using either
- * {@link Read#withCustomerId(Long)} or {@link Read#withCustomerIds(List)}. Alternatively, use
- * {@link GoogleAdsV14#readAll()} to read either a bounded or unbounded {@link PCollection} of
- * {@link GoogleAdsRow} from a {@link PCollection} of {@link SearchGoogleAdsStreamRequest}.
+ * <p>Use {@link GoogleAdsV14#read()} to read either a bounded or unbounded {@link PCollection} of
+ * {@link GoogleAdsRow} from a single <a
+ * href="https://developers.google.com/google-ads/api/docs/query/overview">Google Ads Query
+ * Language</a> query using {@link Read#withQuery(String)} and a {@link PCollection} of customer
+ * IDs. Alternatively, use {@link GoogleAdsV14#readAll()} to read either a bounded or unbounded
+ * {@link PCollection} of {@link GoogleAdsRow} from a {@link PCollection} of {@link
+ * SearchGoogleAdsStreamRequest} potentially containing many different queries.
  *
  * <p>For example, using {@link GoogleAdsV14#read()}:
  *
  * <pre>{@code
  * Pipeline p = Pipeline.create();
+ * PCollection<String> customerIds =
+ *     p.apply(Create.of("1234567890"));
  * PCollection<GoogleAdsRow> rows =
- *     p.apply(
+ *     customerIds.apply(
  *         GoogleAdsIO.v14()
  *             .read()
- *             .withCustomerId(1234567890l)
  *             .withQuery(
  *                 "SELECT"
  *                     + "campaign.id,"
@@ -172,12 +172,11 @@ public class GoogleAdsV14 {
    * @see #readAll()
    */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<GoogleAdsRow>> {
+  public abstract static class Read
+      extends PTransform<PCollection<String>, PCollection<GoogleAdsRow>> {
     abstract @Nullable String getDeveloperToken();
 
     abstract @Nullable Long getLoginCustomerId();
-
-    abstract @Nullable List<Long> getCustomerIds();
 
     abstract @Nullable String getQuery();
 
@@ -192,8 +191,6 @@ public class GoogleAdsV14 {
       abstract Builder setDeveloperToken(@Nullable String developerToken);
 
       abstract Builder setLoginCustomerId(@Nullable Long loginCustomerId);
-
-      abstract Builder setCustomerIds(List<Long> customerId);
 
       abstract Builder setQuery(String query);
 
@@ -229,43 +226,12 @@ public class GoogleAdsV14 {
     }
 
     /**
-     * Creates and returns a new {@link Read} transform with the specified customer IDs to query.
-     *
-     * @param customerIds
-     * @return A new {@link Read} transform with the specified customer IDs to query.
-     * @see SearchGoogleAdsStreamRequest
-     * @see #withQuery(String)
-     */
-    public Read withCustomerIds(List<Long> customerIds) {
-      checkArgumentNotNull(customerIds, "customerIds cannot be null");
-      checkArgument(customerIds.size() > 0, "customerIds cannot be empty");
-
-      return toBuilder().setCustomerIds(ImmutableList.copyOf(customerIds)).build();
-    }
-
-    /**
-     * Creates and returns a new {@link Read} transform with the specified customer ID to query.
-     *
-     * @param customerId
-     * @return A new {@link Read} transform with the specified customer ID to query.
-     * @see SearchGoogleAdsStreamRequest
-     * @see #withQuery(String)
-     */
-    public Read withCustomerId(Long customerId) {
-      checkArgumentNotNull(customerId, "customerId cannot be null");
-
-      return withCustomerIds(ImmutableList.of(customerId));
-    }
-
-    /**
      * Creates and returns a new {@link Read} transform with the specified query. The query will be
      * executed for each customer ID.
      *
      * @param query
      * @return A new {@link Read} transform with the specified query.
      * @see SearchGoogleAdsStreamRequest
-     * @see #withCustomerId(Long)
-     * @see #withCustomerIds(List)
      */
     public Read withQuery(String query) {
       checkArgumentNotNull(query, "query cannot be null");
@@ -311,20 +277,17 @@ public class GoogleAdsV14 {
     }
 
     @Override
-    public PCollection<GoogleAdsRow> expand(PBegin input) {
+    public PCollection<GoogleAdsRow> expand(PCollection<String> input) {
       String query = getQuery();
-      List<Long> customerIds = getCustomerIds();
       checkArgumentNotNull(query, "withQuery() is required");
-      checkArgumentNotNull(customerIds, "either withCustomerId() or withCustomerIds() is required");
 
       return input
-          .apply(Create.of(customerIds))
           .apply(
               MapElements.into(TypeDescriptor.of(SearchGoogleAdsStreamRequest.class))
                   .via(
                       customerId ->
                           SearchGoogleAdsStreamRequest.newBuilder()
-                              .setCustomerId(Long.toString(customerId))
+                              .setCustomerId(customerId)
                               .setQuery(query)
                               .build()))
           .apply(
@@ -339,12 +302,8 @@ public class GoogleAdsV14 {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder
-          .addIfNotDefault(
-              DisplayData.item("customerIds", String.valueOf(getCustomerIds()))
-                  .withLabel("Customer IDs"),
-              "null")
-          .addIfNotNull(DisplayData.item("query", String.valueOf(getQuery())).withLabel("Query"));
+      builder.addIfNotNull(
+          DisplayData.item("query", String.valueOf(getQuery())).withLabel("Query"));
     }
   }
 

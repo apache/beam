@@ -38,8 +38,6 @@ import com.google.protobuf.Duration;
 import io.grpc.Metadata;
 import io.grpc.Status.Code;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
@@ -49,6 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Before;
@@ -125,43 +124,29 @@ public class GoogleAdsV14Test {
 
     @Test
     public void testReadExpandWithDeveloperTokenFromBuilder() {
-      pipeline.apply(
-          GoogleAdsIO.v14()
-              .read()
-              .withDeveloperToken("abc")
-              .withCustomerId(123L)
-              .withQuery("GAQL"));
+      pipeline
+          .apply(Create.empty(TypeDescriptors.strings()))
+          .apply(GoogleAdsIO.v14().read().withDeveloperToken("abc").withQuery("GAQL"));
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
-      pipeline.apply(GoogleAdsIO.v14().read().withCustomerId(123L).withQuery("GAQL"));
+      pipeline
+          .apply(Create.empty(TypeDescriptors.strings()))
+          .apply(GoogleAdsIO.v14().read().withQuery("GAQL"));
     }
 
     @Test
     public void testReadExpandWithDeveloperTokenFromOptions() {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
-      pipeline.apply(GoogleAdsIO.v14().read().withCustomerId(123L).withQuery("GAQL"));
+      pipeline
+          .apply(Create.empty(TypeDescriptors.strings()))
+          .apply(GoogleAdsIO.v14().read().withQuery("GAQL"));
     }
 
     @Test
     public void testReadExpandWithDeveloperTokenFromOptionsAndBuilder() {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
-      pipeline.apply(
-          GoogleAdsIO.v14().read().withDeveloperToken(null).withCustomerId(123L).withQuery("GAQL"));
-    }
-
-    @Test
-    public void testReadExpandWithoutCustomerId() throws Exception {
-      Assert.assertThrows(
-          "Customer ID required but not provided",
-          IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withQuery("GAQL")));
-    }
-
-    @Test
-    public void testReadExpandWithoutCustomerIds() throws Exception {
-      Assert.assertThrows(
-          "Customer IDs required but not provided",
-          IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withQuery("GAQL")));
+      pipeline
+          .apply(Create.empty(TypeDescriptors.strings()))
+          .apply(GoogleAdsIO.v14().read().withDeveloperToken(null).withQuery("GAQL"));
     }
 
     @Test
@@ -169,7 +154,10 @@ public class GoogleAdsV14Test {
       Assert.assertThrows(
           "Developer token required but not provided",
           IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withCustomerId(123L).withQuery("GAQL")));
+          () ->
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(GoogleAdsIO.v14().read().withQuery("GAQL")));
     }
 
     @Test
@@ -177,32 +165,10 @@ public class GoogleAdsV14Test {
       Assert.assertThrows(
           "Query required but not provided",
           IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withCustomerId(123L)));
-    }
-
-    @Test
-    public void testReadExpandWithoutValidCustomerIds() throws Exception {
-      Assert.assertThrows(
-          "Non-null customer IDs list required but not provided",
-          IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withCustomerIds(null).withQuery("GAQL")));
-
-      Assert.assertThrows(
-          "At least one customer ID required but not provided",
-          IllegalArgumentException.class,
           () ->
-              pipeline.apply(
-                  GoogleAdsIO.v14().read().withCustomerIds(ImmutableList.of()).withQuery("GAQL")));
-
-      List<Long> customerIds = new ArrayList<>();
-      customerIds.add(123L);
-      customerIds.add(null);
-      Assert.assertThrows(
-          "Non-null customer IDs required but not provided",
-          NullPointerException.class,
-          () ->
-              pipeline.apply(
-                  GoogleAdsIO.v14().read().withCustomerIds(customerIds).withQuery("GAQL")));
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(GoogleAdsIO.v14().read()));
     }
 
     @Test
@@ -211,12 +177,10 @@ public class GoogleAdsV14Test {
           "Non-empty googleAdsClientFactory required but not provided",
           IllegalArgumentException.class,
           () ->
-              pipeline.apply(
-                  GoogleAdsIO.v14()
-                      .read()
-                      .withCustomerId(123L)
-                      .withQuery("GAQL")
-                      .withGoogleAdsClientFactory(null)));
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(
+                      GoogleAdsIO.v14().read().withQuery("GAQL").withGoogleAdsClientFactory(null)));
     }
 
     @Test
@@ -224,12 +188,18 @@ public class GoogleAdsV14Test {
       Assert.assertThrows(
           "Non-null query required but not provided",
           IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withCustomerId(123L).withQuery(null)));
+          () ->
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(GoogleAdsIO.v14().read().withQuery(null)));
 
       Assert.assertThrows(
           "Non-empty query required but not provided",
           IllegalArgumentException.class,
-          () -> pipeline.apply(GoogleAdsIO.v14().read().withCustomerId(123L).withQuery("")));
+          () ->
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(GoogleAdsIO.v14().read().withQuery("")));
     }
 
     @Test
@@ -238,12 +208,9 @@ public class GoogleAdsV14Test {
           "Non-empty rateLimitPolicy required but not provided",
           IllegalArgumentException.class,
           () ->
-              pipeline.apply(
-                  GoogleAdsIO.v14()
-                      .read()
-                      .withCustomerId(123L)
-                      .withQuery("GAQL")
-                      .withRateLimitPolicy(null)));
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(GoogleAdsIO.v14().read().withQuery("GAQL").withRateLimitPolicy(null)));
     }
   }
 
@@ -273,13 +240,14 @@ public class GoogleAdsV14Test {
                   .iterator());
 
       PCollection<GoogleAdsRow> rows =
-          pipeline.apply(
-              GoogleAdsIO.v14()
-                  .read()
-                  .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
-                  .withDeveloperToken("abc")
-                  .withCustomerId(123L)
-                  .withQuery("GAQL"));
+          pipeline
+              .apply(Create.of("123"))
+              .apply(
+                  GoogleAdsIO.v14()
+                      .read()
+                      .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                      .withDeveloperToken("abc")
+                      .withQuery("GAQL"));
       PAssert.thatSingleton(rows).isEqualTo(GoogleAdsRow.getDefaultInstance());
 
       pipeline.run();
@@ -303,13 +271,14 @@ public class GoogleAdsV14Test {
                       .build(),
                   new Metadata()));
 
-      pipeline.apply(
-          GoogleAdsIO.v14()
-              .read()
-              .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
-              .withDeveloperToken("abc")
-              .withCustomerId(123L)
-              .withQuery("GAQL"));
+      pipeline
+          .apply(Create.of("123"))
+          .apply(
+              GoogleAdsIO.v14()
+                  .read()
+                  .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                  .withDeveloperToken("abc")
+                  .withQuery("GAQL"));
 
       PipelineExecutionException exception =
           Assert.assertThrows(
@@ -341,13 +310,14 @@ public class GoogleAdsV14Test {
                       .build(),
                   new Metadata()));
 
-      pipeline.apply(
-          GoogleAdsIO.v14()
-              .read()
-              .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
-              .withDeveloperToken("abc")
-              .withCustomerId(123L)
-              .withQuery("GAQL"));
+      pipeline
+          .apply(Create.of("123"))
+          .apply(
+              GoogleAdsIO.v14()
+                  .read()
+                  .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                  .withDeveloperToken("abc")
+                  .withQuery("GAQL"));
 
       PipelineExecutionException exception =
           Assert.assertThrows(
@@ -401,13 +371,14 @@ public class GoogleAdsV14Test {
                   .iterator());
 
       PCollection<GoogleAdsRow> rows =
-          pipeline.apply(
-              GoogleAdsIO.v14()
-                  .read()
-                  .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
-                  .withDeveloperToken("abc")
-                  .withCustomerId(123L)
-                  .withQuery("GAQL"));
+          pipeline
+              .apply(Create.of("123"))
+              .apply(
+                  GoogleAdsIO.v14()
+                      .read()
+                      .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                      .withDeveloperToken("abc")
+                      .withQuery("GAQL"));
       PAssert.thatSingleton(rows).isEqualTo(GoogleAdsRow.getDefaultInstance());
 
       pipeline.run();
@@ -461,13 +432,14 @@ public class GoogleAdsV14Test {
                   .iterator());
 
       PCollection<GoogleAdsRow> rows =
-          pipeline.apply(
-              GoogleAdsIO.v14()
-                  .read()
-                  .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
-                  .withDeveloperToken("abc")
-                  .withCustomerId(123L)
-                  .withQuery("GAQL"));
+          pipeline
+              .apply(Create.of("123"))
+              .apply(
+                  GoogleAdsIO.v14()
+                      .read()
+                      .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                      .withDeveloperToken("abc")
+                      .withQuery("GAQL"));
       PAssert.thatSingleton(rows).isEqualTo(GoogleAdsRow.getDefaultInstance());
 
       pipeline.run();
