@@ -116,7 +116,7 @@ import org.joda.time.Duration;
  *         Create.of(
  *             ImmutableList.of(
  *                 SearchGoogleAdsStreamRequest.newBuilder()
- *                     .setCustomerId(Long.toString(1234567890l))
+ *                     .setCustomerId(Long.toString(1234567890L))
  *                     .setQuery(
  *                         "SELECT"
  *                             + "campaign.id,"
