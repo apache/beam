@@ -76,6 +76,7 @@ TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
+echo "Using CPU architecture $ARCH"
 
 if [[ "$ARCH" == "x86" ]]; then
   # Verify docker image has been built.
