@@ -32,14 +32,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Check out repository code
-      uses: actions/checkout@v3
-      if: |
-        github.event_name == 'push' ||
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch'
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
     - name: Check out repository code if pull request commit
       uses: actions/checkout@v3
       if: ${{ github.event_name == 'pull_request_target' }}
