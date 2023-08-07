@@ -326,7 +326,7 @@ public class EnvironmentsTest implements Serializable {
   }
 
   @Test
-  public void testGetArtifactsBadFileThrowsInfo() throws Exception {
+  public void testGetArtifactsBadFileLogsInfo() throws Exception {
     File file1 = File.createTempFile("file1-", ".txt");
     file1.deleteOnExit();
 
@@ -338,7 +338,7 @@ public class EnvironmentsTest implements Serializable {
   }
 
   @Test
-  public void testGetArtifactsBadNamedFileThrowsWarn() throws Exception {
+  public void testGetArtifactsBadNamedFileLogsWarn() throws Exception {
     File file1 = File.createTempFile("file1-", ".txt");
     file1.deleteOnExit();
 
