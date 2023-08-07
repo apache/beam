@@ -286,7 +286,9 @@ public class GoogleAdsV14Test {
     public void init() {
       GoogleAdsOptions options = pipeline.getOptions().as(GoogleAdsOptions.class);
       options.setGoogleAdsCredentialFactoryClass(NoopCredentialFactory.class);
-      GoogleAdsV14.ReadAll.ReadAllFn.sleeper = (long millis) -> {};
+      synchronized (GoogleAdsV14.ReadAll.ReadAllFn.class) {
+        GoogleAdsV14.ReadAll.ReadAllFn.sleeper = (long millis) -> {};
+      }
     }
 
     @Test
