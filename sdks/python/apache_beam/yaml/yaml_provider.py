@@ -141,38 +141,23 @@ class ExternalProvider(Provider):
   def provider_from_spec(spec):
     urns = spec['transforms']
     type = spec['type']
-    if spec.get('version', None) == 'BEAM_VERSION':
-      spec['version'] = beam_version
+    config = spec.get('config', {})
+    if config.get('version', None) == 'BEAM_VERSION':
+      config['version'] = beam_version
     if type == 'javaJar':
-      return ExternalJavaProvider(urns, lambda: spec['jar'])
+      return ExternalJavaProvider(urns, **config)
     elif type == 'mavenJar':
       return ExternalJavaProvider(
           urns,
-          lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-              **{
-                  key: value
-                  for (key, value) in spec.items() if key in [
-                      'artifact_id',
-                      'group_id',
-                      'version',
-                      'repository',
-                      'classifier',
-                      'appendix'
-                  ]
-              }))
+          lambda: subprocess_server.JavaJarServer.path_to_maven_jar(**config))
     elif type == 'beamJar':
       return ExternalJavaProvider(
           urns,
-          lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
-              **{
-                  key: value
-                  for (key, value) in spec.items() if key in
-                  ['gradle_target', 'version', 'appendix', 'artifact_id']
-              }))
+          lambda: subprocess_server.JavaJarServer.path_to_beam_jar(**config))
     elif type == 'pythonPackage':
-      return ExternalPythonProvider(urns, spec['packages'])
+      return ExternalPythonProvider(urns, **config)
     elif type == 'remote':
-      return RemoteProvider(spec['address'])
+      return RemoteProvider(**config)
     elif type == 'docker':
       raise NotImplementedError()
     else:
@@ -181,6 +166,9 @@ class ExternalProvider(Provider):
 
 class RemoteProvider(ExternalProvider):
   _is_available = None
+
+  def __init__(self, urns, address: str):
+    super().__init__(urns, service=address)
 
   def available(self):
     if self._is_available is None:
