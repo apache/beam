@@ -92,7 +92,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = Pipeline.create();
  * PCollection<String> customerIds =
- *     p.apply(Create.of("1234567890"));
+ *     p.apply(Create.of(Long.toString(1234567890L)));
  * PCollection<GoogleAdsRow> rows =
  *     customerIds.apply(
  *         GoogleAdsIO.v14()
