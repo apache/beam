@@ -25,7 +25,7 @@ For a full list of ways to contribute and get plugged into Beam, see the
 
 ## Code Contributions
 
-*Before opening a pull request*, review the Beam contribution guide below
+*Before opening a pull request*, review the Beam contribution guide below.
 It lists steps that are required before creating a PR and provides tips for
 getting started. In particular, consider the following:
 
@@ -66,7 +66,7 @@ These steps and instructions on getting started are outlined below as well.
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](/community/contact-us/).
 
-### Setup Your Environment
+### Setup Your Environment and Learn About Language Specific Setup
 
 Before you begin, check out the Wiki pages. There are many useful tips about [Git](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips), [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips), [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips), [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips), [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips), etc.
 
@@ -252,10 +252,13 @@ that start various post-commit tests suites. Use these sparingly because post-co
 ### Review Process and Releases
 
 #### Get Reviewed
+
+Your pull requests should automatically have reviewers assigned within a few hours of opening it.
+If that doesn't happen for some reason, you can also request a review yourself.
+
 1. Pull requests can only be merged by a
    [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
    To find a committer for your area, either:
-  - look in the OWNERS file of the directory where you changed files, or
   - look for similar code merges, or
   - ask on [dev@beam.apache.org](/community/contact-us/)
 
