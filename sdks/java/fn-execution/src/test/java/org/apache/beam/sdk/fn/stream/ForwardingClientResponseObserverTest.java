@@ -38,9 +38,27 @@ public class ForwardingClientResponseObserverTest {
     @SuppressWarnings("unchecked")
     ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
     Runnable onReadyHandler = () -> {};
+    ClientResponseObserver<Object, Object> observer =
+        ForwardingClientResponseObserver.create(delegateObserver, onReadyHandler);
+    observer.onNext("A");
+    verify(delegateObserver).onNext("A");
+    observer.onCompleted();
+    verify(delegateObserver).onCompleted();
+    observer.beforeStart(callStreamObserver);
+    verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
+    verifyNoMoreInteractions(delegateObserver, callStreamObserver);
+  }
+
+  @Test
+  public void testCallsAreForwardedAndOnReadyHandlerBoundSuccessWithDoneHandler() {
+    @SuppressWarnings("unchecked")
+    StreamObserver<Object> delegateObserver = mock(StreamObserver.class);
+    @SuppressWarnings("unchecked")
+    ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
+    Runnable onReadyHandler = () -> {};
     Runnable onDoneHandler = mock(Runnable.class);
     ClientResponseObserver<Object, Object> observer =
-        new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler, onDoneHandler);
+        ForwardingClientResponseObserver.create(delegateObserver, onReadyHandler, onDoneHandler);
     observer.onNext("A");
     verify(delegateObserver).onNext("A");
     observer.onCompleted();
@@ -60,7 +78,7 @@ public class ForwardingClientResponseObserverTest {
     Runnable onReadyHandler = () -> {};
     Runnable onDoneHandler = mock(Runnable.class);
     ClientResponseObserver<Object, Object> observer =
-        new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler, onDoneHandler);
+        ForwardingClientResponseObserver.create(delegateObserver, onReadyHandler, onDoneHandler);
     observer.onNext("A");
     verify(delegateObserver).onNext("A");
     Throwable t = new RuntimeException();

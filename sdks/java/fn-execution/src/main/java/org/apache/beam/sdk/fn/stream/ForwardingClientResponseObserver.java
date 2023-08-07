@@ -33,6 +33,11 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 public final class ForwardingClientResponseObserver<ReqT, RespT>
     implements ClientResponseObserver<RespT, ReqT> {
   public static <ReqT, RespT> ForwardingClientResponseObserver<ReqT, RespT> create(
+      StreamObserver<ReqT> inbound, Runnable onReadyHandler) {
+    return new ForwardingClientResponseObserver<>(inbound, onReadyHandler, () -> {});
+  }
+
+  public static <ReqT, RespT> ForwardingClientResponseObserver<ReqT, RespT> create(
       StreamObserver<ReqT> inbound, Runnable onReadyHandler, Runnable onDoneHandler) {
     return new ForwardingClientResponseObserver<>(inbound, onReadyHandler, onDoneHandler);
   }
@@ -41,7 +46,7 @@ public final class ForwardingClientResponseObserver<ReqT, RespT>
   private final Runnable onDoneHandler;
   private final StreamObserver<ReqT> inboundObserver;
 
-  ForwardingClientResponseObserver(
+  private ForwardingClientResponseObserver(
       StreamObserver<ReqT> inboundObserver, Runnable onReadyHandler, Runnable onDoneHandler) {
     this.inboundObserver = inboundObserver;
     this.onReadyHandler = onReadyHandler;
