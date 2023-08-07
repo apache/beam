@@ -50,6 +50,10 @@ type link struct {
 // should in principle be able to connect two SDK environments directly
 // instead of going through the runner at all, which would be a small
 // efficiency gain, in runner memory use.
+//
+// That would also warrant an execution mode where fusion is taken into
+// account, but all serialization boundaries remain since the pcollections
+// would continue to get serialized.
 type stage struct {
 	ID           string
 	transforms   []string
@@ -145,11 +149,11 @@ progress:
 			if previousIndex == index && !splitsDone {
 				sr, err := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
-					slog.Debug("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
+					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
 					break progress
 				}
 				if sr.GetChannelSplits() == nil {
-					slog.Warn("split failed", "bundle", rb)
+					slog.Debug("SDK returned no splits", "bundle", rb)
 					splitsDone = true
 					continue progress
 				}

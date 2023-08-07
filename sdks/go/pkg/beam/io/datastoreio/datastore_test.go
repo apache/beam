@@ -64,6 +64,11 @@ type Foo struct {
 type Bar struct {
 }
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*Foo)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*Bar)(nil)).Elem())
+}
+
 func Test_query(t *testing.T) {
 	testCases := []struct {
 		v           any
