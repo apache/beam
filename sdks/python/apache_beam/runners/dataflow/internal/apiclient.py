@@ -55,6 +55,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -64,7 +65,6 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
@@ -85,63 +85,6 @@ _LOGGER = logging.getLogger(__name__)
 _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.8', '3.9', '3.10', '3.11']
 
 
-class Step(object):
-  """Wrapper for a dataflow Step protobuf."""
-  def __init__(self, step_kind, step_name, additional_properties=None):
-    self.step_kind = step_kind
-    self.step_name = step_name
-    self.proto = dataflow.Step(kind=step_kind, name=step_name)
-    self.proto.properties = {}
-    self._additional_properties = []
-
-    if additional_properties is not None:
-      for (n, v, t) in additional_properties:
-        self.add_property(n, v, t)
-
-  def add_property(self, name, value, with_type=False):
-    self._additional_properties.append((name, value, with_type))
-    self.proto.properties.additionalProperties.append(
-        dataflow.Step.PropertiesValue.AdditionalProperty(
-            key=name, value=to_json_value(value, with_type=with_type)))
-
-  def _get_outputs(self):
-    """Returns a list of all output labels for a step."""
-    outputs = []
-    for p in self.proto.properties.additionalProperties:
-      if p.key == PropertyNames.OUTPUT_INFO:
-        for entry in p.value.array_value.entries:
-          for entry_prop in entry.object_value.properties:
-            if entry_prop.key == PropertyNames.OUTPUT_NAME:
-              outputs.append(entry_prop.value.string_value)
-    return outputs
-
-  def __reduce__(self):
-    """Reduce hook for pickling the Step class more easily."""
-    return (Step, (self.step_kind, self.step_name, self._additional_properties))
-
-  def get_output(self, tag=None):
-    """Returns name if it is one of the outputs or first output if name is None.
-
-    Args:
-      tag: tag of the output as a string or None if we want to get the
-        name of the first output.
-
-    Returns:
-      The name of the output associated with the tag or the first output
-      if tag was None.
-
-    Raises:
-      ValueError: if the tag does not exist within outputs.
-    """
-    outputs = self._get_outputs()
-    if tag is None or len(outputs) == 1:
-      return outputs[0]
-    else:
-      if tag not in outputs:
-        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
-      return tag
-
-
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
   def __init__(
@@ -151,7 +94,6 @@ class Environment(object):
       environment_version,
       proto_pipeline_staged_url,
       proto_pipeline=None):
-    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -191,10 +133,7 @@ class Environment(object):
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
-      if _is_runner_v2(options):
-        job_type = 'FNAPI_BATCH'
-      else:
-        job_type = 'PYTHON_BATCH'
+      job_type = 'FNAPI_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='job_type', value=to_json_value(job_type)),
@@ -296,7 +235,7 @@ class Environment(object):
         container_image.capabilities.append(capability)
       pool.sdkHarnessContainerImages.append(container_image)
 
-    if not _is_runner_v2(options) or not pool.sdkHarnessContainerImages:
+    if not pool.sdkHarnessContainerImages:
       pool.workerHarnessContainerImage = (
           get_container_image_from_options(options))
     elif len(pool.sdkHarnessContainerImages) == 1:
@@ -553,19 +492,12 @@ class DataflowApplicationClient(object):
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
 
-    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
-    from google.cloud import storage
-    if _is_runner_v2(options):
-      self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
-    else:
-      self.environment_version = _LEGACY_ENVIRONMENT_MAJOR_VERSION
+    self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
 
     if self.google_cloud_options.no_auth:
       credentials = None
-      storage_credentials = None
     else:
       credentials = get_service_credentials(options)
-      storage_credentials = credentials.get_google_auth_credentials()
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
@@ -574,10 +506,12 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
-    if credentials:
-      self._storage_client = storage.Client(credentials=storage_credentials)
-    else:
-      self._storage_client = storage.Client.create_anonymous_client()
+    self._storage_client = storage.StorageV1(
+        url='https://www.googleapis.com/storage/v1',
+        credentials=credentials,
+        get_credentials=(not self.google_cloud_options.no_auth),
+        http=http_client,
+        response_encoding=get_response_encoding())
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
 
   def _get_sdk_image_overrides(self, pipeline_options):
@@ -720,8 +654,6 @@ class DataflowApplicationClient(object):
       mime_type='application/octet-stream',
       total_size=None):
     """Stages a file at a GCS or local path with stream-supplied contents."""
-    from google.cloud.exceptions import Forbidden
-    from google.cloud.exceptions import NotFound
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
       _LOGGER.info('Staging file locally to %s', local_path)
@@ -729,29 +661,31 @@ class DataflowApplicationClient(object):
         f.write(stream.read())
       return
     gcs_location = FileSystems.join(gcs_or_local_path, file_name)
+    bucket, name = gcs_location[5:].split('/', 1)
+
+    request = storage.StorageObjectsInsertRequest(bucket=bucket, name=name)
     start_time = time.time()
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
+    upload = storage.Upload(stream, mime_type, total_size)
     try:
-      with FileSystems.create(gcs_location) as f:
-        f.write(stream.read())
-        return
-    except Exception as e:
-      reportable_errors = [
-          Forbidden,
-          NotFound,
-      ]
-      if type(e) in reportable_errors:
+      response = self._storage_client.objects.Insert(request, upload=upload)
+    except exceptions.HttpError as e:
+      reportable_errors = {
+          403: 'access denied',
+          404: 'bucket not found',
+      }
+      if e.status_code in reportable_errors:
         raise IOError((
             'Could not upload to GCS path %s: %s. Please verify '
-            'that credentials are valid, that the specified path '
-            'exists, and that you have write access to it.') %
-                      (gcs_or_local_path, e))
+            'that credentials are valid and that you have write '
+            'access to the specified path.') %
+                      (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
-    finally:
-      _LOGGER.info(
-          'Completed GCS upload to %s in %s seconds.',
-          gcs_location,
-          int(time.time() - start_time))
+    _LOGGER.info(
+        'Completed GCS upload to %s in %s seconds.',
+        gcs_location,
+        int(time.time() - start_time))
+    return response
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
@@ -1202,46 +1136,31 @@ def get_container_image_from_options(pipeline_options):
     Returns:
       str: Container image for remote execution.
   """
-  from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  is_runner_v2 = not _is_runner_v2_disabled(pipeline_options)
-
   # Legacy and runner v2 exist in different repositories.
   # Set to legacy format, override if runner v2
   container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
-  image_name = '{repository}/python{major}{minor}'.format(
+  image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
       repository=container_repo,
       major=sys.version_info[0],
       minor=sys.version_info[1])
 
-  if is_runner_v2:
-    image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
-        repository=container_repo,
-        major=sys.version_info[0],
-        minor=sys.version_info[1])
-
-  image_tag = _get_required_container_version(is_runner_v2)
+  image_tag = _get_required_container_version()
   return image_name + ':' + image_tag
 
 
-def _get_required_container_version(is_runner_v2):
+def _get_required_container_version():
   """For internal use only; no backwards-compatibility guarantees.
-
-    Args:
-      is_runner_v2 (bool): True if and only if pipeline is using runner v2.
 
     Returns:
       str: The tag of worker container images in GCR that corresponds to
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    if is_runner_v2:
-      return names.BEAM_FNAPI_CONTAINER_VERSION
-    else:
-      return names.BEAM_CONTAINER_VERSION
+    return names.BEAM_DEV_SDK_CONTAINER_TAG
   else:
     return _get_container_image_tag()
 

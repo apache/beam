@@ -133,7 +133,7 @@ public class FhirIOReadIT {
         "waitForAnyMessage", signal.signalSuccessWhen(resources.getCoder(), anyResources -> true));
     // wait for any resource
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

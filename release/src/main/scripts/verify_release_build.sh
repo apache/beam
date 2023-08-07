@@ -125,8 +125,8 @@ hub version
 
 
 echo ""
-echo "==================== 3 Run Gradle Release Build & PostCommit Tests on Jenkins ==================="
-echo "[Current Task] Run Gradle release build and all PostCommit Tests against Release Branch on Jenkins."
+echo "==================== 3 Run PostCommit Tests on Jenkins ==================="
+echo "[Current Task] Run all PostCommit Tests against Release Branch on Jenkins."
 echo "This task will create a PR against apache/beam."
 echo "After PR created, you need to comment phrases listed in description in the created PR:"
 

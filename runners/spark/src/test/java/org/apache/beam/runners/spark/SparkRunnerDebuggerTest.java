@@ -83,7 +83,8 @@ public class SparkRunnerDebuggerTest {
         .apply(TextIO.write().to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
 
     final String expectedPipeline =
-        "sparkContext.<readFrom(org.apache.beam.sdk.transforms.Create$Values$CreateSource)>()\n"
+        "sparkContext.<impulse>()\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.FlatMapElements$3())\n"
             + "_.mapPartitions("
             + "new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"

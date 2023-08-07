@@ -295,11 +295,12 @@ if __name__ == '__main__':
             'sqlalchemy>=1.3,<2.0',
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
-            'cryptography>=36.0.0',
+            'cryptography>=41.0.2',
             'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
             'cachetools>=3.1.0,<6',
+            'google-api-core>=2.0.0,<3',
             'google-apitools>=0.5.31,<0.5.32',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
@@ -309,7 +310,6 @@ if __name__ == '__main__':
             'google-cloud-datastore>=2.0.0,<3',
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
-            'google-cloud-storage>=2.10.0,<2.11.0',
             # GCP packages required by tests
             'google-cloud-bigquery>=2.0.0,<4',
             'google-cloud-bigquery-storage>=2.6.3,<3',

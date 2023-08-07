@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 public class WindmillServerBase extends WindmillServerStub {
 
   /** Pointer to the underlying native windmill client object. */
-  private long nativePointer;
+  private final long nativePointer;
 
   WindmillServerBase(String host) {
     this.nativePointer = create(host);

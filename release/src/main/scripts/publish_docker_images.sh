@@ -37,18 +37,27 @@ echo "Which release candidate will be the source of final docker images? (ex: 1)
 read RC_NUM
 RC_VERSION="rc${RC_NUM}"
 
-echo "================Confirming Release and RC version==========="
+echo "================Pull RC Containers from DockerHub==========="
+IMAGES=$(docker search ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX} --format "{{.Name}}" --limit 100)
+KNOWN_IMAGES=()
 echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
+while read IMAGE; do
+  # Try pull verified RC from dockerhub.
+  if docker pull "${IMAGE}:${RELEASE}${RC_VERSION}" 2>/dev/null ; then
+    KNOWN_IMAGES+=( $IMAGE )
+  fi
+done < <(echo "${IMAGES}")
+
+echo "================Confirming Release and RC version==========="
 echo "Publishing the following images:"
-IMAGES=$(docker images --filter "reference=apache/beam_*:${RELEASE}${RC_VERSION}" --format "{{.Repository}}")
-echo "${IMAGES}"
+# Sort by name for easy examination
+IFS=$'\n' KNOWN_IMAGES=($(sort <<<"${KNOWN_IMAGES[*]}"))
+unset IFS
+printf "%s\n" ${KNOWN_IMAGES[@]}
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
-  echo "${IMAGES}" | while read IMAGE; do
-    # Pull verified RC from dockerhub.
-    docker pull "${IMAGE}:${RELEASE}${RC_VERSION}"
-
+  for IMAGE in "${KNOWN_IMAGES[@]}"; do
     # Tag with ${RELEASE} and push to dockerhub.
     docker tag "${IMAGE}:${RELEASE}${RC_VERSION}" "${IMAGE}:${RELEASE}"
     docker push "${IMAGE}:${RELEASE}"

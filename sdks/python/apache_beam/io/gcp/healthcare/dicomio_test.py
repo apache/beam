@@ -45,10 +45,10 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-class FakeHttpClient():
-  # a fake http client that talks directly to a in-memory dicom store
+class MockHttpClient():
+  # A mock HTTP client that talks directly to an in-memory Dicom store.
   def __init__(self):
-    # set 5 fake dicom instances
+    # set 5 mock dicom instances
     dicom_metadata = []
     dicom_metadata.append({
         'PatientName': 'Albert', 'Age': 21, 'TestResult': 'Positive'
@@ -69,7 +69,7 @@ class FakeHttpClient():
         'PatientName': 'Eric', 'Age': 50, 'TestResult': 'Negative'
     })
     self.dicom_metadata = dicom_metadata
-    # ids for this dicom sotre
+    # ids for this dicom store
     self.project_id = 'test_project'
     self.region = 'test_region'
     self.dataset_id = 'test_dataset_id'
@@ -84,7 +84,7 @@ class FakeHttpClient():
       search_type,
       params=None,
       credential=None):
-    # qido search function for this fake client
+    # qido search function for this mock client
     if project_id != self.project_id or region != self.region or \
      dataset_id != self.dataset_id or dicom_store_id != self.dicom_store_id:
       return [], 204
@@ -166,7 +166,7 @@ class TestFormatToQido(unittest.TestCase):
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomSearch(unittest.TestCase):
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_successful_search(self, FakeClient):
+  def test_successful_search(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
@@ -174,11 +174,11 @@ class TestDicomSearch(unittest.TestCase):
     input_dict['dicom_store_id'] = "test_dicom_store_id"
     input_dict['search_type'] = "instances"
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
 
     expected_dict = {}
-    expected_dict['result'] = fc.dicom_metadata
+    expected_dict['result'] = mc.dicom_metadata
     expected_dict['status'] = 200
     expected_dict['input'] = input_dict
     expected_dict['success'] = True
@@ -188,7 +188,7 @@ class TestDicomSearch(unittest.TestCase):
       assert_that(results, equal_to([expected_dict]))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_Qido_search_small_buffer_flush(self, FakeClient):
+  def test_Qido_search_small_buffer_flush(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
@@ -196,11 +196,11 @@ class TestDicomSearch(unittest.TestCase):
     input_dict['dicom_store_id'] = "test_dicom_store_id"
     input_dict['search_type'] = "instances"
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
 
     expected_dict = {}
-    expected_dict['result'] = fc.dicom_metadata
+    expected_dict['result'] = mc.dicom_metadata
     expected_dict['status'] = 200
     expected_dict['input'] = input_dict
     expected_dict['success'] = True
@@ -210,7 +210,7 @@ class TestDicomSearch(unittest.TestCase):
       assert_that(results, equal_to([expected_dict] * 5))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_param_dict_passing(self, FakeClient):
+  def test_param_dict_passing(self, MockClient):
     input_dict = {}
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -228,14 +228,14 @@ class TestDicomSearch(unittest.TestCase):
     expected_dict['input'] = input_dict
     expected_dict['success'] = True
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
     with TestPipeline() as p:
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_dict]))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_wrong_input_type(self, FakeClient):
+  def test_wrong_input_type(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
@@ -250,14 +250,14 @@ class TestDicomSearch(unittest.TestCase):
     expected_invalid_dict['input'] = input_dict
     expected_invalid_dict['success'] = False
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
     with TestPipeline() as p:
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_missing_parameters(self, FakeClient):
+  def test_missing_parameters(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
@@ -268,14 +268,14 @@ class TestDicomSearch(unittest.TestCase):
     expected_invalid_dict['input'] = input_dict
     expected_invalid_dict['success'] = False
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
     with TestPipeline() as p:
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_client_search_notfound(self, FakeClient):
+  def test_client_search_notfound(self, MockClient):
     input_dict = {}
     # search instances in a not exist store
     input_dict['project_id'] = "wrong_project"
@@ -290,8 +290,8 @@ class TestDicomSearch(unittest.TestCase):
     expected_invalid_dict['input'] = input_dict
     expected_invalid_dict['success'] = False
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
     with TestPipeline() as p:
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
@@ -300,15 +300,15 @@ class TestDicomSearch(unittest.TestCase):
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_store_byte_file(self, FakeClient):
+  def test_store_byte_file(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
     input_dict['dataset_id'] = "test_dataset_id"
     input_dict['dicom_store_id'] = "test_dicom_store_id"
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
 
     dict_input = {'PatientName': 'George', 'Age': 23, 'TestResult': 'Negative'}
     str_input = json.dumps(dict_input)
@@ -320,18 +320,18 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | UploadToDicomStore(input_dict, 'bytes')
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
-    self.assertTrue(dict_input in fc.dicom_metadata)
+    self.assertTrue(dict_input in mc.dicom_metadata)
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_store_byte_file_small_buffer_flush(self, FakeClient):
+  def test_store_byte_file_small_buffer_flush(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
     input_dict['dataset_id'] = "test_dataset_id"
     input_dict['dicom_store_id'] = "test_dicom_store_id"
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
 
     dict_input_1 = {
         'PatientName': 'George', 'Age': 23, 'TestResult': 'Negative'
@@ -351,20 +351,20 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | UploadToDicomStore(input_dict, 'bytes', buffer_size=1)
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True] * 3))
-    self.assertTrue(dict_input_1 in fc.dicom_metadata)
-    self.assertTrue(dict_input_2 in fc.dicom_metadata)
-    self.assertTrue(dict_input_3 in fc.dicom_metadata)
+    self.assertTrue(dict_input_1 in mc.dicom_metadata)
+    self.assertTrue(dict_input_2 in mc.dicom_metadata)
+    self.assertTrue(dict_input_3 in mc.dicom_metadata)
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_store_fileio_file(self, FakeClient):
+  def test_store_fileio_file(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
     input_dict['dataset_id'] = "test_dataset_id"
     input_dict['dicom_store_id'] = "test_dicom_store_id"
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
 
     dict_input = {'PatientName': 'George', 'Age': 23, 'TestResult': 'Negative'}
     str_input = json.dumps(dict_input)
@@ -380,18 +380,18 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | UploadToDicomStore(input_dict, 'fileio')
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
-    self.assertTrue(dict_input in fc.dicom_metadata)
+    self.assertTrue(dict_input in mc.dicom_metadata)
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_store_fileio_file_small_buffer_flush(self, FakeClient):
+  def test_store_fileio_file_small_buffer_flush(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
     input_dict['dataset_id'] = "test_dataset_id"
     input_dict['dicom_store_id'] = "test_dicom_store_id"
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
 
     temp_dir = '%s%s' % (self._new_tempdir(), os.sep)
     dict_input_1 = {
@@ -415,12 +415,12 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | UploadToDicomStore(input_dict, 'fileio', buffer_size=1)
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True] * 3))
-    self.assertTrue(dict_input_1 in fc.dicom_metadata)
-    self.assertTrue(dict_input_2 in fc.dicom_metadata)
-    self.assertTrue(dict_input_3 in fc.dicom_metadata)
+    self.assertTrue(dict_input_1 in mc.dicom_metadata)
+    self.assertTrue(dict_input_2 in mc.dicom_metadata)
+    self.assertTrue(dict_input_3 in mc.dicom_metadata)
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_destination_notfound(self, FakeClient):
+  def test_destination_notfound(self, MockClient):
     input_dict = {}
     # search instances in a not exist store
     input_dict['project_id'] = "wrong_project"
@@ -433,15 +433,15 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     expected_invalid_dict['input'] = ''
     expected_invalid_dict['success'] = False
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
     with TestPipeline() as p:
       results = (
           p | beam.Create(['']) | UploadToDicomStore(input_dict, 'bytes'))
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.healthcare.dicomio.DicomApiHttpClient")
-  def test_missing_parameters(self, FakeClient):
+  def test_missing_parameters(self, MockClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
     input_dict['region'] = "test_region"
@@ -452,8 +452,8 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     expected_invalid_dict['input'] = input_dict
     expected_invalid_dict['success'] = False
 
-    fc = FakeHttpClient()
-    FakeClient.return_value = fc
+    mc = MockHttpClient()
+    MockClient.return_value = mc
     with self.assertRaisesRegex(ValueError,
                                 "Must have dataset_id in the dict."):
       p = TestPipeline()
