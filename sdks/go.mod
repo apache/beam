@@ -47,7 +47,7 @@ require (
 	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/proullon/ramsql v0.0.1
 	github.com/spf13/cobra v1.7.0
-	github.com/testcontainers/testcontainers-go v0.21.0
+	github.com/testcontainers/testcontainers-go v0.22.0
 	github.com/tetratelabs/wazero v1.3.1
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
@@ -71,6 +71,8 @@ require (
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea
 )
 
+require dario.cat/mergo v1.0.0 // indirect
+
 require (
 	cloud.google.com/go v0.110.4 // indirect
 	cloud.google.com/go/compute v1.20.1 // indirect
@@ -78,7 +80,7 @@ require (
 	cloud.google.com/go/iam v1.1.1 // indirect
 	cloud.google.com/go/longrunning v0.5.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Microsoft/go-winio v0.5.2 // indirect
+	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20200730104253-651201b0f516 // indirect
 	github.com/apache/arrow/go/v12 v12.0.0 // indirect
@@ -102,7 +104,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
 	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4 // indirect
-	github.com/containerd/containerd v1.6.19 // indirect
+	github.com/containerd/containerd v1.7.3 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v24.0.5+incompatible // indirect; but required to resolve issue docker has with go1.20
@@ -122,7 +124,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
@@ -138,7 +139,7 @@ require (
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc4 // indirect
 	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
