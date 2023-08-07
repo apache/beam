@@ -1881,15 +1881,14 @@ def validate_pipeline_graph(pipeline_proto):
         raise ValueError(
             "Bad coder for output of %s: %s" % (transform_id, output_coder))
       output_values_coder = pipeline_proto.components.coders[
-          output_coder.component_coder_ids[1]]
-      if (input_coder.component_coder_ids[0] !=
-          output_coder.component_coder_ids[0] or
-          output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
-          output_values_coder.component_coder_ids[0] !=
-          input_coder.component_coder_ids[1]):
-        raise ValueError(
-            "Incompatible input coder %s and output coder %s for transform %s" %
-            (transform_id, input_coder, output_coder))
+          output_coder.component_coder_ids[1]] 
+      if (input_coder.component_coder_ids[0] != output_coder.component_coder_ids[0]):
+        raise ValueError("Input coder key does not match output coder key for transform %s" % 
+                         (transform_id))
+      if(output_values_coder.spec.urn != common_urns.coder.ITERABLE.urn):
+        raise ValueError("Output coder value must be iterable for transform %s" % (transform_id))
+      if(output_values_coder.component_coder_ids[0] != input_coder.component_coder_ids[1]):
+        raise ValueError("Input coder value does not match output coder value for transform %s" % (transform_id))
 
     for t in transform_proto.subtransforms:
       validate_transform(t)
