@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.googleads;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.ads.googleads.lib.GoogleAdsClient;
@@ -56,7 +55,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.RateLimiter;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.joda.time.Duration;
 
 /**
@@ -439,23 +440,30 @@ public class GoogleAdsV14 {
       }
 
       @Setup
+      @EnsuresNonNull({"googleAdsClient", "googleAdsServiceClient", "rateLimitPolicy"})
       public void setup(PipelineOptions options) {
         GoogleAdsOptions adsOptions = options.as(GoogleAdsOptions.class);
 
-        googleAdsClient =
+        final GoogleAdsClient googleAdsClient =
             spec.getGoogleAdsClientFactory()
                 .newGoogleAdsClient(
                     adsOptions, spec.getDeveloperToken(), null, spec.getLoginCustomerId());
-        googleAdsServiceClient = googleAdsClient.getVersion14().createGoogleAdsServiceClient();
-        rateLimitPolicy = spec.getRateLimitPolicyFactory().getRateLimitPolicy();
+        final GoogleAdsServiceClient googleAdsServiceClient =
+            googleAdsClient.getVersion14().createGoogleAdsServiceClient();
+        final RateLimitPolicy rateLimitPolicy =
+            spec.getRateLimitPolicyFactory().getRateLimitPolicy();
+
+        this.googleAdsClient = googleAdsClient;
+        this.googleAdsServiceClient = googleAdsServiceClient;
+        this.rateLimitPolicy = rateLimitPolicy;
       }
 
       @ProcessElement
+      @RequiresNonNull({"googleAdsClient", "googleAdsServiceClient", "rateLimitPolicy"})
       public void processElement(ProcessContext c) throws IOException, InterruptedException {
-        GoogleAdsClient googleAdsClient = checkStateNotNull(this.googleAdsClient);
-        GoogleAdsServiceClient googleAdsServiceClient =
-            checkStateNotNull(this.googleAdsServiceClient);
-        RateLimitPolicy rateLimitPolicy = checkStateNotNull(this.rateLimitPolicy);
+        final GoogleAdsClient googleAdsClient = this.googleAdsClient;
+        final GoogleAdsServiceClient googleAdsServiceClient = this.googleAdsServiceClient;
+        final RateLimitPolicy rateLimitPolicy = this.rateLimitPolicy;
 
         BackOff backoff = BACKOFF.backoff();
         BackOff nextBackoff = backoff;
