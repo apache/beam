@@ -41,9 +41,9 @@ These steps and instructions on getting started are outlined below as well.
 - A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment.
 - Java JDK 8 installed.
+- [Go](https://golang.org) 1.16.0 or later installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
-  - [Go](https://golang.org) 1.16.0 or later installed for Go SDK development.
   - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
     Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
     Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
@@ -61,10 +61,10 @@ These steps and instructions on getting started are outlined below as well.
    on the issue first; please tag the user asking them to do so or to comment "\`.take-issue\`".
    The command will be ignored if it is surrounded by `\`` markdown characters.
 3. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@beam.apache.org mailing list](/community/contact-us/).
+   [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 4. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](/community/contact-us/).
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 
 ### Setup Your Environment and Learn About Language Specific Setup
 
@@ -73,7 +73,7 @@ Before you begin, check out the Wiki pages. There are many useful tips about [Gi
 #### Configuration Options
 You have two options for configuring your development environment:
 - Local:
-  - Manually installing the [prerequisites](/contribute/#prerequisites).
+  - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
   - Using the automated script for Linux and macOS.
 - Container-based: using a [Docker](https://www.docker.com/) image.
 
@@ -260,11 +260,11 @@ If that doesn't happen for some reason, you can also request a review yourself.
    [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
    To find a committer for your area, either:
   - look for similar code merges, or
-  - ask on [dev@beam.apache.org](/community/contact-us/)
+  - ask on [dev@beam.apache.org](https://beam.apache.org/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
 
-2. If you don't get any response in 3 business days, email the [dev@beam.apache.org mailing list](/community/contact-us) to ask for someone to look at your pull request.
+2. If you don't get any response in 3 business days, email the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/) to ask for someone to look at your pull request.
 
 #### Make the Reviewer’s Job Easier
 
@@ -280,7 +280,7 @@ If that doesn't happen for some reason, you can also request a review yourself.
    see the difference between the review iterations, reviewers may ask you to unsquash new changes.
 
 4. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
-   Beam committers [can squash](/contribute/committer-guide/#merging-it)
+   Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
    then the PR author should help squashing fixup commits to maintain a clean commit history.
 
@@ -300,16 +300,16 @@ reopen the same pull request again in the future.
 
 ### Troubleshooting
 
-If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](/community/contact-us/) or [#beam channel of the ASF Slack](/community/contact-us/).
+If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](https://beam.apache.org/community/contact-us/) or [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
 
 If you didn't find the information you were looking for in this guide, please
-[reach out to the Beam community](/community/contact-us/).
+[reach out to the Beam community](https://beam.apache.org/community/contact-us/).
 
 </div>
 
 ## Find Efforts to Contribute to
 A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our [list of open starter tasks](https://s.apache.org/beam-starter-tasks).
-For the most intensive efforts, check out the [roadmap](/roadmap/).
+For the most intensive efforts, check out the [roadmap](https://beam.apache.org/roadmap/).
 
 ## Contributing to the Developer Documentation
 
@@ -323,8 +323,8 @@ please create an account and request edit access on the dev@beam.apache.org mail
 ## Additional Resources
 Please see Beam developers’ [Wiki Contributor FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) for more information.
 
-If you are contributing a ```PTransform``` to Beam, we have an extensive [PTransform Style Guide](/contribute/ptransform-style-guide).
+If you are contributing a ```PTransform``` to Beam, we have an extensive [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide).
 
-If you are contributing a Runner to Beam, refer to the [Runner authoring guide](/contribute/runner-guide/).
+If you are contributing a Runner to Beam, refer to the [Runner authoring guide](https://beam.apache.org/contribute/runner-guide/).
 
 Review [design documents](https://s.apache.org/beam-design-docs).
