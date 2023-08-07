@@ -37,6 +37,7 @@ import com.google.protobuf.util.Durations;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
@@ -601,15 +602,46 @@ public class GoogleAdsV14 {
     void onError(String developerToken, String customerId, Message request, GoogleAdsError error);
   }
 
-  static class DefaultRateLimitPolicy implements RateLimitPolicy {
-    private static final RateLimiter RATE_LIMITER = RateLimiter.create(1.0);
+  /**
+   * This rate limit policy wraps a {@link RateLimiter} and can be used in low volume and
+   * development use cases as a client-side rate limiting policy. This policy does not enforce a
+   * global (per pipeline or otherwise) rate limit to requests and should not be used in deployments
+   * where the Google Ads API quota is shared between multiple applications.
+   *
+   * <p>This policy can be used to limit requests across all {@link GoogleAdsV14.Read} or {@link
+   * GoogleAdsV14.ReadAll} transforms by defining and using a {@link
+   * GoogleAdsV14.RateLimitPolicyFactory} which holds a shared static {@link
+   * GoogleAdsV14.SimpleRateLimitPolicy}. Note that the desired rate must be divided by the expected
+   * maximum number of workers for the pipeline, otherwise the pipeline may exceed the desired rate
+   * after an upscaling event.
+   *
+   * <pre>{@code
+   * public class SimpleRateLimitPolicyFactory implements GoogleAdsV14.RateLimitPolicyFactory {
+   *   private static final GoogleAdsV14.RateLimitPolicy POLICY =
+   *       new GoogleAdsV14.SimpleRateLimitPolicy(1.0 / 1000.0);
+   *
+   *   @Override
+   *   public GoogleAdsV14.RateLimitPolicy getRateLimitPolicy() {
+   *     return POLICY;
+   *   }
+   * }
+   * }</pre>
+   */
+  public static class SimpleRateLimitPolicy implements RateLimitPolicy {
+    private final RateLimiter rateLimiter;
 
-    DefaultRateLimitPolicy() {}
+    SimpleRateLimitPolicy(double permitsPerSecond) {
+      rateLimiter = RateLimiter.create(permitsPerSecond);
+    }
+
+    SimpleRateLimitPolicy(double permitsPerSecond, long warmupPeriod, TimeUnit unit) {
+      rateLimiter = RateLimiter.create(permitsPerSecond, warmupPeriod, unit);
+    }
 
     @Override
     public void onBeforeRequest(String developerToken, String customerId, Message request)
         throws InterruptedException {
-      RATE_LIMITER.acquire();
+      rateLimiter.acquire();
     }
 
     @Override
