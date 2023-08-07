@@ -6365,7 +6365,8 @@ that value in any way.&lt;/li>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// words is the input PCollection of strings
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">The&lt;/span> &lt;span class="nx">Go&lt;/span> &lt;span class="nx">SDK&lt;/span> &lt;span class="nx">cannot&lt;/span> &lt;span class="nx">support&lt;/span> &lt;span class="nx">anonymous&lt;/span> &lt;span class="nx">functions&lt;/span> &lt;span class="nx">outside&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">the&lt;/span> &lt;span class="nx">deprecated&lt;/span> &lt;span class="nx">Go&lt;/span> &lt;span class="nx">Direct&lt;/span> &lt;span class="nx">runner&lt;/span>&lt;span class="p">.&lt;/span>
+&lt;span class="c1">// words is the input PCollection of strings
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">var&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="o">...&lt;/span>
 &lt;span class="nx">lengths&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
 &lt;span class="nf">emit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">))&lt;/span>
@@ -6423,8 +6424,7 @@ Java 8 lambda function for additional brevity.&lt;/span>&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// words is the input PCollection of strings
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">var&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="o">...&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">The&lt;/span> &lt;span class="nx">Go&lt;/span> &lt;span class="nx">SDK&lt;/span> &lt;span class="nx">cannot&lt;/span> &lt;span class="nx">support&lt;/span> &lt;span class="nx">anonymous&lt;/span> &lt;span class="nx">functions&lt;/span> &lt;span class="nx">outside&lt;/span> &lt;span class="nx">of&lt;/span> &lt;span class="nx">the&lt;/span> &lt;span class="nx">deprecated&lt;/span> &lt;span class="nx">Go&lt;/span> &lt;span class="nx">Direct&lt;/span> &lt;span class="nx">runner&lt;/span>&lt;span class="p">.&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">wordLengths&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">init&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">register&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Function1x1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">wordLengths&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">}&lt;/span>
 &lt;span class="kd">func&lt;/span> &lt;span class="nf">applyWordLenAnon&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PCollection&lt;/span> &lt;span class="p">{&lt;/span>
@@ -6451,7 +6451,7 @@ transforms, including &lt;code>Filter&lt;/code>, &lt;code>FlatMapElements&lt;/co
 &lt;/span>
 &lt;span class="language-go">
 &lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> Anonymous function DoFns may not work on distributed runners.
+&lt;p>&lt;strong>Note:&lt;/strong> Anonymous function DoFns do not work on distributed runners.
 It&amp;rsquo;s recommended to use named functions and register them with &lt;code>register.FunctionXxY&lt;/code> in
 an &lt;code>init()&lt;/code> block.&lt;/p>
 &lt;/blockquote>
