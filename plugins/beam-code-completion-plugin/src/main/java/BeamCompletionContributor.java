@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import com.google.gson.Gson;
 import com.intellij.codeInsight.completion.*;
 
 import com.intellij.patterns.PatternCondition;
@@ -27,6 +28,14 @@ import com.intellij.psi.*;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.util.ProcessingContext;
 import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
 
 /**
  * The `BeamCompletionContributor` class is a subclass of `CompletionContributor` that provides code completion
@@ -89,8 +98,36 @@ public class BeamCompletionContributor extends CompletionContributor {
     @Override
     public void fillCompletionVariants(@NotNull final CompletionParameters parameters, @NotNull CompletionResultSet result) {
         if (AFTER_METHOD_CALL_PATTERN.accepts(parameters.getPosition())){
-            for (String transform: beamJavaSDKTransforms) {
-                result.addElement(LookupElementBuilder.create(transform).appendTailText(" org.apache.beam.sdk.transforms", true));
+            try {
+                int offset = parameters.getOffset();
+                String full_code = parameters.getOriginalFile().getText();
+                String code_to_complete = full_code.substring(0, offset);
+
+                Parameters model_parameters = new Parameters(0.1F, false);
+                RequestBody req_body_obj = new RequestBody(code_to_complete, model_parameters);
+
+                String request_body_json = new Gson().toJson(req_body_obj);
+                String model_url = "https://api-inference.huggingface.co/models/bigcode/starcoder";
+                String hf_api_key = System.getenv("HF_API_KEY");
+
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(new URI(model_url))
+                        .headers("Content-Type", "application/json", "Authorization", "Bearer " + hf_api_key)
+                        .POST(HttpRequest.BodyPublishers.ofString(request_body_json))
+                        .build();
+
+                HttpClient httpClient = HttpClient.newHttpClient();
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+                String body = response.body();
+                // todo: integrate the completions to IDE UI (inline)
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
     }
