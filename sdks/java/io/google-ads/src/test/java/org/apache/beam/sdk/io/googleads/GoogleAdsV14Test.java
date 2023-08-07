@@ -41,6 +41,7 @@ import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
+import org.apache.beam.sdk.io.googleads.GoogleAdsV14.RateLimitPolicyFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,6 +62,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(Enclosed.class)
 public class GoogleAdsV14Test {
+  static final RateLimitPolicyFactory TEST_POLICY_FACTORY = () -> new DummyRateLimitPolicy();
 
   @RunWith(JUnit4.class)
   public static class ConstructionTests {
@@ -70,7 +72,11 @@ public class GoogleAdsV14Test {
     public void testReadAllExpandWithDeveloperTokenFromBuilder() {
       pipeline
           .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-          .apply(GoogleAdsIO.v14().readAll().withDeveloperToken("abc"));
+          .apply(
+              GoogleAdsIO.v14()
+                  .readAll()
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                  .withDeveloperToken("abc"));
     }
 
     @Test
@@ -78,7 +84,7 @@ public class GoogleAdsV14Test {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
       pipeline
           .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-          .apply(GoogleAdsIO.v14().readAll());
+          .apply(GoogleAdsIO.v14().readAll().withRateLimitPolicy(TEST_POLICY_FACTORY));
     }
 
     @Test
@@ -86,7 +92,11 @@ public class GoogleAdsV14Test {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
       pipeline
           .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-          .apply(GoogleAdsIO.v14().readAll().withDeveloperToken(null));
+          .apply(
+              GoogleAdsIO.v14()
+                  .readAll()
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                  .withDeveloperToken(null));
     }
 
     @Test
@@ -97,7 +107,18 @@ public class GoogleAdsV14Test {
           () ->
               pipeline
                   .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-                  .apply(GoogleAdsIO.v14().readAll()));
+                  .apply(GoogleAdsIO.v14().readAll().withRateLimitPolicy(TEST_POLICY_FACTORY)));
+    }
+
+    @Test
+    public void testReadAllExpandWithoutRateLimitPolicy() throws Exception {
+      Assert.assertThrows(
+          "Rate limit policy required but not provided",
+          IllegalArgumentException.class,
+          () ->
+              pipeline
+                  .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
+                  .apply(GoogleAdsIO.v14().readAll().withDeveloperToken("abc")));
     }
 
     @Test
@@ -108,7 +129,11 @@ public class GoogleAdsV14Test {
           () ->
               pipeline
                   .apply(Create.empty(new TypeDescriptor<SearchGoogleAdsStreamRequest>() {}))
-                  .apply(GoogleAdsIO.v14().readAll().withGoogleAdsClientFactory(null)));
+                  .apply(
+                      GoogleAdsIO.v14()
+                          .readAll()
+                          .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                          .withGoogleAdsClientFactory(null)));
     }
 
     @Test
@@ -126,11 +151,17 @@ public class GoogleAdsV14Test {
     public void testReadExpandWithDeveloperTokenFromBuilder() {
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
-          .apply(GoogleAdsIO.v14().read().withDeveloperToken("abc").withQuery("GAQL"));
+          .apply(
+              GoogleAdsIO.v14()
+                  .read()
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                  .withDeveloperToken("abc")
+                  .withQuery("GAQL"));
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
-          .apply(GoogleAdsIO.v14().read().withQuery("GAQL"));
+          .apply(
+              GoogleAdsIO.v14().read().withRateLimitPolicy(TEST_POLICY_FACTORY).withQuery("GAQL"));
     }
 
     @Test
@@ -138,7 +169,8 @@ public class GoogleAdsV14Test {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
-          .apply(GoogleAdsIO.v14().read().withQuery("GAQL"));
+          .apply(
+              GoogleAdsIO.v14().read().withRateLimitPolicy(TEST_POLICY_FACTORY).withQuery("GAQL"));
     }
 
     @Test
@@ -146,7 +178,12 @@ public class GoogleAdsV14Test {
       pipeline.getOptions().as(GoogleAdsOptions.class).setGoogleAdsDeveloperToken("abc");
       pipeline
           .apply(Create.empty(TypeDescriptors.strings()))
-          .apply(GoogleAdsIO.v14().read().withDeveloperToken(null).withQuery("GAQL"));
+          .apply(
+              GoogleAdsIO.v14()
+                  .read()
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                  .withDeveloperToken(null)
+                  .withQuery("GAQL"));
     }
 
     @Test
@@ -157,7 +194,11 @@ public class GoogleAdsV14Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v14().read().withQuery("GAQL")));
+                  .apply(
+                      GoogleAdsIO.v14()
+                          .read()
+                          .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                          .withQuery("GAQL")));
     }
 
     @Test
@@ -168,7 +209,18 @@ public class GoogleAdsV14Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v14().read()));
+                  .apply(GoogleAdsIO.v14().read().withRateLimitPolicy(TEST_POLICY_FACTORY)));
+    }
+
+    @Test
+    public void testReadExpandWithoutRateLimitPolicy() throws Exception {
+      Assert.assertThrows(
+          "Rate limit policy required but not provided",
+          IllegalArgumentException.class,
+          () ->
+              pipeline
+                  .apply(Create.empty(TypeDescriptors.strings()))
+                  .apply(GoogleAdsIO.v14().read().withDeveloperToken("abc").withQuery("GAQL")));
     }
 
     @Test
@@ -180,7 +232,11 @@ public class GoogleAdsV14Test {
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
                   .apply(
-                      GoogleAdsIO.v14().read().withQuery("GAQL").withGoogleAdsClientFactory(null)));
+                      GoogleAdsIO.v14()
+                          .read()
+                          .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                          .withQuery("GAQL")
+                          .withGoogleAdsClientFactory(null)));
     }
 
     @Test
@@ -191,7 +247,11 @@ public class GoogleAdsV14Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v14().read().withQuery(null)));
+                  .apply(
+                      GoogleAdsIO.v14()
+                          .read()
+                          .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                          .withQuery(null)));
 
       Assert.assertThrows(
           "Non-empty query required but not provided",
@@ -199,7 +259,11 @@ public class GoogleAdsV14Test {
           () ->
               pipeline
                   .apply(Create.empty(TypeDescriptors.strings()))
-                  .apply(GoogleAdsIO.v14().read().withQuery("")));
+                  .apply(
+                      GoogleAdsIO.v14()
+                          .read()
+                          .withRateLimitPolicy(TEST_POLICY_FACTORY)
+                          .withQuery("")));
     }
 
     @Test
@@ -246,6 +310,7 @@ public class GoogleAdsV14Test {
                   GoogleAdsIO.v14()
                       .read()
                       .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                      .withRateLimitPolicy(TEST_POLICY_FACTORY)
                       .withDeveloperToken("abc")
                       .withQuery("GAQL"));
       PAssert.thatSingleton(rows).isEqualTo(GoogleAdsRow.getDefaultInstance());
@@ -277,6 +342,7 @@ public class GoogleAdsV14Test {
               GoogleAdsIO.v14()
                   .read()
                   .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
                   .withDeveloperToken("abc")
                   .withQuery("GAQL"));
 
@@ -316,6 +382,7 @@ public class GoogleAdsV14Test {
               GoogleAdsIO.v14()
                   .read()
                   .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                  .withRateLimitPolicy(TEST_POLICY_FACTORY)
                   .withDeveloperToken("abc")
                   .withQuery("GAQL"));
 
@@ -377,6 +444,7 @@ public class GoogleAdsV14Test {
                   GoogleAdsIO.v14()
                       .read()
                       .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                      .withRateLimitPolicy(TEST_POLICY_FACTORY)
                       .withDeveloperToken("abc")
                       .withQuery("GAQL"));
       PAssert.thatSingleton(rows).isEqualTo(GoogleAdsRow.getDefaultInstance());
@@ -438,6 +506,7 @@ public class GoogleAdsV14Test {
                   GoogleAdsIO.v14()
                       .read()
                       .withGoogleAdsClientFactory(new MockGoogleAdsClientFactory())
+                      .withRateLimitPolicy(TEST_POLICY_FACTORY)
                       .withDeveloperToken("abc")
                       .withQuery("GAQL"));
       PAssert.thatSingleton(rows).isEqualTo(GoogleAdsRow.getDefaultInstance());
