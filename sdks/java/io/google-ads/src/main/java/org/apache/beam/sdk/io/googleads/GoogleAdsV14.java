@@ -136,12 +136,27 @@ import org.joda.time.Duration;
  *
  * On construction of a {@link GoogleAdsV14#read()} or {@link GoogleAdsV14#readAll()} transform a
  * rate limiting policy must be specified to stay well under the assigned quota for the Google Ads
- * API. The Google Ads API enforces global limits from the developer token down to the customer ID
- * and it is recommended to host a shared rate limiting service to coordinate traffic to the Google
+ * API. The Google Ads API enforces global rate limits from the developer token down to the customer
+ * ID and depending on the access level of the developer token a limit on the total number of
+ * executed operations per day. See <a
+ * href="https://developers.google.com/google-ads/api/docs/best-practices/rate-limits">Rate
+ * Limits</a> and <a
+ * href="https://developers.google.com/google-ads/api/docs/best-practices/quotas">API Limits and
+ * Quotas</a> in the Google Ads documentation for more details.
+ *
+ * <p>It is recommended to host a shared rate limiting service to coordinate traffic to the Google
  * Ads API across all applications using the same developer token. Users of these transforms are
  * strongly advised to implement their own {@link RateLimitPolicy} and {@link
- * RateLimitPolicyFactory} to interact with a shared rate limiting service for any production
- * workloads.
+ * RateLimitPolicyFactory} to interact with a shared rate limiting service (e.g. <a
+ * href="https://github.com/mailgun/gubernator">gubernator</a>) for any production workloads.
+ *
+ * <h2>Required Minimum Functionality</h2>
+ *
+ * Pipelines built using these transforms may still be subject to the Required Minimum Functionality
+ * policy. Please review the policy carefully and have your tool reviewed by the Google Ads API
+ * Review Team. See <a href="https://developers.google.com/google-ads/api/docs/rmf">Required Minimum
+ * Functionality</a> and <a href="https://developers.google.com/google-ads/api/docs/rate-sheet">Rate
+ * sheet & non-compliance fees</a> in the Google Ads API documentation for more details.
  *
  * @see GoogleAdsIO#v14()
  * @see GoogleAdsOptions
