@@ -126,7 +126,7 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
 
   include '**/WordCountIT.class'
   include '**/WindowedWordCountIT.class'
-  
+
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
