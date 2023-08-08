@@ -19,6 +19,7 @@ package ptest
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"testing"
 
@@ -95,7 +96,17 @@ func MainCalled() bool {
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
-	_, err := beam.Run(context.Background(), getRunner(), p)
+	r := getRunner()
+	_, err := beam.Run(context.Background(), r, p)
+	// Until a few versions from now (say, v2.56),
+	// if there's an error, and
+	// the runner is prism, and it was the set default runner, but not a manually specificed runner via the flag
+	// augment the error with instructions to switch back to the direct runner.
+	if err != nil && r == "prism" && r == defaultRunnerOverride && r != *Runner {
+		err = fmt.Errorf("%w\nerror may be due to Apache Beam Go's migration from the direct runner to the prism runner."+
+			" While the failure(s) should be fixed, you can continue to use the direct runner with this TestMain override:"+
+			" `func TestMain(m *testing.M) { ptest.MainWithDefault(m, \"direct\") }`", err)
+	}
 	return err
 }
 
