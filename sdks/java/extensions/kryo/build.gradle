@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 ext {
-    kryoVersion = '4.0.2'
+    kryoVersion = '5.5.0'
 }
 
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',

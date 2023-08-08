@@ -241,16 +241,10 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:extensions-java:metrics:build")
-  dependsOn(":runners:flink:1.12:build")
-  dependsOn(":runners:flink:1.12:job-server:build")
-  dependsOn(":runners:flink:1.13:build")
-  dependsOn(":runners:flink:1.13:job-server:build")
-  dependsOn(":runners:flink:1.14:build")
-  dependsOn(":runners:flink:1.14:job-server:build")
-  dependsOn(":runners:flink:1.15:build")
-  dependsOn(":runners:flink:1.15:job-server:build")
-  dependsOn(":runners:flink:1.16:build")
-  dependsOn(":runners:flink:1.16:job-server:build")
+  // lowest supported flink version
+  var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
+  dependsOn(":runners:flink:${flinkVersions[0]}:build")
+  dependsOn(":runners:flink:${flinkVersions[0]}:job-server:build")
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
@@ -361,6 +355,16 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:tika:build")
 }
 
+// a precommit task testing additional supported flink versions not covered by
+// the main Java PreCommit (lowest supported version)
+tasks.register("flinkPreCommit") {
+  var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
+  for (version in flinkVersions.slice(1..flinkVersions.size - 1)) {
+    dependsOn(":runners:flink:${version}:build")
+    dependsOn(":runners:flink:${version}:job-server:build")
+  }
+}
+
 tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:runBasicExample")
   dependsOn(":sdks:java:extensions:sql:runPojoExample")
@@ -380,11 +384,9 @@ tasks.register("javaPostCommit") {
 
 tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:samza:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.14:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.16:validatesRunnerSickbay")
+  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:validatesRunnerSickbay")
+  }
   dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
@@ -438,6 +440,10 @@ tasks.register("goPrecommitBuild") {
 
 tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
+}
+
+tasks.register("goPostCommitDataflowARM") {
+  dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
 }
 
 tasks.register("goPostCommit") {

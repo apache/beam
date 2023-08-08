@@ -76,7 +76,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to connect to job service")
+		return "", "", "", errors.Wrap(err, "job failed to prepare")
 	}
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }
@@ -103,7 +103,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		return errors.Wrap(err, "failed to get job stream")
 	}
 
-	mostRecentError := errors.New("<no error received, see runner logs>")
+	mostRecentError := "<no error received>"
 	var errReceived, jobFailed bool
 
 	for {
@@ -111,8 +111,8 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		if err != nil {
 			if err == io.EOF {
 				if jobFailed {
-					// Connection finished with a failed status, so produce what we have.
-					return errors.Errorf("job %v failed:\n%w", jobID, mostRecentError)
+					// Connection finished, so time to exit, produce what we have.
+					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
 				}
 				return nil
 			}
@@ -123,7 +123,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		case msg.GetStateResponse() != nil:
 			resp := msg.GetStateResponse()
 
-			log.Infof(ctx, "Job state: %v", resp.GetState().String())
+			log.Infof(ctx, "Job[%v] state: %v", jobID, resp.GetState().String())
 
 			switch resp.State {
 			case jobpb.JobState_DONE, jobpb.JobState_CANCELLED:
@@ -131,9 +131,9 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			case jobpb.JobState_FAILED:
 				jobFailed = true
 				if errReceived {
-					return errors.Errorf("job %v failed:\n%w", jobID, mostRecentError)
+					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
 				}
-				// Otherwise, wait for at least one error log from the runner, or the connection to close.
+				// Otherwise we should wait for at least one error log from the runner.
 			}
 
 		case msg.GetMessageResponse() != nil:
@@ -144,10 +144,10 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 
 			if resp.GetImportance() >= jobpb.JobMessage_JOB_MESSAGE_ERROR {
 				errReceived = true
-				mostRecentError = errors.New(resp.GetMessageText())
+				mostRecentError = resp.GetMessageText()
 
 				if jobFailed {
-					return errors.Errorf("job %v failed:\n%w", jobID, mostRecentError)
+					return errors.Errorf("job %v failed:\n%w", jobID, errors.New(mostRecentError))
 				}
 			}
 

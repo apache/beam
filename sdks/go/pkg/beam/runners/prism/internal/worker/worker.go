@@ -95,7 +95,7 @@ func New(id string) *W {
 
 		D: &DataService{},
 	}
-	slog.Info("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
+	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
 	fnpb.RegisterBeamFnControlServer(wk.server, wk)
 	fnpb.RegisterBeamFnDataServer(wk.server, wk)
 	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
@@ -256,7 +256,6 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			// TODO: Do more than assume these are ProcessBundleResponses.
 			wk.mu.Lock()
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
-				// Error is handled in the resonse handler.
 				b.Respond(resp)
 			} else {
 				slog.Debug("ctrl.Recv: %v", resp)
@@ -268,7 +267,10 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	for {
 		select {
 		case req := <-wk.InstReqs:
-			ctrl.Send(req)
+			err := ctrl.Send(req)
+			if err != nil {
+				return err
+			}
 		case <-ctrl.Context().Done():
 			slog.Debug("Control context canceled")
 			return ctrl.Context().Err()
@@ -322,7 +324,6 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			wk.mu.Unlock()
 		}
 	}()
-
 	for {
 		select {
 		case req, ok := <-wk.DataReqs:

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.it.gcp.bigquery;
 
-import static org.apache.beam.it.gcp.bigquery.BigQueryResourceManagerUtils.checkValidTableId;
-
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -239,7 +237,7 @@ public final class BigQueryResourceManager implements ResourceManager {
       String tableName, Schema schema, Long expirationTimeMillis)
       throws BigQueryResourceManagerException {
     // Check table ID
-    checkValidTableId(tableName);
+    BigQueryResourceManagerUtils.checkValidTableId(tableName);
 
     // Check schema
     if (schema == null) {

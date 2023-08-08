@@ -28,11 +28,12 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
   
   # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -52,27 +53,27 @@ permissions:
   statuses: read
 jobs:
   beam_PreCommit_Typescript:
-    name: beam_PreCommit_Typescript
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    timeout-minutes: 120
     runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Typescript]
+        job_phrase: [Run Typescript PreCommit]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Typescript PreCommit'   
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Typescript PreCommit'
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run Typescript PreCommit'
-        uses: ./.github/actions/rerun-job-action
-        with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
@@ -83,4 +84,6 @@ jobs:
         with:
           cache-read-only: false
       - name: run typescriptPreCommit script
-        run: ./gradlew :typescriptPreCommit
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :typescriptPreCommit
