@@ -24,6 +24,7 @@ import com.google.datastore.v1.Query;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -58,29 +59,32 @@ public class SplitQueryFnIT {
   @Test
   public void testSplitQueryFnWithLargeDataset() throws Exception {
     String projectId = "apache-beam-testing";
+    String databaseId = "";
     String kind = "sort_1G";
     String namespace = null;
     // Num splits is computed based on the entity_bytes size of the input_sort_1G kind reported by
     // Datastore stats.
     int expectedNumSplits = 32;
-    testSplitQueryFn(projectId, kind, namespace, expectedNumSplits, null);
-    testSplitQueryFn(projectId, kind, namespace, expectedNumSplits, readTime);
+    testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, null);
+    testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, readTime);
   }
 
   /** Tests {@link SplitQueryFn} to fallback to NUM_QUERY_SPLITS_MIN for a small dataset. */
   @Test
   public void testSplitQueryFnWithSmallDataset() throws Exception {
     String projectId = "apache-beam-testing";
+    String databaseId = "";
     String kind = "shakespeare";
     String namespace = null;
     int expectedNumSplits = NUM_QUERY_SPLITS_MIN;
-    testSplitQueryFn(projectId, kind, namespace, expectedNumSplits, null);
-    testSplitQueryFn(projectId, kind, namespace, expectedNumSplits, readTime);
+    testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, null);
+    testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, readTime);
   }
 
   /** A helper method to test {@link SplitQueryFn} to generate the expected number of splits. */
   private void testSplitQueryFn(
       String projectId,
+      String databaseId,
       String kind,
       @Nullable String namespace,
       int expectedNumSplits,
@@ -90,7 +94,10 @@ public class SplitQueryFnIT {
     query.addKindBuilder().setName(kind);
 
     SplitQueryFn splitQueryFn =
-        new SplitQueryFn(V1Options.from(projectId, namespace, null), 0, readTime);
+        new SplitQueryFn(
+            V1Options.from(projectId, StaticValueProvider.of(databaseId), namespace, null),
+            0,
+            readTime);
     DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
 
     List<Query> queries = doFnTester.processBundle(query.build());
