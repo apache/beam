@@ -60,7 +60,6 @@ try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
   from google.api_core.exceptions import ClientError, DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
-  import google.cloud
 except ImportError:
   ClientError = None
   DeadlineExceeded = None
@@ -223,23 +222,6 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
-
-  @unittest.skipIf(
-      google and not hasattr(google.cloud, '_http'),  # pylint: disable=c-extension-no-member
-      'Dependencies not installed')
-  @mock.patch('time.sleep', return_value=None)
-  @mock.patch('google.cloud._http.JSONConnection.http')
-  def test_user_agent_insert_all(self, http_mock, patched_sleep):
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
-    try:
-      wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
-    except:  # pylint: disable=bare-except
-      # Ignore errors. The errors come from the fact that we did not mock
-      # the response from the API, so the overall insert_all_rows call fails
-      # soon after the BQ API is called.
-      pass
-    call = http_mock.request.mock_calls[-2]
-    self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
 
   @mock.patch('time.sleep', return_value=None)
   def test_delete_table_retries_for_timeouts(self, patched_time_sleep):

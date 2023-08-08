@@ -54,7 +54,7 @@ google-apitools==0.5.31
 google-auth==2.22.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
-google-cloud-aiplatform==1.28.1
+google-cloud-aiplatform==1.29.0
 google-cloud-bigquery==3.11.4
 google-cloud-bigquery-storage==2.22.0
 google-cloud-bigtable==2.20.0
@@ -66,8 +66,8 @@ google-cloud-profiler==4.0.0
 google-cloud-pubsub==2.18.1
 google-cloud-pubsublite==1.8.3
 google-cloud-recommendations-ai==0.10.4
-google-cloud-resource-manager==1.10.2
-google-cloud-spanner==3.38.0
+google-cloud-resource-manager==1.10.3
+google-cloud-spanner==3.40.0
 google-cloud-storage==2.10.0
 google-cloud-videointelligence==2.11.3
 google-cloud-vision==3.4.4
@@ -83,7 +83,7 @@ guppy3==3.1.3
 h5py==3.9.0
 hdfs==2.7.0
 httplib2==0.22.0
-hypothesis==6.82.0
+hypothesis==6.82.2
 idna==3.4
 iniconfig==2.0.0
 joblib==1.3.1
@@ -100,7 +100,7 @@ oauth2client==4.1.3
 oauthlib==3.2.2
 objsize==0.6.1
 opt-einsum==3.3.0
-orjson==3.9.2
+orjson==3.9.3
 overrides==6.5.0
 packaging==23.1
 pandas==1.5.3
@@ -108,7 +108,7 @@ parameterized==0.9.0
 pluggy==1.2.0
 proto-plus==1.22.3
 protobuf==4.23.4
-psycopg2-binary==2.9.6
+psycopg2-binary==2.9.7
 pyarrow==11.0.0
 pyasn1==0.5.0
 pyasn1-modules==0.3.0
@@ -144,7 +144,7 @@ tensorboard-data-server==0.7.1
 tensorflow==2.13.0
 tensorflow-cpu-aws==2.13.0;platform_machine=="aarch64"
 tensorflow-estimator==2.13.0
-tensorflow-io-gcs-filesystem==0.32.0
+tensorflow-io-gcs-filesystem==0.33.0
 termcolor==2.3.0
 testcontainers==3.7.1
 threadpoolctl==3.2.0
