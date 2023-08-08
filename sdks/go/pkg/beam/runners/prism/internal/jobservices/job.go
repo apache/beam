@@ -162,4 +162,5 @@ func (j *Job) Done() {
 func (j *Job) Failed(err error) {
 	j.failureErr = err
 	j.sendState(jobpb.JobState_FAILED)
+	j.CancelFn(err)
 }

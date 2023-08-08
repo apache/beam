@@ -125,7 +125,6 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 			slog.Error("job failed", "bundle", rb, "job", j)
 			err := fmt.Errorf("%v", errMsg)
 			j.Failed(err)
-			j.CancelFn(err)
 		}
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
