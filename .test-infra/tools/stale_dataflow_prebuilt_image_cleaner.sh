@@ -78,9 +78,10 @@ for image_name in ${IMAGE_NAMES[@]}; do
 
   # Some images may not be successfully deleted the first time due to flakiness or having a dependency that hasn't been deleted yet.
   RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
+  echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
   for current in $RETRY_DELETE; do
     echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-    gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_TO_DELETE+="${current} "
+    gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
   done
 done
 
