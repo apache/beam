@@ -145,7 +145,7 @@ class PyTorchInference(unittest.TestCase):
     extra_opts = {
         'input': file_of_image_names,
         'output': output_file,
-        'model_state_dict_paths': model_state_dict_paths.join(','),
+        'model_state_dict_paths': ','.join(model_state_dict_paths),
         'images_dir': images_dir,
     }
     pytorch_model_per_key_image_segmentation.run(
