@@ -35,6 +35,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -56,6 +57,7 @@ import org.junit.runners.JUnit4;
 public class V1WriteIT {
   private V1TestOptions options;
   private String project;
+  private String database;
   private String ancestor;
   private final long numEntities = 1000;
 
@@ -64,6 +66,7 @@ public class V1WriteIT {
     PipelineOptionsFactory.register(V1TestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    database = TestPipeline.testingPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
     ancestor = UUID.randomUUID().toString();
   }
 
@@ -83,12 +86,12 @@ public class V1WriteIT {
             ParDo.of(
                 new V1TestUtil.CreateEntityFn(
                     options.getKind(), options.getNamespace(), ancestor, 0)))
-        .apply(DatastoreIO.v1().write().withProjectId(project));
+        .apply(DatastoreIO.v1().write().withProjectAndDatabaseId(project, database));
 
     p.run();
 
     // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, ancestor);
+    long numEntitiesWritten = countEntities(options, project, database, ancestor);
 
     assertEquals(numEntities, numEntitiesWritten);
   }
@@ -190,13 +193,13 @@ public class V1WriteIT {
     p.run();
 
     // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, ancestor);
+    long numEntitiesWritten = countEntities(options, project, database, ancestor);
 
     assertEquals(numLargeEntities, numEntitiesWritten);
   }
 
   @After
   public void tearDown() throws Exception {
-    deleteAllEntities(options, project, ancestor);
+    deleteAllEntities(options, project, database, ancestor);
   }
 }
