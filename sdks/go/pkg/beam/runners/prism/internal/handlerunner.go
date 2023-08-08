@@ -43,7 +43,7 @@ import (
 type RunnerCharacteristic struct {
 	SDKFlatten   bool // Sets whether we should force an SDK side flatten.
 	SDKGBK       bool // Sets whether the GBK should be handled by the SDK, if possible by the SDK.
-	SDKReshuffle bool
+	SDKReshuffle bool // Sets whether we should use the SDK backup implementation to handle a Reshuffle.
 }
 
 func Runner(config any) *runner {

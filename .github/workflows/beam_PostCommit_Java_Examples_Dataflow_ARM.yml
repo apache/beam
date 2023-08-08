@@ -66,6 +66,8 @@ jobs:
     timeout-minutes: 120
     strategy:
       fail-fast: false
+      matrix:
+        java_version: ['8','11','17']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
@@ -85,6 +87,11 @@ jobs:
           requires-py-38: false
           requires-py-39: false
           requires-go: false
+      - name: Set up Java${{ matrix.java_version }}
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java_version }}
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
@@ -102,35 +109,20 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
-      - name: run javaExamplesDataflowARMPostCommit script for Java8
+      - name: run javaExamplesDataflowARMPostCommit script for Java${{ matrix.java_version }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             arguments: |
+                -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+                -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \
-                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm \
+                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
                 -Pdocker-tag=${{env.TAG}} \
-      - name: run javaExamplesDataflowARMPostCommit script for Java11
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-            gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
-            arguments: |
-                -PcompileAndRunTestsWithJava11 \
-                -Pcontainer-architecture-list=arm64,amd64 \
-                -Ppush-containers \
-                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm \
-                -Pdocker-tag=${{env.TAG}} \
-      - name: run javaExamplesDataflowARMPostCommit script for Java17
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-            gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
-            arguments: |
-                -PcompileAndRunTestsWithJava17 \
-                -Pcontainer-architecture-list=arm64,amd64 \
-                -Ppush-containers \
-                -Pdocker-repository-root=us.gcr.io/apache-beam-testing/java-postcommit-it/arm \
-                -Pdocker-tag=${{env.TAG}} \
+                -PdisableSpotlessCheck=true \
+                -PdisableCheckStyle=true \
+                -PskipCheckerFramework \
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:

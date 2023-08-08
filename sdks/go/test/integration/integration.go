@@ -136,7 +136,6 @@ var portableFilters = []string{
 	"TestSetStateClear",
 }
 
-// TODO(lostluck): set up a specific run for these.
 var prismFilters = []string{
 	// The prism runner does not support the TestStream primitive
 	"TestTestStream.*",
@@ -149,7 +148,7 @@ var prismFilters = []string{
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
 	"TestSpannerIO.*",
-	// The prsim runner does not support pipeline drain for SDF.
+	// The prism runner does not support pipeline drain for SDF.
 	"TestDrain",
 	// FhirIO currently only supports Dataflow runner
 	"TestFhirIO.*",

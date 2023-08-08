@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -49,6 +49,18 @@ func pipInstallRequirements(files []string, dir, name string) error {
 		}
 	}
 	return nil
+}
+
+// isPackageInstalled checks if the given package is installed in the
+// environment.
+func isPackageInstalled(pkgName string) bool {
+	cmd := exec.Command("python", "-m", "pip", "show", pkgName)
+	if err := cmd.Run(); err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return false
+		}
+	}
+	return true
 }
 
 // pipInstallPackage installs the given package, if present.
@@ -107,7 +119,7 @@ func installExtraPackages(files []string, extraPackagesFile, dir string) error {
 		}
 
 		// Found the manifest. Install extra packages.
-		manifest, err := ioutil.ReadFile(filepath.Join(dir, extraPackagesFile))
+		manifest, err := os.ReadFile(filepath.Join(dir, extraPackagesFile))
 		if err != nil {
 			return fmt.Errorf("failed to read extra packages manifest file: %v", err)
 		}
