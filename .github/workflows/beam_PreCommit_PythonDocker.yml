@@ -64,16 +64,13 @@ jobs:
       github.event_name == 'push' || 
       github.event_name == 'pull_request_target' || 
       github.event_name == 'schedule' ||
-      (github.event.comment.body == 'Run PythonDocker PreCommit 3.8' || 
-      github.event.comment.body == 'Run PythonDocker PreCommit 3.9' ||
-      github.event.comment.body == 'Run PythonDocker PreCommit 3.10' ||
-      github.event.comment.body == 'Run PythonDocker PreCommit 3.11')
+      startsWith(github.event.comment.body, 'Run PythonDocker PreCommit')
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{matrix.job_phrase}} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Install Java

@@ -65,10 +65,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event.comment.body == 'Run Python_Runners PreCommit 3.8' || 
-      github.event.comment.body == 'Run Python_Runners PreCommit 3.9' ||
-      github.event.comment.body == 'Run Python_Runners PreCommit 3.10' ||
-      github.event.comment.body == 'Run Python_Runners PreCommit 3.11')
+      startsWith(github.event.comment.body, 'Run Python_Runners PreCommit')
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
