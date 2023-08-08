@@ -139,7 +139,7 @@ class PyTorchInference(unittest.TestCase):
 
     model_state_dict_paths = [
       'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',  # pylint: disable=line-too-long
-      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth'  # pylint: disable=line-too-long
+      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.pth'  # pylint: disable=line-too-long
     ]
     images_dir = 'gs://apache-beam-ml/datasets/coco/raw-data/val2017'
     extra_opts = {
@@ -154,18 +154,23 @@ class PyTorchInference(unittest.TestCase):
 
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = process_outputs(filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_coco_maskrcnn_resnet50_fpn_actuals.txt'  # pylint: disable=line-too-long
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_coco_maskrcnn_resnet50_fpn_v1_and_v2_actuals.txt'  # pylint: disable=line-too-long
     actuals = process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
-    for prediction in predictions:
-      filename, prediction_labels = prediction.split(';')
-      predictions_dict[filename] = prediction_labels
+    for i in range(0, len(predictions), 3):
+      filename = predictions[i]
+      v1predictions = predictions[i+1].split(':')[1]
+      v2predictions = predictions[i+2].split(':')[1]
+      predictions_dict[filename] = (v1predictions, v2predictions)
 
-    for actual in actuals:
-      filename, actual_labels = actual.split(';')
-      prediction_labels = predictions_dict[filename]
-      self.assertEqual(actual_labels, prediction_labels)
+    for i in range(0, len(actuals), 3):
+      filename = actuals[i]
+      v1actuals = actuals[i+1].split(':')[1]
+      v2actuals = actuals[i+2].split(':')[1]
+      v1prediction_labels, v2prediction_labels = predictions_dict[filename]
+      self.assertEqual(v1actuals, v1prediction_labels)
+      self.assertEqual(v2actuals, v2prediction_labels)
 
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
