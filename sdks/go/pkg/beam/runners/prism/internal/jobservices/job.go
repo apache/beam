@@ -83,7 +83,7 @@ type Job struct {
 
 	// Context used to terminate this job.
 	RootCtx  context.Context
-	CancelFn context.CancelFunc
+	CancelFn context.CancelCauseFunc
 
 	metrics metricsStore
 }
