@@ -60,7 +60,8 @@ RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-c
     mv google-cloud-sdk /usr/local/google-cloud-sdk && \
     /usr/local/google-cloud-sdk/install.sh --quiet && \
     /usr/local/google-cloud-sdk/bin/gcloud components install kubectl && \
-    chown -R runner:runner /home/runner/.config/gcloud
+    #revert permission
+    chown -R runner:runner /home/runner/.config
 ENV PATH="${PATH}:/usr/local/google-cloud-sdk/bin"
 
 # Needed to transfer path addtitions to runner environment
