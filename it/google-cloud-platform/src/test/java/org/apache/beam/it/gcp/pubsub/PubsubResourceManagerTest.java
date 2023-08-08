@@ -101,7 +101,8 @@ public final class PubsubResourceManagerTest {
   public void testBuilderWithInvalidProjectShouldFail() {
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> PubsubResourceManager.builder("test-a", ""));
+            IllegalArgumentException.class,
+            () -> PubsubResourceManager.builder("test-a", "", null));
     assertThat(exception).hasMessageThat().contains("projectId can not be empty");
   }
 

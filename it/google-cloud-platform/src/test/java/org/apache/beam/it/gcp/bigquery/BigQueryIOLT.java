@@ -111,7 +111,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
   @BeforeClass
   public static void beforeClass() throws IOException {
     resourceManager =
-        BigQueryResourceManager.builder("io-bigquery-lt", project)
+        BigQueryResourceManager.builder("io-bigquery-lt", project, CREDENTIALS)
             .setCredentials(CREDENTIALS)
             .build();
     resourceManager.createDataset(region);

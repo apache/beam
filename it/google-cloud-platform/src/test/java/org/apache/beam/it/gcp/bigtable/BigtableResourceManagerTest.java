@@ -76,7 +76,7 @@ public class BigtableResourceManagerTest {
   public void setUp() throws IOException {
     testManager =
         new BigtableResourceManager(
-            BigtableResourceManager.builder(TEST_ID, PROJECT_ID),
+            BigtableResourceManager.builder(TEST_ID, PROJECT_ID, null),
             bigtableResourceManagerClientFactory);
     cluster =
         ImmutableList.of(
@@ -88,7 +88,7 @@ public class BigtableResourceManagerTest {
   public void testCreateResourceManagerCreatesCorrectIdValues() throws IOException {
     BigtableResourceManager rm =
         new BigtableResourceManager(
-            BigtableResourceManager.builder(TEST_ID, PROJECT_ID),
+            BigtableResourceManager.builder(TEST_ID, PROJECT_ID, null),
             bigtableResourceManagerClientFactory);
 
     assertThat(rm.getInstanceId()).matches(TEST_ID + "-\\d{8}-\\d{6}-\\d{6}");
@@ -124,7 +124,7 @@ public class BigtableResourceManagerTest {
     String instanceId = "static-instance";
     testManager =
         new BigtableResourceManager(
-            BigtableResourceManager.builder(TEST_ID, PROJECT_ID)
+            BigtableResourceManager.builder(TEST_ID, PROJECT_ID, null)
                 .setInstanceId(instanceId)
                 .useStaticInstance(),
             bigtableResourceManagerClientFactory);
@@ -419,7 +419,7 @@ public class BigtableResourceManagerTest {
     String instanceId = "static-instance";
     testManager =
         new BigtableResourceManager(
-            BigtableResourceManager.builder(TEST_ID, PROJECT_ID)
+            BigtableResourceManager.builder(TEST_ID, PROJECT_ID, null)
                 .setInstanceId(instanceId)
                 .useStaticInstance(),
             bigtableResourceManagerClientFactory);

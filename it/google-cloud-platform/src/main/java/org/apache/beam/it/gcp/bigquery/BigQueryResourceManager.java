@@ -19,7 +19,6 @@ package org.apache.beam.it.gcp.bigquery;
 
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryError;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -35,7 +34,6 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -96,8 +94,8 @@ public final class BigQueryResourceManager implements ResourceManager {
     this.bigQuery = bigQuery;
   }
 
-  public static Builder builder(String testId, String projectId) throws IOException {
-    return new Builder(testId, projectId);
+  public static Builder builder(String testId, String projectId, Credentials credentials) {
+    return new Builder(testId, projectId, credentials);
   }
 
   public String getProjectId() {
@@ -478,11 +476,11 @@ public final class BigQueryResourceManager implements ResourceManager {
     private String datasetId;
     private Credentials credentials;
 
-    private Builder(String testId, String projectId) throws IOException {
+    private Builder(String testId, String projectId, Credentials credentials) {
       this.testId = testId;
       this.projectId = projectId;
       this.datasetId = null;
-      this.credentials = GoogleCredentials.getApplicationDefault();
+      this.credentials = credentials;
     }
 
     public Builder setDatasetId(String datasetId) {

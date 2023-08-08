@@ -112,8 +112,7 @@ public abstract class LoadTestBase {
   public void setUp() throws IOException {
     project = TestProperties.project();
     region = TestProperties.region();
-    monitoringClient =
-        MonitoringClient.builder().setCredentialsProvider(CREDENTIALS_PROVIDER).build();
+    monitoringClient = MonitoringClient.builder(CREDENTIALS_PROVIDER).build();
     pipelineLauncher = launcher();
     pipelineOperator = new PipelineOperator(pipelineLauncher);
   }
@@ -139,7 +138,7 @@ public abstract class LoadTestBase {
       // either use the user specified project for exporting, or the same project
       String exportProject = MoreObjects.firstNonNull(TestProperties.exportProject(), project);
       BigQueryResourceManager bigQueryResourceManager =
-          BigQueryResourceManager.builder(testName, exportProject)
+          BigQueryResourceManager.builder(testName, exportProject, CREDENTIALS)
               .setDatasetId(TestProperties.exportDataset())
               .setCredentials(CREDENTIALS)
               .build();

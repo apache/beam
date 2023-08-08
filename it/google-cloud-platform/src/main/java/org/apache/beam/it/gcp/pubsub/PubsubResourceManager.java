@@ -20,8 +20,6 @@ package org.apache.beam.it.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.pubsub.v1.SchemaServiceClient;
 import com.google.cloud.pubsub.v1.SchemaServiceSettings;
@@ -118,10 +116,11 @@ public final class PubsubResourceManager implements ResourceManager {
     this.schemaServiceClient = schemaServiceClient;
   }
 
-  public static Builder builder(String testName, String projectId) throws IOException {
+  public static Builder builder(
+      String testName, String projectId, CredentialsProvider credentialsProvider) {
     checkArgument(!Strings.isNullOrEmpty(testName), "testName can not be null or empty");
     checkArgument(!projectId.isEmpty(), "projectId can not be empty");
-    return new Builder(testName, projectId);
+    return new Builder(testName, projectId, credentialsProvider);
   }
 
   /**
@@ -361,11 +360,10 @@ public final class PubsubResourceManager implements ResourceManager {
     private final String testName;
     private CredentialsProvider credentialsProvider;
 
-    private Builder(String testName, String projectId) throws IOException {
+    private Builder(String testName, String projectId, CredentialsProvider credentialsProvider) {
       this.testName = testName;
       this.projectId = projectId;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
     }
 
     public Builder credentialsProvider(CredentialsProvider credentialsProvider) {

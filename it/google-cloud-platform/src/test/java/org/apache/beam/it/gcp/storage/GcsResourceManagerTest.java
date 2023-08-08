@@ -107,13 +107,14 @@ public final class GcsResourceManagerTest {
   @Test
   public void testBuilderWithEmptyBucket() {
     assertThrows(
-        IllegalArgumentException.class, () -> GcsResourceManager.builder("", TEST_CLASS).build());
+        IllegalArgumentException.class,
+        () -> GcsResourceManager.builder("", TEST_CLASS, null).build());
   }
 
   @Test
   public void testBuilderWithEmptyTestClassName() {
     assertThrows(
-        IllegalArgumentException.class, () -> GcsResourceManager.builder(BUCKET, "").build());
+        IllegalArgumentException.class, () -> GcsResourceManager.builder(BUCKET, "", null).build());
   }
 
   @Test
