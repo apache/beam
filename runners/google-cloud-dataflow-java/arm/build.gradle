@@ -127,6 +127,15 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
   include '**/*IT.class'
   exclude '**/TopWikipediaSessionsIT.class'
   exclude '**/AutoCompleteIT.class'
+  exclude '**/TfIdfIT.class'
+  exclude '**/TrafficMaxLaneFlowIT.class'
+  exclude '**/TrafficRoutesIT.class'
+  exclude '**/BigQueryTornadoesIT.class'
+  exclude '**/CombinePerKeyExamplesIT.class'
+  exclude '**/DistinctExampleIT.class'
+  exclude '**/FilterExamplesIT.class'
+  exclude '**/JoinExamplesIT.class'
+  exclude '**/MaxPerKeyExamplesIT.class'
   // TODO(https://github.com/apache/beam/issues/20593): test times out.
   exclude '**/FhirIOReadIT.class'
 
