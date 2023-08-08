@@ -86,7 +86,7 @@ public class BigQueryResourceManagerTest {
 
   @Test
   public void testGetDatasetIdReturnsCorrectValue() throws IOException {
-    BigQueryResourceManager tm = BigQueryResourceManager.builder(TEST_ID, PROJECT_ID).build();
+    BigQueryResourceManager tm = BigQueryResourceManager.builder(TEST_ID, PROJECT_ID, null).build();
 
     assertThat(tm.getDatasetId()).matches(TEST_ID.replace('-', '_') + "_\\d{8}_\\d{6}_\\d{6}");
   }

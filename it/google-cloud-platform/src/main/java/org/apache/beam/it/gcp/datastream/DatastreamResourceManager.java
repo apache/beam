@@ -20,8 +20,6 @@ package org.apache.beam.it.gcp.datastream;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastream.v1.AvroFileFormat;
 import com.google.cloud.datastream.v1.BigQueryDestinationConfig;
 import com.google.cloud.datastream.v1.BigQueryProfile;
@@ -99,10 +97,11 @@ public final class DatastreamResourceManager implements ResourceManager {
     this.createdConnectionProfileIds = Collections.synchronizedSet(new HashSet<>());
   }
 
-  public static Builder builder(String projectId, String location) throws IOException {
+  public static Builder builder(
+      String projectId, String location, CredentialsProvider credentialsProvider) {
     checkArgument(!Strings.isNullOrEmpty(projectId), "projectID can not be null or empty");
     checkArgument(!Strings.isNullOrEmpty(location), "location can not be null or empty");
-    return new Builder(projectId, location);
+    return new Builder(projectId, location, credentialsProvider);
   }
 
   /**
@@ -490,11 +489,10 @@ public final class DatastreamResourceManager implements ResourceManager {
     private final String location;
     private CredentialsProvider credentialsProvider;
 
-    private Builder(String projectId, String location) throws IOException {
+    private Builder(String projectId, String location, CredentialsProvider credentialsProvider) {
       this.projectId = projectId;
       this.location = location;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
     }
 
     public Builder setCredentialsProvider(CredentialsProvider credentialsProvider) {
