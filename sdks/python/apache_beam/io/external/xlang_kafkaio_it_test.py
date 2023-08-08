@@ -71,13 +71,7 @@ class CrossLanguageKafkaIO(object):
     self.bootstrap_servers = bootstrap_servers
     self.topic = topic
     self.null_key = null_key
-    if expansion_service is not None:
-      self.expansion_service = expansion_service
-    elif os.environ.get('EXPANSION_PORT') is not None:
-      self.expansion_service = (
-          'localhost:%s' % os.environ.get('EXPANSION_PORT'))
-    else:
-      self.expansion_service = None
+    self.expansion_service = expansion_service
     self.sum_counter = Metrics.counter('source', 'elements_sum')
 
   def build_write_pipeline(self, pipeline):
@@ -118,35 +112,71 @@ class CrossLanguageKafkaIO(object):
     pipeline.run(False)
 
 
-@unittest.skipUnless(
+
+class CrossLanguageKafkaIOTest(unittest.TestCase):
+  @unittest.skipUnless(
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")
-class CrossLanguageKafkaIOTest(unittest.TestCase):
-  @pytest.mark.uses_gcp_java_expansion_service
-  def test_kafkaio_populated_key(self):
+  def test_local_kafkaio_populated_key(self):
     kafka_topic = 'xlang_kafkaio_test_populated_key_{}'.format(uuid.uuid4())
     local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
     with self.local_kafka_service(local_kafka_jar) as kafka_port:
-      bootstrap_servers = '{}:{}'.format(
-          self.get_platform_localhost(), kafka_port)
+      # bootstrap_servers = '{}:{}'.format(
+      #     self.get_platform_localhost(), kafka_port)
+      bootstrap_servers = 'theotherjohn-nokill-kafka-c-m:9092'
       pipeline_creator = CrossLanguageKafkaIO(
           bootstrap_servers, kafka_topic, False)
 
       self.run_kafka_write(pipeline_creator)
       self.run_kafka_read(pipeline_creator, b'key')
 
-  @pytest.mark.uses_gcp_java_expansion_service
-  def test_kafkaio_null_key(self):
+  @unittest.skipUnless(
+    os.environ.get('LOCAL_KAFKA_JAR'),
+    "LOCAL_KAFKA_JAR environment var is not provided.")
+  def test_local_kafkaio_null_key(self):
     kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
     local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
     with self.local_kafka_service(local_kafka_jar) as kafka_port:
-      bootstrap_servers = '{}:{}'.format(
-          self.get_platform_localhost(), kafka_port)
+      # bootstrap_servers = '{}:{}'.format(
+      #     self.get_platform_localhost(), kafka_port)
+      bootstrap_servers = 'theotherjohn-nokill-kafka-c-m:9092'
       pipeline_creator = CrossLanguageKafkaIO(
-          bootstrap_servers, kafka_topic, True)
+          bootstrap_servers, kafka_topic, True, 'localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
       self.run_kafka_write(pipeline_creator)
       self.run_kafka_read(pipeline_creator, None)
+
+  @pytest.mark.uses_gcp_java_expansion_service
+  @unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
+  @unittest.skipUnless(
+    os.environ.get('BOOTSTRAP_SERVER'),
+    "BOOTSTRAP_SERVER environment var is not provided.")
+  def test_hosted_kafkaio_populated_key(self):
+    kafka_topic = 'xlang_kafkaio_test_populated_key_{}'.format(uuid.uuid4())
+    bootstrap_servers = os.environ.get('BOOTSTRAP_SERVER')
+    pipeline_creator = CrossLanguageKafkaIO(
+      bootstrap_servers, kafka_topic, False,'localhost:%s' % os.environ.get('EXPANSION_PORT'))
+
+    self.run_kafka_write(pipeline_creator)
+    self.run_kafka_read(pipeline_creator, b'key')
+
+  @pytest.mark.uses_gcp_java_expansion_service
+  @unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
+  @unittest.skipUnless(
+    os.environ.get('BOOTSTRAP_SERVER'),
+    "BOOTSTRAP_SERVER environment var is not provided.")
+  def test_hosted_kafkaio_null_key(self):
+    kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
+    bootstrap_servers = os.environ.get('BOOTSTRAP_SERVER')
+    pipeline_creator = CrossLanguageKafkaIO(
+      bootstrap_servers, kafka_topic, True)
+
+    self.run_kafka_write(pipeline_creator)
+    self.run_kafka_read(pipeline_creator, None)
 
   def run_kafka_write(self, pipeline_creator):
     with TestPipeline() as pipeline:

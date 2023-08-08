@@ -2457,7 +2457,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(config.expansionProjectPath)
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
-      project.evaluationDependsOn(":sdks:java:testing:kafka-service")
 
       // Setting up args to launch the expansion service
       def pythonDir = project.project(":sdks:python").projectDir
@@ -2509,7 +2508,6 @@ class BeamModulePlugin implements Plugin<Project> {
         description = "Runs Python SDK pipeline tests that use a Java expansion service"
         dependsOn setupTask
         dependsOn config.startJobServer
-        dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
@@ -2519,14 +2517,13 @@ class BeamModulePlugin implements Plugin<Project> {
             "suite": config.name,
             "collect": config.collectMarker,
           ]
-          //Configure kafkaJar to run Kafka Xlang Tests
-          def kafkaJar = project.project(":sdks:java:testing:kafka-service").buildTestKafkaServiceJar.archivePath
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
-            environment "LOCAL_KAFKA_JAR", kafkaJar
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
+            //Use hardcoded kafka temporarily until hosted Kafka on Google is available. TODO: johnjcasey
+            environment "BOOTSTRAP_SERVER", 'theotherjohn-nokill-kafka-c-m:9092'
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
