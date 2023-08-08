@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsublite;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.service.AutoService;

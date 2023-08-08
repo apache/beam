@@ -38,7 +38,7 @@ import com.google.pubsub.v1.Topic;
 import com.google.pubsub.v1.TopicName;
 import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

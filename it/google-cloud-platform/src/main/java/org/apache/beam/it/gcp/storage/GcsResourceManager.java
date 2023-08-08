@@ -17,7 +17,7 @@
  */
 package org.apache.beam.it.gcp.storage;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
@@ -43,7 +43,7 @@ import org.apache.beam.it.gcp.artifacts.Artifact;
 import org.apache.beam.it.gcp.artifacts.ArtifactClient;
 import org.apache.beam.it.gcp.artifacts.GcsArtifact;
 import org.apache.beam.it.gcp.artifacts.utils.ArtifactUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

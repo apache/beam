@@ -64,8 +64,8 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.DetectNewPartitio
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.NewPartition;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.StreamPartitionWithWatermark;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;

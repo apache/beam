@@ -36,7 +36,7 @@ test {
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:core-java")
   implementation library.java.google_http_client_jackson2
