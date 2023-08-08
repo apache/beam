@@ -35,7 +35,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
 
 /** Options that are used to control configuration of the SDK harness. */
 @Description("Options that are used to control configuration of the SDK harness.")
-public interface SdkHarnessOptions extends PipelineOptions {
+public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions {
   /** The set of log levels that can be used in the SDK harness. */
   enum LogLevel {
     /** Special level used to turn off logging. */
@@ -192,22 +192,6 @@ public interface SdkHarnessOptions extends PipelineOptions {
   Class<? extends MaxCacheMemoryUsageMb> getMaxCacheMemoryUsageMbClass();
 
   void setMaxCacheMemoryUsageMbClass(Class<? extends MaxCacheMemoryUsageMb> kls);
-
-  /**
-   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
-   * percentage of CPU time is spent in garbage collection. Harness will force fail tasks after
-   * sustained periods of thrashing.
-   *
-   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
-   */
-  @Description(
-      "The GC thrashing threshold percentage. A given period of time is considered \"thrashing\" if this "
-          + "percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after "
-          + "sustained periods of thrashing.")
-  @Default.Double(50.0)
-  Double getGCThrashingPercentagePerPeriod();
-
-  void setGCThrashingPercentagePerPeriod(Double value);
 
   /**
    * A {@link DefaultValueFactory} which constructs an instance of the class specified by {@link

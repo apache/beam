@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.MemoryMonitorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
@@ -39,7 +40,8 @@ import org.apache.beam.sdk.util.InstanceBuilder;
     "[Internal] Options used to control execution of the Dataflow SDK for "
         + "debugging and testing purposes.")
 @Hidden
-public interface DataflowPipelineDebugOptions extends ExperimentalOptions, PipelineOptions {
+public interface DataflowPipelineDebugOptions
+    extends ExperimentalOptions, MemoryMonitorOptions, PipelineOptions {
 
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value if it
