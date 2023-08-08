@@ -70,10 +70,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
-      (github.event.comment.body == 'Run Job With Matrix 3.8' ||
-      github.event.comment.body == 'Run Job With Matrix 3.9' ||
-      github.event.comment.body == 'Run Job With Matrix 3.10' ||
-      github.event.comment.body == 'Run Job With Matrix 3.11')
+      startsWith(github.event.comment.body, 'Run Job With Matrix')
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
