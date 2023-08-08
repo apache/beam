@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
-/** Options that are used to control options used by the Memory Monitor. */
-@Description("Options that are used to control options used by the Memory Monitor.")
+/** Options that are used to control the Memory Monitor. */
+@Description("Options that are used to control the Memory Monitor.")
 public interface MemoryMonitorOptions extends PipelineOptions {
 
   /**
