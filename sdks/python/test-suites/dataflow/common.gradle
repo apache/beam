@@ -351,7 +351,7 @@ task validatesContainer() {
 task validatesContainerARM() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
-  // dependsOn ":sdks:python:container:py${pyversion}:docker"
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
   def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
   doLast {
     exec {
