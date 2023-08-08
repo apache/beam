@@ -58,4 +58,4 @@ runs:
       if: ${{ inputs.requires-go == 'true'  }}
       uses: actions/setup-go@v3
       with:
-        go-version: '1.20' # never set patch, to get latest patch releases.
+        go-version: '1.21' # never set patch, to get latest patch releases.
