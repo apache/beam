@@ -57,3 +57,8 @@ runs:
         github_repository: ${{ github.repository }}     
         github_current_run_id: ${{ github.run_id }}
         pull_request_url: ${{ github.event.issue.pull_request.url }}
+    ### Used for Flink jobs that call docker run and mount gcloud folder
+    - name: expose gcloud path
+      shell: bash
+      run: |
+        echo CLOUDSDK_CONFIG=/var/lib/kubelet/pods/$POD_UID/volumes/kubernetes.io~empty-dir/gcloud >> $GITHUB_ENV
