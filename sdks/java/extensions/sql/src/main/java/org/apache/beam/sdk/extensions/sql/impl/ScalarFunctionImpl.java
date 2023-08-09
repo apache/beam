@@ -44,8 +44,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ImplementableFunction;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScalarFunction;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMultimap;
 
 /**
  * Beam-customized version from {@link

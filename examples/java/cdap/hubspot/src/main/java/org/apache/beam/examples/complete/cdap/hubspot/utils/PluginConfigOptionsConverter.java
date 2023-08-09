@@ -24,7 +24,7 @@ import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import java.util.Map;
 import org.apache.beam.examples.complete.cdap.hubspot.options.CdapHubspotOptions;
 import org.apache.beam.examples.complete.cdap.hubspot.options.CdapHubspotStreamingSourceOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Class for converting CDAP {@link org.apache.beam.sdk.options.PipelineOptions} to map for {@link

@@ -39,7 +39,7 @@ class FlinkRunner(portable_runner.PortableRunner):
   flink master if one is not given.
   """
 
-  # Inherits run_full_pipeline from PortableRunner.
+  # Inherits run_portable_pipeline from PortableRunner.
 
   def default_environment(self, options):
     portable_options = options.view_as(pipeline_options.PortableOptions)

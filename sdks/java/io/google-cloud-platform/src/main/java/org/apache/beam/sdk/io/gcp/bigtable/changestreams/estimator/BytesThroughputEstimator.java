@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

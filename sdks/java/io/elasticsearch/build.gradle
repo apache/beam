@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 ext.summary = "IO to read and write on Elasticsearch"
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.http_client
   implementation library.java.http_core

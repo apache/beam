@@ -143,6 +143,20 @@ public interface FlinkPipelineOptions
   void setNumberOfExecutionRetries(Integer retries);
 
   @Description(
+      "Set job check interval in seconds under detached mode in method waitUntilFinish, "
+          + "by default it is 5 seconds")
+  @Default.Integer(5)
+  int getJobCheckIntervalInSecs();
+
+  void setJobCheckIntervalInSecs(int seconds);
+
+  @Description("Specifies if the pipeline is submitted in attached or detached mode")
+  @Default.Boolean(true)
+  boolean getAttachedMode();
+
+  void setAttachedMode(boolean attachedMode);
+
+  @Description(
       "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")
   @Default.Long(-1L)

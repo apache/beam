@@ -20,12 +20,13 @@ package org.apache.beam.sdk.io.aws2.sqs;
 import static java.util.Collections.EMPTY_LIST;
 import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.buildClient;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,27 +42,35 @@ import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
-import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
@@ -129,19 +138,20 @@ public class SqsIO {
         .build();
   }
 
+  /** @deprecated Use {@link #writeBatches()} for more configuration options. */
+  @Deprecated
   public static Write write() {
     return new AutoValue_SqsIO_Write.Builder()
         .setClientConfiguration(ClientConfiguration.EMPTY)
         .build();
   }
 
-  public static <T> WriteBatches<T> writeBatches(WriteBatches.EntryBuilder<T> entryBuilder) {
+  public static <T> WriteBatches<T> writeBatches() {
     return new AutoValue_SqsIO_WriteBatches.Builder<T>()
         .clientConfiguration(ClientConfiguration.EMPTY)
         .concurrentRequests(WriteBatches.DEFAULT_CONCURRENCY)
         .batchSize(WriteBatches.MAX_BATCH_SIZE)
         .batchTimeout(WriteBatches.DEFAULT_BATCH_TIMEOUT)
-        .entryBuilder(entryBuilder)
         .build();
   }
 
@@ -225,11 +235,15 @@ public class SqsIO {
       return input.getPipeline().apply(transform);
     }
   }
+
   /**
    * A {@link PTransform} to send messages to SQS. See {@link SqsIO} for more information on usage
    * and configuration.
+   *
+   * @deprecated superseded by {@link WriteBatches}
    */
   @AutoValue
+  @Deprecated
   public abstract static class Write extends PTransform<PCollection<SendMessageRequest>, PDone> {
 
     abstract @Pure ClientConfiguration getClientConfiguration();
@@ -251,36 +265,11 @@ public class SqsIO {
 
     @Override
     public PDone expand(PCollection<SendMessageRequest> input) {
-      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-
-      input.apply(ParDo.of(new SqsWriteFn(this)));
+      input.apply(
+          SqsIO.<SendMessageRequest>writeBatches()
+              .withBatchSize(1)
+              .to(SendMessageRequest::queueUrl));
       return PDone.in(input.getPipeline());
-    }
-  }
-
-  private static class SqsWriteFn extends DoFn<SendMessageRequest, Void> {
-    private final Write spec;
-    private transient @MonotonicNonNull SqsClient sqs = null;
-
-    SqsWriteFn(Write write) {
-      this.spec = write;
-    }
-
-    @Setup
-    public void setup(PipelineOptions options) throws Exception {
-      AwsOptions awsOpts = options.as(AwsOptions.class);
-      sqs =
-          ClientBuilderFactory.buildClient(
-              awsOpts, SqsClient.builder(), spec.getClientConfiguration());
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext processContext) throws Exception {
-      if (sqs == null) {
-        throw new IllegalStateException("No SQS client");
-      }
-      sqs.sendMessage(processContext.element());
     }
   }
 
@@ -291,6 +280,7 @@ public class SqsIO {
   @AutoValue
   public abstract static class WriteBatches<T>
       extends PTransform<PCollection<T>, WriteBatches.Result> {
+    private static final Logger LOG = LoggerFactory.getLogger(WriteBatches.class);
     private static final int DEFAULT_CONCURRENCY = 5;
     private static final int MAX_BATCH_SIZE = 10;
     private static final Duration DEFAULT_BATCH_TIMEOUT = Duration.standardSeconds(3);
@@ -303,7 +293,7 @@ public class SqsIO {
 
     abstract @Pure ClientConfiguration clientConfiguration();
 
-    abstract @Pure EntryBuilder<T> entryBuilder();
+    abstract @Pure @Nullable EntryMapperFn<T> entryMapper();
 
     abstract @Pure @Nullable DynamicDestination<T> dynamicDestination();
 
@@ -325,7 +315,7 @@ public class SqsIO {
 
       abstract Builder<T> clientConfiguration(ClientConfiguration config);
 
-      abstract Builder<T> entryBuilder(EntryBuilder<T> entryBuilder);
+      abstract Builder<T> entryMapper(@Nullable EntryMapperFn<T> entryMapper);
 
       abstract Builder<T> dynamicDestination(@Nullable DynamicDestination<T> destination);
 
@@ -344,6 +334,22 @@ public class SqsIO {
     public WriteBatches<T> withConcurrentRequests(int concurrentRequests) {
       checkArgument(concurrentRequests > 0, "concurrentRequests must be > 0");
       return builder().concurrentRequests(concurrentRequests).build();
+    }
+
+    /**
+     * Optional mapper to create a batch entry from a unique entry id and the input {@code T},
+     * otherwise inferred from the schema.
+     */
+    public WriteBatches<T> withEntryMapper(EntryMapperFn<T> mapper) {
+      return builder().entryMapper(mapper).build();
+    }
+
+    /**
+     * Optional mapper to create a batch entry from the input {@code T} using a builder, otherwise
+     * inferred from the schema.
+     */
+    public WriteBatches<T> withEntryMapper(EntryMapperFn.Builder<T> mapper) {
+      return builder().entryMapper(mapper).build();
     }
 
     /** The batch size to use, default (and AWS limit) is {@code 10}. */
@@ -375,11 +381,25 @@ public class SqsIO {
       return builder().dynamicDestination(null).queueUrl(queueUrl).build();
     }
 
+    private EntryMapperFn<T> schemaEntryMapper(PCollection<T> input) {
+      checkState(input.hasSchema(), "withEntryMapper is required if schema is not available");
+      SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
+      try {
+        return new SchemaEntryMapper<>(
+            input.getSchema(),
+            registry.getSchema(SendMessageBatchRequestEntry.class),
+            input.getToRowFunction(),
+            registry.getFromRowFunction(SendMessageBatchRequestEntry.class));
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     @Override
     public Result expand(PCollection<T> input) {
       AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
       ClientBuilderFactory.validate(awsOptions, clientConfiguration());
-
+      EntryMapperFn<T> mapper = entryMapper() != null ? entryMapper() : schemaEntryMapper(input);
       input.apply(
           ParDo.of(
               new DoFn<T, Void>() {
@@ -387,7 +407,8 @@ public class SqsIO {
 
                 @Setup
                 public void setup(PipelineOptions options) {
-                  handler = new BatchHandler<>(WriteBatches.this, options.as(AwsOptions.class));
+                  handler =
+                      new BatchHandler<>(WriteBatches.this, mapper, options.as(AwsOptions.class));
                 }
 
                 @StartBundle
@@ -420,9 +441,86 @@ public class SqsIO {
       return new Result(input.getPipeline());
     }
 
-    /** Batch entry builder. */
-    public interface EntryBuilder<T>
-        extends BiConsumer<SendMessageBatchRequestEntry.Builder, T>, Serializable {}
+    /**
+     * Mapper to create a {@link SendMessageBatchRequestEntry} from a unique batch entry id and the
+     * input {@code T}.
+     */
+    public interface EntryMapperFn<T>
+        extends BiFunction<String, T, SendMessageBatchRequestEntry>, Serializable {
+
+      /** A more convenient {@link EntryMapperFn} variant that already sets the entry id. */
+      interface Builder<T>
+          extends BiConsumer<SendMessageBatchRequestEntry.Builder, T>, EntryMapperFn<T> {
+        @Override
+        default SendMessageBatchRequestEntry apply(String entryId, T msg) {
+          SendMessageBatchRequestEntry.Builder builder = SendMessageBatchRequestEntry.builder();
+          accept(builder, msg);
+          return builder.id(entryId).build();
+        }
+      }
+    }
+
+    @VisibleForTesting
+    static class SchemaEntryMapper<T> implements EntryMapperFn<T> {
+      private final SerializableFunction<T, Row> toRow;
+      private final SerializableFunction<Row, SendMessageBatchRequestEntry> fromRow;
+      private final Schema schema;
+      private final int[] fieldMapping;
+
+      SchemaEntryMapper(
+          Schema sourceSchema,
+          Schema targetSchema,
+          SerializableFunction<T, Row> toRow,
+          SerializableFunction<Row, SendMessageBatchRequestEntry> fromRow) {
+        this.toRow = toRow;
+        this.fromRow = fromRow;
+        this.schema = targetSchema;
+        this.fieldMapping = new int[targetSchema.getFieldCount()];
+
+        Arrays.fill(fieldMapping, -1);
+
+        List<String> ignored = Lists.newLinkedList();
+        List<String> invalid = Lists.newLinkedList();
+
+        for (int i = 0; i < sourceSchema.getFieldCount(); i++) {
+          Field sourceField = sourceSchema.getField(i);
+          if (targetSchema.hasField(sourceField.getName())) {
+            int targetIdx = targetSchema.indexOf(sourceField.getName());
+            // make sure field types match
+            if (!sourceField.typesEqual(targetSchema.getField(targetIdx))) {
+              invalid.add(sourceField.getName());
+            }
+            fieldMapping[targetIdx] = i;
+          } else {
+            ignored.add(sourceField.getName());
+          }
+        }
+        checkState(
+            ignored.size() < sourceSchema.getFieldCount(),
+            "No fields matched, expected %s but got %s",
+            schema.getFieldNames(),
+            ignored);
+
+        checkState(invalid.isEmpty(), "Detected incompatible types for input fields: {}", invalid);
+
+        if (!ignored.isEmpty()) {
+          LOG.warn("Ignoring unmatched input fields: {}", ignored);
+        }
+      }
+
+      @Override
+      public SendMessageBatchRequestEntry apply(String entryId, T input) {
+        Row row = toRow.apply(input);
+        Object[] values = new Object[fieldMapping.length];
+        values[0] = entryId;
+        for (int i = 0; i < values.length; i++) {
+          if (fieldMapping[i] >= 0) {
+            values[i] = row.getValue(fieldMapping[i]);
+          }
+        }
+        return fromRow.apply(Row.withSchema(schema).attachValues(values));
+      }
+    }
 
     /** Result of {@link #writeBatches}. */
     public static class Result implements POutput {
@@ -451,12 +549,14 @@ public class SqsIO {
       private final WriteBatches<T> spec;
       private final SqsAsyncClient sqs;
       private final Batches batches;
+      private final EntryMapperFn<T> entryMapper;
       private final AsyncBatchWriteHandler<SendMessageBatchRequestEntry, BatchResultErrorEntry>
           handler;
 
-      BatchHandler(WriteBatches<T> spec, AwsOptions options) {
+      BatchHandler(WriteBatches<T> spec, EntryMapperFn<T> entryMapper, AwsOptions options) {
         this.spec = spec;
         this.sqs = buildClient(options, SqsAsyncClient.builder(), spec.clientConfiguration());
+        this.entryMapper = entryMapper;
         this.handler =
             AsyncBatchWriteHandler.byId(
                 spec.concurrentRequests(),
@@ -488,10 +588,7 @@ public class SqsIO {
       }
 
       public void process(T msg) {
-        SendMessageBatchRequestEntry.Builder builder = SendMessageBatchRequestEntry.builder();
-        spec.entryBuilder().accept(builder, msg);
-        SendMessageBatchRequestEntry entry = builder.id(batches.nextId()).build();
-
+        SendMessageBatchRequestEntry entry = entryMapper.apply(batches.nextId(), msg);
         Batch batch = batches.getLocked(msg);
         batch.add(entry);
         if (batch.size() >= spec.batchSize() || batch.isExpired()) {

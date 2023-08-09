@@ -152,7 +152,7 @@ class PipelineRunner(object):
       transform(PBegin(p))
     return p.run()
 
-  def run_full_pipeline(
+  def run_portable_pipeline(
       self, pipeline: beam_runner_api_pb2.Pipeline,
       options: PipelineOptions) -> 'PipelineResult':
     """Execute the entire pipeline.
@@ -189,7 +189,7 @@ class PipelineRunner(object):
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'
 
-    return self.run_full_pipeline(
+    return self.run_portable_pipeline(
         pipeline.to_runner_api(
             default_environment=self.default_environment(options)),
         options)
@@ -214,8 +214,6 @@ class PipelineRunner(object):
       self,
       pipeline_proto: beam_runner_api_pb2.Pipeline,
       supported_requirements: Iterable[str]):
-    # type: (beam_runner_api_pb2.Pipeline) -> None
-
     """Check that this runner can satisfy all pipeline requirements."""
 
     # Imported here to avoid circular dependencies.

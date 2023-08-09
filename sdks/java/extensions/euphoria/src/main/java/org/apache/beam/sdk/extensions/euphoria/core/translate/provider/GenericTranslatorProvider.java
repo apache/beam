@@ -36,7 +36,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTranslator
 import org.apache.beam.sdk.extensions.euphoria.core.translate.ReduceByKeyTranslator;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.TranslatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.UnionTranslator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * Adjustable {@link TranslatorProvider} that selects first suitable translation for the registered

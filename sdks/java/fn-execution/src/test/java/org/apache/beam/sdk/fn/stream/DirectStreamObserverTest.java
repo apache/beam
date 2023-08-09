@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -35,9 +36,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -129,6 +131,50 @@ public class DirectStreamObserverTest {
     streamObserver.onCompleted();
   }
 
+  @Test
+  public void testIsReadyIsHonoredTermination() throws Exception {
+    AdvancingPhaser phaser = new AdvancingPhaser(1);
+    final AtomicBoolean elementsAllowed = new AtomicBoolean();
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            phaser,
+            TestStreams.withOnNext(
+                    (String t) -> {
+                      if (phaser.isTerminated()) {
+                        throw new RuntimeException("Test stream terminated.");
+                      }
+                      assertTrue(elementsAllowed.get());
+                    })
+                .withIsReady(elementsAllowed::get)
+                .build(),
+            0);
+
+    // Start all the tasks
+    List<Future<String>> results = new ArrayList<>();
+    for (final String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
+      results.add(
+          executor.submit(
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
+                }
+                return prefix;
+              }));
+    }
+
+    // Have them wait and then terminate the phaser and ensure sends occur.
+    Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+    phaser.forceTermination();
+
+    Assert.assertThrows(
+        "Test stream terminated.", RuntimeException.class, () -> streamObserver.onNext("100"));
+
+    for (Future<String> result : results) {
+      Assert.assertThrows(ExecutionException.class, () -> result.get());
+    }
+    streamObserver.onCompleted();
+  }
+
   /**
    * This test specifically covers the case if the outbound observer is being invoked on the same
    * thread that the inbound observer is. gRPC documentation states:
@@ -176,6 +222,52 @@ public class DirectStreamObserverTest {
 
   @Test
   public void testMessageCheckInterval() throws Exception {
+    final AtomicInteger index = new AtomicInteger();
+    ArrayListMultimap<Integer, String> values = ArrayListMultimap.create();
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1),
+            TestStreams.withOnNext((String t) -> assertTrue(values.put(index.get(), t)))
+                .withIsReady(
+                    () -> {
+                      index.incrementAndGet();
+                      return true;
+                    })
+                .build(),
+            10);
+
+    List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
+    List<Future<String>> results = new ArrayList<>();
+    for (final String prefix : prefixes) {
+      results.add(
+          executor.submit(
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
+                }
+                return prefix;
+              }));
+    }
+    for (Future<?> result : results) {
+      result.get();
+    }
+    assertEquals(50, values.size());
+    for (Collection<String> valuesPerMessageCheck : values.asMap().values()) {
+      assertThat(valuesPerMessageCheck, hasSize(10));
+    }
+
+    // Check that order was maintained per writer.
+    int[] prefixesIndex = new int[prefixes.size()];
+    for (String onNextValue : values.values()) {
+      int prefix = Integer.parseInt(onNextValue.substring(0, 1));
+      int suffix = Integer.parseInt(onNextValue.substring(1, 2));
+      assertEquals(prefixesIndex[prefix], suffix);
+      prefixesIndex[prefix] += 1;
+    }
+  }
+
+  @Test
+  public void testPhaserTermination() throws Exception {
     final AtomicInteger index = new AtomicInteger();
     ArrayListMultimap<Integer, String> values = ArrayListMultimap.create();
     final DirectStreamObserver<String> streamObserver =

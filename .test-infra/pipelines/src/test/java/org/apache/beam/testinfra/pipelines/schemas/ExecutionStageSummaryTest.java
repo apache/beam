@@ -21,7 +21,7 @@ import com.google.dataflow.v1beta3.ExecutionStageSummary;
 import com.google.protobuf.Descriptors.Descriptor;
 import java.util.Set;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**

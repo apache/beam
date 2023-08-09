@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -143,13 +143,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -1824,7 +1824,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new SimpleFunction<Long, TableRow>() {
                       @Override
                       public TableRow apply(Long input) {
-                        return new TableRow().set("name", "name " + input).set("number", input);
+                        return new TableRow().set("NaMe", "name " + input).set("numBEr", input);
                       }
                     }))
             .setCoder(TableRowJsonCoder.of());
@@ -1854,6 +1854,8 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStreaming);
     assumeTrue(useStorageApi);
     thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Auto schema update currently only supported when ignoreUnknownValues also set.");
     p.apply("create", Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -1864,6 +1866,28 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testStreamingWriteValidateFailsWithoutTriggeringFrequency() {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate);
+    p.enableAbandonedNodeEnforcement(false);
+    Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API");
+    thrown.expectMessage("triggering frequency must be specified");
+
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withMethod(method)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
   }
 
   @SuppressWarnings({"unused"})
@@ -2140,17 +2164,17 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithBatchAutoSharding() {
-    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Auto-sharding is only applicable to unbounded input.");
+    thrown.expectMessage(
+        "Auto-sharding is only applicable to an unbounded PCollection, but the input PCollection is BOUNDED.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
                 .to("dataset.table")
                 .withSchema(new TableSchema())
-                .withMethod(Method.STREAMING_INSERTS)
                 .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
