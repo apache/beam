@@ -179,7 +179,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     artifact_location = write_artifact_location
     artifact_mode = ArtifactMode.PRODUCE
 
-    if len(read_artifact_location) > 0:
+    if read_artifact_location:
       artifact_location = read_artifact_location
       artifact_mode = ArtifactMode.CONSUME
 
