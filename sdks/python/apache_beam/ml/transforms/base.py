@@ -144,7 +144,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         it is not necessary to pass the transforms since they are inherently
         stored within the artifacts themselves. The value assigned to
         `write_artifact_location` should be a valid storage path where the
-        artifacts can be written to.
+        artifacts can be written to. Only one of write_artifact_location and
+        read_artifact_location should be specified.
       read_artifact_location: A storage location to read artifacts resulting
         froma previous MLTransform. These artifacts include transformations
         applied to the dataset and generated values like min, max from
@@ -152,7 +153,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         artifacts, it is not necessary to pass the transforms since they are
         inherently stored within the artifacts themselves. The value assigned
         to `read_artifact_location` should be a valid storage path where the
-        artifacts can be read from.
+        artifacts can be read from. Only one of write_artifact_location and
+        read_artifact_location should be specified.
       transforms: A list of transforms to apply to the data. All the transforms
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
@@ -164,7 +166,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     if len(read_artifact_location) > 0 and len(write_artifact_location) > 0:
       raise ValueError(
           'Only one of read_artifact_location or write_artifact_location can '
-          ' bespecified to initialize MLTransform')
+          'be specified to initialize MLTransform')
 
     if len(read_artifact_location) == 0 and len(write_artifact_location) == 0:
       raise ValueError(
