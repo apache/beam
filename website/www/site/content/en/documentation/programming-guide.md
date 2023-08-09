@@ -7833,7 +7833,51 @@ Currently, portable runners such as Flink, Spark, and the direct runner can be u
 
 Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.
 
-### 13.4 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
+### 13.4 Docker-based Expansion using the Transform Service  {#x-lang-transform-service}
+
+Starting version 2.49.0, Beam introduced a Docker-compose-based service named Transform Service. The Transform Service allows Beam portable
+pipelines to perform expansion of supported transforms using Docker.
+
+The basic architecture of the Transform Service is given below.
+
+The Transform Service can be useful in many contexts. We have identified two primary use-cases below. Note that to use the transform service, Docker (and Docker Compose) needs to be available in the local machine where the service will be started.
+
+* Perform expansion of cross-language transforms without installing other language runtimes.
+
+Transforms Service allows multi-language pipelines to use/expand external transforms implemented in other SDKs without installing other language runtimes. During ,transform expansion, an
+
+* Upgrade transforms without upgrading the Beam version (WIP)
+
+### Starting up the Transform Service.
+
+* Java SDK
+
+PythonExternalTransform API will automatically startup the Transform Service for you if the remote language runtime is not available locally but Docker is available.
+
+If needed, a Transform Service instance can be manually started using a utility provided with Beam Java SDK.
+
+* Python SDK
+
+External API will automatically startup a Transform Service for you if the remote language runtime is not available locally but Docker is available.
+
+If needed, a Transform Service instance can be manually started using a utility provided with Beam Python SDK.
+
+* Go SDK (WIP)
+
+#### Portable Transforms included in the Transform Service
+
+Transforms service includes a number of portable transforms implemented in Beam Java and Python SDKs.
+
+Currently Transform Service includes following.
+
+* Java transforms - all GCP I/O connectors, Kafka I/O connector, SQL transform.
+
+* Python transforms - all portable transforms implemented within Beam Python SDK, for example, RunInference and dataframe transforms.
+
+For a more detailed list of available transforms, please see here.
+
+
+### 13.5 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
 
 For additional tips and troubleshooting information, see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).
 
