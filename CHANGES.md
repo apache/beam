@@ -76,6 +76,7 @@
 * Vertex AI Model Handler for RunInference now supports private endpoints ([#27696](https://github.com/apache/beam/pull/27696))
 * MLTransform transform added with support for common ML pre/postprocessing operations ([#26795](https://github.com/apache/beam/pull/26795))
 * Upgraded the Kryo extension for the Java SDK to Kryo 5.5.0. This brings in bug fixes, performance improvements, and serialization of Java 14 records. ([#27635](https://github.com/apache/beam/issues/27635))
+* Add `py.typed` to support running `mypy` on user pipelines ([#27906](https://github.com/apache/beam/issues/27906))
 
 ## Breaking Changes
 
