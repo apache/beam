@@ -29,6 +29,7 @@ import urllib.parse
 import uuid
 from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import Mapping
 
@@ -106,7 +107,7 @@ def as_provider_list(name, lst):
 
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
-  _provider_types = {}
+  _provider_types: Dict[str, Callable[..., Provider]] = {}
 
   def __init__(self, urns, service):
     self._urns = urns
