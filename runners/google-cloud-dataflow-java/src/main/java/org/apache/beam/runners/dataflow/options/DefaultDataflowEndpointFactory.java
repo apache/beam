@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.google.api.services.dataflow.Dataflow;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -46,15 +47,19 @@ public class DefaultDataflowEndpointFactory implements DefaultValueFactory<Strin
   public String create(PipelineOptions options) {
     String region = options.getRegion();
     if (!Strings.isNullOrEmpty(region)) {
-      LOG.info("Using default GCP region {} from $CLOUDSDK_COMPUTE_REGION", environmentRegion);
+      LOG.info("Region is set. Using Region to determine endpoint.", region);
       return calculateDataflowEndpointFromRegion(region);
+    }
+    else {
+      return Dataflow.DEFAULT_SERVICE_PATH
+    }
 
   }
 
   @VisibleForTesting
   public static String calculateDataflowEndpointFromRegion(String region) {
-    string baseUrl;
-    return region + baseUrl;
+    String baseUrl = Dataflow.DEFAULT_SERVICE_PATH;
+    return region + "-" + baseUrl;
   }
 
 }

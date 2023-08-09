@@ -223,6 +223,7 @@ public class DataflowPipelineOptionsTest {
           .thenReturn("");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("", options.getRegion());
+      assertEquals(Dataflow.DEFAULT_SERVICE_PATH, options.getDataflowEndpoint())
     }
 
     @Test
@@ -242,6 +243,7 @@ public class DataflowPipelineOptionsTest {
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn("us-west1");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("us-west1", options.getRegion());
+      assertEquals("us-west1-" + Dataflow.DEFAULT_SERVICE_PATH, options.getDataflowEndpoint())
     }
 
     @Test

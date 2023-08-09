@@ -140,8 +140,9 @@ public interface DataflowPipelineOptions
   /**
    * Dataflow endpoint to use.
    *
-   * <p>Defaults to the current version of the Google Cloud Dataflow API, at the time the current
-   * SDK version was released.
+   * <p>Defaults to the regional endpoint of the current version of the Google Cloud Dataflow API, at the time the current
+   * SDK version was released. If regional endpoint is not available, it falls back to using the global endpoint, or fails
+   * if neither is available.
    *
    * <p>If the string contains "://", then this is treated as a URL, otherwise {@link
    * #getApiRootUrl()} is used as the root URL.
