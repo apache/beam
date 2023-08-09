@@ -155,10 +155,10 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
     kafka_topic = 'xlang_kafkaio_test_populated_key_{}'.format(uuid.uuid4())
     bootstrap_servers = os.environ.get('BOOTSTRAP_SERVER')
     pipeline_creator = CrossLanguageKafkaIO(
-      bootstrap_servers,
-      kafka_topic,
-      False,
-      'localhost:%s' % os.environ.get('EXPANSION_PORT'))
+        bootstrap_servers,
+        kafka_topic,
+        False,
+        'localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     self.run_kafka_write(pipeline_creator)
     self.run_kafka_read(pipeline_creator, b'key')
@@ -174,10 +174,10 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
     kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
     bootstrap_servers = os.environ.get('BOOTSTRAP_SERVER')
     pipeline_creator = CrossLanguageKafkaIO(
-      bootstrap_servers,
-      kafka_topic,
-      True,
-      'localhost:%s' % os.environ.get('EXPANSION_PORT'))
+        bootstrap_servers,
+        kafka_topic,
+        True,
+        'localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     self.run_kafka_write(pipeline_creator)
     self.run_kafka_read(pipeline_creator, None)
