@@ -493,7 +493,6 @@ partial name is matched with the correct class to be used.
 Python Runners can also be identified (e.g. when passing the runner parameter)
 by their fully qualified name whether or not they live in the Beam repository.
 
-
 ## Writing an SDK-independent runner
 
 There are two aspects to making your runner SDK-independent, able to run
