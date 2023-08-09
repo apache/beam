@@ -115,8 +115,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
   def __init__(
       self,
       *,
-      write_artifact_location: str = '',
-      read_artifact_location: str = '',
+      write_artifact_location: Optional[str] = None,
+      read_artifact_location: Optional[str] = None,
       transforms: Optional[Sequence[BaseOperation]] = None):
     """
     MLTransform is a Beam PTransform that can be used to apply
@@ -143,9 +143,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         retrieved from this location. Note that when consuming artifacts,
         it is not necessary to pass the transforms since they are inherently
         stored within the artifacts themselves. The value assigned to
-        `write_artifact_location` should be a valid storage path where the
-        artifacts can be written to. Only one of write_artifact_location and
-        read_artifact_location should be specified.
+        `write_artifact_location` should be a valid storage directory where the
+        artifacts from this transform can be written to. If no directory exists
+        at this location, one will be created. This will overwrite any
+        artifacts already in this location, so distinct locations should be
+        used for each instance of MLTransform. Only one of
+        write_artifact_location and read_artifact_location should be specified.
       read_artifact_location: A storage location to read artifacts resulting
         froma previous MLTransform. These artifacts include transformations
         applied to the dataset and generated values like min, max from
@@ -163,12 +166,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     if transforms:
       _ = [self._validate_transform(transform) for transform in transforms]
 
-    if len(read_artifact_location) > 0 and len(write_artifact_location) > 0:
+    if read_artifact_location and write_artifact_location:
       raise ValueError(
           'Only one of read_artifact_location or write_artifact_location can '
           'be specified to initialize MLTransform')
 
-    if len(read_artifact_location) == 0 and len(write_artifact_location) == 0:
+    if not read_artifact_location and not write_artifact_location:
       raise ValueError(
           'Either a read_artifact_location or write_artifact_location must be '
           'specified to initialize MLTransform')
