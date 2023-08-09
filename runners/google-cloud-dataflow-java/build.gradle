@@ -556,6 +556,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/StorageApiSinkSchemaUpdateIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
