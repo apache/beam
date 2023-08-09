@@ -83,5 +83,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 }
 
 task pushAll {
-  dependsOn ":sdks:typescript:container:dockerPush"
+  dependsOn ":sdks:typescript:container:docker"
 }
