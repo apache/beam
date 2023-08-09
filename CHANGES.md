@@ -63,6 +63,7 @@
 * Java KafkaIO now supports picking up topics via topicPattern ([#26948](https://github.com/apache/beam/pull/26948))
 * Support for read from Cosmos DB Core SQL API ([#23604](https://github.com/apache/beam/issues/23604))
 * Upgraded to HBase 2.5.5 for HBaseIO. (Java) ([#27711](https://github.com/apache/beam/issues/19554))
+* Added support for GoogleAdsIO source (Java) ([#27681](https://github.com/apache/beam/pull/27681)).
 
 ## New Features / Improvements
 
@@ -142,7 +143,6 @@
   * This change is not compatible with Flink savepoints created by Beam 2.46.0 applications which had KinesisIO sources.
 * Added textio.ReadWithFilename transform (Go) ([#25812](https://github.com/apache/beam/issues/25812)).
 * Added fileio.MatchContinuously transform (Go) ([#26186](https://github.com/apache/beam/issues/26186)).
-* Added support for GoogleAdsIO source (Java) ([#27681](https://github.com/apache/beam/pull/27681)).
 
 ## New Features / Improvements
 
