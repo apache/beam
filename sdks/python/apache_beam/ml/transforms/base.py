@@ -190,7 +190,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     # create a mapping between transforms and ProcessHandler since
     # ProcessHandler is not exposed to the user.
     process_handler: ProcessHandler = TFTProcessHandler(
-        artifact_location=artifact_location,
+        artifact_location=artifact_location,  # type: ignore[arg-type]
         artifact_mode=artifact_mode,
         transforms=transforms)  # type: ignore[arg-type]
 
