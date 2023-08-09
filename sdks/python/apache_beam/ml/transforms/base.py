@@ -176,12 +176,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
           'Either a read_artifact_location or write_artifact_location must be '
           'specified to initialize MLTransform')
 
-    artifact_location = write_artifact_location
-    artifact_mode = ArtifactMode.PRODUCE
-
     if read_artifact_location:
       artifact_location = read_artifact_location
       artifact_mode = ArtifactMode.CONSUME
+    else:
+      artifact_location = write_artifact_location
+      artifact_mode = ArtifactModr.PRODUCE
 
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
