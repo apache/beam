@@ -51,7 +51,7 @@ public class DefaultDataflowEndpointFactory implements DefaultValueFactory<Strin
       return calculateDataflowEndpointFromRegion(region);
     }
     else {
-      return Dataflow.DEFAULT_SERVICE_PATH
+      return Dataflow.DEFAULT_SERVICE_PATH;
     }
 
   }

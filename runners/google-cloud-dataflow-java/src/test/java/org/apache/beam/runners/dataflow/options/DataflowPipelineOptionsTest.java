@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.google.api.services.dataflow.Dataflow;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -223,7 +224,7 @@ public class DataflowPipelineOptionsTest {
           .thenReturn("");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("", options.getRegion());
-      assertEquals(Dataflow.DEFAULT_SERVICE_PATH, options.getDataflowEndpoint())
+      assertEquals(Dataflow.DEFAULT_SERVICE_PATH, options.getDataflowEndpoint());
     }
 
     @Test
@@ -243,7 +244,7 @@ public class DataflowPipelineOptionsTest {
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn("us-west1");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("us-west1", options.getRegion());
-      assertEquals("us-west1-" + Dataflow.DEFAULT_SERVICE_PATH, options.getDataflowEndpoint())
+      assertEquals("us-west1-" + Dataflow.DEFAULT_SERVICE_PATH, options.getDataflowEndpoint());
     }
 
     @Test
