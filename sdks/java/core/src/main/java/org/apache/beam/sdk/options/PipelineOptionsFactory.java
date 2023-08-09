@@ -1269,6 +1269,7 @@ public class PipelineOptionsFactory {
     try {
       knownMethods.add(iface.getMethod("as", Class.class));
       knownMethods.add(iface.getMethod("outputRuntimeOptions"));
+      knownMethods.add(iface.getMethod("revision"));
       knownMethods.add(iface.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw new RuntimeException(e);

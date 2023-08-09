@@ -1527,7 +1527,7 @@ public class StreamingDataflowWorker {
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
-        Duration elapsedTimeSinceStart = new Duration(clock.get(), work.getStartTime());
+        Duration elapsedTimeSinceStart = new Duration(work.getStartTime(), clock.get());
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
               "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "

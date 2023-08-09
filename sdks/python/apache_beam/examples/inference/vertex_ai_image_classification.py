@@ -75,10 +75,23 @@ def parse_known_args(argv):
       required=True,
       help='GCP location for the Endpoint')
   parser.add_argument(
+      '--endpoint_network',
+      dest='vpc_network',
+      type=str,
+      required=False,
+      help='GCP network the endpoint is peered to')
+  parser.add_argument(
       '--experiment',
       dest='experiment',
+      type=str,
       required=False,
-      help='GCP experiment to pass to init')
+      help='Vertex AI experiment label to apply to queries')
+  parser.add_argument(
+      '--private',
+      dest='private',
+      type=bool,
+      default=False,
+      help="True if the Vertex AI endpoint is a private endpoint")
   return parser.parse_known_args(argv)
 
 
@@ -130,7 +143,9 @@ def run(
       endpoint_id=known_args.endpoint,
       project=known_args.project,
       location=known_args.location,
-      experiment=known_args.experiment)
+      experiment=known_args.experiment,
+      network=known_args.vpc_network,
+      private=known_args.private)
 
   pipeline = test_pipeline
   if not test_pipeline:

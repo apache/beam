@@ -78,13 +78,16 @@ public class TableSchemaUpdateUtils {
       return Result.of(newSchema, false);
     }
 
+    // BigQuery column names are not case-sensitive, but Map keys are.
     Map<String, TableFieldSchema> newSchemaMap =
-        newSchema.stream().collect(Collectors.toMap(TableFieldSchema::getName, x -> x));
+        newSchema.stream().collect(Collectors.toMap(tr -> tr.getName().toLowerCase(), x -> x));
     Set<String> fieldNamesPopulated = Sets.newHashSet();
     List<TableFieldSchema> updatedSchema = Lists.newArrayList();
     boolean isEquivalent = oldSchema.size() == newSchema.size();
     for (TableFieldSchema tableFieldSchema : oldSchema) {
-      @Nullable TableFieldSchema newTableFieldSchema = newSchemaMap.get(tableFieldSchema.getName());
+      @Nullable
+      TableFieldSchema newTableFieldSchema =
+          newSchemaMap.get(tableFieldSchema.getName().toLowerCase());
       if (newTableFieldSchema == null) {
         // We don't support deleting fields!
         return Result.empty();

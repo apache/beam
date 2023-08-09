@@ -145,6 +145,7 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Unlock()
 }
 
+// Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
 func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
 	resp := wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
@@ -159,6 +160,7 @@ func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
 	return resp.GetProcessBundleProgress(), nil
 }
 
+// Split sends a split request for the given bundle to the passed in worker, blocking on the response.
 func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
 	resp := wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{

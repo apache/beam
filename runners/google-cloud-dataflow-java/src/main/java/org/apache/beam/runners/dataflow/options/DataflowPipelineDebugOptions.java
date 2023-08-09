@@ -235,22 +235,6 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setJfrRecordingDurationSec(int value);
 
   /**
-   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
-   * percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after
-   * sustained periods of thrashing.
-   *
-   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
-   */
-  @Description(
-      "The GC thrashing threshold percentage. A given period of time is considered \"thrashing\" if this "
-          + "percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after "
-          + "sustained periods of thrashing.")
-  @Default.Double(50.0)
-  Double getGCThrashingPercentagePerPeriod();
-
-  void setGCThrashingPercentagePerPeriod(Double value);
-
-  /**
    * The size of the worker's in-memory cache, in megabytes.
    *
    * <p>Currently, this cache is used for storing read values of side inputs. as well as the state

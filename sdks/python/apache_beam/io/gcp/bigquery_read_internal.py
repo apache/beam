@@ -144,6 +144,8 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
     self.side_input = side_input
 
   def expand(self, input):
+    pipeline_options = input.pipeline.options
+
     class PassThrough(beam.DoFn):
       def process(self, element):
         yield element
@@ -151,7 +153,7 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
     class CleanUpProjects(beam.DoFn):
       def process(self, unused_element, unused_signal, pipeline_details):
         bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
-            input.pipeline.options)
+            pipeline_options)
         pipeline_details = pipeline_details[0]
         if 'temp_table_ref' in pipeline_details.keys():
           temp_table_ref = pipeline_details['temp_table_ref']
