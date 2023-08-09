@@ -112,7 +112,6 @@ class CrossLanguageKafkaIO(object):
     pipeline.run(False)
 
 
-
 class CrossLanguageKafkaIOTest(unittest.TestCase):
   @unittest.skipUnless(
       os.environ.get('LOCAL_KAFKA_JAR'),
