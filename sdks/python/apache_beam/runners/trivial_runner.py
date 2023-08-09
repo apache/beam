@@ -1,6 +1,7 @@
 import collections
 import logging
 from typing import Any
+from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import TypeVar
@@ -17,6 +18,7 @@ from apache_beam.runners import runner
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
+from apache_beam.transforms import core
 from apache_beam.transforms import trigger
 from apache_beam.utils import windowed_value
 
@@ -33,7 +35,7 @@ class TrivialRunner(runner.PipelineRunner):
   several features in order to keep it as simple as possible.  Where possible
   pointers are provided which this should serve as a useful starting point.
   """
-  def run_full_pipeline(self, pipeline, options):
+  def run_portable_pipeline(self, pipeline, options):
     # First ensure we are able to run this pipeline.
     # Specifically, that it does not depend on requirements that were
     # added since this runner was developed.
@@ -338,12 +340,12 @@ class ExecutionState:
     self._counter += 1
     return f'runner_{prefix}_{self._counter}'
 
-  def windowed_coder(self, pcollection_id: str) -> Coder[Any]:
+  def windowed_coder(self, pcollection_id: str) -> coders.Coder:
     return self._pipeline_context.coders.get_by_id(
         self.windowed_coder_id(pcollection_id))
 
   def windowing_strategy(
-      self, pcollection_id: str) -> apache_beam.transforms.core.Windowing:
+      self, pcollection_id: str) -> core.Windowing:
     return self._pipeline_context.windowing_strategies.get_by_id(
         self.optimized_pipeline.components.pcollections[pcollection_id].
         windowing_strategy_id)
@@ -367,7 +369,7 @@ class ExecutionState:
     return self._windowed_coders[coder_id, window_coder_id]
 
 
-def is_primitive_transform(transform: beam_runner_api_pb2.PTransform) -> T:
+def is_primitive_transform(transform: beam_runner_api_pb2.PTransform) -> bool:
   return (
       # Only non-primitive (aka composite) transforms have subtransforms.
       not transform.subtransforms
@@ -382,14 +384,14 @@ def only_element(iterable: Iterable[T]) -> T:
   return element
 
 
-def decode_all(encoded_elements: bytes, coder: coders.Coder[T]) -> Iterator[T]:
+def decode_all(encoded_elements: bytes, coder: coders.Coder) -> Iterator[Any]:
   coder_impl = coder.get_impl()
   input_stream = create_InputStream(encoded_elements)
   while input_stream.size() > 0:
     yield coder_impl.decode_from_stream(input_stream, True)
 
 
-def encode_all(elements: Iterator[T], coder: coders.Coder[T]) -> bytes:
+def encode_all(elements: Iterator[T], coder: coders.Coder) -> bytes:
   coder_impl = coder.get_impl()
   output_stream = create_OutputStream()
   for element in elements:
