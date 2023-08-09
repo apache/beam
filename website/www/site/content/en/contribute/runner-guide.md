@@ -65,7 +65,7 @@ global window with the minimum timestamp.  This has the encoded value of
 windowed value coder.
 
 Though `Impulse` is generally not invoked by a user, it is the only root
-primitive operation, and other root operations (like Reads and `Create`)
+primitive operation, and other root operations (like `Read`s and `Create`)
 are composite operations constructed from an `Impulse` followed by a series
 of (possibly Splittable) `ParDo`s.
 
@@ -103,8 +103,8 @@ compatible.
 #### Bundles
 
 For correctness, a `DoFn` _should_ represent an element-wise function, but in
-fact is a long-lived object that processes elements in small groups called
-bundles.
+most SDKS this is a long-lived object that processes elements in small groups
+called bundles.
 
 Your runner decides how many elements, and which elements, to include in a
 bundle, and can even decide dynamically in the middle of processing that the
@@ -119,37 +119,23 @@ elements.
 
 A bundle is the unit of commitment in Beam. If an error is encountered while
 processing a bundle, all the prior outputs of that bundle (including any
-modifications to state or timers) must be discarded and the entire bundle
-retried.  Upon successful completion of a bundle, its outputs, together with
-any state/timer modifications and watermark updates, must be committed
-atomically.
+modifications to state or timers) must be discarded by the runner and the
+entire bundle retried.  Upon successful completion of a bundle, its outputs,
+together with any state/timer modifications and watermark updates, must be
+committed atomically.
 
 #### The DoFn Lifecycle
 
-While each language's SDK is free to make different decisions, the Python and
-Java SDKs share an API with the following stages of a DoFn's lifecycle.
-
-However, if you choose to execute a DoFn directly to improve performance or
-single-language simplicity, then your runner is responsible for implementing
-the following sequence:
-
- * _Setup_ - called once per DoFn instance before anything else; this has not been
-   implemented in the Python SDK so the user can work around just with lazy
-   initialization
- * _StartBundle_ - called once per bundle as initialization (actually, lazy
-   initialization is almost always equivalent and more efficient, but this hook
-   remains for simplicity for users)
- * _ProcessElement_ / _OnTimer_ - called for each element and timer activation
- * _FinishBundle_ - essentially "flush"; required to be called before
-   considering elements as actually processed
- * _Teardown_ - release resources that were used across bundles; calling this
-   can be best effort due to failures
-
-Generally this lifecycle should be handled for you when invoking one or more
+`DoFns` in many SDKS have several methods such as `setup`, `start_bundle`,
+`finish_bundle`, `teardown`, etc. in addition to the standard,
+element-wise `process` calls. Generally proper invocation of
+[this lifecycle](https://beam.apache.org/documentation/programming-guide/#dofn)
+should be handled for you when invoking one or more
 `DoFn`s from the standard bundle processors (either via the FnAPI or directly
 using a BundleProcessor
 ([java](https://github.com/apache/beam/blob/master/sdks/java/harness/src/main/java/org/apache/beam/fn/harness/control/ProcessBundleHandler.java)
 ([python](https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/worker/bundle_processor.py#L852))).
+SDK-independent runners should never have to worry about these details directly.
 
 #### Side Inputs
 
@@ -211,13 +197,16 @@ timer setting and firing happens on the FnAPI Data channel.
 
 _Main design document: [https://s.apache.org/splittable-do-fn](https://s.apache.org/splittable-do-fn)_
 
-Splittable `DoFn` is a generalization and combination of `ParDo` and `Read`. It
-is per-element processing where each element has the capability of being "split"
-in the same ways as a `BoundedSource` or `UnboundedSource`. This enables better
-performance for use cases such as a `PCollection` of names of large files where
-you want to read each of them. Previously they would have to be static data in
-the pipeline or be read in a non-splittable manner.
-It forms the new basis for reading bounded and unbounded sources.
+Splittable `DoFn` is a generalization of `ParDo` that is useful for high-fanout
+mappings that can be done in parallel.  The prototypical example of such an
+operation is reading from a file, where a single file name (as an input element)
+can be mapped to all the elements contained in that file.
+The `DoFn` is considered splittable in the sense that an element representing,
+say, a single file can be split (e.g. into ranges of that file) to be processed
+(e.g. read) by different workers.
+The full power of this primitive is in the fact that these splits can happen
+dynamically rather than just statically (i.e. ahead of time) avoiding the
+problem of over- or undersplitting.
 
 A full explanation of Splittable `DoFn` is out of scope for this doc, but
 here is a brief overview as it pertains to its execution.
@@ -225,7 +214,11 @@ here is a brief overview as it pertains to its execution.
 A Splittable `DoFn` can participate in the dynamic splitting protocol by
 splitting within an element as well as between elements.  Dynamic splitting
 is triggered by the runner issuing `ProcessBundleSplitRequest` messages on
-the control channel.
+the control channel.  The SDK will commit to process just a portion of the
+indicated element and return a description of the remainder (i.e. the
+unprocessed portion) to the runner in the `ProcessBundleSplitResponse`
+to be scheduled by the runner (e.g. on a different worker or as part of a
+different bundle).
 
 A Splittable `DoFn` can also initiate its own spitting, indicating it has
 processed an element as far as it can for the moment (e.g. when tailing a file)
@@ -254,9 +247,9 @@ The elements you are processing will be key-value pairs, and you'll need to extr
 the keys. For this reason, the format of key-value pairs is
 [standardized and shared](https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L838)
 across all SDKS. See either
-[`KvCoder`](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html)
+[`KvCoder`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/KvCoder.html)
 in Java or
-[`TupleCoder`](https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder)
+[`TupleCoder`](https://beam.apache.org/releases/pydoc/current/apache_beam.coders.coders.html#apache_beam.coders.coders.TupleCoder)
 in Python for documentation on the binary format.
 
 #### Window Merging
@@ -382,7 +375,9 @@ combiner lifting, where a new operation is placed before the `GroupByKey`
 that does partial (within-bundle) combining, which often requires a slight
 modification of what comes after the `GroupByKey` as well.
 An example of this transformation can be found in the
-(Python optimizer)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193].
+(Python)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193]
+or (go)[https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67]
+implementations of this optimization.
 The resulting pre- and post-`GroupByKey` operations are generally fused in with
 the `ParDo`s and executed as above.
 
