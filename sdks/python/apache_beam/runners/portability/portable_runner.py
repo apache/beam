@@ -390,7 +390,7 @@ class PortableRunner(runner.PipelineRunner):
 
     return proto_pipeline
 
-  def run_full_pipeline(
+  def run_portable_pipeline(
       self, pipeline: beam_runner_api_pb2.Pipeline,
       options: PipelineOptions) -> runner.PipelineResult:
     portable_options = options.view_as(PortableOptions)

@@ -41,7 +41,7 @@ class SparkRunner(portable_runner.PortableRunner):
   spark master if one is not given.
   """
 
-  # Inherits run_full_pipeline from PortableRunner.
+  # Inherits run_portable_pipeline from PortableRunner.
 
   def default_environment(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
