@@ -74,10 +74,10 @@ concurrency:
 jobs:
   beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      strategy:
-        matrix:
-          job_name: ["beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct"]
-          job_phrase: ["Run Java_Amazon-Web-Services2_IO_Direct PreCommit"]
+    strategy:
+      matrix:
+        job_name: ["beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct"]
+        job_phrase: ["Run Java_Amazon-Web-Services2_IO_Direct PreCommit"]
     timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
