@@ -69,10 +69,9 @@ class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
   Every execution of the run() method will submit an independent job for
-  remote execution that consists of the nodes reachable from the passed in
-  node argument or entire graph if node is None. The run() method returns
-  after the service created the job and  will not wait for the job to finish
-  if blocking is set to False.
+  remote execution that consists of the nodes reachable from the passed-in
+  node argument or entire graph if the node is None. The run() method returns
+  after the service creates the job, and the job status is reported as RUNNING.
   """
 
   # A list of PTransformOverride objects to be applied before running a pipeline
