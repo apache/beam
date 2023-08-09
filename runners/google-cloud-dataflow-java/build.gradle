@@ -49,12 +49,15 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
+ext.dataflowLegacyContainerVersion = 'beam-master-20230809'
+ext.dataflowFnapiContainerVersion = 'beam-master-20230809'
+
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20230809',
-    'dataflow.fnapi_container_version' : 'beam-master-20230809',
+    'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
+    'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
