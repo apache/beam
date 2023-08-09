@@ -21,8 +21,8 @@ import java.lang.reflect.Constructor;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A registrar which contains a mapping from URNs to available {@link ExternalTransformBuilder}s.

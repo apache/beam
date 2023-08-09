@@ -27,6 +27,10 @@ on:
         description: Whether to stage the java source into https://dist.apache.org/repos/dist/dev/beam/
         required: true
         default: 'no'
+      STAGE_DOCKER_ARTIFACTS:
+        description: Whether to stage SDK docker images to docker hub Apache organization
+        required: true
+        default: 'no'
 
 jobs:
   publish_java_artifacts:
@@ -105,7 +109,7 @@ jobs:
             RC_ZIP="${RC_DIR}.zip"
             RELEASE_DIR="beam-${{ github.event.inputs.RELEASE }}"
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
-            SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+            SOURCE_RELEASE_ZIP="apache-beam-${{ github.event.inputs.RELEASE }}-source-release.zip"
               # Check whether there is an existing dist dir
             if (svn ls "${SOURCE_RELEASE_ZIP}"); then
               echo "Removing existing ${SOURCE_RELEASE_ZIP}."
@@ -122,7 +126,7 @@ jobs:
             rm -r "$RELEASE_DIR"
 
             echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-            gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+            gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
 
             echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
             sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -130,3 +134,44 @@ jobs:
             svn add --force .
             svn status
             svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }} 
+        
+      
+  stage_docker:
+    if: ${{github.event.inputs.STAGE_DOCKER_ARTIFACTS == 'yes'}}
+    # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+      - name: Install Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Install Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - run: echo $JAVA_HOME
+      - run: echo "JAVA11_HOME=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
+        id: export-java11
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml || true
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push docker images
+        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel

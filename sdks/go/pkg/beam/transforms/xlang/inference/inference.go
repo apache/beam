@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package inference has the cross language implementation of RunInference API implemented in Python SDK.
-// An exapnsion service for python external transforms can be started by running
+// An expansion service for python external transforms can be started by running
 //
 //	$ python -m apache_beam.runners.portability.expansion_service_main -p $PORT_FOR_EXPANSION_SERVICE
 package inference

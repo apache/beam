@@ -64,7 +64,7 @@ public class FileWriteSchemaTransformProviderTest {
         PROVIDER.from(rowConfiguration(defaultConfiguration().setFormat(JSON).build()));
     PCollectionRowTuple empty = PCollectionRowTuple.empty(errorPipeline);
     IllegalArgumentException emptyInputError =
-        assertThrows(IllegalArgumentException.class, () -> empty.apply(transform.buildTransform()));
+        assertThrows(IllegalArgumentException.class, () -> empty.apply(transform));
 
     assertEquals(
         "org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider$FileWriteSchemaTransform expects a single input tagged PCollection<Row> input",
@@ -81,8 +81,7 @@ public class FileWriteSchemaTransformProviderTest {
     PCollectionRowTuple tooManyTags =
         PCollectionRowTuple.of(INPUT_TAG, rows1).and("another", rows2);
     IllegalArgumentException tooManyTagsError =
-        assertThrows(
-            IllegalArgumentException.class, () -> tooManyTags.apply(transform.buildTransform()));
+        assertThrows(IllegalArgumentException.class, () -> tooManyTags.apply(transform));
 
     assertEquals(
         "org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider$FileWriteSchemaTransform expects a single input tagged PCollection<Row> input",
@@ -90,7 +89,7 @@ public class FileWriteSchemaTransformProviderTest {
 
     // should not throw an error
     PCollectionRowTuple input = PCollectionRowTuple.of(INPUT_TAG, rows1);
-    input.apply(transform.buildTransform());
+    input.apply(transform);
   }
 
   @Test

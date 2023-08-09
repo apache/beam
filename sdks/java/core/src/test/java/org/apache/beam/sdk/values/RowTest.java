@@ -36,9 +36,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Rule;
@@ -405,7 +405,7 @@ public class RowTest {
   }
 
   @Test
-  public void testCreateMapWithNullValue() {
+  public void testCreateAndCompareMapWithNullValue() {
     Map<Integer, String> data = new HashMap();
     data.put(1, "value1");
     data.put(2, "value2");
@@ -416,6 +416,25 @@ public class RowTest {
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
+
+    Map<Integer, String> onlyNullValueData = new HashMap();
+    onlyNullValueData.put(1, null);
+    onlyNullValueData.put(2, null);
+
+    Map<Integer, String> otherOnlyNullValueData = new HashMap();
+    otherOnlyNullValueData.put(3, null);
+    otherOnlyNullValueData.put(4, null);
+
+    Row otherNonNullValue =
+        Row.withSchema(type)
+            .addValue(ImmutableMap.of(1, "value1", 2, "value2", 3, "value3", 4, "value4"))
+            .build();
+    Row otherNullValue = Row.withSchema(type).addValue(data).build();
+    Row onlyNullValue = Row.withSchema(type).addValue(onlyNullValueData).build();
+    Row otherOnlyNullValue = Row.withSchema(type).addValue(otherOnlyNullValueData).build();
+    assertNotEquals(otherNonNullValue, row);
+    assertEquals(otherNullValue, row);
+    assertNotEquals(onlyNullValue, otherOnlyNullValue);
   }
 
   @Test

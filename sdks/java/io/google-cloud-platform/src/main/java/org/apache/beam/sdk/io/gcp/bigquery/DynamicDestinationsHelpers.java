@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -44,8 +44,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -421,12 +421,17 @@ class DynamicDestinationsHelpers {
       }
     }
 
-    /** Returns the table schema for the destination. */
+    /**
+     * Returns the table schema for the destination. If possible, will return the existing table
+     * schema.
+     */
     @Override
     public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       @Nullable Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
-      if (existingTable == null || existingTable.getSchema() == null) {
+      if (existingTable == null
+          || existingTable.getSchema() == null
+          || existingTable.getSchema().isEmpty()) {
         return super.getSchema(destination);
       } else {
         return existingTable.getSchema();

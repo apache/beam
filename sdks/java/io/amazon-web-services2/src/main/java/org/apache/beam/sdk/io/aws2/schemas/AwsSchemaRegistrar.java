@@ -21,7 +21,7 @@ import com.google.auto.service.AutoService;
 import java.util.List;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaProviderRegistrar;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 @AutoService(SchemaProviderRegistrar.class)
 public class AwsSchemaRegistrar implements SchemaProviderRegistrar {

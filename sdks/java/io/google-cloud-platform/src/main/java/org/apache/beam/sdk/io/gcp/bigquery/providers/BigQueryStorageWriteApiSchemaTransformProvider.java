@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
@@ -54,16 +54,15 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -236,30 +235,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
    * BigQueryStorageWriteApiSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
-  private static class BigQueryStorageWriteApiSchemaTransform implements SchemaTransform {
+  protected static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
 
+    private BigQueryServices testBigQueryServices = null;
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
 
     BigQueryStorageWriteApiSchemaTransform(
         BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
       configuration.validate();
-      this.configuration = configuration;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQueryStorageWriteApiPCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  static class BigQueryStorageWriteApiPCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
-    private BigQueryServices testBigQueryServices = null;
-
-    BigQueryStorageWriteApiPCollectionRowTupleTransform(
-        BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -277,7 +260,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       ElementCounterFn(String name) {
         this.bqGenericElementCounter =
-            Metrics.counter(BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
+            Metrics.counter(BigQueryStorageWriteApiSchemaTransform.class, name);
       }
 
       @ProcessElement

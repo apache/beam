@@ -339,6 +339,9 @@ class BigQueryWrapper(object):
   offer a common place where retry logic for failures can be controlled.
   In addition, it offers various functions used both in sources and sinks
   (e.g., find and create tables, query a table, etc.).
+
+  Note that client parameter in constructor is only for testing purposes and
+  should not be used in production code.
   """
 
   # If updating following names, also update the corresponding pydocs in
@@ -353,6 +356,7 @@ class BigQueryWrapper(object):
     self.gcp_bq_client = client or gcp_bigquery.Client(
         client_info=ClientInfo(
             user_agent="apache-beam-%s" % apache_beam.__version__))
+
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -645,7 +649,7 @@ class BigQueryWrapper(object):
       retry += 1
       job = self.get_job(
           job_reference.projectId, job_reference.jobId, job_reference.location)
-      logging.info('Job status: %s', job.status.state)
+      logging.info('Job %s status: %s', job.id, job.status.state)
       if job.status.state == 'DONE' and job.status.errorResult:
         raise RuntimeError(
             'BigQuery job {} failed. Error Result: {}'.format(

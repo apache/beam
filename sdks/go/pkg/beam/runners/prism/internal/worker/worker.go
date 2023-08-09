@@ -95,7 +95,7 @@ func New(id string) *W {
 
 		D: &DataService{},
 	}
-	slog.Info("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
+	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
 	fnpb.RegisterBeamFnControlServer(wk.server, wk)
 	fnpb.RegisterBeamFnDataServer(wk.server, wk)
 	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
@@ -233,19 +233,19 @@ func (wk *W) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProces
 //
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
-	done := make(chan bool)
+	done := make(chan struct{})
 	go func() {
 		for {
 			resp, err := ctrl.Recv()
 			if err == io.EOF {
 				slog.Debug("ctrl.Recv finished; marking done", "worker", wk)
-				done <- true // means stream is finished
+				done <- struct{}{} // means stream is finished
 				return
 			}
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					done <- true // means stream is finished
+					done <- struct{}{} // means stream is finished
 					return
 				default:
 					slog.Error("ctrl.Recv failed", err, "worker", wk)
@@ -256,12 +256,6 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			// TODO: Do more than assume these are ProcessBundleResponses.
 			wk.mu.Lock()
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
-				// TODO. Better pipeline error handling.
-				if resp.Error != "" {
-					slog.LogAttrs(context.TODO(), slog.LevelError, "ctrl.Recv pipeline error",
-						slog.String("error", resp.GetError()))
-					panic(resp.GetError())
-				}
 				b.Respond(resp)
 			} else {
 				slog.Debug("ctrl.Recv: %v", resp)
@@ -270,13 +264,21 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		}
 	}()
 
-	for req := range wk.InstReqs {
-		ctrl.Send(req)
+	for {
+		select {
+		case req := <-wk.InstReqs:
+			err := ctrl.Send(req)
+			if err != nil {
+				return err
+			}
+		case <-ctrl.Context().Done():
+			slog.Debug("Control context canceled")
+			return ctrl.Context().Err()
+		case <-done:
+			slog.Debug("Control done")
+			return nil
+		}
 	}
-	slog.Debug("ctrl.Send finished waiting on done")
-	<-done
-	slog.Debug("Control done")
-	return nil
 }
 
 // Data relays elements and timer bytes to SDKs and back again, coordinated via
@@ -322,13 +324,20 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			wk.mu.Unlock()
 		}
 	}()
-
-	for req := range wk.DataReqs {
-		if err := data.Send(req); err != nil {
-			slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
+	for {
+		select {
+		case req, ok := <-wk.DataReqs:
+			if !ok {
+				return nil
+			}
+			if err := data.Send(req); err != nil {
+				slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
+			}
+		case <-data.Context().Done():
+			slog.Debug("Data context canceled")
+			return data.Context().Err()
 		}
 	}
-	return nil
 }
 
 // State relays elements and timer bytes to SDKs and back again, coordinated via

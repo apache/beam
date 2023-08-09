@@ -41,11 +41,25 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import TimestampedValue
+from apache_beam.utils import multi_process_shared
 
 
 class FakeModel:
   def predict(self, example: int) -> int:
     return example + 1
+
+
+class FakeStatefulModel:
+  def __init__(self, state: int):
+    if state == 100:
+      raise Exception('Oh no')
+    self._state = state
+
+  def predict(self, example: int) -> int:
+    return self._state
+
+  def increment_state(self, amount: int):
+    self._state += amount
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
@@ -55,16 +69,20 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       min_batch_size=1,
       max_batch_size=9999,
       multi_process_shared=False,
+      state=None,
       **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._env_vars = kwargs.get('env_vars', {})
     self._multi_process_shared = multi_process_shared
+    self._state = state
 
   def load_model(self):
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    if self._state is not None:
+      return FakeStatefulModel(self._state)
     return FakeModel()
 
   def run_inference(
@@ -963,6 +981,120 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeModelHandlerNoEnvVars())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_model_manager_loads_shared_model(self):
+    mhs = {
+        'key1': FakeModelHandler(state=1),
+        'key2': FakeModelHandler(state=2),
+        'key3': FakeModelHandler(state=3)
+    }
+    mm = base._ModelManager(mh_map=mhs)
+    tag1 = mm.load('key1')
+    # Use bad_mh's load function to make sure we're actually loading the
+    # version already stored
+    bad_mh = FakeModelHandler(state=100)
+    model1 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag1).acquire()
+    self.assertEqual(1, model1.predict(10))
+
+    tag2 = mm.load('key2')
+    tag3 = mm.load('key3')
+    model2 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag2).acquire()
+    model3 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag3).acquire()
+    self.assertEqual(2, model2.predict(10))
+    self.assertEqual(3, model3.predict(10))
+
+  def test_model_manager_evicts_models(self):
+    mh1 = FakeModelHandler(state=1)
+    mh2 = FakeModelHandler(state=2)
+    mh3 = FakeModelHandler(state=3)
+    mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
+    mm = base._ModelManager(mh_map=mhs, max_models=2)
+    tag1 = mm.load('key1')
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+
+    tag2 = mm.load('key2')
+    tag3 = mm.load('key3')
+    sh2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2)
+    model2 = sh2.acquire()
+    sh3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3)
+    model3 = sh3.acquire()
+    model2.increment_state(5)
+    model3.increment_state(5)
+    self.assertEqual(7, model2.predict(10))
+    self.assertEqual(8, model3.predict(10))
+    sh2.release(model2)
+    sh3.release(model3)
+
+    # model1 should have retained a valid reference to the model until released
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    # This should now have been garbage collected, so it now it should get
+    # recreated and shouldn't have the state updates
+    model1 = multi_process_shared.MultiProcessShared(
+        mh1.load_model, tag=tag1).acquire()
+    self.assertEqual(1, model1.predict(10))
+
+    # These should not get recreated, so they should have the state updates
+    model2 = multi_process_shared.MultiProcessShared(
+        mh2.load_model, tag=tag2).acquire()
+    self.assertEqual(7, model2.predict(10))
+    model3 = multi_process_shared.MultiProcessShared(
+        mh3.load_model, tag=tag3).acquire()
+    self.assertEqual(8, model3.predict(10))
+
+  def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
+      self):
+    mh1 = FakeModelHandler(state=1)
+    mh2 = FakeModelHandler(state=2)
+    mh3 = FakeModelHandler(state=3)
+    mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
+    mm = base._ModelManager(mh_map=mhs, max_models=1)
+    mm.increment_max_models(1)
+    tag1 = mm.load('key1')
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    tag2 = mm.load('key2')
+    tag3 = mm.load('key3')
+    sh2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2)
+    model2 = sh2.acquire()
+    sh3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3)
+    model3 = sh3.acquire()
+    model2.increment_state(5)
+    model3.increment_state(5)
+    self.assertEqual(7, model2.predict(10))
+    self.assertEqual(8, model3.predict(10))
+    sh2.release(model2)
+    sh3.release(model3)
+
+    # This should get recreated, so it shouldn't have the state updates
+    model1 = multi_process_shared.MultiProcessShared(
+        mh1.load_model, tag=tag1).acquire()
+    self.assertEqual(1, model1.predict(10))
+
+    # These should not get recreated, so they should have the state updates
+    model2 = multi_process_shared.MultiProcessShared(
+        mh2.load_model, tag=tag2).acquire()
+    self.assertEqual(7, model2.predict(10))
+    model3 = multi_process_shared.MultiProcessShared(
+        mh3.load_model, tag=tag3).acquire()
+    self.assertEqual(8, model3.predict(10))
+
+  def test_model_manager_fails_if_no_default_initially(self):
+    mm = base._ModelManager(mh_map={})
+    with self.assertRaisesRegex(ValueError, r'self._max_models is None'):
+      mm.increment_max_models(5)
 
 
 if __name__ == '__main__':

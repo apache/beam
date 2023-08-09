@@ -107,8 +107,6 @@ Run Python 3.10 PostCommit Sickbay,beam_PostCommit_Sickbay_Python310_PR
 Run Python 3.10 PostCommit,beam_PostCommit_Python310_PR
 Run Python 3.11 PostCommit Sickbay,beam_PostCommit_Sickbay_Python311_PR
 Run Python 3.11 PostCommit,beam_PostCommit_Python311_PR
-Run Python 3.7 PostCommit Sickbay,beam_PostCommit_Sickbay_Python37_PR
-Run Python 3.7 PostCommit,beam_PostCommit_Python37_PR
 Run Python 3.8 PostCommit Sickbay,beam_PostCommit_Sickbay_Python38_PR
 Run Python 3.8 PostCommit,beam_PostCommit_Python38_PR
 Run Python 3.9 PostCommit Sickbay,beam_PostCommit_Sickbay_Python39_PR
@@ -141,7 +139,6 @@ Run Python_Transforms PreCommit,beam_PreCommit_Python_Transforms_Phrase
 Run Python_Xlang_Gcp_Dataflow PostCommit,beam_PostCommit_Python_Xlang_Gcp_Dataflow_PR
 Run Python_Xlang_Gcp_Direct PostCommit,beam_PostCommit_Python_Xlang_Gcp_Direct_PR
 Run RAT PreCommit,beam_PreCommit_RAT_Phrase
-Run Release Gradle Build,beam_Release_Gradle_Build
 Run SQL PostCommit,beam_PostCommit_SQL_PR
 Run SQL PreCommit,beam_PreCommit_SQL_Phrase
 Run SQL_Java11 PreCommit,beam_PreCommit_SQL_Java11_Phrase

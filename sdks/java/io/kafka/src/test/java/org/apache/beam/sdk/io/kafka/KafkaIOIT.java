@@ -81,9 +81,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -595,8 +595,7 @@ public class KafkaIOIT {
                         .setTopic(topicName)
                         .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
                         .setFormat(format)
-                        .build())
-                .buildTransform());
+                        .build()));
 
     PAssert.that(
             PCollectionRowTuple.empty(readPipeline)
@@ -613,8 +612,7 @@ public class KafkaIOIT {
                                 .setSchema(schemaDefinition)
                                 .setTopic(topicName)
                                 .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                                .build())
-                        .buildTransform())
+                                .build()))
                 .get("output"))
         .containsInAnyOrder(
             LongStream.range(0L, 1000L)

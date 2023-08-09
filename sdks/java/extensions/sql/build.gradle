@@ -91,7 +91,7 @@ dependencies {
   implementation library.java.mongo_java_driver
   implementation library.java.slf4j_api
   implementation library.java.joda_time
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   provided project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
@@ -112,7 +112,7 @@ dependencies {
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
   testImplementation library.java.vendored_calcite_1_28_0
-  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
   testImplementation library.java.quickcheck_core
   testImplementation library.java.testcontainers_kafka

@@ -44,8 +44,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -400,15 +400,13 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
 
-      if (this.restriction.maxRecords == null && this.restriction.milisToRun == -1) {
-        return true;
-      }
-
       // If we've reached the maximum number of records OR the maximum time, we reject
       // the attempt to claim.
       // If we've reached neither, then we continue approve the claim.
       return (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords)
-          && (this.restriction.milisToRun == null || elapsedTime < this.restriction.milisToRun);
+          && (this.restriction.milisToRun == null
+              || this.restriction.milisToRun == -1
+              || elapsedTime < this.restriction.milisToRun);
     }
 
     @Override

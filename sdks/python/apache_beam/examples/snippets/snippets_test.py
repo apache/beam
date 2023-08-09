@@ -33,6 +33,7 @@ import uuid
 
 import mock
 import parameterized
+import pytest
 
 import apache_beam as beam
 from apache_beam import WindowInto
@@ -41,6 +42,9 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders.coders import ToBytesCoder
 from apache_beam.examples.snippets import snippets
+from apache_beam.examples.snippets import snippets_examples_wordcount_debugging
+from apache_beam.examples.snippets import snippets_examples_wordcount_minimal
+from apache_beam.examples.snippets import snippets_examples_wordcount_wordcount
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -60,10 +64,6 @@ from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
-
-from . import snippets_examples_wordcount_debugging
-from . import snippets_examples_wordcount_minimal
-from . import snippets_examples_wordcount_wordcount
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -757,6 +757,15 @@ class SnippetsTest(unittest.TestCase):
       p = TestPipeline()
       p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
       snippets.model_bigqueryio(p)
+
+  @pytest.mark.uses_gcp_java_expansion_service
+  @unittest.skipUnless(
+      os.environ.get('EXPANSION_PORT'),
+      "EXPANSION_PORT environment var is not provided.")
+  def test_model_bigqueryio_xlang(self):
+    p = TestPipeline()
+    p.options.view_as(GoogleCloudOptions).temp_location = 'gs://mylocation'
+    snippets.model_bigqueryio_xlang(p)
 
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')

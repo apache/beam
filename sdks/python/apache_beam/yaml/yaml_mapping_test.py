@@ -41,10 +41,11 @@ class YamlMappingTest(unittest.TestCase):
           '''
           type: MapToFields
           input: input
-          language: python
-          fields:
-            label: label
-            isogeny: "label[-1]"
+          config:
+              language: python
+              fields:
+                label: label
+                isogeny: "label[-1]"
           ''')
       assert_that(
           result,
@@ -62,9 +63,10 @@ class YamlMappingTest(unittest.TestCase):
           '''
           type: MapToFields
           input: input
-          fields: {}
-          append: true
-          drop: [conductor]
+          config:
+              fields: {}
+              append: true
+              drop: [conductor]
           ''')
       assert_that(
           result,
@@ -82,10 +84,11 @@ class YamlMappingTest(unittest.TestCase):
           '''
           type: MapToFields
           input: input
-          language: python
-          fields:
-            label: label
-          keep: "rank > 0"
+          config:
+              language: python
+              fields:
+                label: label
+              keep: "rank > 0"
           ''')
       assert_that(
           result, equal_to([
@@ -104,12 +107,13 @@ class YamlMappingTest(unittest.TestCase):
           '''
           type: MapToFields
           input: input
-          language: python
-          append: true
-          fields:
-            range: "range(a)"
-          explode: [range, b]
-          cross_product: true
+          config:
+              language: python
+              append: true
+              fields:
+                range: "range(a)"
+              explode: [range, b]
+              cross_product: true
           ''')
       assert_that(
           result,

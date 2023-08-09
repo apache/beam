@@ -533,6 +533,13 @@ class CrossLanguageOptions(PipelineOptions):
             'Should be a json mapping of gradle build targets to pre-built '
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
+    parser.add_argument(
+        '--use_transform_service',
+        default=False,
+        action='store_true',
+        help='Use the Docker-composed-based transform service when expanding '
+        'cross-language transforms.')
+
 
 def additional_option_ptransform_fn():
   beam.transforms.ptransform.ptransform_fn_typehints_enabled = True
@@ -1144,8 +1151,7 @@ class DebugOptions(PipelineOptions):
         help=(
             'Number of threads per worker to use on the runner. If left '
             'unspecified, the runner will compute an appropriate number of '
-            'threads to use. Currently only enabled for DataflowRunner when '
-            'experiment \'use_runner_v2\' is enabled.'))
+            'threads to use.'))
 
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
@@ -1278,11 +1284,13 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=(
-            'Override the default location from where the Beam SDK is '
-            'downloaded. It can be a URL, a GCS path, or a local path to an '
+            'Path to a custom Beam SDK package to install and use on the'
+            'runner. It can be a URL, a GCS path, or a local path to an '
             'SDK tarball. Workflow submissions will download or copy an SDK '
-            'tarball from here. If set to the string "default", a standard '
-            'SDK location is used. If empty, no SDK is copied.'))
+            'tarball from here. If set to "default", '
+            'runners will use the SDK provided in the default environment.'
+            'Use this flag when running pipelines with an unreleased or '
+            'manually patched version of Beam SDK.'))
     parser.add_argument(
         '--extra_package',
         '--extra_packages',

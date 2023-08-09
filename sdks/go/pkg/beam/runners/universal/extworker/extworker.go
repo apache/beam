@@ -63,7 +63,7 @@ type Loopback struct {
 
 // StartWorker initializes a new worker harness, implementing BeamFnExternalWorkerPoolServer.StartWorker.
 func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest) (*fnpb.StartWorkerResponse, error) {
-	log.Infof(ctx, "starting worker %v", req.GetWorkerId())
+	log.Debugf(ctx, "starting worker %v", req.GetWorkerId())
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.workers == nil {
@@ -136,7 +136,7 @@ func (s *Loopback) StopWorker(ctx context.Context, req *fnpb.StopWorkerRequest) 
 func (s *Loopback) Stop(ctx context.Context) error {
 	s.mu.Lock()
 
-	log.Infof(ctx, "stopping Loopback, and %d workers", len(s.workers))
+	log.Debugf(ctx, "stopping Loopback, and %d workers", len(s.workers))
 	s.workers = nil
 	s.rootCancel()
 

@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import com.intellij.codeInsight.completion.CompletionType;
+import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import org.jetbrains.annotations.NotNull;
 import com.intellij.testFramework.LightProjectDescriptor;
 import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor;
 
-import java.util.List;
 
+// Each test method test a feature as a whole rather than each function or method.
 public class BeamCompletionContributorTestCase extends LightJavaCodeInsightFixtureTestCase {
     @Override
     protected String getTestDataPath() {
@@ -34,27 +34,16 @@ public class BeamCompletionContributorTestCase extends LightJavaCodeInsightFixtu
         return new DefaultLightProjectDescriptor().withRepositoryLibrary("org.apache.beam:beam-sdks-java-core:2.48.0");
     }
 
-    public void testElementPatternIsTriggered() {
+    public void testCompletionsSuccess() throws Throwable {
         myFixture.configureByFile("TestCompletions.java");
-        myFixture.complete(CompletionType.BASIC);
-        List<String> lookupElementStrings = myFixture.getLookupElementStrings();
-        assertNotNull(lookupElementStrings);
-        assertEquals(lookupElementStrings.get(0), "TestCompletionElement");
-    }
-
-    public void testElementPatternWrongClass() {
-        myFixture.configureByFile("TestCompletionsWrongClass.java");
-        myFixture.complete(CompletionType.BASIC);
-        List<String> lookupElementStrings = myFixture.getLookupElementStrings();
-        assertNotNull(lookupElementStrings);
-        assertNotSame(lookupElementStrings.get(0), "TestCompletionElement");
-    }
-
-    public void testElementPatternWrongMethod() {
-        myFixture.configureByFile("TestCompletionsWrongMethod.java");
-        myFixture.complete(CompletionType.BASIC);
-        List<String> lookupElementStrings = myFixture.getLookupElementStrings();
-        assertNotNull(lookupElementStrings);
-        assertNotSame(lookupElementStrings.get(0), "TestCompletionElement");
+        LookupElement[] result = myFixture.completeBasic();
+        LookupElement scenarioOutlineLookupElement = null;
+        for (LookupElement lookupElement : result) {
+            if (lookupElement.getLookupString().equals("Filter")) {
+                scenarioOutlineLookupElement = lookupElement;
+                break;
+            }
+        }
+        assert scenarioOutlineLookupElement != null;
     }
 }

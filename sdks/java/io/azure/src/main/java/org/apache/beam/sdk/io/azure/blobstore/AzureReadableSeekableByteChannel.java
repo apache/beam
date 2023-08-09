@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.azure.blobstore;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.specialized.BlobInputStream;

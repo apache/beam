@@ -31,7 +31,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -115,14 +115,12 @@ public class JdbcWriteSchemaTransformProviderTest {
 
     PCollectionRowTuple.of("input", pipeline.apply(Create.of(rows).withRowSchema(schema)))
         .apply(
-            provider
-                .from(
-                    JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-                        .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
-                        .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
-                        .setLocation(WRITE_TABLE_NAME)
-                        .build())
-                .buildTransform());
+            provider.from(
+                JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+                    .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
+                    .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                    .setLocation(WRITE_TABLE_NAME)
+                    .build()));
     pipeline.run();
     DatabaseTestHelper.assertRowCount(DATA_SOURCE, WRITE_TABLE_NAME, 2);
   }

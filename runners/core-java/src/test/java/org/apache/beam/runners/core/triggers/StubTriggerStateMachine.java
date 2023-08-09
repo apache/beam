@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** No-op {@link TriggerStateMachine} implementation for testing. */
 abstract class StubTriggerStateMachine extends TriggerStateMachine {

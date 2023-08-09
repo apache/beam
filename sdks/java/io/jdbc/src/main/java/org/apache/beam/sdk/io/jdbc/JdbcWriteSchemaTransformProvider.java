@@ -29,10 +29,9 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -59,7 +58,7 @@ public class JdbcWriteSchemaTransformProvider
     return new JdbcWriteSchemaTransform(configuration);
   }
 
-  static class JdbcWriteSchemaTransform implements SchemaTransform, Serializable {
+  static class JdbcWriteSchemaTransform extends SchemaTransform implements Serializable {
 
     JdbcWriteSchemaTransformConfiguration config;
 
@@ -103,26 +102,18 @@ public class JdbcWriteSchemaTransformProvider
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          JdbcIO.Write<Row> writeRows =
-              JdbcIO.<Row>write()
-                  .withDataSourceConfiguration(dataSourceConfiguration())
-                  .withStatement(writeStatement(input.get("input").getSchema()))
-                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
-          Boolean autosharding = config.getAutosharding();
-          if (autosharding != null && autosharding) {
-            writeRows = writeRows.withAutoSharding();
-          }
-          input.get("input").apply(writeRows);
-          return PCollectionRowTuple.empty(input.getPipeline());
-        }
-      };
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      JdbcIO.Write<Row> writeRows =
+          JdbcIO.<Row>write()
+              .withDataSourceConfiguration(dataSourceConfiguration())
+              .withStatement(writeStatement(input.get("input").getSchema()))
+              .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+      Boolean autosharding = config.getAutosharding();
+      if (autosharding != null && autosharding) {
+        writeRows = writeRows.withAutoSharding();
+      }
+      input.get("input").apply(writeRows);
+      return PCollectionRowTuple.empty(input.getPipeline());
     }
   }
 

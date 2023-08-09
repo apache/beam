@@ -22,14 +22,145 @@ import os
 import tempfile
 import unittest
 
+import yaml
+
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_transform
+from apache_beam.yaml.yaml_transform import LightweightScope
+from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class YamlTransformTest(unittest.TestCase):
+  def test_only_element(self):
+    self.assertEqual(yaml_transform.only_element((1, )), 1)
+
+
+class SafeLineLoaderTest(unittest.TestCase):
+  def test_get_line(self):
+    pipeline_yaml = '''
+          type: composite
+          input:
+              elements: input
+          transforms:
+            - type: PyMap
+              name: Square
+              input: elements
+              config:
+                  fn: "lambda x: x * x"
+            - type: PyMap
+              name: Cube
+              input: elements
+              config:
+                  fn: "lambda x: x * x * x"
+          output:
+              Flatten
+          '''
+    spec = yaml.load(pipeline_yaml, Loader=SafeLineLoader)
+    self.assertEqual(SafeLineLoader.get_line(spec['type']), 2)
+    self.assertEqual(SafeLineLoader.get_line(spec['input']), 4)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]), 6)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['type']), 6)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['name']), 7)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][1]), 11)
+    self.assertEqual(SafeLineLoader.get_line(spec['output']), 17)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms']), "unknown")
+
+  def test_strip_metadata(self):
+    spec_yaml = '''
+    transforms:
+      - type: PyMap
+        name: Square
+    '''
+    spec = yaml.load(spec_yaml, Loader=SafeLineLoader)
+    stripped = SafeLineLoader.strip_metadata(spec['transforms'])
+
+    self.assertFalse(hasattr(stripped[0], '__line__'))
+    self.assertFalse(hasattr(stripped[0], '__uuid__'))
+
+  def test_strip_metadata_nothing_to_strip(self):
+    spec_yaml = 'prop: 123'
+    spec = yaml.load(spec_yaml, Loader=SafeLineLoader)
+    stripped = SafeLineLoader.strip_metadata(spec['prop'])
+
+    self.assertFalse(hasattr(stripped, '__line__'))
+    self.assertFalse(hasattr(stripped, '__uuid__'))
+
+
+class LightweightScopeTest(unittest.TestCase):
+  @staticmethod
+  def get_spec():
+    pipeline_yaml = '''
+          - type: PyMap
+            name: Square
+            input: elements
+            config:
+                fn: "lambda x: x * x"
+          - type: PyMap
+            name: PyMap
+            input: elements
+            config:
+               fn: "lambda x: x * x * x"
+          - type: Filter
+            name: FilterOutBigNumbers
+            input: PyMap
+            config:
+                keep: "lambda x: x<100"
+          '''
+    return yaml.load(pipeline_yaml, Loader=SafeLineLoader)
+
+  def test_init(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    self.assertEqual(len(scope._transforms_by_uuid), 3)
+    self.assertCountEqual(
+        list(scope._uuid_by_name.keys()),
+        ["PyMap", "Square", "Filter", "FilterOutBigNumbers"])
+
+  def test_get_transform_id_and_output_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id, output = scope.get_transform_id_and_output_name("Square")
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+    self.assertEqual(output, None)
+
+  def test_get_transform_id_and_output_name_with_dot(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id, output = \
+      scope.get_transform_id_and_output_name("Square.OutputName")
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+    self.assertEqual(output, "OutputName")
+
+  def test_get_transform_id_by_uuid(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id = scope.get_transform_id(spec[0]['__uuid__'])
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+
+  def test_get_transform_id_by_unique_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    transform_id = scope.get_transform_id("Square")
+    self.assertEqual(transform_id, spec[0]['__uuid__'])
+
+  def test_get_transform_id_by_ambiguous_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    with self.assertRaisesRegex(ValueError, r'Ambiguous.*PyMap'):
+      scope.get_transform_id(scope.get_transform_id(spec[1]['name']))
+
+  def test_get_transform_id_by_unknown_name(self):
+    spec = self.get_spec()
+    scope = LightweightScope(spec)
+    with self.assertRaisesRegex(ValueError, r'Unknown.*NotExistingTransform'):
+      scope.get_transform_id("NotExistingTransform")
+
+
+class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -44,11 +175,13 @@ class YamlTransformTest(unittest.TestCase):
             - type: PyMap
               name: Square
               input: elements
-              fn: "lambda x: x * x"
+              config:
+                  fn: "lambda x: x * x"
             - type: PyMap
               name: Cube
               input: elements
-              fn: "lambda x: x * x * x"
+              config:
+                  fn: "lambda x: x * x * x"
             - type: Flatten
               input: [Square, Cube]
           output:
@@ -67,9 +200,11 @@ class YamlTransformTest(unittest.TestCase):
               elements: input
           transforms:
             - type: PyMap
-              fn: "lambda x: x * x + x"
+              config:
+                  fn: "lambda x: x * x + x"
             - type: PyMap
-              fn: "lambda x: x + 41"
+              config:
+                  fn: "lambda x: x + 41"
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
@@ -81,13 +216,16 @@ class YamlTransformTest(unittest.TestCase):
           type: chain
           source:
             type: Create
-            elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            config:
+                elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
           transforms:
             - type: PyMap
-              fn: "lambda x: x * x + x"
+              config:
+                  fn: "lambda x: x * x + x"
           sink:
             type: PyMap
-            fn: "lambda x: x + 41"
+            config:
+                fn: "lambda x: x + 41"
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
@@ -99,11 +237,14 @@ class YamlTransformTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+              config:
+                  elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             - type: PyMap
-              fn: "lambda x: x * x + x"
+              config:
+                  fn: "lambda x: x * x + x"
             - type: PyMap
-              fn: "lambda x: x + 41"
+              config:
+                  fn: "lambda x: x + 41"
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
@@ -116,13 +257,16 @@ class YamlTransformTest(unittest.TestCase):
           transforms:
             - type: Create
               name: CreateSmall
-              elements: [1, 2, 3]
+              config:
+                  elements: [1, 2, 3]
             - type: Create
               name: CreateBig
-              elements: [100, 200]
+              config:
+                  elements: [100, 200]
             - type: PyMap
               input: [CreateBig, CreateSmall]
-              fn: "lambda x: x * x"
+              config:
+                  fn: "lambda x: x * x"
           output: PyMap
           ''')
       assert_that(result, equal_to([1, 4, 9, 10000, 40000]))
@@ -155,9 +299,11 @@ class YamlTransformTest(unittest.TestCase):
             type: chain
             transforms:
               - type: ReadFromCsv
-                path: %s
+                config:
+                    path: %s
               - type: WriteToJson
-                path: %s
+                config:
+                    path: %s
                 num_shards: 1
             ''' % (repr(input), repr(output)))
 
@@ -176,10 +322,12 @@ class YamlTransformTest(unittest.TestCase):
             transforms:
               - type: Create
                 name: Create
-                elements: [0, 1, 3, 4]
+                config:
+                    elements: [0, 1, 3, 4]
               - type: PyFilter
                 name: Filter
-                keep: "lambda elem: elem > 2"
+                config:
+                    keep: "lambda elem: elem > 2"
                 input: Create
             output: Filter
             ''')
@@ -197,14 +345,17 @@ class YamlTransformTest(unittest.TestCase):
             transforms:
               - type: Create
                 name: CreateData
-                elements: [0, 1, 3, 4]
+                config:
+                    elements: [0, 1, 3, 4]
               - type: PyFilter
                 name: PyFilter
-                keep: "lambda elem: elem > 2"
+                config:
+                    keep: "lambda elem: elem > 2"
                 input: CreateData
               - type: PyFilter
                 name: AnotherFilter
-                keep: "lambda elem: elem > 3"
+                config:
+                    keep: "lambda elem: elem > 3"
                 input: PyFilter
             output: AnotherFilter
             ''')
@@ -226,9 +377,138 @@ class SumGlobally(beam.PTransform):
     return pcoll | beam.CombineGlobally(sum).without_defaults()
 
 
+class SizeLimiter(beam.PTransform):
+  def __init__(self, limit, error_handling):
+    self._limit = limit
+    self._error_handling = error_handling
+
+  def expand(self, pcoll):
+    def raise_on_big(element):
+      if len(element) > self._limit:
+        raise ValueError(element)
+      else:
+        return element
+
+    good, bad = pcoll | beam.Map(raise_on_big).with_exception_handling()
+    return {'small_elements': good, self._error_handling['output']: bad}
+
+
 TEST_PROVIDERS = {
-    'CreateTimestamped': CreateTimestamped, 'SumGlobally': SumGlobally
+    'CreateTimestamped': CreateTimestamped,
+    'SumGlobally': SumGlobally,
+    'SizeLimiter': SizeLimiter,
 }
+
+
+class ErrorHandlingTest(unittest.TestCase):
+  def test_error_handling_outputs(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                  elements: ['a', 'b', 'biiiiig']
+            - type: SizeLimiter
+              input: Create
+              config:
+                  limit: 5
+                  error_handling:
+                    output: errors
+            - name: TrimErrors
+              type: PyMap
+              input: SizeLimiter.errors
+              config:
+                  fn: "lambda x: x[1][1]"
+          output:
+            good: SizeLimiter
+            bad: TrimErrors
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
+      assert_that(result['bad'], equal_to(["ValueError('biiiiig')"]))
+
+  def test_must_handle_error_output(self):
+    with self.assertRaisesRegex(Exception, 'Unconsumed error output .*line 7'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                config:
+                    elements: ['a', 'b', 'biiiiig']
+              - type: SizeLimiter
+                input: Create
+                config:
+                    limit: 5
+                    error_handling:
+                      output: errors
+            ''',
+            providers=TEST_PROVIDERS)
+
+  def test_mapping_errors(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                  elements: [0, 1, 2, 4]
+            - type: PyMap
+              name: ToRow
+              input: Create
+              config:
+                  fn: "lambda x: beam.Row(num=x, str='a' * x or 'bbb')"
+            - type: MapToFields
+              name: MapWithErrorHandling
+              input: ToRow
+              config:
+                  language: python
+                  fields:
+                    num: num
+                    inverse: float(1 / num)
+                  keep:
+                    str[1] >= 'a'
+                  error_handling:
+                    output: errors
+            - type: PyMap
+              name: TrimErrors
+              input: MapWithErrorHandling.errors
+              config:
+                  fn: "lambda x: x.msg"
+            - type: MapToFields
+              name: Sum
+              input: MapWithErrorHandling
+              config:
+                  language: python
+                  append: True
+                  fields:
+                    sum: num + inverse
+          output:
+            good: Sum
+            bad: TrimErrors
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(num=2, inverse=.5, sum=2.5),
+              beam.Row(num=4, inverse=.25, sum=4.25)
+          ]),
+          label="CheckGood")
+      assert_that(
+          result['bad'],
+          equal_to([
+              "IndexError('string index out of range')",  # from the filter
+              "ZeroDivisionError('division by zero')",  # from the mapping
+          ]),
+          label='CheckErrors')
 
 
 class YamlWindowingTest(unittest.TestCase):
@@ -240,7 +520,8 @@ class YamlWindowingTest(unittest.TestCase):
           type: chain
           transforms:
             - type: CreateTimestamped
-              elements: [0, 1, 2, 3, 4, 5]
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
             - type: WindowInto
               windowing:
                 type: fixed
@@ -258,7 +539,8 @@ class YamlWindowingTest(unittest.TestCase):
           type: chain
           transforms:
             - type: CreateTimestamped
-              elements: [0, 1, 2, 3, 4, 5]
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
             - type: SumGlobally
               windowing:
                 type: fixed
@@ -276,10 +558,12 @@ class YamlWindowingTest(unittest.TestCase):
           transforms:
             - type: CreateTimestamped
               name: Create1
-              elements: [0, 2, 4]
+              config:
+                  elements: [0, 2, 4]
             - type: CreateTimestamped
               name: Create2
-              elements: [1, 3, 5]
+              config:
+                  elements: [1, 3, 5]
             - type: SumGlobally
               input: [Create1, Create2]
               windowing:
@@ -298,7 +582,8 @@ class YamlWindowingTest(unittest.TestCase):
           type: chain
           transforms:
             - type: CreateTimestamped
-              elements: [0, 1, 2, 3, 4, 5]
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
               windowing:
                 type: fixed
                 size: 4
@@ -315,7 +600,8 @@ class YamlWindowingTest(unittest.TestCase):
           type: chain
           transforms:
             - type: CreateTimestamped
-              elements: [0, 1, 2, 3, 4, 5]
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
             - type: SumGlobally
           windowing:
             type: fixed
@@ -370,7 +656,8 @@ class ProviderAffinityTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [0]
+              config:
+                  elements: [0]
             - type: P1
             - type: A
             - type: C
@@ -393,7 +680,8 @@ class ProviderAffinityTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [0]
+              config:
+                  elements: [0]
             - type: P2
             - type: A
             - type: C
@@ -421,7 +709,8 @@ class ProviderAffinityTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [0]
+              config:
+                  elements: [0]
             - type: P1
             - type: A
             - type: D
@@ -438,7 +727,8 @@ class ProviderAffinityTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [0]
+              config:
+                  elements: [0]
             - type: P3
             - type: A
             - type: D
