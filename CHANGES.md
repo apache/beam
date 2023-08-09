@@ -142,6 +142,7 @@
   * This change is not compatible with Flink savepoints created by Beam 2.46.0 applications which had KinesisIO sources.
 * Added textio.ReadWithFilename transform (Go) ([#25812](https://github.com/apache/beam/issues/25812)).
 * Added fileio.MatchContinuously transform (Go) ([#26186](https://github.com/apache/beam/issues/26186)).
+* Added support for GoogleAdsIO source (Java) ([#27681](https://github.com/apache/beam/pull/27681)).
 
 ## New Features / Improvements
 
