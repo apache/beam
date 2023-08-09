@@ -160,14 +160,14 @@ class PyTorchInference(unittest.TestCase):
     predictions_dict = {}
     for i in range(0, len(predictions), 3):
       filename = predictions[i]
-      v1predictions = predictions[i+1].split(':')[1]
-      v2predictions = predictions[i+2].split(':')[1]
+      v1predictions = predictions[i + 1].split(':')[1]
+      v2predictions = predictions[i + 2].split(':')[1]
       predictions_dict[filename] = (v1predictions, v2predictions)
 
     for i in range(0, len(actuals), 3):
       filename = actuals[i]
-      v1actuals = actuals[i+1].split(':')[1]
-      v2actuals = actuals[i+2].split(':')[1]
+      v1actuals = actuals[i + 1].split(':')[1]
+      v2actuals = actuals[i + 2].split(':')[1]
       v1prediction_labels, v2prediction_labels = predictions_dict[filename]
       self.assertEqual(v1actuals, v1prediction_labels)
       self.assertEqual(v2actuals, v2prediction_labels)
