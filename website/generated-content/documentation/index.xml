@@ -14981,7 +14981,96 @@ implementations. This information can be accessed by using the conventional
   &lt;span class="k">def&lt;/span> &lt;span class="nf">infer_output_type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_type&lt;/span>&lt;span class="p">):&lt;/span>
     &lt;span class="k">return&lt;/span> &lt;span class="n">input_type&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;/div></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
+&lt;/div>
+&lt;h2 id="transform-service">15 Transform Service&lt;/h2>
+&lt;p>Starting version 2.49.0, Beam introduced a &lt;a href="https://docs.docker.com/compose/">Docker Compose&lt;/a> based service named &lt;em>Transform Service&lt;/em>. The Transform Service allows Beam portable
+pipelines to perform expansion of supported transforms using Docker.&lt;/p>
+&lt;p>The basic architecture of the Transform Service is given below.&lt;/p>
+&lt;p>&lt;img src="/images/transform_service.png" alt="Diagram of the transform service architecture">&lt;/p>
+&lt;p>The Transform Service can be useful in many contexts. We have identified two primary use-cases below. Note that to use the transform service, Docker (and Docker Compose) needs to be available in the machine where the service will be started at.&lt;/p>
+&lt;ul>
+&lt;li>Perform expansion of cross-language transforms without installing other language runtimes.&lt;/li>
+&lt;/ul>
+&lt;p>Transforms Service allows multi-language pipelines to use/expand cross-language transforms implemented in other SDKs without installing runtimes for implementation languages of such SDKs.
+For example, with the Transform Service, a Beam Python pipeline can use Java GCP I/O transforms and Java Kafka I/O transforms without installing a Java runtime locally.&lt;/p>
+&lt;ul>
+&lt;li>Upgrade transforms without upgrading the Beam version.&lt;/li>
+&lt;/ul>
+&lt;p>The transform service can be used to upgrade individual transforms used by Beam pipelines to a new Beam version without upgrading the Beam version used by the pipeline.
+This feature is currently in development. Please see the &lt;a href="https://github.com/apache/beam/issues/27943">tracking issue&lt;/a> for more details.&lt;/p>
+&lt;h3 id="transform-service-usage">15.1 Using the the Transform Service&lt;/h3>
+&lt;p>Beam SDKs may automatically startup a transform service to perform expansion when using cross-language transforms. More specifically,&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java">PythonExternalTransform API&lt;/a> will automatically
+startup the Transform Service for you if a Python runtime is not available locally but Docker is available.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Beam Python multi-language wrappers may automatically startup a Transform Service for you when using Java transforms, if a Java language runtime is not available locally but Docker is available.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Additionally, if needed, a Transform Service instance can be manually started using utilities provided with Beam SDKs.&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">java&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">jar&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">transform&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">service&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">launcher&lt;/span>&lt;span class="o">-&amp;lt;&lt;/span>&lt;span class="n">Beam&lt;/span> &lt;span class="n">version&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">jar&lt;/span>&lt;span class="o">&amp;gt;.&lt;/span>&lt;span class="na">jar&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">port&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">port&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">beam_version&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Beam&lt;/span> &lt;span class="n">version&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">project_name&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">a&lt;/span> &lt;span class="n">unique&lt;/span> &lt;span class="n">ID&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">command&lt;/span> &lt;span class="n">up&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">python&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">apache_beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">utils&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transform_service_launcher&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">port&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">port&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">beam_version&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Beam&lt;/span> &lt;span class="n">version&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">project_name&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">a&lt;/span> &lt;span class="n">unique&lt;/span> &lt;span class="n">ID&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">command&lt;/span> &lt;span class="n">up&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">feature&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">currently&lt;/span> &lt;span class="nx">in&lt;/span> &lt;span class="nx">development&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>To stop the transform service use the following commands.&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">java&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">jar&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">transform&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">service&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">launcher&lt;/span>&lt;span class="o">-&amp;lt;&lt;/span>&lt;span class="n">Beam&lt;/span> &lt;span class="n">version&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">jar&lt;/span>&lt;span class="o">&amp;gt;.&lt;/span>&lt;span class="na">jar&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">port&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">port&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">beam_version&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Beam&lt;/span> &lt;span class="n">version&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">project_name&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">a&lt;/span> &lt;span class="n">unique&lt;/span> &lt;span class="n">ID&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">command&lt;/span> &lt;span class="n">down&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">python&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="n">m&lt;/span> &lt;span class="n">apache_beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">utils&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transform_service_launcher&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">port&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">port&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">beam_version&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Beam&lt;/span> &lt;span class="n">version&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">project_name&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">a&lt;/span> &lt;span class="n">unique&lt;/span> &lt;span class="n">ID&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">transform&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">--&lt;/span>&lt;span class="n">command&lt;/span> &lt;span class="n">down&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">feature&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">currently&lt;/span> &lt;span class="nx">in&lt;/span> &lt;span class="nx">development&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="transform-service-included-transforms">15.2 Portable Transforms included in the Transform Service&lt;/h3>
+&lt;p>Transforms service includes a number of portable transforms implemented in Beam Java and Python SDKs.&lt;/p>
+&lt;p>Some of the transforms currently included in the Trasnform Service are given below.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Java transforms - GCP I/O connectors, Kafka I/O connector, JDBC I/O connector.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Python transforms - all portable transforms implemented within Beam Python SDK, for example, RunInference and Dataframe transforms.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>For a more detailed list of available transforms, please see &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Transform+Service">here&lt;/a>.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
