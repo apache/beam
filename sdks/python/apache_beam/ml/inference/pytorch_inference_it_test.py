@@ -135,6 +135,7 @@ class PyTorchInference(unittest.TestCase):
     # text files containing absolute path to the coco validation data on GCS
     file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_coco_validation_inputs.txt'  # pylint: disable=line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    output_file_dir = '/Users/dannymccormick/beam/sdks/python'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
     model_state_dict_paths = [
@@ -158,16 +159,18 @@ class PyTorchInference(unittest.TestCase):
     actuals = process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
-    for i in range(0, len(predictions), 3):
-      filename = predictions[i]
-      v1predictions = predictions[i + 1]
-      v2predictions = predictions[i + 2]
+    for prediction in predictions:
+      p = prediction.split('---')
+      filename = p[0]
+      v1predictions = p[1]
+      v2predictions = p[2]
       predictions_dict[filename] = (v1predictions, v2predictions)
 
-    for i in range(0, len(actuals), 3):
-      filename = actuals[i]
-      v1actuals = actuals[i + 1]
-      v2actuals = actuals[i + 2]
+    for actual in actuals:
+      a = actual.split('---')
+      filename = a[0]
+      v1actuals = a[1]
+      v2actuals = a[2]
       v1prediction_labels, v2prediction_labels = predictions_dict[filename]
       self.assertEqual(v1actuals, v1prediction_labels)
       self.assertEqual(v2actuals, v2prediction_labels)

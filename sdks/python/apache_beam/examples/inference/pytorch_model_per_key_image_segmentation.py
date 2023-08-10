@@ -186,10 +186,13 @@ class PostProcessor(beam.DoFn):
 class FormatResults(beam.DoFn):
   def process(self, element):
     _, filename_prediction = element
+    predictions = filename_prediction['predictions']
+    v1_predictions = next(p for p in predictions if 'v1 predictions' in p)
+    v2_predictions = next(p for p in predictions if 'v2 predictions' in p)
     yield (
-        f"{filename_prediction['image_names'][0]}:\n"
-        f"- {filename_prediction['predictions'][0]}\n"
-        f"- {filename_prediction['predictions'][1]}")
+        f"{filename_prediction['image_names'][0]} --- "
+        f"{v1_predictions} --- "
+        f"{v2_predictions}")
 
 
 def parse_known_args(argv):

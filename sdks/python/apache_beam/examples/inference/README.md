@@ -278,9 +278,7 @@ python -m apache_beam.examples.inference.pytorch_model_per_key_image_segmentatio
 ```
 This writes the output to the `predictions.csv` with contents like:
 ```
-/Users/dannymccormick/Downloads/images/datasets_coco_raw-data_val2017_000000000139.jpg:
-- v1 predictions: ['chair', 'tv','potted plant']
-- v2 predictions: ['motorcycle', 'frisbee', 'couch']
+/Users/dannymccormick/Downloads/images/datasets_coco_raw-data_val2017_000000000139.jpg --- v1 predictions: ['chair', 'tv','potted plant'] --- v2 predictions: ['motorcycle', 'frisbee', 'couch']
 ...
 ```
 Each image has 2 pieces of associated data - `v1 predictions` and `v2 predictions` corresponding to the version of the model that was used for segmentation.
