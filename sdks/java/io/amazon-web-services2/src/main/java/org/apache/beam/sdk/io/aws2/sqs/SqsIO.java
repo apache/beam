@@ -637,8 +637,10 @@ public class SqsIO {
           checkState(batch.lock(false)); // unlock to continue writing to batch
         }
 
-        // check for expired batches synchronously
-        batches.submitExpired(true);
+        if (scheduler == null) {
+          // check for expired batches synchronously
+          batches.submitExpired(true);
+        }
       }
 
       /** Submit entries of a {@link Batch} to the async write handler. */

@@ -24,7 +24,6 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.commons.lang3.RandomUtils.nextInt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.Duration.millis;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.io.aws2.common.AsyncBatchWriteHandler;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO.WriteBatches;
+import org.apache.beam.sdk.io.aws2.sqs.SqsIO.WriteBatches.DynamicDestination;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO.WriteBatches.EntryMapperFn;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -59,6 +59,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
+import org.apache.commons.lang3.RandomUtils;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -348,15 +349,43 @@ public class SqsIOWriteBatchesTest {
     when(sqs.sendMessageBatch(any(SendMessageBatchRequest.class)))
         .thenReturn(completedFuture(SendMessageBatchResponse.builder().build()));
 
-    p.apply(Create.of(10000))
+    p.apply(Create.of(5))
         .apply(ParDo.of(new CreateMessages()))
         .apply(
             // simulate delay between messages > batch timeout
             SqsIO.<String>writeBatches()
-                .withEntryMapper(withDelay(millis(1), SET_MESSAGE_BODY))
+                .withEntryMapper(withDelay(millis(100), SET_MESSAGE_BODY))
+                .withBatchTimeout(millis(150), true)
+                .to(msg -> Integer.valueOf(msg) % 2 == 0 ? "even" : "uneven"));
+
+    p.run().waitUntilFinish();
+
+    SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
+    // using strict timeouts batches, batches are timed out by a separate thread before any 2nd
+    // entry
+    verify(sqs).sendMessageBatch(request("even", entries[0]));
+    verify(sqs).sendMessageBatch(request("uneven", entries[1]));
+    verify(sqs).sendMessageBatch(request("even", entries[2]));
+    verify(sqs).sendMessageBatch(request("uneven", entries[3]));
+    verify(sqs).sendMessageBatch(request("even", entries[4]));
+  }
+
+  @Test
+  public void testWriteBatchesToDynamicWithStrictTimeoutAtHighVolume() {
+    when(sqs.sendMessageBatch(any(SendMessageBatchRequest.class)))
+        .thenReturn(completedFuture(SendMessageBatchResponse.builder().build()));
+
+    // Use sqrt to change the rate of newly created dynamic destinations over time
+    DynamicDestination<String> dynamicDestination =
+        msg -> String.valueOf(RandomUtils.nextInt(0, (int) (1 + sqrt(Integer.valueOf(msg)))));
+
+    p.apply(Create.of(100000))
+        .apply(ParDo.of(new CreateMessages()))
+        .apply(
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(SET_MESSAGE_BODY)
                 .withBatchTimeout(millis(10), true)
-                // Use sqrt to change the rate of newly created dynamic destinations over time
-                .to(msg -> String.valueOf(nextInt(0, (int) (1 + sqrt(Integer.valueOf(msg)))))));
+                .to(dynamicDestination));
 
     p.run().waitUntilFinish();
 
@@ -370,7 +399,7 @@ public class SqsIOWriteBatchesTest {
         assertTrue("duplicate message", capturedMessages.add(entry.messageBody()));
       }
     }
-    assertEquals("Invalid message count", 10000, capturedMessages.size());
+    assertEquals("Invalid message count", 100000, capturedMessages.size());
   }
 
   private SendMessageBatchRequest anyRequest() {
