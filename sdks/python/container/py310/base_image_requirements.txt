@@ -153,7 +153,7 @@ tqdm==4.66.0
 typing_extensions==4.5.0
 uritemplate==4.1.1
 urllib3==1.26.16
-validators==0.21.2
+validators==0.20.0
 websocket-client==1.6.1
 Werkzeug==2.3.6
 wrapt==1.15.0
