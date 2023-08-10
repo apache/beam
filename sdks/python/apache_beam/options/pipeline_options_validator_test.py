@@ -319,12 +319,7 @@ class SetupTest(unittest.TestCase):
         {
             'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://another.service.com'],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://another.service.com/'],
-            'expected': False,
+            'expected': True,
         },
         {
             'runner': MockRunners.DataflowRunner(),
@@ -333,7 +328,7 @@ class SetupTest(unittest.TestCase):
         },
         {
             'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
+            'options': ['--dataflow_endpoint=foo: //dataflow. googleapis. com'],
             'expected': True,
         },
         {
@@ -346,6 +341,11 @@ class SetupTest(unittest.TestCase):
     for case in test_cases:
       validator = PipelineOptionsValidator(
           PipelineOptions(case['options']), case['runner'])
+      print(
+          case['options'],
+          case['runner'],
+          case['expected'],
+          validator.is_service_runner())
       self.assertEqual(validator.is_service_runner(), case['expected'])
 
   def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
@@ -557,17 +557,29 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
 
   def test_region_optional_for_non_service_runner(self):
-    runner = MockRunners.DataflowRunner()
+    runner = MockRunners.OtherRunner()
     # Remove default region for this test.
     runner.get_default_gcp_region = lambda: None
     options = PipelineOptions([
         '--project=example:example',
         '--temp_location=gs://foo/bar',
-        '--dataflow_endpoint=http://localhost:20281',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 0)
+
+  def test_dataflow_endpoint_is_a_url(self):
+    runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--dataflow_endpoint=foo and bar'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn("Invalid url (foo and bar)", errors[0])
 
   def test_alias_sdk_container_to_worker_harness(self):
     runner = MockRunners.DataflowRunner()

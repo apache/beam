@@ -23,6 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 import logging
 import re
+import validators
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -92,6 +93,8 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_PROJECT_ID = (
       'Invalid Project ID (%s). Please make sure you specified the Project ID, '
       'not project description.')
+  ERR_INVALID_ENDPOINT = (
+      'Invalid url (%s) for dataflow endpoint. Please provide a valid url.')
   ERR_INVALID_NOT_POSITIVE = (
       'Invalid value (%s) for option: %s. Value needs '
       'to be positive.')
@@ -125,7 +128,6 @@ class PipelineOptionsValidator(object):
   JOB_PATTERN = '[a-z]([-a-z0-9]*[a-z0-9])?'
   PROJECT_ID_PATTERN = '[a-z][-a-z0-9:.]+[a-z0-9]'
   PROJECT_NUMBER_PATTERN = '[0-9]*'
-  ENDPOINT_PATTERN = r'https://[\S]*googleapis\.com[/]?'
 
   def __init__(self, options, runner):
     self.options = options
@@ -154,10 +156,7 @@ class PipelineOptionsValidator(object):
 
     dataflow_endpoint = (
         self.options.view_as(GoogleCloudOptions).dataflow_endpoint)
-    is_service_endpoint = (
-        dataflow_endpoint is not None and
-        self.is_full_string_match(self.ENDPOINT_PATTERN, dataflow_endpoint))
-
+    is_service_endpoint = (dataflow_endpoint is not None)
     return is_service_runner and is_service_endpoint
 
   def is_full_string_match(self, pattern, string):
@@ -231,6 +230,17 @@ class PipelineOptionsValidator(object):
         errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'region'))
       else:
         view.region = default_region
+    dataflow_endpoint = view.dataflow_endpoint
+    if dataflow_endpoint is None:
+      errors.extend(
+          self._validate_error(self.ERR_MISSING_OPTION, dataflow_endpoint))
+    else:
+      valid_endpoint = validators.url(dataflow_endpoint)
+      print(dataflow_endpoint, validators.url(dataflow_endpoint))
+      # validators returns True if valid, validators.ValidationError if false.
+      if valid_endpoint is not True:
+        errors.extend(
+            self._validate_error(self.ERR_INVALID_ENDPOINT, dataflow_endpoint))
     return errors
 
   def validate_sdk_container_image_options(self, view):
