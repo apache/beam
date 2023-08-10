@@ -7826,13 +7826,14 @@ for accessing features or libraries not available in the calling SDK
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" cross_lang_transform >}}
 ```
 
+
 ### 13.3. Runner Support {#x-lang-transform-runner-support}
 
 Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.
 
 Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.
 
-### 13.5 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
+### 13.4 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
 
 For additional tips and troubleshooting information, see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).
 
