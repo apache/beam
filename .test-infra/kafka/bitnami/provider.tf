@@ -16,8 +16,12 @@
  * limitations under the License.
  */
 
-// Required for depends_on implicit declaration
-resource "google_project_service" "container" {
-  service            = "container.googleapis.com"
-  disable_on_destroy = false
+provider "kubernetes" {
+  config_path = "~/.kube/config"
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = "~/.kube/config"
+  }
 }

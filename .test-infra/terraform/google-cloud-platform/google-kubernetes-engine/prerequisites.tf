@@ -16,29 +16,30 @@
  * limitations under the License.
  */
 
-data "google_compute_zones" "available" {
-  depends_on = [google_project_service.compute]
-  region     = var.region
+resource "google_project_service" "required" {
+  for_each = toset([
+    "container",
+    "iam",
+  ])
+  service            = "${each.key}.googleapis.com"
+  disable_on_destroy = false
 }
 
-// Query the Virtual Private Cloud (VPC) network.
+// Query the VPC network to make sure it exists.
 data "google_compute_network" "default" {
-  depends_on = [google_project_service.compute]
-  name       = var.network.name
+  depends_on = [google_project_service.required]
+  name       = var.network
 }
 
-// Query the Virtual Private Cloud (VPC) subnetwork.
+// Query the VPC subnetwork to make sure it exists in the region specified.
 data "google_compute_subnetwork" "default" {
-  depends_on = [google_project_service.compute]
-  name       = var.subnetwork.name
+  depends_on = [google_project_service.required]
+  name       = var.subnetwork
   region     = var.region
 }
 
-// Query the Virtual Private Cloud (VPC) router NAT.
-// The bastion host requires this.
-data "google_compute_router" "default" {
-  depends_on = [google_project_service.compute]
-  name       = var.router.name
-  network    = data.google_compute_network.default.name
-  region     = data.google_compute_subnetwork.default.region
+// Query the Service Account.
+data "google_service_account" "default" {
+  depends_on = [google_project_service.required]
+  account_id = var.service_account_id
 }
