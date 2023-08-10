@@ -539,7 +539,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.57.1"
+    def grpc_version = "1.56.1"
     def guava_version = "32.1.2-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -554,11 +554,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // Try to keep netty_version consistent with the netty version in grpc_bom (includes grpc_netty) in google_cloud_platform_libraries_bom
-    def netty_version = "4.1.96.Final"
+    def netty_version = "4.1.87.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.24.0"
+    def protobuf_version = "3.23.2"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
