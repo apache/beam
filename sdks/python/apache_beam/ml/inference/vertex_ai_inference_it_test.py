@@ -18,7 +18,6 @@
 """End-to-End test for Vertex AI Remote Inference"""
 
 import logging
-import os
 import unittest
 import uuid
 
@@ -62,7 +61,7 @@ class VertexAIInference(unittest.TestCase):
         'subnetwork': _SUBNETWORK,
     }
     vertex_ai_image_classification.run(
-        TestPipeline.get_full_options_as_args(**extra_opts))
+        test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
 
 
