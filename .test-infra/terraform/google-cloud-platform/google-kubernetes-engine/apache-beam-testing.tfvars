@@ -16,13 +16,7 @@
  * limitations under the License.
  */
 
-// Provision the required Google Cloud services
-resource "google_project_service" "required_services" {
-  for_each = toset([
-    "container",
-    "compute",
-  ])
-
-  service            = "${each.key}.googleapis.com"
-  disable_on_destroy = false
-}
+project    = "apache-beam-testing"
+network    = "default"
+subnetwork = "default"
+region     = "us-central1"

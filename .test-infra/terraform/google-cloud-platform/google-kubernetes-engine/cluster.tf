@@ -16,17 +16,22 @@
  * limitations under the License.
  */
 
-variable "project" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+resource "random_string" "postfix" {
+  length  = 6
+  upper   = false
+  special = false
 }
 
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region in which to provision resources"
-}
-
-variable "kubernetes_node_service_account_id" {
-  type        = string
-  description = "The Google Cloud Platform Service Account to be used by the node VMs created by GKE Autopilot"
+resource "google_container_cluster" "default" {
+  depends_on       = [google_project_service.required]
+  name             = "${var.cluster_name_prefix}-${random_string.postfix.result}"
+  location         = var.region
+  enable_autopilot = true
+  network          = data.google_compute_network.default.id
+  subnetwork       = data.google_compute_subnetwork.default.id
+  master_authorized_networks_config {}
+  private_cluster_config {
+    enable_private_nodes    = true
+    enable_private_endpoint = false
+  }
 }
