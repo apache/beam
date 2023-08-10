@@ -35,6 +35,7 @@ cloudpickle==2.2.1
 crcmod==1.7
 cryptography==41.0.3
 Cython==0.29.36
+decorator==5.1.1
 deprecation==2.1.0
 dill==0.3.1.1
 dnspython==2.4.2
