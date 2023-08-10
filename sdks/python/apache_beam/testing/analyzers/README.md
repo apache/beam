@@ -82,7 +82,7 @@ config file.
 
 ## Triage performance alert issues
 
-All the performance/load tests metrics defined at [beam/.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) are imported to [Grafana dashboards](http://35.193.202.176/d/1/getting-started?orgId=1) for visualization. Please
+All the performance/load tests metrics defined at [beam/.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) are imported to [Grafana dashboards](http://metrics.beam.apache.org/d/1/getting-started?orgId=1) for visualization. Please
 find the alerted test dashboard to find a spike in the metric values.
 
 For example, for the below configuration,
@@ -90,7 +90,7 @@ For example, for the below configuration,
 - test_target: `apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks`
 - metric_name: `mean_load_model_latency_milli_secs`
 
-Grafana dashboard can be found at http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+Grafana dashboard can be found at http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
 
 If the dashboard for a test is not found, you can use the
 notebook `analyze_metric_data.ipynb` to generate a plot for the given test, metric_name.

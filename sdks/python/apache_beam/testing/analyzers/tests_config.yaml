@@ -22,7 +22,7 @@ pytorch_image_classification_benchmarks-resnet152-mean_inference_batch_latency_m
   test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L63
-    Test dashboard - http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
+    Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
   test_target:
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
@@ -33,7 +33,7 @@ pytorch_image_classification_benchmarks-resnet101-mean_load_model_latency_milli_
   test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
-    Test dashboard - http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+    Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet101
@@ -44,7 +44,7 @@ pytorch_image_classification_benchmarks-resnet101-mean_inference_batch_latency_m
   test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
-    Test dashboard - http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
+    Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet101
@@ -55,7 +55,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_laten
   test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
-    Test dashboard - http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+    Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet101
@@ -66,7 +66,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_load_model_latency_mi
   test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
-    Test dashboard - http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+    Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
@@ -77,7 +77,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_laten
   test_description:
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151).
-    Test dashboard - http://35.193.202.176/d/ZpS8Uf44z/python-ml-runinference-benchmarks?from=now-90d&to=now&viewPanel=2
+    Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?from=now-90d&to=now&viewPanel=2
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152_tesla_t4
