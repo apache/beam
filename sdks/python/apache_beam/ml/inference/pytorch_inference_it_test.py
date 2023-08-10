@@ -135,7 +135,6 @@ class PyTorchInference(unittest.TestCase):
     # text files containing absolute path to the coco validation data on GCS
     file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_coco_validation_inputs.txt'  # pylint: disable=line-too-long
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
-    output_file_dir = '/Users/dannymccormick/beam/sdks/python'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
     model_state_dict_paths = [
