@@ -180,8 +180,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       artifact_location = read_artifact_location
       artifact_mode = ArtifactMode.CONSUME
     else:
-      artifact_location = write_artifact_location
-      artifact_mode = ArtifactModr.PRODUCE
+      artifact_location = write_artifact_location  # type: ignore[assignment]
+      artifact_mode = ArtifactMode.PRODUCE
 
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -190,7 +190,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     # create a mapping between transforms and ProcessHandler since
     # ProcessHandler is not exposed to the user.
     process_handler: ProcessHandler = TFTProcessHandler(
-        artifact_location=artifact_location,  # type: ignore[arg-type]
+        artifact_location=artifact_location,
         artifact_mode=artifact_mode,
         transforms=transforms)  # type: ignore[arg-type]
 
