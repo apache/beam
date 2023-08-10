@@ -21,15 +21,24 @@
 public struct Environment {
     
     public enum Category {
+        /// Default environment type. "default" is a reserved word so we use "system" here
         case system
-        case process(String,String,String)
+        /// Process. command, arch, os, environment
+        case process(String,String,String,[String:String])
+        /// Docker container image
         case docker(String)
+        /// External service using an api descriptor
         case external(ApiServiceDescriptor)
     }
     
     let category: Category
+    let capabilities: [String]
+    let dependencies: [ArtifactInfo]
+    
     public init(_ category: Category = .system,capabilities:[String] = [],dependencies:[ArtifactInfo]) {
         self.category = category
+        self.capabilities = capabilities
+        self.dependencies = dependencies
     }
 }
 
@@ -38,7 +47,38 @@ extension Environment : ProtoConversion {
     typealias Proto = EnvironmentProto
     
     var proto: EnvironmentProto {
-        .with { p in
+        get throws {
+            return try .with { p in
+                p.urn = switch category {
+                case .docker(_): .beamUrn("docker",type:"env")
+                case .system: .beamUrn("default",type:"env")
+                case .process(_, _, _, _): .beamUrn("process",type:"env")
+                case .external(_): .beamUrn("external",type:"env")
+                }
+                p.capabilities = capabilities
+                p.dependencies = dependencies.map({ $0.proto })
+                
+                if case let .docker(containerImage) = category {
+                    p.payload = try Org_Apache_Beam_Model_Pipeline_V1_DockerPayload.with {
+                        $0.containerImage = containerImage
+                    }.serializedData()
+                }
+                
+                if case let .external(endpoint) = category {
+                    p.payload = try Org_Apache_Beam_Model_Pipeline_V1_ExternalPayload.with {
+                        $0.endpoint = endpoint.proto
+                    }.serializedData()
+                }
+                
+                if case let .process(command,arch,os,env) = category {
+                    p.payload = try Org_Apache_Beam_Model_Pipeline_V1_ProcessPayload.with {
+                        $0.arch = arch
+                        $0.command = command
+                        $0.os = os
+                        $0.env = env
+                    }.serializedData()
+                }
+            }
         }
     }
 }
