@@ -43,7 +43,7 @@ _ENDPOINT_NETWORK = "projects/844138762903/global/networks/beam-test-vpc"
 _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testing/regions/us-central1/subnetworks/beam-test-vpc"
 
 class VertexAIInference(unittest.TestCase):
-    @pytest.mark.uses_tf
+    @pytest.mark.uses_vertex_ai
     @pytest.mark.it_postcommit
     @pytest.mark.timeout(1800)
     def test_vertex_ai_run_flower_image_classification(self):
