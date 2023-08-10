@@ -20,6 +20,7 @@ resource "google_project_service" "required" {
   for_each = toset([
     "cloudresourcemanager",
     "container",
+    "iam",
   ])
   service            = "${each.key}.googleapis.com"
   disable_on_destroy = false
@@ -27,16 +28,19 @@ resource "google_project_service" "required" {
 
 // Query the VPC network to make sure it exists.
 data "google_compute_network" "default" {
-  name = var.network
+  depends_on = [google_project_service.required]
+  name       = var.network
 }
 
 // Query the VPC subnetwork to make sure it exists in the region specified.
 data "google_compute_subnetwork" "default" {
-  name   = var.subnetwork
-  region = var.region
+  depends_on = [google_project_service.required]
+  name       = var.subnetwork
+  region     = var.region
 }
 
 // Query the Service Account.
 data "google_service_account" "default" {
+  depends_on = [google_project_service.required]
   account_id = var.service_account_id
 }
