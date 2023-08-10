@@ -28,10 +28,10 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
-    from apache_beam.examples.inference import vertex_ai_image_classification
+  from apache_beam.examples.inference import vertex_ai_image_classification
 except ImportError as e:
-    raise unittest.SkipTest("Vertex AI model handler dependencies are not installed, got %s", e)
-
+  raise unittest.SkipTest(
+      "Vertex AI model handler dependencies are not installed")
 
 _INPUT = "gs://apache-beam-ml/testing/inputs/vertex_images/*/*.jpg"
 _OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_images"
@@ -42,26 +42,29 @@ _ENDPOINT_NETWORK = "projects/844138762903/global/networks/beam-test-vpc"
 # pylint: disable=line-too-long
 _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testing/regions/us-central1/subnetworks/beam-test-vpc"
 
-class VertexAIInference(unittest.TestCase):
-    @pytest.mark.uses_vertex_ai
-    @pytest.mark.it_postcommit
-    @pytest.mark.timeout(1800)
-    def test_vertex_ai_run_flower_image_classification(self):
-        output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
 
-        test_pipeline = TestPipeline(is_integration_test=True)
-        extra_opts = {
-            'input': _INPUT,
-            'output': output_file,
-            'endpoint_id': _ENDPOINT_ID,
-            'endpoint_project': _ENDPOINT_PROJECT,
-            'endpoint_region': _ENDPOINT_REGION,
-            'endpoint_network': _ENDPOINT_NETWORK,
-            'private': True,
-            'subnetwork': _SUBNETWORK,
-        }
-        vertex_ai_image_classification.run(TestPipeline.get_full_options_as_args(**extra_opts))
-        self.assertEqual(FileSystems().exists(output_file), True)
+class VertexAIInference(unittest.TestCase):
+  @pytest.mark.uses_vertex_ai
+  @pytest.mark.it_postcommit
+  @pytest.mark.timeout(1800)
+  def test_vertex_ai_run_flower_image_classification(self):
+    output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
+
+    test_pipeline = TestPipeline(is_integration_test=True)
+    extra_opts = {
+        'input': _INPUT,
+        'output': output_file,
+        'endpoint_id': _ENDPOINT_ID,
+        'endpoint_project': _ENDPOINT_PROJECT,
+        'endpoint_region': _ENDPOINT_REGION,
+        'endpoint_network': _ENDPOINT_NETWORK,
+        'private': True,
+        'subnetwork': _SUBNETWORK,
+    }
+    vertex_ai_image_classification.run(
+        TestPipeline.get_full_options_as_args(**extra_opts))
+    self.assertEqual(FileSystems().exists(output_file), True)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
