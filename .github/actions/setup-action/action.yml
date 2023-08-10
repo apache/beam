@@ -41,7 +41,10 @@ runs:
     - name: Check out repository code if pull request commit
       shell: bash
       if: ${{ github.event_name == 'pull_request_target' }}
-      run: git checkout refs/pull/${{ github.event.number }}/merge || git checkout refs/pull/${{ github.event.number }}/head
+      run: |
+          git fetch --depth=1 origin +refs/pull/${{ github.event.number }}/merge:refs/remotes/pull/${{ github.event.number }}/merge || \
+          git fetch --depth=1 origin +refs/pull/${{ github.event.number }}/head:refs/remotes/pull/${{ github.event.number }}/head
+          git checkout refs/pull/${{ github.event.number }}/merge || git checkout refs/pull/${{ github.event.number }}/head
     - name: Check out repository code if comment phrase
       uses: actions/checkout@v3
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
