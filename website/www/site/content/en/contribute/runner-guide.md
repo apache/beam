@@ -766,4 +766,3 @@ as an artifact server to the runner receiving the request, and in turn the
 runner then acts as an artifact server to the workers (environments) hosting
 the users UDFs.
 
-{{< /highlight >}}
