@@ -31,6 +31,7 @@ for details on requirements and usage.
 
 This module assumes the following pre-existing resources:
 
+- [Cloud Resource Manager API Enabled](https://pantheon.corp.google.com/apis/library/cloudresourcemanager.googleapis.com)
 - [Virtual Private Cloud (VPC) network and subnetwork](https://cloud.google.com/vpc/docs/create-modify-vpc-networks)
 - [GCP Service Account](https://cloud.google.com/iam/docs/service-accounts-create)
 
