@@ -57,11 +57,17 @@ This section contains the following example notebooks.
 * [Apache Beam RunInference with XGBoost](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_xgboost.ipynb)
 * [Use RunInference with TFX](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tfx.ipynb)
 * [Use RunInference in Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb)
+* [Use RunInference with a LLM](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_generative_ai.ipynb)
+* [Use RunInference with Beam's windowing semantics](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_windowing.ipynb)
 
 ### Custom inference
 
 * [Bring your own machine learning (ML) model to Apache Beam RunInference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb)
 * [Remote inference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb)
+
+### Machine Learning Use Cases
+* [Image Processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/image_processing_tensorflow.ipynb)
+* [Natural Language Processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/nlp_tensorflow_streaming.ipynb)
 
 ### Automatic Model Refresh
 
