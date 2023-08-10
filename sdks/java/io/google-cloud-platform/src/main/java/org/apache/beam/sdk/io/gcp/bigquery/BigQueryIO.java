@@ -2824,7 +2824,7 @@ public class BigQueryIO {
     In some cases this is not supported or BigQuery cannot directly interpet the proto. In these cases, the direct
     proto write
      */
-    Write<T> withDirectWriteProtos(boolean directWriteProtos) {
+    public Write<T> withDirectWriteProtos(boolean directWriteProtos) {
       return toBuilder().setDirectWriteProtos(directWriteProtos).build();
     }
 
