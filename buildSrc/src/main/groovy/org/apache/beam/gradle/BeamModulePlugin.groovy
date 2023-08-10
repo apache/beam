@@ -331,6 +331,8 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider startJobServer
     // Job server cleanup task.
     TaskProvider cleanupJobServer
+    // any additional arguments specific to the suite of tests
+    Map<String,String> additionalArgs
   }
 
   // A class defining the configuration for CrossLanguageUsingJavaExpansion.
@@ -356,6 +358,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String expansionProjectPath
     // Collect Python pipeline tests with this marker
     String collectMarker
+    // any additional arguments specific to the suite of tests
+    Map<String,String> additionalArgs
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
@@ -2522,8 +2526,9 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
-            //Use hardcoded kafka temporarily until hosted Kafka on Google is available. TODO: johnjcasey
-            environment "BOOTSTRAP_SERVER", 'theotherjohn-nokill-kafka-c-m:9092'
+            if (config.additionalArgs.containsKey("KAFKA_BOOTSTRAP_SERVER")) {
+              environment "BOOTSTRAP_SERVER", config.additionalArgs.get("KAFKA_BOOTSTRAP_SERVER")
+            }
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }

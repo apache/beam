@@ -34,8 +34,6 @@ dependencies {
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     implementation project(":sdks:java:io:google-cloud-platform")
     permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
-    implementation project(":sdks:java:io:kafka")
-    permitUnusedDeclared project(":sdks:java:io:kafka")
     implementation project(":sdks:java:extensions:schemaio-expansion-service")
     permitUnusedDeclared project(":sdks:java:extensions:schemaio-expansion-service") // BEAM-11761
     runtimeOnly library.java.slf4j_jdk14

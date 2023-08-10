@@ -58,5 +58,18 @@ def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
 }
 xlangTasks.add(gcpXlangCommon)
 
+def ioExpansionProject = project.project(':sdks:java:io:expansion-service')
+
+def ioXlangCommon = new CrossLanguageTaskCommon().tap {
+    name = "ioCrossLanguage"
+    expansionProjectPath = ioExpansionProject.getPath()
+    collectMarker = "uses_io_expansion_service"
+    startJobServer = setupTask
+    cleanupJobServer = cleanupTask
+    //Temporary hardcoding while we await GMK (google managed kafka) TODO johnjcasey
+    additionalArgs = ["KAFKA_BOOTSTRAP_SERVER":"10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094"]
+}
+
+xlangTasks.add(ioXlangCommon)
 
 ext.xlangTasks = xlangTasks
