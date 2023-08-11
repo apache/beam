@@ -23,7 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 import logging
 import re
-import validators
+import string
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+from urllib.parse import urlparse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -235,10 +236,8 @@ class PipelineOptionsValidator(object):
       errors.extend(
           self._validate_error(self.ERR_MISSING_OPTION, dataflow_endpoint))
     else:
-      valid_endpoint = validators.url(dataflow_endpoint)
-      print(dataflow_endpoint, validators.url(dataflow_endpoint))
-      # validators returns True if valid, validators.ValidationError if false.
-      if valid_endpoint is not True:
+      valid_endpoint = self.validate_endpoint_url(dataflow_endpoint)
+      if valid_endpoint is False:
         errors.extend(
             self._validate_error(self.ERR_INVALID_ENDPOINT, dataflow_endpoint))
     return errors
@@ -301,7 +300,7 @@ class PipelineOptionsValidator(object):
           self._validate_error(
               'Cannot use deprecated flag --zone along with worker_region or '
               'worker_zone.'))
-    if self.options.view_as(DebugOptions).lookup_experiment('worker_region')\
+    if self.options.view_as(DebugOptions).lookup_experiment('worker_region') \
         and (view.worker_region or view.worker_zone):
       errors.extend(
           self._validate_error(
@@ -403,3 +402,16 @@ class PipelineOptionsValidator(object):
       return self._validate_error(
           self.ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST, arg, arg_name)
     return []
+
+  # Minimally validates the endpoint url. This is not a strict application
+  # of http://www.faqs.org/rfcs/rfc1738.html.
+  def validate_endpoint_url(self, endpoint_url):
+    url_parts = urlparse(endpoint_url, allow_fragments=False)
+    if not url_parts.scheme or not url_parts.netloc:
+      return False
+    if url_parts.scheme not in ['http', 'https']:
+      return False
+    if set(
+        url_parts.netloc) <= set(string.ascii_letters + string.digits + '-.'):
+      return True
+    return False
