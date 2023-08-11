@@ -130,6 +130,7 @@ class PyTorchInference(unittest.TestCase):
 
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
+  @pytest.mark.timeout(1800) 
   def test_torch_run_inference_coco_maskrcnn_resnet50_fpn_v1_and_v2(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # text files containing absolute path to the coco validation data on GCS

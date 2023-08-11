@@ -119,7 +119,9 @@ def _load_model(
       raise e
 
   model.to(device)
+  torch.set_grad_enabled(False)
   model.eval()
+  model.requires_grad_(False)
   logging.info("Finished loading PyTorch model.")
   return model, device
 
@@ -145,11 +147,15 @@ def default_tensor_inference_fn(
 ) -> Iterable[PredictionResult]:
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
-  with torch.no_grad():
+  with torch.inference_mode():
     batched_tensors = torch.stack(batch)
     batched_tensors = _convert_to_device(batched_tensors, device)
-    predictions = model(batched_tensors, **inference_args)
-    return utils._convert_to_result(batch, predictions, model_id)
+    try:
+      predictions = model(batched_tensors.detach(), **inference_args)
+      return utils._convert_to_result(batch, predictions, model_id)
+    except Exception as e:
+      # raise Exception(f'requires_grad: {batched_tensors.requires_grad}') from e
+      raise e
 
 
 def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
