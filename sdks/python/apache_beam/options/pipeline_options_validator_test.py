@@ -341,11 +341,6 @@ class SetupTest(unittest.TestCase):
     for case in test_cases:
       validator = PipelineOptionsValidator(
           PipelineOptions(case['options']), case['runner'])
-      print(
-          case['options'],
-          case['runner'],
-          case['expected'],
-          validator.is_service_runner())
       self.assertEqual(validator.is_service_runner(), case['expected'])
 
   def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
