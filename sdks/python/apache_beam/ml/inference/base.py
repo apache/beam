@@ -34,6 +34,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import defaultdict
 from collections import OrderedDict
 from typing import Any
 from typing import Callable
@@ -320,6 +321,11 @@ class _ModelManager:
 # mix well across the board for all versions:
 # https://github.com/python/typing/issues/653
 class KeyMhMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
+  """
+  Dataclass for mapping 1 or more keys to 1 model handler.
+  Given `KeyMhMapping(['key1', 'key2'], myMh)`, all examples with keys `key1`
+  or `key2` will be run against the model defined by the `myMh` ModelHandler.
+  """
   def __init__(
       self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
     self.keys = keys
@@ -358,8 +364,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         require keys or (b) a list of KeyMhMappings mapping lists of keys to
         unkeyed ModelHandlers.
     """
-    self._many_models = isinstance(unkeyed, list)
-    if not self._many_models:
+    self._single_model = not isinstance(unkeyed, list)
+    if self._single_model:
       if len(unkeyed.get_preprocess_fns()) or len(
           unkeyed.get_postprocess_fns()):
         raise Exception(
@@ -371,6 +377,10 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self._unkeyed = unkeyed
       return
 
+    # To maintain an efficient representation, we will map all keys in a given
+    # KeyMhMapping to a single id (the first key in the KeyMhMapping list).
+    # We will then map that key to a ModelHandler. This will allow us to
+    # quickly look up the appropriate ModelHandler for any given key.
     self._id_to_mh_map: Dict[str, ModelHandler[ExampleT, PredictionT,
                                                ModelT]] = {}
     self._key_to_id_map: Dict[str, str] = {}
@@ -386,31 +396,30 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       hints = mh.get_resource_hints()
       if len(hints) > 0:
         logging.warning(
-            'mh %s defines the following resource hints %s which will '
-            'be ignored. Resource hints are not respected when more than one '
+            'mh %s defines the following resource hints, which will be'
+            'ignored: %s. Resource hints are not respected when more than one '
             'model handler is used in a KeyedModelHandler. If you would like '
-            'to specify resource hints, you can do so by overriding this '
-            'KeyedModelHandler and defining the get_resource_hints function.',
+            'to specify resource hints, you can do so by overriding the '
+            'KeyedModelHandler.get_resource_hints() method.',
             mh,
             hints)
       batch_kwargs = mh.batch_elements_kwargs()
       if len(hints) > 0:
         logging.warning(
-            'mh %s defines the following batching kwargs %s '
-            'which will be ignored. Batching kwargs are not respected when '
+            'mh %s defines the following batching kwargs which will be '
+            'ignored %s. Batching kwargs are not respected when '
             'more than one model handler is used in a KeyedModelHandler. If '
             'you would like to specify resource hints, you can do so by '
-            'overriding this KeyedModelHandler and defining the '
-            'batch_elements_kwargs function.',
+            'overriding the KeyedModelHandler.batch_elements_kwargs() method.',
             hints,
             batch_kwargs)
       env_vars = mh._env_vars
       if len(hints) > 0:
         logging.warning(
-            'mh %s defines the following _env_vars %s '
-            'which will be ignored. _env_vars are not respected when '
-            'more than one model handler is used in a KeyedModelHandler. '
-            'If you need env vars set at inference time, you can do so with '
+            'mh %s defines the following _env_vars which will be ignored %s. '
+            '_env_vars are not respected when more than one model handler is '
+            'used in a KeyedModelHandler. If you need env vars set at '
+            'inference time, you can do so with '
             'a custom inference function.',
             mh,
             env_vars)
@@ -428,7 +437,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         self._key_to_id_map[key] = keys[0]
 
   def load_model(self) -> Union[ModelT, _ModelManager]:
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.load_model()
     return _ModelManager(self._id_to_mh_map)
 
@@ -438,62 +447,65 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       model: Union[ModelT, _ModelManager],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[Tuple[KeyT, PredictionT]]:
-    if not self._many_models:
+    if self._single_model:
       keys, unkeyed_batch = zip(*batch)
       return zip(
           keys,
           self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
 
-    batch_by_key = {}
+    batch_by_key = defaultdict(list)
+    key_by_id = defaultdict(set)
     for key, example in batch:
-      if key not in batch_by_key:
-        batch_by_key[key] = []
       batch_by_key[key].append(example)
+      key_by_id[self._key_to_id_map[key]].add(key)
 
     predictions = []
-    for key, unkeyed_batches in batch_by_key.items():
-      id = self._key_to_id_map[key]
+    for id, keys in key_by_id.items():
       mh = self._id_to_mh_map[id]
       keyed_model_tag = model.load(id)
       keyed_model_shared_handle = multi_process_shared.MultiProcessShared(
           mh.load_model, tag=keyed_model_tag)
       keyed_model = keyed_model_shared_handle.acquire()
-      for inf in mh.run_inference(unkeyed_batches, keyed_model, inference_args):
-        predictions.append((key, inf))
+      for key in keys:
+        unkeyed_batches = batch_by_key[key]
+        for inf in mh.run_inference(unkeyed_batches,
+                                    keyed_model,
+                                    inference_args):
+          predictions.append((key, inf))
       keyed_model_shared_handle.release(keyed_model)
 
     return predictions
 
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
-    if not self._many_models:
+    if self._single_model:
       keys, unkeyed_batch = zip(*batch)
       return len(
           pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
     return len(pickle.dumps(batch))
 
   def get_metrics_namespace(self) -> str:
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.get_metrics_namespace()
     return 'BeamML_KeyedModels'
 
   def get_resource_hints(self):
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.get_resource_hints()
     return {}
 
   def batch_elements_kwargs(self):
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.batch_elements_kwargs()
     return {}
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.validate_inference_args(inference_args)
     for mh in self._id_to_mh_map.values():
       mh.validate_inference_args(inference_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.update_model_path(model_path=model_path)
     if model_path is not None:
       raise RuntimeError(
@@ -508,7 +520,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return []
 
   def share_model_across_processes(self) -> bool:
-    if not self._many_models:
+    if self._single_model:
       return self._unkeyed.share_model_across_processes()
     return True
 
