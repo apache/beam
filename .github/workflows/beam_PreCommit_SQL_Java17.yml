@@ -13,64 +13,76 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: beam_PreCommit_SQL_Java17
+name: PreCommit SQL Java17
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [sdks/java/extensions/sql/**]
-  pull_request:
+    paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java17.yml']
+  pull_request_target:
     branches: ['master', 'release-*']
     paths: [sdks/java/extensions/sql/**]
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
-    actions: write
-    pull-requests: read
-    checks: read
-    contents: read
-    deployments: read
-    id-token: read
-    issues: read
-    discussions: read
-    packages: read
-    pages: read
-    repository-projects: read
-    security-events: read
-    statuses: read
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
 
 jobs:
   beam_PreCommit_SQL_Java17:
-    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event.comment.body == 'Run SQL_Java17 PreCommit'
-    runs-on: [self-hosted, ubuntu-20.04]
-    name: "beam_PreCommit_SQL_Java17"
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PreCommit_SQL_Java17"]
+        job_phrase: ["Run SQL_Java17 PreCommit"]
+    timeout-minutes: 120
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run SQL_Java17 PreCommit'
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run SQL_Java17 PreCommit'
-        uses: ./.github/actions/rerun-job-action
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
-      - name: Set up Java
-        uses: actions/setup-java@v3.8.0
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Set up Java 17
+        uses: actions/setup-java@v3.11.0
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Remove default github maven configuration
-        run: rm ~/.m2/settings.xml
-      - name: Install Go
-        uses: actions/setup-go@v3
+      - name: Set up Java 8
+        uses: actions/setup-java@v3.11.0
         with:
-          go-version: '1.20'
+          distribution: 'temurin'
+          java-version: '8'
       - name: Install Python
         uses: actions/setup-python@v4
         with:
@@ -81,7 +93,15 @@ jobs:
           flutter-version: '3.10.4'
           channel: 'stable'
       - name: Build and Test
-        run: ./gradlew :sqlPreCommit -PdisableSpotlessCheck=true -PdisableCheckStyle=true -PcompileAndRunTestsWithJava17 -PskipCheckerFramework -Pjava17Home=/home/user/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.7-7/x64 -Pdocker-pull-licenses
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sqlPreCommit
+          arguments: |
+            -PdisableSpotlessCheck=true \
+            -PdisableCheckStyle=true \
+            -PcompileAndRunTestsWithJava17 \
+            -PskipCheckerFramework \
+            -Pjava17Home=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         with:
