@@ -45,7 +45,6 @@ _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testin
 class VertexAIInference(unittest.TestCase):
   @pytest.mark.uses_vertex_ai
   @pytest.mark.it_postcommit
-  @pytest.mark.timeout(1800)
   def test_vertex_ai_run_flower_image_classification(self):
     output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
 
