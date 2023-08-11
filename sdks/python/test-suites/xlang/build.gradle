@@ -67,6 +67,7 @@ def ioXlangCommon = new CrossLanguageTaskCommon().tap {
     startJobServer = setupTask
     cleanupJobServer = cleanupTask
     //Temporary hardcoding while we await GMK (google managed kafka) TODO johnjcasey
+    //See .test-infra/kafka/bitnami/README.md for setup instructions
     additionalArgs = ["KAFKA_BOOTSTRAP_SERVER":"10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094"]
 }
 
