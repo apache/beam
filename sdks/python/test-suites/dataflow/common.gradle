@@ -25,6 +25,15 @@ String pythonVersionSuffix = project.ext.pythonVersion
         ? "-py${pythonVersionNumber}"
         : ''
 
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--capture=no",  // print stdout instantly
+    "--numprocesses=8",  // run tests in parallel
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
+    "--log-cli-level=INFO" //log level info
+]
+
 dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
 }
