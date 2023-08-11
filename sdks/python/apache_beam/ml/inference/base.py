@@ -34,8 +34,8 @@ import sys
 import threading
 import time
 import uuid
-from collections import defaultdict
 from collections import OrderedDict
+from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
