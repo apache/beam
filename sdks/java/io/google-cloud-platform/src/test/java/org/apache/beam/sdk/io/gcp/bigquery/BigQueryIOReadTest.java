@@ -43,13 +43,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.avro.io.AvroSource;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
+import org.apache.beam.sdk.extensions.avro.io.AvroPojoUser;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -70,6 +73,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -140,20 +144,10 @@ public class BigQueryIOReadTest implements Serializable {
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
 
-  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>
-      datumReaderFactoryFn =
-          (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-              input -> {
-                try {
-                  String jsonSchema = BigQueryIO.JSON_FACTORY.toString(input);
-                  return (AvroSource.DatumReaderFactory<TableRow>)
-                      (writer, reader) ->
-                          new BigQueryIO.GenericDatumTransformer<>(
-                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer);
-                } catch (IOException e) {
-                  return null;
-                }
-              };
+  private SerializableBiFunction<TableSchema, Object, TableRow> parseFn =
+      (schema, record) ->
+          BigQueryIO.TableRowParser.INSTANCE.apply(
+              new SchemaAndRecord((GenericRecord) record, schema));
 
   private static class MyData implements Serializable {
     private String name;
@@ -210,11 +204,6 @@ public class BigQueryIOReadTest implements Serializable {
                                 .setType("NUMERIC")
                                 .setScale(2L)
                                 .setPrecision(3L)))));
-
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(fakeDatasetService);
 
     BigDecimal bd1 = new BigDecimal("123456789.123456789");
     bd1 = bd1.setScale(9, BigDecimal.ROUND_DOWN);
@@ -483,7 +472,7 @@ public class BigQueryIOReadTest implements Serializable {
             .setDatasetId("somedataset")
             .setTableId("sometable"));
     sometable.setNumBytes(1024L * 1024L);
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+
     fakeDatasetService.createDataset("non-executing-project", "somedataset", "", "", null);
     fakeDatasetService.createTable(sometable);
 
@@ -511,11 +500,6 @@ public class BigQueryIOReadTest implements Serializable {
                 .set("numeric_num", ByteBuffer.wrap(bytes))
                 .set("numeric_num2", ByteBuffer.wrap(bytes2)));
     fakeDatasetService.insertAll(sometable.getTableReference(), records, null);
-
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(fakeDatasetService);
 
     PTransform<PBegin, PCollection<TableRow>> readTransform;
     if (useReadTableRows) {
@@ -575,7 +559,7 @@ public class BigQueryIOReadTest implements Serializable {
             .setDatasetId("schema_dataset")
             .setTableId("schema_table"));
     someTable.setNumBytes(1024L * 1024L);
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+
     fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
     fakeDatasetService.createTable(someTable);
 
@@ -586,11 +570,6 @@ public class BigQueryIOReadTest implements Serializable {
             new TableRow().set("name", "c").set("number", 3L));
 
     fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
-
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(fakeDatasetService);
 
     // test
     BigQueryIO.TypedRead<TableRow> read =
@@ -618,103 +597,84 @@ public class BigQueryIOReadTest implements Serializable {
     p.run();
   }
 
-  static class User extends SpecificRecordBase {
-    private static final org.apache.avro.Schema schema =
-        org.apache.avro.SchemaBuilder.record("User")
-            .namespace("org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadTest$")
-            .fields()
-            .optionalString("name")
-            .endRecord();
-
-    private String name;
-
-    public String getName() {
-      return this.name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
-    }
-
-    public User() {}
-
-    @Override
-    public void put(int i, Object v) {
-      if (i == 0) {
-        setName(((org.apache.avro.util.Utf8) v).toString());
-      }
-    }
-
-    @Override
-    public Object get(int i) {
-      if (i == 0) {
-        return getName();
-      }
-      return null;
-    }
-
-    @Override
-    public org.apache.avro.Schema getSchema() {
-      return schema;
-    }
-
-    public static org.apache.avro.Schema getAvroSchema() {
-      return schema;
-    }
-  }
-
   @Test
   public void testReadTableWithReaderDatumFactory() throws IOException, InterruptedException {
     // setup
     Table someTable = new Table();
     someTable.setSchema(
         new TableSchema()
-            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))));
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema()
+                        .setName("favorite_number")
+                        .setType("INTEGER")
+                        .setMode("NULLABLE"),
+                    new TableFieldSchema()
+                        .setName("favorite_color")
+                        .setType("STRING")
+                        .setMode("NULLABLE"))));
     someTable.setTableReference(
         new TableReference()
             .setProjectId("non-executing-project")
-            .setDatasetId("schema_dataset")
-            .setTableId("schema_table"));
+            .setDatasetId("user_dataset")
+            .setTableId("user_table"));
     someTable.setNumBytes(1024L * 1024L);
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
+
+    fakeDatasetService.createDataset("non-executing-project", "user_dataset", "", "", null);
     fakeDatasetService.createTable(someTable);
 
     List<TableRow> records =
         Lists.newArrayList(
-            new TableRow().set("name", "a"),
-            new TableRow().set("name", "b"),
-            new TableRow().set("name", "c"),
-            new TableRow().set("name", "d"));
-
+            new TableRow().set("name", "a").set("favorite_number", 1L).set("favorite_color", "red"),
+            new TableRow()
+                .set("name", "b")
+                .set("favorite_number", 2L)
+                .set("favorite_color", "green"),
+            new TableRow()
+                .set("name", "c")
+                .set("favorite_number", 3L)
+                .set("favorite_color", "blue"),
+            new TableRow()
+                .set("name", "d")
+                .set("favorite_number", null)
+                .set("favorite_color", null));
     fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
 
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(fakeDatasetService);
-
-    BigQueryIO.TypedRead<User> read =
-        BigQueryIO.readWithDatumReader(
-                (AvroSource.DatumReaderFactory<User>)
-                    (writer, reader) -> new SpecificDatumReader<>(User.getAvroSchema()))
-            .from("non-executing-project:schema_dataset.schema_table")
+    // avro reflect reader factory
+    BigQueryIO.TypedRead<AvroPojoUser> reflectRead =
+        BigQueryIO.read(
+                AvroPojoUser.class,
+                AvroDatumFactory.reflect(AvroPojoUser.class),
+                AvroCoder.reflect(AvroPojoUser.class))
+            .from("non-executing-project:user_dataset.user_table")
             .withTestServices(fakeBqServices)
-            .withoutValidation()
-            .withCoder(SerializableCoder.of(User.class));
+            .withoutValidation();
 
-    PCollection<User> bqRows = p.apply(read);
+    PCollection<AvroPojoUser> bqReflectRows = p.apply("reflectTypedRead", reflectRead);
 
-    User a = new User();
-    a.setName("a");
-    User b = new User();
-    b.setName("b");
-    User c = new User();
-    c.setName("c");
-    User d = new User();
-    d.setName("d");
+    PAssert.that(bqReflectRows)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                new AvroPojoUser("a", 1L, "red"),
+                new AvroPojoUser("b", 2L, "green"),
+                new AvroPojoUser("c", 3L, "blue"),
+                new AvroPojoUser("d", null, null)));
 
-    PAssert.that(bqRows).containsInAnyOrder(ImmutableList.of(a, b, c, d));
+    // avro specific reader factory + parseFn
+    BigQueryIO.TypedRead<String> specificRead =
+        BigQueryIO.read(
+                AvroGeneratedUser.class,
+                AvroDatumFactory.specific(AvroGeneratedUser.class),
+                u -> u.getName().toString(),
+                StringUtf8Coder.of())
+            .from("non-executing-project:user_dataset.user_table")
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+
+    PCollection<String> bqSpecificRows = p.apply("specificTypedRead", specificRead);
+
+    PAssert.that(bqSpecificRows).containsInAnyOrder(ImmutableList.of("a", "b", "c", "d"));
 
     p.run();
   }
@@ -787,7 +747,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, false, null, null, parseFn, TableRowJsonCoder.of());
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
@@ -836,7 +796,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, false, null, null, parseFn, TableRowJsonCoder.of());
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -874,7 +834,7 @@ public class BigQueryIOReadTest implements Serializable {
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource =
         BigQueryTableSourceDef.create(fakeBqServices, ValueProvider.StaticValueProvider.of(table))
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, false, null, null, parseFn, TableRowJsonCoder.of());
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -905,7 +865,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, false, null, null, parseFn, TableRowJsonCoder.of());
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
@@ -981,7 +941,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, false, null, null, parseFn, TableRowJsonCoder.of());
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
@@ -1047,7 +1007,7 @@ public class BigQueryIOReadTest implements Serializable {
                 null,
                 null,
                 null)
-            .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
+            .toSource(stepUuid, false, null, null, parseFn, TableRowJsonCoder.of());
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 

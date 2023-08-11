@@ -28,7 +28,7 @@ public class AvroGeneratedUserFactory {
   private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   public static AvroGeneratedUser newInstance(
-      String name, Integer favoriteNumber, String favoriteColor) {
+      String name, Long favoriteNumber, String favoriteColor) {
 
     if (VERSION_AVRO.equals("1.8.2")) {
       return new AvroGeneratedUser(name, favoriteNumber, favoriteColor);

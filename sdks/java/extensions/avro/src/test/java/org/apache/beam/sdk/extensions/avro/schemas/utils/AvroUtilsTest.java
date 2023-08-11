@@ -828,7 +828,7 @@ public class AvroUtilsTest {
     assertTrue(records.hasSchema());
     CoderProperties.coderSerializable(records.getCoder());
 
-    AvroGeneratedUser user = AvroGeneratedUserFactory.newInstance("foo", 42, "green");
+    AvroGeneratedUser user = AvroGeneratedUserFactory.newInstance("foo", 42L, "green");
     PCollection<AvroGeneratedUser> users =
         pipeline.apply(Create.of(user).withCoder(AvroCoder.of(AvroGeneratedUser.class)));
     assertFalse(users.hasSchema());

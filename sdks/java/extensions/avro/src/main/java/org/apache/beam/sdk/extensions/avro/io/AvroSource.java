@@ -121,14 +121,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for more
  * details.
  *
- * @param <T> The type of records to be read from the source.
+ * @param <AvroT> The materialized avro type to be read from the source.
+ * @param <T> The converted record type to be read from the source. Will be AvroT if parseFn is not
+ *     used.
  */
 // CHECKSTYLE.ON: JavadocStyle
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class AvroSource<T> extends BlockBasedSource<T> {
+public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
   // The default sync interval is 64k.
@@ -140,39 +142,36 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   // Use cases of AvroSource are:
-  // 1) AvroSource<GenericRecord> Reading GenericRecord records with a specified schema.
-  // 2) AvroSource<Foo> Reading records of a generated Avro class Foo.
-  // 3) AvroSource<T> Reading GenericRecord records with an unspecified schema
+  // 1) AvroSource<GenericRecord, GenericRecord> Reading GenericRecord records with a specified schema.
+  // 2) AvroSource<Foo, Foo> Reading records of a generated Avro class Foo.
+  // 3) AvroSource<GenericRecord, T> Reading GenericRecord records with or without a specified schema
   //    and converting them to type T.
-  //                     |    Case 1     |    Case 2   |     Case 3    |
-  // type                | GenericRecord |     Foo     | GenericRecord |
-  // readerSchemaString  |    non-null   |   non-null  |     null      |
-  // parseFn             |      null     |     null    |   non-null    |
-  // outputCoder         |     either    |    either   |   non-null    |
-  // readerFactory       |     either    |    either   |    either     |
-  private static class Mode<T> implements Serializable {
-    private final Class<?> type;
+  // 4) AvroSource<Foo, T> Reading records of a generated Avro class Foo and converting them to type T.
+  //                     |    Case 1     |    Case 2   |     Case 3    |     Case 4    |
+  // AvroT               | GenericRecord |     Foo     | GenericRecord |      Foo      |
+  // T                   | GenericRecord |     Foo     | GenericRecord |       T       |
+  // readerSchemaString  |    non-null   |   non-null  |    either     |   non-null    |
+  // parseFn             |      null     |     null    |   non-null    |   non-null    |
+  // outputCoder         |     either    |    either   |   non-null    |   non-null    |
+  // readerFactory       |     either    |    either   |    either     |    either     |
+  private static class Mode<AvroT, T> implements Serializable {
+    private final Class<AvroT> type;
 
     // The JSON schema used to decode records.
     private @Nullable String readerSchemaString;
 
-    private final @Nullable SerializableFunction<GenericRecord, T> parseFn;
+    private final @Nullable SerializableFunction<AvroT, T> parseFn;
 
     private final @Nullable Coder<T> outputCoder;
 
-    private final @Nullable DatumReaderFactory<?> readerFactory;
-
-    private Mode() {
-      /* Empty Mode. Will need to be configured using withSchema/withClass/withParseFunction */
-      this(GenericRecord.class, null, null, null, null);
-    }
+    private final @Nullable DatumReaderFactory<AvroT> readerFactory;
 
     private Mode(
-        Class<?> type,
+        Class<AvroT> type,
         @Nullable String readerSchemaString,
-        @Nullable SerializableFunction<GenericRecord, T> parseFn,
+        @Nullable SerializableFunction<AvroT, T> parseFn,
         @Nullable Coder<T> outputCoder,
-        @Nullable DatumReaderFactory<?> readerFactory) {
+        @Nullable DatumReaderFactory<AvroT> readerFactory) {
       this.type = type;
       this.readerSchemaString = internSchemaString(readerSchemaString);
       this.parseFn = parseFn;
@@ -200,70 +199,84 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       }
     }
 
+    private boolean isEmpty() {
+      return type == GenericRecord.class
+          && readerSchemaString == null
+          && parseFn == null
+          && outputCoder == null
+          && readerFactory == null;
+    }
+
     private void validate() {
       if (parseFn == null) {
         checkArgument(
-            readerSchemaString != null,
-            "schema must be specified using withSchema() when not using a parse fn");
+                readerSchemaString != null,
+                "schema must be specified using withSchema() when not using a parse fn");
       }
     }
 
-    private Mode<GenericRecord> withSchema(String schema) {
-      return new Mode<>(
-          GenericRecord.class, schema, null, (Coder<GenericRecord>) outputCoder, readerFactory);
+    private static Mode<GenericRecord, GenericRecord> empty() {
+      return new Mode<>(GenericRecord.class, null, null, null, null);
     }
 
-    private <X> Mode<X> withClass(Class<X> clazz) {
-      return new Mode<>(
-          clazz,
-          ReflectData.get().getSchema(clazz).toString(),
-          null,
-          (Coder<X>) outputCoder,
-          readerFactory);
+    private <X> Mode<X, X> withSchema(Class<X> clazz, String schema) {
+      checkState(isEmpty(), "Schema can't be set on an already configured source");
+      return new Mode<>(clazz, schema, null, null, null);
     }
 
-    private <X> Mode<X> withParseFunction(
-        SerializableFunction<GenericRecord, X> parseFn, Coder<X> outputCoder) {
-      return new Mode<>(GenericRecord.class, null, parseFn, outputCoder, readerFactory);
+    private <X> Mode<X, X> withSchema(Class<X> clazz) {
+      checkState(isEmpty(), "Schema can't be set on an already configured source");
+      return new Mode<>(clazz, ReflectData.get().getSchema(clazz).toString(), null, null, null);
     }
 
-    private Mode<T> withCoder(Coder<T> coder) {
+    private <X> Mode<AvroT, X> withParseFunction(
+        SerializableFunction<AvroT, X> parseFn, Coder<X> outputCoder) {
+      return new Mode<>(type, readerSchemaString, parseFn, outputCoder, readerFactory);
+    }
+
+    private Mode<AvroT, T> withCoder(Coder<T> coder) {
       return new Mode<>(type, readerSchemaString, parseFn, coder, readerFactory);
     }
 
-    private Mode<T> withReaderFactory(DatumReaderFactory<?> factory) {
+    private Mode<AvroT, T> withReaderFactory(DatumReaderFactory<AvroT> factory) {
       return new Mode<>(type, readerSchemaString, parseFn, outputCoder, factory);
     }
   }
 
-  private final Mode<T> mode;
+  private final Mode<AvroT, T> mode;
 
   /**
    * Reads from the given file name or pattern ("glob"). The returned source needs to be further
    * configured by calling {@link #withSchema} to return a type other than {@link GenericRecord}.
    */
-  public static AvroSource<GenericRecord> from(ValueProvider<String> fileNameOrPattern) {
+  public static AvroSource<GenericRecord, GenericRecord> from(
+      ValueProvider<String> fileNameOrPattern) {
     return new AvroSource<>(
-        fileNameOrPattern, EmptyMatchTreatment.DISALLOW, DEFAULT_MIN_BUNDLE_SIZE, new Mode<>());
+        fileNameOrPattern, EmptyMatchTreatment.DISALLOW, DEFAULT_MIN_BUNDLE_SIZE, Mode.empty());
   }
 
-  public static AvroSource<GenericRecord> from(Metadata metadata) {
+  public static AvroSource<GenericRecord, GenericRecord> from(Metadata metadata) {
     return new AvroSource<>(
-        metadata, DEFAULT_MIN_BUNDLE_SIZE, 0, metadata.sizeBytes(), new Mode<>());
+        metadata, DEFAULT_MIN_BUNDLE_SIZE, 0, metadata.sizeBytes(), Mode.empty());
   }
 
   /** Like {@link #from(ValueProvider)}. */
-  public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
+  public static AvroSource<GenericRecord, GenericRecord> from(String fileNameOrPattern) {
     return from(ValueProvider.StaticValueProvider.of(fileNameOrPattern));
   }
 
-  public AvroSource<T> withEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment) {
+  public AvroSource<AvroT, T> withEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment) {
     return new AvroSource<>(
         getFileOrPatternSpecProvider(), emptyMatchTreatment, getMinBundleSize(), mode);
   }
 
   /** Reads files containing records that conform to the given schema. */
-  public AvroSource<GenericRecord> withSchema(String schema) {
+  public AvroSource<GenericRecord, GenericRecord> withSchema(String schema) {
+    return withSchema(GenericRecord.class, schema);
+  }
+
+  public <X> AvroSource<X, X> withSchema(Class<X> clazz, String schema) {
+    checkArgument(clazz != null, "clazz can not be null");
     checkArgument(schema != null, "schema can not be null");
     if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
       return new AvroSource<>(
@@ -271,23 +284,28 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           getMinBundleSize(),
           getStartOffset(),
           getEndOffset(),
-          mode.withSchema(schema));
+          mode.withSchema(clazz, schema));
     }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
         getMinBundleSize(),
-        mode.withSchema(schema));
+        mode.withSchema(clazz, schema));
   }
 
   /** Like {@link #withSchema(String)}. */
-  public AvroSource<GenericRecord> withSchema(Schema schema) {
+  public AvroSource<GenericRecord, GenericRecord> withSchema(Schema schema) {
+    return withSchema(GenericRecord.class, schema);
+  }
+
+  /** Like {@link #withSchema(Class, String)}. */
+  public <X> AvroSource<X, X> withSchema(Class<X> clazz, Schema schema) {
     checkArgument(schema != null, "schema can not be null");
-    return withSchema(schema.toString());
+    return withSchema(clazz, schema.toString());
   }
 
   /** Reads files containing records of the given class. */
-  public <X> AvroSource<X> withSchema(Class<X> clazz) {
+  public <X> AvroSource<X, X> withSchema(Class<X> clazz) {
     checkArgument(clazz != null, "clazz can not be null");
     if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
       return new AvroSource<>(
@@ -295,21 +313,21 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           getMinBundleSize(),
           getStartOffset(),
           getEndOffset(),
-          mode.withClass(clazz));
+          mode.withSchema(clazz));
     }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
         getEmptyMatchTreatment(),
         getMinBundleSize(),
-        mode.withClass(clazz));
+        mode.withSchema(clazz));
   }
 
   /**
    * Reads {@link GenericRecord} of unspecified schema and maps them to instances of a custom type
    * using the given {@code parseFn} and encoded using the given coder.
    */
-  public <X> AvroSource<X> withParseFn(
-      SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
+  public <X> AvroSource<AvroT, X> withParseFn(
+      SerializableFunction<AvroT, X> parseFn, Coder<X> coder) {
     checkArgument(parseFn != null, "parseFn can not be null");
     checkArgument(coder != null, "coder can not be null");
     if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
@@ -331,7 +349,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * Sets the minimum bundle size. Refer to {@link OffsetBasedSource} for a description of {@code
    * minBundleSize} and its use.
    */
-  public AvroSource<T> withMinBundleSize(long minBundleSize) {
+  public AvroSource<AvroT, T> withMinBundleSize(long minBundleSize) {
     if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
       return new AvroSource<>(
           getSingleFileMetadata(), minBundleSize, getStartOffset(), getEndOffset(), mode);
@@ -344,9 +362,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * Sets a custom {@link AvroSource.DatumReaderFactory} for reading. Pass a {@link
    * AvroDatumFactory} to also use the factory for the {@link AvroCoder}
    */
-  public AvroSource<T> withDatumReaderFactory(DatumReaderFactory<?> factory) {
+  public AvroSource<AvroT, T> withDatumReaderFactory(DatumReaderFactory<AvroT> factory) {
     checkArgument(factory != null, "factory can not be null");
-    Mode<T> newMode = mode.withReaderFactory(factory);
+    Mode<AvroT, T> newMode = mode.withReaderFactory(factory);
     if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
       return new AvroSource<>(
           getSingleFileMetadata(), getMinBundleSize(), getStartOffset(), getEndOffset(), newMode);
@@ -356,9 +374,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   /** Specifies the coder for the result of the {@code AvroSource}. */
-  public AvroSource<T> withCoder(Coder<T> coder) {
+  public AvroSource<AvroT, T> withCoder(Coder<T> coder) {
     checkArgument(coder != null, "coder can not be null");
-    Mode<T> newMode = mode.withCoder(coder);
+    Mode<AvroT, T> newMode = mode.withCoder(coder);
     if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
       return new AvroSource<>(
           getSingleFileMetadata(), getMinBundleSize(), getStartOffset(), getEndOffset(), newMode);
@@ -372,14 +390,18 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       ValueProvider<String> fileNameOrPattern,
       EmptyMatchTreatment emptyMatchTreatment,
       long minBundleSize,
-      Mode<T> mode) {
+      Mode<AvroT, T> mode) {
     super(fileNameOrPattern, emptyMatchTreatment, minBundleSize);
     this.mode = mode;
   }
 
   /** Constructor for SINGLE_FILE_OR_SUBRANGE mode. */
   private AvroSource(
-      Metadata metadata, long minBundleSize, long startOffset, long endOffset, Mode<T> mode) {
+      Metadata metadata,
+      long minBundleSize,
+      long startOffset,
+      long endOffset,
+      Mode<AvroT, T> mode) {
     super(metadata, minBundleSize, startOffset, endOffset);
     this.mode = mode;
   }
@@ -572,9 +594,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   /**
    * A {@link Block} of Avro records.
    *
-   * @param <T> The type of records stored in the block.
+   * @param <AvroT> The materialized avro type stored in the bloc.
+   * @param <T> The converted record type stored in the block. Will be AvroT if parseFn is unused.
    */
-  static class AvroBlock<T> extends Block<T> {
+  static class AvroBlock<AvroT, T> extends Block<T> {
 
     // The current record in the block. Initialized in readNextRecord.
     private @Nullable T currentRecord;
@@ -582,14 +605,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // The index of the current record in the block.
     private long currentRecordIndex = 0;
 
-    private final Iterator<?> iterator;
+    private final Iterator<AvroT> iterator;
 
-    private final SerializableFunction<GenericRecord, T> parseFn;
+    private final SerializableFunction<AvroT, T> parseFn;
 
     private final long numRecordsInBlock;
 
     AvroBlock(
-        Iterator<?> iter, SerializableFunction<GenericRecord, T> parseFn, long numRecordsInBlock) {
+        Iterator<AvroT> iter, SerializableFunction<AvroT, T> parseFn, long numRecordsInBlock) {
       this.iterator = iter;
       this.parseFn = parseFn;
       this.numRecordsInBlock = numRecordsInBlock;
@@ -606,8 +629,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         return false;
       }
 
-      Object record = iterator.next();
-      currentRecord = (parseFn == null) ? ((T) record) : parseFn.apply((GenericRecord) record);
+      AvroT record = iterator.next();
+      currentRecord = (parseFn == null) ? ((T) record) : parseFn.apply(record);
       currentRecordIndex++;
       return true;
     }
@@ -626,9 +649,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * number of records in the block and the block's size in bytes, followed by the block's
    * (optionally-encoded) records. Each block is terminated by a 16-bit sync marker.
    *
-   * @param <T> The type of records contained in the block.
+   * @param <AvroT> The materialized avro type stored in the bloc.
+   * @param <T> The converted record type stored in the block.
    */
-  public static class AvroReader<T> extends BlockBasedReader<T> {
+  public static class AvroReader<AvroT, T> extends BlockBasedReader<T> {
 
     private static class SeekableChannelInput implements SeekableInput {
 
@@ -668,9 +692,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
     // The current block.
     // Initialized in readNextRecord.
-    private @Nullable AvroBlock<T> currentBlock;
+    private @Nullable AvroBlock<AvroT, T> currentBlock;
 
-    private @Nullable DataFileReader<?> dataFileReader;
+    private @Nullable DataFileReader<AvroT> dataFileReader;
 
     // A lock used to synchronize block offsets for getRemainingParallelism
     private final Object progressLock = new Object();
@@ -684,13 +708,13 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private long currentBlockSizeBytes = 0;
 
     /** Reads Avro records of type {@code T} from the specified source. */
-    public AvroReader(AvroSource<T> source) {
+    public AvroReader(AvroSource<AvroT, T> source) {
       super(source);
     }
 
     @Override
-    public synchronized AvroSource<T> getCurrentSource() {
-      return (AvroSource<T>) super.getCurrentSource();
+    public synchronized AvroSource<AvroT, T> getCurrentSource() {
+      return (AvroSource<AvroT, T>) super.getCurrentSource();
     }
 
     // Precondition: the stream is positioned after the sync marker in the current (about to be
@@ -724,7 +748,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     @Override
-    public AvroBlock<T> getCurrentBlock() {
+    public AvroBlock<AvroT, T> getCurrentBlock() {
       return currentBlock;
     }
 
@@ -773,8 +797,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         readerSchema = AvroSource.internOrParseSchemaString(readerSchemaString);
       }
 
-      DatumReader<?> reader =
-          Optional.<DatumReaderFactory<?>>ofNullable(this.getCurrentSource().mode.readerFactory)
+      DatumReader<AvroT> reader =
+          Optional.ofNullable(this.getCurrentSource().mode.readerFactory)
               .orElse(AvroDatumFactory.of(this.getCurrentSource().mode.type))
               .apply(readerSchema, readerSchema);
 

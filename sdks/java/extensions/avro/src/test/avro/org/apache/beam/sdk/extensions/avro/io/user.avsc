@@ -3,8 +3,8 @@
   "type": "record",
   "name": "AvroGeneratedUser",
   "fields": [
-    { "name": "name", "type": "string"},
-    { "name": "favorite_number", "type": ["int", "null"]},
-    { "name": "favorite_color", "type": ["string", "null"]}
+    { "name": "name", "type": "string" },
+    { "name": "favorite_number", "type": ["long", "null"] },
+    { "name": "favorite_color", "type": ["string", "null"] }
   ]
 }

@@ -26,7 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -39,11 +39,20 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       String stepUuid,
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
-      Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      boolean useAvroLogicalTypes) {
+      boolean useAvroLogicalTypes,
+      String avroSchema,
+      AvroSource.DatumReaderFactory<Object> readerFactory,
+      SerializableBiFunction<TableSchema, Object, T> parseFn,
+      Coder<T> coder) {
     return new BigQueryTableSource<>(
-        stepUuid, tableDef, bqServices, coder, readerFactory, useAvroLogicalTypes);
+        stepUuid,
+        tableDef,
+        bqServices,
+        useAvroLogicalTypes,
+        avroSchema,
+        readerFactory,
+        parseFn,
+        coder);
   }
 
   private final BigQueryTableSourceDef tableDef;
@@ -53,10 +62,12 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       String stepUuid,
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
-      Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, readerFactory, useAvroLogicalTypes);
+      boolean useAvroLogicalTypes,
+      String avroSchema,
+      AvroSource.DatumReaderFactory<Object> readerFactory,
+      SerializableBiFunction<TableSchema, Object, T> parseFn,
+      Coder<T> coder) {
+    super(stepUuid, bqServices, useAvroLogicalTypes, avroSchema, readerFactory, parseFn, coder);
     this.tableDef = tableDef;
     this.tableSizeBytes = new AtomicReference<>();
   }

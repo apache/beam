@@ -29,6 +29,8 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -38,7 +40,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -67,29 +69,36 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
   protected final String stepUuid;
   protected final BigQueryServices bqServices;
+  private final boolean useAvroLogicalTypes;
+  private final @Nullable String avroSchema;
+
+  private final AvroSource.@Nullable DatumReaderFactory<Object> readerFactory;
+  private final SerializableBiFunction<TableSchema, Object, T> parseFn;
+  private final Coder<T> coder;
 
   private transient @Nullable List<BoundedSource<T>> cachedSplitResult = null;
-  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory;
-  private Coder<T> coder;
-  private final boolean useAvroLogicalTypes;
 
   BigQuerySourceBase(
       String stepUuid,
       BigQueryServices bqServices,
-      Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      boolean useAvroLogicalTypes) {
+      boolean useAvroLogicalTypes,
+      String avroSchema,
+      AvroSource.DatumReaderFactory<Object> readerFactory,
+      SerializableBiFunction<TableSchema, Object, T> parseFn,
+      Coder<T> coder) {
     this.stepUuid = checkArgumentNotNull(stepUuid, "stepUuid");
     this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
-    this.coder = checkArgumentNotNull(coder, "coder");
-    this.readerFactory = checkArgumentNotNull(readerFactory, "readerFactory");
     this.useAvroLogicalTypes = useAvroLogicalTypes;
+    this.avroSchema = avroSchema;
+    this.readerFactory = readerFactory;
+    this.parseFn = parseFn;
+    this.coder = checkArgumentNotNull(coder, "coder");
   }
 
   protected static class ExtractResult {
     public final TableSchema schema;
     public final List<ResourceId> extractedFiles;
-    public @Nullable List<MatchResult.Metadata> metadata = null;
+    public @Nullable List<MatchResult.Metadata> metadata;
 
     public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
       this(schema, extractedFiles, null);
@@ -237,29 +246,36 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   List<BoundedSource<T>> createSources(
       List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
-    String avroSchema =
-        BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
+    String readerSchema =
+        avroSchema == null
+            ? BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString()
+            : avroSchema;
 
-    AvroSource.DatumReaderFactory<T> factory = readerFactory.apply(schema);
-
-    List<BoundedSource<T>> avroSources = Lists.newArrayList();
+    List<AvroSource<GenericRecord, GenericRecord>> avroSources = Lists.newArrayList();
     // If metadata is available, create AvroSources with said metadata in SINGLE_FILE_OR_SUBRANGE
     // mode.
     if (metadata != null) {
       for (MatchResult.Metadata file : metadata) {
-        avroSources.add(
-            (AvroSource<T>)
-                AvroSource.from(file).withSchema(avroSchema).withDatumReaderFactory(factory));
+        avroSources.add(AvroSource.from(file));
       }
     } else {
       for (ResourceId file : files) {
-        avroSources.add(
-            (AvroSource<T>)
-                AvroSource.from(file.toString())
-                    .withSchema(avroSchema)
-                    .withDatumReaderFactory(factory));
+        avroSources.add(AvroSource.from(file.toString()));
       }
     }
-    return ImmutableList.copyOf(avroSources);
+
+    return ImmutableList.copyOf(
+        avroSources.stream()
+            .map(s -> s.withSchema(Object.class, readerSchema))
+            .map(s -> readerFactory == null ? s : s.withDatumReaderFactory(readerFactory))
+            .map(
+                s -> {
+                  if (parseFn == null) {
+                    return ((AvroSource<Object, T>) s).withCoder(coder);
+                  } else {
+                    return s.withParseFn((record) -> parseFn.apply(schema, record), coder);
+                  }
+                })
+            .collect(Collectors.toList()));
   }
 }

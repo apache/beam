@@ -55,7 +55,7 @@ public class AvroByteReader<T> extends NativeReader<T> {
   final long startPosition;
   final long endPosition;
   final String filename;
-  final AvroSource<ByteBuffer> avroSource;
+  final AvroSource<ByteBuffer, ByteBuffer> avroSource;
   final PipelineOptions options;
 
   final Coder<T> coder;
@@ -76,7 +76,9 @@ public class AvroByteReader<T> extends NativeReader<T> {
     this.coder = coder;
     this.options = options;
     this.avroSource =
-        (AvroSource<ByteBuffer>) ((AvroSource) AvroSource.from(filename).withSchema(schema));
+        // given schema is not a record. force casting to avro primitive type
+        (AvroSource<ByteBuffer, ByteBuffer>)
+            ((AvroSource) AvroSource.from(filename).withSchema(schema));
   }
 
   @Override
@@ -93,14 +95,14 @@ public class AvroByteReader<T> extends NativeReader<T> {
                   FileSystems.matchSingleFileSpec(filename), startPosition, endPosition)
               .createReader(options);
     }
-    return new AvroByteFileIterator((AvroReader<ByteBuffer>) reader);
+    return new AvroByteFileIterator((AvroReader<ByteBuffer, ByteBuffer>) reader);
   }
 
   class AvroByteFileIterator extends NativeReaderIterator<T> {
-    private final AvroReader<ByteBuffer> reader;
+    private final AvroReader<ByteBuffer, ByteBuffer> reader;
     private Optional<T> current;
 
-    public AvroByteFileIterator(AvroReader<ByteBuffer> reader) {
+    public AvroByteFileIterator(AvroReader<ByteBuffer, ByteBuffer> reader) {
       this.reader = reader;
     }
 

@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -151,11 +151,13 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   @Override
   public <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
-      Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      boolean useAvroLogicalTypes) {
+      boolean useAvroLogicalTypes,
+      String avroSchema,
+      AvroSource.DatumReaderFactory<Object> readerFactory,
+      SerializableBiFunction<TableSchema, Object, T> parseFn,
+      Coder<T> coder) {
     return BigQueryQuerySource.create(
-        stepUuid, this, bqServices, coder, readerFactory, useAvroLogicalTypes);
+        stepUuid, this, bqServices, useAvroLogicalTypes, avroSchema, readerFactory, parseFn, coder);
   }
 
   /** {@inheritDoc} */

@@ -804,19 +804,19 @@ public class AvroIO {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> AvroSource<T> createSource(
+    private static <T> AvroSource<T, T> createSource(
         ValueProvider<String> filepattern,
         EmptyMatchTreatment emptyMatchTreatment,
         Class<T> recordClass,
         Schema schema,
         @Nullable Coder<T> coder,
         AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
-      AvroSource<?> base =
+      AvroSource<GenericRecord, GenericRecord> base =
           AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
 
-      AvroSource<T> source =
+      AvroSource<T, T> source =
           recordClass == GenericRecord.class
-              ? (AvroSource<T>) base.withSchema(schema)
+              ? (AvroSource<T, T>) base.withSchema(schema)
               : base.withSchema(recordClass);
 
       if (readerFactory != null) {

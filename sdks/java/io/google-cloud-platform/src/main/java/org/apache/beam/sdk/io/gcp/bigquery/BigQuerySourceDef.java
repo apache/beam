@@ -22,6 +22,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -41,9 +42,11 @@ interface BigQuerySourceDef extends Serializable {
    */
   <T> BigQuerySourceBase<T> toSource(
       String stepUuid,
-      Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
-      boolean useAvroLogicalTypes);
+      boolean useAvroLogicalTypes,
+      String avroSchema,
+      AvroSource.DatumReaderFactory<Object> readerFactory,
+      SerializableBiFunction<TableSchema, Object, T> parseFn,
+      Coder<T> coder);
 
   /**
    * Extract the Beam {@link Schema} corresponding to this source.
