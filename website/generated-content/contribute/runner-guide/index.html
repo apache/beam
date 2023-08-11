@@ -22,11 +22,11 @@
 function addPlaceholder(){$('input:text').attr('placeholder',"What are you looking for?");}
 function endSearch(){var search=document.querySelector(".searchBar");search.classList.add("disappear");var icons=document.querySelector("#iconsBar");icons.classList.remove("disappear");}
 function blockScroll(){$("body").toggleClass("fixedPosition");}
-function openMenu(){addPlaceholder();blockScroll();}</script><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Contribute</span></li><li><a href=https://github.com/apache/beam/blob/master/CONTRIBUTING.md>Code contribution guide</a></li><li><a href=/contribute/get-help/>Get help</a></li><li><a href=/contribute/attributes/>Attributes of a Beam community member</a></li><li><span class=section-nav-list-title>Technical Docs</span><ul class=section-nav-list><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide>Testing guide</a></li><li><a href=/contribute/precommit-triage-guide/>Pre-commit slowness triage</a></li><li><a href=/contribute/ptransform-style-guide/>PTransform style guide</a></li><li><a href=/contribute/runner-guide/>Runner authoring guide</a></li><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Design+Documents>Design documents</a></li><li><a href=/contribute/dependencies/>Dependencies guide</a></li><li><a href=/contribute/feature-branches/>Feature branches</a></li></ul></li><li><span class=section-nav-list-title>Policies</span><ul class=section-nav-list><li><a href=/contribute/issue-priorities/>Issue priorities</a></li><li><a href=/contribute/precommit-policies/>Pre-commit test policies</a></li><li><a href=/contribute/postcommits-policies/>Post-commit test policies</a></li><li><a href=/contribute/release-blockers/>Release blockers</a></li></ul></li><li><span class=section-nav-list-title>Committers</span><ul class=section-nav-list><li><a href=/contribute/become-a-committer/>Become a committer</a></li><li><a href=/contribute/committer-guide/>Committer guide</a></li><li><a href=/contribute/release-guide/>Release guide</a></li></ul></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents><ul><li><a href=#implementing-the-beam-primitives>Implementing the Beam Primitives</a><ul><li><a href=#what-if-you-havent-implemented-some-of-these-features>What if you haven&rsquo;t implemented some of these features?</a></li><li><a href=#implementing-the-pardo-primitive>Implementing the ParDo primitive</a><ul><li><a href=#bundles>Bundles</a></li><li><a href=#the-dofn-lifecycle>The DoFn Lifecycle</a></li><li><a href=#dofnrunners>DoFnRunner(s)</a></li><li><a href=#side-inputs>Side Inputs</a></li><li><a href=#state-and-timers>State and Timers</a></li><li><a href=#splittable-dofn>Splittable DoFn</a></li></ul></li><li><a href=#implementing-the-groupbykey-and-window-primitive>Implementing the GroupByKey (and window) primitive</a><ul><li><a href=#group-by-encoded-bytes>Group By Encoded Bytes</a></li><li><a href=#window-merging>Window Merging</a></li><li><a href=#implementing-via-groupbykeyonly--groupalsobywindow>Implementing via GroupByKeyOnly + GroupAlsoByWindow</a></li><li><a href=#dropping-late-data>Dropping late data</a></li><li><a href=#triggering>Triggering</a></li><li><a href=#timestampcombiner>TimestampCombiner</a></li></ul></li><li><a href=#implementing-the-window-primitive>Implementing the Window primitive</a></li><li><a href=#implementing-the-read-primitive>Implementing the Read primitive</a><ul><li><a href=#reading-from-an-unboundedsource>Reading from an UnboundedSource</a></li><li><a href=#reading-from-a-boundedsource>Reading from a BoundedSource</a></li></ul></li><li><a href=#implementing-the-flatten-primitive>Implementing the Flatten primitive</a></li><li><a href=#special-mention-the-combine-composite>Special mention: the Combine composite</a></li></ul></li><li><a href=#working-with-pipelines>Working with pipelines</a><ul><li><a href=#traversing-a-pipeline>Traversing a pipeline</a></li><li><a href=#altering-a-pipeline>Altering a pipeline</a></li></ul></li><li><a href=#testing-your-runner>Testing your runner</a></li><li><a href=#integrating-your-runner-nicely-with-sdks>Integrating your runner nicely with SDKs</a><ul><li><a href=#integrating-with-the-java-sdk>Integrating with the Java SDK</a><ul><li><a href=#allowing-users-to-pass-options-to-your-runner>Allowing users to pass options to your runner</a></li><li><a href=#registering-your-runner-with-sdks-for-command-line-use>Registering your runner with SDKs for command line use</a></li></ul></li><li><a href=#integrating-with-the-python-sdk>Integrating with the Python SDK</a></li></ul></li><li><a href=#writing-an-sdk-independent-runner>Writing an SDK-independent runner</a><ul><li><a href=#the-fn-api>The Fn API</a></li><li><a href=#the-runner-api>The Runner API</a></li></ul></li><li><a href=#the-runner-api-protos>The Runner API protos</a><ul><li><a href=#functionspec-proto><code>FunctionSpec</code> proto</a></li><li><a href=#sdkfunctionspec-proto><code>SdkFunctionSpec</code> proto</a></li><li><a href=#primitive-transform-payload-protos>Primitive transform payload protos</a><ul><li><a href=#pardopayload-proto><code>ParDoPayload</code> proto</a></li><li><a href=#readpayload-proto><code>ReadPayload</code> proto</a></li><li><a href=#windowintopayload-proto><code>WindowIntoPayload</code> proto</a></li><li><a href=#combinepayload-proto><code>CombinePayload</code> proto</a></li></ul></li><li><a href=#ptransform-proto><code>PTransform</code> proto</a></li><li><a href=#pcollection-proto><code>PCollection</code> proto</a></li><li><a href=#coder-proto><code>Coder</code> proto</a></li></ul></li><li><a href=#the-runner-api-rpcs>The Runner API RPCs</a><ul><li><a href=#pipelinerunnerrunpipeline-rpc><code>PipelineRunner.run(Pipeline)</code> RPC</a></li><li><a href=#pipelineresult-aka-job-api><code>PipelineResult</code> aka &ldquo;Job API&rdquo;</a></li></ul></li></ul></nav></nav><div class="body__contained body__section-nav"><h1 id=runner-authoring-guide>Runner Authoring Guide</h1><p>This guide walks through how to implement a new runner. It is aimed at someone
+function openMenu(){addPlaceholder();blockScroll();}</script><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Contribute</span></li><li><a href=https://github.com/apache/beam/blob/master/CONTRIBUTING.md>Code contribution guide</a></li><li><a href=/contribute/get-help/>Get help</a></li><li><a href=/contribute/attributes/>Attributes of a Beam community member</a></li><li><span class=section-nav-list-title>Technical Docs</span><ul class=section-nav-list><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide>Testing guide</a></li><li><a href=/contribute/precommit-triage-guide/>Pre-commit slowness triage</a></li><li><a href=/contribute/ptransform-style-guide/>PTransform style guide</a></li><li><a href=/contribute/runner-guide/>Runner authoring guide</a></li><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Design+Documents>Design documents</a></li><li><a href=/contribute/dependencies/>Dependencies guide</a></li><li><a href=/contribute/feature-branches/>Feature branches</a></li></ul></li><li><span class=section-nav-list-title>Policies</span><ul class=section-nav-list><li><a href=/contribute/issue-priorities/>Issue priorities</a></li><li><a href=/contribute/precommit-policies/>Pre-commit test policies</a></li><li><a href=/contribute/postcommits-policies/>Post-commit test policies</a></li><li><a href=/contribute/release-blockers/>Release blockers</a></li></ul></li><li><span class=section-nav-list-title>Committers</span><ul class=section-nav-list><li><a href=/contribute/become-a-committer/>Become a committer</a></li><li><a href=/contribute/committer-guide/>Committer guide</a></li><li><a href=/contribute/release-guide/>Release guide</a></li></ul></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents><ul><li><a href=#implementing-the-beam-primitives>Implementing the Beam Primitives</a><ul><li><a href=#what-if-you-havent-implemented-some-of-these-features>What if you haven&rsquo;t implemented some of these features?</a></li><li><a href=#implementing-the-impulse-primitive>Implementing the Impulse primitive</a></li><li><a href=#implementing-the-pardo-primitive>Implementing the ParDo primitive</a><ul><li><a href=#bundles>Bundles</a></li><li><a href=#the-dofn-lifecycle>The DoFn Lifecycle</a></li><li><a href=#side-inputs>Side Inputs</a></li><li><a href=#state-and-timers>State and Timers</a></li><li><a href=#splittable-dofn>Splittable DoFn</a></li></ul></li><li><a href=#implementing-the-groupbykey-and-window-primitive>Implementing the GroupByKey (and window) primitive</a><ul><li><a href=#group-by-encoded-bytes>Group By Encoded Bytes</a></li><li><a href=#window-merging>Window Merging</a></li><li><a href=#implementing-via-groupbykeyonly--groupalsobywindow>Implementing via GroupByKeyOnly + GroupAlsoByWindow</a></li><li><a href=#dropping-late-data>Dropping late data</a></li><li><a href=#triggering>Triggering</a></li><li><a href=#timestampcombiner>TimestampCombiner</a></li></ul></li><li><a href=#implementing-the-window-primitive>Implementing the Window primitive</a></li><li><a href=#implementing-the-flatten-primitive>Implementing the Flatten primitive</a></li><li><a href=#special-mention-the-combine-composite>Special mention: the Combine composite</a></li></ul></li><li><a href=#working-with-pipelines>Working with pipelines</a></li><li><a href=#testing-your-runner>Testing your runner</a></li><li><a href=#integrating-your-runner-nicely-with-sdks>Integrating your runner nicely with SDKs</a><ul><li><a href=#integrating-with-the-java-sdk>Integrating with the Java SDK</a><ul><li><a href=#allowing-users-to-pass-options-to-your-runner>Allowing users to pass options to your runner</a></li><li><a href=#registering-your-runner-with-sdks-for-command-line-use>Registering your runner with SDKs for command line use</a></li></ul></li><li><a href=#integrating-with-the-python-sdk>Integrating with the Python SDK</a></li></ul></li><li><a href=#writing-an-sdk-independent-runner>Writing an SDK-independent runner</a><ul><li><a href=#the-fn-api>The Fn API</a></li><li><a href=#the-runner-api>The Runner API</a></li></ul></li><li><a href=#the-runner-api-protos>The Runner API protos</a><ul><li><a href=#functionspec-proto><code>FunctionSpec</code> proto</a></li><li><a href=#primitive-transform-payload-protos>Primitive transform payload protos</a><ul><li><a href=#pardopayload-proto><code>ParDoPayload</code> proto</a></li><li><a href=#combinepayload-proto><code>CombinePayload</code> proto</a></li></ul></li><li><a href=#ptransform-proto><code>PTransform</code> proto</a></li><li><a href=#pcollection-proto><code>PCollection</code> proto</a></li><li><a href=#coder-proto><code>Coder</code> proto</a></li></ul></li><li><a href=#the-jobs-api-rpcs>The Jobs API RPCs</a></li></ul></nav></nav><div class="body__contained body__section-nav"><h1 id=runner-authoring-guide>Runner Authoring Guide</h1><p>This guide walks through how to implement a new runner. It is aimed at someone
 who has a data processing system and wants to use it to execute a Beam
 pipeline. The guide starts from the basics, to help you evaluate the work
 ahead. Then the sections become more and more detailed, to be a resource
-throughout the development of your runner.</p><p>Topics covered:</p><nav id=TableOfContents><ul><li><a href=#implementing-the-beam-primitives>Implementing the Beam Primitives</a><ul><li><a href=#what-if-you-havent-implemented-some-of-these-features>What if you haven&rsquo;t implemented some of these features?</a></li><li><a href=#implementing-the-pardo-primitive>Implementing the ParDo primitive</a><ul><li><a href=#bundles>Bundles</a></li><li><a href=#the-dofn-lifecycle>The DoFn Lifecycle</a></li><li><a href=#dofnrunners>DoFnRunner(s)</a></li><li><a href=#side-inputs>Side Inputs</a></li><li><a href=#state-and-timers>State and Timers</a></li><li><a href=#splittable-dofn>Splittable DoFn</a></li></ul></li><li><a href=#implementing-the-groupbykey-and-window-primitive>Implementing the GroupByKey (and window) primitive</a><ul><li><a href=#group-by-encoded-bytes>Group By Encoded Bytes</a></li><li><a href=#window-merging>Window Merging</a></li><li><a href=#implementing-via-groupbykeyonly--groupalsobywindow>Implementing via GroupByKeyOnly + GroupAlsoByWindow</a></li><li><a href=#dropping-late-data>Dropping late data</a></li><li><a href=#triggering>Triggering</a></li><li><a href=#timestampcombiner>TimestampCombiner</a></li></ul></li><li><a href=#implementing-the-window-primitive>Implementing the Window primitive</a></li><li><a href=#implementing-the-read-primitive>Implementing the Read primitive</a><ul><li><a href=#reading-from-an-unboundedsource>Reading from an UnboundedSource</a></li><li><a href=#reading-from-a-boundedsource>Reading from a BoundedSource</a></li></ul></li><li><a href=#implementing-the-flatten-primitive>Implementing the Flatten primitive</a></li><li><a href=#special-mention-the-combine-composite>Special mention: the Combine composite</a></li></ul></li><li><a href=#working-with-pipelines>Working with pipelines</a><ul><li><a href=#traversing-a-pipeline>Traversing a pipeline</a></li><li><a href=#altering-a-pipeline>Altering a pipeline</a></li></ul></li><li><a href=#testing-your-runner>Testing your runner</a></li><li><a href=#integrating-your-runner-nicely-with-sdks>Integrating your runner nicely with SDKs</a><ul><li><a href=#integrating-with-the-java-sdk>Integrating with the Java SDK</a><ul><li><a href=#allowing-users-to-pass-options-to-your-runner>Allowing users to pass options to your runner</a></li><li><a href=#registering-your-runner-with-sdks-for-command-line-use>Registering your runner with SDKs for command line use</a></li></ul></li><li><a href=#integrating-with-the-python-sdk>Integrating with the Python SDK</a></li></ul></li><li><a href=#writing-an-sdk-independent-runner>Writing an SDK-independent runner</a><ul><li><a href=#the-fn-api>The Fn API</a></li><li><a href=#the-runner-api>The Runner API</a></li></ul></li><li><a href=#the-runner-api-protos>The Runner API protos</a><ul><li><a href=#functionspec-proto><code>FunctionSpec</code> proto</a></li><li><a href=#sdkfunctionspec-proto><code>SdkFunctionSpec</code> proto</a></li><li><a href=#primitive-transform-payload-protos>Primitive transform payload protos</a><ul><li><a href=#pardopayload-proto><code>ParDoPayload</code> proto</a></li><li><a href=#readpayload-proto><code>ReadPayload</code> proto</a></li><li><a href=#windowintopayload-proto><code>WindowIntoPayload</code> proto</a></li><li><a href=#combinepayload-proto><code>CombinePayload</code> proto</a></li></ul></li><li><a href=#ptransform-proto><code>PTransform</code> proto</a></li><li><a href=#pcollection-proto><code>PCollection</code> proto</a></li><li><a href=#coder-proto><code>Coder</code> proto</a></li></ul></li><li><a href=#the-runner-api-rpcs>The Runner API RPCs</a><ul><li><a href=#pipelinerunnerrunpipeline-rpc><code>PipelineRunner.run(Pipeline)</code> RPC</a></li><li><a href=#pipelineresult-aka-job-api><code>PipelineResult</code> aka &ldquo;Job API&rdquo;</a></li></ul></li></ul></nav><h2 id=implementing-the-beam-primitives>Implementing the Beam Primitives</h2><p>Aside from encoding and persisting data - which presumably your engine already
+throughout the development of your runner.</p><p>Topics covered:</p><nav id=TableOfContents><ul><li><a href=#implementing-the-beam-primitives>Implementing the Beam Primitives</a><ul><li><a href=#what-if-you-havent-implemented-some-of-these-features>What if you haven&rsquo;t implemented some of these features?</a></li><li><a href=#implementing-the-impulse-primitive>Implementing the Impulse primitive</a></li><li><a href=#implementing-the-pardo-primitive>Implementing the ParDo primitive</a><ul><li><a href=#bundles>Bundles</a></li><li><a href=#the-dofn-lifecycle>The DoFn Lifecycle</a></li><li><a href=#side-inputs>Side Inputs</a></li><li><a href=#state-and-timers>State and Timers</a></li><li><a href=#splittable-dofn>Splittable DoFn</a></li></ul></li><li><a href=#implementing-the-groupbykey-and-window-primitive>Implementing the GroupByKey (and window) primitive</a><ul><li><a href=#group-by-encoded-bytes>Group By Encoded Bytes</a></li><li><a href=#window-merging>Window Merging</a></li><li><a href=#implementing-via-groupbykeyonly--groupalsobywindow>Implementing via GroupByKeyOnly + GroupAlsoByWindow</a></li><li><a href=#dropping-late-data>Dropping late data</a></li><li><a href=#triggering>Triggering</a></li><li><a href=#timestampcombiner>TimestampCombiner</a></li></ul></li><li><a href=#implementing-the-window-primitive>Implementing the Window primitive</a></li><li><a href=#implementing-the-flatten-primitive>Implementing the Flatten primitive</a></li><li><a href=#special-mention-the-combine-composite>Special mention: the Combine composite</a></li></ul></li><li><a href=#working-with-pipelines>Working with pipelines</a></li><li><a href=#testing-your-runner>Testing your runner</a></li><li><a href=#integrating-your-runner-nicely-with-sdks>Integrating your runner nicely with SDKs</a><ul><li><a href=#integrating-with-the-java-sdk>Integrating with the Java SDK</a><ul><li><a href=#allowing-users-to-pass-options-to-your-runner>Allowing users to pass options to your runner</a></li><li><a href=#registering-your-runner-with-sdks-for-command-line-use>Registering your runner with SDKs for command line use</a></li></ul></li><li><a href=#integrating-with-the-python-sdk>Integrating with the Python SDK</a></li></ul></li><li><a href=#writing-an-sdk-independent-runner>Writing an SDK-independent runner</a><ul><li><a href=#the-fn-api>The Fn API</a></li><li><a href=#the-runner-api>The Runner API</a></li></ul></li><li><a href=#the-runner-api-protos>The Runner API protos</a><ul><li><a href=#functionspec-proto><code>FunctionSpec</code> proto</a></li><li><a href=#primitive-transform-payload-protos>Primitive transform payload protos</a><ul><li><a href=#pardopayload-proto><code>ParDoPayload</code> proto</a></li><li><a href=#combinepayload-proto><code>CombinePayload</code> proto</a></li></ul></li><li><a href=#ptransform-proto><code>PTransform</code> proto</a></li><li><a href=#pcollection-proto><code>PCollection</code> proto</a></li><li><a href=#coder-proto><code>Coder</code> proto</a></li></ul></li><li><a href=#the-jobs-api-rpcs>The Jobs API RPCs</a></li></ul></nav><h2 id=implementing-the-beam-primitives>Implementing the Beam Primitives</h2><p>Aside from encoding and persisting data - which presumably your engine already
 does in some way or another - most of what you need to do is implement the Beam
 primitives. This section provides a detailed look at each primitive, covering
 what you need to know that might not be obvious and what support code is
@@ -36,8 +36,7 @@ element-wise, grouping, windowing, union) rather than a specific implementation
 decision. The same primitive may require a very different implementation based
 on how the user instantiates it. For example, a <code>ParDo</code> that uses state or
 timers may require key partitioning, a <code>GroupByKey</code> with speculative triggering
-may require a more costly or complex implementation, and <code>Read</code> is completely
-different for bounded and unbounded data.</p><h3 id=what-if-you-havent-implemented-some-of-these-features>What if you haven&rsquo;t implemented some of these features?</h3><p>That&rsquo;s OK! You don&rsquo;t have to do it all at once, and there may even be features
+may require a more costly or complex implementation.</p><h3 id=what-if-you-havent-implemented-some-of-these-features>What if you haven&rsquo;t implemented some of these features?</h3><p>That&rsquo;s OK! You don&rsquo;t have to do it all at once, and there may even be features
 that don&rsquo;t make sense for your runner to ever support. We maintain a
 <a href=/documentation/runners/capability-matrix/>capability matrix</a> on the Beam site so you can tell
 users what you support. When you receive a <code>Pipeline</code>, you should traverse it
@@ -46,7 +45,14 @@ you cannot execute some <code>DoFn</code> in the pipeline (or if there is any ot
 requirement that your runner lacks) you should reject the pipeline. In your
 native environment, this may look like throwing an
 <code>UnsupportedOperationException</code>. The Runner API RPCs will make this explicit,
-for cross-language portability.</p><h3 id=implementing-the-pardo-primitive>Implementing the ParDo primitive</h3><p>The <code>ParDo</code> primitive describes element-wise transformation for a
+for cross-language portability.</p><h3 id=implementing-the-impulse-primitive>Implementing the Impulse primitive</h3><p><code>Impulse</code> is a PTransform that takes no inputs and produces exactly one output
+during the lifetime of the pipeline which should be the empty bytes in the
+global window with the minimum timestamp. This has the encoded value of
+<code>7f df 3b 64 5a 1c ac 09 00 00 00 01 0f 00</code> when encoded with the standard
+windowed value coder.</p><p>Though <code>Impulse</code> is generally not invoked by a user, it is the only root
+primitive operation, and other root operations (like <code>Read</code>s and <code>Create</code>)
+are composite operations constructed from an <code>Impulse</code> followed by a series
+of (possibly Splittable) <code>ParDo</code>s.</p><h3 id=implementing-the-pardo-primitive>Implementing the ParDo primitive</h3><p>The <code>ParDo</code> primitive describes element-wise transformation for a
 <code>PCollection</code>. <code>ParDo</code> is the most complex primitive, because it is where any
 per-element processing is described. In addition to very simple operations like
 standard <code>map</code> or <code>flatMap</code> from functional programming, <code>ParDo</code> also supports
@@ -55,99 +61,117 @@ processing.</p><p>The UDF that is applied to each element is called a <code>DoFn
 a <code>DoFn</code> can vary per language/SDK but generally follow the same pattern, so we
 can discuss it with pseudocode. I will also often refer to the Java support
 code, since I know it and most of our current and future runners are
-Java-based.</p><h4 id=bundles>Bundles</h4><p>For correctness, a <code>DoFn</code> <em>should</em> represent an element-wise function, but in
-fact is a long-lived object that processes elements in small groups called
-bundles.</p><p>Your runner decides how many elements, and which elements, to include in a
+Java-based.</p><p>Generally, rather than applying a series of <code>ParDo</code>s one at a time over the
+entire input data set, it is more efficient to fuse several <code>ParDo</code>s together
+in a single executable stage that consists of a whole series (in general,
+a DAG) of mapping operations. In addition to <code>ParDo</code>s, windowing operations,
+local (pre- or post-GBK) combining operations, and other mapping operations
+may be fused into these stages as well.</p><p>As DoFns may execute code in a different language, or requiring a different
+environment, than the runner itself, Beam provides the ability to call these
+in a cross-process way. This is the crux of the
+<a href=https://beam.apache.org/contribute/runner-guide/#writing-an-sdk-independent-runner>Beam Fn API</a>,
+for which more detail can be found below.
+It is, however, perfectly acceptable for a runner to invoke this user code
+in process (for simplicity or efficiency) when the environments are
+compatible.</p><h4 id=bundles>Bundles</h4><p>For correctness, a <code>DoFn</code> <em>should</em> represent an element-wise function, but in
+most SDKS this is a long-lived object that processes elements in small groups
+called bundles.</p><p>Your runner decides how many elements, and which elements, to include in a
 bundle, and can even decide dynamically in the middle of processing that the
 current bundle has &ldquo;ended&rdquo;. How a bundle is processed ties in with the rest of
 a DoFn&rsquo;s lifecycle.</p><p>It will generally improve throughput to make the largest bundles possible, so
 that initialization and finalization costs are amortized over many elements.
 But if your data is arriving as a stream, then you will want to terminate a
 bundle in order to achieve appropriate latency, so bundles may be just a few
-elements.</p><h4 id=the-dofn-lifecycle>The DoFn Lifecycle</h4><p>While each language&rsquo;s SDK is free to make different decisions, the Python and
-Java SDKs share an API with the following stages of a DoFn&rsquo;s lifecycle.</p><p>However, if you choose to execute a DoFn directly to improve performance or
-single-language simplicity, then your runner is responsible for implementing
-the following sequence:</p><ul><li><em>Setup</em> - called once per DoFn instance before anything else; this has not been
-implemented in the Python SDK so the user can work around just with lazy
-initialization</li><li><em>StartBundle</em> - called once per bundle as initialization (actually, lazy
-initialization is almost always equivalent and more efficient, but this hook
-remains for simplicity for users)</li><li><em>ProcessElement</em> / <em>OnTimer</em> - called for each element and timer activation</li><li><em>FinishBundle</em> - essentially &ldquo;flush&rdquo;; required to be called before
-considering elements as actually processed</li><li><em>Teardown</em> - release resources that were used across bundles; calling this
-can be best effort due to failures</li></ul><h4 id=dofnrunners>DoFnRunner(s)</h4><p>This is a support class that has manifestations in both the Java codebase and
-the Python codebase.</p><p><strong>Java</strong></p><p>In Java, the <code>beam-runners-core-java</code> library provides an interface
-<code>DoFnRunner</code> for bundle processing, with implementations for many situations.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>interface DoFnRunner&lt;InputT, OutputT&gt; {
-  void startBundle();
-  void processElement(WindowedValue&lt;InputT&gt; elem);
-  void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
-  void finishBundle();
-}</code></pre></div></div><p>There are some implementations and variations of this for different scenarios:</p><ul><li><a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SimpleDoFnRunner.java><code>SimpleDoFnRunner</code></a> -
-not actually simple at all; implements lots of the core functionality of
-<code>ParDo</code>. This is how most runners execute most <code>DoFns</code>.</li><li><a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/LateDataDroppingDoFnRunner.java><code>LateDataDroppingDoFnRunner</code></a> -
-wraps a <code>DoFnRunner</code> and drops data from expired windows so the wrapped
-<code>DoFnRunner</code> doesn&rsquo;t get any unpleasant surprises</li><li><a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StatefulDoFnRunner.java><code>StatefulDoFnRunner</code></a> -
-handles collecting expired state</li><li><a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/PushbackSideInputDoFnRunner.java><code>PushBackSideInputDoFnRunner</code></a> -
-buffers input while waiting for side inputs to be ready</li></ul><p>These are all used heavily in implementations of Java runners. Invocations
-via the <a href=#the-fn-api>Fn API</a> may manifest as another implementation of
-<code>DoFnRunner</code> even though it will be doing far more than running a <code>DoFn</code>.</p><p><strong>Python</strong></p><p>See the <a href=https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.runners.html#apache_beam.runners.common.DoFnRunner>DoFnRunner pydoc</a>.</p><h4 id=side-inputs>Side Inputs</h4><p><em>Main design document:
+elements.</p><p>A bundle is the unit of commitment in Beam. If an error is encountered while
+processing a bundle, all the prior outputs of that bundle (including any
+modifications to state or timers) must be discarded by the runner and the
+entire bundle retried. Upon successful completion of a bundle, its outputs,
+together with any state/timer modifications and watermark updates, must be
+committed atomically.</p><h4 id=the-dofn-lifecycle>The DoFn Lifecycle</h4><p><code>DoFns</code> in many SDKS have several methods such as <code>setup</code>, <code>start_bundle</code>,
+<code>finish_bundle</code>, <code>teardown</code>, etc. in addition to the standard,
+element-wise <code>process</code> calls. Generally proper invocation of
+<a href=https://beam.apache.org/documentation/programming-guide/#dofn>this lifecycle</a>
+should be handled for you when invoking one or more
+<code>DoFn</code>s from the standard bundle processors (either via the FnAPI or directly
+using a BundleProcessor
+(<a href=https://github.com/apache/beam/blob/master/sdks/java/harness/src/main/java/org/apache/beam/fn/harness/control/ProcessBundleHandler.java>java</a>
+(<a href=https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/worker/bundle_processor.py#L852>python</a>)).
+SDK-independent runners should never have to worry about these details directly.</p><h4 id=side-inputs>Side Inputs</h4><p><em>Main design document:
 <a href=https://s.apache.org/beam-side-inputs-1-pager>https://s.apache.org/beam-side-inputs-1-pager</a></em></p><p>A side input is a global view of a window of a <code>PCollection</code>. This distinguishes
 it from the main input, which is processed one element at a time. The SDK/user
 prepares a <code>PCollection</code> adequately, the runner materializes it, and then the
-runner feeds it to the <code>DoFn</code>.</p><p>What you will need to implement is to inspect the materialization requested for
-the side input, and prepare it appropriately, and corresponding interactions
-when a <code>DoFn</code> reads the side inputs.</p><p>The details and available support code vary by language.</p><p><strong>Java</strong></p><p>If you are using one of the above <code>DoFnRunner</code> classes, then the interface for
-letting them request side inputs is
-<a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SideInputReader.java><code>SideInputReader</code></a>.
-It is a simple mapping from side input and window to a value. The <code>DoFnRunner</code>
-will perform a mapping with the
-<a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/windowing/WindowMappingFn.java><code>WindowMappingFn</code></a>
-to request the appropriate window so you do not worry about invoking this UDF.
-When using the Fn API, it will be the SDK harness that maps windows as well.</p><p>A simple, but not necessarily optimal approach to building a
-<a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SideInputReader.java><code>SideInputReader</code></a>
-is to use a state backend. In our Java support code, this is called
-<a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StateInternals.java><code>StateInternals</code></a>
-and you can build a
-<a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SideInputHandler.java><code>SideInputHandler</code></a>
-that will use your <code>StateInternals</code> to materialize a <code>PCollection</code> into the
-appropriate side input view and then yield the value when requested for a
-particular side input and window.</p><p>When a side input is needed but the side input has no data associated with it
+runner feeds it to the <code>DoFn</code>.</p><p>Unlike main input data, which is <em>pushed</em> by the runner to the <code>ParDo</code> (generally
+via the FnApi Data channel), side input data is <em>pulled</em> by the <code>ParDo</code>
+from the runner (generally over the FnAPI State channel).</p><p>A side input is accessed via a specific <code>access_pattern</code>.
+There are currently two access patterns enumerated in the
+<code>StandardSideInputTypes</code> proto: <code>beam:side_input:iterable:v1</code> which indicates
+the runner must return all values in a PCollection corresponding to a specific
+window and <code>beam:side_input:multimap:v1</code> which indicates the runner must return
+all values corresponding to a specific key and window.
+Being able to serve these access patterns efficiently may influence how a
+runner materializes this PCollection.</p><p>SideInputs can be detected by looking at the <code>side_inputs</code> map in the
+<code>ParDoPayload</code> of <code>ParDo</code> transforms.
+The <code>ParDo</code> operation itself is responsible for invoking the
+<code>window_mapping_fn</code> (before invoking the runner) and <code>view_fn</code> (on the
+runner-returned values), so the runner need not concern itself with these
+fields.</p><p>When a side input is needed but the side input has no data associated with it
 for a given window, elements in that window must be deferred until the side
-input has some data. The aforementioned
+input has some data or the watermark has advances sufficiently such that
+we can be sure there will be no data for that window. The
 <a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/PushbackSideInputDoFnRunner.java><code>PushBackSideInputDoFnRunner</code></a>
-is used to implement this.</p><p><strong>Python</strong></p><p>In Python, <a href=https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap><code>SideInputMap</code></a> maps
-windows to side input values. The <code>WindowMappingFn</code> manifests as a simple
-function. See
-<a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sideinputs.py>sideinputs.py</a>.</p><h4 id=state-and-timers>State and Timers</h4><p><em>Main design document: <a href=https://s.apache.org/beam-state>https://s.apache.org/beam-state</a></em></p><p>When a <code>ParDo</code> includes state and timers, its execution on your runner is usually
-very different. See the full details beyond those covered here.</p><p>State and timers are partitioned per key and window. You may need or want to
-explicitly shuffle data to support this.</p><p><strong>Java</strong></p><p>We provide
-<a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StatefulDoFnRunner.java><code>StatefulDoFnRunner</code></a>
-to help with state cleanup. The non-user-facing interface
-<a href=https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StateInternals.java><code>StateInternals</code></a>
-is what a runner generally implements, and then the Beam support code can use
-this to implement user-facing state.</p><h4 id=splittable-dofn>Splittable DoFn</h4><p><em>Main design document: <a href=https://s.apache.org/splittable-do-fn>https://s.apache.org/splittable-do-fn</a></em></p><p>Splittable <code>DoFn</code> is a generalization and combination of <code>ParDo</code> and <code>Read</code>. It
-is per-element processing where each element has the capability of being &ldquo;split&rdquo;
-in the same ways as a <code>BoundedSource</code> or <code>UnboundedSource</code>. This enables better
-performance for use cases such as a <code>PCollection</code> of names of large files where
-you want to read each of them. Previously they would have to be static data in
-the pipeline or be read in a non-splittable manner.</p><p>This feature is still under development, but likely to become the new primitive
-for reading. It is best to be aware of it and follow developments.</p><h3 id=implementing-the-groupbykey-and-window-primitive>Implementing the GroupByKey (and window) primitive</h3><p>The <code>GroupByKey</code> operation (sometimes called GBK for short) groups a
+is an example of implementing this.</p><h4 id=state-and-timers>State and Timers</h4><p><em>Main design document: <a href=https://s.apache.org/beam-state>https://s.apache.org/beam-state</a></em></p><p>When a <code>ParDo</code> includes state and timers, its execution on your runner is usually
+very different. In particular, the state must be persisted when the bundle
+completes and retrieved for future bundles. Timers that are set must also be
+injected into future bundles as the watermark advances sufficiently.</p><p>State and timers are partitioned per key and window, that is, a <code>DoFn</code>
+processing a given key must have a consistent view of the state and timers
+across all elements that share this key. You may need or want to
+explicitly shuffle data to support this.
+Once the watermark has passed the end of the window (plus an allowance for
+allowed lateness, if any), state associated with this window can be dropped.</p><p>State setting and retrieval is performed on the FnAPI State channel, whereas
+timer setting and firing happens on the FnAPI Data channel.</p><h4 id=splittable-dofn>Splittable DoFn</h4><p><em>Main design document: <a href=https://s.apache.org/splittable-do-fn>https://s.apache.org/splittable-do-fn</a></em></p><p>Splittable <code>DoFn</code> is a generalization of <code>ParDo</code> that is useful for high-fanout
+mappings that can be done in parallel. The prototypical example of such an
+operation is reading from a file, where a single file name (as an input element)
+can be mapped to all the elements contained in that file.
+The <code>DoFn</code> is considered splittable in the sense that an element representing,
+say, a single file can be split (e.g. into ranges of that file) to be processed
+(e.g. read) by different workers.
+The full power of this primitive is in the fact that these splits can happen
+dynamically rather than just statically (i.e. ahead of time) avoiding the
+problem of over- or undersplitting.</p><p>A full explanation of Splittable <code>DoFn</code> is out of scope for this doc, but
+here is a brief overview as it pertains to its execution.</p><p>A Splittable <code>DoFn</code> can participate in the dynamic splitting protocol by
+splitting within an element as well as between elements. Dynamic splitting
+is triggered by the runner issuing <code>ProcessBundleSplitRequest</code> messages on
+the control channel. The SDK will commit to process just a portion of the
+indicated element and return a description of the remainder (i.e. the
+unprocessed portion) to the runner in the <code>ProcessBundleSplitResponse</code>
+to be scheduled by the runner (e.g. on a different worker or as part of a
+different bundle).</p><p>A Splittable <code>DoFn</code> can also initiate its own spitting, indicating it has
+processed an element as far as it can for the moment (e.g. when tailing a file)
+but more remains. These most often occur when reading unbounded sources.
+In this case a set of elements representing the deferred work are passed back
+in the <code>residual_roots</code> field of the <code>ProcessBundleResponse</code>.
+At a future time, the runner must re-invoke these same operations with
+the elements given in <code>residual_roots</code>.</p><h3 id=implementing-the-groupbykey-and-window-primitive>Implementing the GroupByKey (and window) primitive</h3><p>The <code>GroupByKey</code> operation (sometimes called GBK for short) groups a
 <code>PCollection</code> of key-value pairs by key and window, emitting results according
 to the <code>PCollection</code>'s triggering configuration.</p><p>It is quite a bit more elaborate than simply colocating elements with the same
 key, and uses many fields from the <code>PCollection</code>'s windowing strategy.</p><h4 id=group-by-encoded-bytes>Group By Encoded Bytes</h4><p>For both the key and window, your runner sees them as &ldquo;just bytes&rdquo;. So you need
 to group in a way that is consistent with grouping by those bytes, even if you
 have some special knowledge of the types involved.</p><p>The elements you are processing will be key-value pairs, and you&rsquo;ll need to extract
-the keys. For this reason, the format of key-value pairs is standardized and
-shared across all SDKS. See either
-<a href=https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html><code>KvCoder</code></a>
+the keys. For this reason, the format of key-value pairs is
+<a href=https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L838>standardized and shared</a>
+across all SDKS. See either
+<a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/KvCoder.html><code>KvCoder</code></a>
 in Java or
-<a href=https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder><code>TupleCoder</code></a>
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.coders.coders.html#apache_beam.coders.coders.TupleCoder><code>TupleCoder</code></a>
 in Python for documentation on the binary format.</p><h4 id=window-merging>Window Merging</h4><p>As well as grouping by key, your runner must group elements by their window. A
 <code>WindowFn</code> has the option of declaring that it merges windows on a per-key
 basis. For example, session windows for the same key will be merged if they
 overlap. So your runner must invoke the merge method of the <code>WindowFn</code> during
-grouping.</p><h4 id=implementing-via-groupbykeyonly--groupalsobywindow>Implementing via GroupByKeyOnly + GroupAlsoByWindow</h4><p>The Java codebase includes support code for a particularly common way of
+grouping.</p><h4 id=implementing-via-groupbykeyonly--groupalsobywindow>Implementing via GroupByKeyOnly + GroupAlsoByWindow</h4><p>The Java and Python codebases includes support code for a particularly common way of
 implementing the full <code>GroupByKey</code> operation: first group the keys, and then group
 by window. For merging windows, this is essentially required, since merging is
-per key.</p><h4 id=dropping-late-data>Dropping late data</h4><p><em>Main design document:
+per key.</p><p>Often presenting the set of values in timestamp order can allow more
+efficient grouping of these values into their final windows.</p><h4 id=dropping-late-data>Dropping late data</h4><p><em>Main design document:
 <a href=https://s.apache.org/beam-lateness>https://s.apache.org/beam-lateness</a></em></p><p>A window is expired in a <code>PCollection</code> if the watermark of the input PCollection
 has exceeded the end of the window by at least the input <code>PCollection</code>'s
 allowed lateness.</p><p>Data for an expired window can be dropped any time and should be dropped at a
@@ -159,7 +183,9 @@ window that appears expired may merge to become not expired.</p><h4 id=triggerin
 outputs should be emitted from the <code>GroupByKey</code> operation.</p><p>In Java, there is a lot of support code for executing triggers in the
 <code>GroupAlsoByWindow</code> implementations, <code>ReduceFnRunner</code> (legacy name), and
 <code>TriggerStateMachine</code>, which is an obvious way of implementing all triggers as
-an event-driven machine over elements and timers.</p><h4 id=timestampcombiner>TimestampCombiner</h4><p>When an aggregated output is produced from multiple inputs, the <code>GroupByKey</code>
+an event-driven machine over elements and timers.
+In Python this is supported by the
+<a href=https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/transforms/trigger.py#L1199>TriggerDriver</a> classes.</p><h4 id=timestampcombiner>TimestampCombiner</h4><p>When an aggregated output is produced from multiple inputs, the <code>GroupByKey</code>
 operation has to choose a timestamp for the combination. To do so, first the
 WindowFn has a chance to shift timestamps - this is needed to ensure watermarks
 do not prevent progress of windows like sliding windows (the details are beyond
@@ -171,64 +197,41 @@ generally configures other aspects of the windowing strategy for a <code>PCollec
 but the fully constructed graph that your runner receives will already have a
 complete windowing strategy for each <code>PCollection</code>.</p><p>To implement this primitive, you need to invoke the provided WindowFn on each
 element, which will return some set of windows for that element to be a part of
-in the output <code>PCollection</code>.</p><p><strong>Implementation considerations</strong></p><p>A &ldquo;window&rdquo; is just a second grouping key that has a &ldquo;maximum timestamp&rdquo;. It can
+in the output <code>PCollection</code>.</p><p>Most runners implement this by fusing these window-altering mappings in with
+the <code>DoFns</code>.</p><p><strong>Implementation considerations</strong></p><p>A &ldquo;window&rdquo; is just a second grouping key that has a &ldquo;maximum timestamp&rdquo;. It can
 be any arbitrary user-defined type. The <code>WindowFn</code> provides the coder for the
 window type.</p><p>Beam&rsquo;s support code provides <code>WindowedValue</code> which is a compressed
 representation of an element in multiple windows. You may want to do use this,
 or your own compressed representation. Remember that it simply represents
 multiple elements at the same time; there is no such thing as an element &ldquo;in
 multiple windows&rdquo;.</p><p>For values in the global window, you may want to use an even further compressed
-representation that doesn&rsquo;t bother including the window at all.</p><p>In the future, this primitive may be retired as it can be implemented as a
-ParDo if the capabilities of ParDo are enhanced to allow output to new windows.</p><h3 id=implementing-the-read-primitive>Implementing the Read primitive</h3><p>You implement this primitive to read data from an external system. The APIs are
-carefully crafted to enable efficient parallel execution. Reading from an
-<code>UnboundedSource</code> is a bit different than reading from a <code>BoundedSource</code>.</p><h4 id=reading-from-an-unboundedsource>Reading from an UnboundedSource</h4><p>An <code>UnboundedSource</code> is a source of potentially infinite data; you can think of
-it like a stream. The capabilities are:</p><ul><li><code>split(int)</code> - your runner should call this to get the desired parallelism</li><li><code>createReader(...)</code> - call this to start reading elements; it is an enhanced iterator that also provides:</li><li>watermark (for this source) which you should propagate downstream</li><li>timestamps, which you should associate with elements read</li><li>record identifiers, so you can dedup downstream if needed</li><li>progress indication of its backlog</li><li>checkpointing</li><li><code>requiresDeduping</code> - this indicates that there is some chance that the source
-may emit duplicates; your runner should do its best to dedupe based on the
-identifier attached to emitted records</li></ul><p>An unbounded source has a custom type of checkpoints and an associated coder for serializing them.</p><h4 id=reading-from-a-boundedsource>Reading from a BoundedSource</h4><p>A <code>BoundedSource</code> is a source of data that you know is finite, such as a static
-collection of log files, or a database table. The capabilities are:</p><ul><li><code>split(int)</code> - your runner should call this to get desired initial parallelism (but you can often steal work later)</li><li><code>getEstimatedSizeBytes(...)</code> - self explanatory</li><li><code>createReader(...)</code> - call this to start reading elements; it is an enhanced iterator that also provides:</li><li>timestamps to associate with each element read</li><li><code>splitAtFraction</code> for dynamic splitting to enable work stealing, and other
-methods to support it - see the <a href=/blog/2016/05/18/splitAtFraction-method.html>Beam blog post on dynamic work
-rebalancing</a></li></ul><p>The <code>BoundedSource</code> does not report a watermark currently. Most of the time, reading
-from a bounded source can be parallelized in ways that result in utterly out-of-order
-data, so a watermark is not terribly useful.
-Thus the watermark for the output <code>PCollection</code> from a bounded read should
-remain at the minimum timestamp throughout reading (otherwise data might get
-dropped) and advance to the maximum timestamp when all data is exhausted.</p><h3 id=implementing-the-flatten-primitive>Implementing the Flatten primitive</h3><p>This one is easy - take as input a finite set of <code>PCollections</code> and outputs their
+representation that doesn&rsquo;t bother including the window at all.</p><p>We provide coders with these optimizations such as
+(<code>PARAM_WINDOWED_VALUE</code>)[https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968]
+that can be used to reduce the size of serialized data.</p><p>In the future, this primitive may be retired as it can be implemented as a
+ParDo if the capabilities of ParDo are enhanced to allow output to new windows.</p><h3 id=implementing-the-flatten-primitive>Implementing the Flatten primitive</h3><p>This one is easy - take as input a finite set of <code>PCollections</code> and outputs their
 bag union, keeping windows intact.</p><p>For this operation to make sense, it is the SDK&rsquo;s responsibility to make sure
 the windowing strategies are compatible.</p><p>Also note that there is no requirement that the coders for all the <code>PCollections</code>
 be the same. If your runner wants to require that (to avoid tedious
 re-encoding) you have to enforce it yourself. Or you could just implement the
 fast path as an optimization.</p><h3 id=special-mention-the-combine-composite>Special mention: the Combine composite</h3><p>A composite transform that is almost always treated specially by a runner is
-<code>Combine</code> (per key), which applies an associative and commutative operator to
+<code>CombinePerKey</code>, which applies an associative and commutative operator to
 the elements of a <code>PCollection</code>. This composite is not a primitive. It is
 implemented in terms of <code>ParDo</code> and <code>GroupByKey</code>, so your runner will work
 without treating it - but it does carry additional information that you
 probably want to use for optimizations: the associative-commutative operator,
-known as a <code>CombineFn</code>.</p><h2 id=working-with-pipelines>Working with pipelines</h2><p>When you receive a pipeline from a user, you will need to translate it. This is
-a tour of the APIs that you&rsquo;ll use to do it.</p><h3 id=traversing-a-pipeline>Traversing a pipeline</h3><p>Something you will likely do is to traverse a pipeline, probably to translate
-it into primitives for your engine. The general pattern is to write a visitor
-that builds a job specification as it walks the graph of <code>PTransforms</code>.</p><p>The entry point for this in Java is
-<a href=https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#traverseTopologically-org.apache.beam.sdk.Pipeline.PipelineVisitor-><code>Pipeline.traverseTopologically</code></a>
-and
-<a href=https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.html#apache_beam.pipeline.Pipeline.visit><code>Pipeline.visit</code></a>
-in Python. See the generated documentation for details.</p><h3 id=altering-a-pipeline>Altering a pipeline</h3><p>Often, the best way to keep your
-translator simple will be to alter the pipeline prior to translation. Some
-alterations you might perform:</p><ul><li>Elaboration of a Beam primitive into a composite transform that uses
-multiple runner-specific primitives</li><li>Optimization of a Beam composite into a specialized primitive for your
-runner</li><li>Replacement of a Beam composite with a different expansion more suitable for
-your runner</li></ul><p>The Java SDK and the &ldquo;runners core construction&rdquo; library (the artifact is
-<code>beam-runners-core-construction-java</code> and the namespaces is
-<code>org.apache.beam.runners.core.construction</code>) contain helper code for this sort
-of work. In Python, support code is still under development.</p><p>All pipeline alteration is done via
-<a href=https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#replaceAll-java.util.List-><code>Pipeline.replaceAll(PTransformOverride)</code></a>
-method. A
-<a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformOverride.java><code>PTransformOverride</code></a>
-is a pair of a
-<a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformMatcher.java><code>PTransformMatcher</code></a>
-to select transforms for replacement and a
-<a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformOverrideFactory.java><code>PTransformOverrideFactory</code></a>
-to produce the replacement. All <code>PTransformMatchers</code> that have been needed by
-runners to date are provided. Examples include: matching a specific class,
-matching a <code>ParDo</code> where the <code>DoFn</code> uses state or timers, etc.</p><h2 id=testing-your-runner>Testing your runner</h2><p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
+known as a <code>CombineFn</code>.</p><p>Generally runners will want to implement this via what is called
+combiner lifting, where a new operation is placed before the <code>GroupByKey</code>
+that does partial (within-bundle) combining, which often requires a slight
+modification of what comes after the <code>GroupByKey</code> as well.
+An example of this transformation can be found in the
+(Python)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193]
+or (go)[https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67]
+implementations of this optimization.
+The resulting pre- and post-<code>GroupByKey</code> operations are generally fused in with
+the <code>ParDo</code>s and executed as above.</p><h2 id=working-with-pipelines>Working with pipelines</h2><p>When you receive a pipeline from a user, you will need to translate it.
+An explanation of how Beam pipelines are represented can be found
+(here)[https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA]
+which compliment the (official proto declarations)[https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto].</p><h2 id=testing-your-runner>Testing your runner</h2><p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
 of other Beam runners. But be aware that we have tests and you can use them
 very easily! To enable these tests in a Java-based runner using Gradle, you
@@ -278,15 +281,16 @@ public static class MyRunnerRegistrar implements PipelineRunnerRegistrar {
 }</code></pre></div></div><h3 id=integrating-with-the-python-sdk>Integrating with the Python SDK</h3><p>In the Python SDK the registration of the code is not automatic. So there are
 few things to keep in mind when creating a new runner.</p><p>Any dependencies on packages for the new runner should be options so create a
 new target in <code>extra_requires</code> in <code>setup.py</code> that is needed for the new runner.</p><p>All runner code should go in it&rsquo;s own package in <code>apache_beam/runners</code> directory.</p><p>Register the new runner in the <code>create_runner</code> function of <code>runner.py</code> so that the
-partial name is matched with the correct class to be used.</p><h2 id=writing-an-sdk-independent-runner>Writing an SDK-independent runner</h2><p>There are two aspects to making your runner SDK-independent, able to run
-pipelines written in other languages: The Fn API and the Runner API.</p><h3 id=the-fn-api>The Fn API</h3><p><em>Design documents:</em></p><ul><li><em><a href=https://s.apache.org/beam-fn-api>https://s.apache.org/beam-fn-api</a></em></li><li><em><a href=https://s.apache.org/beam-fn-api-processing-a-bundle>https://s.apache.org/beam-fn-api-processing-a-bundle</a></em></li><li><em><a href=https://s.apache.org/beam-fn-api-send-and-receive-data>https://s.apache.org/beam-fn-api-send-and-receive-data</a></em></li></ul><p>To run a user&rsquo;s pipeline, you need to be able to invoke their UDFs. The Fn API
+partial name is matched with the correct class to be used.</p><p>Python Runners can also be identified (e.g. when passing the runner parameter)
+by their fully qualified name whether or not they live in the Beam repository.</p><h2 id=writing-an-sdk-independent-runner>Writing an SDK-independent runner</h2><p>There are two aspects to making your runner SDK-independent, able to run
+pipelines written in other languages: The Fn API and the Runner API.</p><h3 id=the-fn-api>The Fn API</h3><p><em>Design documents:</em></p><ul><li><p><em><a href=https://s.apache.org/beam-fn-api>https://s.apache.org/beam-fn-api</a></em></p></li><li><p><em><a href=https://s.apache.org/beam-fn-api-processing-a-bundle>https://s.apache.org/beam-fn-api-processing-a-bundle</a></em></p></li><li><p><em><a href=https://s.apache.org/beam-fn-api-send-and-receive-data>https://s.apache.org/beam-fn-api-send-and-receive-data</a></em></p></li><li><p><em><a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit#slide=id.g42e4c9aad6_0_317">Overview</a></em></p></li><li><p><em><a href=https://github.com/apache/beam/blob/master/model/fn-execution/src/main/proto/org/apache/beam/model/fn_execution/v1/beam_fn_api.proto>Spec</a></em></p></li></ul><p>To run a user&rsquo;s pipeline, you need to be able to invoke their UDFs. The Fn API
 is an RPC interface for the standard UDFs of Beam, implemented using protocol
 buffers over gRPC.</p><p>The Fn API includes:</p><ul><li>APIs for registering a subgraph of UDFs</li><li>APIs for streaming elements of a bundle</li><li>Shared data formats (key-value pairs, timestamps, iterables, etc)</li></ul><p>You are fully welcome to <em>also</em> use the SDK for your language for utility code,
 or provide optimized implementations of bundle processing for same-language
-UDFs.</p><h3 id=the-runner-api>The Runner API</h3><p>The Runner API is an SDK-independent schema for a pipeline along with RPC
-interfaces for launching a pipeline and checking the status of a job. The RPC
-interfaces are still in development so for now we focus on the SDK-agnostic
-representation of a pipeline. By examining a pipeline only through Runner API
+UDFs.</p><h3 id=the-runner-api>The Runner API</h3><p>The <a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit#slide=id.g42e4c9aad6_1_3736">Runner API</a>
+is an SDK-independent schema for a pipeline along with RPC
+interfaces for launching a pipeline and checking the status of a job.
+By examining a pipeline only through Runner API
 interfaces, you remove your runner&rsquo;s dependence on the SDK for its language for
 pipeline analysis and job translation.</p><p>To execute such an SDK-independent pipeline, you will need to support the Fn
 API. UDFs are embedded in the pipeline as a specification of the function
@@ -295,7 +299,7 @@ specification of an environment that can execute it (essentially a particular
 SDK). So far, this specification is expected to be a URI for a Docker container
 hosting the SDK&rsquo;s Fn API harness.</p><p>You are fully welcome to <em>also</em> use the SDK for your language, which may offer
 useful utility code.</p><p>The language-independent definition of a pipeline is described via a protocol
-buffers schema, covered below for reference. But your runner <em>should not</em>
+buffers schema, covered below for reference. But your runner <em>need not</em>
 directly manipulate protobuf messages. Instead, the Beam codebase provides
 utilities for working with pipelines so that you don&rsquo;t need to be aware of
 whether or not the pipeline has ever been serialized or transmitted, or what
@@ -322,7 +326,7 @@ the higher-level, mostly obvious, record definitions.</p><h3 id=functionspec-pro
 language-independent specification of a function, in the usual programming
 sense that includes side effects, etc.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message FunctionSpec {
   string urn;
-  google.protobuf.Any parameter;
+  bytes payload;
 }</code></pre></div></div><p>A <code>FunctionSpec</code> includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) &ldquo;max&rdquo; CombineFn might have the
 URN <code>beam:combinefn:max:0.1</code> and a parameter that indicates by what
@@ -334,35 +338,24 @@ pickled <code>DoFn</code>.</p><p>A <code>FunctionSpec</code> is not only for UDF
 any function. It is also used as the specification for a <code>PTransform</code>. But when
 used in a <code>PTransform</code> it describes a function from <code>PCollection</code> to <code>PCollection</code>
 and cannot be specific to an SDK because the runner is in charge of evaluating
-transforms and producing <code>PCollections</code>.</p><h3 id=sdkfunctionspec-proto><code>SdkFunctionSpec</code> proto</h3><p>When a <code>FunctionSpec</code> represents a UDF, in general only the SDK that serialized
-it will be guaranteed to understand it. So in that case, it will always come
-with an environment that can understand and execute the function. This is
-represented by the <code>SdkFunctionSpec</code>.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message SdkFunctionSpec {
-  FunctionSpec spec;
-  bytes environment_id;
-}</code></pre></div></div><p>In the Runner API, many objects are stored by reference. Here in the
-<code>environment_id</code> is a pointer, local to the pipeline and just made up by the
-SDK that serialized it, that can be dereferenced to yield the actual
-environment proto.</p><p>Thus far, an environment is expected to be a Docker container specification for
-an SDK harness that can execute the specified UDF.</p><h3 id=primitive-transform-payload-protos>Primitive transform payload protos</h3><p>The payload for the primitive transforms are just proto serializations of their
+transforms and producing <code>PCollections</code>.</p><p>It goes without saying that not every environment will be able to deserialize
+every function spec. For this reason <code>PTransform</code>s have an <code>environment_id</code>
+parameter that indicates at least one environment that is capable of interpreting
+the contained URNs. This is a reference to an environment in the environments
+map of the Pipeline proto and is typically defined by a docker image (possibly
+with some extra dependencies).
+There may be other environments that are also capable of
+doing so, and a runner is free to use them if it has this knowledge.</p><h3 id=primitive-transform-payload-protos>Primitive transform payload protos</h3><p>The payload for the primitive transforms are just proto serializations of their
 specifications. Rather than reproduce their full code here, I will just
 highlight the important pieces to show how they fit together.</p><p>It is worth emphasizing again that while you probably will not interact
 directly with these payloads, they are the only data that is inherently part of
 the transform.</p><h4 id=pardopayload-proto><code>ParDoPayload</code> proto</h4><p>A <code>ParDo</code> transform carries its <code>DoFn</code> in an <code>SdkFunctionSpec</code> and then
 provides language-independent specifications for its other features - side
 inputs, state declarations, timer declarations, etc.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message ParDoPayload {
-  SdkFunctionSpec do_fn;
+  FunctionSpec do_fn;
   map&lt;string, SideInput&gt; side_inputs;
   map&lt;string, StateSpec&gt; state_specs;
   map&lt;string, TimerSpec&gt; timer_specs;
-  ...
-}</code></pre></div></div><h4 id=readpayload-proto><code>ReadPayload</code> proto</h4><p>A <code>Read</code> transform carries an <code>SdkFunctionSpec</code> for its <code>Source</code> UDF.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message ReadPayload {
-  SdkFunctionSpec source;
-  ...
-}</code></pre></div></div><h4 id=windowintopayload-proto><code>WindowIntoPayload</code> proto</h4><p>A <code>Window</code> transform carries an <code>SdkFunctionSpec</code> for its <code>WindowFn</code> UDF. It is
-part of the Fn API that the runner passes this UDF along and tells the SDK
-harness to use it to assign windows (as opposed to merging).</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message WindowIntoPayload {
-  SdkFunctionSpec window_fn;
   ...
 }</code></pre></div></div><h4 id=combinepayload-proto><code>CombinePayload</code> proto</h4><p><code>Combine</code> is not a primitive. But non-primitives are perfectly able to carry
 additional information for better optimization. The most important thing that a
@@ -370,13 +363,11 @@ additional information for better optimization. The most important thing that a
 In order to effectively carry out the optimizations desired, it is also
 necessary to know the coder for intermediate accumulations, so it also carries
 a reference to this coder.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message CombinePayload {
-  SdkFunctionSpec combine_fn;
+  FunctionSpec combine_fn;
   string accumulator_coder_id;
   ...
 }</code></pre></div></div><h3 id=ptransform-proto><code>PTransform</code> proto</h3><p>A <code>PTransform</code> is a function from <code>PCollection</code> to <code>PCollection</code>. This is
-represented in the proto using a FunctionSpec. Note that this is not an
-<code>SdkFunctionSpec</code>, since it is the runner that observes these. They will never
-be passed back to an SDK harness; they do not represent a UDF.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message PTransform {
+represented in the proto using a FunctionSpec.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message PTransform {
   FunctionSpec spec;
   repeated string subtransforms;
 
@@ -387,61 +378,44 @@ be passed back to an SDK harness; they do not represent a UDF.</p><div class=sni
 }</code></pre></div></div><p>A <code>PTransform</code> may have subtransforms if it is a composite, in which case the
 <code>FunctionSpec</code> may be omitted since the subtransforms define its behavior.</p><p>The input and output <code>PCollections</code> are unordered and referred to by a local
 name. The SDK decides what this name is, since it will likely be embedded in
-serialized UDFs.</p><h3 id=pcollection-proto><code>PCollection</code> proto</h3><p>A <code>PCollection</code> just stores a coder, windowing strategy, and whether or not it
+serialized UDFs.</p><p>A runner that understands the specification of a given <code>PTransform</code> (whether
+primitive or composite), as defined by its <code>FunctionSpec</code>, is free to
+substitute it with another <code>PTransform</code> (or set thereof) that has identical
+semantics.
+This is typically how <code>CombinePerKey</code> is handled, but many other substitutions
+can be done as well.</p><h3 id=pcollection-proto><code>PCollection</code> proto</h3><p>A <code>PCollection</code> just stores a coder, windowing strategy, and whether or not it
 is bounded.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message PCollection {
   string coder_id;
   IsBounded is_bounded;
   string windowing_strategy_id;
   ...
 }</code></pre></div></div><h3 id=coder-proto><code>Coder</code> proto</h3><p>This is a very interesting proto. A coder is a parameterized function that may
-only be understood by a particular SDK, hence an <code>SdkFunctionSpec</code>, but also
+only be understood by a particular SDK, hence an <code>FunctionSpec</code>, but also
 may have component coders that fully define it. For example, a <code>ListCoder</code> is
 only a meta-format, while <code>ListCoder(VarIntCoder)</code> is a fully specified format.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message Coder {
-  SdkFunctionSpec spec;
+  FunctionSpec spec;
   repeated string component_coder_ids;
-}</code></pre></div></div><h2 id=the-runner-api-rpcs>The Runner API RPCs</h2><p>While your language&rsquo;s SDK will probably insulate you from touching the Runner
+}</code></pre></div></div><p>There are a large number of
+<a href=https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L829>standard coders</a>
+understood by most, if not all,
+SDKs. Using these allows for cross-language transforms.</p><h2 id=the-jobs-api-rpcs>The Jobs API RPCs</h2><p><a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit#slide=id.g42e4c9aad6_1_3722">Overview</a>
+<a href=https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_job_api.proto>Spec</a></p><p>While your language&rsquo;s SDK will may insulate you from touching the Runner
 API protos directly, you may need to implement adapters for your runner, to
-expose it to another language. So this section covers proto that you will
-possibly interact with quite directly.</p><p>The specific manner in which the existing runner method calls will be expressed
-as RPCs is not implemented as proto yet. This RPC layer is to enable, for
-example, building a pipeline using the Python SDK and launching it on a runner
-that is written in Java. It is expected that a small Python shim will
-communicate with a Java process or service hosting the Runner API.</p><p>The RPCs themselves will necessarily follow the existing APIs of PipelineRunner
+expose it to another language.
+This allows a Python SDK to invoke a Java runner or vice versa.
+A typical implementation of this can be found in
+<a href=https://github.com/apache/beam/blob/release-2.48.0/sdks/python/apache_beam/runners/portability/local_job_service.py>local_job_service.py</a>
+which is used directly to front several Python-implemented runners.</p><p>The RPCs themselves will necessarily follow the existing APIs of PipelineRunner
 and PipelineResult, but altered to be the minimal backend channel, versus a
-rich and convenient API.</p><h3 id=pipelinerunnerrunpipeline-rpc><code>PipelineRunner.run(Pipeline)</code> RPC</h3><p>This will take the same form, but <code>PipelineOptions</code> will have to be serialized
-to JSON (or a proto <code>Struct</code>) and passed along.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message RunPipelineRequest {
-  Pipeline pipeline;
-  Struct pipeline_options;
-}</code></pre></div></div><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message RunPipelineResponse {
-  bytes pipeline_id;
-
-  // TODO: protocol for rejecting pipelines that cannot be executed
-  // by this runner. May just be REJECTED job state with error message.
-
-  // totally opaque to the SDK; for the shim to interpret
-  Any contents;
-}</code></pre></div></div><h3 id=pipelineresult-aka-job-api><code>PipelineResult</code> aka &ldquo;Job API&rdquo;</h3><p>The two core pieces of functionality in this API today are getting the state of
-a job and canceling the job. It is very much likely to evolve, for example to
-be generalized to support draining a job (stop reading input and let watermarks
-go to infinity). Today, verifying our test framework benefits (but does not
-depend upon wholly) querying metrics over this channel.</p><div class=snippet><div class="notebook-skip code-snippet without_switcher"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><pre><code>message CancelPipelineRequest {
-  bytes pipeline_id;
-  ...
-}
-
-message GetStateRequest {
-  bytes pipeline_id;
-  ...
-}
-
-message GetStateResponse {
-  JobState state;
-  ...
-}
-
-enum JobState {
-  ...
-}</code></pre></div></div><div class=feedback><p class=update>Last updated on 2023/08/10</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
+rich and convenient API.</p><p>A key piece of this is the
+(Artifacts API)[https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto],
+which allows a Runner to fetch and deploy binary artifacts (such as jars,
+pypi packages, etc.) that are listed as dependencies in the various environments,
+and may have various representations. This is invoked after a pipeline
+is submitted, but before it is executed. The SDK submitting a pipeline acts
+as an artifact server to the runner receiving the request, and in turn the
+runner then acts as an artifact server to the workers (environments) hosting
+the users UDFs.</p><div class=feedback><p class=update>Last updated on 2023/08/10</p><h3>Have you found everything you were looking for?</h3><p class=description>Was it all useful and clear? Is there anything that you would like to change? Let us know!</p><button class=load-button><a href="mailto:dev@beam.apache.org?subject=Beam Website Feedback">SEND FEEDBACK</a></button></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
 <a href=https://www.apache.org>The Apache Software Foundation</a>
 | <a href=/privacy_policy>Privacy Policy</a>
 | <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></div><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://github.com/apache/beam><img src=/images/logos/social-icons/github-logo-150.png class=footer__logo alt="Github logo"></a></div><div class=footer__cols__col__logo><a href=https://www.linkedin.com/company/apache-beam/><img src=/images/logos/social-icons/linkedin-logo-150.png class=footer__logo alt="Linkedin logo"></a></div></div><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://twitter.com/apachebeam><img src=/images/logos/social-icons/twitter-logo-150.png class=footer__logo alt="Twitter logo"></a></div><div class=footer__cols__col__logo><a href=https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ><img src=/images/logos/social-icons/youtube-logo-150.png class=footer__logo alt="Youtube logo"></a></div></div></div></div></div></footer></body></html>

@@ -3009,11 +3009,11 @@ throughout the development of your runner.&lt;/p>
 &lt;li>&lt;a href="#implementing-the-beam-primitives">Implementing the Beam Primitives&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#what-if-you-havent-implemented-some-of-these-features">What if you haven&amp;rsquo;t implemented some of these features?&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#implementing-the-impulse-primitive">Implementing the Impulse primitive&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#implementing-the-pardo-primitive">Implementing the ParDo primitive&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#bundles">Bundles&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#the-dofn-lifecycle">The DoFn Lifecycle&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#dofnrunners">DoFnRunner(s)&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#side-inputs">Side Inputs&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#state-and-timers">State and Timers&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#splittable-dofn">Splittable DoFn&lt;/a>&lt;/li>
@@ -3030,22 +3030,11 @@ throughout the development of your runner.&lt;/p>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#implementing-the-window-primitive">Implementing the Window primitive&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#implementing-the-read-primitive">Implementing the Read primitive&lt;/a>
-&lt;ul>
-&lt;li>&lt;a href="#reading-from-an-unboundedsource">Reading from an UnboundedSource&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#reading-from-a-boundedsource">Reading from a BoundedSource&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
 &lt;li>&lt;a href="#implementing-the-flatten-primitive">Implementing the Flatten primitive&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#special-mention-the-combine-composite">Special mention: the Combine composite&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#working-with-pipelines">Working with pipelines&lt;/a>
-&lt;ul>
-&lt;li>&lt;a href="#traversing-a-pipeline">Traversing a pipeline&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#altering-a-pipeline">Altering a pipeline&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
+&lt;li>&lt;a href="#working-with-pipelines">Working with pipelines&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#testing-your-runner">Testing your runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#integrating-your-runner-nicely-with-sdks">Integrating your runner nicely with SDKs&lt;/a>
 &lt;ul>
@@ -3067,12 +3056,9 @@ throughout the development of your runner.&lt;/p>
 &lt;li>&lt;a href="#the-runner-api-protos">The Runner API protos&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#functionspec-proto">&lt;code>FunctionSpec&lt;/code> proto&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#sdkfunctionspec-proto">&lt;code>SdkFunctionSpec&lt;/code> proto&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#primitive-transform-payload-protos">Primitive transform payload protos&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#pardopayload-proto">&lt;code>ParDoPayload&lt;/code> proto&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#readpayload-proto">&lt;code>ReadPayload&lt;/code> proto&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#windowintopayload-proto">&lt;code>WindowIntoPayload&lt;/code> proto&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#combinepayload-proto">&lt;code>CombinePayload&lt;/code> proto&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -3081,12 +3067,7 @@ throughout the development of your runner.&lt;/p>
 &lt;li>&lt;a href="#coder-proto">&lt;code>Coder&lt;/code> proto&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#the-runner-api-rpcs">The Runner API RPCs&lt;/a>
-&lt;ul>
-&lt;li>&lt;a href="#pipelinerunnerrunpipeline-rpc">&lt;code>PipelineRunner.run(Pipeline)&lt;/code> RPC&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#pipelineresult-aka-job-api">&lt;code>PipelineResult&lt;/code> aka &amp;ldquo;Job API&amp;rdquo;&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
+&lt;li>&lt;a href="#the-jobs-api-rpcs">The Jobs API RPCs&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;h2 id="implementing-the-beam-primitives">Implementing the Beam Primitives&lt;/h2>
@@ -3101,8 +3082,7 @@ element-wise, grouping, windowing, union) rather than a specific implementation
 decision. The same primitive may require a very different implementation based
 on how the user instantiates it. For example, a &lt;code>ParDo&lt;/code> that uses state or
 timers may require key partitioning, a &lt;code>GroupByKey&lt;/code> with speculative triggering
-may require a more costly or complex implementation, and &lt;code>Read&lt;/code> is completely
-different for bounded and unbounded data.&lt;/p>
+may require a more costly or complex implementation.&lt;/p>
 &lt;h3 id="what-if-you-havent-implemented-some-of-these-features">What if you haven&amp;rsquo;t implemented some of these features?&lt;/h3>
 &lt;p>That&amp;rsquo;s OK! You don&amp;rsquo;t have to do it all at once, and there may even be features
 that don&amp;rsquo;t make sense for your runner to ever support. We maintain a
@@ -3114,6 +3094,16 @@ requirement that your runner lacks) you should reject the pipeline. In your
 native environment, this may look like throwing an
 &lt;code>UnsupportedOperationException&lt;/code>. The Runner API RPCs will make this explicit,
 for cross-language portability.&lt;/p>
+&lt;h3 id="implementing-the-impulse-primitive">Implementing the Impulse primitive&lt;/h3>
+&lt;p>&lt;code>Impulse&lt;/code> is a PTransform that takes no inputs and produces exactly one output
+during the lifetime of the pipeline which should be the empty bytes in the
+global window with the minimum timestamp. This has the encoded value of
+&lt;code>7f df 3b 64 5a 1c ac 09 00 00 00 01 0f 00&lt;/code> when encoded with the standard
+windowed value coder.&lt;/p>
+&lt;p>Though &lt;code>Impulse&lt;/code> is generally not invoked by a user, it is the only root
+primitive operation, and other root operations (like &lt;code>Read&lt;/code>s and &lt;code>Create&lt;/code>)
+are composite operations constructed from an &lt;code>Impulse&lt;/code> followed by a series
+of (possibly Splittable) &lt;code>ParDo&lt;/code>s.&lt;/p>
 &lt;h3 id="implementing-the-pardo-primitive">Implementing the ParDo primitive&lt;/h3>
 &lt;p>The &lt;code>ParDo&lt;/code> primitive describes element-wise transformation for a
 &lt;code>PCollection&lt;/code>. &lt;code>ParDo&lt;/code> is the most complex primitive, because it is where any
@@ -3126,10 +3116,24 @@ a &lt;code>DoFn&lt;/code> can vary per language/SDK but generally follow the sam
 can discuss it with pseudocode. I will also often refer to the Java support
 code, since I know it and most of our current and future runners are
 Java-based.&lt;/p>
+&lt;p>Generally, rather than applying a series of &lt;code>ParDo&lt;/code>s one at a time over the
+entire input data set, it is more efficient to fuse several &lt;code>ParDo&lt;/code>s together
+in a single executable stage that consists of a whole series (in general,
+a DAG) of mapping operations. In addition to &lt;code>ParDo&lt;/code>s, windowing operations,
+local (pre- or post-GBK) combining operations, and other mapping operations
+may be fused into these stages as well.&lt;/p>
+&lt;p>As DoFns may execute code in a different language, or requiring a different
+environment, than the runner itself, Beam provides the ability to call these
+in a cross-process way. This is the crux of the
+&lt;a href="https://beam.apache.org/contribute/runner-guide/#writing-an-sdk-independent-runner">Beam Fn API&lt;/a>,
+for which more detail can be found below.
+It is, however, perfectly acceptable for a runner to invoke this user code
+in process (for simplicity or efficiency) when the environments are
+compatible.&lt;/p>
 &lt;h4 id="bundles">Bundles&lt;/h4>
 &lt;p>For correctness, a &lt;code>DoFn&lt;/code> &lt;em>should&lt;/em> represent an element-wise function, but in
-fact is a long-lived object that processes elements in small groups called
-bundles.&lt;/p>
+most SDKS this is a long-lived object that processes elements in small groups
+called bundles.&lt;/p>
 &lt;p>Your runner decides how many elements, and which elements, to include in a
 bundle, and can even decide dynamically in the middle of processing that the
 current bundle has &amp;ldquo;ended&amp;rdquo;. How a bundle is processed ties in with the rest of
@@ -3139,62 +3143,23 @@ that initialization and finalization costs are amortized over many elements.
 But if your data is arriving as a stream, then you will want to terminate a
 bundle in order to achieve appropriate latency, so bundles may be just a few
 elements.&lt;/p>
+&lt;p>A bundle is the unit of commitment in Beam. If an error is encountered while
+processing a bundle, all the prior outputs of that bundle (including any
+modifications to state or timers) must be discarded by the runner and the
+entire bundle retried. Upon successful completion of a bundle, its outputs,
+together with any state/timer modifications and watermark updates, must be
+committed atomically.&lt;/p>
 &lt;h4 id="the-dofn-lifecycle">The DoFn Lifecycle&lt;/h4>
-&lt;p>While each language&amp;rsquo;s SDK is free to make different decisions, the Python and
-Java SDKs share an API with the following stages of a DoFn&amp;rsquo;s lifecycle.&lt;/p>
-&lt;p>However, if you choose to execute a DoFn directly to improve performance or
-single-language simplicity, then your runner is responsible for implementing
-the following sequence:&lt;/p>
-&lt;ul>
-&lt;li>&lt;em>Setup&lt;/em> - called once per DoFn instance before anything else; this has not been
-implemented in the Python SDK so the user can work around just with lazy
-initialization&lt;/li>
-&lt;li>&lt;em>StartBundle&lt;/em> - called once per bundle as initialization (actually, lazy
-initialization is almost always equivalent and more efficient, but this hook
-remains for simplicity for users)&lt;/li>
-&lt;li>&lt;em>ProcessElement&lt;/em> / &lt;em>OnTimer&lt;/em> - called for each element and timer activation&lt;/li>
-&lt;li>&lt;em>FinishBundle&lt;/em> - essentially &amp;ldquo;flush&amp;rdquo;; required to be called before
-considering elements as actually processed&lt;/li>
-&lt;li>&lt;em>Teardown&lt;/em> - release resources that were used across bundles; calling this
-can be best effort due to failures&lt;/li>
-&lt;/ul>
-&lt;h4 id="dofnrunners">DoFnRunner(s)&lt;/h4>
-&lt;p>This is a support class that has manifestations in both the Java codebase and
-the Python codebase.&lt;/p>
-&lt;p>&lt;strong>Java&lt;/strong>&lt;/p>
-&lt;p>In Java, the &lt;code>beam-runners-core-java&lt;/code> library provides an interface
-&lt;code>DoFnRunner&lt;/code> for bundle processing, with implementations for many situations.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>interface DoFnRunner&amp;lt;InputT, OutputT&amp;gt; {
-void startBundle();
-void processElement(WindowedValue&amp;lt;InputT&amp;gt; elem);
-void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
-void finishBundle();
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>There are some implementations and variations of this for different scenarios:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SimpleDoFnRunner.java">&lt;code>SimpleDoFnRunner&lt;/code>&lt;/a> -
-not actually simple at all; implements lots of the core functionality of
-&lt;code>ParDo&lt;/code>. This is how most runners execute most &lt;code>DoFns&lt;/code>.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/LateDataDroppingDoFnRunner.java">&lt;code>LateDataDroppingDoFnRunner&lt;/code>&lt;/a> -
-wraps a &lt;code>DoFnRunner&lt;/code> and drops data from expired windows so the wrapped
-&lt;code>DoFnRunner&lt;/code> doesn&amp;rsquo;t get any unpleasant surprises&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StatefulDoFnRunner.java">&lt;code>StatefulDoFnRunner&lt;/code>&lt;/a> -
-handles collecting expired state&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/PushbackSideInputDoFnRunner.java">&lt;code>PushBackSideInputDoFnRunner&lt;/code>&lt;/a> -
-buffers input while waiting for side inputs to be ready&lt;/li>
-&lt;/ul>
-&lt;p>These are all used heavily in implementations of Java runners. Invocations
-via the &lt;a href="#the-fn-api">Fn API&lt;/a> may manifest as another implementation of
-&lt;code>DoFnRunner&lt;/code> even though it will be doing far more than running a &lt;code>DoFn&lt;/code>.&lt;/p>
-&lt;p>&lt;strong>Python&lt;/strong>&lt;/p>
-&lt;p>See the &lt;a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.runners.html#apache_beam.runners.common.DoFnRunner">DoFnRunner pydoc&lt;/a>.&lt;/p>
+&lt;p>&lt;code>DoFns&lt;/code> in many SDKS have several methods such as &lt;code>setup&lt;/code>, &lt;code>start_bundle&lt;/code>,
+&lt;code>finish_bundle&lt;/code>, &lt;code>teardown&lt;/code>, etc. in addition to the standard,
+element-wise &lt;code>process&lt;/code> calls. Generally proper invocation of
+&lt;a href="https://beam.apache.org/documentation/programming-guide/#dofn">this lifecycle&lt;/a>
+should be handled for you when invoking one or more
+&lt;code>DoFn&lt;/code>s from the standard bundle processors (either via the FnAPI or directly
+using a BundleProcessor
+(&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/harness/src/main/java/org/apache/beam/fn/harness/control/ProcessBundleHandler.java">java&lt;/a>
+(&lt;a href="https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/worker/bundle_processor.py#L852">python&lt;/a>)).
+SDK-independent runners should never have to worry about these details directly.&lt;/p>
 &lt;h4 id="side-inputs">Side Inputs&lt;/h4>
 &lt;p>&lt;em>Main design document:
 &lt;a href="https://s.apache.org/beam-side-inputs-1-pager">https://s.apache.org/beam-side-inputs-1-pager&lt;/a>&lt;/em>&lt;/p>
@@ -3202,61 +3167,72 @@ via the &lt;a href="#the-fn-api">Fn API&lt;/a> may manifest as another implement
 it from the main input, which is processed one element at a time. The SDK/user
 prepares a &lt;code>PCollection&lt;/code> adequately, the runner materializes it, and then the
 runner feeds it to the &lt;code>DoFn&lt;/code>.&lt;/p>
-&lt;p>What you will need to implement is to inspect the materialization requested for
-the side input, and prepare it appropriately, and corresponding interactions
-when a &lt;code>DoFn&lt;/code> reads the side inputs.&lt;/p>
-&lt;p>The details and available support code vary by language.&lt;/p>
-&lt;p>&lt;strong>Java&lt;/strong>&lt;/p>
-&lt;p>If you are using one of the above &lt;code>DoFnRunner&lt;/code> classes, then the interface for
-letting them request side inputs is
-&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SideInputReader.java">&lt;code>SideInputReader&lt;/code>&lt;/a>.
-It is a simple mapping from side input and window to a value. The &lt;code>DoFnRunner&lt;/code>
-will perform a mapping with the
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/windowing/WindowMappingFn.java">&lt;code>WindowMappingFn&lt;/code>&lt;/a>
-to request the appropriate window so you do not worry about invoking this UDF.
-When using the Fn API, it will be the SDK harness that maps windows as well.&lt;/p>
-&lt;p>A simple, but not necessarily optimal approach to building a
-&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SideInputReader.java">&lt;code>SideInputReader&lt;/code>&lt;/a>
-is to use a state backend. In our Java support code, this is called
-&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StateInternals.java">&lt;code>StateInternals&lt;/code>&lt;/a>
-and you can build a
-&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SideInputHandler.java">&lt;code>SideInputHandler&lt;/code>&lt;/a>
-that will use your &lt;code>StateInternals&lt;/code> to materialize a &lt;code>PCollection&lt;/code> into the
-appropriate side input view and then yield the value when requested for a
-particular side input and window.&lt;/p>
+&lt;p>Unlike main input data, which is &lt;em>pushed&lt;/em> by the runner to the &lt;code>ParDo&lt;/code> (generally
+via the FnApi Data channel), side input data is &lt;em>pulled&lt;/em> by the &lt;code>ParDo&lt;/code>
+from the runner (generally over the FnAPI State channel).&lt;/p>
+&lt;p>A side input is accessed via a specific &lt;code>access_pattern&lt;/code>.
+There are currently two access patterns enumerated in the
+&lt;code>StandardSideInputTypes&lt;/code> proto: &lt;code>beam:side_input:iterable:v1&lt;/code> which indicates
+the runner must return all values in a PCollection corresponding to a specific
+window and &lt;code>beam:side_input:multimap:v1&lt;/code> which indicates the runner must return
+all values corresponding to a specific key and window.
+Being able to serve these access patterns efficiently may influence how a
+runner materializes this PCollection.&lt;/p>
+&lt;p>SideInputs can be detected by looking at the &lt;code>side_inputs&lt;/code> map in the
+&lt;code>ParDoPayload&lt;/code> of &lt;code>ParDo&lt;/code> transforms.
+The &lt;code>ParDo&lt;/code> operation itself is responsible for invoking the
+&lt;code>window_mapping_fn&lt;/code> (before invoking the runner) and &lt;code>view_fn&lt;/code> (on the
+runner-returned values), so the runner need not concern itself with these
+fields.&lt;/p>
 &lt;p>When a side input is needed but the side input has no data associated with it
 for a given window, elements in that window must be deferred until the side
-input has some data. The aforementioned
+input has some data or the watermark has advances sufficiently such that
+we can be sure there will be no data for that window. The
 &lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/PushbackSideInputDoFnRunner.java">&lt;code>PushBackSideInputDoFnRunner&lt;/code>&lt;/a>
-is used to implement this.&lt;/p>
-&lt;p>&lt;strong>Python&lt;/strong>&lt;/p>
-&lt;p>In Python, &lt;a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.transforms.html#apache_beam.transforms.sideinputs.SideInputMap">&lt;code>SideInputMap&lt;/code>&lt;/a> maps
-windows to side input values. The &lt;code>WindowMappingFn&lt;/code> manifests as a simple
-function. See
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sideinputs.py">sideinputs.py&lt;/a>.&lt;/p>
+is an example of implementing this.&lt;/p>
 &lt;h4 id="state-and-timers">State and Timers&lt;/h4>
 &lt;p>&lt;em>Main design document: &lt;a href="https://s.apache.org/beam-state">https://s.apache.org/beam-state&lt;/a>&lt;/em>&lt;/p>
 &lt;p>When a &lt;code>ParDo&lt;/code> includes state and timers, its execution on your runner is usually
-very different. See the full details beyond those covered here.&lt;/p>
-&lt;p>State and timers are partitioned per key and window. You may need or want to
-explicitly shuffle data to support this.&lt;/p>
-&lt;p>&lt;strong>Java&lt;/strong>&lt;/p>
-&lt;p>We provide
-&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StatefulDoFnRunner.java">&lt;code>StatefulDoFnRunner&lt;/code>&lt;/a>
-to help with state cleanup. The non-user-facing interface
-&lt;a href="https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StateInternals.java">&lt;code>StateInternals&lt;/code>&lt;/a>
-is what a runner generally implements, and then the Beam support code can use
-this to implement user-facing state.&lt;/p>
+very different. In particular, the state must be persisted when the bundle
+completes and retrieved for future bundles. Timers that are set must also be
+injected into future bundles as the watermark advances sufficiently.&lt;/p>
+&lt;p>State and timers are partitioned per key and window, that is, a &lt;code>DoFn&lt;/code>
+processing a given key must have a consistent view of the state and timers
+across all elements that share this key. You may need or want to
+explicitly shuffle data to support this.
+Once the watermark has passed the end of the window (plus an allowance for
+allowed lateness, if any), state associated with this window can be dropped.&lt;/p>
+&lt;p>State setting and retrieval is performed on the FnAPI State channel, whereas
+timer setting and firing happens on the FnAPI Data channel.&lt;/p>
 &lt;h4 id="splittable-dofn">Splittable DoFn&lt;/h4>
 &lt;p>&lt;em>Main design document: &lt;a href="https://s.apache.org/splittable-do-fn">https://s.apache.org/splittable-do-fn&lt;/a>&lt;/em>&lt;/p>
-&lt;p>Splittable &lt;code>DoFn&lt;/code> is a generalization and combination of &lt;code>ParDo&lt;/code> and &lt;code>Read&lt;/code>. It
-is per-element processing where each element has the capability of being &amp;ldquo;split&amp;rdquo;
-in the same ways as a &lt;code>BoundedSource&lt;/code> or &lt;code>UnboundedSource&lt;/code>. This enables better
-performance for use cases such as a &lt;code>PCollection&lt;/code> of names of large files where
-you want to read each of them. Previously they would have to be static data in
-the pipeline or be read in a non-splittable manner.&lt;/p>
-&lt;p>This feature is still under development, but likely to become the new primitive
-for reading. It is best to be aware of it and follow developments.&lt;/p>
+&lt;p>Splittable &lt;code>DoFn&lt;/code> is a generalization of &lt;code>ParDo&lt;/code> that is useful for high-fanout
+mappings that can be done in parallel. The prototypical example of such an
+operation is reading from a file, where a single file name (as an input element)
+can be mapped to all the elements contained in that file.
+The &lt;code>DoFn&lt;/code> is considered splittable in the sense that an element representing,
+say, a single file can be split (e.g. into ranges of that file) to be processed
+(e.g. read) by different workers.
+The full power of this primitive is in the fact that these splits can happen
+dynamically rather than just statically (i.e. ahead of time) avoiding the
+problem of over- or undersplitting.&lt;/p>
+&lt;p>A full explanation of Splittable &lt;code>DoFn&lt;/code> is out of scope for this doc, but
+here is a brief overview as it pertains to its execution.&lt;/p>
+&lt;p>A Splittable &lt;code>DoFn&lt;/code> can participate in the dynamic splitting protocol by
+splitting within an element as well as between elements. Dynamic splitting
+is triggered by the runner issuing &lt;code>ProcessBundleSplitRequest&lt;/code> messages on
+the control channel. The SDK will commit to process just a portion of the
+indicated element and return a description of the remainder (i.e. the
+unprocessed portion) to the runner in the &lt;code>ProcessBundleSplitResponse&lt;/code>
+to be scheduled by the runner (e.g. on a different worker or as part of a
+different bundle).&lt;/p>
+&lt;p>A Splittable &lt;code>DoFn&lt;/code> can also initiate its own spitting, indicating it has
+processed an element as far as it can for the moment (e.g. when tailing a file)
+but more remains. These most often occur when reading unbounded sources.
+In this case a set of elements representing the deferred work are passed back
+in the &lt;code>residual_roots&lt;/code> field of the &lt;code>ProcessBundleResponse&lt;/code>.
+At a future time, the runner must re-invoke these same operations with
+the elements given in &lt;code>residual_roots&lt;/code>.&lt;/p>
 &lt;h3 id="implementing-the-groupbykey-and-window-primitive">Implementing the GroupByKey (and window) primitive&lt;/h3>
 &lt;p>The &lt;code>GroupByKey&lt;/code> operation (sometimes called GBK for short) groups a
 &lt;code>PCollection&lt;/code> of key-value pairs by key and window, emitting results according
@@ -3268,11 +3244,12 @@ key, and uses many fields from the &lt;code>PCollection&lt;/code>'s windowing st
 to group in a way that is consistent with grouping by those bytes, even if you
 have some special knowledge of the types involved.&lt;/p>
 &lt;p>The elements you are processing will be key-value pairs, and you&amp;rsquo;ll need to extract
-the keys. For this reason, the format of key-value pairs is standardized and
-shared across all SDKS. See either
-&lt;a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/KvCoder.html">&lt;code>KvCoder&lt;/code>&lt;/a>
+the keys. For this reason, the format of key-value pairs is
+&lt;a href="https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L838">standardized and shared&lt;/a>
+across all SDKS. See either
+&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/KvCoder.html">&lt;code>KvCoder&lt;/code>&lt;/a>
 in Java or
-&lt;a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.coders.html#apache_beam.coders.coders.TupleCoder.key_coder">&lt;code>TupleCoder&lt;/code>&lt;/a>
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.coders.coders.html#apache_beam.coders.coders.TupleCoder">&lt;code>TupleCoder&lt;/code>&lt;/a>
 in Python for documentation on the binary format.&lt;/p>
 &lt;h4 id="window-merging">Window Merging&lt;/h4>
 &lt;p>As well as grouping by key, your runner must group elements by their window. A
@@ -3281,10 +3258,12 @@ basis. For example, session windows for the same key will be merged if they
 overlap. So your runner must invoke the merge method of the &lt;code>WindowFn&lt;/code> during
 grouping.&lt;/p>
 &lt;h4 id="implementing-via-groupbykeyonly--groupalsobywindow">Implementing via GroupByKeyOnly + GroupAlsoByWindow&lt;/h4>
-&lt;p>The Java codebase includes support code for a particularly common way of
+&lt;p>The Java and Python codebases includes support code for a particularly common way of
 implementing the full &lt;code>GroupByKey&lt;/code> operation: first group the keys, and then group
 by window. For merging windows, this is essentially required, since merging is
 per key.&lt;/p>
+&lt;p>Often presenting the set of values in timestamp order can allow more
+efficient grouping of these values into their final windows.&lt;/p>
 &lt;h4 id="dropping-late-data">Dropping late data&lt;/h4>
 &lt;p>&lt;em>Main design document:
 &lt;a href="https://s.apache.org/beam-lateness">https://s.apache.org/beam-lateness&lt;/a>&lt;/em>&lt;/p>
@@ -3304,7 +3283,9 @@ outputs should be emitted from the &lt;code>GroupByKey&lt;/code> operation.&lt;/
 &lt;p>In Java, there is a lot of support code for executing triggers in the
 &lt;code>GroupAlsoByWindow&lt;/code> implementations, &lt;code>ReduceFnRunner&lt;/code> (legacy name), and
 &lt;code>TriggerStateMachine&lt;/code>, which is an obvious way of implementing all triggers as
-an event-driven machine over elements and timers.&lt;/p>
+an event-driven machine over elements and timers.
+In Python this is supported by the
+&lt;a href="https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/transforms/trigger.py#L1199">TriggerDriver&lt;/a> classes.&lt;/p>
 &lt;h4 id="timestampcombiner">TimestampCombiner&lt;/h4>
 &lt;p>When an aggregated output is produced from multiple inputs, the &lt;code>GroupByKey&lt;/code>
 operation has to choose a timestamp for the combination. To do so, first the
@@ -3322,6 +3303,8 @@ complete windowing strategy for each &lt;code>PCollection&lt;/code>.&lt;/p>
 &lt;p>To implement this primitive, you need to invoke the provided WindowFn on each
 element, which will return some set of windows for that element to be a part of
 in the output &lt;code>PCollection&lt;/code>.&lt;/p>
+&lt;p>Most runners implement this by fusing these window-altering mappings in with
+the &lt;code>DoFns&lt;/code>.&lt;/p>
 &lt;p>&lt;strong>Implementation considerations&lt;/strong>&lt;/p>
 &lt;p>A &amp;ldquo;window&amp;rdquo; is just a second grouping key that has a &amp;ldquo;maximum timestamp&amp;rdquo;. It can
 be any arbitrary user-defined type. The &lt;code>WindowFn&lt;/code> provides the coder for the
@@ -3333,46 +3316,11 @@ multiple elements at the same time; there is no such thing as an element &amp;ld
 multiple windows&amp;rdquo;.&lt;/p>
 &lt;p>For values in the global window, you may want to use an even further compressed
 representation that doesn&amp;rsquo;t bother including the window at all.&lt;/p>
+&lt;p>We provide coders with these optimizations such as
+(&lt;code>PARAM_WINDOWED_VALUE&lt;/code>)[https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968]
+that can be used to reduce the size of serialized data.&lt;/p>
 &lt;p>In the future, this primitive may be retired as it can be implemented as a
 ParDo if the capabilities of ParDo are enhanced to allow output to new windows.&lt;/p>
-&lt;h3 id="implementing-the-read-primitive">Implementing the Read primitive&lt;/h3>
-&lt;p>You implement this primitive to read data from an external system. The APIs are
-carefully crafted to enable efficient parallel execution. Reading from an
-&lt;code>UnboundedSource&lt;/code> is a bit different than reading from a &lt;code>BoundedSource&lt;/code>.&lt;/p>
-&lt;h4 id="reading-from-an-unboundedsource">Reading from an UnboundedSource&lt;/h4>
-&lt;p>An &lt;code>UnboundedSource&lt;/code> is a source of potentially infinite data; you can think of
-it like a stream. The capabilities are:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>split(int)&lt;/code> - your runner should call this to get the desired parallelism&lt;/li>
-&lt;li>&lt;code>createReader(...)&lt;/code> - call this to start reading elements; it is an enhanced iterator that also provides:&lt;/li>
-&lt;li>watermark (for this source) which you should propagate downstream&lt;/li>
-&lt;li>timestamps, which you should associate with elements read&lt;/li>
-&lt;li>record identifiers, so you can dedup downstream if needed&lt;/li>
-&lt;li>progress indication of its backlog&lt;/li>
-&lt;li>checkpointing&lt;/li>
-&lt;li>&lt;code>requiresDeduping&lt;/code> - this indicates that there is some chance that the source
-may emit duplicates; your runner should do its best to dedupe based on the
-identifier attached to emitted records&lt;/li>
-&lt;/ul>
-&lt;p>An unbounded source has a custom type of checkpoints and an associated coder for serializing them.&lt;/p>
-&lt;h4 id="reading-from-a-boundedsource">Reading from a BoundedSource&lt;/h4>
-&lt;p>A &lt;code>BoundedSource&lt;/code> is a source of data that you know is finite, such as a static
-collection of log files, or a database table. The capabilities are:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>split(int)&lt;/code> - your runner should call this to get desired initial parallelism (but you can often steal work later)&lt;/li>
-&lt;li>&lt;code>getEstimatedSizeBytes(...)&lt;/code> - self explanatory&lt;/li>
-&lt;li>&lt;code>createReader(...)&lt;/code> - call this to start reading elements; it is an enhanced iterator that also provides:&lt;/li>
-&lt;li>timestamps to associate with each element read&lt;/li>
-&lt;li>&lt;code>splitAtFraction&lt;/code> for dynamic splitting to enable work stealing, and other
-methods to support it - see the &lt;a href="/blog/2016/05/18/splitAtFraction-method.html">Beam blog post on dynamic work
-rebalancing&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>The &lt;code>BoundedSource&lt;/code> does not report a watermark currently. Most of the time, reading
-from a bounded source can be parallelized in ways that result in utterly out-of-order
-data, so a watermark is not terribly useful.
-Thus the watermark for the output &lt;code>PCollection&lt;/code> from a bounded read should
-remain at the minimum timestamp throughout reading (otherwise data might get
-dropped) and advance to the maximum timestamp when all data is exhausted.&lt;/p>
 &lt;h3 id="implementing-the-flatten-primitive">Implementing the Flatten primitive&lt;/h3>
 &lt;p>This one is easy - take as input a finite set of &lt;code>PCollections&lt;/code> and outputs their
 bag union, keeping windows intact.&lt;/p>
@@ -3384,51 +3332,27 @@ re-encoding) you have to enforce it yourself. Or you could just implement the
 fast path as an optimization.&lt;/p>
 &lt;h3 id="special-mention-the-combine-composite">Special mention: the Combine composite&lt;/h3>
 &lt;p>A composite transform that is almost always treated specially by a runner is
-&lt;code>Combine&lt;/code> (per key), which applies an associative and commutative operator to
+&lt;code>CombinePerKey&lt;/code>, which applies an associative and commutative operator to
 the elements of a &lt;code>PCollection&lt;/code>. This composite is not a primitive. It is
 implemented in terms of &lt;code>ParDo&lt;/code> and &lt;code>GroupByKey&lt;/code>, so your runner will work
 without treating it - but it does carry additional information that you
 probably want to use for optimizations: the associative-commutative operator,
 known as a &lt;code>CombineFn&lt;/code>.&lt;/p>
+&lt;p>Generally runners will want to implement this via what is called
+combiner lifting, where a new operation is placed before the &lt;code>GroupByKey&lt;/code>
+that does partial (within-bundle) combining, which often requires a slight
+modification of what comes after the &lt;code>GroupByKey&lt;/code> as well.
+An example of this transformation can be found in the
+(Python)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193]
+or (go)[https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67]
+implementations of this optimization.
+The resulting pre- and post-&lt;code>GroupByKey&lt;/code> operations are generally fused in with
+the &lt;code>ParDo&lt;/code>s and executed as above.&lt;/p>
 &lt;h2 id="working-with-pipelines">Working with pipelines&lt;/h2>
-&lt;p>When you receive a pipeline from a user, you will need to translate it. This is
-a tour of the APIs that you&amp;rsquo;ll use to do it.&lt;/p>
-&lt;h3 id="traversing-a-pipeline">Traversing a pipeline&lt;/h3>
-&lt;p>Something you will likely do is to traverse a pipeline, probably to translate
-it into primitives for your engine. The general pattern is to write a visitor
-that builds a job specification as it walks the graph of &lt;code>PTransforms&lt;/code>.&lt;/p>
-&lt;p>The entry point for this in Java is
-&lt;a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#traverseTopologically-org.apache.beam.sdk.Pipeline.PipelineVisitor-">&lt;code>Pipeline.traverseTopologically&lt;/code>&lt;/a>
-and
-&lt;a href="https://beam.apache.org/releases/pydoc/2.0.0/apache_beam.html#apache_beam.pipeline.Pipeline.visit">&lt;code>Pipeline.visit&lt;/code>&lt;/a>
-in Python. See the generated documentation for details.&lt;/p>
-&lt;h3 id="altering-a-pipeline">Altering a pipeline&lt;/h3>
-&lt;p>Often, the best way to keep your
-translator simple will be to alter the pipeline prior to translation. Some
-alterations you might perform:&lt;/p>
-&lt;ul>
-&lt;li>Elaboration of a Beam primitive into a composite transform that uses
-multiple runner-specific primitives&lt;/li>
-&lt;li>Optimization of a Beam composite into a specialized primitive for your
-runner&lt;/li>
-&lt;li>Replacement of a Beam composite with a different expansion more suitable for
-your runner&lt;/li>
-&lt;/ul>
-&lt;p>The Java SDK and the &amp;ldquo;runners core construction&amp;rdquo; library (the artifact is
-&lt;code>beam-runners-core-construction-java&lt;/code> and the namespaces is
-&lt;code>org.apache.beam.runners.core.construction&lt;/code>) contain helper code for this sort
-of work. In Python, support code is still under development.&lt;/p>
-&lt;p>All pipeline alteration is done via
-&lt;a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/Pipeline.html#replaceAll-java.util.List-">&lt;code>Pipeline.replaceAll(PTransformOverride)&lt;/code>&lt;/a>
-method. A
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformOverride.java">&lt;code>PTransformOverride&lt;/code>&lt;/a>
-is a pair of a
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformMatcher.java">&lt;code>PTransformMatcher&lt;/code>&lt;/a>
-to select transforms for replacement and a
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/runners/PTransformOverrideFactory.java">&lt;code>PTransformOverrideFactory&lt;/code>&lt;/a>
-to produce the replacement. All &lt;code>PTransformMatchers&lt;/code> that have been needed by
-runners to date are provided. Examples include: matching a specific class,
-matching a &lt;code>ParDo&lt;/code> where the &lt;code>DoFn&lt;/code> uses state or timers, etc.&lt;/p>
+&lt;p>When you receive a pipeline from a user, you will need to translate it.
+An explanation of how Beam pipelines are represented can be found
+(here)[https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA]
+which compliment the (official proto declarations)[https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto].&lt;/p>
 &lt;h2 id="testing-your-runner">Testing your runner&lt;/h2>
 &lt;p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
@@ -3528,15 +3452,29 @@ new target in &lt;code>extra_requires&lt;/code> in &lt;code>setup.py&lt;/code> t
 &lt;p>All runner code should go in it&amp;rsquo;s own package in &lt;code>apache_beam/runners&lt;/code> directory.&lt;/p>
 &lt;p>Register the new runner in the &lt;code>create_runner&lt;/code> function of &lt;code>runner.py&lt;/code> so that the
 partial name is matched with the correct class to be used.&lt;/p>
+&lt;p>Python Runners can also be identified (e.g. when passing the runner parameter)
+by their fully qualified name whether or not they live in the Beam repository.&lt;/p>
 &lt;h2 id="writing-an-sdk-independent-runner">Writing an SDK-independent runner&lt;/h2>
 &lt;p>There are two aspects to making your runner SDK-independent, able to run
 pipelines written in other languages: The Fn API and the Runner API.&lt;/p>
 &lt;h3 id="the-fn-api">The Fn API&lt;/h3>
 &lt;p>&lt;em>Design documents:&lt;/em>&lt;/p>
 &lt;ul>
-&lt;li>&lt;em>&lt;a href="https://s.apache.org/beam-fn-api">https://s.apache.org/beam-fn-api&lt;/a>&lt;/em>&lt;/li>
-&lt;li>&lt;em>&lt;a href="https://s.apache.org/beam-fn-api-processing-a-bundle">https://s.apache.org/beam-fn-api-processing-a-bundle&lt;/a>&lt;/em>&lt;/li>
-&lt;li>&lt;em>&lt;a href="https://s.apache.org/beam-fn-api-send-and-receive-data">https://s.apache.org/beam-fn-api-send-and-receive-data&lt;/a>&lt;/em>&lt;/li>
+&lt;li>
+&lt;p>&lt;em>&lt;a href="https://s.apache.org/beam-fn-api">https://s.apache.org/beam-fn-api&lt;/a>&lt;/em>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;em>&lt;a href="https://s.apache.org/beam-fn-api-processing-a-bundle">https://s.apache.org/beam-fn-api-processing-a-bundle&lt;/a>&lt;/em>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;em>&lt;a href="https://s.apache.org/beam-fn-api-send-and-receive-data">https://s.apache.org/beam-fn-api-send-and-receive-data&lt;/a>&lt;/em>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;em>&lt;a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit#slide=id.g42e4c9aad6_0_317">Overview&lt;/a>&lt;/em>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;em>&lt;a href="https://github.com/apache/beam/blob/master/model/fn-execution/src/main/proto/org/apache/beam/model/fn_execution/v1/beam_fn_api.proto">Spec&lt;/a>&lt;/em>&lt;/p>
+&lt;/li>
 &lt;/ul>
 &lt;p>To run a user&amp;rsquo;s pipeline, you need to be able to invoke their UDFs. The Fn API
 is an RPC interface for the standard UDFs of Beam, implemented using protocol
@@ -3551,10 +3489,10 @@ buffers over gRPC.&lt;/p>
 or provide optimized implementations of bundle processing for same-language
 UDFs.&lt;/p>
 &lt;h3 id="the-runner-api">The Runner API&lt;/h3>
-&lt;p>The Runner API is an SDK-independent schema for a pipeline along with RPC
-interfaces for launching a pipeline and checking the status of a job. The RPC
-interfaces are still in development so for now we focus on the SDK-agnostic
-representation of a pipeline. By examining a pipeline only through Runner API
+&lt;p>The &lt;a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit#slide=id.g42e4c9aad6_1_3736">Runner API&lt;/a>
+is an SDK-independent schema for a pipeline along with RPC
+interfaces for launching a pipeline and checking the status of a job.
+By examining a pipeline only through Runner API
 interfaces, you remove your runner&amp;rsquo;s dependence on the SDK for its language for
 pipeline analysis and job translation.&lt;/p>
 &lt;p>To execute such an SDK-independent pipeline, you will need to support the Fn
@@ -3566,7 +3504,7 @@ hosting the SDK&amp;rsquo;s Fn API harness.&lt;/p>
 &lt;p>You are fully welcome to &lt;em>also&lt;/em> use the SDK for your language, which may offer
 useful utility code.&lt;/p>
 &lt;p>The language-independent definition of a pipeline is described via a protocol
-buffers schema, covered below for reference. But your runner &lt;em>should not&lt;/em>
+buffers schema, covered below for reference. But your runner &lt;em>need not&lt;/em>
 directly manipulate protobuf messages. Instead, the Beam codebase provides
 utilities for working with pipelines so that you don&amp;rsquo;t need to be aware of
 whether or not the pipeline has ever been serialized or transmitted, or what
@@ -3618,7 +3556,7 @@ sense that includes side effects, etc.&lt;/p>
 &lt;/a>
 &lt;pre>&lt;code>message FunctionSpec {
 string urn;
-google.protobuf.Any parameter;
+bytes payload;
 }&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -3636,28 +3574,14 @@ any function. It is also used as the specification for a &lt;code>PTransform&lt;
 used in a &lt;code>PTransform&lt;/code> it describes a function from &lt;code>PCollection&lt;/code> to &lt;code>PCollection&lt;/code>
 and cannot be specific to an SDK because the runner is in charge of evaluating
 transforms and producing &lt;code>PCollections&lt;/code>.&lt;/p>
-&lt;h3 id="sdkfunctionspec-proto">&lt;code>SdkFunctionSpec&lt;/code> proto&lt;/h3>
-&lt;p>When a &lt;code>FunctionSpec&lt;/code> represents a UDF, in general only the SDK that serialized
-it will be guaranteed to understand it. So in that case, it will always come
-with an environment that can understand and execute the function. This is
-represented by the &lt;code>SdkFunctionSpec&lt;/code>.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>message SdkFunctionSpec {
-FunctionSpec spec;
-bytes environment_id;
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>In the Runner API, many objects are stored by reference. Here in the
-&lt;code>environment_id&lt;/code> is a pointer, local to the pipeline and just made up by the
-SDK that serialized it, that can be dereferenced to yield the actual
-environment proto.&lt;/p>
-&lt;p>Thus far, an environment is expected to be a Docker container specification for
-an SDK harness that can execute the specified UDF.&lt;/p>
+&lt;p>It goes without saying that not every environment will be able to deserialize
+every function spec. For this reason &lt;code>PTransform&lt;/code>s have an &lt;code>environment_id&lt;/code>
+parameter that indicates at least one environment that is capable of interpreting
+the contained URNs. This is a reference to an environment in the environments
+map of the Pipeline proto and is typically defined by a docker image (possibly
+with some extra dependencies).
+There may be other environments that are also capable of
+doing so, and a runner is free to use them if it has this knowledge.&lt;/p>
 &lt;h3 id="primitive-transform-payload-protos">Primitive transform payload protos&lt;/h3>
 &lt;p>The payload for the primitive transforms are just proto serializations of their
 specifications. Rather than reproduce their full code here, I will just
@@ -3675,38 +3599,10 @@ inputs, state declarations, timer declarations, etc.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>message ParDoPayload {
-SdkFunctionSpec do_fn;
+FunctionSpec do_fn;
 map&amp;lt;string, SideInput&amp;gt; side_inputs;
 map&amp;lt;string, StateSpec&amp;gt; state_specs;
 map&amp;lt;string, TimerSpec&amp;gt; timer_specs;
-...
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h4 id="readpayload-proto">&lt;code>ReadPayload&lt;/code> proto&lt;/h4>
-&lt;p>A &lt;code>Read&lt;/code> transform carries an &lt;code>SdkFunctionSpec&lt;/code> for its &lt;code>Source&lt;/code> UDF.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>message ReadPayload {
-SdkFunctionSpec source;
-...
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h4 id="windowintopayload-proto">&lt;code>WindowIntoPayload&lt;/code> proto&lt;/h4>
-&lt;p>A &lt;code>Window&lt;/code> transform carries an &lt;code>SdkFunctionSpec&lt;/code> for its &lt;code>WindowFn&lt;/code> UDF. It is
-part of the Fn API that the runner passes this UDF along and tells the SDK
-harness to use it to assign windows (as opposed to merging).&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>message WindowIntoPayload {
-SdkFunctionSpec window_fn;
 ...
 }&lt;/code>&lt;/pre>
 &lt;/div>
@@ -3724,7 +3620,7 @@ a reference to this coder.&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>message CombinePayload {
-SdkFunctionSpec combine_fn;
+FunctionSpec combine_fn;
 string accumulator_coder_id;
 ...
 }&lt;/code>&lt;/pre>
@@ -3732,9 +3628,7 @@ string accumulator_coder_id;
 &lt;/div>
 &lt;h3 id="ptransform-proto">&lt;code>PTransform&lt;/code> proto&lt;/h3>
 &lt;p>A &lt;code>PTransform&lt;/code> is a function from &lt;code>PCollection&lt;/code> to &lt;code>PCollection&lt;/code>. This is
-represented in the proto using a FunctionSpec. Note that this is not an
-&lt;code>SdkFunctionSpec&lt;/code>, since it is the runner that observes these. They will never
-be passed back to an SDK harness; they do not represent a UDF.&lt;/p>
+represented in the proto using a FunctionSpec.&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -3755,6 +3649,12 @@ map&amp;lt;string, bytes&amp;gt; outputs;
 &lt;p>The input and output &lt;code>PCollections&lt;/code> are unordered and referred to by a local
 name. The SDK decides what this name is, since it will likely be embedded in
 serialized UDFs.&lt;/p>
+&lt;p>A runner that understands the specification of a given &lt;code>PTransform&lt;/code> (whether
+primitive or composite), as defined by its &lt;code>FunctionSpec&lt;/code>, is free to
+substitute it with another &lt;code>PTransform&lt;/code> (or set thereof) that has identical
+semantics.
+This is typically how &lt;code>CombinePerKey&lt;/code> is handled, but many other substitutions
+can be done as well.&lt;/p>
 &lt;h3 id="pcollection-proto">&lt;code>PCollection&lt;/code> proto&lt;/h3>
 &lt;p>A &lt;code>PCollection&lt;/code> just stores a coder, windowing strategy, and whether or not it
 is bounded.&lt;/p>
@@ -3773,7 +3673,7 @@ string windowing_strategy_id;
 &lt;/div>
 &lt;h3 id="coder-proto">&lt;code>Coder&lt;/code> proto&lt;/h3>
 &lt;p>This is a very interesting proto. A coder is a parameterized function that may
-only be understood by a particular SDK, hence an &lt;code>SdkFunctionSpec&lt;/code>, but also
+only be understood by a particular SDK, hence an &lt;code>FunctionSpec&lt;/code>, but also
 may have component coders that fully define it. For example, a &lt;code>ListCoder&lt;/code> is
 only a meta-format, while &lt;code>ListCoder(VarIntCoder)&lt;/code> is a fully specified format.&lt;/p>
 &lt;div class="snippet">
@@ -3782,77 +3682,34 @@ only a meta-format, while &lt;code>ListCoder(VarIntCoder)&lt;/code> is a fully s
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>message Coder {
-SdkFunctionSpec spec;
+FunctionSpec spec;
 repeated string component_coder_ids;
 }&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;h2 id="the-runner-api-rpcs">The Runner API RPCs&lt;/h2>
-&lt;p>While your language&amp;rsquo;s SDK will probably insulate you from touching the Runner
+&lt;p>There are a large number of
+&lt;a href="https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L829">standard coders&lt;/a>
+understood by most, if not all,
+SDKs. Using these allows for cross-language transforms.&lt;/p>
+&lt;h2 id="the-jobs-api-rpcs">The Jobs API RPCs&lt;/h2>
+&lt;p>&lt;a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit#slide=id.g42e4c9aad6_1_3722">Overview&lt;/a>
+&lt;a href="https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_job_api.proto">Spec&lt;/a>&lt;/p>
+&lt;p>While your language&amp;rsquo;s SDK will may insulate you from touching the Runner
 API protos directly, you may need to implement adapters for your runner, to
-expose it to another language. So this section covers proto that you will
-possibly interact with quite directly.&lt;/p>
-&lt;p>The specific manner in which the existing runner method calls will be expressed
-as RPCs is not implemented as proto yet. This RPC layer is to enable, for
-example, building a pipeline using the Python SDK and launching it on a runner
-that is written in Java. It is expected that a small Python shim will
-communicate with a Java process or service hosting the Runner API.&lt;/p>
+expose it to another language.
+This allows a Python SDK to invoke a Java runner or vice versa.
+A typical implementation of this can be found in
+&lt;a href="https://github.com/apache/beam/blob/release-2.48.0/sdks/python/apache_beam/runners/portability/local_job_service.py">local_job_service.py&lt;/a>
+which is used directly to front several Python-implemented runners.&lt;/p>
 &lt;p>The RPCs themselves will necessarily follow the existing APIs of PipelineRunner
 and PipelineResult, but altered to be the minimal backend channel, versus a
 rich and convenient API.&lt;/p>
-&lt;h3 id="pipelinerunnerrunpipeline-rpc">&lt;code>PipelineRunner.run(Pipeline)&lt;/code> RPC&lt;/h3>
-&lt;p>This will take the same form, but &lt;code>PipelineOptions&lt;/code> will have to be serialized
-to JSON (or a proto &lt;code>Struct&lt;/code>) and passed along.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>message RunPipelineRequest {
-Pipeline pipeline;
-Struct pipeline_options;
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>message RunPipelineResponse {
-bytes pipeline_id;
-// TODO: protocol for rejecting pipelines that cannot be executed
-// by this runner. May just be REJECTED job state with error message.
-// totally opaque to the SDK; for the shim to interpret
-Any contents;
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h3 id="pipelineresult-aka-job-api">&lt;code>PipelineResult&lt;/code> aka &amp;ldquo;Job API&amp;rdquo;&lt;/h3>
-&lt;p>The two core pieces of functionality in this API today are getting the state of
-a job and canceling the job. It is very much likely to evolve, for example to
-be generalized to support draining a job (stop reading input and let watermarks
-go to infinity). Today, verifying our test framework benefits (but does not
-depend upon wholly) querying metrics over this channel.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>message CancelPipelineRequest {
-bytes pipeline_id;
-...
-}
-message GetStateRequest {
-bytes pipeline_id;
-...
-}
-message GetStateResponse {
-JobState state;
-...
-}
-enum JobState {
-...
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+&lt;p>A key piece of this is the
+(Artifacts API)[https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto],
+which allows a Runner to fetch and deploy binary artifacts (such as jars,
+pypi packages, etc.) that are listed as dependencies in the various environments,
+and may have various representations. This is invoked after a pipeline
+is submitted, but before it is executed. The SDK submitting a pipeline acts
+as an artifact server to the runner receiving the request, and in turn the
+runner then acts as an artifact server to the workers (environments) hosting
+the users UDFs.&lt;/p></description></item></channel></rss>
