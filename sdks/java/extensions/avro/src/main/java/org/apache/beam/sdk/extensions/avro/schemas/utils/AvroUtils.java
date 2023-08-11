@@ -452,9 +452,9 @@ public class AvroUtils {
       String type = nullableType.type.getType().getName();
 
       Schema.Options.Builder optionsBuilder =
-              Schema.Options.setOption("precision", FieldType.INT32, precision)
-                      .setOption("scale", FieldType.INT32, scale)
-                      .setOption("type", FieldType.STRING, type);
+          Schema.Options.setOption("precision", FieldType.INT32, precision)
+              .setOption("scale", FieldType.INT32, scale)
+              .setOption("type", FieldType.STRING, type);
 
       if (nullableType.type.getType() == Type.FIXED) {
         optionsBuilder.setOption("size", FieldType.INT32, nullableType.type.getFixedSize());
@@ -1027,12 +1027,12 @@ public class AvroUtils {
   }
 
   private static org.apache.avro.Schema getFieldSchema(
-          Schema.FieldType fieldType, String fieldName, String namespace) {
+      Schema.FieldType fieldType, String fieldName, String namespace) {
     return getFieldSchema(fieldType, fieldName, namespace, Schema.Options.none());
   }
 
   private static org.apache.avro.Schema getFieldSchema(
-          Schema.FieldType fieldType, String fieldName, String namespace, Schema.Options options) {
+      Schema.FieldType fieldType, String fieldName, String namespace, Schema.Options options) {
     org.apache.avro.Schema baseType;
     switch (fieldType.getTypeName()) {
       case BYTE:
@@ -1050,17 +1050,22 @@ public class AvroUtils {
         String type = options.hasOption("type") ? options.getValue("type") : "bytes";
         Type decimalType = Type.valueOf(type.toUpperCase());
         Integer precision =
-                options.hasOption("precision") ? options.getValue("precision") : Integer.MAX_VALUE;
+            options.hasOption("precision") ? options.getValue("precision") : Integer.MAX_VALUE;
         Integer scale = options.hasOption("scale") ? options.getValue("scale") : 0;
         LogicalTypes.Decimal decimal = LogicalTypes.decimal(precision, scale);
         if (decimalType == Type.FIXED) {
+          if (!options.hasOption("size")) {
+            throw new IllegalArgumentException("'size' option is required for field:" + fieldName);
+          }
           Integer size = options.getValue("size");
           baseType =
-                  decimal.addToSchema(
-                          org.apache.avro.Schema.createFixed(fieldName, null, namespace, size));
-        } else {
-          // decimalType == Type.BYTES
+              decimal.addToSchema(
+                  org.apache.avro.Schema.createFixed(fieldName, null, namespace, size));
+        } else if (decimalType == Type.BYTES) {
           baseType = decimal.addToSchema(org.apache.avro.Schema.create(Type.BYTES));
+        } else {
+          throw new IllegalArgumentException(
+              "Unexpected decimalType:" + decimalType + " for field:" + fieldName);
         }
         decimal.validate(baseType);
         break;
@@ -1194,12 +1199,16 @@ public class AvroUtils {
       case DECIMAL:
         BigDecimal decimal = (BigDecimal) value;
         LogicalType logicalType = typeWithNullability.type.getLogicalType();
-        if (typeWithNullability.type.getType() == Type.FIXED) {
+        Type type = typeWithNullability.type.getType();
+        if (type == Type.FIXED) {
           return new Conversions.DecimalConversion()
-                  .toFixed(decimal, typeWithNullability.type, logicalType);
+              .toFixed(decimal, typeWithNullability.type, logicalType);
         } else {
-          // typeWithNullability.type.getType() == Type.BYTES
-          return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+          if (type == Type.BYTES) {
+            return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+          } else {
+            throw new IllegalArgumentException("Unexpected type:" + type);
+          }
         }
 
       case DATETIME:
@@ -1330,15 +1339,18 @@ public class AvroUtils {
         if (avroSchema.getType() == Type.FIXED) {
           GenericFixed genericFixed = (GenericFixed) value;
           BigDecimal bigDecimal =
-                  new Conversions.DecimalConversion().fromFixed(genericFixed, type.type, logicalType);
+              new Conversions.DecimalConversion().fromFixed(genericFixed, type.type, logicalType);
           return convertDecimal(bigDecimal, fieldType);
         } else {
-          // avroSchema.getType() == Type.BYTES
-          ByteBuffer byteBuffer = (ByteBuffer) value;
-          BigDecimal bigDecimal =
-                  new Conversions.DecimalConversion()
-                          .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
-          return convertDecimal(bigDecimal, fieldType);
+          if (avroSchema.getType() == Type.BYTES) {
+            ByteBuffer byteBuffer = (ByteBuffer) value;
+            BigDecimal bigDecimal =
+                new Conversions.DecimalConversion()
+                    .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
+            return convertDecimal(bigDecimal, fieldType);
+          } else {
+            throw new IllegalArgumentException("Unsupported type: " + avroSchema.getType());
+          }
         }
 
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
