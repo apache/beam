@@ -33,7 +33,7 @@ import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
@@ -66,15 +66,7 @@ class FirestoreStatefulComponentFactory implements Serializable {
    */
   FirestoreStub getFirestoreStub(PipelineOptions options) {
     try {
-      FirestoreSettings.Builder builder =
-          FirestoreSettings.newBuilder()
-              .setHeaderProvider(
-                  new FixedHeaderProvider() {
-                    @Override
-                    public Map<@NonNull String, @NonNull String> getHeaders() {
-                      return ImmutableMap.of("User-Agent", options.getUserAgent());
-                    }
-                  });
+      FirestoreSettings.Builder builder = FirestoreSettings.newBuilder();
 
       RetrySettings retrySettings = RetrySettings.newBuilder().setMaxAttempts(1).build();
 
@@ -86,6 +78,8 @@ class FirestoreStatefulComponentFactory implements Serializable {
 
       FirestoreOptions firestoreOptions = options.as(FirestoreOptions.class);
       String emulatorHostPort = firestoreOptions.getEmulatorHost();
+      ImmutableMap.Builder<String, String> headers = ImmutableMap.builder();
+      headers.put("User-Agent", options.getUserAgent());
       if (emulatorHostPort != null) {
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(new EmulatorCredentials()))
@@ -100,7 +94,21 @@ class FirestoreStatefulComponentFactory implements Serializable {
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
             .setEndpoint(firestoreOptions.getHost());
+        headers.put(
+            "x-goog-request-params",
+            "project_id="
+                + gcpOptions.getProject()
+                + "&database_id="
+                + firestoreOptions.getFirestoreDb());
       }
+
+      builder.setHeaderProvider(
+          new FixedHeaderProvider() {
+            @Override
+            public Map<@NonNull String, @NonNull String> getHeaders() {
+              return headers.build();
+            }
+          });
 
       ClientContext clientContext = ClientContext.create(builder.build());
       return GrpcFirestoreStub.create(clientContext);

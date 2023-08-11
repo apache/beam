@@ -207,6 +207,7 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
           "--expansion_jar=debeziumio:${debeziumIoExpJar}",
           "--expansion_jar=gcpio:${gcpIoExpJar}",
           "--bq_dataset=apache-beam-testing.beam_bigquery_io_test_temp",
+          "--bt_instance=projects/apache-beam-testing/instances/beam-test"
       ]
       pipelineOptions.addAll(pipelineOpts)
       def options = [

@@ -77,7 +77,7 @@ dependencies {
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
   shadow library.java.vendored_grpc_1_54_0
-  shadow library.java.vendored_guava_26_0_jre
+  shadow library.java.vendored_guava_32_1_2_jre
   shadow library.java.byte_buddy
   implementation library.java.antlr_runtime
   implementation library.java.commons_compress

@@ -143,7 +143,7 @@ dependencies {
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_54_0
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
 
@@ -206,10 +206,6 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
   exclude '**/BigQueryIOJsonTest.class'
-
-  // Failing due to Firestore service-side changes
-  // https://github.com/apache/beam/issues/25851
-  exclude '**/firestore/it/**/*.class'
 
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath

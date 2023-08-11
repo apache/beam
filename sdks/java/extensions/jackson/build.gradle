@@ -26,7 +26,7 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
 ext.summary = "Jackson extension provides PTransforms for deserializing and generating JSON strings."
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.jackson_databind
   implementation library.java.jackson_core

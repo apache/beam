@@ -18,8 +18,6 @@
 package org.apache.beam.it.gcp.kms;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.kms.v1.CryptoKeyVersion;
@@ -31,13 +29,12 @@ import com.google.cloud.kms.v1.KeyRing;
 import com.google.cloud.kms.v1.KeyRingName;
 import com.google.cloud.kms.v1.LocationName;
 import com.google.protobuf.ByteString;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 import org.apache.beam.it.common.ResourceManager;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,8 +72,8 @@ public class KMSResourceManager implements ResourceManager {
     this.keyRing = null;
   }
 
-  public static Builder builder(String projectId) throws IOException {
-    return new Builder(projectId);
+  public static Builder builder(String projectId, CredentialsProvider credentialsProvider) {
+    return new Builder(projectId, credentialsProvider);
   }
 
   /**
@@ -237,11 +234,10 @@ public class KMSResourceManager implements ResourceManager {
     private CredentialsProvider credentialsProvider;
     private String region;
 
-    private Builder(String projectId) throws IOException {
+    private Builder(String projectId, CredentialsProvider credentialsProvider) {
       this.projectId = projectId;
       this.region = DEFAULT_KMS_REGION;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
     }
 
     /**

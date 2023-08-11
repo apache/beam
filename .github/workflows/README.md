@@ -19,13 +19,68 @@
 
 On top of normal Actions workflow steps, all new CI workflows (excluding release workflows or other workflow automation) should have the following:
 
-1) A set of specific triggers
-2) An explicit checkout step
-3) A set of GitHub token permissions
-4) Concurrency Groups
-5) Comment Triggering Support
+1) Name and phrase set via matrix for re-run to work (See below)
+2) A set of specific triggers
+3) An explicit checkout step
+4) A set of GitHub token permissions
+5) Concurrency Groups
+6) Comment Triggering Support
 
 Each of these is described in more detail below.
+## Name and Phrase
+Due to specifics on how the comment triggered rerun is handled it is required that all jobs have name and phrase set via matrix elements. See the following example:
+```
+jobs:
+  beam_job_name:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: [beam_job_name]
+        job_phrase: [Run Job Phrase]
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Job Phrase'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+
+```
+And in case when the workflow already utilizes matrix do the following:
+```
+jobs:
+  beam_job_with_matrix:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: ["beam_job_with_matrix"]
+        job_phrase: ["Run Job With Matrix"]
+        python_version: ['3.8','3.9','3.10','3.11']
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      startsWith(github.event.comment.body, 'Run Job With Matrix')
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{matrix.job_phrase}}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+```
+Notice how the matrix element of `python_version` is appended to the name.
 
 ## Workflow triggers
 
@@ -120,10 +175,17 @@ Please note that jobs with matrix need to have matrix element in the comment. Ex
 | [ PostCommit Java Examples Dataflow ARM ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml) | N/A |`Run Java_Examples_Dataflow_ARM PostCommit`| [![PostCommit Java Examples Dataflow ARM](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml) |
 | [ PreCommit Community Metrics ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_CommunityMetrics.yml) | N/A |`Run CommunityMetrics PreCommit`| [![.github/workflows/beam_PreCommit_CommunityMetrics.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_CommunityMetrics.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_CommunityMetrics.yml) |
 | [ PreCommit Go ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Go.yml) | N/A |`Run Go PreCommit`| [![.github/workflows/beam_PreCommit_Go.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Go.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Go.yml) |
+| [ PreCommit Java Amazon Web Services IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services_IO_Direct.yml) | N/A |`Run Java_Amazon-Web-Services_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Amazon-Web-Services_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services_IO_Direct.yml) |
+| [ PreCommit Java Amazon Web Services2 IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml) | N/A |`Run Java_Amazon-Web-Services2_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml) |
 | [ PreCommit Java Examples Dataflow ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Examples_Dataflow.yml) | N/A |`Run Java_Examples_Dataflow PreCommit`| [![.github/workflows/beam_PreCommit_Java_Examples_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Examples_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Examples_Dataflow.yml) |
 | [ PreCommit Java Flink Versions ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Flink_Versions.yml) | N/A |`Run Java_Flink_Versions PreCommit`| [![.github/workflows/beam_PreCommit_Java_Flink_Versions.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Flink_Versions.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Flink_Versions.yml) |
 | [ PreCommit Java Examples Dataflow Java11 ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml) | N/A | `Run Java_Examples_Dataflow_Java11 PreCommit` | [![.github/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml) |
+| [ PreCommit Java Redis IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Redis_IO_Direct.yml) | N/A |`Run Java_Redis_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Redis_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Redis_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Redis_IO_Direct.yml) |
+| [ PreCommit Java Solr IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Solr_IO_Direct.yml) | N/A |`Run Java_Solr_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Solr_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Solr_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Solr_IO_Direct.yml) |
 | [ PreCommit Java Spark3 Versions ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Spark3_Versions.yml) | N/A | `Run Java_Spark3_Versions PreCommit` | [![.github/workflows/beam_PreCommit_Java_Spark3_Versions.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Spark3_Versions.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Spark3_Versions.yml) |
+| [ PreCommit Java Splunk IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Splunk_IO_Direct.yml) | N/A |`Run Java_Splunk_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Splunk_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Splunk_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Splunk_IO_Direct.yml) |
+| [ PreCommit Java Thrift IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Thrift_IO_Direct.yml) | N/A |`Run Java_Thrift_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Thrift_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Thrift_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Thrift_IO_Direct.yml) |
+| [ PreCommit Java Tika IO Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Tika_IO_Direct.yml) | N/A |`Run Java_Tika_IO_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Java_Tika_IO_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Tika_IO_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Java_Tika_IO_Direct.yml) |
 | [ PreCommit Python ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python.yml) | ['3.8','3.9','3.10','3.11'] | `Run Python PreCommit (matrix_element)` | [![.github/workflows/beam_PreCommit_Python.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python.yml) |
 | [ PreCommit Python Coverage ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python_Coverage.yml) | N/A | `Run Python_Coverage PreCommit`| [![.github/workflows/beam_PreCommit_Python_Coverage.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python_Coverage.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python_Coverage.yml) |
 | [ PreCommit Python Dataframes ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python_Dataframes.yml) | ['3.8','3.9','3.10','3.11'] | `Run Python_Dataframes PreCommit (matrix_element)`| [![.github/workflows/beam_PreCommit_Python_Dataframes.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python_Dataframes.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Python_Dataframes.yml) |

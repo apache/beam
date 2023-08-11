@@ -430,7 +430,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.50.0'
+    project.version = '2.51.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -490,7 +490,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.containerArchitectures = {
       if (isRelease(project)) {
         // Ensure we always publish the expected containers.
-        return ["amd64"];
+        return ["amd64", "arm64"];
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
         def containerArchitectures = project.rootProject.findProperty("container-architecture-list").split(',')
         if (containerArchitectures.size() > 1 && !project.rootProject.hasProperty("push-containers")) {
@@ -530,11 +530,12 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.31.1"
+    def gax_version = "2.32.0"
+    def google_ads_version = "26.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.16"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.44.0"
+    def google_cloud_spanner_version = "6.45.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -651,17 +652,21 @@ class BeamModulePlugin implements Plugin<Project> {
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
+        google_ads                                  : "com.google.api-ads:google-ads:$google_ads_version",
+        google_ads_stubs_v14                        : "com.google.api-ads:google-ads-stubs-v14:$google_ads_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         // Keep version consistent with the version in google_cloud_bigquery, managed by google_cloud_platform_libraries_bom
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20230520-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20220828-$google_clients_version",
+        // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230129-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230510-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230301-$google_clients_version",
+        // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230617-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
@@ -673,14 +678,15 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.15.0",
+        // Keep version consistent with the version in google_cloud_datastore, managed by google_cloud_platform_libraries_bom
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.16.3",
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The release notes shows the versions set by the BOM:
         // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.21.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.21.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.22.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -829,7 +835,7 @@ class BeamModulePlugin implements Plugin<Project> {
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1",
-        vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
+        vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-5",
@@ -2098,7 +2104,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.20.6"
+      project.ext.goVersion = "go1.21.0"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

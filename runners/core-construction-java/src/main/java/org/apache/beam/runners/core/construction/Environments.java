@@ -49,15 +49,15 @@ import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -328,51 +328,65 @@ public class Environments {
       } else {
         file = new File(path);
       }
-      // Spurious items get added to the classpath. Filter by just those that exist.
-      if (file.exists()) {
-        ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
-        artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
-        artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
-        HashCode hashCode;
-        if (file.isDirectory()) {
-          File zippedFile;
-          try {
-            zippedFile = zipDirectory(file);
-            hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
 
-          artifactBuilder.setTypePayload(
-              RunnerApi.ArtifactFilePayload.newBuilder()
-                  .setPath(zippedFile.getPath())
-                  .setSha256(hashCode.toString())
-                  .build()
-                  .toByteString());
-
+      // Spurious items get added to the classpath, but ignoring silently can cause confusion.
+      // Therefore, issue logs if a file does not exist before ignoring. The level will be warning
+      // if they have a staged name, as those are likely to cause problems or unintended behavior
+      // (e.g., dataflow-worker.jar, windmill_main).
+      if (!file.exists()) {
+        if (stagedName != null) {
+          LOG.warn(
+              "Stage Artifact '{}' with the name '{}' was not found, staging will be ignored.",
+              file,
+              stagedName);
         } else {
-          try {
-            hashCode = Files.asByteSource(file).hash(Hashing.sha256());
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-          artifactBuilder.setTypePayload(
-              RunnerApi.ArtifactFilePayload.newBuilder()
-                  .setPath(file.getPath())
-                  .setSha256(hashCode.toString())
-                  .build()
-                  .toByteString());
+          LOG.info("Stage Artifact '{}' was not found, staging will be ignored.", file);
         }
-        if (stagedName == null) {
-          stagedName = createStagingFileName(file, hashCode);
+        continue;
+      }
+
+      ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
+      artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
+      artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
+      HashCode hashCode;
+      if (file.isDirectory()) {
+        File zippedFile;
+        try {
+          zippedFile = zipDirectory(file);
+          hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
         }
-        artifactBuilder.setRolePayload(
-            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
-                .setStagedName(stagedName)
+
+        artifactBuilder.setTypePayload(
+            RunnerApi.ArtifactFilePayload.newBuilder()
+                .setPath(zippedFile.getPath())
+                .setSha256(hashCode.toString())
                 .build()
                 .toByteString());
-        artifactsBuilder.add(artifactBuilder.build());
+
+      } else {
+        try {
+          hashCode = Files.asByteSource(file).hash(Hashing.sha256());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        artifactBuilder.setTypePayload(
+            RunnerApi.ArtifactFilePayload.newBuilder()
+                .setPath(file.getPath())
+                .setSha256(hashCode.toString())
+                .build()
+                .toByteString());
       }
+      if (stagedName == null) {
+        stagedName = createStagingFileName(file, hashCode);
+      }
+      artifactBuilder.setRolePayload(
+          RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+              .setStagedName(stagedName)
+              .build()
+              .toByteString());
+      artifactsBuilder.add(artifactBuilder.build());
     }
     return artifactsBuilder.build();
   }

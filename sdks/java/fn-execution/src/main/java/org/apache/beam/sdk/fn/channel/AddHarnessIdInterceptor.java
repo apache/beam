@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.fn.channel;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Metadata;

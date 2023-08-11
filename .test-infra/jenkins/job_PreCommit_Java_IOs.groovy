@@ -81,6 +81,7 @@ def ioModulesMap = [
     'debezium',
     'elasticsearch',
     'file-schema-transform',
+    'google-ads',
     'hbase',
     'hcatalog',
     'influxdb',

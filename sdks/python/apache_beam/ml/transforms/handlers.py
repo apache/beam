@@ -437,10 +437,11 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       if not os.path.exists(os.path.join(
           self.artifact_location, RAW_DATA_METADATA_DIR, SCHEMA_FILE)):
         raise FileNotFoundError(
-            "Artifacts not found at location: %s when artifact_mode=consume."
-            "Make sure you've run the pipeline in `produce` mode using "
-            "this artifact location before setting artifact_mode to `consume`."
-            % os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
+            "Artifacts not found at location: %s when using "
+            "read_artifact_location. Make sure you've run the pipeline with "
+            "write_artifact_location using this artifact location before "
+            "running with read_artifact_location set." %
+            os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 

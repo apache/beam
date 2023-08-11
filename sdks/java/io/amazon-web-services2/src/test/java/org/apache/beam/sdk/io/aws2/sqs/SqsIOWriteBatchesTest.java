@@ -17,19 +17,26 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.Duration.millis;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
@@ -38,31 +45,38 @@ import org.apache.beam.sdk.io.aws2.common.AsyncBatchWriteHandler;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO.WriteBatches;
-import org.apache.beam.sdk.io.aws2.sqs.SqsIO.WriteBatches.EntryBuilder;
+import org.apache.beam.sdk.io.aws2.sqs.SqsIO.WriteBatches.EntryMapperFn;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.SqsAsyncClientBuilder;
 import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeValue;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 /** Tests for {@link WriteBatches}. */
 @RunWith(MockitoJUnitRunner.class)
 public class SqsIOWriteBatchesTest {
-  private static final EntryBuilder<String> SET_MESSAGE_BODY =
+  private static final EntryMapperFn.Builder<String> SET_MESSAGE_BODY =
       SendMessageBatchRequestEntry.Builder::messageBody;
   private static final SendMessageBatchResponse SUCCESS =
       SendMessageBatchResponse.builder().build();
@@ -77,12 +91,79 @@ public class SqsIOWriteBatchesTest {
   }
 
   @Test
+  public void testSchemaEntryMapper() throws Exception {
+    SchemaRegistry registry = p.getSchemaRegistry();
+
+    Map<String, MessageAttributeValue> attributes =
+        ImmutableMap.of("key", MessageAttributeValue.builder().stringValue("value").build());
+    Map<String, MessageSystemAttributeValue> systemAttributes =
+        ImmutableMap.of(
+            "key",
+            MessageSystemAttributeValue.builder()
+                .binaryValue(SdkBytes.fromString("bytes", UTF_8))
+                .build());
+
+    SendMessageRequest input =
+        SendMessageRequest.builder()
+            .messageBody("body")
+            .delaySeconds(3)
+            .messageAttributes(attributes)
+            .messageSystemAttributesWithStrings(systemAttributes)
+            .build();
+
+    SqsIO.WriteBatches.EntryMapperFn<SendMessageRequest> mapper =
+        new SqsIO.WriteBatches.SchemaEntryMapper<>(
+            registry.getSchema(SendMessageRequest.class),
+            registry.getSchema(SendMessageBatchRequestEntry.class),
+            registry.getToRowFunction(SendMessageRequest.class),
+            registry.getFromRowFunction(SendMessageBatchRequestEntry.class));
+
+    assertThat(mapper.apply("1", input))
+        .isEqualTo(
+            SendMessageBatchRequestEntry.builder()
+                .id("1")
+                .messageBody("body")
+                .delaySeconds(3)
+                .messageAttributes(attributes)
+                .messageSystemAttributesWithStrings(systemAttributes)
+                .build());
+  }
+
+  @Test
+  public void testWrite() {
+    // write uses writeBatches with batch size 1
+    when(sqs.sendMessageBatch(anyRequest())).thenReturn(completedFuture(SUCCESS));
+
+    SendMessageRequest.Builder msgBuilder = SendMessageRequest.builder().queueUrl("queue");
+    Set<SendMessageRequest> messages =
+        range(0, 100)
+            .mapToObj(i -> msgBuilder.messageBody("test" + i).build())
+            .collect(Collectors.toSet());
+
+    p.apply(Create.of(messages)).apply(SqsIO.write());
+    p.run().waitUntilFinish();
+
+    ArgumentCaptor<SendMessageBatchRequest> captor =
+        ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+    verify(sqs, times(100)).sendMessageBatch(captor.capture());
+
+    for (SendMessageBatchRequest req : captor.getAllValues()) {
+      assertThat(req.queueUrl()).isEqualTo("queue");
+      assertThat(req.entries()).hasSize(1);
+      for (SendMessageBatchRequestEntry entry : req.entries()) {
+        assertTrue(messages.remove(msgBuilder.messageBody(entry.messageBody()).build()));
+      }
+    }
+    assertTrue(messages.isEmpty());
+  }
+
+  @Test
   public void testWriteBatches() {
     when(sqs.sendMessageBatch(anyRequest())).thenReturn(completedFuture(SUCCESS));
 
     p.apply(Create.of(23))
         .apply(ParDo.of(new CreateMessages()))
-        .apply(SqsIO.writeBatches(SET_MESSAGE_BODY).to("queue"));
+        .apply(SqsIO.<String>writeBatches().withEntryMapper(SET_MESSAGE_BODY).to("queue"));
 
     p.run().waitUntilFinish();
 
@@ -104,7 +185,7 @@ public class SqsIOWriteBatchesTest {
 
     p.apply(Create.of(23))
         .apply(ParDo.of(new CreateMessages()))
-        .apply(SqsIO.writeBatches(SET_MESSAGE_BODY).to("queue"));
+        .apply(SqsIO.<String>writeBatches().withEntryMapper(SET_MESSAGE_BODY).to("queue"));
 
     assertThatThrownBy(() -> p.run().waitUntilFinish())
         .isInstanceOf(Pipeline.PipelineExecutionException.class)
@@ -122,7 +203,7 @@ public class SqsIOWriteBatchesTest {
 
     p.apply(Create.of(23))
         .apply(ParDo.of(new CreateMessages()))
-        .apply(SqsIO.writeBatches(SET_MESSAGE_BODY).to("queue"));
+        .apply(SqsIO.<String>writeBatches().withEntryMapper(SET_MESSAGE_BODY).to("queue"));
 
     p.run().waitUntilFinish();
 
@@ -145,7 +226,11 @@ public class SqsIOWriteBatchesTest {
 
     p.apply(Create.of(8))
         .apply(ParDo.of(new CreateMessages()))
-        .apply(SqsIO.writeBatches(SET_MESSAGE_BODY).withBatchSize(3).to("queue"));
+        .apply(
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(SET_MESSAGE_BODY)
+                .withBatchSize(3)
+                .to("queue"));
 
     p.run().waitUntilFinish();
 
@@ -158,6 +243,27 @@ public class SqsIOWriteBatchesTest {
   }
 
   @Test
+  public void testWriteBatchesWithTimeout() {
+    when(sqs.sendMessageBatch(anyRequest())).thenReturn(completedFuture(SUCCESS));
+
+    p.apply(Create.of(5))
+        .apply(ParDo.of(new CreateMessages()))
+        .apply(
+            // simulate delay between messages > batch timeout
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(withDelay(millis(100), SET_MESSAGE_BODY))
+                .withBatchTimeout(millis(150))
+                .to("queue"));
+
+    p.run().waitUntilFinish();
+
+    SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
+    // due to added delay, batches are timed out on arrival of every 3rd msg
+    verify(sqs).sendMessageBatch(request("queue", entries[0], entries[1], entries[2]));
+    verify(sqs).sendMessageBatch(request("queue", entries[3], entries[4]));
+  }
+
+  @Test
   public void testWriteBatchesToDynamic() {
     when(sqs.sendMessageBatch(anyRequest())).thenReturn(completedFuture(SUCCESS));
 
@@ -167,7 +273,8 @@ public class SqsIOWriteBatchesTest {
     p.apply(Create.of(10))
         .apply(ParDo.of(new CreateMessages()))
         .apply(
-            SqsIO.writeBatches(SET_MESSAGE_BODY)
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(SET_MESSAGE_BODY)
                 .withClientConfiguration(ClientConfiguration.builder().retry(retry).build())
                 .withBatchSize(3)
                 .to(msg -> Integer.valueOf(msg) % 2 == 0 ? "even" : "uneven"));
@@ -187,24 +294,25 @@ public class SqsIOWriteBatchesTest {
   }
 
   @Test
-  public void testWriteBatchesWithTimeout() {
+  public void testWriteBatchesToDynamicWithTimeout() {
     when(sqs.sendMessageBatch(anyRequest())).thenReturn(completedFuture(SUCCESS));
 
     p.apply(Create.of(5))
         .apply(ParDo.of(new CreateMessages()))
         .apply(
             // simulate delay between messages > batch timeout
-            SqsIO.writeBatches(withDelay(millis(200), SET_MESSAGE_BODY))
-                .withBatchTimeout(millis(100))
-                .to("queue"));
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(withDelay(millis(100), SET_MESSAGE_BODY))
+                .withBatchTimeout(millis(150))
+                .to(msg -> Integer.valueOf(msg) % 2 == 0 ? "even" : "uneven"));
 
     p.run().waitUntilFinish();
 
     SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
-    // due to added delay, batches are timed out on arrival of every 2nd msg
-    verify(sqs).sendMessageBatch(request("queue", entries[0], entries[1]));
-    verify(sqs).sendMessageBatch(request("queue", entries[2], entries[3]));
-    verify(sqs).sendMessageBatch(request("queue", entries[4]));
+    // due to added delay, dynamic batches are timed out on arrival of every 2nd msg (per batch)
+    verify(sqs).sendMessageBatch(request("even", entries[0], entries[2]));
+    verify(sqs).sendMessageBatch(request("uneven", entries[1], entries[3]));
+    verify(sqs).sendMessageBatch(request("even", entries[4]));
   }
 
   private SendMessageBatchRequest anyRequest() {
@@ -252,7 +360,8 @@ public class SqsIOWriteBatchesTest {
     }
   }
 
-  private static <T> EntryBuilder<T> withDelay(Duration delay, EntryBuilder<T> builder) {
+  private static <T> EntryMapperFn.Builder<T> withDelay(
+      Duration delay, EntryMapperFn.Builder<T> builder) {
     return (t1, t2) -> {
       builder.accept(t1, t2);
       try {

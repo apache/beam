@@ -19,7 +19,7 @@ package org.apache.beam.sdk.values;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>

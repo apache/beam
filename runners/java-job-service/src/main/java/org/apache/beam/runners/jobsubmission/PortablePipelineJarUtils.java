@@ -30,7 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.util.JsonFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 /**
  * Contains common code for writing and reading portable pipeline jars.

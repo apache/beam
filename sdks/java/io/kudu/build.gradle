@@ -44,7 +44,7 @@ test {
 def kudu_version = "1.11.1"
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "org.apache.kudu:kudu-client:$kudu_version"
   implementation library.java.slf4j_api
