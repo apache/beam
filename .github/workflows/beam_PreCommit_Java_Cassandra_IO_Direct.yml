@@ -13,37 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Java Amazon-Web-Services2 IO Direct
+name: PreCommit Java Cassandra IO Direct
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
-      - "sdks/java/io/amazon-web-services2/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
-      - ".github/workflows/beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct.yml"
+      - "sdks/java/io/cassandra/**"
+      - ".github/workflows/beam_PreCommit_Java_Cassandra_IO_Direct.yml"
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - "sdks/java/io/amazon-web-services2/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
+      - "sdks/java/io/cassandra/**"
   issue_comment:
     types: [created]
   schedule:
@@ -72,19 +54,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct:
+  beam_PreCommit_Java_Cassandra_IO_Direct:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PreCommit_Java_Amazon-Web-Services2_IO_Direct"]
-        job_phrase: ["Run Java_Amazon-Web-Services2_IO_Direct PreCommit"]
+        job_name: ["beam_PreCommit_Java_Cassandra_IO_Direct"]
+        job_phrase: ["Run Java_Cassandra_IO_Direct PreCommit"]
     timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_Amazon-Web-Services2_IO_Direct PreCommit'
+      github.event.comment.body == 'Run Java_Cassandra_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v3
@@ -94,17 +76,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: run Amazon-Web-Services2 IO build script
+      - name: run Cassandra IO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:amazon-web-services2:build
-          arguments: |
-            -PdisableSpotlessCheck=true \
-            -PdisableCheckStyle=true \
-      - name: run Amazon-Web-Services2 IO IT script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:java:io:amazon-web-services2:integrationTest
+          gradle-command: :sdks:java:io:cassandra:build
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
