@@ -23,6 +23,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -40,8 +41,8 @@ import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing a {@link Source} as a Flink {@link InputFormat}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
@@ -108,12 +109,26 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
     return null;
   }
 
+  private long getDesiredSizeBytes(int numSplits) throws Exception {
+    long totalSize = initialSource.getEstimatedSizeBytes(options);
+    long defaultSplitSize = totalSize / numSplits;
+    if(initialSource instanceof FileBasedSource) {
+      // Most of the time parallelism is < number of files in source.
+      // Each file becomes a unique split which commonly create skew.
+      // This limits the size of splits to 128Mb to reduce skew.
+      return Math.min(defaultSplitSize, 128 * 1024 * 1024);
+    } else {
+      return defaultSplitSize;
+    }
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
     try {
-      long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
+      long desiredSizeBytes = getDesiredSizeBytes(numSplits);
       List<? extends Source<T>> shards = initialSource.split(desiredSizeBytes, options);
+
       int numShards = shards.size();
       SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
       for (int i = 0; i < numShards; i++) {
