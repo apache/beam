@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 import logging
 import re
 import string
+from urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -34,7 +35,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
-from urllib.parse import urlparse
 
 _LOGGER = logging.getLogger(__name__)
 
