@@ -513,12 +513,6 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'KeyedModelHandlers with multiple different per-key ' +
           'ModelHandlers.')
 
-  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return []
-
-  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return []
-
   def share_model_across_processes(self) -> bool:
     if self._single_model:
       return self._unkeyed.share_model_across_processes()
