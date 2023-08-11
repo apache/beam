@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – gsoc</title><link>/categories/gsoc/</link><description>Recent content in gsoc on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 04 Sep 2019 00:00:01 -0800</lastBuildDate><atom:link href="/categories/gsoc/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code '19</title><link>/blog/gsoc-19/</link><pubDate>Wed, 04 Sep 2019 00:00:01 -0800</pubDate><guid>/blog/gsoc-19/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – gsoc</title><link>/categories/gsoc/</link><description>Recent content in gsoc on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 04 Sep 2019 00:00:01 -0800</lastBuildDate><atom:link href="/categories/gsoc/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code '19</title><link>/blog/gsoc-19/</link><pubDate>Wed, 04 Sep 2019 00:00:01 -0800</pubDate><guid>/blog/gsoc-19/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ I also worked on small issues related to testing.&lt;/p>
 &lt;li>Ending up in the top #100 contributors to apache/beam.&lt;/li>
 &lt;li>My first ever PR Review on an open source project.&lt;/li>
 &lt;/ul>
-&lt;p>&lt;img src="https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&amp;name=small" alt="Weird flex but ok" />&lt;/p>
+&lt;img src="https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&amp;name=small" alt="Weird flex but ok" />
 &lt;h3 id="coding-period-iii">Coding Period III&lt;/h3>
 &lt;p>This was the final coding period before the program ended. Since my project was merged earlier than expected, my mentor suggested another issue(&lt;a href="https://issues.apache.org/jira/browse/BEAM-7742">BEAM-7742&lt;/a>) in the same area - BigQueryIO, that I found interesting. So, I worked on partitioning written files in BigQuery to ensure that all load jobs triggered adhere to the load job size limitations specified for BigQuery.
 While working on my project, I was using a pipeline that uses PubSub as a source and BigQuery as a sink to validate my changes. My mentor suggested we add them to the Beam test suite as it would be the ultimate test for BigQueryIO. I also worked on adding this test to Beam.&lt;/p>

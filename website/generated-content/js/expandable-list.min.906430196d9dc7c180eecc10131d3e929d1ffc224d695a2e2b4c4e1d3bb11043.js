@@ -1,3 +1,0 @@
-$(document).ready(function(){function expandable(){function stop(){var w=$(window).width();$('.arrow-list-header').click(function(e){if(w<=768){e.preventDefault();e.stopPropagation();}})}}
-$(window).resize(function(){stop();});function rotate(){$(".arrow-list-header").click(function(){$(this).find('figure').toggleClass('rotate');});$('#apache-dropdown').click(function(){$(this).find('span').toggleClass('rotate');});}
-rotate();expandable();});

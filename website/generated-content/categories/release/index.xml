@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 17 Jul 2023 09:00:00 -0400</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.49.0</title><link>/blog/beam-2.49.0/</link><pubDate>Mon, 17 Jul 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.49.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 17 Jul 2023 09:00:00 -0400</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.49.0</title><link>/blog/beam-2.49.0/</link><pubDate>Mon, 17 Jul 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.49.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1321,10 +1321,10 @@ Java (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14143">BEAM-14143&l
 &lt;li>Unused functions &lt;code>ShallowCloneParDoPayload()&lt;/code>, &lt;code>ShallowCloneSideInput()&lt;/code>, and &lt;code>ShallowCloneFunctionSpec()&lt;/code> have been removed from the Go SDK&amp;rsquo;s pipelinex package (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13739">BEAM-13739&lt;/a>).&lt;/li>
 &lt;li>JmsIO requires an explicit &lt;code>valueMapper&lt;/code> to be set (&lt;a href="https://issues.apache.org/jira/browse/BEAM-16308">BEAM-16308&lt;/a>). You can use the &lt;code>TextMessageMapper&lt;/code> to convert &lt;code>String&lt;/code> inputs to JMS &lt;code>TestMessage&lt;/code>s:&lt;/li>
 &lt;/ul>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">JmsIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withConnectionFactory&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">jmsConnectionFactory&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withValueMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">TextMessageMapper&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl"> &lt;span class="n">JmsIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withConnectionFactory&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">jmsConnectionFactory&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withValueMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">TextMessageMapper&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
 &lt;li>Coders in Python are expected to inherit from Coder. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14351">BEAM-14351&lt;/a>).&lt;/li>
 &lt;li>New abstract method &lt;code>metadata()&lt;/code> added to io.filesystem.FileSystem in the
 Python SDK. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14314">BEAM-14314&lt;/a>)&lt;/li>
@@ -2853,7 +2853,7 @@ you may use &lt;code>--experiments=use_legacy_bq_sink&lt;/code>.&lt;/li>
 &lt;ul>
 &lt;li>WriteToBigQuery transforms now require a GCS location to be provided through either
 custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
-&amp;ndash;temp_location, or pass method=&amp;quot;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
+&amp;ndash;temp_location, or pass method=&amp;ldquo;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
 &lt;li>Python SDK now understands &lt;code>typing.FrozenSet&lt;/code> type hints, which are not interchangeable with &lt;code>typing.Set&lt;/code>. You may need to update your pipelines if type checking fails. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10197">BEAM-10197&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
@@ -3295,7 +3295,7 @@ See the &lt;a href="/get-started/downloads/#2180-2020-01-23">download page&lt;/a
 &lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8667">BEAM-8667&lt;/a> - Data channel should to avoid unlimited buffering in Python SDK.&lt;/li>
 &lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8802">BEAM-8802&lt;/a> - Timestamp combiner not respected across bundles in streaming mode.&lt;/li>
 &lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8803">BEAM-8803&lt;/a> - Default behaviour for Python BQ Streaming inserts sink should be to retry always.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8825">BEAM-8825&lt;/a> - OOM when writing large numbers of &amp;lsquo;narrow&amp;rsquo; rows.&lt;/li>
+&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8825">BEAM-8825&lt;/a> - OOM when writing large numbers of &amp;rsquo;narrow&amp;rsquo; rows.&lt;/li>
 &lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8835">BEAM-8835&lt;/a> - Artifact retrieval fails with FlinkUberJarJobServer&lt;/li>
 &lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8836">BEAM-8836&lt;/a> - ExternalTransform is not providing a unique name&lt;/li>
 &lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8884">BEAM-8884&lt;/a> - Python MongoDBIO TypeError when splitting.&lt;/li>

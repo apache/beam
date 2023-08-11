@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – java</title><link>/categories/java/</link><description>Recent content in java on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 15 Jan 2021 00:00:01 -0800</lastBuildDate><atom:link href="/categories/java/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – java</title><link>/categories/java/</link><description>Recent content in java on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Fri, 15 Jan 2021 00:00:01 -0800</lastBuildDate><atom:link href="/categories/java/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@ limitations under the License.
 &lt;p>In this blog post we present an example that creates a pipeline to read data from a single topic or
 multiple topics from &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a> and write data into a topic
 in &lt;a href="https://cloud.google.com/pubsub">Google Pub/Sub&lt;/a>. The example provides code samples to implement
-simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;rdquo;
-plug&amp;rsquo;n&amp;rsquo;play&amp;rdquo;&lt;/em>.&lt;/p>
+simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;quot;
+plug&amp;rsquo;n&amp;rsquo;play&amp;quot;&lt;/em>.&lt;/p>
 &lt;p>This end-to-end example is included
 in &lt;a href="/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
 and can be downloaded &lt;a href="/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>

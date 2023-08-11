@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 17 Jul 2023 09:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.49.0</title><link>/blog/beam-2.49.0/</link><pubDate>Mon, 17 Jul 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.49.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 17 Jul 2023 09:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.49.0</title><link>/blog/beam-2.49.0/</link><pubDate>Mon, 17 Jul 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.49.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -161,20 +161,20 @@ use &lt;code>beam-sdks-java-io-google-cloud-platform-bom&lt;/code>,
 the following changes have to be done (and make sure that &lt;em>BEAM_VERSION&lt;/em> is
 replaced by a valid version):&lt;/p>
 &lt;p>&lt;strong>Maven&lt;/strong>&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependencyManagement&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;dependencies&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-google-cloud-platform-bom&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;version&amp;gt;&lt;/span>BEAM_VERSION&lt;span class="nt">&amp;lt;/version&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;type&amp;gt;&lt;/span>pom&lt;span class="nt">&amp;lt;/type&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;scope&amp;gt;&lt;/span>import&lt;span class="nt">&amp;lt;/scope&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependencies&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependencyManagement&amp;gt;&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Gradle&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>dependencies {
-implementation(platform(&amp;quot;org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION&amp;quot;))
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;dependencyManagement&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;dependencies&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-google-cloud-platform-bom&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;version&amp;gt;&lt;/span>BEAM_VERSION&lt;span class="nt">&amp;lt;/version&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;type&amp;gt;&lt;/span>pom&lt;span class="nt">&amp;lt;/type&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;scope&amp;gt;&lt;/span>import&lt;span class="nt">&amp;lt;/scope&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;/dependencies&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;/dependencyManagement&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Gradle&lt;/strong>&lt;/p>
+&lt;pre tabindex="0">&lt;code>dependencies {
+implementation(platform(&amp;#34;org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION&amp;#34;))
 }
 &lt;/code>&lt;/pre>&lt;p>After importing the BOM, specific version pinning of dependencies, for example,
 anything for &lt;code>org.apache.beam&lt;/code>, &lt;code>io.grpc&lt;/code>, &lt;code>com.google.cloud&lt;/code> (
@@ -182,16 +182,16 @@ including &lt;code>libraries-bom&lt;/code>) may be removed.&lt;/p>
 &lt;p>Do not entirely remove the dependencies, as they are not automatically imported
 by the BOM. It is important to keep the dependency without specifying a version.
 For example, in Maven:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-core&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Or Gradle:&lt;/p>
-&lt;pre>&lt;code>implementation(&amp;quot;org.apache.beam:beam-sdks-java-core&amp;quot;)
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-core&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Or Gradle:&lt;/p>
+&lt;pre tabindex="0">&lt;code>implementation(&amp;#34;org.apache.beam:beam-sdks-java-core&amp;#34;)
 &lt;/code>&lt;/pre>&lt;p>For a full list of dependency versions that are managed by a specific BOM, the
 Maven tool &lt;code>help:effective-pom&lt;/code> can be used. For example:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-shell" data-lang="shell">mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>The third-party
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The third-party
 website &lt;a href="https://mvnrepository.com/artifact/org.apache.beam/beam-sdks-java-google-cloud-platform-bom/">mvnrepository.com&lt;/a>
 can also be used to display such version information.&lt;/p>
 &lt;p>We hope you find this
@@ -1100,10 +1100,10 @@ limitations under the License.
 &lt;p>Setting up and configuring a new project can be time consuming, and varies in different languages. We hope this will make it easier for you to get started in creating new Apache Beam projects and pipelines.&lt;/p>
 &lt;p>All the starter projects come in their own GitHub repository, so you can simply clone a repo and you&amp;rsquo;re ready to go. Each project comes with a README with how to use it, a simple &amp;ldquo;Hello World&amp;rdquo; pipeline, and a test for the pipeline. The GitHub repositories come pre-configured with GitHub Actions to automatically run tests when pull requests are opened or modified, and Dependabot is enabled to make sure all the dependencies are up to date. This all comes out of the box, so you can start playing with your Beam pipeline without a hassle.&lt;/p>
 &lt;p>For example, here&amp;rsquo;s how to get started with Java:&lt;/p>
-&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-java
+&lt;pre tabindex="0">&lt;code>git clone https://github.com/apache/beam-starter-java
 cd beam-starter-java
 # Install Java and Gradle with sdkman.
-curl -s &amp;quot;https://get.sdkman.io&amp;quot; | bash
+curl -s &amp;#34;https://get.sdkman.io&amp;#34; | bash
 sdk install java 11.0.12-tem
 sdk install gradle
 # To run the pipeline.
@@ -1111,7 +1111,7 @@ gradle run
 # To run the tests.
 gradle test
 &lt;/code>&lt;/pre>&lt;p>And here&amp;rsquo;s how to get started with Python:&lt;/p>
-&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-python
+&lt;pre tabindex="0">&lt;code>git clone https://github.com/apache/beam-starter-python
 cd beam-starter-python
 # Set up a virtual environment with the dependencies.
 python -m venv env
@@ -1308,15 +1308,15 @@ which we’ll use in this workflow. The link takes you to your project in the
 Google Cloud console, where you can enable the APIs.&lt;/p>
 &lt;p>Let&amp;rsquo;s now give permissions to the VM account. First, find the ID of the service
 account. Open Cloud Shell, and run the following command.&lt;/p>
-&lt;pre>&lt;code>gcloud iam service-accounts list | grep compute
+&lt;pre tabindex="0">&lt;code>gcloud iam service-accounts list | grep compute
 &lt;/code>&lt;/pre>&lt;p>The output is similar to the following, with &lt;code>&amp;lt;PROJECT_NUMBER&amp;gt;&lt;/code> replaced by your
 project number:&lt;/p>
-&lt;pre>&lt;code>EMAIL: &amp;lt;PROJECT_NUMBER&amp;gt;-compute@developer.gserviceaccount.com
+&lt;pre tabindex="0">&lt;code>EMAIL: &amp;lt;PROJECT_NUMBER&amp;gt;-compute@developer.gserviceaccount.com
 &lt;/code>&lt;/pre>&lt;p>Copy that service account ID, because we use it in the next step. Run the
 following command to grant the &lt;a href="https://cloud.google.com/dataflow/docs/concepts/access-control">Dataflow Admin
 role&lt;/a> to the
 service account. This role is required to run jobs:&lt;/p>
-&lt;pre>&lt;code>gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT --member=&amp;quot;serviceAccount:&amp;lt;SERVICE_ACCOUNT_ID&amp;gt;&amp;quot; --role=&amp;quot;roles/dataflow.admin&amp;quot;
+&lt;pre tabindex="0">&lt;code>gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT --member=&amp;#34;serviceAccount:&amp;lt;SERVICE_ACCOUNT_ID&amp;gt;&amp;#34; --role=&amp;#34;roles/dataflow.admin&amp;#34;
 &lt;/code>&lt;/pre>&lt;p>where &lt;code>&amp;lt;SERVICE_ACCOUNT_ID&amp;gt;&lt;/code> is the ID that you retrieved previously. If you are
 running these commands in Cloud Shell, the environment variable
 &lt;code>GOOGLE_CLOUD_PROJECT&lt;/code> is already set to your project ID. If you are running
@@ -1341,13 +1341,13 @@ Cloud zone; just remember to use the value for your zone instead of
 and VMs. To minimize the latency when using Hop web, choose a zone that is
 geographically close to your location. Let&amp;rsquo;s define the zone now and use this
 variable for the rest of the commands:&lt;/p>
-&lt;pre>&lt;code>ZONE=europe-west1-b
+&lt;pre tabindex="0">&lt;code>ZONE=europe-west1-b
 &lt;/code>&lt;/pre>&lt;p>Containers have ephemeral storage: when you restart the container, the disk of
 the container returns to its original state. Therefore, if we restart the Hop
 web container, we lose all our precious pipelines. To avoid that, we are going
 to create a persistent disk, where we will store all our work with Hop web. Run
 the following command to create the disk:&lt;/p>
-&lt;pre>&lt;code>gcloud compute disks create my-hop-disk \
+&lt;pre tabindex="0">&lt;code>gcloud compute disks create my-hop-disk \
 --type=pd-balanced \
 --size=10GB \
 --zone=$ZONE
@@ -1358,7 +1358,7 @@ the, well, default case) so the VM will not have a public IP address. This is
 important for security reasons, but it won’t stop us from using the VM from our
 web browser thanks to the Identity Aware Proxy. More on this later; for now
 let&amp;rsquo;s create the VM:&lt;/p>
-&lt;pre>&lt;code>gcloud compute instances create-with-container my-hop-vm \
+&lt;pre tabindex="0">&lt;code>gcloud compute instances create-with-container my-hop-vm \
 --zone=$ZONE \
 --network-interface=subnet=default,no-address \
 --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -1383,7 +1383,7 @@ resources with only internal IPs.&lt;/p>
 &lt;p>We can use the IAP to wrap our Apache Hop web server. With the following
 command, we create a tunnel listening on local port 8080 that connects to port
 8080 on the VM:&lt;/p>
-&lt;pre>&lt;code>gcloud compute start-iap-tunnel my-hop-vm 8080 --local-host-port=localhost:8080 --zone=$ZONE
+&lt;pre tabindex="0">&lt;code>gcloud compute start-iap-tunnel my-hop-vm 8080 --local-host-port=localhost:8080 --zone=$ZONE
 &lt;/code>&lt;/pre>&lt;p>To keep the tunnel open, leave that command running. If the command fails right
 after creating the VM, wait a few seconds and try again; the container might
 still be booting up.&lt;/p>
@@ -1430,14 +1430,14 @@ the VM and launch it again when needed. The content of the &lt;em>/root&lt;/em> 
 saved when you stop the virtual machine.&lt;/p>
 &lt;p>To stop the VM, run the following command (or in the console, on the Compute
 Engine VM page, click &lt;strong>Stop&lt;/strong>):&lt;/p>
-&lt;pre>&lt;code>gcloud compute instances stop my-hop-vm --zone=$ZONE
+&lt;pre tabindex="0">&lt;code>gcloud compute instances stop my-hop-vm --zone=$ZONE
 &lt;/code>&lt;/pre>&lt;p>And to start it again, run the following command:&lt;/p>
-&lt;pre>&lt;code>gcloud compute instances start my-hop-vm --zone=$ZONE
+&lt;pre tabindex="0">&lt;code>gcloud compute instances start my-hop-vm --zone=$ZONE
 &lt;/code>&lt;/pre>&lt;p>Remember that you need to have the Identity Aware Proxy running in order to
 access Hop web, so after starting the VM, don&amp;rsquo;t forget to run the command to
 start the Identity Aware Proxy (and if it fails right after starting, wait a few
 seconds and run it again):&lt;/p>
-&lt;pre>&lt;code>gcloud compute start-iap-tunnel my-hop-vm 8080 --local-host-port=localhost:8080 --zone=$ZONE
+&lt;pre tabindex="0">&lt;code>gcloud compute start-iap-tunnel my-hop-vm 8080 --local-host-port=localhost:8080 --zone=$ZONE
 &lt;/code>&lt;/pre>&lt;h2 id="summary">Summary&lt;/h2>
 &lt;p>This post has shown that all that you need to run Hop is a web browser. And,
 well, a Google Cloud project too.&lt;/p>
@@ -1802,10 +1802,10 @@ Java (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14143">BEAM-14143&l
 &lt;li>Unused functions &lt;code>ShallowCloneParDoPayload()&lt;/code>, &lt;code>ShallowCloneSideInput()&lt;/code>, and &lt;code>ShallowCloneFunctionSpec()&lt;/code> have been removed from the Go SDK&amp;rsquo;s pipelinex package (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13739">BEAM-13739&lt;/a>).&lt;/li>
 &lt;li>JmsIO requires an explicit &lt;code>valueMapper&lt;/code> to be set (&lt;a href="https://issues.apache.org/jira/browse/BEAM-16308">BEAM-16308&lt;/a>). You can use the &lt;code>TextMessageMapper&lt;/code> to convert &lt;code>String&lt;/code> inputs to JMS &lt;code>TestMessage&lt;/code>s:&lt;/li>
 &lt;/ul>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">JmsIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withConnectionFactory&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">jmsConnectionFactory&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withValueMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">TextMessageMapper&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl"> &lt;span class="n">JmsIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withConnectionFactory&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">jmsConnectionFactory&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withValueMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">TextMessageMapper&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
 &lt;li>Coders in Python are expected to inherit from Coder. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14351">BEAM-14351&lt;/a>).&lt;/li>
 &lt;li>New abstract method &lt;code>metadata()&lt;/code> added to io.filesystem.FileSystem in the
 Python SDK. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14314">BEAM-14314&lt;/a>)&lt;/li>
@@ -2021,7 +2021,7 @@ imports. You can also explicitly load the magic via
 &lt;code>%load_ext apache_beam.runners.interactive.sql.beam_sql_magics&lt;/code> and
 &lt;code>apache-beam&lt;/code> modules if you set up your own notebook elsewhere.&lt;/p>
 &lt;p>You can type:&lt;/p>
-&lt;pre>&lt;code>%beam_sql -h
+&lt;pre tabindex="0">&lt;code>%beam_sql -h
 &lt;/code>&lt;/pre>&lt;p>and then execute the code to learn how to use the magic:&lt;/p>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image3.png"
@@ -2042,8 +2042,8 @@ help documentation of the &lt;code>beam_sql&lt;/code> magic.&lt;/li>
 &lt;ol>
 &lt;li>Use Beam SQL to create a PCollection from constant values&lt;/li>
 &lt;/ol>
-&lt;pre>&lt;code>%%beam_sql -o pcoll
-SELECT CAST(1 AS INT) AS id, CAST('foo' AS VARCHAR) AS str, CAST(3.14 AS DOUBLE) AS flt
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o pcoll
+SELECT CAST(1 AS INT) AS id, CAST(&amp;#39;foo&amp;#39; AS VARCHAR) AS str, CAST(3.14 AS DOUBLE) AS flt
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image4.png"
 alt="Beam SQL in Notebooks: beam_sql creates a PCollection from raw values.">&lt;/p>
@@ -2064,7 +2064,7 @@ schema-aware PCollection produced by any normal Beam PTransforms) as the input
 to produce a new PCollection.&lt;/p>
 &lt;p>&lt;strong>Note&lt;/strong>: if you name the output PCollection, make sure that it’s unique in your
 notebook to avoid overwriting a different PCollection.&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o id_pcoll
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o id_pcoll
 SELECT id FROM pcoll
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image5.png"
@@ -2073,7 +2073,7 @@ alt="Beam SQL in Notebooks: beam_sql creates a PCollection from another.">&lt;/p
 &lt;li>Use Beam SQL to join multiple PCollections&lt;/li>
 &lt;/ol>
 &lt;p>You can query multiple PCollections from a single query.&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o str_with_same_id
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o str_with_same_id
 SELECT id, str FROM pcoll JOIN id_pcoll USING (id)
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image6.png"
@@ -2102,25 +2102,28 @@ numeric identifier of a person; &lt;code>name&lt;/code> - a string name of a per
 &lt;li>Define a pipeline with an &lt;code>InteractiveRunner&lt;/code> to utilize notebook related
 features of Apache Beam.&lt;/li>
 &lt;/ul>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="o">%&lt;/span>&lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">names&lt;/span>
-&lt;span class="kn">import&lt;/span> &lt;span class="nn">names&lt;/span>
-&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NamedTuple&lt;/span>
-&lt;span class="k">class&lt;/span> &lt;span class="nc">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="nb">id&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
-&lt;span class="n">name&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>There is no visible output for the code execution.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="o">%&lt;/span>&lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">names&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">names&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NamedTuple&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">id&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">name&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>There is no visible output for the code execution.&lt;/p>
 &lt;h4 id="create-schema-aware-pcollections-without-using-sql">Create schema-aware PCollections without using SQL&lt;/h4>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">persons&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">names&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_full_name&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">)]))&lt;/span>
-&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">persons&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">persons&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">names&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_full_name&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">)]))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">persons&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image7.png"
 alt="Beam SQL in Notebooks: create a schema-aware PCollection without SQL.">&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">persons_2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">names&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_full_name&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">15&lt;/span>&lt;span class="p">)]))&lt;/span>
-&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">persons_2&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">persons_2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">names&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_full_name&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">15&lt;/span>&lt;span class="p">)]))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">persons_2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image8.png"
 alt="Beam SQL in Notebooks: create another schema-aware PCollection without SQL.">&lt;/p>
 &lt;p>Now you have 2 PCollections both with the same schema defined by the &lt;code>Person&lt;/code>
@@ -2140,11 +2143,12 @@ information, then read the file back into a new schema-aware PCollection called
 &lt;code>pcoll_in_file&lt;/code>, and use the new PCollection to join &lt;code>persons&lt;/code> and &lt;code>persons_2&lt;/code>
 to find names with the common id in all three of them.&lt;/p>
 &lt;p>To encode &lt;code>pcoll&lt;/code> into a file, execute:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">pcoll&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">textio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;/tmp/pcoll&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">run&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wait_until_finish&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="err">!&lt;/span>&lt;span class="n">cat&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="n">tmp&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="o">*&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pcoll&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">textio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;/tmp/pcoll&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">run&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wait_until_finish&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="n">cat&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="n">tmp&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="o">*&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image9.png"
 alt="Beam SQL in Notebooks: write a schema-aware PCollection into a text file.">&lt;/p>
 &lt;p>The above code execution writes the PCollection &lt;code>pcoll&lt;/code> (basically
@@ -2152,11 +2156,12 @@ alt="Beam SQL in Notebooks: write a schema-aware PCollection into a text file.">
 Beam. As you can see, the file content is recorded in a binary non
 human-readable format, and that’s normal.&lt;/p>
 &lt;p>To decode the file content into a new PCollection, execute:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">pcoll_in_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;/tmp/pcoll*&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll_in_file&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">pcoll_in_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;/tmp/pcoll*&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll_in_file&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image10.png"
 alt="Beam SQL in Notebooks: read a schema-aware PCollection from a text file.">&lt;/p>
 &lt;p>&lt;strong>Note&lt;/strong> you have to use the same coder during encoding and decoding, and
@@ -2174,7 +2179,7 @@ worrying about coders. To see more verbose details of what the &lt;code>beam_sql
 does behind the scenes, you can use the &lt;code>-v&lt;/code> option.&lt;/p>
 &lt;p>For example, you can look for all elements with &lt;code>id &amp;lt; 5&lt;/code> in &lt;code>persons&lt;/code> with the
 below query and assign the output to &lt;code>persons_id_lt_5&lt;/code>.&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o persons_id_lt_5 -v
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o persons_id_lt_5 -v
 SELECT * FROM persons WHERE id &amp;lt; 5
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image11.png"
@@ -2194,7 +2199,7 @@ so.&lt;/p>
 PCollection of the known type &lt;code>Person(id: int, name: str)&lt;/code>.&lt;/p>
 &lt;p>Another example, you can query for all names from &lt;code>persons&lt;/code> and &lt;code>persons_2&lt;/code> with
 the same ids and assign the output to &lt;code>persons_with_common_id&lt;/code>:&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o persons_with_common_id -v
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o persons_with_common_id -v
 SELECT * FROM persons JOIN persons_2 USING (id)
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image12.png"
@@ -2207,7 +2212,7 @@ Beam automatically creates a schema and differentiates the conflicted field
 &lt;p>And since &lt;code>Person&lt;/code> is already previously registered with a &lt;code>RowCoder&lt;/code>, there is
 no more warning about registering it even with the &lt;code>-v&lt;/code> option.&lt;/p>
 &lt;p>Additionally, you can do a join with &lt;code>pcoll_in_file&lt;/code>, &lt;code>persons&lt;/code> and &lt;code>persons_2&lt;/code>:&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o entry_with_common_id
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o entry_with_common_id
 SELECT pcoll_in_file.id, persons.name AS name_1, persons_2.name AS name_2
 FROM pcoll_in_file JOIN persons ON pcoll_in_file.id = persons.id
 JOIN persons_2 ON pcoll_in_file.id = persons_2.id
@@ -2220,17 +2225,21 @@ alt="Beam SQL in Notebooks: rename fields in a query.">&lt;/p>
 positive cases on a specific day with data provided by the
 &lt;a href="https://covidtracking.com/">covid tracking project&lt;/a>.&lt;/p>
 &lt;h3 id="get-the-data">Get the data&lt;/h3>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">import&lt;/span> &lt;span class="nn">json&lt;/span>
-&lt;span class="kn">import&lt;/span> &lt;span class="nn">requests&lt;/span>
-&lt;span class="c1"># The covidtracking project has stopped collecting new data, current data ends on 2021-03-07&lt;/span>
-&lt;span class="n">json_current&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;https://covidtracking.com/api/v1/states/current.json&amp;#39;&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">get_json_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">requests&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Session&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">session&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">loads&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">session&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">data&lt;/span>
-&lt;span class="n">current_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">get_json_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json_current&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">current_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">json&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">requests&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The covidtracking project has stopped collecting new data, current data ends on 2021-03-07&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">json_current&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;https://covidtracking.com/api/v1/states/current.json&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">get_json_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="n">requests&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Session&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">session&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">loads&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">session&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">data&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">current_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">get_json_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json_current&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">current_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image14.png"
 alt="Beam SQL in Notebooks: preview example data.">&lt;/p>
 &lt;p>The data is dated as 2021-03-07. It contains many details about COVID cases for
@@ -2238,13 +2247,14 @@ different states in the US. &lt;code>current_data[0]&lt;/code> is just one of th
 &lt;p>You can get rid of most of the columns of the data. For example, just focus on
 “date”, “state”, “positive” and “negative”, and then define a schema
 &lt;code>UsCovidData&lt;/code>:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Optional&lt;/span>
-&lt;span class="k">class&lt;/span> &lt;span class="nc">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="n">partition_date&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span> &lt;span class="c1"># Remember to str(e[&amp;#39;date&amp;#39;]).&lt;/span>
-&lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;span class="n">positive&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
-&lt;span class="n">negative&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Note&lt;/strong>:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Optional&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span> &lt;span class="c1"># Remember to str(e[&amp;#39;date&amp;#39;]).&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">positive&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">negative&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Note&lt;/strong>:&lt;/p>
 &lt;ul>
 &lt;li>&lt;code>date&lt;/code> is a keyword in (Calcite)SQL, use a different field name such as
 &lt;code>partition_date&lt;/code>;&lt;/li>
@@ -2255,22 +2265,22 @@ data using &lt;code>str()&lt;/code> or use &lt;code>date: int&lt;/code>.&lt;/li>
 &lt;code>None&lt;/code> into 0 when using the schema.&lt;/li>
 &lt;/ul>
 &lt;p>Then parse the json data into a PCollection with the schema:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">p_sql&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;span class="n">covid_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p_sql&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create PCollection from json&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">current_data&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="k">lambda&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">partition_date&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;date&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;span class="n">positive&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;positive&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;span class="n">negative&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;negative&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">covid_data&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">p_sql&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">covid_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p_sql&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create PCollection from json&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">current_data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">lambda&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;date&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">positive&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;positive&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">negative&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;negative&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">covid_data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image15.png"
 alt="Beam SQL in Notebooks: parse example data with a schema.">&lt;/p>
 &lt;h3 id="query">Query&lt;/h3>
 &lt;p>You can now find the biggest positive on the “current day” (2021-03-07).&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o max_positive
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o max_positive
 SELECT partition_date, MAX(positive) AS positive
 FROM covid_data
 GROUP BY partition_date
@@ -2281,7 +2291,7 @@ alt="Beam SQL in Notebooks: find the biggest positive from the data.">&lt;/p>
 this maximum number nor the negative case number for the state.&lt;/p>
 &lt;p>To enrich your result, you have to join this data back to the original data set
 you have parsed.&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o entry_with_max_positive
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o entry_with_max_positive
 SELECT covid_data.partition_date, covid_data.state, covid_data.positive, {fn IFNULL(covid_data.negative, 0)} AS negative
 FROM covid_data JOIN max_positive
 USING (partition_date, positive)
@@ -2329,33 +2339,37 @@ data;&lt;/li>
 format of the dataset.&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Prepare the data with schema&lt;/strong>&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NamedTuple&lt;/span>
-&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Optional&lt;/span>
-&lt;span class="c1"># Public BQ dataset.&lt;/span>
-&lt;span class="n">table&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;bigquery-public-data:covid19_usafacts.summary&amp;#39;&lt;/span>
-&lt;span class="c1"># Replace with your project.&lt;/span>
-&lt;span class="n">project&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;YOUR-PROJECT-NAME-HERE&amp;#39;&lt;/span>
-&lt;span class="c1"># Replace with your GCS bucket.&lt;/span>
-&lt;span class="n">gcs_location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://YOUR_GCS_BUCKET_HERE&amp;#39;&lt;/span>
-&lt;span class="k">class&lt;/span> &lt;span class="nc">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="n">partition_date&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;span class="n">confirmed_cases&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;span class="n">deaths&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;span class="n">p_on_dataflow&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;span class="n">covid_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p_on_dataflow&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read dataset&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">project&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">project&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">gcs_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">gcs_location&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="k">lambda&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">partition_date&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;date&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;span class="n">confirmed_cases&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;span class="n">deaths&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">])))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Run on Dataflow&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NamedTuple&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Optional&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Public BQ dataset.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;bigquery-public-data:covid19_usafacts.summary&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Replace with your project.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">project&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;YOUR-PROJECT-NAME-HERE&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Replace with your GCS bucket.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">gcs_location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://YOUR_GCS_BUCKET_HERE&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">confirmed_cases&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">deaths&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p_on_dataflow&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">covid_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p_on_dataflow&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read dataset&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">project&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">project&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">gcs_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">gcs_location&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">lambda&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;date&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">confirmed_cases&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">deaths&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">])))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Run on Dataflow&lt;/strong>&lt;/p>
 &lt;p>To run SQL on Dataflow is very simple, you just need to add the option
 &lt;code>-r DataflowRunner&lt;/code>.&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o data_by_state -r DataflowRunner
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o data_by_state -r DataflowRunner
 SELECT partition_date, state, SUM(confirmed_cases) as confirmed_cases, SUM(deaths) as deaths
 FROM covid_data
 GROUP BY partition_date, state
@@ -2372,12 +2386,12 @@ Python dependencies the job needs.&lt;/p>
 to: 1) find the maximum confirmed cases on each day; 2) join the maximum case
 data with the full data_by_state. The &lt;code>beam_sql&lt;/code> magic allows you to chain SQLs,
 so chain 2 more by executing:&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o max_cases -r DataflowRunner
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o max_cases -r DataflowRunner
 SELECT partition_date, MAX(confirmed_cases) as confirmed_cases
 FROM data_by_state
 GROUP BY partition_date
 &lt;/code>&lt;/pre>&lt;p>And&lt;/p>
-&lt;pre>&lt;code>%%beam_sql -o data_with_max_cases -r DataflowRunner
+&lt;pre tabindex="0">&lt;code>%%beam_sql -o data_with_max_cases -r DataflowRunner
 SELECT data_by_state.partition_date, data_by_state.state, data_by_state.confirmed_cases, data_by_state.deaths
 FROM data_by_state JOIN max_cases
 USING (partition_date, confirmed_cases)
@@ -2389,11 +2403,12 @@ development. To save the output and share it with others, you can add more Beam
 I/Os into the mix.&lt;/p>
 &lt;p>For example, you can appropriately encode elements into text files using the
 technique described in the above schema-aware PCollections example.&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">GoogleCloudOptions&lt;/span>
-&lt;span class="n">coder&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data_with_max_cases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">max_data_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gcs_location&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="s1">&amp;#39;/encoded_max_data&amp;#39;&lt;/span>
-&lt;span class="n">data_with_max_cases&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">textio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">max_data_file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Furthermore, you can create a new BQ dataset in your own project to store the
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">GoogleCloudOptions&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">coder&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data_with_max_cases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">max_data_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gcs_location&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="s1">&amp;#39;/encoded_max_data&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data_with_max_cases&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">textio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">max_data_file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Furthermore, you can create a new BQ dataset in your own project to store the
 processed data.&lt;/p>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image21.png"
@@ -2401,25 +2416,25 @@ alt="Beam SQL in Notebooks: create a new BQ dataset.">&lt;/p>
 &lt;p>You have to select the same data location as the public BigQuery data you are
 reading. In this case, “us (multiple regions in United States)”.&lt;/p>
 &lt;p>Once you finish creating an empty dataset, you can execute below:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">output_table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="s1">&amp;#39;{project}:covid_data.max_analysis&amp;#39;&lt;/span>
-&lt;span class="n">bq_schema&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="s1">&amp;#39;fields&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>
-&lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;partition_date&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
-&lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
-&lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;INTEGER&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
-&lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;INTEGER&amp;#39;&lt;/span>&lt;span class="p">}]}&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="n">data_with_max_cases&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;To json-like&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;span class="s1">&amp;#39;partition_date&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">partition_date&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">confirmed_cases&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">deaths&lt;/span>&lt;span class="p">})&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">output_table&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">schema&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bq_schema&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">method&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;STREAMING_INSERTS&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">custom_gcs_temp_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">gcs_location&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now back in the form of the last SQL cell output, you may fill in necessary
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">output_table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s1">&amp;#39;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">project&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s1">:covid_data.max_analysis&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">bq_schema&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;fields&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;partition_date&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;INTEGER&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;INTEGER&amp;#39;&lt;/span>&lt;span class="p">}]}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">(&lt;/span>&lt;span class="n">data_with_max_cases&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;To json-like&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;partition_date&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">partition_date&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">confirmed_cases&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">deaths&lt;/span>&lt;span class="p">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">output_table&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">schema&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bq_schema&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">method&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;STREAMING_INSERTS&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">custom_gcs_temp_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">gcs_location&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now back in the form of the last SQL cell output, you may fill in necessary
 information to run the pipeline on Dataflow. An example input looks like below:&lt;/p>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image22.png"
@@ -2460,12 +2475,12 @@ deserialize/load them for job execution.&lt;/p>
 places instructed by your I/O transforms. &lt;strong>Note&lt;/strong>: running &lt;code>beam_sql&lt;/code> on
 Dataflow generates a one-shot job and it’s not interactive.&lt;/p>
 &lt;p>A simple inspection of the data from the default output location:&lt;/p>
-&lt;pre>&lt;code>!gsutil cat 'gs://ningk-so-test/bq/staging/data_with_max_cases*'
+&lt;pre tabindex="0">&lt;code>!gsutil cat &amp;#39;gs://ningk-so-test/bq/staging/data_with_max_cases*&amp;#39;
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image24.png"
 alt="Beam SQL in Notebooks: inspect the default output file.">&lt;/p>
 &lt;p>The text file with encoded binary data written by your &lt;code>WriteToText&lt;/code>:&lt;/p>
-&lt;pre>&lt;code>!gsutil cat 'gs://ningk-so-test/bq/encoded_max_data*'
+&lt;pre tabindex="0">&lt;code>!gsutil cat &amp;#39;gs://ningk-so-test/bq/encoded_max_data*&amp;#39;
 &lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
 src="/images/blog/beam-sql-notebooks/image25.png"
 alt="Beam SQL in Notebooks: inspect the user-defined output file.">&lt;/p>
@@ -2613,28 +2628,28 @@ alt="Apache Hop Variables tab">&lt;/p>
 &lt;p>But for that, we will have to create a bucket. For the next step, you need to make sure that you have configured gcloud (the Google Cloud SDK), and that you have managed to authenticate.&lt;/p>
 &lt;p>To double check, run the command &lt;code>gcloud config list&lt;/code> and check if the account and the project look correct. If they do, let&amp;rsquo;s triple check and run &lt;code>gcloud auth login&lt;/code>. That should open a tab in your web browser, to do the authentication process. Once you have done that, you can interact with your project using the SDK.&lt;/p>
 &lt;p>For this example, I will use the region europe-west1 of GCP. Let&amp;rsquo;s create a regional bucket there. In my case, I am using the name &lt;code>ihr-apache-hop-blog&lt;/code> for the bucket name. Choose a different name for your bucket!&lt;/p>
-&lt;pre>&lt;code>gsutil mb -c regional -l europe-west1 gs://ihr-apache-hop-blog
+&lt;pre tabindex="0">&lt;code>gsutil mb -c regional -l europe-west1 gs://ihr-apache-hop-blog
 &lt;/code>&lt;/pre>&lt;p>Now let&amp;rsquo;s upload the sample data to the GCS bucket, to test how the pipeline would run in Dataflow. Go to the same directory where you have all the hop files (the same directory that &lt;code>hop-gui.sh&lt;/code> is in), and let&amp;rsquo;s copy the data to GCS:&lt;/p>
-&lt;pre>&lt;code> gsutil cp config/projects/samples/beam/input/customers-noheader-1k.txt gs://ihr-apache-hop-blog/data/
+&lt;pre tabindex="0">&lt;code> gsutil cp config/projects/samples/beam/input/customers-noheader-1k.txt gs://ihr-apache-hop-blog/data/
 &lt;/code>&lt;/pre>&lt;p>Notice the final slash &lt;code>/&lt;/code> in the path, indicating that you want to create a directory of name &lt;code>data&lt;/code>, with all the contents.&lt;/p>
 &lt;p>To make sure that you have uploaded the data correctly, check the contents of that location:&lt;/p>
-&lt;pre>&lt;code>gsutil ls gs://ihr-apache-hop-blog/data/
+&lt;pre tabindex="0">&lt;code>gsutil ls gs://ihr-apache-hop-blog/data/
 &lt;/code>&lt;/pre>&lt;p>You should see the file &lt;code>customer-noheader-1k.txt&lt;/code> in that location.&lt;/p>
 &lt;p>Before we continue, make sure that Dataflow is enabled in your project, and that you have a service account ready to be used with Hop. Please check the instructions given at the documentation of Dataflow, in the &lt;em>&lt;a href="https://cloud.google.com/dataflow/docs/quickstarts/create-pipeline-java#before-you-begin">Before you begin section&lt;/a>&lt;/em> to see how to enable the API for Dataflow.&lt;/p>
 &lt;p>Now we need to make sure that Hop can use the necessary credentials for accessing Dataflow. In the Hop documentation, you will find that it recommends creating a service account, exporting a key for that service account, and setting the GOOGLE_APPLICATION_CREDENTIALS environment variable. This is also the method given in the above link.&lt;/p>
 &lt;p>Exporting the key of a service account is potentially dangerous, so we are going to use a different method, by leveraging the Google Cloud SDK. Run the following command:&lt;/p>
-&lt;pre>&lt;code>gcloud auth application-default login
+&lt;pre tabindex="0">&lt;code>gcloud auth application-default login
 &lt;/code>&lt;/pre>&lt;p>That will open a tab in your web browser asking to confirm the authentication. Once you have confirmed, any application in your system that needs to access Google Cloud Platform will use those credentials for that access.&lt;/p>
 &lt;p>We need also to create a service account for the Dataflow job, with certain permissions. Create the service account with&lt;/p>
-&lt;pre>&lt;code>​​gcloud iam service-accounts create dataflow-hop-sa
+&lt;pre tabindex="0">&lt;code>​​gcloud iam service-accounts create dataflow-hop-sa
 &lt;/code>&lt;/pre>&lt;p>And now we give permissions to this service account for Dataflow:&lt;/p>
-&lt;pre>&lt;code>gcloud projects add-iam-policy-binding ihr-hop-playground \
---member=&amp;quot;serviceAccount:dataflow-hop-sa@ihr-hop-playground.iam.gserviceaccount.com&amp;quot;\
---role=&amp;quot;roles/dataflow.worker&amp;quot;
+&lt;pre tabindex="0">&lt;code>gcloud projects add-iam-policy-binding ihr-hop-playground \
+--member=&amp;#34;serviceAccount:dataflow-hop-sa@ihr-hop-playground.iam.gserviceaccount.com&amp;#34;\
+--role=&amp;#34;roles/dataflow.worker&amp;#34;
 &lt;/code>&lt;/pre>&lt;p>We also need to give additional permissions for Google Cloud Storage:&lt;/p>
-&lt;pre>&lt;code>gcloud projects add-iam-policy-binding ihr-hop-playground \
---member=&amp;quot;serviceAccount:dataflow-hop-sa@ihr-hop-playground.iam.gserviceaccount.com&amp;quot;\
---role=&amp;quot;roles/storage.admin&amp;quot;
+&lt;pre tabindex="0">&lt;code>gcloud projects add-iam-policy-binding ihr-hop-playground \
+--member=&amp;#34;serviceAccount:dataflow-hop-sa@ihr-hop-playground.iam.gserviceaccount.com&amp;#34;\
+--role=&amp;#34;roles/storage.admin&amp;#34;
 &lt;/code>&lt;/pre>&lt;p>Make sure that you change the project id &lt;code>ihr-hop-playground&lt;/code> to your own project id.&lt;/p>
 &lt;p>Now let&amp;rsquo;s give permissions to our user to impersonate that service account. For that, go to &lt;a href="https://console.cloud.google.com/iam-admin/serviceaccounts">Service Accounts in the Google Cloud Console&lt;/a> in your project, and click on the service account we have just created.&lt;/p>
 &lt;p>Click on the &lt;em>Permissions&lt;/em> tab and then in the &lt;em>Grant Access&lt;/em> button:&lt;/p>
@@ -2679,7 +2694,7 @@ alt="Apache Hop Variables tab">&lt;/p>
 &lt;p>For service account, use the address of the Service Account we have created. If you don&amp;rsquo;t remember, you can find it under S&lt;a href="https://console.cloud.google.com/iam-admin/serviceaccounts">ervice Accounts in the Google Cloud Console&lt;/a>.&lt;/p>
 &lt;p>For staging and temp locations, use the same bucket that we have just created. Change the bucket address in the paths, and leave the same &amp;ldquo;binaries&amp;rdquo; and &amp;ldquo;tmp&amp;rdquo; locations that are already set in the configuration.&lt;/p>
 &lt;p>For region, in this example we are using &lt;code>europe-west1&lt;/code>.&lt;/p>
-&lt;p>Also, depending on your network configuration, you may want to check the box of &amp;ldquo;Use Public IPs?&amp;quot;, or alternatively leave it unchecked but enable Google Private Access in the regional subnetwork for europe-west1 in your project (for more details, please see &lt;a href="https://cloud.google.com/vpc/docs/configure-private-google-access#enabling-pga">Configuring Private Google Access | VPC&lt;/a>). In this example, I will check the box for simplicity.&lt;/p>
+&lt;p>Also, depending on your network configuration, you may want to check the box of &amp;ldquo;Use Public IPs?&amp;rdquo;, or alternatively leave it unchecked but enable Google Private Access in the regional subnetwork for europe-west1 in your project (for more details, please see &lt;a href="https://cloud.google.com/vpc/docs/configure-private-google-access#enabling-pga">Configuring Private Google Access | VPC&lt;/a>). In this example, I will check the box for simplicity.&lt;/p>
 &lt;p>For the fat jar location, use the _Browse _button on the right side, and locate the JAR that we generated above. In summary, my &lt;em>Main&lt;/em> options look like these (your project id and locations will be different):&lt;/p>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/apache-hop/image27.png"
@@ -2704,13 +2719,13 @@ alt="Dataflow Logs">&lt;/p>
 src="/images/blog/apache-hop/image23.png"
 alt="Dataflow pipeline graph">&lt;/p>
 &lt;p>When the job finishes, there should be a file in the output location. You can check it out with &lt;code>gsutil&lt;/code>&lt;/p>
-&lt;pre>&lt;code>% gsutil ls gs://ihr-apache-hop-blog/output
+&lt;pre tabindex="0">&lt;code>% gsutil ls gs://ihr-apache-hop-blog/output
 gs://ihr-apache-hop-blog/output/input-process-output-00000-of-00003.csv
 gs://ihr-apache-hop-blog/output/input-process-output-00001-of-00003.csv
 gs://ihr-apache-hop-blog/output/input-process-output-00002-of-00003.csv
 &lt;/code>&lt;/pre>&lt;p>In my case, the job has generated three files, but the actual number will vary from run to run.&lt;/p>
 &lt;p>Let&amp;rsquo;s explore the first lines of those files:&lt;/p>
-&lt;pre>&lt;code>gsutil cat &amp;quot;gs://ihr-apache-hop-blog/output/*csv&amp;quot;| head
+&lt;pre tabindex="0">&lt;code>gsutil cat &amp;#34;gs://ihr-apache-hop-blog/output/*csv&amp;#34;| head
 12,wha-firstname,vnaov-name,egm-city,CALIFORNIA
 25,ayl-firstname,bwkoe-name,rtw-city,CALIFORNIA
 26,zio-firstname,rezku-name,nvt-city,CALIFORNIA
@@ -3492,7 +3507,7 @@ limitations under the License.
 Built with the &lt;a href="https://golang.org/">Go Programming Language&lt;/a>, the Go SDK joins the Java and Python SDKs as the third implementation of the Beam programming model.&lt;/p>
 &lt;h2 id="using-the-new-go-sdk">Using the new Go SDK.&lt;/h2>
 &lt;p>New users of the Go SDK can start using it in their Go programs by importing the main beam package:&lt;/p>
-&lt;pre>&lt;code>import &amp;quot;github.com/apache/beam/sdks/v2/go/pkg/beam&amp;quot;
+&lt;pre tabindex="0">&lt;code>import &amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam&amp;#34;
 &lt;/code>&lt;/pre>&lt;p>The next run of &lt;code>go mod tidy&lt;/code> will fetch the latest stable version of the module.
 Alternatively executing &lt;code>go get github.com/apache/beam/sdks/v2/go/pkg/beam&lt;/code> will download it to the local module cache immeadiately, and add it to your &lt;code>go.mod&lt;/code> file.&lt;/p>
 &lt;p>Existing users of the experimental Go SDK need to update to new &lt;code>v2&lt;/code> import paths to start using the latest versions of the SDK.
@@ -3999,19 +4014,19 @@ in your &lt;code>pom.xml&lt;/code>:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">26&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">26&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>Second, you can add a new profile to your &lt;code>pom.xml&lt;/code> file. In this new profile,
@@ -4022,21 +4037,21 @@ Beam 2.27.0, this was &lt;code>https://repository.apache.org/content/repositorie
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">validaterelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newrelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">repo&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">validaterelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newrelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">repo&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>Once you have a &lt;code>beam.version&lt;/code> property in your &lt;code>pom.xml&lt;/code>, and a new profile
 with the new release, you can run your &lt;code>mvn&lt;/code> command activating the new profile,
 and the new Beam version:&lt;/p>
-&lt;pre>&lt;code>mvn test -Pvalidaterelease \
+&lt;pre tabindex="0">&lt;code>mvn test -Pvalidaterelease \
 -Dbeam.version=2.27.0 \
 -Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
 &lt;/code>&lt;/pre>&lt;p>This should build your project against the new release, and run basic tests.
@@ -4049,10 +4064,10 @@ installation of pre-release artifacts.&lt;/p>
 &lt;p>First, make sure that your &lt;code>requirements.txt&lt;/code> or &lt;code>setup.py&lt;/code> files allow
 for Beam versions above the current one. Something like this should install
 the latest available version:&lt;/p>
-&lt;pre>&lt;code>apache-beam&amp;lt;=3.0.0
+&lt;pre tabindex="0">&lt;code>apache-beam&amp;lt;=3.0.0
 &lt;/code>&lt;/pre>&lt;p>With that, you can ask &lt;code>pip&lt;/code> to install pre-release versions of Beam in your
 environment:&lt;/p>
-&lt;pre>&lt;code>pip install --pre apache-beam
+&lt;pre tabindex="0">&lt;code>pip install --pre apache-beam
 &lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your environment will be the latest release
 candidate, and you can go ahead and run your tests to verify that everything
 works well.&lt;/p>
@@ -4060,7 +4075,7 @@ works well.&lt;/p>
 &lt;p>For Go SDK releases, you can fetch the Go SDK RC using &lt;a href="https://golang.org/ref/mod#go-get">&lt;code>go get&lt;/code>&lt;/a>,
 by requesting the specific pre-release version.&lt;/p>
 &lt;p>For example, to request the first release candidate for 2.34.0:&lt;/p>
-&lt;pre>&lt;code>go get -d github.com/apache/beam/sdks/v2@v2.34.0-RC1
+&lt;pre tabindex="0">&lt;code>go get -d github.com/apache/beam/sdks/v2@v2.34.0-RC1
 &lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your &lt;code>go.mod&lt;/code> will be the specified release candidate.
 You can go ahead and run your tests to verify that everything works well.&lt;/p>
 &lt;p>You may need to also specify the RC&amp;rsquo;s matching container when running a job.
@@ -4226,8 +4241,8 @@ limitations under the License.
 &lt;p>In this blog post we present an example that creates a pipeline to read data from a single topic or
 multiple topics from &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a> and write data into a topic
 in &lt;a href="https://cloud.google.com/pubsub">Google Pub/Sub&lt;/a>. The example provides code samples to implement
-simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;rdquo;
-plug&amp;rsquo;n&amp;rsquo;play&amp;rdquo;&lt;/em>.&lt;/p>
+simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;quot;
+plug&amp;rsquo;n&amp;rsquo;play&amp;quot;&lt;/em>.&lt;/p>
 &lt;p>This end-to-end example is included
 in &lt;a href="/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
 and can be downloaded &lt;a href="/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>
@@ -4362,25 +4377,25 @@ relational logic much more concisely than previously possible.&lt;/p>
 DataFrame API, with a few caveats detailed below. With this new API a simple
 pipeline that reads NYC taxiride data from a CSV, performs a grouped
 aggregation, and writes the output to CSV, can be expressed very concisely:&lt;/p>
-&lt;pre>&lt;code>from apache_beam.dataframe.io import read_csv
+&lt;pre tabindex="0">&lt;code>from apache_beam.dataframe.io import read_csv
 with beam.Pipeline() as p:
-df = p | read_csv(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
-usecols=['passenger_count' , 'DOLocationID'])
+df = p | read_csv(&amp;#34;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;#34;,
+usecols=[&amp;#39;passenger_count&amp;#39; , &amp;#39;DOLocationID&amp;#39;])
 # Count the number of passengers dropped off per LocationID
-agg = df.groupby('DOLocationID').sum()
+agg = df.groupby(&amp;#39;DOLocationID&amp;#39;).sum()
 agg.to_csv(output)
 &lt;/code>&lt;/pre>&lt;p>Compare this to the same logic implemented as a conventional Beam python
 pipeline with a &lt;code>CombinePerKey&lt;/code>:&lt;/p>
-&lt;pre>&lt;code>with beam.Pipeline() as p:
-(p | beam.io.ReadFromText(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
+&lt;pre tabindex="0">&lt;code>with beam.Pipeline() as p:
+(p | beam.io.ReadFromText(&amp;#34;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;#34;,
 skip_header_lines=1)
-| beam.Map(lambda line: line.split(','))
+| beam.Map(lambda line: line.split(&amp;#39;,&amp;#39;))
 # Parse CSV, create key - value pairs
 | beam.Map(lambda splits: (int(splits[8] or 0), # DOLocationID
 int(splits[3] or 0))) # passenger_count
 # Sum values per key
 | beam.CombinePerKey(sum)
-| beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
+| beam.MapTuple(lambda loc_id, pc: f&amp;#39;{loc_id},{pc}&amp;#39;)
 | beam.io.WriteToText(known_args.output))
 &lt;/code>&lt;/pre>&lt;p>The DataFrame example is much easier to quickly inspect and understand, as it
 allows you to concisely express grouped aggregations without using the low-level
@@ -4399,7 +4414,7 @@ and complex operations, entirely with SQL. &lt;/p>
 that the above example is written without traditional Beam constructs like IOs,
 ParDo, or CombinePerKey. In fact the only traditional Beam type is the Pipeline
 instance! Otherwise this pipeline is written completely using the DataFrame API.
-This is possible because the DataFrame API doesn&amp;rsquo;t just implement Pandas&amp;rsquo;
+This is possible because the DataFrame API doesn&amp;rsquo;t just implement Pandas'
 computation operations, it also includes IOs based on the Pandas native
 implementations (&lt;code>pd.read_{csv,parquet,...}&lt;/code> and &lt;code>pd.DataFrame.to_{csv,parquet,...}&lt;/code>).&lt;/p>
 &lt;p>Like SQL, it&amp;rsquo;s also possible to embed the DataFrame API into a larger pipeline
@@ -4409,7 +4424,7 @@ A schema-aware PCollection can be converted to a DataFrame, processed, and the
 result converted back to another schema-aware PCollection. For example, if you
 wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
 could rewrite the above pipeline like this:&lt;/p>
-&lt;pre>&lt;code>from apache_beam.dataframe.convert import to_dataframe
+&lt;pre tabindex="0">&lt;code>from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.dataframe.convert import to_pcollection
 with beam.Pipeline() as p:
 ...
@@ -4418,20 +4433,20 @@ schema_pc = (p | beam.ReadFromText(..)
 | beam.Select(DOLocationID=lambda line: int(...),
 passenger_count=lambda line: int(...)))
 df = to_dataframe(schema_pc)
-agg = df.groupby('DOLocationID').sum()
+agg = df.groupby(&amp;#39;DOLocationID&amp;#39;).sum()
 agg_pc = to_pcollection(pc)
 # agg_pc has a schema based on the structure of agg
-(agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+(agg_pc | beam.Map(lambda row: f&amp;#39;{row.DOLocationID},{row.passenger_count}&amp;#39;)
 | beam.WriteToText(..))
 &lt;/code>&lt;/pre>&lt;p>It&amp;rsquo;s also possible to use the DataFrame API by passing a function to
 &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform">&lt;code>DataframeTransform&lt;/code>&lt;/a>:&lt;/p>
-&lt;pre>&lt;code>from apache_beam.dataframe.transforms import DataframeTransform
+&lt;pre tabindex="0">&lt;code>from apache_beam.dataframe.transforms import DataframeTransform
 with beam.Pipeline() as p:
 ...
 | beam.Select(DOLocationID=lambda line: int(..),
 passenger_count=lambda line: int(..))
-| DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
-| beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+| DataframeTransform(lambda df: df.groupby(&amp;#39;DOLocationID&amp;#39;).sum())
+| beam.Map(lambda row: f&amp;#39;{row.DOLocationID},{row.passenger_count}&amp;#39;)
 ...
 &lt;/code>&lt;/pre>&lt;h2 id="caveats">Caveats&lt;/h2>
 &lt;p>As hinted above, there are some differences between Beam&amp;rsquo;s DataFrame API and the
@@ -4491,7 +4506,7 @@ and Go SDKs for versions 2.25.0 and later.&lt;/p>
 &lt;p>In 2017, &lt;a href="/blog/splittable-do-fn/">Splittable DoFn Blog Post&lt;/a> proposed
 to build &lt;a href="https://s.apache.org/splittable-do-fn">Splittable DoFn&lt;/a> APIs as the new recommended way of
 building I/O connectors. Splittable DoFn is a generalization of &lt;code>DoFn&lt;/code> that gives it the core
-capabilities of &lt;code>Source&lt;/code> while retaining &lt;code>DoFn&lt;/code>'s syntax, flexibility, modularity, and ease of
+capabilities of &lt;code>Source&lt;/code> while retaining &lt;code>DoFn&lt;/code>&amp;rsquo;s syntax, flexibility, modularity, and ease of
 coding. Thus, it becomes much easier to develop complex I/O connectors with simpler and reusable
 code.&lt;/p>
 &lt;p>SDF has three advantages over the existing &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code>:&lt;/p>
@@ -4731,7 +4746,7 @@ you may use &lt;code>--experiments=use_legacy_bq_sink&lt;/code>.&lt;/li>
 &lt;ul>
 &lt;li>WriteToBigQuery transforms now require a GCS location to be provided through either
 custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
-&amp;ndash;temp_location, or pass method=&amp;quot;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
+&amp;ndash;temp_location, or pass method=&amp;ldquo;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
 &lt;li>Python SDK now understands &lt;code>typing.FrozenSet&lt;/code> type hints, which are not interchangeable with &lt;code>typing.Set&lt;/code>. You may need to update your pipelines if type checking fails. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10197">BEAM-10197&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
@@ -4777,21 +4792,21 @@ query would be something like this:
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">cid&lt;/span>
-&lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
-&lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">PARTITION&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">userid&lt;/span>
-&lt;span class="k">ORDER&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">proctime&lt;/span>
-&lt;span class="n">MEASURES&lt;/span>
-&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="k">C&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">cid&lt;/span>
-&lt;span class="n">PATTERN&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="k">C&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">DEFINE&lt;/span>
-&lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="k">C&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;c&amp;#39;&lt;/span>
-&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="line">&lt;span class="cl">&lt;span class="k">SELECT&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">cid&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="k">FROM&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">MyTable&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">MATCH_RECOGNIZE&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">PARTITION&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">BY&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">userid&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="k">ORDER&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">BY&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">proctime&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">MEASURES&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="k">C&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">cid&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">PATTERN&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">C&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">DEFINE&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="k">C&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;c&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">T&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;/p>
@@ -4858,30 +4873,30 @@ table:&lt;/p>
 &lt;table>
 &lt;thead>
 &lt;tr>
-&lt;th align="center">transTime&lt;/th>
-&lt;th align="center">price&lt;/th>
+&lt;th style="text-align:center">transTime&lt;/th>
+&lt;th style="text-align:center">price&lt;/th>
 &lt;/tr>
 &lt;/thead>
 &lt;tbody>
 &lt;tr>
-&lt;td align="center">1&lt;/td>
-&lt;td align="center">3&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td align="center">2&lt;/td>
-&lt;td align="center">2&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td align="center">3&lt;/td>
-&lt;td align="center">1&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td align="center">4&lt;/td>
-&lt;td align="center">5&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;td style="text-align:center">5&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td align="center">5&lt;/td>
-&lt;td align="center">6&lt;/td>
+&lt;td style="text-align:center">5&lt;/td>
+&lt;td style="text-align:center">6&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -4892,18 +4907,18 @@ query:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="o">*&lt;/span>
-&lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
-&lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="k">ORDER&lt;/span> &lt;span class="k">BY&lt;/span> &lt;span class="n">transTime&lt;/span>
-&lt;span class="n">MEASURES&lt;/span>
-&lt;span class="k">LAST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">beforePrice&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="k">FIRST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">afterPrice&lt;/span>
-&lt;span class="n">PATTERN&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="o">+&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">DEFINE&lt;/span>
-&lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="line">&lt;span class="cl">&lt;span class="k">SELECT&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="k">FROM&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">MyTable&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">MATCH_RECOGNIZE&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="k">ORDER&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">BY&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">transTime&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">MEASURES&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="k">LAST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">beforePrice&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="k">FIRST&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">afterPrice&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">PATTERN&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">DEFINE&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">),&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="k">AS&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="n">T&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>This will find the local minimum price and the price after it. For the example dataset, the first 3 rows will be
@@ -4980,14 +4995,14 @@ for typed PCollections and Python 3 style annotations on PTransforms.&lt;/p>
 &lt;p>Today, you have the option to declare type hints on PTransforms using either
 class decorators or inline functions.&lt;/p>
 &lt;p>For instance, a PTransform with decorated type hints might look like this:&lt;/p>
-&lt;pre>&lt;code>@beam.typehints.with_input_types(int)
+&lt;pre tabindex="0">&lt;code>@beam.typehints.with_input_types(int)
 @beam.typehints.with_output_types(str)
 class IntToStr(beam.PTransform):
 def expand(self, pcoll):
 return pcoll | beam.Map(lambda num: str(num))
 strings = numbers | beam.ParDo(IntToStr())
 &lt;/code>&lt;/pre>&lt;p>Using inline functions instead, the same transform would look like this:&lt;/p>
-&lt;pre>&lt;code>class IntToStr(beam.PTransform):
+&lt;pre tabindex="0">&lt;code>class IntToStr(beam.PTransform):
 def expand(self, pcoll):
 return pcoll | beam.Map(lambda num: str(num))
 strings = numbers | beam.ParDo(IntToStr()).with_input_types(int).with_output_types(str)
@@ -4997,7 +5012,7 @@ that aren&amp;rsquo;t reusable across other instances of the same transform. Add
 methods are incompatible with static type checkers like MyPy.&lt;/p>
 &lt;p>With Python 3 annotations however, we can subvert these problems to provide a
 clean and reusable type hint experience. Our previous transform now looks like this:&lt;/p>
-&lt;pre>&lt;code>class IntToStr(beam.PTransform):
+&lt;pre tabindex="0">&lt;code>class IntToStr(beam.PTransform):
 def expand(self, pcoll: PCollection[int]) -&amp;gt; PCollection[str]:
 return pcoll | beam.Map(lambda num: str(num))
 strings = numbers | beam.ParDo(IntToStr())
@@ -5017,7 +5032,7 @@ type hints by removing the outer PCollection container.&lt;/p>
 &lt;p>Finally, besides PCollection, a valid annotation on the &lt;code>expand(...)&lt;/code> method of a PTransform is
 &lt;code>PBegin&lt;/code> or &lt;code>None&lt;/code>. These are generally used for PTransforms that begin or end with an I/O operation.&lt;/p>
 &lt;p>For instance, when saving data, your transform&amp;rsquo;s output type should be &lt;code>None&lt;/code>.&lt;/p>
-&lt;pre>&lt;code>class SaveResults(beam.PTransform):
+&lt;pre tabindex="0">&lt;code>class SaveResults(beam.PTransform):
 def expand(self, pcoll: PCollection[str]) -&amp;gt; None:
 return pcoll | beam.io.WriteToBigQuery(...)
 &lt;/code>&lt;/pre>&lt;h1 id="next-steps">Next Steps&lt;/h1>
@@ -5043,11 +5058,11 @@ runtime type checking system for Beam&amp;rsquo;s Python SDK that&amp;rsquo;s op
 in both development and production environments.&lt;/p>
 &lt;p>But let&amp;rsquo;s take a step back - why do we even care about runtime type checking
 in the first place? Let&amp;rsquo;s look at an example.&lt;/p>
-&lt;pre>&lt;code>class MultiplyNumberByTwo(beam.DoFn):
+&lt;pre tabindex="0">&lt;code>class MultiplyNumberByTwo(beam.DoFn):
 def process(self, element: int):
 return element * 2
 p = Pipeline()
-p | beam.Create(['1', '2'] | beam.ParDo(MultiplyNumberByTwo())
+p | beam.Create([&amp;#39;1&amp;#39;, &amp;#39;2&amp;#39;] | beam.ParDo(MultiplyNumberByTwo())
 &lt;/code>&lt;/pre>&lt;p>In this code, we passed a list of strings to a DoFn that&amp;rsquo;s clearly intended for use with
 integers. Luckily, this code will throw an error during pipeline construction because
 the inferred output type of &lt;code>beam.Create(['1', '2'])&lt;/code> is &lt;code>str&lt;/code> which is incompatible with
@@ -5065,7 +5080,7 @@ any typing or serialization error in Beam?&lt;/p>
 &lt;p>This feature works by checking that actual input and output values satisfy the declared
 type constraints during pipeline execution. If you ran the code from before with
 &lt;code>runtime_type_check&lt;/code> on, you would receive the following error message:&lt;/p>
-&lt;pre>&lt;code>Type hint violation for 'ParDo(MultiplyByTwo)': requires &amp;lt;class 'int'&amp;gt; but got &amp;lt;class 'str'&amp;gt; for element
+&lt;pre tabindex="0">&lt;code>Type hint violation for &amp;#39;ParDo(MultiplyByTwo)&amp;#39;: requires &amp;lt;class &amp;#39;int&amp;#39;&amp;gt; but got &amp;lt;class &amp;#39;str&amp;#39;&amp;gt; for element
 &lt;/code>&lt;/pre>&lt;p>This is an actionable error message - it tells you that either your code has a bug
 or that your declared type hints are incorrect. Sounds simple enough, so what&amp;rsquo;s the catch?&lt;/p>
 &lt;p>&lt;em>It is soooo slowwwwww.&lt;/em> See for yourself.&lt;/p>
@@ -5175,7 +5190,7 @@ us to throw &lt;em>more actionable errors&lt;/em>. For instance, consider the fo
 generated from the old RTC system):&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;pre>&lt;code>Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of &amp;lt;class ‘str’&amp;gt;, instead found 9, an instance of &amp;lt;class ‘int’&amp;gt;.
+&lt;pre tabindex="0">&lt;code>Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: &amp;#39;element&amp;#39; violated. Expected an instance of &amp;lt;class ‘str’&amp;gt;, instead found 9, an instance of &amp;lt;class ‘int’&amp;gt;.
 &lt;/code>&lt;/pre>&lt;p>This error tells us that the &lt;code>DownstreamDoFn&lt;/code> received an &lt;code>int&lt;/code> when it was expecting a &lt;code>str&lt;/code>, but doesn&amp;rsquo;t tell us
 who created that &lt;code>int&lt;/code> in the first place. Who is the offending upstream transform that&amp;rsquo;s responsible for
 this &lt;code>int&lt;/code>? Presumably, &lt;em>that&lt;/em> transform&amp;rsquo;s output type hints were too expansive (e.g. &lt;code>Any&lt;/code>) or otherwise non-existent because
@@ -5187,7 +5202,7 @@ for a mismatch. This is exactly what the mega type hint does, and it allows us t
 at the point of declaration rather than the point of exception, saving you valuable time
 while providing higher quality error messages.&lt;/p>
 &lt;p>So what would the same error look like using Performance RTC? It&amp;rsquo;s the exact same string but with one additional line:&lt;/p>
-&lt;pre>&lt;code>[while running 'ParDo(UpstreamDoFn)']
+&lt;pre tabindex="0">&lt;code>[while running &amp;#39;ParDo(UpstreamDoFn)&amp;#39;]
 &lt;/code>&lt;/pre>&lt;p>And that&amp;rsquo;s much more actionable for an investigation :)&lt;/p>
 &lt;h1 id="next-steps">Next Steps&lt;/h1>
 &lt;p>Go play with the new &lt;code>performance_runtime_type_check&lt;/code> feature!&lt;/p>
@@ -5307,7 +5322,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;p>Today, we are happy to announce a new addition to the Beam Katas family: Kotlin!&lt;/p>
-&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-and-kotlin.png" alt="Apache Beam and Kotlin Shaking Hands" height="330" width="800" >&lt;/p>
+&lt;img src="/images/blog/beam-katas-kotlin-release/beam-and-kotlin.png" alt="Apache Beam and Kotlin Shaking Hands" height="330" width="800" >
 &lt;p>You may remember &lt;a href="/blog/beam-kata-release">a post from last year&lt;/a> that informed everyone of the wonderful Beam Katas available on &lt;a href="https://stepik.org">Stepik&lt;/a>
 for learning more about writing Apache Beam applications, working with its various APIs and programming model
 hands-on, all from the comfort of your favorite IDEs. As of today, you can now work through all of the progressive
@@ -5331,8 +5346,8 @@ Kotlin a try.&lt;/p>
 &lt;/ul>
 &lt;p>I&amp;rsquo;d like to extend a very special thanks to &lt;a href="https://twitter.com/henry_ken">Henry Suryawirawan&lt;/a> for his creation of the original series of Katas
 and his support during the review process and making this effort a reality.&lt;/p>
-&lt;p>&lt;br />&lt;/p>
-&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" >&lt;/p></description></item><item><title>Blog: Python SDK Typing Changes</title><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><description>
+&lt;br />
+&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" ></description></item><item><title>Blog: Python SDK Typing Changes</title><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5350,7 +5365,7 @@ Read on to find out what&amp;rsquo;s new.&lt;/p>
 &lt;p>Python supports type annotations on functions (PEP 484). Static type checkers,
 such as mypy, are used to verify adherence to these types.
 For example:&lt;/p>
-&lt;pre>&lt;code>def f(v: int) -&amp;gt; int:
+&lt;pre tabindex="0">&lt;code>def f(v: int) -&amp;gt; int:
 return v[0]
 &lt;/code>&lt;/pre>&lt;p>Running mypy on the above code will give the error:
 &lt;code>Value of type &amp;quot;int&amp;quot; is not indexable&lt;/code>.&lt;/p>
@@ -5384,11 +5399,11 @@ the use of static type analysis on their own pipelines and custom transforms.&lt
 &lt;p>Coming in Beam 2.21 (BEAM-8280), you will be able to use Python annotation
 syntax to specify input and output types.&lt;/p>
 &lt;p>For example, this new form:&lt;/p>
-&lt;pre>&lt;code>class MyDoFn(beam.DoFn):
+&lt;pre tabindex="0">&lt;code>class MyDoFn(beam.DoFn):
 def process(self, element: int) -&amp;gt; typing.Text:
 yield str(element)
 &lt;/code>&lt;/pre>&lt;p>is equivalent to this:&lt;/p>
-&lt;pre>&lt;code>@apache_beam.typehints.with_input_types(int)
+&lt;pre tabindex="0">&lt;code>@apache_beam.typehints.with_input_types(int)
 @apache_beam.typehints.with_output_types(typing.Text)
 class MyDoFn(beam.DoFn):
 def process(self, element):

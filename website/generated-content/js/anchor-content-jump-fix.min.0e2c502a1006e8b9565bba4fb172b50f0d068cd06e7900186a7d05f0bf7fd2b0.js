@@ -1,1 +1,0 @@
-$(document).ready(function(){const hash=window.location.hash;if(hash){const elementWithHash=$(`${hash}`)[0];elementWithHash.scrollIntoView();}});

@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Beam Security</title><link>/security/</link><description>Recent content in Beam Security on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Security: CVE-2020-1929</title><link>/security/cve-2020-1929/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/security/cve-2020-1929/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Beam Security</title><link>/security/</link><description>Recent content in Beam Security on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Security: CVE-2020-1929</title><link>/security/cve-2020-1929/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/security/cve-2020-1929/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

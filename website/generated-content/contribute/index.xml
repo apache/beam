@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Contribute to Apache Beam</title><link>/contribute/</link><description>Recent content in Contribute to Apache Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/contribute/index.xml" rel="self" type="application/rss+xml"/><item><title>Contribute: Attributes of a Beam community member</title><link>/contribute/attributes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/attributes/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Contribute to Apache Beam</title><link>/contribute/</link><description>Recent content in Contribute to Apache Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/contribute/index.xml" rel="self" type="application/rss+xml"/><item><title>Contribute: Attributes of a Beam community member</title><link>/contribute/attributes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/attributes/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11,8 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="attributes-of-a-beam-community-member">Attributes of a Beam community member&lt;/h1>
-&lt;figure>
-&lt;img src="/images/community/beam-logo-icon.svg"/>
+&lt;figure>&lt;img src="/images/community/beam-logo-icon.svg"/>
 &lt;/figure>
 &lt;h2 id="knows-upholds-and-reinforces-the-beam-communitys-practices">Knows, upholds, and reinforces the Beam community’s practices&lt;/h2>
 &lt;ul>
@@ -28,8 +27,7 @@ limitations under the License.
 &lt;li>They accept and integrate feedback on their code&lt;/li>
 &lt;li>They know, follow, and enforce Beam’s practices while reviewing/merging code - style, documentation, testing, backward compatibility, etc.&lt;/li>
 &lt;/ul>
-&lt;figure>
-&lt;img src="/images/community/messages-icon.svg"/>
+&lt;figure>&lt;img src="/images/community/messages-icon.svg"/>
 &lt;/figure>
 &lt;h2 id="knows-upholds-and-reinforces-the-apache-software-foundation-code-of-conduct">Knows, upholds, and reinforces the Apache Software Foundation code of conduct&lt;/h2>
 &lt;p>In particular, we manifestly strive to:&lt;/p>
@@ -44,8 +42,7 @@ limitations under the License.
 &lt;li>Be careful in the words that they choose&lt;/li>
 &lt;/ul>
 &lt;p>&lt;a href="https://httpd.apache.org/docs/">To learn more see the ASF documentation.&lt;/a>&lt;/p>
-&lt;figure>
-&lt;img src="/images/community/diamond-icon.svg"/>
+&lt;figure>&lt;img src="/images/community/diamond-icon.svg"/>
 &lt;/figure>
 &lt;h2 id="knows-upholds-and-reinforces-the-responsibilities-of-an-apache-software-foundation-committer">Knows, upholds, and reinforces the responsibilities of an Apache Software Foundation committer&lt;/h2>
 &lt;ul>
@@ -104,7 +101,7 @@ but committer may absorb some extra effort for new contributors)&lt;/li>
 &lt;li>Generally, every commit should compile and pass tests.&lt;/li>
 &lt;li>Avoid keeping in history formatting messages such as checkstyle or spotless fixes. Squash such commits with previous one.&lt;/li>
 &lt;/ul>
-&lt;h2 id="always-get-to-lgtm-looks-good-to-me">Always get to LGTM (&amp;ldquo;Looks good to me!&amp;quot;)&lt;/h2>
+&lt;h2 id="always-get-to-lgtm-looks-good-to-me">Always get to LGTM (&amp;ldquo;Looks good to me!&amp;rdquo;)&lt;/h2>
 &lt;p>After a pull request goes through rounds of reviews and revisions, it will
 become ready for merge. A reviewer signals their approval either
 by GitHub &amp;ldquo;approval&amp;rdquo; or by a comment such as &amp;ldquo;Looks good to me!&amp;rdquo; (LGTM).&lt;/p>
@@ -160,7 +157,7 @@ It should later not be necessary to find a merge or first PR commit to find out 
 &lt;li>Pull request descriptions should contain a link to the issue being addressed by the changes.&lt;/li>
 &lt;li>&lt;code>CHANGES.md&lt;/code> file should be updated with noteworthy changes (e.g. new features, backward
 incompatible changes, dependency changes, etc.).&lt;/li>
-&lt;li>Squash the &amp;ldquo;Fixup!&amp;quot;, &amp;ldquo;Address comments&amp;rdquo; type of commits that resulted from review iterations.&lt;/li>
+&lt;li>Squash the &amp;ldquo;Fixup!&amp;rdquo;, &amp;ldquo;Address comments&amp;rdquo; type of commits that resulted from review iterations.&lt;/li>
 &lt;/ul>
 &lt;h2 id="merging-it">Merging it!&lt;/h2>
 &lt;p>While it is preferred that authors squash commits after review is complete,
@@ -486,7 +483,7 @@ If you don’t have a GPG key associated with your Apache account, please create
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/preparation_before_release.sh
+&lt;pre tabindex="0">&lt;code>./beam/release/src/main/scripts/preparation_before_release.sh
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Tasks included&lt;/strong>&lt;/p>
@@ -588,11 +585,11 @@ Ask on the mailing list for assistance.&lt;/p>
 &lt;h4 id="login-to-dockerhub">Login to DockerHub&lt;/h4>
 &lt;p>If you are a member of the &lt;a href="https://hub.docker.com/orgs/apache/teams/beam">&lt;code>beam&lt;/code> DockerHub team&lt;/a>, run following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.&lt;/p>
-&lt;pre>&lt;code>docker login docker.io
+&lt;pre tabindex="0">&lt;code>docker login docker.io
 &lt;/code>&lt;/pre>&lt;p>After successful login, authorization info will be stored at ~/.docker/config.json file.
 For example,&lt;/p>
-&lt;pre>&lt;code>&amp;quot;https://index.docker.io/v1/&amp;quot;: {
-&amp;quot;auth&amp;quot;: &amp;quot;xxxxxx&amp;quot;
+&lt;pre tabindex="0">&lt;code>&amp;#34;https://index.docker.io/v1/&amp;#34;: {
+&amp;#34;auth&amp;#34;: &amp;#34;xxxxxx&amp;#34;
 }
 &lt;/code>&lt;/pre>&lt;p>If you are not already a member of the &lt;code>beam&lt;/code> team, please email &lt;code>dev@&lt;/code> for help with any DockerHub related tasks. We are not able
 to add more members to the DockerHub team because &lt;a href="https://infra.apache.org/docker-hub-policy.html">the ASF has a limited number of seats available&lt;/a>.&lt;/p>
@@ -678,7 +675,7 @@ It&amp;rsquo;ll be used by the script for accessing Github API.
 You only need to enable &amp;ldquo;repo&amp;rdquo; permissions to this token.&lt;/li>
 &lt;li>Update required configurations listed in &lt;code>RELEASE_BUILD_CONFIGS&lt;/code> in &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config&lt;/a>&lt;/li>
 &lt;li>Then run
-&lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./verify_release_build.sh
+&lt;pre tabindex="0">&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./verify_release_build.sh
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
 You can run &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a> to do that.
@@ -716,16 +713,16 @@ versions to run Python tests. See Python installation tips in &lt;a href="https:
 &lt;ol>
 &lt;li>
 &lt;p>Clean current workspace&lt;/p>
-&lt;pre>&lt;code>git clean -fdx
+&lt;pre tabindex="0">&lt;code>git clean -fdx
 ./gradlew clean
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>Unlock the secret key&lt;/p>
-&lt;pre>&lt;code>gpg --output ~/doc.sig --sign ~/.bashrc
+&lt;pre tabindex="0">&lt;code>gpg --output ~/doc.sig --sign ~/.bashrc
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>Run build command&lt;/p>
-&lt;pre>&lt;code>./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
+&lt;pre tabindex="0">&lt;code>./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
 &lt;/code>&lt;/pre>&lt;p>To speed things up locally you might want to omit &lt;code>--no-parallel&lt;/code>. You can also omit &lt;code>--continue&lt;/code>
 if you want build fails after the first error instead of continuing, it may be easier and faster
 to find environment issues this way without having to wait until the full build completes.&lt;/p>
@@ -840,7 +837,7 @@ The Release Manager repeats this cycle until the community approves one release 
 &lt;p>Release candidates are built from single commits off the release branch.
 Before building, the version must be set to a non-SNAPSHOT, non-dev version.
 The final state of the repository should match this diagram:&lt;/p>
-&lt;p>&lt;img src="/images/tag-rc-commit.png" alt="Set version to non-SNAPSHOT, non-dev, on tagged RC commit" width="100%" />&lt;/p>
+&lt;img src="/images/tag-rc-commit.png" alt="Set version to non-SNAPSHOT, non-dev, on tagged RC commit" width="100%" />
 &lt;ul>
 &lt;li>The release branch is unchanged.&lt;/li>
 &lt;li>There is a commit not on the release branch with the version adjusted.&lt;/li>
@@ -948,12 +945,12 @@ help with this step. Please email &lt;code>dev@&lt;/code> and ask a member of th
 Please note that dependencies for the SDKs with different Python versions vary.
 Need to verify all Python images by replacing &lt;code>${ver}&lt;/code> with each supported Python version &lt;code>X.Y&lt;/code>.&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
+&lt;pre tabindex="0">&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;ul>
 &lt;li>For Java SDK images, there should be around 200 dependencies.&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
+&lt;pre tabindex="0">&lt;code>docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
 ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ol>
@@ -1099,7 +1096,7 @@ ${CONTRIBUTORS}
 &lt;li>Run all jenkins suites and include links to passing tests in the voting email.&lt;/li>
 &lt;li>Pull docker images to make sure they are pullable.&lt;/li>
 &lt;/ol>
-&lt;pre>&lt;code>docker pull {image_name}
+&lt;pre tabindex="0">&lt;code>docker pull {image_name}
 docker pull apache/beam_python3.7_sdk:2.39.0rc1
 &lt;/code>&lt;/pre>&lt;hr>
 &lt;h2 id="10-vote-and-validate-release-candidate">10. Vote and validate release candidate&lt;/h2>
@@ -1172,7 +1169,7 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;li>First update required configurations listed in &lt;code>RC_VALIDATE_CONFIGS&lt;/code> in
 &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config&lt;/a>&lt;/li>
 &lt;li>Then run
-&lt;pre>&lt;code>./beam/release/src/main/scripts/run_rc_validation.sh
+&lt;pre tabindex="0">&lt;code>./beam/release/src/main/scripts/run_rc_validation.sh
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ol>
 &lt;/li>
@@ -1234,19 +1231,19 @@ Other manual validation will follow, but this will at least validate that the st
 &lt;li>
 &lt;p>&lt;strong>Java Quickstart Validation&lt;/strong>&lt;/p>
 &lt;p>&lt;strong>Direct Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:direct-java:runQuickstartJavaDirect \
+&lt;pre tabindex="0">&lt;code>./gradlew :runners:direct-java:runQuickstartJavaDirect \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Flink Local Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
+&lt;pre tabindex="0">&lt;code>./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Spark Local Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:spark:3:runQuickstartJavaSpark \
+&lt;pre tabindex="0">&lt;code>./gradlew :runners:spark:3:runQuickstartJavaSpark \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Dataflow Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
+&lt;pre tabindex="0">&lt;code>./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION} \
 -PgcpProject=${YOUR_GCP_PROJECT} \
@@ -1258,21 +1255,21 @@ Other manual validation will follow, but this will at least validate that the st
 &lt;ul>
 &lt;li>
 &lt;p>&lt;strong>Create your own BigQuery dataset&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+&lt;pre tabindex="0">&lt;code>bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Create your PubSub topic&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC}
+&lt;pre tabindex="0">&lt;code>gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC}
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Setup your service account&lt;/strong>&lt;/p>
 &lt;p>Goto IAM console in your project to create a service account as &lt;code>project owner&lt;/code>, then run&lt;/p>
-&lt;pre>&lt;code>gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
+&lt;pre tabindex="0">&lt;code>gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
 export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Run&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+&lt;pre tabindex="0">&lt;code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION} \
 -PgcpProject=${YOUR_GCP_PROJECT} \
@@ -1292,30 +1289,30 @@ export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Verify the hashes&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>sha512sum -c apache-beam-2.5.0-python.zip.sha512
+&lt;pre tabindex="0">&lt;code>sha512sum -c apache-beam-2.5.0-python.zip.sha512
 sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Build SDK&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>sudo apt-get install unzip
+&lt;pre tabindex="0">&lt;code>sudo apt-get install unzip
 unzip apache-beam-2.5.0-source-release.zip
 python setup.py sdist
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Setup virtual environment&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>python3 -m venv beam_env
+&lt;pre tabindex="0">&lt;code>python3 -m venv beam_env
 . ./beam_env/bin/activate
 pip install --upgrade pip setuptools wheel
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Install SDK&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>pip install dist/apache-beam-2.5.0.tar.gz
+&lt;pre tabindex="0">&lt;code>pip install dist/apache-beam-2.5.0.tar.gz
 pip install dist/apache-beam-2.5.0.tar.gz[gcp]
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Setup GCP&lt;/strong>&lt;/p>
 &lt;p>Please repeat following steps for every following test.&lt;/p>
-&lt;pre>&lt;code>bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
+&lt;pre tabindex="0">&lt;code>bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
 bq mk --project_id=${YOUR_PROJECT} ${USER}_test
 gsutil rm -rf ${YOUR_GS_STORAGE]
 gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
@@ -1325,7 +1322,7 @@ gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
 &lt;li>
 &lt;p>&lt;strong>Produce data by using java injector:&lt;/strong>&lt;/p>
 &lt;p>Configure your ~/.m2/settings.xml as following:&lt;/p>
-&lt;pre>&lt;code>&amp;lt;settings&amp;gt;
+&lt;pre tabindex="0">&lt;code>&amp;lt;settings&amp;gt;
 &amp;lt;profiles&amp;gt;
 &amp;lt;profile&amp;gt;
 &amp;lt;id&amp;gt;release-repo&amp;lt;/id&amp;gt;
@@ -1344,22 +1341,22 @@ gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
 &amp;lt;/settings&amp;gt;
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Note&lt;/strong>: You can found the latest &lt;code>id&lt;/code>, &lt;code>name&lt;/code> and &lt;code>url&lt;/code> for one RC in the vote email thread sent out by Release Manager.&lt;/p>
 &lt;p>Run&lt;/p>
-&lt;pre>&lt;code>mvn archetype:generate \
+&lt;pre tabindex="0">&lt;code>mvn archetype:generate \
 -DarchetypeGroupId=org.apache.beam \
 -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
 -DarchetypeVersion=${RELEASE_VERSION} \
 -DgroupId=org.example \
 -DartifactId=word-count-beam \
--Dversion=&amp;quot;0.1&amp;quot; \
+-Dversion=&amp;#34;0.1&amp;#34; \
 -Dpackage=org.apache.beam.examples \
 -DinteractiveMode=false
 -DarchetypeCatalog=internal
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
--Dexec.args=&amp;quot;${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none&amp;quot;
+-Dexec.args=&amp;#34;${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none&amp;#34;
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Run Leaderboard with Direct Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>python -m apache_beam.examples.complete.game.leader_board \
+&lt;pre tabindex="0">&lt;code>python -m apache_beam.examples.complete.game.leader_board \
 --project=${YOUR_PROJECT} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
 --dataset ${USER}_test
@@ -1373,7 +1370,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Run Leaderboard with Dataflow Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>python -m apache_beam.examples.complete.game.leader_board \
+&lt;pre tabindex="0">&lt;code>python -m apache_beam.examples.complete.game.leader_board \
 --project=${YOUR_PROJECT} \
 --region=${GCE_REGION} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
@@ -1391,7 +1388,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Run GameStats with Direct Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>python -m apache_beam.examples.complete.game.game_stats \
+&lt;pre tabindex="0">&lt;code>python -m apache_beam.examples.complete.game.game_stats \
 --project=${YOUR_PROJECT} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
 --dataset ${USER}_test \
@@ -1406,7 +1403,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Run GameStats with Dataflow Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>python -m apache_beam.examples.complete.game.game_stats \
+&lt;pre tabindex="0">&lt;code>python -m apache_beam.examples.complete.game.game_stats \
 --project=${YOUR_PROJECT} \
 --region=${GCE_REGION} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
@@ -1474,7 +1471,7 @@ please follow &lt;a href="https://help.github.com/articles/creating-a-personal-a
 &lt;li>&lt;strong>Script:&lt;/strong> &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_pypi.sh">deploy_pypi.sh&lt;/a>&lt;/li>
 &lt;li>&lt;strong>Usage&lt;/strong>&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/deploy_pypi.sh
+&lt;pre tabindex="0">&lt;code>./beam/release/src/main/scripts/deploy_pypi.sh
 &lt;/code>&lt;/pre>&lt;ul>
 &lt;li>Verify that the files at &lt;a href="https://pypi.org/project/apache-beam/#files">https://pypi.org/project/apache-beam/#files&lt;/a> are correct.
 All wheels should be published, in addition to the zip of the release source.
@@ -1487,7 +1484,7 @@ you will need help with this step. Please email dev@ and ask a member of the bea
 &lt;li>&lt;strong>Script:&lt;/strong> &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh">publish_docker_images.sh&lt;/a>&lt;/li>
 &lt;li>&lt;strong>Usage&lt;/strong>&lt;/li>
 &lt;/ul>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/publish_docker_images.sh
+&lt;pre tabindex="0">&lt;code>./beam/release/src/main/scripts/publish_docker_images.sh
 &lt;/code>&lt;/pre>&lt;ul>
 &lt;li>&lt;strong>Verify that:&lt;/strong>
 &lt;ul>
@@ -1506,20 +1503,20 @@ you will need help with this step. Please email dev@ and ask a member of the bea
 &lt;/ul>
 &lt;h3 id="git-tag">Git tag&lt;/h3>
 &lt;p>Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:&lt;/p>
-&lt;pre>&lt;code># Optional: unlock the signing key by signing an arbitrary file.
+&lt;pre tabindex="0">&lt;code># Optional: unlock the signing key by signing an arbitrary file.
 gpg --output ~/doc.sig --sign ~/.bashrc
-VERSION_TAG=&amp;quot;v${RELEASE_VERSION}&amp;quot;
-RC_TAG=&amp;quot;${VERSION_TAG}-RC${RC_NUM}&amp;quot;
-# Ensure local tags are in sync. If there's a mismatch, it will tell you.
+VERSION_TAG=&amp;#34;v${RELEASE_VERSION}&amp;#34;
+RC_TAG=&amp;#34;${VERSION_TAG}-RC${RC_NUM}&amp;#34;
+# Ensure local tags are in sync. If there&amp;#39;s a mismatch, it will tell you.
 git fetch --all --tags
-# If the tag exists, a commit number is produced, otherwise there's an error.
+# If the tag exists, a commit number is produced, otherwise there&amp;#39;s an error.
 git rev-list $RC_TAG -n 1
 # Tag for Go SDK
-git tag -s &amp;quot;sdks/$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
-git push https://github.com/apache/beam &amp;quot;sdks/$VERSION_TAG&amp;quot;
+git tag -s &amp;#34;sdks/$VERSION_TAG&amp;#34; &amp;#34;$RC_TAG&amp;#34;
+git push https://github.com/apache/beam &amp;#34;sdks/$VERSION_TAG&amp;#34;
 # Tag for repo root.
-git tag -s &amp;quot;$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
-git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
+git tag -s &amp;#34;$VERSION_TAG&amp;#34; &amp;#34;$RC_TAG&amp;#34;
+git push https://github.com/apache/beam &amp;#34;$VERSION_TAG&amp;#34;
 &lt;/code>&lt;/pre>&lt;p>After pushing the tag, the tag should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/tags">Tags&lt;/a> page.&lt;/p>
 &lt;h3 id="publish-release-to-github">Publish release to Github&lt;/h3>
 &lt;p>Once the tag is uploaded, publish the release notes to Github. From the &lt;a href="https://github.com/apache/beam/releases">Beam release page on Github&lt;/a> select
@@ -2638,7 +2635,7 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 &lt;p>Do not:&lt;/p>
 &lt;ul>
 &lt;li>Do not test successful validation (e.g. &amp;ldquo;validation does not fail when the transform is configured correctly&amp;rdquo;)&lt;/li>
-&lt;li>Do not test trivial validation errors (e.g. &amp;ldquo;validation fails when a property is unset/null/empty/negative/&amp;hellip;&amp;quot;)&lt;/li>
+&lt;li>Do not test trivial validation errors (e.g. &amp;ldquo;validation fails when a property is unset/null/empty/negative/&amp;hellip;&amp;rdquo;)&lt;/li>
 &lt;/ul>
 &lt;h3 id="compatibility">Compatibility&lt;/h3>
 &lt;p>Do:&lt;/p>
@@ -2670,25 +2667,27 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...,&lt;/span> &lt;span class="n">PCollectionTuple&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">mooTag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{};&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">blahTag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{};&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="n">PCollectionTuple&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="o">(...&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">moo&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...;&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">blah&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...;&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">PCollectionTuple&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mooTag&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">and&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">blahTag&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">blah&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getMooTag&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">mooTag&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getBlahTag&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">blahTag&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...,&lt;/span> &lt;span class="n">PCollectionTuple&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">mooTag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">blahTag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PCollectionTuple&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="o">(...&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">moo&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">blah&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">PCollectionTuple&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mooTag&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">and&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">blahTag&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">blah&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getMooTag&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">mooTag&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getBlahTag&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">blahTag&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="fluent-builders-for-configuration">Fluent builders for configuration&lt;/h4>
@@ -2698,19 +2697,22 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@AutoValue&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kt">int&lt;/span> &lt;span class="nf">getMoo&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="nd">@Nullable&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="nf">getBlah&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span> &lt;span class="nf">toBuilder&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="nd">@AutoValue.Builder&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Builder&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span> &lt;span class="nf">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span> &lt;span class="nf">setBlah&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">blah&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">MyTransform&lt;/span> &lt;span class="nf">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="nd">@AutoValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">int&lt;/span> &lt;span class="nf">getMoo&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Nullable&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="nf">getBlah&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span> &lt;span class="nf">toBuilder&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@AutoValue.Builder&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Builder&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span> &lt;span class="nf">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span> &lt;span class="nf">setBlah&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">blah&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">MyTransform&lt;/span> &lt;span class="nf">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="factory-methods">Factory methods&lt;/h5>
@@ -2720,19 +2722,21 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Twiddle&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="c1">// or:
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">TwiddleThumbs&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">TwiddleThumbs&lt;/span> &lt;span class="nf">create&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Twiddle&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// or:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">TwiddleThumbs&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">TwiddleThumbs&lt;/span> &lt;span class="nf">create&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>Exception: when transform has a single overwhelmingly most important parameter, then call the factory method &lt;code>of&lt;/code> and put the parameter into an argument of the factory method: &lt;code>ParDo.of(DoFn).withAllowedLateness()&lt;/code>.&lt;/p>
@@ -2745,22 +2749,22 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="cm">/**
-&lt;/span>&lt;span class="cm"> * Returns a new {@link TwiddleThumbs} transform with moo set
-&lt;/span>&lt;span class="cm"> * to the given value.
-&lt;/span>&lt;span class="cm"> *
-&lt;/span>&lt;span class="cm"> * &amp;lt;p&amp;gt;Valid values are 0 (inclusive) to 100 (exclusive). The default is 42.
-&lt;/span>&lt;span class="cm"> *
-&lt;/span>&lt;span class="cm"> * &amp;lt;p&amp;gt;Higher values generally improve throughput, but increase chance
-&lt;/span>&lt;span class="cm"> * of spontaneous combustion.
-&lt;/span>&lt;span class="cm"> */&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">withMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">100&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="s">&amp;#34;Thumbs.Twiddle.withMoo() called with an invalid moo of %s. &amp;#34;&lt;/span>
-&lt;span class="o">+&lt;/span> &lt;span class="s">&amp;#34;Valid values are 0 (inclusive) to 100 (exclusive)&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="n">moo&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="cm">/**
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> * Returns a new {@link TwiddleThumbs} transform with moo set
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> * to the given value.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> *
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> * &amp;lt;p&amp;gt;Valid values are 0 (inclusive) to 100 (exclusive). The default is 42.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> *
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> * &amp;lt;p&amp;gt;Higher values generally improve throughput, but increase chance
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> * of spontaneous combustion.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="cm"> */&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">withMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">100&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;Thumbs.Twiddle.withMoo() called with an invalid moo of %s. &amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">+&lt;/span> &lt;span class="s">&amp;#34;Valid values are 0 (inclusive) to 100 (exclusive)&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">moo&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="default-values-for-parameters">Default values for parameters&lt;/h5>
@@ -2770,12 +2774,12 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">42&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">42&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="packaging-multiple-parameters-into-a-reusable-object">Packaging multiple parameters into a reusable object&lt;/h5>
@@ -2787,29 +2791,34 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="nd">@AutoValue&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="err">…&lt;/span>
-&lt;span class="nd">@Nullable&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getBar&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">toBuilder&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="nd">@AutoValue.Builder&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="err">…&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">setBar&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">bar&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="err">…&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="c1">// User code:
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">twiddle&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">twiddle&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="c1">// Or:
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">bars&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">foos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="err">…&lt;/span> &lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@AutoValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="err">…&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Nullable&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getBar&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">toBuilder&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@AutoValue.Builder&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="err">…&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">setBar&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">bar&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="err">…&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// User code:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">twiddle&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">twiddle&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Or:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">bars&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">foos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="err">…&lt;/span> &lt;span class="o">);&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>Exception: when the transform has a single most important parameter and this parameter depends on type T, then prefer to put it right into the factory method: e.g. &lt;code>Combine.globally(SerializableFunction&amp;lt;Iterable&amp;lt;V&amp;gt;,V&amp;gt;&lt;/code>). This improves Java&amp;rsquo;s type inference and allows the user not to specify type parameters explicitly.&lt;/p>
@@ -2834,27 +2843,32 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="cm">/** Transforms for clustering data. */&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Cluster&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// Force use of static factory methods.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="nf">Cluster&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
-&lt;span class="cm">/** Returns a new {@link UsingKMeans} transform. */&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">UsingKMeans&lt;/span> &lt;span class="nf">usingKMeans&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Hierarchically&lt;/span> &lt;span class="nf">hierarchically&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="cm">/** Clusters data using the K-Means algorithm. */&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">UsingKMeans&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Hierarchically&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooIO&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// Force use of static factory methods.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="nf">FooIO&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Read&lt;/span> &lt;span class="nf">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Write&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Delete&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Mutate&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="cm">/** Transforms for clustering data. */&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Cluster&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Force use of static factory methods.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="nf">Cluster&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="cm">/** Returns a new {@link UsingKMeans} transform. */&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">UsingKMeans&lt;/span> &lt;span class="nf">usingKMeans&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Hierarchically&lt;/span> &lt;span class="nf">hierarchically&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="cm">/** Clusters data using the K-Means algorithm. */&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">UsingKMeans&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Hierarchically&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooIO&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Force use of static factory methods.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="nf">FooIO&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Read&lt;/span> &lt;span class="nf">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Write&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Delete&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Mutate&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>When supporting multiple versions with incompatible APIs, use the version as a namespace-like class too, and put implementations of different API versions in different files.&lt;/p>
@@ -2863,27 +2877,31 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// FooIO.java
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooIO&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// Force use of static factory methods.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="nf">FooIO&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">FooV1&lt;/span> &lt;span class="nf">v1&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">FooV1&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">FooV2&lt;/span> &lt;span class="nf">v2&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">FooV2&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="c1">// FooV1.java
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooV1&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// Force use of static factory methods outside the package.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">FooV1&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Read&lt;/span> &lt;span class="nf">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="c1">// FooV2.java
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooV2&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// Force use of static factory methods outside the package.
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">FooV2&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Read&lt;/span> &lt;span class="nf">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// FooIO.java
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooIO&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Force use of static factory methods.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="nf">FooIO&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">FooV1&lt;/span> &lt;span class="nf">v1&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">FooV1&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">FooV2&lt;/span> &lt;span class="nf">v2&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">FooV2&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// FooV1.java
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooV1&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Force use of static factory methods outside the package.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">FooV1&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Read&lt;/span> &lt;span class="nf">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// FooV2.java
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooV2&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Force use of static factory methods outside the package.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">FooV2&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Read&lt;/span> &lt;span class="nf">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="behavior">Behavior&lt;/h3>
@@ -2897,8 +2915,8 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;h4 id="validation">Validation&lt;/h4>
 &lt;ul>
 &lt;li>Validate individual parameters in &lt;code>.withBlah()&lt;/code> methods using &lt;code>checkArgument()&lt;/code>. Error messages should mention the name of the parameter, the actual value, and the range of valid values.&lt;/li>
-&lt;li>Validate parameter combinations and missing required parameters in the &lt;code>PTransform&lt;/code>'s &lt;code>.expand()&lt;/code> method.&lt;/li>
-&lt;li>Validate parameters that the &lt;code>PTransform&lt;/code> takes from &lt;code>PipelineOptions&lt;/code> in the &lt;code>PTransform&lt;/code>'s &lt;code>.validate(PipelineOptions)&lt;/code> method.
+&lt;li>Validate parameter combinations and missing required parameters in the &lt;code>PTransform&lt;/code>&amp;rsquo;s &lt;code>.expand()&lt;/code> method.&lt;/li>
+&lt;li>Validate parameters that the &lt;code>PTransform&lt;/code> takes from &lt;code>PipelineOptions&lt;/code> in the &lt;code>PTransform&lt;/code>&amp;rsquo;s &lt;code>.validate(PipelineOptions)&lt;/code> method.
 These validations will be executed when the pipeline is already fully constructed/expanded and is about to be run with a particular &lt;code>PipelineOptions&lt;/code>.
 Most &lt;code>PTransform&lt;/code>s do not use &lt;code>PipelineOptions&lt;/code> and thus don&amp;rsquo;t need a &lt;code>validate()&lt;/code> method - instead, they should perform their validation via the two other methods above.&lt;/li>
 &lt;/ul>
@@ -2907,45 +2925,51 @@ Most &lt;code>PTransform&lt;/code>s do not use &lt;code>PipelineOptions&lt;/code
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@AutoValue&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">TwiddleThumbs&lt;/span>
-&lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="nf">getMoo&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="kd">abstract&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="nf">getBoo&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="c1">// Validating individual parameters
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="n">TwiddleThumbs&lt;/span> &lt;span class="nf">withMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">100&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="s">&amp;#34;Moo must be between 0 (inclusive) and 100 (exclusive), but was: %s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="n">moo&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="n">TwiddleThumbs&lt;/span> &lt;span class="nf">withBoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">boo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">boo&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;Boo can not be null&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(!&lt;/span>&lt;span class="n">boo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">isEmpty&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="s">&amp;#34;Boo can not be empty&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setBoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">boo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="nd">@Override&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">validate&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kt">int&lt;/span> &lt;span class="n">woo&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">as&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TwiddleThumbsOptions&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">getWoo&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">woo&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">getMoo&lt;/span>&lt;span class="o">(),&lt;/span>
-&lt;span class="s">&amp;#34;Woo (%s) must be smaller than moo (%s)&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="n">woo&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">getMoo&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="nd">@Override&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// Validating that a required parameter is present
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">getBoo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;Must specify boo&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="c1">// Validating a combination of parameters
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">getMoo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">0&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="n">getBoo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="s">&amp;#34;Must specify at most one of moo or boo, but was: moo = %s, boo = %s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="n">getMoo&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="n">getBoo&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="o">...&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="nd">@AutoValue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">TwiddleThumbs&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="nf">getMoo&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">abstract&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="nf">getBoo&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Validating individual parameters
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="n">TwiddleThumbs&lt;/span> &lt;span class="nf">withMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">moo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">moo&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">100&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;Moo must be between 0 (inclusive) and 100 (exclusive), but was: %s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">moo&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="n">TwiddleThumbs&lt;/span> &lt;span class="nf">withBoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">boo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">boo&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;Boo can not be null&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(!&lt;/span>&lt;span class="n">boo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">isEmpty&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="s">&amp;#34;Boo can not be empty&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setBoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">boo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Override&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">validate&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">int&lt;/span> &lt;span class="n">woo&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">as&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TwiddleThumbsOptions&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">getWoo&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">woo&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">getMoo&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;Woo (%s) must be smaller than moo (%s)&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">woo&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">getMoo&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Override&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Validating that a required parameter is present
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">getBoo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;Must specify boo&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Validating a combination of parameters
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">checkArgument&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">getMoo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">0&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="n">getBoo&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;Must specify at most one of moo or boo, but was: moo = %s, boo = %s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">getMoo&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="n">getBoo&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="coders">Coders&lt;/h4>
@@ -3236,9 +3260,9 @@ the elements given in &lt;code>residual_roots&lt;/code>.&lt;/p>
 &lt;h3 id="implementing-the-groupbykey-and-window-primitive">Implementing the GroupByKey (and window) primitive&lt;/h3>
 &lt;p>The &lt;code>GroupByKey&lt;/code> operation (sometimes called GBK for short) groups a
 &lt;code>PCollection&lt;/code> of key-value pairs by key and window, emitting results according
-to the &lt;code>PCollection&lt;/code>'s triggering configuration.&lt;/p>
+to the &lt;code>PCollection&lt;/code>&amp;rsquo;s triggering configuration.&lt;/p>
 &lt;p>It is quite a bit more elaborate than simply colocating elements with the same
-key, and uses many fields from the &lt;code>PCollection&lt;/code>'s windowing strategy.&lt;/p>
+key, and uses many fields from the &lt;code>PCollection&lt;/code>&amp;rsquo;s windowing strategy.&lt;/p>
 &lt;h4 id="group-by-encoded-bytes">Group By Encoded Bytes&lt;/h4>
 &lt;p>For both the key and window, your runner sees them as &amp;ldquo;just bytes&amp;rdquo;. So you need
 to group in a way that is consistent with grouping by those bytes, even if you
@@ -3268,7 +3292,7 @@ efficient grouping of these values into their final windows.&lt;/p>
 &lt;p>&lt;em>Main design document:
 &lt;a href="https://s.apache.org/beam-lateness">https://s.apache.org/beam-lateness&lt;/a>&lt;/em>&lt;/p>
 &lt;p>A window is expired in a &lt;code>PCollection&lt;/code> if the watermark of the input PCollection
-has exceeded the end of the window by at least the input &lt;code>PCollection&lt;/code>'s
+has exceeded the end of the window by at least the input &lt;code>PCollection&lt;/code>&amp;rsquo;s
 allowed lateness.&lt;/p>
 &lt;p>Data for an expired window can be dropped any time and should be dropped at a
 &lt;code>GroupByKey&lt;/code>. If you are using &lt;code>GroupAlsoByWindow&lt;/code>, then just before executing
@@ -3278,7 +3302,7 @@ window that appears expired may merge to become not expired.&lt;/p>
 &lt;h4 id="triggering">Triggering&lt;/h4>
 &lt;p>&lt;em>Main design document:
 &lt;a href="https://s.apache.org/beam-triggers">https://s.apache.org/beam-triggers&lt;/a>&lt;/em>&lt;/p>
-&lt;p>The input &lt;code>PCollection&lt;/code>'s trigger and accumulation mode specify when and how
+&lt;p>The input &lt;code>PCollection&lt;/code>&amp;rsquo;s trigger and accumulation mode specify when and how
 outputs should be emitted from the &lt;code>GroupByKey&lt;/code> operation.&lt;/p>
 &lt;p>In Java, there is a lot of support code for executing triggers in the
 &lt;code>GroupAlsoByWindow&lt;/code> implementations, &lt;code>ReduceFnRunner&lt;/code> (legacy name), and
@@ -3365,7 +3389,7 @@ scan the dependencies of the SDK for tests with the JUnit category
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>task validatesRunner(type: Test) {
+&lt;pre tabindex="0">&lt;code>task validatesRunner(type: Test) {
 group = &amp;#34;Verification&amp;#34;
 description = &amp;#34;Validates the runner&amp;#34;
 def pipelineOptions = JsonOutput.toJson([&amp;#34;--runner=MyRunner&amp;#34;, ... misc test options ...])
@@ -3396,7 +3420,7 @@ with matching names, like so:&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>public interface MyRunnerOptions extends PipelineOptions {
+&lt;pre tabindex="0">&lt;code>public interface MyRunnerOptions extends PipelineOptions {
 @Description(&amp;#34;The Foo to use with MyRunner&amp;#34;)
 @Required
 public Foo getMyRequiredFoo();
@@ -3418,7 +3442,7 @@ with a &lt;code>PipelineOptionsRegistrar&lt;/code>. It is easy if you use &lt;co
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>@AutoService(PipelineOptionsRegistrar.class)
+&lt;pre tabindex="0">&lt;code>@AutoService(PipelineOptionsRegistrar.class)
 public static class MyOptionsRegistrar implements PipelineOptionsRegistrar {
 @Override
 public Iterable&amp;lt;Class&amp;lt;? extends PipelineOptions&amp;gt;&amp;gt; getPipelineOptions() {
@@ -3435,7 +3459,7 @@ with a &lt;code>PipelineRunnerRegistrar&lt;/code>. It is easy if you use &lt;cod
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>@AutoService(PipelineRunnerRegistrar.class)
+&lt;pre tabindex="0">&lt;code>@AutoService(PipelineRunnerRegistrar.class)
 public static class MyRunnerRegistrar implements PipelineRunnerRegistrar {
 @Override
 public Iterable&amp;lt;Class&amp;lt;? extends PipelineRunner&amp;gt;&amp;gt; getPipelineRunners() {
@@ -3554,7 +3578,7 @@ sense that includes side effects, etc.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>message FunctionSpec {
+&lt;pre tabindex="0">&lt;code>message FunctionSpec {
 string urn;
 bytes payload;
 }&lt;/code>&lt;/pre>
@@ -3598,7 +3622,7 @@ inputs, state declarations, timer declarations, etc.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>message ParDoPayload {
+&lt;pre tabindex="0">&lt;code>message ParDoPayload {
 FunctionSpec do_fn;
 map&amp;lt;string, SideInput&amp;gt; side_inputs;
 map&amp;lt;string, StateSpec&amp;gt; state_specs;
@@ -3619,7 +3643,7 @@ a reference to this coder.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>message CombinePayload {
+&lt;pre tabindex="0">&lt;code>message CombinePayload {
 FunctionSpec combine_fn;
 string accumulator_coder_id;
 ...
@@ -3634,7 +3658,7 @@ represented in the proto using a FunctionSpec.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>message PTransform {
+&lt;pre tabindex="0">&lt;code>message PTransform {
 FunctionSpec spec;
 repeated string subtransforms;
 // Maps from local string names to PCollection ids
@@ -3663,7 +3687,7 @@ is bounded.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>message PCollection {
+&lt;pre tabindex="0">&lt;code>message PCollection {
 string coder_id;
 IsBounded is_bounded;
 string windowing_strategy_id;
@@ -3681,7 +3705,7 @@ only a meta-format, while &lt;code>ListCoder(VarIntCoder)&lt;/code> is a fully s
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>message Coder {
+&lt;pre tabindex="0">&lt;code>message Coder {
 FunctionSpec spec;
 repeated string component_coder_ids;
 }&lt;/code>&lt;/pre>

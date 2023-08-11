@@ -1,0 +1,1 @@
+$(document).ready(function(){const t=document.querySelector(".case-study-list--additional"),e=t.cloneNode(!0);let n=e.children.length+1;for(;n-- >0;)e.appendChild(e.children[Math.random()*n|0]);t.parentNode.replaceChild(e,t),document.querySelector(".case-study-list--additional").style.visibility="visible"})

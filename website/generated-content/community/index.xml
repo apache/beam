@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Community Beam</title><link>/community/</link><description>Recent content in Community Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/community/index.xml" rel="self" type="application/rss+xml"/><item><title>Community: Beam Logos</title><link>/community/logos/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/logos/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Community Beam</title><link>/community/</link><description>Recent content in Community Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/community/index.xml" rel="self" type="application/rss+xml"/><item><title>Community: Beam Logos</title><link>/community/logos/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/logos/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -762,7 +762,8 @@ limitations under the License.
 &lt;td>&lt;a href="https://www.meetup.com/Paris-Apache-Beam-Meetup/">Paris Apache Beam&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table>&lt;/div>
+&lt;/table>
+&lt;/div>
 &lt;p>The above are the meetups that are already known to the community (please add if you are organizing one!). For Meetups that are tagged with &amp;lsquo;Apache Beam&amp;rsquo;, see the &lt;a href="https://www.meetup.com/topics/apache-beam/">list&lt;/a>.&lt;/p>
 &lt;h2 id="conference-talks">Conference Talks&lt;/h2>
 &lt;p>You can find a list &lt;a href="https://docs.google.com/spreadsheets/d/1CloF63FOKSPM6YIuu8eExjhX6xrIiOp5j4zPbSg3Apo/">here&lt;/a>&lt;/p></description></item><item><title>Community: Integrations</title><link>/community/integrations/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/integrations/</guid><description>

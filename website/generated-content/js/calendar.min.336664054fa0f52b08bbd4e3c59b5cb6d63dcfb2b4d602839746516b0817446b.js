@@ -1,0 +1,1 @@
+$(document).ready(function(){function e(){var e=$(".calendar-card-big-right").height(),t=$(".calendar-card-big-right").width();$("#calendar").height=e-100,$("#calendar").width=t-100}e()})

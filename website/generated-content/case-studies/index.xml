@@ -1,4 +1,148 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: High-Performance Quantitative Risk Analysis with Apache Beam at HSBC</title><link>/case-studies/hsbc/</link><pubDate>Tue, 20 Jun 2023 00:12:00 +0000</pubDate><guid>/case-studies/hsbc/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: High-Performing and Efficient Transactional Data Processing for OCTO Technology’s Clients</title><link>/case-studies/octo/</link><pubDate>Thu, 10 Aug 2023 00:12:00 +0000</pubDate><guid>/case-studies/octo/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/octo.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“Oftentimes, I tell the clients that Apache Beam is the “Docker” of data processing. It's highly portable, runs seamlessly anywhere, unifies batch and streaming processing, and offers numerous out-of-the-box templates. Adopting Beam enables accelerated migration from batch to streaming, effortless pipeline reuse across contexts, and faster enablement of new use cases. The benefits and great performance of Apache Beam are a game-changer for many!”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/octo/godefroy-clair.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Godefroy Clair
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Data Architect @ OCTO Technology
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;div class="case-study-post">
+&lt;h1 id="high-performing-and-efficient-transactional-data-processing-for-octo-technologys-clients">High-Performing and Efficient Transactional Data Processing for OCTO Technology’s Clients&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>&lt;a href="https://octo.com/">OCTO Technology&lt;/a>, part of &lt;a href="https://www.accenture.com/">Accenture&lt;/a>, stands at the forefront of technology consultancy and software engineering, specializing in new technologies and digital transformation. Since 1998, OCTO has been dedicated to crafting scalable digital solutions that drive business transformations for clients, ranging from startups to multinational corporations. OCTO leverages its deep technology expertise and a strong culture of successful innovation to help clients explore, test, and embrace emerging technologies or implement mature digital solutions at scale.&lt;/p>
+&lt;p>With the powerful Apache Beam unified portable model, OCTO has unlocked the potential to empower, transform, and scale the data ecosystems of several clients, including renowned names like a famous French newspaper and one of France&amp;rsquo;s largest grocery retailers.&lt;/p>
+&lt;p>In this spotlight, OCTO’s Data Architect, Godefroy Clair, and Data Engineers, Florian Bastin and Leo Babonnaud, unveil the remarkable impact of Apache Beam on the data processing of a leading French grocery retailer. The implementation led to expedited migration from batch to streaming, a 4x acceleration in transactional data processing, and a 5x improvement in infrastructure cost efficiency.&lt;/p>
+&lt;h2 id="high-performing-transactional-data-processing">High-performing transactional data processing&lt;/h2>
+&lt;p>OCTO’s Client, a prominent grocery and convenience store retailer with tens of thousands of stores across several countries, relies on an internal web app to empower store managers with informed purchasing decisions and effective store management. The web app provides access to crucial product details, stock quantities, pricing, promotions, and more, sourced from various internal data stores, platforms, and systems.&lt;/p>
+&lt;p>Before 2022, the Client utilized &lt;a href="https://cloud.google.com/composer">Cloud Composer&lt;/a> for orchestrating batch pipelines that consolidated and processed data from Cloud Storage files and Pub/Sub messages and wrote the output to BigQuery. However, with most source data uploaded at night, batch processing posed challenges in meeting SLAs and providing the most recent information to store managers before store opening. Moreover, incorrect or missing data uploads required cumbersome database state reverts, involving a substantial amount of transactional data and logs. The Client’s internal team dedicated significant time to maintaining massive SQL queries or manually updating the database state, resulting in high maintenance costs.&lt;/p>
+&lt;p>To address these issues, the Client sought OCTO&amp;rsquo;s expertise to transform their data ecosystem and migrate their core use case from batch to streaming. The objectives included faster data processing, ensuring the freshest data in the web app, simplifying pipeline and database maintenance, ensuring scalability and resilience, and efficiently handling spikes in data volumes.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+The Client needed to very quickly consolidate and process a huge number of files in different formats from Cloud Storage and Pub/Sub events to have the freshest info about new products, promotions, etc. in their web app every day. For all that, Apache Beam was the perfect tool.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/octo/godefroy-clair.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Godefroy Clair
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Data Architect @ OCTO Technology
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>Apache Beam and its unified model emerged as the perfect solution, enabling both near-real-time streaming for the Client’s core transactional data processing, as well as their batch processing for standalone use cases. Additionally, it offered the added benefit of autoscaling with the &lt;a href="/documentation/runners/dataflow/">Dataflow runner&lt;/a>. With Apache Beam&amp;rsquo;s &lt;a href="/documentation/sdks/python/"> Python SDK&lt;/a> and the out-of-the-box &lt;a href="/documentation/io/connectors/">I/O connectors&lt;/a>, OCTO was able to reuse Python components between the existing and new batch and streaming pipelines, and leverage native optimized connectivity with Pub/Sub and Cloud Storage, expediting the migration.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/octo/scheme-14.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/octo/scheme-14.png" alt="streaming pipelines">
+&lt;/a>
+&lt;/div>
+&lt;p>The streaming Apache Beam pipeline behind the Client’s web app now processes product and inventory data from Pub/Sub messages and Cloud Storage files of varying sizes - from several rows to 1.7 million rows - that arrive in Cloud Storage at various times, in unpredictable order, and in various formats (such as CSV, JSON, and zip files). Apache Beam&amp;rsquo;s &lt;a href="/blog/timely-processing/">timely processing&lt;/a> capabilities enable the streaming pipeline to handle that data efficiently. Its &lt;a href="/documentation/basics/#state-and-timers">timers&lt;/a> provide a way to control aggregations by waiting until all the necessary events and files come in and then processing them in the right order, while the &lt;a href="/documentation/transforms/python/aggregation/groupbykey/">GroupByKey&lt;/a> and &lt;a href="/documentation/transforms/python/aggregation/groupintobatches/">GroupIntoBatches&lt;/a> transforms allow for efficient grouping for every key and batching the input into desired size. Every day, the Apache Beam pipeline consolidates, deduplicates, enriches, and outputs the data to &lt;a href="https://firebase.google.com/docs/firestore">Firestore&lt;/a> and &lt;a href="https://www.algolia.com/">Algolia&lt;/a>, processing over 100 million rows and consolidating hundreds of gigabytes of transactional data with over a terabyte of an external state within less than 3 hours.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+The web app requires fresh data early in the morning before the stores open. Previously, handling the entirety of the Client’s data in time was not feasible. Thanks to Apache Beam, they can now process it within just 3 hours, ensuring data availability even if the input files arrive late at night.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/octo/leo-babonnaud.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Leo Babonnaud
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Data Scientist @ OCTO Technology
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>The Client’s specific use case posed unique challenges: the enrichment data was too large to keep in memory, and the unpredictable file order and arrival rendered timers and state API unfeasible. Being unable to leverage Apache Beam&amp;rsquo;s native stateful processing, OCTO found a solution in externalizing the state of &lt;a href="/documentation/programming-guide/#pardo">DoFns&lt;/a> to a transactional &lt;a href="https://cloud.google.com/sql/docs/introduction">Cloud SQL&lt;/a> Postgres database. When processing new events and files, the Apache Beam pipeline uses streaming queries to select, insert, upsert, and delete rows with states in the Cloud SQL database. Apache Beam excels in complex state consolidation when processing files, Pub/Sub events, and logs representing the past, present, and future state of the records in the sink databases. If the incoming data is wrong and the sink data stores need to be reverted, Apache Beam processes a huge amount of logs about data movements that happened within a specific timeframe and consolidates them into states, eliminating manual efforts.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+The web app requires fresh data early in the morning before the stores open. Previously, handling the entirety of the Client’s data in time was not feasible. Thanks to Apache Beam, they can now process it within just 3 hours, ensuring data availability even if the input files arrive late at night.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/octo/florian-bastin.jpg">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Florian Bastin
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Lead Data Scientist @ OCTO Technology
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>By leveraging Apache Beam, the Client has achieved a groundbreaking transformation in data processing, empowering their internal web app with fresh and historical data, enhancing overall operational efficiency, and meeting business requirements with improved processing latency.&lt;/p>
+&lt;h2 id="custom-io-and-fine-grained-control-over-sql-connections">Custom I/O and fine-grained control over SQL connections&lt;/h2>
+&lt;p>The Client’s specific use case demanded CRUD operations in a Cloud SQL database based on a value in a PCollection, and although the built-in &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html">JBDC I/O connector&lt;/a> supported reading and writing from a Cloud SQL database, it did not cater to such SQL operations. However, Apache Beam&amp;rsquo;s custom I/O frameworks open the door for &lt;a href="/documentation/io/developing-io-overview/">creating new connectors&lt;/a> tailored to complex use cases, offering the same connectivity as out-of-the-box I/Os. Capitalizing on this advantage and leveraging &lt;a href="/documentation/transforms/python/elementwise/pardo/">ParDo&lt;/a> and &lt;a href="/documentation/transforms/python/aggregation/groupbykey/">GroupByKey&lt;/a> transforms, OCTO successfully developed a new Apache Beam I/O. This custom I/O seamlessly interacts with a Cloud SQL database using the &lt;a href="https://pypi.org/project/cloud-sql-python-connector/">Cloud SQL Python Connector&lt;/a>, instantiating the latter as a connection object in the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup">DoFn.Setup&lt;/a> method.&lt;/p>
+&lt;p>Moreover, Apache Beam offered OCTO fine-grained control over parallelism, enabling them to maximize worker processes&amp;rsquo; efficiency. With the Dataflow runner&amp;rsquo;s potent parallelism and autoscaling capabilities, OCTO had to address the &lt;a href="https://cloud.google.com/sql/docs/quotas">constraints on the number of concurrent connections&lt;/a> imposed by Cloud SQL. To overcome this challenge, the Apache Beam DoFn.Setup method came into play, providing a means to define the maximum number of concurrent operations by specifying it within the method. OCTO also leveraged the &lt;a href="https://beam.apache.org/releases/pydoc/2.29.0/apache_beam.utils.shared.html">beam.utils.Shared&lt;/a> module to create a connection pool for the Cloud SQL database, effectively sharing it across all processes at the worker level.&lt;/p>
+&lt;p>OCTO&amp;rsquo;s data engineers showcased these innovative developments powered by Apache Beam at &lt;a href="https://beamsummit.org/sessions/2023/how-to-balance-power-and-control-when-using-dataflow-with-an-oltp-sql-database/">Beam Summit 2023&lt;/a>.&lt;/p>
+&lt;h2 id="results">Results&lt;/h2>
+&lt;p>Apache Beam enabled OCTO to revolutionize data processing of one of the most prominent French grocery retailers with a 5x optimization in infrastructure costs and a 4x increase in data processing performance. Apache Beam&amp;rsquo;s unified model and Python SDK proved instrumental in accelerating the migration from batch to streaming processing by providing the ability to reuse components, packages, and modules across pipelines.&lt;/p>
+&lt;p>Apache Beam&amp;rsquo;s powerful transforms and robust streaming capabilities enabled the Client’s streaming pipeline to efficiently process over 100 million rows daily, consolidating transactional data with over a terabyte of an external state in under 3 hours, a feat that was previously unattainable. The flexibility and extensibility of Apache Beam empowered OCTO to tackle use-case-specific technical constraints, achieving the perfect balance of power and control to align with the Client’s specific business objectives.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+Oftentimes, I tell the clients that Apache Beam is the “Docker” of data processing. It's highly portable, runs seamlessly anywhere, unifies batch and streaming processing, and offers numerous out-of-the-box templates. Adopting Beam enables accelerated migration from batch to streaming, effortless pipeline reuse across contexts, and faster enablement of new use cases. The benefits and great performance of Apache Beam are a game-changer for many!
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/octo/godefroy-clair.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Godefroy Clair
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Data Architect @ OCTO Technology
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="learn-more">Learn More&lt;/h2>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/TueDlUBJsQU" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>&lt;br>
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'OCTO')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'OCTO')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: High-Performance Quantitative Risk Analysis with Apache Beam at HSBC</title><link>/case-studies/hsbc/</link><pubDate>Tue, 20 Jun 2023 00:12:00 +0000</pubDate><guid>/case-studies/hsbc/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -2324,12 +2468,12 @@ limitations under the License.
 &lt;div class="case-study-post">
 &lt;h1 id="kio-is-a-set-of-kotlin-extensions-for-apache-beam-to-implement-fluent-like-api-for-java-sdk">Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.&lt;/h1>
 &lt;h2 id="word-count-example">Word Count example&lt;/h2>
-&lt;pre>&lt;code>// Create Kio context
+&lt;pre tabindex="0">&lt;code>// Create Kio context
 val kio = Kio.fromArguments(args)
 // Configure a pipeline
-kio.read().text(&amp;quot;~/input.txt&amp;quot;)
+kio.read().text(&amp;#34;~/input.txt&amp;#34;)
 .map { it.toLowerCase() }
-.flatMap { it.split(&amp;quot;\\W+&amp;quot;.toRegex()) }
+.flatMap { it.split(&amp;#34;\\W+&amp;#34;.toRegex()) }
 .filter { it.isNotEmpty() }
 .countByValue()
 .forEach { println(it) }
@@ -2338,16 +2482,4 @@ kio.execute().waitUntilDone()
 &lt;/code>&lt;/pre>&lt;h2 id="documentation">Documentation&lt;/h2>
 &lt;p>For more information about Kio, please see the documentation here: &lt;a href="https://code.chermenin.ru/kio">https://code.chermenin.ru/kio&lt;/a>.&lt;/p>
 &lt;/div>
-&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Klio</title><link>/case-studies/klio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/klio/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale.&lt;/p></description></item></channel></rss>
+&lt;div class="clear-nav">&lt;/div></description></item></channel></rss>

@@ -1,0 +1,1 @@
+$(document).ready(function(){const e=window.location.hash;if(e){const t=$(`${e}`)[0];t.scrollIntoView()}})

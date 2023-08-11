@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – typing</title><link>/categories/typing/</link><description>Recent content in typing on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 21 Aug 2020 00:00:01 -0800</lastBuildDate><atom:link href="/categories/typing/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Improved Annotation Support for the Python SDK</title><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – typing</title><link>/categories/typing/</link><description>Recent content in typing on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Fri, 21 Aug 2020 00:00:01 -0800</lastBuildDate><atom:link href="/categories/typing/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Improved Annotation Support for the Python SDK</title><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ for typed PCollections and Python 3 style annotations on PTransforms.&lt;/p>
 &lt;p>Today, you have the option to declare type hints on PTransforms using either
 class decorators or inline functions.&lt;/p>
 &lt;p>For instance, a PTransform with decorated type hints might look like this:&lt;/p>
-&lt;pre>&lt;code>@beam.typehints.with_input_types(int)
+&lt;pre tabindex="0">&lt;code>@beam.typehints.with_input_types(int)
 @beam.typehints.with_output_types(str)
 class IntToStr(beam.PTransform):
 def expand(self, pcoll):
 return pcoll | beam.Map(lambda num: str(num))
 strings = numbers | beam.ParDo(IntToStr())
 &lt;/code>&lt;/pre>&lt;p>Using inline functions instead, the same transform would look like this:&lt;/p>
-&lt;pre>&lt;code>class IntToStr(beam.PTransform):
+&lt;pre tabindex="0">&lt;code>class IntToStr(beam.PTransform):
 def expand(self, pcoll):
 return pcoll | beam.Map(lambda num: str(num))
 strings = numbers | beam.ParDo(IntToStr()).with_input_types(int).with_output_types(str)
@@ -42,7 +42,7 @@ that aren&amp;rsquo;t reusable across other instances of the same transform. Add
 methods are incompatible with static type checkers like MyPy.&lt;/p>
 &lt;p>With Python 3 annotations however, we can subvert these problems to provide a
 clean and reusable type hint experience. Our previous transform now looks like this:&lt;/p>
-&lt;pre>&lt;code>class IntToStr(beam.PTransform):
+&lt;pre tabindex="0">&lt;code>class IntToStr(beam.PTransform):
 def expand(self, pcoll: PCollection[int]) -&amp;gt; PCollection[str]:
 return pcoll | beam.Map(lambda num: str(num))
 strings = numbers | beam.ParDo(IntToStr())
@@ -62,7 +62,7 @@ type hints by removing the outer PCollection container.&lt;/p>
 &lt;p>Finally, besides PCollection, a valid annotation on the &lt;code>expand(...)&lt;/code> method of a PTransform is
 &lt;code>PBegin&lt;/code> or &lt;code>None&lt;/code>. These are generally used for PTransforms that begin or end with an I/O operation.&lt;/p>
 &lt;p>For instance, when saving data, your transform&amp;rsquo;s output type should be &lt;code>None&lt;/code>.&lt;/p>
-&lt;pre>&lt;code>class SaveResults(beam.PTransform):
+&lt;pre tabindex="0">&lt;code>class SaveResults(beam.PTransform):
 def expand(self, pcoll: PCollection[str]) -&amp;gt; None:
 return pcoll | beam.io.WriteToBigQuery(...)
 &lt;/code>&lt;/pre>&lt;h1 id="next-steps">Next Steps&lt;/h1>
@@ -88,11 +88,11 @@ runtime type checking system for Beam&amp;rsquo;s Python SDK that&amp;rsquo;s op
 in both development and production environments.&lt;/p>
 &lt;p>But let&amp;rsquo;s take a step back - why do we even care about runtime type checking
 in the first place? Let&amp;rsquo;s look at an example.&lt;/p>
-&lt;pre>&lt;code>class MultiplyNumberByTwo(beam.DoFn):
+&lt;pre tabindex="0">&lt;code>class MultiplyNumberByTwo(beam.DoFn):
 def process(self, element: int):
 return element * 2
 p = Pipeline()
-p | beam.Create(['1', '2'] | beam.ParDo(MultiplyNumberByTwo())
+p | beam.Create([&amp;#39;1&amp;#39;, &amp;#39;2&amp;#39;] | beam.ParDo(MultiplyNumberByTwo())
 &lt;/code>&lt;/pre>&lt;p>In this code, we passed a list of strings to a DoFn that&amp;rsquo;s clearly intended for use with
 integers. Luckily, this code will throw an error during pipeline construction because
 the inferred output type of &lt;code>beam.Create(['1', '2'])&lt;/code> is &lt;code>str&lt;/code> which is incompatible with
@@ -110,7 +110,7 @@ any typing or serialization error in Beam?&lt;/p>
 &lt;p>This feature works by checking that actual input and output values satisfy the declared
 type constraints during pipeline execution. If you ran the code from before with
 &lt;code>runtime_type_check&lt;/code> on, you would receive the following error message:&lt;/p>
-&lt;pre>&lt;code>Type hint violation for 'ParDo(MultiplyByTwo)': requires &amp;lt;class 'int'&amp;gt; but got &amp;lt;class 'str'&amp;gt; for element
+&lt;pre tabindex="0">&lt;code>Type hint violation for &amp;#39;ParDo(MultiplyByTwo)&amp;#39;: requires &amp;lt;class &amp;#39;int&amp;#39;&amp;gt; but got &amp;lt;class &amp;#39;str&amp;#39;&amp;gt; for element
 &lt;/code>&lt;/pre>&lt;p>This is an actionable error message - it tells you that either your code has a bug
 or that your declared type hints are incorrect. Sounds simple enough, so what&amp;rsquo;s the catch?&lt;/p>
 &lt;p>&lt;em>It is soooo slowwwwww.&lt;/em> See for yourself.&lt;/p>
@@ -220,7 +220,7 @@ us to throw &lt;em>more actionable errors&lt;/em>. For instance, consider the fo
 generated from the old RTC system):&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;pre>&lt;code>Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of &amp;lt;class ‘str’&amp;gt;, instead found 9, an instance of &amp;lt;class ‘int’&amp;gt;.
+&lt;pre tabindex="0">&lt;code>Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: &amp;#39;element&amp;#39; violated. Expected an instance of &amp;lt;class ‘str’&amp;gt;, instead found 9, an instance of &amp;lt;class ‘int’&amp;gt;.
 &lt;/code>&lt;/pre>&lt;p>This error tells us that the &lt;code>DownstreamDoFn&lt;/code> received an &lt;code>int&lt;/code> when it was expecting a &lt;code>str&lt;/code>, but doesn&amp;rsquo;t tell us
 who created that &lt;code>int&lt;/code> in the first place. Who is the offending upstream transform that&amp;rsquo;s responsible for
 this &lt;code>int&lt;/code>? Presumably, &lt;em>that&lt;/em> transform&amp;rsquo;s output type hints were too expansive (e.g. &lt;code>Any&lt;/code>) or otherwise non-existent because
@@ -232,7 +232,7 @@ for a mismatch. This is exactly what the mega type hint does, and it allows us t
 at the point of declaration rather than the point of exception, saving you valuable time
 while providing higher quality error messages.&lt;/p>
 &lt;p>So what would the same error look like using Performance RTC? It&amp;rsquo;s the exact same string but with one additional line:&lt;/p>
-&lt;pre>&lt;code>[while running 'ParDo(UpstreamDoFn)']
+&lt;pre tabindex="0">&lt;code>[while running &amp;#39;ParDo(UpstreamDoFn)&amp;#39;]
 &lt;/code>&lt;/pre>&lt;p>And that&amp;rsquo;s much more actionable for an investigation :)&lt;/p>
 &lt;h1 id="next-steps">Next Steps&lt;/h1>
 &lt;p>Go play with the new &lt;code>performance_runtime_type_check&lt;/code> feature!&lt;/p>
@@ -256,7 +256,7 @@ Read on to find out what&amp;rsquo;s new.&lt;/p>
 &lt;p>Python supports type annotations on functions (PEP 484). Static type checkers,
 such as mypy, are used to verify adherence to these types.
 For example:&lt;/p>
-&lt;pre>&lt;code>def f(v: int) -&amp;gt; int:
+&lt;pre tabindex="0">&lt;code>def f(v: int) -&amp;gt; int:
 return v[0]
 &lt;/code>&lt;/pre>&lt;p>Running mypy on the above code will give the error:
 &lt;code>Value of type &amp;quot;int&amp;quot; is not indexable&lt;/code>.&lt;/p>
@@ -290,11 +290,11 @@ the use of static type analysis on their own pipelines and custom transforms.&lt
 &lt;p>Coming in Beam 2.21 (BEAM-8280), you will be able to use Python annotation
 syntax to specify input and output types.&lt;/p>
 &lt;p>For example, this new form:&lt;/p>
-&lt;pre>&lt;code>class MyDoFn(beam.DoFn):
+&lt;pre tabindex="0">&lt;code>class MyDoFn(beam.DoFn):
 def process(self, element: int) -&amp;gt; typing.Text:
 yield str(element)
 &lt;/code>&lt;/pre>&lt;p>is equivalent to this:&lt;/p>
-&lt;pre>&lt;code>@apache_beam.typehints.with_input_types(int)
+&lt;pre tabindex="0">&lt;code>@apache_beam.typehints.with_input_types(int)
 @apache_beam.typehints.with_output_types(typing.Text)
 class MyDoFn(beam.DoFn):
 def process(self, element):

@@ -161,20 +161,20 @@ use &lt;code>beam-sdks-java-io-google-cloud-platform-bom&lt;/code>,
 the following changes have to be done (and make sure that &lt;em>BEAM_VERSION&lt;/em> is
 replaced by a valid version):&lt;/p>
 &lt;p>&lt;strong>Maven&lt;/strong>&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependencyManagement&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;dependencies&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-google-cloud-platform-bom&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;version&amp;gt;&lt;/span>BEAM_VERSION&lt;span class="nt">&amp;lt;/version&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;type&amp;gt;&lt;/span>pom&lt;span class="nt">&amp;lt;/type&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;scope&amp;gt;&lt;/span>import&lt;span class="nt">&amp;lt;/scope&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependencies&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependencyManagement&amp;gt;&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Gradle&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>dependencies {
-implementation(platform(&amp;quot;org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION&amp;quot;))
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;dependencyManagement&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;dependencies&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-google-cloud-platform-bom&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;version&amp;gt;&lt;/span>BEAM_VERSION&lt;span class="nt">&amp;lt;/version&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;type&amp;gt;&lt;/span>pom&lt;span class="nt">&amp;lt;/type&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;scope&amp;gt;&lt;/span>import&lt;span class="nt">&amp;lt;/scope&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;/dependencies&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;/dependencyManagement&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Gradle&lt;/strong>&lt;/p>
+&lt;pre tabindex="0">&lt;code>dependencies {
+implementation(platform(&amp;#34;org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION&amp;#34;))
 }
 &lt;/code>&lt;/pre>&lt;p>After importing the BOM, specific version pinning of dependencies, for example,
 anything for &lt;code>org.apache.beam&lt;/code>, &lt;code>io.grpc&lt;/code>, &lt;code>com.google.cloud&lt;/code> (
@@ -182,16 +182,16 @@ including &lt;code>libraries-bom&lt;/code>) may be removed.&lt;/p>
 &lt;p>Do not entirely remove the dependencies, as they are not automatically imported
 by the BOM. It is important to keep the dependency without specifying a version.
 For example, in Maven:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-core&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
-&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>Or Gradle:&lt;/p>
-&lt;pre>&lt;code>implementation(&amp;quot;org.apache.beam:beam-sdks-java-core&amp;quot;)
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-xml" data-lang="xml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;groupId&amp;gt;&lt;/span>org.apache.beam&lt;span class="nt">&amp;lt;/groupId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;lt;artifactId&amp;gt;&lt;/span>beam-sdks-java-core&lt;span class="nt">&amp;lt;/artifactId&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nt">&amp;lt;/dependency&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Or Gradle:&lt;/p>
+&lt;pre tabindex="0">&lt;code>implementation(&amp;#34;org.apache.beam:beam-sdks-java-core&amp;#34;)
 &lt;/code>&lt;/pre>&lt;p>For a full list of dependency versions that are managed by a specific BOM, the
 Maven tool &lt;code>help:effective-pom&lt;/code> can be used. For example:&lt;/p>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-shell" data-lang="shell">mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>The third-party
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The third-party
 website &lt;a href="https://mvnrepository.com/artifact/org.apache.beam/beam-sdks-java-google-cloud-platform-bom/">mvnrepository.com&lt;/a>
 can also be used to display such version information.&lt;/p>
 &lt;p>We hope you find this

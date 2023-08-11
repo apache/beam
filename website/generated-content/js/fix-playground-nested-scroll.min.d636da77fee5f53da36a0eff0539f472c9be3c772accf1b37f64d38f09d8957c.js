@@ -1,1 +1,0 @@
-$(document).ready(function(){$('.playground-iframe-overlay').on('click',function(_){$(this).hide();});$('.playground-iframe-wrapper-no-scroll').mouseleave(function(_){$('.playground-iframe-overlay').show();});});
