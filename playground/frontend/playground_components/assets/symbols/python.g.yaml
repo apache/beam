@@ -4790,6 +4790,10 @@ GBKTransform:
   - from_runner_api_parameter
   - to_runner_api_parameter
 GcpTestIOError: {}
+GcsDownloader:
+  methods:
+  - get_range
+  - size
 GCSFileSystem:
   methods:
   - checksum
@@ -4833,6 +4837,10 @@ GcsIOError: {}
 GcsIOOverrides:
   methods:
   - retry_func
+GcsUploader:
+  methods:
+  - finish
+  - put
 GeneralPurposeConsumerSet:
   methods:
   - flush
