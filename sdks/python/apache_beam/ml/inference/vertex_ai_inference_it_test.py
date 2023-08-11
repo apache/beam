@@ -56,7 +56,7 @@ class VertexAIInference(unittest.TestCase):
         'endpoint_project': _ENDPOINT_PROJECT,
         'endpoint_region': _ENDPOINT_REGION,
         'endpoint_network': _ENDPOINT_NETWORK,
-        'private': True,
+        'private': "True",
         'subnetwork': _SUBNETWORK,
     }
     vertex_ai_image_classification.run(

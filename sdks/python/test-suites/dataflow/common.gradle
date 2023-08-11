@@ -417,7 +417,7 @@ task vertexAIInferenceTest {
       def argMap = [
           "test_opts": testOpts,
           "suite": "VertexAITests-df-py${pythonVersionSuffix}",
-          "collect": "uses_vertex_ai" ,
+          "collect": "uses_vertex_ai and it_postcommit" ,
           "runner": "TestDataflowRunner"
       ]
       def cmdArgs = mapToArgString(argMap)
