@@ -123,8 +123,19 @@ def getRemainingComments(accessToken, pr, initialComments):
         and 'Sickbay' not in comment[1]:
       print(comment)
       remainingComments.append(comment)
+      arm_comments = getARMTestTriggerCommands();
+      remainingComments.append(arm_comments)
   return remainingComments
 
+def getARMTestTriggerCommands():
+  '''
+  Returns all trigger commands that will start PostCommit ARM Github Actions test suites.
+  '''
+  arm_trigger_commands = []
+  arm_trigger_commands.append("Run Go PostCommit Dataflow ARM")
+  arm_trigger_commands.append("Run Java_Examples_Dataflow_ARM PostCommit")
+  arm_trigger_commands.append("Run Python ValidatesContainer Dataflow ARM")
+  return arm_trigger_commands
 
 ################################################################################
 if __name__ == '__main__':
