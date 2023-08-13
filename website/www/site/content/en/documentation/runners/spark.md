@@ -497,8 +497,17 @@ spark-submit --master MASTER_URL \
   --conf spark.kubernetes.container.image=apache/spark:v3.3.2 \
   ./wc_job.jar
 ```
+Similar to run the beam job on Dataproc, you can bundle the job jar like below. The example use the `PROCESS` type of [SDK harness](https://beam.apache.org/documentation/runtime/sdk-harness-config/) to execute the job by processes.
+```
+python -m beam_example_wc \
+    --runner=SparkRunner \
+    --output_executable_path=./wc_job.jar \
+    --environment_type=PROCESS \
+    --environment_config='{\"command\": \"/opt/apache/beam/boot\"}' \
+    --spark_version=3
+```
 
-And below is an example of kubernetes executor pod template, the `initContainer` is required to download the beam SDK harness to run the beam pipelines:
+And below is an example of kubernetes executor pod template, the `initContainer` is required to download the beam SDK harness to run the beam pipelines.
 ```
 spec:
   containers:
