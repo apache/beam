@@ -573,6 +573,7 @@ public class SqsIO {
 
     private static class BatchHandler<T> implements AutoCloseable {
       private static final int CHECKS_PER_TIMEOUT_PERIOD = 5;
+      public static final int EXPIRATION_CHECK_TIMEOUT_SECS = 3;
 
       private final WriteBatches<T> spec;
       private final SqsAsyncClient sqs;
@@ -659,7 +660,7 @@ public class SqsIO {
           expirationCheck.cancel(false);
           while (true) {
             try {
-              expirationCheck.get(3, TimeUnit.SECONDS);
+              expirationCheck.get(EXPIRATION_CHECK_TIMEOUT_SECS, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
               LOG.warn("Waiting for timeout check to complete");
             } catch (CancellationException e) {
