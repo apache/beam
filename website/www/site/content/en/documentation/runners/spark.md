@@ -487,8 +487,8 @@ Provided SparkContext and StreamingListeners are not supported on the Spark port
 {{< /paragraph >}}
 
 ### Kubernetes
-
-To submit a beam job on spark kubernetes cluster, you can do:
+#### Submit beam job without job server
+To submit a beam job directly on spark kubernetes cluster without spinning up an extra job server, you can do:
 ```
 spark-submit --master MASTER_URL \
   --conf spark.kubernetes.driver.podTemplateFile=driver_pod_template.yaml \
@@ -521,4 +521,5 @@ spec:
     emptyDir: {}
 ```
 
-An [example](https://github.com/cometta/python-apache-beam-spark) of configuring Spark to run Apache beam job
+#### Submit beam job with job server
+An [example](https://github.com/cometta/python-apache-beam-spark) of configuring Spark to run Apache beam job with a job server.
