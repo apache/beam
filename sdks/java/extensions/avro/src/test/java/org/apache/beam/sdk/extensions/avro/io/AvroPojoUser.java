@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
-import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.Nullable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 public class AvroPojoUser {
   private String name;
@@ -76,13 +76,17 @@ public class AvroPojoUser {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o instanceof AvroPojoUser) {
+      AvroPojoUser that = (AvroPojoUser) o;
+      return this.name.equals(that.name)
+          && Objects.equals(this.favoriteNumber, that.favoriteNumber)
+          && Objects.equals(this.favoriteColor, that.favoriteColor);
+    }
 
-    AvroPojoUser pojoUser = (AvroPojoUser) o;
-    if (!name.equals(pojoUser.name)) return false;
-    if (!Objects.equals(favoriteNumber, pojoUser.favoriteNumber)) return false;
-    return Objects.equals(favoriteColor, pojoUser.favoriteColor);
+    return false;
   }
 
   @Override
