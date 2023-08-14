@@ -75,6 +75,41 @@ class HuggingFaceInference(unittest.TestCase):
       predicted_predicted_text = predictions_dict[text]
       self.assertEqual(actual_predicted_text, predicted_predicted_text)
 
+  def test_hf_language_modeling_large_model(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # Path to text file containing some sentences
+    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/hf_sentences.txt'
+    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+
+    model_name = 'stevhliu/my_awesome_eli5_mlm_model'
+
+    extra_opts = {
+        'input': file_of_sentences,
+        'output': output_file,
+        'model_name': model_name,
+        'large_model': True,
+    }
+    huggingface_language_modeling.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+    self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = pytorch_inference_it_test.process_outputs(
+        filepath=output_file)
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_hf_run_inference_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
+    actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
+
+    predictions_dict = {}
+    for prediction in predictions:
+      text, predicted_text = prediction.split(';')
+      predictions_dict[text] = predicted_text.strip().lower()
+
+    for actual in actuals:
+      text, actual_predicted_text = actual.split(';')
+      predicted_predicted_text = predictions_dict[text]
+      self.assertEqual(actual_predicted_text, predicted_predicted_text)
+
   def test_hf_pipeline(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some questions and context
