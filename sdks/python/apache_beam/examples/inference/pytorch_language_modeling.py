@@ -120,6 +120,7 @@ def parse_known_args(argv):
       help="Path to the model's state_dict.")
   parser.add_argument(
       '--large_model',
+      action='store_true',
       dest='large_model',
       default=False,
       help='Set to true if your model is large enough to run into memory '

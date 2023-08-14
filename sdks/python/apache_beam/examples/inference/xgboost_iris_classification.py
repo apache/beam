@@ -75,6 +75,7 @@ def parse_known_args(argv):
       help='Path to the state of the XGBoost model loaded for Inference.')
   parser.add_argument(
       '--large_model',
+      action='store_true',
       dest='large_model',
       default=False,
       help='Set to true if your model is large enough to run into memory '

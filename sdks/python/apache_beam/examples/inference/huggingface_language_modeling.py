@@ -116,6 +116,7 @@ def parse_known_args(argv):
       help='Name of the model from Hugging Face')
   parser.add_argument(
       '--large_model',
+      action='store_true',
       dest='large_model',
       default=False,
       help='Set to true if your model is large enough to run into memory '
