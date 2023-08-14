@@ -71,6 +71,7 @@ configurations { examplesJavaIntegrationTest }
 
 dependencies {
     examplesJavaIntegrationTest project(project.path)
+    examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow:java", configuration: "testRuntimeMigration")
     examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
