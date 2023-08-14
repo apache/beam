@@ -448,9 +448,8 @@ tasks.register("goPostCommitDataflowARM") {
 }
 
 tasks.register("goPostCommit") {
-  dependsOn(":dataflowValidatesRunner")
+  dependsOn(":sdks:go:test:dataflowValidatesRunner")
 }
-
 
 tasks.register("playgroundPreCommit") {
   dependsOn(":playground:lintProto")
