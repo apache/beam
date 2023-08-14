@@ -38,7 +38,7 @@ import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

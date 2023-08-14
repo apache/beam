@@ -23,7 +23,7 @@ from typing import Iterable
 from typing import Optional
 from typing import Sequence
 
-from google.api_core.exceptions import ClientError
+from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.cloud import aiplatform
 
@@ -41,20 +41,21 @@ LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
 # pylint: disable=line-too-long
 
 
-def _retry_on_gcp_client_error(exception):
+def _retry_on_appropriate_gcp_error(exception):
   """
-  Retry filter that returns True if a returned HTTP error code is 4xx. This is
-  used to retry remote requests that fail, most notably 429 (TooManyRequests.)
-  This is used for GCP-specific client errors.
+  Retry filter that returns True if a returned HTTP error code is 5xx or 429.
+  This is used to retry remote requests that fail, most notably 429
+  (TooManyRequests.)
 
   Args:
     exception: the returned exception encountered during the request/response
       loop.
 
   Returns:
-    boolean indication whether or not the exception is a GCP ClientError.
+    boolean indication whether or not the exception is a Server Error (5xx) or
+      a TooManyRequests (429) error.
   """
-  return isinstance(exception, ClientError)
+  return isinstance(exception, (TooManyRequests, ServerError))
 
 
 class VertexAIModelHandlerJSON(ModelHandler[Any,
@@ -66,6 +67,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       project: str,
       location: str,
       experiment: Optional[str] = None,
+      network: Optional[str] = None,
+      private: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for Vertex AI.
     **NOTE:** This API and its implementation are under development and
@@ -73,24 +76,49 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     Unlike other ModelHandler implementations, this does not load the model
     being used onto the worker and instead makes remote queries to a
     Vertex AI endpoint. In that way it functions more like a mid-pipeline
-    IO. At present this implementation only supports public endpoints with
-    a maximum request size of 1.5 MB.
+    IO. Public Vertex AI endpoints have a maximum request size of 1.5 MB.
+    If you wish to make larger requests and use a private endpoint, provide
+    the Compute Engine network you wish to use and set `private=True`
+
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to query
       project: the GCP project name where the endpoint is deployed
       location: the GCP location where the endpoint is deployed
-      experiment (Optional): experiment label to apply to the queries
+      experiment: optional. experiment label to apply to the
+        queries. See
+        https://cloud.google.com/vertex-ai/docs/experiments/intro-vertex-ai-experiments
+        for more information.
+      network: optional. the full name of the Compute Engine
+        network the endpoint is deployed on; used for private
+        endpoints. The network or subnetwork Dataflow pipeline
+        option must be set and match this network for pipeline
+        execution.
+        Ex: "projects/12345/global/networks/myVPC"
+      private: optional. if the deployed Vertex AI endpoint is
+        private, set to true. Requires a network to be provided
+        as well.
     """
 
     self._env_vars = kwargs.get('env_vars', {})
+
+    if private and network is None:
+      raise ValueError(
+          "A VPC network must be provided to use a private endpoint.")
+
     # TODO: support the full list of options for aiplatform.init()
     # See https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform#google_cloud_aiplatform_init
-    aiplatform.init(project=project, location=location, experiment=experiment)
+    aiplatform.init(
+        project=project,
+        location=location,
+        experiment=experiment,
+        network=network)
 
     # Check for liveness here but don't try to actually store the endpoint
     # in the class yet
     self.endpoint_name = endpoint_id
-    _ = self._retrieve_endpoint(self.endpoint_name)
+    self.is_private = private
+
+    _ = self._retrieve_endpoint(self.endpoint_name, self.is_private)
 
     # Configure AdaptiveThrottler and throttling metrics for client-side
     # throttling behavior.
@@ -101,18 +129,27 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     self.throttler = AdaptiveThrottler(
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
-  def _retrieve_endpoint(self, endpoint_id: str) -> aiplatform.Endpoint:
+  def _retrieve_endpoint(
+      self, endpoint_id: str, is_private: bool) -> aiplatform.Endpoint:
     """Retrieves an AI Platform endpoint and queries it for liveness/deployed
     models.
 
     Args:
       endpoint_id: the numerical ID of the Vertex AI endpoint to retrieve.
+      is_private: a boolean indicating if the Vertex AI endpoint is a private
+        endpoint
     Returns:
       An aiplatform.Endpoint object
     Raises:
       ValueError: if endpoint is inactive or has no models deployed to it.
     """
-    endpoint = aiplatform.Endpoint(endpoint_name=endpoint_id)
+    if is_private:
+      endpoint: aiplatform.Endpoint = aiplatform.PrivateEndpoint(
+          endpoint_name=endpoint_id)
+      LOGGER.debug("Treating endpoint %s as private", endpoint_id)
+    else:
+      endpoint = aiplatform.Endpoint(endpoint_name=endpoint_id)
+      LOGGER.debug("Treating endpoint %s as public", endpoint_id)
 
     try:
       mod_list = endpoint.list_models()
@@ -121,7 +158,7 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
           "Failed to contact endpoint %s, got exception: %s", endpoint_id, e)
 
     if len(mod_list) == 0:
-      raise ValueError("Endpoint %s has no models deployed to it.")
+      raise ValueError("Endpoint %s has no models deployed to it.", endpoint_id)
 
     return endpoint
 
@@ -131,11 +168,11 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """
     # Check to make sure the endpoint is still active since pipeline
     # construction time
-    ep = self._retrieve_endpoint(self.endpoint_name)
+    ep = self._retrieve_endpoint(self.endpoint_name, self.is_private)
     return ep
 
   @retry.with_exponential_backoff(
-      num_retries=5, retry_filter=_retry_on_gcp_client_error)
+      num_retries=5, retry_filter=_retry_on_appropriate_gcp_error)
   def get_request(
       self,
       batch: Sequence[Any],
@@ -157,9 +194,6 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
       return prediction
     except TooManyRequests as e:
       LOGGER.warning("request was limited by the service with code %i", e.code)
-      raise
-    except ClientError as e:
-      LOGGER.warning("request failed with error code %i", e.code)
       raise
     except Exception as e:
       LOGGER.error("unexpected exception raised as part of request, got %s", e)

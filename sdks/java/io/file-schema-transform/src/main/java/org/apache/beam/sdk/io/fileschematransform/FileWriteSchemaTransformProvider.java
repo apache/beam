@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * A {@link TypedSchemaTransformProvider} implementation for writing a {@link Row} {@link

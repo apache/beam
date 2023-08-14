@@ -35,7 +35,7 @@ import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

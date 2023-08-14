@@ -22,8 +22,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Rewrites IFNULL calls as CASE ($case_no_value) calls.

@@ -25,7 +25,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /**
  * This class tracks time and bytes spent when consuming side inputs.

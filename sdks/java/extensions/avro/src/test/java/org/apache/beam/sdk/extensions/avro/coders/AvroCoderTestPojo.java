@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.avro.coders;
 
 import java.util.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pojo at the top level for use in tests. */

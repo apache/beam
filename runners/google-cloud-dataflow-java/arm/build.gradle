@@ -1,0 +1,137 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.dataflow',
+  publish: false,
+  classesTriggerCheckerBugs: [
+    'PrimitiveParDoSingleFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+    // TODO(https://github.com/apache/beam/issues/21068): This currently crashes with checkerframework 3.10.0
+    // when compiling :runners:google-cloud-dataflow-java:compileJava with:
+    // message: class file for com.google.api.services.bigquery.model.TableRow not found
+    // ; The Checker Framework crashed.  Please report the crash.
+    // Compilation unit: /usr/local/google/home/lcwik/git/beam/runners/google-cloud-dataflow-java/src/main/java/org/apache/beam/runners/dataflow/util/DefaultCoderCloudObjectTranslatorRegistrar.java
+    // Last visited tree at line 57 column 1:
+    // @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+    // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.api.services.bigquery.model.TableRow not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.api.services.bigquery.model.TableRow not found
+    'DefaultCoderCloudObjectTranslatorRegistrar': 'TODO(https://github.com/apache/beam/issues/21068): Report the crash if still occurring on newest version',
+  ],
+)
+
+description = "Apache Beam :: Runners :: Google Cloud Dataflow"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference parameters such as "sourceSets.test.output" directly.
+ */
+evaluationDependsOn(":sdks:java:io:google-cloud-platform")
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":examples:java")
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
+evaluationDependsOn(":sdks:java:container:java8")
+evaluationDependsOn(":sdks:java:container:java11")
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'dataflow.fnapi_environment_major_version' : project(':runners:google-cloud-dataflow-java').ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.fnapi_container_version' : project(':runners:google-cloud-dataflow-java').ext.dataflowFnapiContainerVersion,
+    'dataflow.container_base_repository' : project(':runners:google-cloud-dataflow-java').ext.dataflowContainerBaseRepository,
+  ]
+}
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamTestPipelineOptions", ""
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+}
+
+configurations { examplesJavaIntegrationTest }
+
+dependencies {
+    examplesJavaIntegrationTest project(project.path)
+    examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
+}
+
+def javaVer = "java8"
+if(project.hasProperty('compileAndRunTestsWithJava17')) {
+  javaVer = "java17"
+} else if(project.hasProperty('compileAndRunTestsWithJava11')) {
+  javaVer = "java11"
+}
+def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
+def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
+def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
+def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${javaVer}_sdk"
+def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
+ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}"
+
+def runnerV2PipelineOptionsARM = [
+  "--runner=TestDataflowRunner",
+  "--project=${dataflowProject}",
+  "--region=${dataflowRegion}",
+  "--tempRoot=${dataflowValidatesTempRoot}",
+  "--sdkContainerImage=${DockerJavaMultiarchImageContainer}:${dockerTag}",
+  "--experiments=use_unified_worker,use_runner_v2",
+  "--firestoreDb=${firestoreDb}",
+  "--machine_type=t2a-standard-1",
+]
+
+// Build and push multi-arch docker images to a container registry for use within tests.
+// NB: Tasks which consume docker images from the registry should depend on this
+// task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer').
+// Note: we don't delete the multi-arch containers here because this command only
+// deletes the manifest list with the tag, the associated container images can't be
+// deleted because they are not tagged. However, multi-arch containers that are older
+// than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs
+// daily.
+def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
+  dependsOn ":sdks:java:container:${javaVer}:docker"
+}
+
+task printrunnerV2PipelineOptionsARM {
+  dependsOn buildAndPushDockerJavaMultiarchContainer
+
+  doLast {
+    println "To run a Dataflow job with runner V2 on ARM, add the following pipeline options to your command-line:"
+    println runnerV2PipelineOptionsARM.join(' ')
+  }
+}
+
+task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
+  group = "Verification"
+  dependsOn buildAndPushDockerJavaMultiarchContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
+
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}

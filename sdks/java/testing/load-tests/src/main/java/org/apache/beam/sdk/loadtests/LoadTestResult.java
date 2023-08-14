@@ -21,7 +21,7 @@ import java.util.Map;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.TestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** POJO that represents load test results. */
 public class LoadTestResult implements TestResult {

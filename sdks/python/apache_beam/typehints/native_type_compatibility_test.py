@@ -49,6 +49,11 @@ class _TestGeneric(typing.Generic[T]):
   pass
 
 
+class _TestPair(typing.NamedTuple('TestTuple', [('first', T), ('second', T)]),
+                typing.Generic[T]):
+  pass
+
+
 class NativeTypeCompatibilityTest(unittest.TestCase):
   def test_convert_to_beam_type(self):
     test_cases = [
@@ -99,6 +104,8 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
          typehints.List[_TestGeneric]),
         ('nested generic subscripted', typing.List[_TestGeneric[int]],
          typehints.List[_TestGeneric[int]]),
+        ('nested generic with any', typing.List[_TestPair[typing.Any]],
+         typehints.List[_TestPair[typing.Any]]),
     ]
 
     for test_case in test_cases:

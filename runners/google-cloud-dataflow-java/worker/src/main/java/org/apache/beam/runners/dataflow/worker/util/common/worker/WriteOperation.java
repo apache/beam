@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import java.io.Closeable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** A write operation. */
 @SuppressWarnings({

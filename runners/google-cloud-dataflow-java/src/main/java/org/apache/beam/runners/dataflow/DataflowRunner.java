@@ -22,10 +22,10 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -129,6 +129,7 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -163,18 +164,18 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -495,6 +496,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
+  private static class AlwaysCreateViaRead<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+    @Override
+    public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
+        getReplacementTransform(
+            AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> appliedTransform) {
+      return PTransformOverrideFactory.PTransformReplacement.of(
+          appliedTransform.getPipeline().begin(), appliedTransform.getTransform().alwaysUseRead());
+    }
+
+    @Override
+    public final Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   private List<PTransformOverride> getOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
 
@@ -508,6 +526,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()));
+    }
 
     // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
     // However, we want a different expansion for single-output splittable ParDo.
@@ -661,6 +686,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()))
+          // Create is implemented in terms of BoundedRead.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Read.Bounded.class),
+                  new StreamingBoundedReadOverrideFactory()))
+          // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Read.Unbounded.class),
+                  new StreamingUnboundedReadOverrideFactory()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
+                  new PrimitiveParDoSingleFactory()));
+    }
+
     return overridesBuilder.build();
   }
 
@@ -1341,6 +1389,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setReplaceJobId(jobIdToUpdate);
     }
     if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
+      newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
     }
 

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.protobuf.DescriptorProtos;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,6 +33,8 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinations<T, DestinationT> {
   public interface MessageConverter<T> {
     com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
+
+    DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns) throws Exception;
 
     StorageApiWritePayload toMessage(
         T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception;

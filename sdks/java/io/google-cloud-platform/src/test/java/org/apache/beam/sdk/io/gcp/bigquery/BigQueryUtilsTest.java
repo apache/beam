@@ -55,7 +55,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -104,6 +104,9 @@ public class BigQueryUtilsTest {
 
   private static final Schema MAP_TYPE =
       Schema.builder().addStringField("key").addDoubleField("value").build();
+
+  private static final Schema ARRAY_TYPE_NULLS =
+      Schema.builder().addArrayField("ids", Schema.FieldType.INT64.withNullable(true)).build();
 
   private static final Schema ARRAY_TYPE =
       Schema.builder().addArrayField("ids", Schema.FieldType.INT64).build();
@@ -388,11 +391,23 @@ public class BigQueryUtilsTest {
 
   private static final TableRow BQ_ENUM_ROW = new TableRow().set("color", "GREEN");
 
+  private static final Row ARRAY_ROW_NULLS =
+      Row.withSchema(ARRAY_TYPE_NULLS).addValues((Object) Arrays.asList(123L, null, null)).build();
+
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
 
   private static final Row MAP_ROW =
       Row.withSchema(MAP_MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
+
+  private static final TableRow BQ_ARRAY_ROW_NULLS =
+      new TableRow()
+          .set(
+              "ids",
+              Arrays.asList(
+                  Collections.singletonMap("v", "123"),
+                  Collections.singletonMap("v", null),
+                  Collections.singletonMap("v", null)));
 
   private static final TableRow BQ_ARRAY_ROW =
       new TableRow()
@@ -404,6 +419,8 @@ public class BigQueryUtilsTest {
   // sometimes, a TableRow array will not be of format [{v: value1}, {v: value2}, ...]
   // it will instead be of format [value1, value2, ...]
   // this "inline row" covers the latter case
+  private static final TableRow BQ_INLINE_ARRAY_ROW_NULLS =
+      new TableRow().set("ids", Arrays.asList("123", null, null));
   private static final TableRow BQ_INLINE_ARRAY_ROW =
       new TableRow().set("ids", Arrays.asList("123", "124"));
 
@@ -879,9 +896,21 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testToBeamRow_arrayNulls() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE_NULLS, BQ_ARRAY_ROW_NULLS);
+    assertEquals(ARRAY_ROW_NULLS, beamRow);
+  }
+
+  @Test
   public void testToBeamRow_array() {
     Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
     assertEquals(ARRAY_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_inlineArrayNulls() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE_NULLS, BQ_INLINE_ARRAY_ROW_NULLS);
+    assertEquals(ARRAY_ROW_NULLS, beamRow);
   }
 
   @Test
