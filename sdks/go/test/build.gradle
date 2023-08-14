@@ -28,6 +28,7 @@ task dataflowValidatesRunner() {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:java:container:java8:docker"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
 
   doLast {
@@ -51,6 +52,7 @@ task dataflowValidatesRunnerARM64() {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:java:container:java8:docker"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
 
   doLast {
