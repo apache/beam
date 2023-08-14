@@ -2526,7 +2526,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
-            for (envs : config.additionalEnvs){
+            for (envs in config.additionalEnvs){
               environment envs.getKey(), envs.getValue()
             }
             executable 'sh'
