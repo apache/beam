@@ -18,8 +18,8 @@
 
 import logging
 import threading
-from typing import Any
 import unittest
+from typing import Any
 
 from apache_beam.utils import multi_process_shared
 
