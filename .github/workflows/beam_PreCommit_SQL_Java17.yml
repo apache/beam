@@ -33,7 +33,7 @@ on:
 permissions:
   actions: write
   pull-requests: read
-  checks: write
+  checks: read
   contents: read
   deployments: read
   id-token: none
@@ -46,9 +46,9 @@ permissions:
   statuses: read
 
 # This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
-  cancel-in-progress: true
+# concurrency:
+#   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+#   cancel-in-progress: true
 
 jobs:
   beam_PreCommit_SQL_Java17:
