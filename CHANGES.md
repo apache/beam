@@ -63,6 +63,7 @@
 * Java KafkaIO now supports picking up topics via topicPattern ([#26948](https://github.com/apache/beam/pull/26948))
 * Support for read from Cosmos DB Core SQL API ([#23604](https://github.com/apache/beam/issues/23604))
 * Upgraded to HBase 2.5.5 for HBaseIO. (Java) ([#27711](https://github.com/apache/beam/issues/19554))
+* Added support for GoogleAdsIO source (Java) ([#27681](https://github.com/apache/beam/pull/27681)).
 
 ## New Features / Improvements
 
@@ -76,7 +77,12 @@
 * Vertex AI Model Handler for RunInference now supports private endpoints ([#27696](https://github.com/apache/beam/pull/27696))
 * MLTransform transform added with support for common ML pre/postprocessing operations ([#26795](https://github.com/apache/beam/pull/26795))
 * Upgraded the Kryo extension for the Java SDK to Kryo 5.5.0. This brings in bug fixes, performance improvements, and serialization of Java 14 records. ([#27635](https://github.com/apache/beam/issues/27635))
-* The Go, Python and Java SDK container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image), supporting both x86 and ARM CPU architectures. ([#27674](https://github.com/apache/beam/issues/27674))
+* All Beam released container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image) that support both x86 and ARM CPU architectures. ([#27674](https://github.com/apache/beam/issues/27674)). The multi-arch container images include:
+  * All versions of Go, Python, Java and Typescript SDK containers.
+  * All versions of Flink job server containers.
+  * Java and Python expansion service containers.
+  * Transform service controller container.
+  * Spark3 job server container.
 * Added support for batched writes to AWS SQS for improved throughput (Java, AWS 2).([#21429](https://github.com/apache/beam/issues/21429))
 
 ## Breaking Changes

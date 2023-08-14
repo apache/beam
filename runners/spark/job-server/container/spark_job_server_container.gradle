@@ -51,6 +51,9 @@ task copyDockerfileDependencies(type: Copy) {
   into "build"
 }
 
+def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
+def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+
 docker {
   name containerImageName(name: project.docker_image_default_repo_prefix + spark_job_server_image,
                           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
@@ -61,6 +64,10 @@ docker {
   // tags used by dockerTag task
   tags containerImageTags()
   files "./build/"
+  buildx useBuildx
+  platform(*project.containerPlatforms())
+  load useBuildx && !pushContainers
+  push pushContainers
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

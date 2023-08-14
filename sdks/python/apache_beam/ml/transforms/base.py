@@ -115,8 +115,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
   def __init__(
       self,
       *,
-      artifact_location: str,
-      artifact_mode: str = ArtifactMode.PRODUCE,
+      write_artifact_location: Optional[str] = None,
+      read_artifact_location: Optional[str] = None,
       transforms: Optional[Sequence[BaseOperation]] = None):
     """
     MLTransform is a Beam PTransform that can be used to apply
@@ -134,7 +134,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     themselves.
 
     Args:
-      artifact_location: A storage location for artifacts resulting from
+      write_artifact_location: A storage location for artifacts resulting from
         MLTransform. These artifacts include transformations applied to
         the dataset and generated values like min, max from ScaleTo01,
         and mean, var from ScaleToZScore. Artifacts are produced and stored
@@ -143,22 +143,45 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         retrieved from this location. Note that when consuming artifacts,
         it is not necessary to pass the transforms since they are inherently
         stored within the artifacts themselves. The value assigned to
-        `artifact_location` should be a valid storage path where the artifacts
-        can be written to or read from.
+        `write_artifact_location` should be a valid storage directory where the
+        artifacts from this transform can be written to. If no directory exists
+        at this location, one will be created. This will overwrite any
+        artifacts already in this location, so distinct locations should be
+        used for each instance of MLTransform. Only one of
+        write_artifact_location and read_artifact_location should be specified.
+      read_artifact_location: A storage location to read artifacts resulting
+        froma previous MLTransform. These artifacts include transformations
+        applied to the dataset and generated values like min, max from
+        ScaleTo01, and mean, var from ScaleToZScore. Note that when consuming
+        artifacts, it is not necessary to pass the transforms since they are
+        inherently stored within the artifacts themselves. The value assigned
+        to `read_artifact_location` should be a valid storage path where the
+        artifacts can be read from. Only one of write_artifact_location and
+        read_artifact_location should be specified.
       transforms: A list of transforms to apply to the data. All the transforms
         are applied in the order they are specified. The input of the
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
-      artifact_mode: Whether to produce or consume artifacts. If set to
-        'consume', MLTransform will assume that the artifacts are already
-        computed and stored in the artifact_location. Pass the same artifact
-        location that was passed during produce phase to ensure that the
-        right artifacts are read. If set to 'produce', MLTransform
-        will compute the artifacts and store them in the artifact_location.
-        The artifacts will be read from this location during the consume phase.
     """
     if transforms:
       _ = [self._validate_transform(transform) for transform in transforms]
+
+    if read_artifact_location and write_artifact_location:
+      raise ValueError(
+          'Only one of read_artifact_location or write_artifact_location can '
+          'be specified to initialize MLTransform')
+
+    if not read_artifact_location and not write_artifact_location:
+      raise ValueError(
+          'Either a read_artifact_location or write_artifact_location must be '
+          'specified to initialize MLTransform')
+
+    if read_artifact_location:
+      artifact_location = read_artifact_location
+      artifact_mode = ArtifactMode.CONSUME
+    else:
+      artifact_location = write_artifact_location  # type: ignore[assignment]
+      artifact_mode = ArtifactMode.PRODUCE
 
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
