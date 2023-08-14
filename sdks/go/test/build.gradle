@@ -28,16 +28,10 @@ task dataflowValidatesRunner() {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
 
   doLast {
-    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
-    ]
     def options = [
         "--runner dataflow",
-        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       executable "sh"
@@ -52,12 +46,9 @@ task dataflowValidatesRunnerARM64() {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":sdks:java:container:java8:docker"
-  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
 
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
         "--machine_type=t2a-standard-1",
     ]
     def options = [
