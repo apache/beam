@@ -30,7 +30,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.bson.Document;
 import org.junit.Before;
 import org.junit.Rule;

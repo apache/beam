@@ -61,27 +61,26 @@ def parse_args():
   return parser.parse_known_args()
 
 
-def preprocess_data_for_ml_training(train_data, artifact_mode, args):
+def preprocess_data_for_ml_training(train_data, args):
   """
   Preprocess the data for ML training. This method runs a pipeline to
-  preprocess the data needed for ML training. It produces artifacts that
-  can be used for ML inference later.
+  preprocess the data needed for ML training. It produces artifacts that can
+  be used for ML inference later.
   """
 
   with beam.Pipeline() as p:
     train_data_pcoll = (p | "CreateData" >> beam.Create(train_data))
 
-    # When 'artifact_mode' is set to 'produce', the ComputeAndApplyVocabulary
+    # When using write_artifact_location, the ComputeAndApplyVocabulary
     # function generates a vocabulary file. This file, stored in
-    # 'artifact_location', contains the vocabulary of the entire dataset.
+    # 'write_artifact_location', contains the vocabulary of the entire dataset.
     # This is considered as an artifact of ComputeAndApplyVocabulary transform.
     # The indices of the vocabulary in this file are returned as
     # the output of MLTransform.
     transformed_data_pcoll = (
         train_data_pcoll
         | 'MLTransform' >> MLTransform(
-            artifact_location=args.artifact_location,
-            artifact_mode=artifact_mode,
+            write_artifact_location=args.artifact_location,
         ).with_transform(ComputeAndApplyVocabulary(
             columns=['x'])).with_transform(TFIDF(columns=['x'])))
 
@@ -93,7 +92,7 @@ def preprocess_data_for_ml_training(train_data, artifact_mode, args):
     # 0.5008155 ], dtype=float32), x_vocab_index=array([ 0,  2,  3,  5, 21]))
 
 
-def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
+def preprocess_data_for_ml_inference(test_data, args):
   """
   Preprocess the data for ML inference. This method runs a pipeline to
   preprocess the data needed for ML inference. It consumes the artifacts
@@ -108,8 +107,7 @@ def preprocess_data_for_ml_inference(test_data, artifact_mode, args):
     transformed_data_pcoll = (
         test_data_pcoll
         | "MLTransformOnTestData" >> MLTransform(
-            artifact_location=args.artifact_location,
-            artifact_mode=artifact_mode,
+            read_artifact_location=args.artifact_location,
             # ww don't need to specify transforms as they are already saved in
             # in the artifacts.
         ))
@@ -149,18 +147,16 @@ def run(args):
 
   # Preprocess the data for ML training.
   # For the data going into the ML model training, we want to produce the
-  # artifacts. So, we set artifact_mode to ArtifactMode.PRODUCE.
-  preprocess_data_for_ml_training(
-      train_data, artifact_mode=ArtifactMode.PRODUCE, args=args)
+  # artifacts.
+  preprocess_data_for_ml_training(train_data, args=args)
 
   # Do some ML model training here.
 
   # Preprocess the data for ML inference.
   # For the data going into the ML model inference, we want to consume the
   # artifacts produced during the stage where we preprocessed the data for ML
-  # training. So, we set artifact_mode to ArtifactMode.CONSUME.
-  preprocess_data_for_ml_inference(
-      test_data, artifact_mode=ArtifactMode.CONSUME, args=args)
+  # training.
+  preprocess_data_for_ml_inference(test_data, args=args)
 
   # To fetch the artifacts produced in MLTransform, you can use
   # ArtifactsFetcher for fetching vocab related artifacts. For

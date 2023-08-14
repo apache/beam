@@ -67,9 +67,13 @@ permissions:
 
 jobs:
   beam_PreCommit_Kotlin_Examples:
-    name: beam_PreCommit_Kotlin_Examples (Run Kotlin_Examples PreCommit)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     timeout-minutes: 120
     runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Kotlin_Examples]
+        job_phrase: [Run Kotlin_Examples PreCommit]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -81,8 +85,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Kotlin_Examples PreCommit'
+          comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:

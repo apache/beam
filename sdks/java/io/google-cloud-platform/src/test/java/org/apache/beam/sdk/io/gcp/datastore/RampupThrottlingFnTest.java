@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

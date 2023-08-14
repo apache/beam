@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 

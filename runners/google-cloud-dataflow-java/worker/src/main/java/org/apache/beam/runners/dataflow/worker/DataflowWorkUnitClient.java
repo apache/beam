@@ -24,7 +24,7 @@ import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.W
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_REMOTE_SOURCE_TASK;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_SEQ_MAP_TASK;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_STREAMING_CONFIG_TASK;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
@@ -45,9 +45,9 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;

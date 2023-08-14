@@ -83,7 +83,7 @@ public final class FlexTemplateClientTest {
   @Test
   public void testCreateWithCredentials() throws IOException {
     Credentials credentials = mock(Credentials.class);
-    FlexTemplateClient.builder().setCredentials(credentials).build();
+    FlexTemplateClient.builder(credentials).build();
     // Lack of exception is all we really can test
   }
 

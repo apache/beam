@@ -18,8 +18,8 @@
 package org.apache.beam.it.common.utils;
 
 import static java.lang.Math.min;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing.goodFastHash;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing.goodFastHash;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -29,7 +29,7 @@ import java.util.Random;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashFunction;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

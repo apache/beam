@@ -76,6 +76,7 @@ TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_python${PY_VERSION//.}_sdk
 echo "Using container $CONTAINER"
+echo "Using CPU architecture $ARCH"
 
 if [[ "$ARCH" == "x86" ]]; then
   # Verify docker image has been built.
@@ -105,8 +106,8 @@ function cleanup_container {
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
-  # the associated container images can't be deleted because they are not tagged. However, the multi-arch containers
-  # are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
+  # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
+  # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
   if [[ "$ARCH" == "x86" ]]; then
     gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   fi

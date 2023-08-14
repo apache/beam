@@ -51,9 +51,10 @@ func RunPipeline(j *jobservices.Job) {
 	wk := worker.New(env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
 
-	// When this function exits, we
+	// When this function exits, we cancel the context to clear
+	// any related job resources.
 	defer func() {
-		j.CancelFn()
+		j.CancelFn(nil)
 	}()
 	go runEnvironment(j.RootCtx, j, env, wk)
 
@@ -283,7 +284,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 		go func(rb engine.RunBundle) {
 			defer func() { <-maxParallelism }()
 			s := stages[rb.StageID]
-			s.Execute(j, wk, comps, em, rb)
+			s.Execute(ctx, j, wk, comps, em, rb)
 		}(rb)
 	}
 	slog.Info("pipeline done!", slog.String("job", j.String()))

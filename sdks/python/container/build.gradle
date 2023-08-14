@@ -42,33 +42,8 @@ tasks.register("buildAll") {
   dependsOn ':sdks:python:container:py311:docker'
 }
 
-for(int i=8; i<=11; ++i) {
-  String cur = "3" + i
-  String prev = "3" + (i-1)
-  tasks.register("push" + cur) {
-    if (cur != "38") {
-      // Enforce ordering to allow the prune step to happen between runs.
-      // This will ensure we don't use up too much space (especially in CI environments)
-      mustRunAfter(":sdks:python:container:push" + prev)
-    }
-    dependsOn ':sdks:python:container:py' + cur + ':dockerPush'
-
-    doLast {
-      if (project.hasProperty("prune-images")) {
-        exec {
-          executable("docker")
-          args("system", "prune", "-a", "--force")
-        }
-      }
-    }
-  }
-}
-
 tasks.register("pushAll") {
-  dependsOn ':sdks:python:container:push38'
-  dependsOn ':sdks:python:container:push39'
-  dependsOn ':sdks:python:container:push310'
-  dependsOn ':sdks:python:container:push311'
+  dependsOn ':sdks:python:container:buildAll'
 }
 
 tasks.register("generatePythonRequirementsAll") {

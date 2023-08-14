@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;

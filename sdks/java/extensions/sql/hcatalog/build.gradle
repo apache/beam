@@ -42,7 +42,7 @@ dependencies {
   implementation project(":sdks:java:io:hcatalog")
   implementation project(":sdks:java:core")
   implementation "com.alibaba:fastjson:1.2.69"
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
 
   testImplementation project(":sdks:java:io:hcatalog").sourceSets.test.output
   // Needed for HCatalogTableProvider tests,

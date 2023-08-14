@@ -46,7 +46,7 @@ def kafkaVersions = [
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   provided library.java.jackson_dataformat_csv
   permitUnusedDeclared library.java.jackson_dataformat_csv
   implementation project(path: ":sdks:java:core", configuration: "shadow")

@@ -29,7 +29,7 @@ import com.google.cloud.bigtable.admin.v2.models.Table;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Data access object for creating and dropping the metadata table.
