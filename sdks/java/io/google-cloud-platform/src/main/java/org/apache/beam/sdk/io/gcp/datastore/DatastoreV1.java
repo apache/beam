@@ -626,6 +626,7 @@ public class DatastoreV1 {
         throws DatastoreException {
       GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql).setAllowLiterals(true).build();
       RunQueryRequest req = makeRequest(projectId, databaseId, gqlQuery, namespace, readTime);
+      RunQueryRequest req = makeRequest(projectId, databaseId, gqlQuery, namespace, readTime);
       return datastore.runQuery(req).getQuery();
     }
 
@@ -841,6 +842,7 @@ public class DatastoreV1 {
     static class V1Options implements HasDisplayData, Serializable {
       private final ValueProvider<String> project;
       private final ValueProvider<String> database;
+      private final ValueProvider<String> database;
       private final @Nullable ValueProvider<String> namespace;
       private final @Nullable String localhost;
 
@@ -850,6 +852,7 @@ public class DatastoreV1 {
           ValueProvider<String> namespace,
           String localhost) {
         this.project = project;
+        this.database = database;
         this.database = database;
         this.namespace = namespace;
         this.localhost = localhost;
@@ -1487,6 +1490,7 @@ public class DatastoreV1 {
 
     protected ValueProvider<String> projectId;
     protected String databaseId;
+    protected String databaseId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
     protected ValueProvider<Integer> hintNumWorkers;
@@ -1502,11 +1506,13 @@ public class DatastoreV1 {
     Mutate(
         @Nullable ValueProvider<String> projectId,
         String databaseId,
+        String databaseId,
         @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
       this.projectId = projectId;
+      this.databaseId = databaseId;
       this.databaseId = databaseId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
@@ -1674,6 +1680,7 @@ public class DatastoreV1 {
     private WriteBatcher writeBatcher;
     private transient AdaptiveThrottler adaptiveThrottler;
     private transient String databaseId;
+    private transient String databaseId;
     private final Counter throttlingMsecs =
         Metrics.counter(DatastoreWriterFn.class, "throttling-msecs");
     private final Counter rpcErrors =
@@ -1811,6 +1818,8 @@ public class DatastoreV1 {
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
         commitRequest.addAllMutations(mutations);
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+        commitRequest.setProjectId(projectId.get());
+        commitRequest.setDatabaseId(databaseId);
         commitRequest.setProjectId(projectId.get());
         commitRequest.setDatabaseId(databaseId);
         long startTime = System.currentTimeMillis(), endTime;
