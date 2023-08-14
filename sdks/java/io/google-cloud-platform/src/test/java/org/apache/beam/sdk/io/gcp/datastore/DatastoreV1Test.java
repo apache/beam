@@ -127,6 +127,7 @@ public class DatastoreV1Test {
   private static final String PROJECT_ID = "testProject";
   private static final String DATABASE_ID = "";
   private static final String DATABASE_ID = "";
+  private static final String DATABASE_ID = "";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
@@ -154,9 +155,6 @@ public class DatastoreV1Test {
     MockitoAnnotations.initMocks(this);
 
     when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class), any()))
-        .thenReturn(mockDatastore);
-    when(mockDatastoreFactory.getDatastore(
-            any(PipelineOptions.class), any(String.class), any(String.class), any()))
         .thenReturn(mockDatastore);
     when(mockDatastoreFactory.getDatastore(
             any(PipelineOptions.class), any(String.class), any(String.class), any()))
