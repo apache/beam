@@ -86,7 +86,7 @@ public class V1WriteIT {
             ParDo.of(
                 new V1TestUtil.CreateEntityFn(
                     options.getKind(), options.getNamespace(), ancestor, 0)))
-        .apply(DatastoreIO.v1().write().withProjectAndDatabaseId(project, database));
+        .apply(DatastoreIO.v1().write().withProjectId(project).withDatabaseId(database));
 
     p.run();
 

@@ -1277,19 +1277,18 @@ public class DatastoreV1 {
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
-    /**
-     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified database.
-     */
-    public Write withProjectAndDatabaseId(String projectId, String databaseId) {
-      checkArgument(projectId != null, "projectId can not be null");
-      return new Write(
-          StaticValueProvider.of(projectId), databaseId, localhost, throttleRampup, hintNumWorkers);
-    }
-
     /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /**
+     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified database.
+     */
+    public Write withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new Write(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1549,10 +1548,7 @@ public class DatastoreV1 {
                 ParDo.of(rampupThrottlingFn).withSideInputs(startTimestampView));
       }
       intermediateOutput.apply(
-          "Write Mutation to Datastore",
-          ParDo.of(
-              new DatastoreWriterFn(
-                  projectId, localhost, new V1DatastoreFactory(), new WriteBatcherImpl())));
+          "Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId, localhost)));
 
       return PDone.in(input.getPipeline());
     }
@@ -1796,8 +1792,6 @@ public class DatastoreV1 {
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
         commitRequest.addAllMutations(mutations);
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
-        commitRequest.setProjectId(projectId.get());
-        commitRequest.setDatabaseId(databaseId);
         commitRequest.setProjectId(projectId.get());
         commitRequest.setDatabaseId(databaseId);
         long startTime = System.currentTimeMillis(), endTime;
