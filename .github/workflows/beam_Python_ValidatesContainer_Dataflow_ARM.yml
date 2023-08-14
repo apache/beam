@@ -63,8 +63,6 @@ jobs:
       startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
 
     runs-on: [self-hosted, ubuntu-20.04, main]
-    env:
-      MULTIARCH_TAG: $(date +'%Y%m%d-%H%M%S%N')
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
@@ -99,6 +97,8 @@ jobs:
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Generate MULTIARCH_TAG unique variable based on timestamp
+        run: echo MULTIARCH_TAG=$(date +'%Y%m%d-%H%M%S%N') >> $GITHUB_ENV
       - name: run Python validatesContainerARM script
         id: run_script
         uses: ./.github/actions/gradle-command-self-hosted-action
