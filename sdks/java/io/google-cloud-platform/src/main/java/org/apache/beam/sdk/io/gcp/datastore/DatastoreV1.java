@@ -626,7 +626,6 @@ public class DatastoreV1 {
         throws DatastoreException {
       GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql).setAllowLiterals(true).build();
       RunQueryRequest req = makeRequest(projectId, databaseId, gqlQuery, namespace, readTime);
-      RunQueryRequest req = makeRequest(projectId, databaseId, gqlQuery, namespace, readTime);
       return datastore.runQuery(req).getQuery();
     }
 
@@ -842,7 +841,6 @@ public class DatastoreV1 {
     static class V1Options implements HasDisplayData, Serializable {
       private final ValueProvider<String> project;
       private final ValueProvider<String> database;
-      private final ValueProvider<String> database;
       private final @Nullable ValueProvider<String> namespace;
       private final @Nullable String localhost;
 
@@ -852,7 +850,6 @@ public class DatastoreV1 {
           ValueProvider<String> namespace,
           String localhost) {
         this.project = project;
-        this.database = database;
         this.database = database;
         this.namespace = namespace;
         this.localhost = localhost;
@@ -1490,7 +1487,6 @@ public class DatastoreV1 {
 
     protected ValueProvider<String> projectId;
     protected String databaseId;
-    protected String databaseId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
     protected ValueProvider<Integer> hintNumWorkers;
@@ -1506,13 +1502,11 @@ public class DatastoreV1 {
     Mutate(
         @Nullable ValueProvider<String> projectId,
         String databaseId,
-        String databaseId,
         @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
       this.projectId = projectId;
-      this.databaseId = databaseId;
       this.databaseId = databaseId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
@@ -1558,11 +1552,7 @@ public class DatastoreV1 {
           "Write Mutation to Datastore",
           ParDo.of(
               new DatastoreWriterFn(
-                  projectId,
-                  databaseId,
-                  localhost,
-                  new V1DatastoreFactory(),
-                  new WriteBatcherImpl())));
+                  projectId, localhost, new V1DatastoreFactory(), new WriteBatcherImpl())));
 
       return PDone.in(input.getPipeline());
     }
@@ -1670,6 +1660,7 @@ public class DatastoreV1 {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final ValueProvider<String> projectId;
+    private String databaseId;
     private final @Nullable String localhost;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
@@ -1679,8 +1670,6 @@ public class DatastoreV1 {
     private int mutationsSize = 0; // Accumulated size of protos in mutations.
     private WriteBatcher writeBatcher;
     private transient AdaptiveThrottler adaptiveThrottler;
-    private transient String databaseId;
-    private transient String databaseId;
     private final Counter throttlingMsecs =
         Metrics.counter(DatastoreWriterFn.class, "throttling-msecs");
     private final Counter rpcErrors =
@@ -1718,18 +1707,8 @@ public class DatastoreV1 {
         @Nullable String localhost,
         V1DatastoreFactory datastoreFactory,
         WriteBatcher writeBatcher) {
-      this(projectId, DEFAULT_DATABASE, localhost, datastoreFactory, writeBatcher);
-    }
-
-    @VisibleForTesting
-    DatastoreWriterFn(
-        ValueProvider<String> projectId,
-        String databaseId,
-        @Nullable String localhost,
-        V1DatastoreFactory datastoreFactory,
-        WriteBatcher writeBatcher) {
       this.projectId = checkNotNull(projectId, "projectId");
-      // this.databaseId = checkNotNull(databaseId, "databaseId");
+      this.databaseId = DEFAULT_DATABASE;
       this.localhost = localhost;
       this.datastoreFactory = datastoreFactory;
       this.writeBatcher = writeBatcher;
@@ -1737,11 +1716,10 @@ public class DatastoreV1 {
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
-      // Override Firestore DatabaseID if present in FirestoreOption.
-      databaseId = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
-
-      // Update database ID.
-      databaseId = databaseId.equals("(default)") ? DEFAULT_DATABASE : databaseId;
+      // Read Firestore DatabaseID from FirestoreOptions.
+      String firestoreDatabaseId =
+          c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
+      databaseId = firestoreDatabaseId.equals("(default)") ? DEFAULT_DATABASE : firestoreDatabaseId;
 
       datastore =
           datastoreFactory.getDatastore(

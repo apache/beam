@@ -126,8 +126,6 @@ import org.mockito.MockitoAnnotations;
 public class DatastoreV1Test {
   private static final String PROJECT_ID = "testProject";
   private static final String DATABASE_ID = "";
-  private static final String DATABASE_ID = "";
-  private static final String DATABASE_ID = "";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
@@ -680,7 +678,6 @@ public class DatastoreV1Test {
       DatastoreWriterFn datastoreWriter =
           new DatastoreWriterFn(
               StaticValueProvider.of(PROJECT_ID),
-              DATABASE_ID,
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
