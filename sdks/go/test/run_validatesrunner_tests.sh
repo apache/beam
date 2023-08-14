@@ -439,8 +439,8 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
-  # the associated container images can't be deleted because they are not tagged. However, the multi-arch containers
-  # are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
+  # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
+  # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
   if [[ "$USER" == "jenkins" ]]; then
     gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   fi

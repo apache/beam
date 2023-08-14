@@ -52,9 +52,9 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-    'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.fnapi_container_version' : 'beam-master-20230426',
-    'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
+    'dataflow.fnapi_environment_major_version' : project(':runners:google-cloud-dataflow-java').ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.fnapi_container_version' : project(':runners:google-cloud-dataflow-java').ext.dataflowFnapiContainerVersion,
+    'dataflow.container_base_repository' : project(':runners:google-cloud-dataflow-java').ext.dataflowContainerBaseRepository,
   ]
 }
 
@@ -103,8 +103,11 @@ def runnerV2PipelineOptionsARM = [
 // Build and push multi-arch docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerJavaMultiarchContainer').
-// Note: we don't delete the multi-arch containers here because the multi-arch containers
-// are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
+// Note: we don't delete the multi-arch containers here because this command only
+// deletes the manifest list with the tag, the associated container images can't be
+// deleted because they are not tagged. However, multi-arch containers that are older
+// than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs
+// daily.
 def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
   dependsOn ":sdks:java:container:${javaVer}:docker"
 }
@@ -124,11 +127,8 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
 
-  include '**/*IT.class'
-  exclude '**/TopWikipediaSessionsIT.class'
-  exclude '**/AutoCompleteIT.class'
-  // TODO(https://github.com/apache/beam/issues/20593): test times out.
-  exclude '**/FhirIOReadIT.class'
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest

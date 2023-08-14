@@ -25,7 +25,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerCall;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerCall.Listener;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerCallHandler;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerInterceptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * A HeaderAccessorProvider which intercept the header in a GRPC request and expose the relevant

@@ -30,7 +30,7 @@ import java.util.TreeMap;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;

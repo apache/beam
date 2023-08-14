@@ -52,8 +52,12 @@ concurrency:
 
 jobs:
   beam_PreCommit_Website:
-    name: beam_PreCommit_Website (Run Website PreCommit)
+    name: ${{matrix.job_name}} (${{ matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, small]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Website]
+        job_phrase: [Run Website PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
@@ -66,8 +70,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Website PreCommit'
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:

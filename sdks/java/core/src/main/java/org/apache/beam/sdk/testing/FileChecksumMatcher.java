@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -26,9 +26,9 @@ import javax.annotation.Nonnull;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ShardedFile;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;

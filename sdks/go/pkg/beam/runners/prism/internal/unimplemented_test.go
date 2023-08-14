@@ -41,7 +41,6 @@ func TestUnimplemented(t *testing.T) {
 	tests := []struct {
 		pipeline func(s beam.Scope)
 	}{
-		// These tests don't terminate, so can't be run.
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
 
 		{pipeline: primitives.TestStreamBoolSequence},

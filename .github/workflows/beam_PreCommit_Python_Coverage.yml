@@ -51,8 +51,12 @@ concurrency:
 
 jobs:
   beam_PreCommit_Python_Coverage:
-    name: beam_PreCommit_Python_Coverage (Run Python_Coverage PreCommit)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Python_Coverage]
+        job_phrase: [Run Python_Coverage PreCommit]
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
@@ -65,8 +69,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Python_Coverage PreCommit'
+          comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Install Python
         uses: actions/setup-python@v4
         with:

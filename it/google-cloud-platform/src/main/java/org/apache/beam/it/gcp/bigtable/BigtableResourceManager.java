@@ -23,9 +23,7 @@ import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.gener
 import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.generateInstanceId;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.ServerStream;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminSettings;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
@@ -83,9 +81,9 @@ public class BigtableResourceManager implements ResourceManager {
   private final BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory;
 
   // List to store created tables for static RM
-  private List<String> createdTables;
+  private final List<String> createdTables;
   // List to store created app profiles for static RM
-  private List<String> createdAppProfiles;
+  private final List<String> createdAppProfiles;
 
   private boolean hasInstance;
   private final boolean usingStaticInstance;
@@ -157,8 +155,9 @@ public class BigtableResourceManager implements ResourceManager {
     }
   }
 
-  public static Builder builder(String testId, String projectId) throws IOException {
-    return new Builder(testId, projectId);
+  public static Builder builder(
+      String testId, String projectId, CredentialsProvider credentialsProvider) {
+    return new Builder(testId, projectId, credentialsProvider);
   }
 
   /**
@@ -575,11 +574,10 @@ public class BigtableResourceManager implements ResourceManager {
     private boolean useStaticInstance;
     private CredentialsProvider credentialsProvider;
 
-    private Builder(String testId, String projectId) throws IOException {
+    private Builder(String testId, String projectId, CredentialsProvider credentialsProvider) {
       this.testId = testId;
       this.projectId = projectId;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
       this.instanceId = null;
     }
 

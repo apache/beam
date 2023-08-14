@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import java.util.HashSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
  * Utility class to determine initial partition constants and methods.

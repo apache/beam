@@ -61,32 +61,39 @@ env:
 
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
-    name: beam_PostCommit_Java_Examples__Dataflow_ARM (Run Java_Examples_Dataflow_ARM PostCommit)
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.java_version}}) 
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      matrix:
+      matrix: 
+        job_name: [beam_PostCommit_Java_Examples__Dataflow_ARM]
+        job_phrase: [Run Java_Examples_Dataflow_ARM PostCommit]
         java_version: ['8','11','17']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       github. event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_Examples_Dataflow_ARM PostCommit'
+      startswith(github.event.comment.body, 'Run Java_Examples_Dataflow_ARM PostCommit')
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Java_Examples_Dataflow_ARM PostCommit'
+          comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: "beam_PostCommit_Java_Examples__Dataflow_ARM (Run Java_Examples_Dataflow_ARM PostCommit)"
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }}) ${{matrix.java_version}}
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
           requires-py-38: false
           requires-py-39: false
           requires-go: false
+      - name: Set up Java${{ matrix.java_version }}
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java_version }}
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
@@ -110,10 +117,14 @@ jobs:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             arguments: |
                 -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+                -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
                 -Pdocker-tag=${{env.TAG}} \
+                -PdisableSpotlessCheck=true \
+                -PdisableCheckStyle=true \
+                -PskipCheckerFramework \
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:

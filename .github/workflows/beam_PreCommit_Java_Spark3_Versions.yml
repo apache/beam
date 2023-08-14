@@ -57,8 +57,12 @@ permissions:
 
 jobs:
   beam_PreCommit_Java_Spark3_Versions:
-    name: beam_PreCommit_Java_Spark3_Versions (Run Java_Spark3_Versions PreCommit)
+    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Java_Spark3_Versions]
+        job_phrase: [Run Java_Spark3_Versions PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
@@ -71,8 +75,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: 'Run Java_Spark3_Versions PreCommit'
+          comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

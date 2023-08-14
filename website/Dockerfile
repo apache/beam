@@ -29,6 +29,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_CTYPE=C.UTF-8 \
     LC_MESSAGES=C.UTF-8
 
+WORKDIR /opt/
+
 # Install deps being used by sh files
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -47,9 +49,12 @@ RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         nodejs \
+        npm \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* 
+    
+RUN npm install postcss postcss-cli autoprefixer 
 
 # Install yarn
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
@@ -60,13 +65,12 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install hugo extended version v0.68.3
+# Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \
     && export HUGOHOME \
-    && curl -sL https://github.com/gohugoio/hugo/releases/download/v0.68.3/hugo_extended_0.68.3_Linux-64bit.tar.gz > "${HUGOHOME}/hugo.tar.gz" \
+    && curl -sL https://github.com/gohugoio/hugo/releases/download/v0.117.0/hugo_extended_0.117.0_Linux-64bit.tar.gz > "${HUGOHOME}/hugo.tar.gz" \
     && tar -xzvf "${HUGOHOME}/hugo.tar.gz" hugo \
     && mv hugo /usr/local/bin/hugo \
     && chmod +x /usr/local/bin/hugo \
     && rm -r "${HUGOHOME}"
 
-WORKDIR /opt/
