@@ -142,6 +142,7 @@ class V1TestUtil {
     Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
     HttpRequestInitializer initializer;
     if (credential != null) {
+
       initializer =
           new ChainingHttpRequestInitializer(
               new HttpCredentialsAdapter(credential), new RetryHttpRequestInitializer());
