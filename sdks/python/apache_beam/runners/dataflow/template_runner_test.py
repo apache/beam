@@ -52,15 +52,15 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
 
     remote_runner = DataflowRunner()
     with Pipeline(remote_runner,
-                  options=PipelineOptions(['--dataflow_endpoint=ignored',
-                                           '--sdk_location=' + dummy_file_name,
-                                           '--job_name=test-job',
-                                           '--project=test-project',
-                                           '--staging_location=' + dummy_dir,
-                                           '--temp_location=/dev/null',
-                                           '--template_location=' +
-                                           dummy_file_name,
-                                           '--no_auth'])) as pipeline:
+                  options=PipelineOptions(
+                      ['--sdk_location=' + dummy_file_name,
+                       '--job_name=test-job',
+                       '--project=apache-beam-testing',
+                       '--region=us-central1',
+                       '--staging_location=./' + dummy_dir,
+                       '--temp_location=gs://apache-beam-testing/tmp',
+                       '--template_location=' + dummy_file_name,
+                       '--no_auth'])) as pipeline:
 
       pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
 

@@ -864,10 +864,6 @@ class GoogleCloudOptions(PipelineOptions):
         else:
           setattr(self, 'temp_location', default_bucket)
 
-      if getattr(self, 'staging_location',
-                 None) or getattr(self, 'temp_location', None) is None:
-        errors.extend(validator.validate_gcs_path(self, 'staging_location'))
-
     if self.view_as(DebugOptions).dataflow_job_file:
       if self.view_as(GoogleCloudOptions).template_location:
         errors.append(
