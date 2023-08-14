@@ -456,6 +456,6 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],
       pytestOptions: basicPytestOpts,
-      additionalArgs: taskMetadata.additionalArgs
+      additionalEnvs: taskMetadata.additionalEnvs
     )
 }

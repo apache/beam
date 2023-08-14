@@ -358,8 +358,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String expansionProjectPath
     // Collect Python pipeline tests with this marker
     String collectMarker
-    // any additional arguments specific to the suite of tests
-    Map<String,String> additionalArgs
+    // any additional environment variables to be exported
+    Map<String,String> additionalEnvs
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
@@ -2526,8 +2526,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
-            if (config.additionalArgs.containsKey("KAFKA_BOOTSTRAP_SERVER")) {
-              environment "BOOTSTRAP_SERVER", config.additionalArgs.get("KAFKA_BOOTSTRAP_SERVER")
+            for (envs : config.additionalEnvs){
+              environment envs.getKey(), envs.getValue()
             }
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"

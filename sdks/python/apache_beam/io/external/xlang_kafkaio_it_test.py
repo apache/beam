@@ -148,11 +148,11 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
       os.environ.get('EXPANSION_PORT'),
       "EXPANSION_PORT environment var is not provided.")
   @unittest.skipUnless(
-      os.environ.get('BOOTSTRAP_SERVER'),
-      "BOOTSTRAP_SERVER environment var is not provided.")
+      os.environ.get('KAFKA_BOOTSTRAP_SERVER'),
+      "KAFKA_BOOTSTRAP_SERVER environment var is not provided.")
   def test_hosted_kafkaio_populated_key(self):
     kafka_topic = 'xlang_kafkaio_test_populated_key_{}'.format(uuid.uuid4())
-    bootstrap_servers = os.environ.get('BOOTSTRAP_SERVER')
+    bootstrap_servers = os.environ.get('KAFKA_BOOTSTRAP_SERVER')
     pipeline_creator = CrossLanguageKafkaIO(
         bootstrap_servers,
         kafka_topic,
@@ -167,11 +167,11 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
       os.environ.get('EXPANSION_PORT'),
       "EXPANSION_PORT environment var is not provided.")
   @unittest.skipUnless(
-      os.environ.get('BOOTSTRAP_SERVER'),
-      "BOOTSTRAP_SERVER environment var is not provided.")
+      os.environ.get('KAFKA_BOOTSTRAP_SERVER'),
+      "KAFKA_BOOTSTRAP_SERVER environment var is not provided.")
   def test_hosted_kafkaio_null_key(self):
     kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
-    bootstrap_servers = os.environ.get('BOOTSTRAP_SERVER')
+    bootstrap_servers = os.environ.get('KAFKA_BOOTSTRAP_SERVER')
     pipeline_creator = CrossLanguageKafkaIO(
         bootstrap_servers,
         kafka_topic,

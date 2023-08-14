@@ -25,7 +25,7 @@ import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIO
 
 
 // This job runs end-to-end cross language GCP IO tests with DataflowRunner.
-// Collects tests with the @pytest.mark.uses_gcp_java_expansion_service decorator
+// Collects tests with the @pytest.mark.uses_io_java_expansion_service decorator
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_IO_Dataflow',
     'Run Python_Xlang_IO_Dataflow PostCommit', 'Python_Xlang_IO_Dataflow (\"Run Python_Xlang_IO_Dataflow PostCommit\")', this) {
       description('Runs end-to-end cross language non-GCP IO tests on the Dataflow runner.')
@@ -49,6 +49,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Xlang_IO_Dataflow',
           tasks(":sdks:python:test-suites:dataflow:ioCrossLanguagePostCommit")
           commonJobProperties.setGradleSwitches(delegate)
           switches("-PuseWheelDistribution")
+          switches("-PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094")
         }
       }
     }
