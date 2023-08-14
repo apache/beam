@@ -331,7 +331,7 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider startJobServer
     // Job server cleanup task.
     TaskProvider cleanupJobServer
-    // any additional arguments specific to the suite of tests
+    // any additional environment variables specific to the suite of tests
     Map<String,String> additionalEnvs
   }
 
