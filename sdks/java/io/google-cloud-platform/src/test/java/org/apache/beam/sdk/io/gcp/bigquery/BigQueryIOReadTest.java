@@ -251,7 +251,7 @@ public class BigQueryIOReadTest implements Serializable {
     TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
 
     PCollection<MyData> output =
-        p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
+        p.apply(BigQueryIO.readTableRows().from(tableRef).withTestServices(fakeBqServices))
             .apply(
                 ParDo.of(
                     new DoFn<TableRow, MyData>() {

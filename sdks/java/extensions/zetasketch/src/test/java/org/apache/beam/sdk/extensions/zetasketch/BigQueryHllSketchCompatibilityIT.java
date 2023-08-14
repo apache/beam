@@ -34,12 +34,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
-import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -179,11 +179,10 @@ public class BigQueryHllSketchCompatibilityIT {
             "SELECT HLL_COUNT.INIT(%s) AS %s FROM %s",
             DATA_FIELD_NAME, QUERY_RESULT_FIELD_NAME, tableSpec);
 
-    SerializableFunction<SchemaAndRecord, byte[]> parseQueryResultToByteArray =
-        input ->
+    SerializableFunction<GenericRecord, byte[]> parseQueryResultToByteArray =
+        record ->
             // BigQuery BYTES type corresponds to Java java.nio.ByteBuffer type
-            HllCount.getSketchFromByteBuffer(
-                (ByteBuffer) input.getRecord().get(QUERY_RESULT_FIELD_NAME));
+            HllCount.getSketchFromByteBuffer((ByteBuffer) record.get(QUERY_RESULT_FIELD_NAME));
 
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
@@ -191,12 +190,11 @@ public class BigQueryHllSketchCompatibilityIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> result =
         p.apply(
-                BigQueryIO.read(parseQueryResultToByteArray)
+                BigQueryIO.read(parseQueryResultToByteArray, ByteArrayCoder.of())
                     .withFormat(DataFormat.AVRO)
                     .fromQuery(query)
                     .usingStandardSql()
-                    .withMethod(Method.DIRECT_READ)
-                    .withCoder(ByteArrayCoder.of()))
+                    .withMethod(Method.DIRECT_READ))
             .apply(HllCount.MergePartial.globally()) // no-op, only for testing MergePartial
             .apply(HllCount.Extract.globally());
     PAssert.thatSingleton(result).isEqualTo(expectedCount);

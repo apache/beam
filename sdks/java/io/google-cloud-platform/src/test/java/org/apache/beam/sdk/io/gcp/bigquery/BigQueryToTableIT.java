@@ -94,7 +94,8 @@ public class BigQueryToTableIT {
 
   private void runBigQueryToTablePipeline(BigQueryToTableOptions options) {
     Pipeline p = Pipeline.create(options);
-    BigQueryIO.Read bigQueryRead = BigQueryIO.read().fromQuery(options.getQuery());
+    BigQueryIO.TypedRead<TableRow> bigQueryRead =
+        BigQueryIO.readTableRows().fromQuery(options.getQuery());
     if (options.getUsingStandardSql()) {
       bigQueryRead = bigQueryRead.usingStandardSql();
     }

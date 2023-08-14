@@ -604,13 +604,12 @@ public class BigQueryIO {
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY =
-          (SerializableFunction<TableSchema, org.apache.avro.Schema>)
-              input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
+          input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
 
   /**
-   * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
-   *     #readTableRows()} does exactly the same as {@link #read}, however {@link
-   *     #read(SerializableFunction)} performs better.
+   * @deprecated Use {@link #read(SerializableFunction, Coder)} or {@link #readTableRows} instead.
+   *     {@link #readTableRows()} does exactly the same as {@link #read}, however {@link
+   *     #read(SerializableFunction, Coder)} performs better.
    */
   @Deprecated
   public static Read read() {
@@ -618,27 +617,28 @@ public class BigQueryIO {
   }
 
   /**
-   * Like {@link #read(SerializableFunction)} but represents each row as a {@link TableRow}.
+   * Like {@link #read(SerializableFunction, Coder)} but represents each row as a {@link TableRow}.
    *
    * <p>This method is more convenient to use in some cases, but usually has significantly lower
-   * performance than using {@link #read(SerializableFunction)} directly to parse data into a
+   * performance than using {@link #read(SerializableFunction, Coder)} directly to parse data into a
    * domain-specific type, due to the overhead of converting the rows to {@link TableRow}.
    */
   public static TypedRead<TableRow> readTableRows() {
-    return read(new TableRowParser()).withCoder(TableRowJsonCoder.of());
+    return read(TableRowParser.INSTANCE).withCoder(TableRowJsonCoder.of());
   }
 
   /** Like {@link #readTableRows()} but with {@link Schema} support. */
   public static TypedRead<TableRow> readTableRowsWithSchema() {
-    return read(new TableRowParser())
-        .withCoder(TableRowJsonCoder.of())
+    return readTableRows()
         .withBeamRowConverters(
             TypeDescriptor.of(TableRow.class),
             BigQueryUtils.tableRowToBeamRow(),
             BigQueryUtils.tableRowFromBeamRow());
   }
 
-  /** @deprecated Use {@link #read(SerializableFunction, Coder)} instead. */
+  /**
+   * @deprecated Use {@link #readTableRows()} or {@link #read(SerializableFunction, Coder)} instead.
+   */
   @Deprecated
   public static <T> TypedRead<T> read(SerializableFunction<SchemaAndRecord, T> parseFn) {
     return read(
@@ -650,23 +650,23 @@ public class BigQueryIO {
         TypeDescriptors.outputOf(parseFn));
   }
 
-    /**
-     * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-     * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
-     * function.
-     *
-     * <p>Each {@link GenericRecord} represents the row, indexed by column name. Here is a sample parse function
-     * that parses click events from a table.
-     *
-     * <pre>{@code
-     * class ClickEvent extends Serializable { long userId; String url; ... }
-     *
-     * p.apply(BigQueryIO.read(
-     *   (record) -> new ClickEvent((Long) r.get("userId"), (String) r.get("url")),
-     *   SerializableCoder.of()
-     * ).from("...");
-     * }</pre>
-     */
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
+   * function.
+   *
+   * <p>Each {@link GenericRecord} represents the row, indexed by column name. Here is a sample
+   * parse function that parses click events from a table.
+   *
+   * <pre>{@code
+   * class ClickEvent extends Serializable { long userId; String url; ... }
+   *
+   * p.apply(BigQueryIO.read(
+   *   (record) -> new ClickEvent((Long) r.get("userId"), (String) r.get("url")),
+   *   SerializableCoder.of()
+   * ).from("...");
+   * }</pre>
+   */
   public static <T> TypedRead<T> read(
       SerializableFunction<GenericRecord, T> parseFn, Coder<T> coder) {
     return read(
@@ -677,44 +677,47 @@ public class BigQueryIO {
         null);
   }
 
-    /**
-     * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-     * each row of the table or query result, read from the BigQuery AVRO format with the avro datum reader.
-     *
-     * <p>Here is a sample datum reader that uses reflection to read from a table.
-     * <pre>{@code
-     * class ClickEvent { long userId; String url; ... }
-     *
-     * p.apply(BigQueryIO.read(
-     *   ClickEvent.class,
-     *   AvroDatumFactory.reflect(ClickEvent.class),
-     *   AvroCoder.reflect(ClickEvent.class)
-     * ).from("...");
-     * }</pre>
-     */
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, read from the BigQuery AVRO format with the avro datum
+   * reader.
+   *
+   * <p>Here is a sample datum reader that uses reflection to read from a table.
+   *
+   * <pre>{@code
+   * class ClickEvent { long userId; String url; ... }
+   *
+   * p.apply(BigQueryIO.read(
+   *   ClickEvent.class,
+   *   AvroDatumFactory.reflect(ClickEvent.class),
+   *   AvroCoder.reflect(ClickEvent.class)
+   * ).from("...");
+   * }</pre>
+   */
   public static <T> TypedRead<T> read(
       Class<T> type, AvroSource.DatumReaderFactory<T> readerFactory, Coder<T> coder) {
     return read(type, readerFactory, SerializableFunctions.identity(), coder);
   }
 
-    /**
-     * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-     * each row of the table or query result, read from the BigQuery AVRO format with the avro datum reader
-     * and then converted using the specified function.
-     *
-     * <p>Here is a sample datum reader that uses generated avro class to read from a table.
-     * <pre>{@code
-     * // generated avro
-     * class ClickEvent extends SpecificRecordBase { long userId; String url; ...}
-     *
-     * p.apply(BigQueryIO.read(
-     *   ClickEvent.class,
-     *   AvroDatumFactory.specific(ClickEvent.class),
-     *   ClickEvent::getuserId,
-     *   VarLongCoder.of()
-     * ).from("...");
-     * }</pre>
-     */
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, read from the BigQuery AVRO format with the avro datum
+   * reader and then converted using the specified function.
+   *
+   * <p>Here is a sample datum reader that uses generated avro class to read from a table.
+   *
+   * <pre>{@code
+   * // generated avro
+   * class ClickEvent extends SpecificRecordBase { long userId; String url; ...}
+   *
+   * p.apply(BigQueryIO.read(
+   *   ClickEvent.class,
+   *   AvroDatumFactory.specific(ClickEvent.class),
+   *   ClickEvent::getuserId,
+   *   VarLongCoder.of()
+   * ).from("...");
+   * }</pre>
+   */
   public static <AvroT, T> TypedRead<T> read(
       Class<AvroT> type,
       AvroSource.DatumReaderFactory<AvroT> readerFactory,
@@ -767,7 +770,7 @@ public class BigQueryIO {
     private final TypedRead<TableRow> inner;
 
     Read() {
-      this(BigQueryIO.read(TableRowParser.INSTANCE).withCoder(TableRowJsonCoder.of()));
+      this(BigQueryIO.readTableRows());
     }
 
     Read(TypedRead<TableRow> inner) {

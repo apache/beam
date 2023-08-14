@@ -79,7 +79,7 @@ public class BigQueryIOReadIT {
   private void runBigQueryIOReadPipeline() {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count =
-        p.apply("Read", BigQueryIO.read().from(options.getInputTable()))
+        p.apply("Read", BigQueryIO.readTableRows().from(options.getInputTable()))
             .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
 

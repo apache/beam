@@ -23,7 +23,6 @@ import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.options.Description;
@@ -105,7 +104,7 @@ public class BigQueryIOStorageReadIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.read(TableRowParser.INSTANCE)
+                BigQueryIO.readTableRows()
                     .from(options.getInputTable())
                     .withMethod(Method.DIRECT_READ)
                     .withFormat(options.getDataFormat()))
@@ -181,13 +180,11 @@ public class BigQueryIOStorageReadIT {
                 BigQueryIO.read(
                         record ->
                             BigQueryUtils.toBeamRow(
-                                record.getRecord(),
-                                multiFieldSchema,
-                                ConversionOptions.builder().build()))
+                                record, multiFieldSchema, ConversionOptions.builder().build()),
+                        SchemaCoder.of(multiFieldSchema))
                     .from(options.getInputTable())
                     .withMethod(Method.DIRECT_READ)
-                    .withFormat(options.getDataFormat())
-                    .withCoder(SchemaCoder.of(multiFieldSchema)))
+                    .withFormat(options.getDataFormat()))
             .apply(ParDo.of(new GetIntField()))
             .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());

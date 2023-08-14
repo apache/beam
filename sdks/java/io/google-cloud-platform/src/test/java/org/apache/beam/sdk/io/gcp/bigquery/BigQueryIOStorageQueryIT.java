@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -85,7 +84,7 @@ public class BigQueryIOStorageQueryIT {
     PCollection<Long> count =
         p.apply(
                 "Query",
-                BigQueryIO.read(TableRowParser.INSTANCE)
+                BigQueryIO.readTableRows()
                     .fromQuery("SELECT * FROM `" + options.getInputTable() + "`")
                     .usingStandardSql()
                     .withMethod(Method.DIRECT_READ))

@@ -142,11 +142,14 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
   }
 
   // Use cases of AvroSource are:
-  // 1) AvroSource<GenericRecord, GenericRecord> Reading GenericRecord records with a specified schema.
+  // 1) AvroSource<GenericRecord, GenericRecord> Reading GenericRecord records with a specified
+  // schema.
   // 2) AvroSource<Foo, Foo> Reading records of a generated Avro class Foo.
-  // 3) AvroSource<GenericRecord, T> Reading GenericRecord records with or without a specified schema
+  // 3) AvroSource<GenericRecord, T> Reading GenericRecord records with or without a specified
+  // schema
   //    and converting them to type T.
-  // 4) AvroSource<Foo, T> Reading records of a generated Avro class Foo and converting them to type T.
+  // 4) AvroSource<Foo, T> Reading records of a generated Avro class Foo and converting them to type
+  // T.
   //                     |    Case 1     |    Case 2   |     Case 3    |     Case 4    |
   // AvroT               | GenericRecord |     Foo     | GenericRecord |      Foo      |
   // T                   | GenericRecord |     Foo     | GenericRecord |       T       |
@@ -210,8 +213,8 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
     private void validate() {
       if (parseFn == null) {
         checkArgument(
-                readerSchemaString != null,
-                "schema must be specified using withSchema() when not using a parse fn");
+            readerSchemaString != null,
+            "schema must be specified using withSchema() when not using a parse fn");
       }
     }
 
