@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.UpsertMutationBuilder;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.V1TestWriter;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
