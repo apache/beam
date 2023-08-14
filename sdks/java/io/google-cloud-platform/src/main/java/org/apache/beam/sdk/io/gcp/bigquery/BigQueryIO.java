@@ -117,6 +117,7 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -641,13 +642,22 @@ public class BigQueryIO {
    */
   @Deprecated
   public static <T> TypedRead<T> read(SerializableFunction<SchemaAndRecord, T> parseFn) {
+    TypeDescriptor<T> typeDescriptor = TypeDescriptors.outputOf(parseFn);
+    try {
+      SerializableUtils.ensureSerializable(typeDescriptor);
+    } catch (IllegalArgumentException e) {
+      // TypeDescriptors.outputOf(parseFn) returns a generic, non-serializable type descriptor
+      // when parseFn is a lambda. Drop it and pass null since it would help infer the coder anyway.
+      typeDescriptor = null;
+    }
+
     return read(
         null, // use writer schema
         AvroDatumFactory.generic(),
         (TableSchema schema, GenericRecord record) ->
             parseFn.apply(new SchemaAndRecord(record, schema)),
-        null, // no coder, will be inferred from type descriptor if not provided later
-        TypeDescriptors.outputOf(parseFn));
+        null, // no coder, will be inferred from type descriptor if not specified using withCoder()
+        typeDescriptor);
   }
 
   /**
