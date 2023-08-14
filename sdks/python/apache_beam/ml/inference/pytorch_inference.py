@@ -120,6 +120,7 @@ def _load_model(
 
   model.to(device)
   model.eval()
+  model.requires_grad_(False)
   logging.info("Finished loading PyTorch model.")
   return model, device
 
