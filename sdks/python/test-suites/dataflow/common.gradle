@@ -25,6 +25,15 @@ String pythonVersionSuffix = project.ext.pythonVersion
         ? "-py${pythonVersionNumber}"
         : ''
 
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--capture=no",  // print stdout instantly
+    "--numprocesses=8",  // run tests in parallel
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
+    "--log-cli-level=INFO" //log level info
+]
+
 dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
 }
@@ -392,6 +401,34 @@ def tensorRTTests = tasks.create("tensorRTtests") {
  }
 }
 
+// Vertex AI RunInference IT tests
+task vertexAIInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/vertex_ai_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "VertexAITests-df-py${pythonVersionSuffix}",
+          "collect": "uses_vertex_ai and it_postcommit" ,
+          "runner": "TestDataflowRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
+
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
   doLast {
@@ -433,6 +470,7 @@ task tftTests {
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'tensorRTtests',
+  'vertexAIInferenceTest',
   ]
 }
 

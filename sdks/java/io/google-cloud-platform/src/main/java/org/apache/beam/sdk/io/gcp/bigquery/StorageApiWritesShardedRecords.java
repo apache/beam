@@ -29,6 +29,7 @@ import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
@@ -458,21 +459,28 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
-            if (autoUpdateSchema && updatedSchema.read() != null) {
-              // We've seen an updated schema, so we use that.
-              tableSchema = updatedSchema.read();
+            DescriptorProtos.DescriptorProto descriptor;
+            TableSchema updatedSchemaValue = updatedSchema.read();
+            if (autoUpdateSchema && updatedSchemaValue != null) {
+              // We've seen an updated schema, so we use that instead of querying the
+              // MessageConverter.
+              tableSchema = updatedSchemaValue;
+              descriptor =
+                  TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+                      tableSchema, true, false);
             } else {
               // Start off with the base schema. As we get notified of schema updates, we
-              // will update the
-              // descriptor.
-              tableSchema =
-                  messageConverters
-                      .get(element.getKey().getKey(), dynamicDestinations, datasetService)
-                      .getTableSchema();
+              // will update the descriptor.
+              StorageApiDynamicDestinations.MessageConverter<?> converter =
+                  messageConverters.get(
+                      element.getKey().getKey(), dynamicDestinations, datasetService);
+              tableSchema = converter.getTableSchema();
+              descriptor = converter.getDescriptor(false);
             }
             AppendClientInfo info =
                 AppendClientInfo.of(
                         Preconditions.checkStateNotNull(tableSchema),
+                        descriptor,
                         // Make sure that the client is always closed in a different thread
                         // to
                         // avoid blocking.
@@ -483,8 +491,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                                   // Remove the pin that is "owned" by the cache.
                                   client.unpin();
                                   client.close();
-                                }),
-                        false)
+                                }))
                     .withAppendClient(datasetService, getOrCreateStream, false);
             // This pin is "owned" by the cache.
             Preconditions.checkStateNotNull(info.getStreamAppendClient()).pin();
