@@ -332,7 +332,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Job server cleanup task.
     TaskProvider cleanupJobServer
     // any additional arguments specific to the suite of tests
-    Map<String,String> additionalArgs
+    Map<String,String> additionalEnvs
   }
 
   // A class defining the configuration for CrossLanguageUsingJavaExpansion.
