@@ -104,8 +104,8 @@ jobs:
         with:
           name: JUnit Test Results
           path: '**/build/test-results/**/*.xml'
-      - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v2
+      - name: Publish Spotbugs Results
+        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
         with:
-          name: SpotBugs Results
+          name: Spotbugs
           path: '**/build/reports/spotbugs/*.html'
