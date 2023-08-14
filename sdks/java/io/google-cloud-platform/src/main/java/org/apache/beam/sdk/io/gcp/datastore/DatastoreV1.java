@@ -1315,12 +1315,7 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(
-          projectId,
-          localhost,
-          new DeleteEntityFn(),
-          throttleRampup,
-          hintNumWorkers);
+      super(projectId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1385,12 +1380,7 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(
-          projectId,
-          localhost,
-          new DeleteKeyFn(),
-          throttleRampup,
-          hintNumWorkers);
+      super(projectId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
