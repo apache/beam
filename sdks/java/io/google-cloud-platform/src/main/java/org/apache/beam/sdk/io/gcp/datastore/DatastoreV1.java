@@ -1255,20 +1255,7 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, DEFAULT_DATABASE, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
-    }
-
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
-     * is {@code null} at instantiation time, an error will be thrown.
-     */
-    Write(
-        @Nullable ValueProvider<String> projectId,
-        String databaseId,
-        @Nullable String localhost,
-        boolean throttleRampup,
-        ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, databaseId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
+      super(projectId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
     /** Returns a new {@link Write} that writes to the Cloud Datastore for the default database. */
@@ -1281,14 +1268,6 @@ public class DatastoreV1 {
     public Write withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
-    }
-
-    /**
-     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified database.
-     */
-    public Write withDatabaseId(String databaseId) {
-      checkArgument(databaseId != null, "databaseId can not be null");
-      return new Write(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1338,24 +1317,10 @@ public class DatastoreV1 {
         ValueProvider<Integer> hintNumWorkers) {
       super(
           projectId,
-          DEFAULT_DATABASE,
           localhost,
           new DeleteEntityFn(),
           throttleRampup,
           hintNumWorkers);
-    }
-
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
-     * is {@code null} at instantiation time, an error will be thrown.
-     */
-    DeleteEntity(
-        @Nullable ValueProvider<String> projectId,
-        String databaseId,
-        @Nullable String localhost,
-        boolean throttleRampup,
-        ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, databaseId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1422,7 +1387,6 @@ public class DatastoreV1 {
         ValueProvider<Integer> hintNumWorkers) {
       super(
           projectId,
-          DEFAULT_DATABASE,
           localhost,
           new DeleteKeyFn(),
           throttleRampup,
@@ -1485,7 +1449,6 @@ public class DatastoreV1 {
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
 
     protected ValueProvider<String> projectId;
-    protected String databaseId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
     protected ValueProvider<Integer> hintNumWorkers;
@@ -1500,13 +1463,11 @@ public class DatastoreV1 {
      */
     Mutate(
         @Nullable ValueProvider<String> projectId,
-        String databaseId,
         @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
       this.projectId = projectId;
-      this.databaseId = databaseId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
       this.hintNumWorkers = hintNumWorkers;
