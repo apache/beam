@@ -464,7 +464,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       mh = self._id_to_mh_map[id]
       keyed_model_tag = model.load(id)
       keyed_model_shared_handle = multi_process_shared.MultiProcessShared(
-          mh.load_model, tag=keyed_model_tag)
+          mh.load_model, tag=keyed_model_tag, always_proxy=True)
       keyed_model = keyed_model_shared_handle.acquire()
       for key in keys:
         unkeyed_batches = batch_by_key[key]
