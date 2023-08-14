@@ -75,10 +75,7 @@ public class AvroByteReader<T> extends NativeReader<T> {
     this.endPosition = endPosition;
     this.coder = coder;
     this.options = options;
-    this.avroSource =
-        // given schema is not a record. force casting to avro primitive type
-        (AvroSource<ByteBuffer, ByteBuffer>)
-            ((AvroSource) AvroSource.from(filename).withSchema(schema));
+    this.avroSource = AvroSource.from(filename).withSchema(ByteBuffer.class, schema);
   }
 
   @Override
