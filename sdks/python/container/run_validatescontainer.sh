@@ -125,7 +125,7 @@ cd sdks/python
 SDK_LOCATION=$2
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-pytest -o junit_suite_name=$IMAGE_NAME \
+pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
   -m=$TEST_SUITE_TAG \
   --show-capture=no \
   --numprocesses=1 \
