@@ -58,8 +58,11 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -577,14 +580,10 @@ public class BigQueryIOStorageQueryTest {
         .build();
   }
 
-  private static final class ParseKeyValue
-      implements SerializableFunction<SchemaAndRecord, KV<String, Long>> {
-    @Override
-    public KV<String, Long> apply(SchemaAndRecord input) {
-      return KV.of(
-          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
-    }
-  }
+  private final SerializableFunction<GenericRecord, KV<String, Long>> parseKeyValue =
+      (record) -> KV.of(record.get("name").toString(), (Long) record.get("number"));
+  private final Coder<KV<String, Long>> keyValueCoder =
+      KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of());
 
   @Test
   @ProjectOverride
@@ -825,7 +824,7 @@ public class BigQueryIOStorageQueryTest {
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
     BigQueryIO.TypedRead<KV<String, Long>> typedRead =
-        BigQueryIO.read(new ParseKeyValue())
+        BigQueryIO.read(parseKeyValue, keyValueCoder)
             .fromQuery(encodedQuery)
             .withMethod(Method.DIRECT_READ)
             .withTestServices(

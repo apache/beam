@@ -121,30 +121,27 @@ object Snippets {
             val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [START BigQueryReadFunction]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double? }
-                            .from(tableSpec)
-                            .withCoder(DoubleCoder.of()))
+                    BigQueryIO.read({ it["max_temperature"] as Double? }, DoubleCoder.of())
+                            .from(tableSpec))
             // [END BigQueryReadFunction]
         }
 
         run {
             // [START BigQueryReadQuery]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double? }
+                    BigQueryIO.read({ it["max_temperature"] as Double? }, DoubleCoder.of())
                             .fromQuery(
-                                    "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]")
-                            .withCoder(DoubleCoder.of()))
+                                    "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]"))
             // [END BigQueryReadQuery]
         }
 
         run {
             // [START BigQueryReadQueryStdSQL]
             val maxTemperatures = pipeline.apply(
-                    BigQueryIO.read { it.record["max_temperature"] as Double? }
+                    BigQueryIO.read({ it["max_temperature"] as Double? }, DoubleCoder.of())
                             .fromQuery(
                                     "SELECT max_temperature FROM `clouddataflow-readonly.samples.weather_stations`")
-                            .usingStandardSql()
-                            .withCoder(DoubleCoder.of()))
+                            .usingStandardSql())
             // [END BigQueryReadQueryStdSQL]
         }
 
@@ -249,20 +246,19 @@ object Snippets {
             )
             */
             val weatherData = pipeline.apply(
-                    BigQueryIO.read {
-                        val record = it.record
+                    BigQueryIO.read({
                         WeatherData(
-                                record.get("year") as Long,
-                                record.get("month") as Long,
-                                record.get("day") as Long,
-                                record.get("max_temperature") as Double)
-                    }
+                                it["year"] as Long,
+                                it["month"] as Long,
+                                it["day"] as Long,
+                                it["max_temperature"] as Double
+                        )
+                    }, AvroCoder.of(WeatherData::class.java))
                             .fromQuery("""
                                 SELECT year, month, day, max_temperature
                                 FROM [apache-beam-testing.samples.weather_stations]
                                 WHERE year BETWEEN 2007 AND 2009
-                            """.trimIndent())
-                            .withCoder(AvroCoder.of(WeatherData::class.java)))
+                            """.trimIndent()))
 
             // We will send the weather data into different tables for every year.
             weatherData.apply<WriteResult>(

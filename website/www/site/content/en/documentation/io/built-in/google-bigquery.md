@@ -244,7 +244,7 @@ allow you to read from a table, or read fields using a query string.
 
 {{< paragraph class="language-java" >}}
 ***Note:*** `BigQueryIO.read()` is deprecated as of Beam SDK 2.2.0. Instead, use
-`read(SerializableFunction<SchemaAndRecord, T>)` to parse BigQuery rows from
+`read(SerializableFunction<GenericRecord, T>, Coder<T>)` to parse BigQuery rows from
 Avro `GenericRecord` into your custom type, or use `readTableRows()` to parse
 them into JSON `TableRow` objects.
 {{< /paragraph >}}

@@ -84,8 +84,11 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -1327,15 +1330,10 @@ public class BigQueryIOStorageReadTest {
     assertFalse(parent.advance());
   }
 
-  private static final class ParseKeyValue
-      implements SerializableFunction<SchemaAndRecord, KV<String, Long>> {
-
-    @Override
-    public KV<String, Long> apply(SchemaAndRecord input) {
-      return KV.of(
-          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
-    }
-  }
+  private final SerializableFunction<GenericRecord, KV<String, Long>> parseKeyValue =
+      (record) -> KV.of(record.get("name").toString(), (Long) record.get("number"));
+  private final Coder<KV<String, Long>> keyValueCoder =
+      KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of());
 
   @Test
   public void testReadFromBigQueryIO() throws Exception {
@@ -1385,7 +1383,7 @@ public class BigQueryIOStorageReadTest {
 
     PCollection<KV<String, Long>> output =
         p.apply(
-            BigQueryIO.read(new ParseKeyValue())
+            BigQueryIO.read(parseKeyValue, keyValueCoder)
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
                 .withFormat(DataFormat.AVRO)
@@ -1595,7 +1593,7 @@ public class BigQueryIOStorageReadTest {
 
     PCollection<KV<String, Long>> output =
         p.apply(
-            BigQueryIO.read(new ParseKeyValue())
+            BigQueryIO.read(parseKeyValue, keyValueCoder)
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
                 .withFormat(DataFormat.ARROW)
