@@ -20,7 +20,7 @@ import Logging
 
 actor WorkerProvider : Org_Apache_Beam_Model_FnExecution_V1_BeamFnExternalWorkerPoolAsyncProvider {
 
-    private let log = Logger(label:"WorkerProvider")
+    private let log = Logging.Logger(label: "Worker")
     private var workers: [String:Worker] = [:]
 
     private let functions: [String:SerializableFn]

@@ -22,6 +22,15 @@ import XCTest
 @testable import ApacheBeam
 
 final class CoderTests: XCTestCase {
+    
+    func testSimpleScalarConversions() throws {
+        XCTAssertTrue(Coder.of(type: Data.self) == .bytes)
+        XCTAssertTrue(Coder.of(type: String.self) == .string)
+        XCTAssertTrue(Coder.of(type: Bool.self) == .boolean)
+        XCTAssertTrue(Coder.of(type: Int.self) == .varint)
+    }
+    
+    
     func testDefaultImpulseDecode() throws {
         var impulse = Data([0x7f,0xdf,0x3b,0x64,0x5a,0x1c,0xac,0x09,0x00,0x00,0x00,0x01,0x0f,0x00])
         let impulseCoder = Coder.windowedvalue(.bytes, .globalwindow)

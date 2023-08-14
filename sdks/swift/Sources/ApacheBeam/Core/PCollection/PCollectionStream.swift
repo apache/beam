@@ -26,10 +26,7 @@ public final class PCollectionStream<Of> : AsyncSequence {
     private let emitter: AsyncStream<Element>.Continuation
     
     public init() {
-        //Construct a stream, capturing the emit continuation
-        var tmp: AsyncStream<Element>.Continuation?
-        self.stream = AsyncStream<Element> { tmp = $0 }
-        self.emitter = tmp!
+        (self.stream,self.emitter) = AsyncStream.makeStream(of:Element.self)
     }
     
     public func makeAsyncIterator() -> AsyncStream<Element>.Iterator {
@@ -49,8 +46,72 @@ public final class PCollectionStream<Of> : AsyncSequence {
         emit((value,timestamp,window))
     }
     
-    public func emit(_ value: BeamValue) {
-        
+    // Implementing key-value pair conversion is a little more complicated because we need
+    // to convert to a KV<K,V> from what is essentially a KV<Any,Any> which requires us to
+    // cast the key and the value first and then construct the KV from that. There might be
+    // a more clever way of doing this, but I don't know what it is.
+    
+    func emit<K,V>(key: K,value: [V],timestamp: Date,window:Window) {
+        emit(KV(key,value) as! Of,timestamp:timestamp,window:window)
+    }
+    
+    func emit<K>(key: K,value: BeamValue,timestamp: Date,window:Window) throws {
+        //We overload the key value type as both (K,[V]) and (K,V). It may be worth considering
+        //having an explicit Pair type in addition to KV to simplify this decoding a little bit.
+        //
+        // On the other hand, the code is already written and pretty straightforward and there
+        // won't be much in the way of new scalar values.
+        if case .array(let array) = value {
+            switch array.first {
+            case .boolean(_):emit(key:key,value:array.map({$0.baseValue as! Bool}),timestamp:timestamp,window:window)
+            case .bytes(_):  emit(key:key,value:array.map({$0.baseValue as! Data}),timestamp:timestamp,window:window)
+            case .double(_): emit(key:key,value:array.map({$0.baseValue as! Double}),timestamp:timestamp,window:window)
+            case .integer(_):emit(key:key,value:array.map({$0.baseValue as! Int}),timestamp:timestamp,window:window)
+            case .string(_): emit(key:key,value:array.map({$0.baseValue as! String}),timestamp:timestamp,window:window)
+            default:
+                throw ApacheBeamError.runtimeError("Can't use \(String(describing:array.first)) as a value in a key value pair")
+            }
+        } else {
+            switch value {
+            case let .boolean(v):emit(key:key,value:[v],timestamp:timestamp,window:window)
+            case let .bytes(v):  emit(key:key,value:[v],timestamp:timestamp,window:window)
+            case let .double(v): emit(key:key,value:[v],timestamp:timestamp,window:window)
+            case let .integer(v):emit(key:key,value:[v],timestamp:timestamp,window:window)
+            case let .string(v): emit(key:key,value:[v],timestamp:timestamp,window:window)
+            default:
+                throw ApacheBeamError.runtimeError("Can't use \(value) as a value in a key value pair")
+            }
+
+        }
+    }
+    
+    // Unwrap all of the actual value types (not windows or windowed elements)
+    func emit(_ value: BeamValue,timestamp: Date,window:Window) throws {
+        if case let .kv(key,value) = value {
+            // Unwrap the key first
+            switch key {
+            case let .boolean(v):try emit(key:v,value:value,timestamp:timestamp,window:window)
+            case let .bytes(v):  try emit(key:v,value:value,timestamp:timestamp,window:window)
+            case let .double(v): try emit(key:v,value:value,timestamp:timestamp,window:window)
+            case let .integer(v):try emit(key:v,value:value,timestamp:timestamp,window:window)
+            case let .string(v): try emit(key:v,value:value,timestamp:timestamp,window:window)
+            default:
+                throw ApacheBeamError.runtimeError("Can't use \(value) as a value in a key value pair")
+            }
+        } else {
+            emit(value.baseValue as! Of,timestamp: timestamp,window: window)
+        }
+    }
+    
+    /// Mostly intended as a convenience function for bundle processing this emit unwraps a windowed value
+    /// for further conversion in (non-public) versions of the function.
+    public func emit(_ value: BeamValue) throws {
+        switch value {
+        case let .windowed(value, timestamp, _, window):
+            try emit(value,timestamp:timestamp,window:window.baseValue as! Window)
+        default:
+            throw ApacheBeamError.runtimeError("Only windowed values can be sent directly to a PCollectionStream, not \(value)")
+        }
     }
     
 }

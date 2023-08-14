@@ -33,7 +33,7 @@ public struct AnyPCollectionStream : AsyncSequence {
     
     let value: Any
     let nextGenerator: (Any) -> (() async throws -> Iterator.Element?)
-    let emitClosure: (Any,Any) -> Void
+    let emitClosure: (Any,Any) throws -> Void
     let finishClosure: (Any) -> Void
     
     public func makeAsyncIterator() -> Iterator {
@@ -50,12 +50,12 @@ public struct AnyPCollectionStream : AsyncSequence {
         self.emitClosure = {
             let stream = ($0 as! PCollectionStream<Of>)
             if let beamValue = $1 as? BeamValue {
-                stream.emit(beamValue)
+                try stream.emit(beamValue)
             } else if let element = $1 as? Element {
                 stream.emit((element.0 as! Of,element.1,element.2))
             } else if let element = $1 as? PCollectionStream<Of>.Element {
                 stream.emit(element)
-            }
+            } 
         }
         
         self.finishClosure = {
@@ -81,6 +81,13 @@ public struct AnyPCollectionStream : AsyncSequence {
     public func finish() {
         finishClosure(self.value)
     }
-    
-    
+}
+
+/// Convenience function of an array of AnyPCollectionStream elements to finish processing.
+public extension Array where Array.Element == AnyPCollectionStream {
+    func finish() {
+        for stream in self {
+            stream.finish()
+        }
+    }
 }

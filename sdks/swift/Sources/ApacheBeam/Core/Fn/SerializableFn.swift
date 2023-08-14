@@ -25,7 +25,8 @@ public struct SerializableFnBundleContext {
     let log:Logger
 }
 
-/// SerialiableFn is a protocol for functions that should be parameterized for the pipeline
+/// SerialiableFn is a protocol for functions that should be parameterized for the pipeline. This is intended as a fairly low level class and users
+/// should interact with the apply() functions defined in the transform section or implement the DoFn protocol which is then wrapped
 public protocol SerializableFn {
     var  payload: Data { get throws }
     func process(context:SerializableFnBundleContext,inputs:[AnyPCollectionStream],outputs:[AnyPCollectionStream]) async throws -> (String,String)
@@ -35,4 +36,3 @@ public protocol SerializableFn {
 public extension SerializableFn {
     var payload : Data { Data() }
 }
-

@@ -18,20 +18,21 @@
 import Foundation
 
 public indirect enum Coder {
-    // Special
+    /// Catch-all for coders we don't understand. Mostly used for error reporting
     case unknown(String)
+    // TODO: Actually implement this
     case custom(Data)
     
-    // Scalar standard coders
+    /// Standard scalar coders. Does not necessarily correspond 1:1 with BeamValue. For example, varint and fixedint both map to integer
     case double,varint,fixedint,byte,bytes,string,boolean,globalwindow
     
-    // Composite standard coders
-    
+    /// Composite coders.
     case keyvalue(Coder,Coder)
     case iterable(Coder)
     case lengthprefix(Coder)
     case windowedvalue(Coder,Coder)
     
+
     // TODO: Row Coder
 }
 
@@ -71,6 +72,7 @@ public extension Coder {
         }
     }
     
+    /// Static list of coders for use in capabilities arrays in environments.
     static let capabilities:[String] = ["byte","bytes","bool","varint","double","integer","string_utf8","length_prefix","kv","iterable","windowed_value","global_window"]
         .map({ .coderUrn($0) })
 }
@@ -184,6 +186,27 @@ extension Coder {
         } else {
             return nil
         }
+    }
+}
+
+extension Coder {
+    
+    
+    
+    public static func of<Of>(type: Optional<Of>.Type) -> Coder? {
+        return .lengthprefix(.of(type: Of.self)!)
+    }
+    
+    public static func of<Of>(type: Array<Of>.Type) -> Coder? {
+        return .iterable(.of(type: Of.self)!)
+    }
+    
+    public static func of<Of>(type: Of.Type) -> Coder? {
+        // Beamables provider their own default coder implementation
+        if let beamable  = Of.self as? Beamable.Type {
+            return beamable.coder
+        }
+        return nil
     }
 }
 

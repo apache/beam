@@ -37,6 +37,8 @@ public indirect enum BeamValue {
     /// A window
     case window(Window)
     
+    //TODO: Custom Values and Row Values
+    
     // Composite Values
     
     /// An iterable

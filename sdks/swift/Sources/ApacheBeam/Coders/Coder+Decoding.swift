@@ -17,6 +17,7 @@
  */
 import Foundation
 
+/// This extension contains all of the decoding implementation. File separation is for clarity.
 public extension Coder {
     
     /// Decodes a raw data block into a BeamValue for further processing
