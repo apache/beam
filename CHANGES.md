@@ -45,6 +45,9 @@
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
@@ -59,7 +62,6 @@
 
 ## I/Os
 
-* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Java KafkaIO now supports picking up topics via topicPattern ([#26948](https://github.com/apache/beam/pull/26948))
 * Support for read from Cosmos DB Core SQL API ([#23604](https://github.com/apache/beam/issues/23604))
 * Upgraded to HBase 2.5.5 for HBaseIO. (Java) ([#27711](https://github.com/apache/beam/issues/19554))

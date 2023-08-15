@@ -50,7 +50,6 @@ dependencies {
   runtimeOnly("com.palantir.gradle.docker:gradle-docker:0.34.0")                             // Enable building Docker containers
   runtimeOnly("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                       // Adds a 'taskTree' task to print task dependency tree
   runtimeOnly("gradle.plugin.com.github.johnrengelman:shadow:7.1.1")                           // Enable shading Java dependencies
-  runtimeOnly("ca.coglinc:javacc-gradle-plugin:2.4.0")                                                     // Enable the JavaCC parser generator
   runtimeOnly("net.linguica.gradle:maven-settings-plugin:0.5")
   runtimeOnly("gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0") // Enable creating an offline repository
   runtimeOnly("net.ltgt.gradle:gradle-errorprone-plugin:1.2.1")                                           // Enable errorprone Java static analysis
@@ -58,7 +57,7 @@ dependencies {
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.16.12")                                       // Enable docker compose tasks
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
   runtimeOnly("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
-  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.29")                                 // Enable enhanced static checking plugin
+  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.30")                                 // Enable enhanced static checking plugin
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

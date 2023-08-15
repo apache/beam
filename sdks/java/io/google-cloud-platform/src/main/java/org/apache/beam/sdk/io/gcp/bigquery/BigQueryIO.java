@@ -44,8 +44,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -2131,6 +2135,7 @@ public class BigQueryIO {
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
+        .setDirectWriteProtos(true)
         .build();
   }
 
@@ -2168,6 +2173,27 @@ public class BigQueryIO {
   public static Write<GenericRecord> writeGenericRecords() {
     return BigQueryIO.<GenericRecord>write()
         .withAvroFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} containing protocol buffer objects to a
+   * BigQuery table. If using one of the storage-api write methods, these protocol buffers must
+   * match the schema of the table.
+   *
+   * <p>If a Schema is provided using {@link Write#withSchema}, that schema will be used for
+   * creating the table if necessary. If no schema is provided, one will be inferred from the
+   * protocol buffer's descriptor. Note that inferring a schema from the protocol buffer may not
+   * always provide the intended schema as multiple BigQuery types can map to the same protocol
+   * buffer type. For example, a protocol buffer field of type INT64 may be an INT64 BigQuery type,
+   * but it might also represent a TIME, DATETIME, or a TIMESTAMP type.
+   */
+  public static <T extends Message> Write<T> writeProtos(Class<T> protoMessageClass) {
+    if (DynamicMessage.class.equals(protoMessageClass)) {
+      throw new IllegalArgumentException("DynamicMessage is not supported.");
+    }
+    return BigQueryIO.<T>write()
+        .withFormatFunction(m -> TableRowToStorageApiProto.tableRowFromMessage(m, false))
+        .withWriteProtosClass(protoMessageClass);
   }
 
   /** Implementation of {@link #write}. */
@@ -2302,6 +2328,10 @@ public class BigQueryIO {
 
     abstract Boolean getAutoSchemaUpdate();
 
+    abstract @Nullable Class<T> getWriteProtosClass();
+
+    abstract Boolean getDirectWriteProtos();
+
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
     abstract @Nullable String getWriteTempDataset();
@@ -2399,6 +2429,10 @@ public class BigQueryIO {
       abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
 
       abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
+
+      abstract Builder<T> setWriteProtosClass(@Nullable Class<T> clazz);
+
+      abstract Builder<T> setDirectWriteProtos(Boolean direct);
 
       abstract Builder<T> setDeterministicRecordIdFn(
           SerializableFunction<T, String> toUniqueIdFunction);
@@ -2778,6 +2812,20 @@ public class BigQueryIO {
     public Write<T> withRowMutationInformationFn(
         SerializableFunction<T, RowMutationInformation> updateFn) {
       return toBuilder().setRowMutationInformationFn(updateFn).build();
+    }
+
+    Write<T> withWriteProtosClass(Class<T> clazz) {
+      return toBuilder().setWriteProtosClass(clazz).build();
+    }
+
+    /*
+    When using {@link Write.Method#STORAGE_API} or {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} along with
+    {@link BigQueryIO.writeProtos}, the sink will try to write the protos directly to BigQuery without modification.
+    In some cases this is not supported or BigQuery cannot directly interpet the proto. In these cases, the direct
+    proto write
+     */
+    public Write<T> withDirectWriteProtos(boolean directWriteProtos) {
+      return toBuilder().setDirectWriteProtos(directWriteProtos).build();
     }
 
     /**
@@ -3281,6 +3329,7 @@ public class BigQueryIO {
               || getDynamicDestinations() != null
               || getSchemaFromView() != null;
 
+      Class<T> writeProtoClass = getWriteProtosClass();
       if (getUseBeamSchema()) {
         checkArgument(input.hasSchema(), "The input doesn't has a schema");
         optimizeWrites = true;
@@ -3296,11 +3345,34 @@ public class BigQueryIO {
           formatFunction = BigQueryUtils.toTableRow(input.getToRowFunction());
         }
         // Infer the TableSchema from the input Beam schema.
+        // TODO: If the user provided a schema, we should use that. There are things that can be
+        // specified in a
+        // BQ schema that don't have exact matches in a Beam schema (e.g. GEOGRAPHY types).
         TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
         dynamicDestinations =
             new ConstantSchemaDestinations<>(
                 dynamicDestinations,
                 StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
+      } else if (writeProtoClass != null) {
+        if (!hasSchema) {
+          try {
+            @SuppressWarnings({"unchecked", "nullness"})
+            Descriptors.Descriptor descriptor =
+                (Descriptors.Descriptor)
+                    org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+                            writeProtoClass.getMethod("getDescriptor"))
+                        .invoke(null);
+            TableSchema tableSchema =
+                TableRowToStorageApiProto.protoSchemaToTableSchema(
+                    TableRowToStorageApiProto.tableSchemaFromDescriptor(descriptor));
+            dynamicDestinations =
+                new ConstantSchemaDestinations<>(
+                    dynamicDestinations,
+                    StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
+          } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new IllegalArgumentException(e);
+          }
+        }
       } else {
         // Require a schema if creating one or more tables.
         checkArgument(
@@ -3379,6 +3451,7 @@ public class BigQueryIO {
           method);
     }
 
+    @SuppressWarnings("rawtypes")
     private <DestinationT> WriteResult continueExpandTyped(
         PCollection<KV<DestinationT, T>> input,
         Coder<T> elementCoder,
@@ -3501,6 +3574,28 @@ public class BigQueryIO {
                   elementSchema,
                   elementToRowFunction,
                   getRowMutationInformationFn() != null);
+        } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
+          // We could support both of these by falling back to
+          // StorageApiDynamicDestinationsTableRow. This
+          // would defeat the optimization (we would be forced to create a new dynamic proto message
+          // and copy the data over). For now, we simply give the user a way to disable the
+          // optimization themselves.
+          checkArgument(
+              getRowMutationInformationFn() == null,
+              "Row upserts and deletes are not for direct proto writes. "
+                  + "Try setting withDirectWriteProtos(false)");
+          checkArgument(
+              !getAutoSchemaUpdate(),
+              "withAutoSchemaUpdate not supported when using writeProtos."
+                  + " Try setting withDirectWriteProtos(false)");
+          checkArgument(
+              !getIgnoreUnknownValues(),
+              "ignoreUnknownValues not supported when using writeProtos."
+                  + " Try setting withDirectWriteProtos(false)");
+          storageApiDynamicDestinations =
+              (StorageApiDynamicDestinations<T, DestinationT>)
+                  new StorageApiDynamicDestinationsProto(
+                      dynamicDestinations, getWriteProtosClass());
         } else if (getAvroRowWriterFactory() != null) {
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
@@ -3537,6 +3632,7 @@ public class BigQueryIO {
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate());
         }
+
         int numShards = getStorageApiNumStreams(bqOptions);
         boolean enableAutoSharding = getAutoSharding();
         if (numShards == 0) {
