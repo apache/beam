@@ -21,7 +21,6 @@ import com.google.cloud.datacatalog.v1beta1.Entry;
 import com.google.cloud.datacatalog.v1beta1.GcsFilesetSpec;
 import java.util.List;
 import java.util.Optional;
-
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
