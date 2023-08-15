@@ -2964,12 +2964,11 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testBatchStorageWriteWithMultipleAppendsPerStream() throws Exception {
+  public void testStorageWriteWithMultipleAppendsPerStream() throws Exception {
     assumeTrue(useStorageApi);
-    assumeTrue(!useStreaming);
 
     // reduce threshold to trigger multiple stream appends
-    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
     // limit parallelism to limit the number of write streams we have open
     p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
 
@@ -2993,16 +2992,36 @@ public class BigQueryIOWriteTest implements Serializable {
     for (int i = 0; i < 100; i++) {
       rows.add(new TableRow().set("num", String.valueOf(i)).set("name", String.valueOf(i)));
     }
-    p.apply(Create.of(rows))
+    PCollection<TableRow> tableRowPCollection;
+    if (useStreaming) {
+      TestStream<TableRow> testStream =
+          TestStream.create(TableRowJsonCoder.of())
+              .addElements(
+                  rows.get(0), Iterables.toArray(rows.subList(1, 25), TableRow.class))
+              .advanceProcessingTime(Duration.standardMinutes(1))
+              .addElements(
+                  rows.get(25), Iterables.toArray(rows.subList(26, 50), TableRow.class))
+              .advanceProcessingTime(Duration.standardMinutes(1))
+              .addElements(
+                  rows.get(50), Iterables.toArray(rows.subList(51, 75), TableRow.class))
+              .addElements(
+                  rows.get(75), Iterables.toArray(rows.subList(76, 100), TableRow.class))
+              .advanceWatermarkToInfinity();
+      tableRowPCollection = p.apply(testStream);
+    } else {
+      tableRowPCollection = p.apply(Create.of(rows));
+    }
+    Method method = useStorageApiApproximate? Method.STORAGE_API_AT_LEAST_ONCE: Method.STORAGE_WRITE_API;
+    tableRowPCollection
         .apply(
             "Save Events To BigQuery",
             BigQueryIO.writeTableRows()
                 .to(ref)
-                .withMethod(Write.Method.STORAGE_WRITE_API)
+                .withMethod(method)
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                 .withTestServices(fakeBqServices));
 
-    p.run();
+    p.run().waitUntilFinish();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
