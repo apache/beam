@@ -127,32 +127,32 @@ class SetupTest(unittest.TestCase):
                   {
                       'temp_location': 'gs://foo/bar',
                       'staging_location': 'gs://ABC/bar',
-                      'errors': ['staging_location']
+                      'errors': []
                   },
                   {
                       'temp_location': 'gcs:/foo/bar',
                       'staging_location': 'gs://foo/bar',
-                      'errors': ['temp_location']
+                      'errors': []
                   },
                   {
                       'temp_location': 'gs:/foo/bar',
                       'staging_location': 'gs://foo/bar',
-                      'errors': ['temp_location']
+                      'errors': []
                   },
                   {
                       'temp_location': 'gs://ABC/bar',
                       'staging_location': 'gs://foo/bar',
-                      'errors': ['temp_location']
+                      'errors': []
                   },
                   {
                       'temp_location': 'gs://ABC/bar',
-                      'staging_location': 'gs://foo/bar',
-                      'errors': ['temp_location']
+                      'staging_location': 'gs://BCD/bar',
+                      'errors': ['temp_location', 'staging_location']
                   },
                   {
                       'temp_location': 'gs://foo',
                       'staging_location': 'gs://foo/bar',
-                      'errors': ['temp_location']
+                      'errors': []
                   },
                   {
                       'temp_location': 'gs://foo/',
