@@ -80,7 +80,6 @@ class DatabaseProvider implements TableProvider {
         .schema(tableSchema.get())
         .name(table)
         .location("")
-        .properties(TableUtils.emptyProperties())
         .comment("")
         .type("hcatalog")
         .build();
