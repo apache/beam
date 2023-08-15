@@ -41,7 +41,7 @@ dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:io:hcatalog")
   implementation project(":sdks:java:core")
-  implementation library.java.jackson_databind
+  permitUnusedDeclared library.java.jackson_databind
   implementation library.java.vendored_guava_32_1_2_jre
 
   testImplementation project(":sdks:java:io:hcatalog").sourceSets.test.output
