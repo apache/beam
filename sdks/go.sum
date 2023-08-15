@@ -149,8 +149,8 @@ github.com/aws/smithy-go v1.6.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAm
 github.com/aws/smithy-go v1.14.0/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
 github.com/aws/smithy-go v1.14.1 h1:EFKMUmH/iHMqLiwoEDx2rRjRQpI1YCn5jTysoaDujFs=
 github.com/aws/smithy-go v1.14.1/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
-github.com/cenkalti/backoff/v4 v4.2.0 h1:HN5dHm3WBOgndBH6E8V0q2jIYIR3s9yglV8k/+MN3u4=
-github.com/cenkalti/backoff/v4 v4.2.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
+github.com/cenkalti/backoff/v4 v4.2.1 h1:y4OZtCnogmCPw98Zjyt5a6+QwPLGkiQsYW5oUqylYbM=
+github.com/cenkalti/backoff/v4 v4.2.1/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.4.1 h1:iKLQ0xPNFxR/2hzXZMrBo8f1j86j5WHzznCCQxV/b8g=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
@@ -443,8 +443,8 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
-github.com/testcontainers/testcontainers-go v0.22.0 h1:hOK4NzNu82VZcKEB1aP9LO1xYssVFMvlfeuDW9JMmV0=
-github.com/testcontainers/testcontainers-go v0.22.0/go.mod h1:k0YiPa26xJCRUbUkYqy5rY6NGvSbVCeUBXCvucscBR4=
+github.com/testcontainers/testcontainers-go v0.23.0 h1:ERYTSikX01QczBLPZpqsETTBO7lInqEP349phDOVJVs=
+github.com/testcontainers/testcontainers-go v0.23.0/go.mod h1:3gzuZfb7T9qfcH2pHpV4RLlWrPjeWNQah6XlYQ32c4I=
 github.com/tetratelabs/wazero v1.4.0 h1:9/MirYvmkJ/zSUOygKY/ia3t+e+RqIZXKbylIby1WYk=
 github.com/tetratelabs/wazero v1.4.0/go.mod h1:0U0G41+ochRKoPKCJlh0jMg1CHkyfK8kDqiirMmKY8A=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=

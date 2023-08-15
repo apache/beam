@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.WindmillStream;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;

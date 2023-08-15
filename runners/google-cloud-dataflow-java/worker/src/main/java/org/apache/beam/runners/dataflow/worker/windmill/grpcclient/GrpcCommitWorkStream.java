@@ -34,7 +34,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommit
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
