@@ -109,7 +109,7 @@ jobs:
         run: |
           gcloud auth configure-docker us.gcr.io
       - name: Generate MULTIARCH_TAG unique variable based on timestamp
-        run: echo MULTIARCH_TAG=$(date +'%Y%m%d-%H%M%S%N') >> $GITHUB_ENV
+        run: echo "MULTIARCH_TAG=$(date +'%Y%m%d-%H%M%S%N')" >> "$GITHUB_ENV"
       - name: run javaExamplesDataflowARMPostCommit script for Java${{ matrix.java_version }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
