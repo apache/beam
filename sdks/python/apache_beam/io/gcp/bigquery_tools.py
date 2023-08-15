@@ -1558,7 +1558,6 @@ bigquery_v2_messages.TableSchema):
   """
   if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
     schema = get_bq_tableschema(schema)
-  schema_fields = {field.name: field for field in schema.fields}
   beam_row = {}
   for field in schema.fields:
     name = field.name
