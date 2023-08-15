@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
