@@ -121,9 +121,9 @@ public class StorageApiSinkSchemaUpdateIT {
   // an updated schema. If that happens consistently, just increase these two numbers
   // to give it more time.
   // Total number of rows written to the sink
-  private static final int TOTAL_N = 120;
+  private static final int TOTAL_N = 160;
   // Number of rows with the original schema
-  private static final int ORIGINAL_N = 110;
+  private static final int ORIGINAL_N = 150;
 
   private final Random randomGenerator = new Random();
 
