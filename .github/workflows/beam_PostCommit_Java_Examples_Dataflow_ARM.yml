@@ -129,4 +129,6 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
+          path: |
+              "**/build/test-results/**/*.xml"
+              "**/build/reports/tests/**/*.xml"
