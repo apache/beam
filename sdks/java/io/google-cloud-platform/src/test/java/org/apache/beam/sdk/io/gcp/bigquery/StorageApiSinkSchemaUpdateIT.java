@@ -33,10 +33,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
@@ -116,10 +118,14 @@ public class StorageApiSinkSchemaUpdateIT {
     "TIMESTAMP"
   };
 
+  // ************ NOTE ************
+  // The test may fail if Storage API Streams take longer than expected to recognize
+  // an updated schema. If that happens consistently, just increase these two numbers
+  // to give it more time.
   // Total number of rows written to the sink
-  private static final int TOTAL_N = 100;
+  private static final int TOTAL_N = 120;
   // Number of rows with the original schema
-  private static final int ORIGINAL_N = 90;
+  private static final int ORIGINAL_N = 110;
 
   private final Random randomGenerator = new Random();
 
@@ -480,9 +486,13 @@ public class StorageApiSinkSchemaUpdateIT {
       if (Integer.parseInt((String) row.get("id")) < ORIGINAL_N
           || !useAutoSchemaUpdate
           || !changeTableSchema) {
-        assertTrue(row.get(extraField) == null);
+        assertTrue(
+            String.format("Expected row to NOT have field %s:\n%s", extraField, row),
+            row.get(extraField) == null);
       } else {
-        assertTrue(row.get(extraField) != null);
+        assertTrue(
+            String.format("Expected row to have field %s:\n%s", extraField, row),
+            row.get(extraField) != null);
       }
     }
   }
