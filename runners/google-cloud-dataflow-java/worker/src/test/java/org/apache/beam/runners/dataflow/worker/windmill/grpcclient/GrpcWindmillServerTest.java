@@ -18,6 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -65,13 +67,22 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Value;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptors;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Deadline;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.util.MutableHandlerRegistry;
@@ -134,6 +145,66 @@ public class GrpcWindmillServerTest {
         // The stream is already closed.
       }
     }
+  }
+
+  @Test
+  public void testWindmillApplianceGrpcDeadlineInterceptor() {
+    Windmill.GetWorkResponse getWorkResponse =
+        Windmill.GetWorkResponse.newBuilder()
+            .addWork(
+                Windmill.ComputationWorkItems.newBuilder()
+                    .setComputationId("someComputation1")
+                    .build())
+            .build();
+
+    serviceRegistry.addService(
+        new WindmillApplianceGrpc.WindmillApplianceImplBase() {
+          @Override
+          public void getWork(
+              Windmill.GetWorkRequest request,
+              StreamObserver<Windmill.GetWorkResponse> responseObserver) {
+            responseObserver.onNext(getWorkResponse);
+            responseObserver.onCompleted();
+          }
+        });
+
+    ClientInterceptor testInterceptor =
+        new ClientInterceptor() {
+          Deadline deadline;
+
+          @Override
+          public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+              MethodDescriptor<ReqT, RespT> methodDescriptor,
+              CallOptions callOptions,
+              Channel channel) {
+            assertNotNull(callOptions.getDeadline());
+            if (deadline != null) {
+              // We want to assert that a new deadline is being created on every call since
+              // deadlines are absolute.
+              assertNotEquals(deadline, callOptions.getDeadline());
+            }
+
+            deadline = callOptions.getDeadline();
+            // Just forward the call once we record the deadline
+            return channel.newCall(methodDescriptor, callOptions);
+          }
+        };
+
+    Channel inprocessChannel =
+        ClientInterceptors.intercept(
+            InProcessChannelBuilder.forName("Fake server for " + getClass())
+                .directExecutor()
+                .build(),
+            testInterceptor);
+
+    this.client = GrpcWindmillServer.newApplianceTestInstance(inprocessChannel);
+
+    Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
+    Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());
+
+    // Assert that the request/responses are being forwarded correctly.
+    assertEquals(response1, getWorkResponse);
+    assertEquals(response2, getWorkResponse);
   }
 
   @Test
