@@ -99,7 +99,7 @@ public class StorageApiSinkSchemaUpdateIT {
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("StorageApiSinkSchemaChangeIT");
   private static final String PROJECT =
-        TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_schema_change_" + System.nanoTime();
 
