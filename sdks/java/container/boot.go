@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -250,13 +249,14 @@ func main() {
 // makePipelineOptionsFile writes the pipeline options to a file.
 // Assumes the options string is JSON formatted.
 func makePipelineOptionsFile(options string) error {
-	f, err := os.Create("pipeline_options.json")
+	fn := "pipeline_options.json"
+	f, err := os.Create(fn)
 	if err != nil {
-		return fmt.Errorf("unable to create pipeline_options.json: %w", err)
+		return fmt.Errorf("unable to create %v: %w", fn, err)
 	}
 	defer f.Close()
-	if _, err := f.WriteString(options); err != nil || err != io.EOF {
-		return fmt.Errorf("error writing pipeline_options.json: %w", err)
+	if _, err := f.WriteString(options); err != nil {
+		return fmt.Errorf("error writing %v: %w", f.Name(), err)
 	}
 	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
 	return nil
