@@ -29,7 +29,8 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStreamPool;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -47,6 +48,10 @@ import org.joda.time.Duration;
 })
 public class MetricTrackingWindmillServerStub {
 
+  private static final int MAX_READS_PER_BATCH = 60;
+  private static final int MAX_ACTIVE_READS = 10;
+  private static final int NUM_STREAMS = 1;
+  private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
   private final AtomicInteger activeHeartbeats = new AtomicInteger();
@@ -54,39 +59,13 @@ public class MetricTrackingWindmillServerStub {
   private final MemoryMonitor gcThrashingMonitor;
   private final boolean useStreamingRequests;
 
-  private static final class ReadBatch {
-    ArrayList<QueueEntry> reads = new ArrayList<>();
-    SettableFuture<Boolean> startRead = SettableFuture.create();
-  }
-
   @GuardedBy("this")
   private final List<ReadBatch> pendingReadBatches;
 
   @GuardedBy("this")
   private int activeReadThreads = 0;
 
-  private WindmillServerStub.StreamPool<GetDataStream> streamPool;
-
-  private static final int MAX_READS_PER_BATCH = 60;
-  private static final int MAX_ACTIVE_READS = 10;
-  private static final int NUM_STREAMS = 1;
-  private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
-
-  private static final class QueueEntry {
-
-    final String computation;
-    final Windmill.KeyedGetDataRequest request;
-    final SettableFuture<Windmill.KeyedGetDataResponse> response;
-
-    QueueEntry(
-        String computation,
-        Windmill.KeyedGetDataRequest request,
-        SettableFuture<Windmill.KeyedGetDataResponse> response) {
-      this.computation = computation;
-      this.request = request;
-      this.response = response;
-    }
-  }
+  private WindmillStreamPool<GetDataStream> streamPool;
 
   public MetricTrackingWindmillServerStub(
       WindmillServerStub server, MemoryMonitor gcThrashingMonitor, boolean useStreamingRequests) {
@@ -100,8 +79,7 @@ public class MetricTrackingWindmillServerStub {
   public void start() {
     if (useStreamingRequests) {
       streamPool =
-          new WindmillServerStub.StreamPool<>(
-              NUM_STREAMS, STREAM_TIMEOUT, this.server::getDataStream);
+          WindmillStreamPool.create(NUM_STREAMS, STREAM_TIMEOUT, this.server::getDataStream);
     }
   }
 
@@ -299,5 +277,26 @@ public class MetricTrackingWindmillServerStub {
       }
     }
     writer.println("Heartbeat Keys Active: " + activeHeartbeats.get());
+  }
+
+  private static final class ReadBatch {
+    ArrayList<QueueEntry> reads = new ArrayList<>();
+    SettableFuture<Boolean> startRead = SettableFuture.create();
+  }
+
+  private static final class QueueEntry {
+
+    final String computation;
+    final Windmill.KeyedGetDataRequest request;
+    final SettableFuture<Windmill.KeyedGetDataResponse> response;
+
+    QueueEntry(
+        String computation,
+        Windmill.KeyedGetDataRequest request,
+        SettableFuture<Windmill.KeyedGetDataResponse> response) {
+      this.computation = computation;
+      this.request = request;
+      this.response = response;
+    }
   }
 }
