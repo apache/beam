@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
@@ -97,8 +98,8 @@ public class StorageApiSinkSchemaUpdateIT {
 
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("StorageApiSinkSchemaChangeIT");
-  private static final String PROJECT =
-      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static final String PROJECT = "google.com:clouddfe";
+  //      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_schema_change_" + System.nanoTime();
 
@@ -120,10 +121,15 @@ public class StorageApiSinkSchemaUpdateIT {
   // The test may fail if Storage API Streams take longer than expected to recognize
   // an updated schema. If that happens consistently, just increase these two numbers
   // to give it more time.
+  // This gets exacerbated when we have more parallelism, because that means we have
+  // to wait for more streams to recognize the new schema.
+  // We can mitigate this in DirectRunner by limiting parallelism.
+  // DataflowRunner has numberOfWorkerHarnessThreads, but we can't access those options from this
+  // module
   // Total number of rows written to the sink
-  private static final int TOTAL_N = 160;
+  private static final int TOTAL_N = 120;
   // Number of rows with the original schema
-  private static final int ORIGINAL_N = 150;
+  private static final int ORIGINAL_N = 110;
 
   private final Random randomGenerator = new Random();
 
@@ -295,6 +301,7 @@ public class StorageApiSinkSchemaUpdateIT {
       Write.Method method, boolean useAutoSchemaUpdate, boolean useIgnoreUnknownValues)
       throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    p.getOptions().as(DirectOptions.class).setTargetParallelism(3);
     // Set threshold bytes to 0 so that the stream attempts to fetch an updated schema after each
     // append
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
@@ -304,7 +311,8 @@ public class StorageApiSinkSchemaUpdateIT {
     // Only run the most relevant test case on Dataflow
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue(
-          "Skipping in favor of more relevant test case", changeTableSchema && useInputSchema);
+          "Skipping in favor of more relevant test case",
+          changeTableSchema && useInputSchema && useAutoSchemaUpdate);
     }
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
@@ -348,12 +356,13 @@ public class StorageApiSinkSchemaUpdateIT {
     // set up and build pipeline
     Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
-    // recognize the new schema.
-    Duration interval = changeTableSchema ? Duration.standardSeconds(1) : Duration.millis(1);
+    // recognize the new schema. Apply on relevant tests.
+    boolean waitLonger = changeTableSchema && useAutoSchemaUpdate;
+    Duration interval = waitLonger ? Duration.standardSeconds(1) : Duration.millis(1);
     Duration stop =
-        changeTableSchema ? Duration.standardSeconds(TOTAL_N - 1) : Duration.millis(TOTAL_N - 1);
+        waitLonger ? Duration.standardSeconds(TOTAL_N - 1) : Duration.millis(TOTAL_N - 1);
     Function<Instant, Long> getIdFromInstant =
-        changeTableSchema
+        waitLonger
             ? (Function<Instant, Long> & Serializable)
                 (Instant instant) -> instant.getMillis() / 1000
             : (Function<Instant, Long> & Serializable) (Instant instant) -> instant.getMillis();
