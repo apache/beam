@@ -52,10 +52,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -293,8 +289,8 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
             .filter(
-                Predicates.and(
-                        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files.isFile(),
+                Predicates.and(                        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
+                            .isFile(),
                         input -> matcher.matches(input.toPath()))
                     ::apply)
             .collect(Collectors.toList());
