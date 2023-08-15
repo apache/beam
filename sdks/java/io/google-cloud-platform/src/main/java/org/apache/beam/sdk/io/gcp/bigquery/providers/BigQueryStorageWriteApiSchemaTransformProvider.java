@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
@@ -34,15 +32,12 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -300,12 +295,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       Schema inputSchema = inputRows.getSchema();
 
-      // check if input schema is assignable to the output schema with nullability
-      // check disabled for field
-      if (write.getTable() != null) {
-        TableReference tableRef = write.getTable().get();
-        validateSchema(input.getPipeline().getOptions(), inputSchema, tableRef);
-      }
       WriteResult result =
           inputRows
               .apply(
@@ -391,37 +380,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       return write;
-    }
-
-    private void validateSchema(
-        PipelineOptions pipelineOptions, Schema inputSchema, TableReference tableRef) {
-      LOG.info("Validating schema ...");
-      BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
-      try {
-        Table table = null;
-        if (this.testBigQueryServices != null) {
-          DatasetService datasetService = testBigQueryServices.getDatasetService(options);
-          if (datasetService != null) {
-            table = datasetService.getTable(tableRef);
-          }
-        } else {
-          table = BigQueryHelpers.getTable(options, tableRef);
-        }
-        if (table == null) {
-          LOG.info("Table [{}] not found, skipping schema validation.", tableRef.getTableId());
-          return;
-        }
-        Schema outputSchema = BigQueryUtils.fromTableSchema(table.getSchema());
-        if (!inputSchema.assignableToIgnoreNullable(outputSchema)) {
-          throw new IllegalArgumentException(
-              "Input schema is not assignable to output schema. Input schema="
-                  + inputSchema
-                  + ", Output schema="
-                  + outputSchema);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     }
   }
 }
