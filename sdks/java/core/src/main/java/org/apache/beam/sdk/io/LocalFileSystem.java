@@ -289,7 +289,8 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
             .filter(
-                Predicates.and(                        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
+                Predicates.and(
+                        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
                             .isFile(),
                         input -> matcher.matches(input.toPath()))
                     ::apply)
