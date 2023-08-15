@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
@@ -121,15 +120,10 @@ public class StorageApiSinkSchemaUpdateIT {
   // The test may fail if Storage API Streams take longer than expected to recognize
   // an updated schema. If that happens consistently, just increase these two numbers
   // to give it more time.
-  // This gets exacerbated when we have more parallelism, because that means we have
-  // to wait for more streams to recognize the new schema.
-  // We can mitigate this in DirectRunner by limiting parallelism.
-  // DataflowRunner has numberOfWorkerHarnessThreads, but we can't access those options from this
-  // module
   // Total number of rows written to the sink
-  private static final int TOTAL_N = 120;
+  private static final int TOTAL_N = 60;
   // Number of rows with the original schema
-  private static final int ORIGINAL_N = 110;
+  private static final int ORIGINAL_N = 50;
 
   private final Random randomGenerator = new Random();
 
@@ -205,7 +199,7 @@ public class StorageApiSinkSchemaUpdateIT {
       int current = firstNonNull(counter.read(), 0);
       // We update schema early on to leave a healthy amount of time for
       // StreamWriter to recognize it.
-      if (current == 20) {
+      if (current == 10) {
         bqClient.updateTableSchema(
             projectId,
             datasetId,
@@ -301,10 +295,12 @@ public class StorageApiSinkSchemaUpdateIT {
       Write.Method method, boolean useAutoSchemaUpdate, boolean useIgnoreUnknownValues)
       throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
-    p.getOptions().as(DirectOptions.class).setTargetParallelism(3);
     // Set threshold bytes to 0 so that the stream attempts to fetch an updated schema after each
     // append
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
+    // Limit parallelism so that all streams recognize the new schema in an expected short amount
+    // of time (before we start writing rows with updated schema)
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(3);
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
