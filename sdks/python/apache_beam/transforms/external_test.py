@@ -202,11 +202,9 @@ class ExternalTransformTest(unittest.TestCase):
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_pipeline_generation_with_runner_overrides(self):
     pipeline_properties = [
-        '--dataflow_endpoint=ignored',
         '--job_name=test-job',
         '--project=test-project',
-        '--staging_location=ignored',
-        '--temp_location=/dev/null',
+        '--temp_location=gs://beam/tmp',
         '--no_auth',
         '--dry_run=True',
         '--sdk_location=container',

@@ -57,11 +57,10 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                        '--job_name=test-job',
                        '--project=apache-beam-testing',
                        '--region=us-central1',
-                       '--staging_location=./' + dummy_dir,
+                       '--staging_location=gs://apache-beam-testing/stg',
                        '--temp_location=gs://apache-beam-testing/tmp',
                        '--template_location=' + dummy_file_name,
                        '--no_auth'])) as pipeline:
-
       pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
 
     with open(dummy_file_name) as template_file:

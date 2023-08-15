@@ -189,7 +189,6 @@ class PipelineOptionsValidator(object):
       return self._validate_error(self.ERR_INVALID_GCS_BUCKET, arg, arg_name)
     if gcs_object is None or '\n' in gcs_object or '\r' in gcs_object:
       return self._validate_error(self.ERR_INVALID_GCS_OBJECT, arg, arg_name)
-
     return []
 
   def validate_cloud_options(self, view):
