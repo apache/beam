@@ -2996,30 +2996,26 @@ public class BigQueryIOWriteTest implements Serializable {
     if (useStreaming) {
       TestStream<TableRow> testStream =
           TestStream.create(TableRowJsonCoder.of())
-              .addElements(
-                  rows.get(0), Iterables.toArray(rows.subList(1, 25), TableRow.class))
+              .addElements(rows.get(0), Iterables.toArray(rows.subList(1, 25), TableRow.class))
               .advanceProcessingTime(Duration.standardMinutes(1))
-              .addElements(
-                  rows.get(25), Iterables.toArray(rows.subList(26, 50), TableRow.class))
+              .addElements(rows.get(25), Iterables.toArray(rows.subList(26, 50), TableRow.class))
               .advanceProcessingTime(Duration.standardMinutes(1))
-              .addElements(
-                  rows.get(50), Iterables.toArray(rows.subList(51, 75), TableRow.class))
-              .addElements(
-                  rows.get(75), Iterables.toArray(rows.subList(76, 100), TableRow.class))
+              .addElements(rows.get(50), Iterables.toArray(rows.subList(51, 75), TableRow.class))
+              .addElements(rows.get(75), Iterables.toArray(rows.subList(76, 100), TableRow.class))
               .advanceWatermarkToInfinity();
       tableRowPCollection = p.apply(testStream);
     } else {
       tableRowPCollection = p.apply(Create.of(rows));
     }
-    Method method = useStorageApiApproximate? Method.STORAGE_API_AT_LEAST_ONCE: Method.STORAGE_WRITE_API;
-    tableRowPCollection
-        .apply(
-            "Save Events To BigQuery",
-            BigQueryIO.writeTableRows()
-                .to(ref)
-                .withMethod(method)
-                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                .withTestServices(fakeBqServices));
+    Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    tableRowPCollection.apply(
+        "Save Events To BigQuery",
+        BigQueryIO.writeTableRows()
+            .to(ref)
+            .withMethod(method)
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withTestServices(fakeBqServices));
 
     p.run().waitUntilFinish();
 
