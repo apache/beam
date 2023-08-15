@@ -220,7 +220,8 @@ public class ZetaSQLPushDownTest {
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
         .properties(
-            TableUtils.parseProperties("{ \"" + PUSH_DOWN_OPTION + "\": " + "\"" + options.toString() + "\" }"))
+            TableUtils.parseProperties(
+                "{ \"" + PUSH_DOWN_OPTION + "\": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }
