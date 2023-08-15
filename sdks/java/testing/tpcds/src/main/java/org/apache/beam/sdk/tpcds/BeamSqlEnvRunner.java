@@ -19,7 +19,6 @@ package org.apache.beam.sdk.tpcds;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,8 +27,11 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -99,7 +101,7 @@ public class BeamSqlEnvRunner {
    */
   private static void registerAllTablesByInMemoryMetaStore(
       InMemoryMetaStore inMemoryMetaStore, String dataSize) throws Exception {
-    JSONObject properties = new JSONObject();
+    ObjectNode properties = TableUtils.emptyProperties();
     properties.put("csvformat", "InformixUnload");
 
     Map<String, Schema> schemaMap = TpcdsSchemas.getTpcdsSchemas();
