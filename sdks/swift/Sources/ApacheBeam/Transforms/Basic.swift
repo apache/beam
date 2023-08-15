@@ -24,6 +24,18 @@ public extension PCollection {
             }
         }
     }
+    
+    func log<K,V>(prefix:String,name:String = "\(#file):\(#line)") -> PCollection<KV<K,V>> where Of == KV<K,V> {
+        pardo(name,prefix) { prefix,input,output in
+            for await element in input {
+                let kv = element.0
+                for v in kv.values {
+                    print("\(prefix): \(kv.key),\(v)")
+                }
+                output.emit(element)
+            }
+        }
+    }
 }
 
 /// Modifying Values

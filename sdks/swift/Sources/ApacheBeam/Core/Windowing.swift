@@ -35,10 +35,6 @@ public enum Window {
     }
 }
 
-public enum WindowingStrategy {
-    
-}
-
 public enum Timing : String {
     case early = "EARLY"
     case onTime = "ON_TIME"

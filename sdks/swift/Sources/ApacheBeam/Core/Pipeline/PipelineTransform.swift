@@ -8,7 +8,7 @@ public enum PipelineTransform {
     case impulse(AnyPCollection)
     case flatten([AnyPCollection],AnyPCollection)
     case groupByKey(AnyPCollection)
-    case custom(String,Data,[AnyPCollection])
+    case custom(String,Data,Environment?,[AnyPCollection])
     case composite(AnyPTransform)
 }
 

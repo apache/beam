@@ -49,3 +49,12 @@ public struct AnyPCollection : PCollectionProtocol {
     }
     
 }
+
+extension AnyPCollection : Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self.collection as AnyObject))
+    }
+    public static func ==(lhs: AnyPCollection,rhs:AnyPCollection) -> Bool {
+        return ObjectIdentifier(lhs.collection as AnyObject) == ObjectIdentifier(rhs.collection as AnyObject)
+    }
+}

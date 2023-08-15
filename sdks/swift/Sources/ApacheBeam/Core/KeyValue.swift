@@ -59,4 +59,8 @@ public struct KV<Key,Value> : AnyKeyValue {
     public var anyValue: Any? { value }
 }
 
-
+extension KV : Beamable {
+    public static var coder: Coder {
+        return .keyvalue(.of(type: Key.self)!, .of(type: Value.self)!)
+    }
+}
