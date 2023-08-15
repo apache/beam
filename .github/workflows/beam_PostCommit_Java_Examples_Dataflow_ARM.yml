@@ -127,8 +127,9 @@ jobs:
                 -PskipCheckerFramework \
       - name: Upload test report
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: java-code-coverage-report
           path: |
               "**/build/test-results/**/*.xml"
-              "**/build/reports/tests/**/*.xml"
+              "**/build/reports/tests/**/*.*"
