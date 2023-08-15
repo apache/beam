@@ -108,8 +108,9 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
-      - name: Generate MULTIARCH_TAG unique variable based on timestamp
-        run: echo "MULTIARCH_TAG=$(date +'%Y%m%d-%H%M%S%N')" >> "$GITHUB_ENV"
+      - name: Generate TAG unique variable based on timestamp
+        id: set_tag
+        run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
       - name: run javaExamplesDataflowARMPostCommit script for Java${{ matrix.java_version }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -120,7 +121,7 @@ jobs:
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
-                -Pdocker-tag=${{env.MULTIARCH_TAG}} \
+                -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
                 -PdisableSpotlessCheck=true \
                 -PdisableCheckStyle=true \
                 -PskipCheckerFramework \
