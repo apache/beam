@@ -48,6 +48,8 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 import java.net.ServerSocket
+
+import static java.util.UUID.randomUUID
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -2787,9 +2789,10 @@ class BeamModulePlugin implements Plugin<Project> {
       def pythonDir = project.project(":sdks:python").projectDir
       def externalPort = getRandomPort()
       def launcherJar = project.project(':sdks:java:transform-service:launcher').shadowJar.archivePath
+      def groupId = project.name + randomUUID().toString()
       def transformServiceOpts = [
         "transform_service_launcher_jar": launcherJar,
-        "group_id": project.name,
+        "group_id": groupId,
         "external_port": externalPort,
         "beam_version": project.version
       ]
@@ -2807,9 +2810,17 @@ class BeamModulePlugin implements Plugin<Project> {
         throw new GradleException(exceptionMessage)
       }
 
+      // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
+      def transformServiceJavaContainerSuffix = 'java11'
+      def transformServicePythonContainerSuffix = '38'
+
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
+        // Containers for main SDKs when running tests.
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
+        // Containers for external SDKs used through the transform service.
+        dependsOn ':sdks:java:container:'+transformServiceJavaContainerSuffix+':docker'
+        dependsOn ':sdks:python:container:py'+transformServicePythonContainerSuffix+':docker'
         dependsOn ':sdks:java:transform-service:controller-container:docker'
         dependsOn ':sdks:python:expansion-service-container:docker'
         dependsOn ':sdks:java:expansion-service:container:docker'
