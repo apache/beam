@@ -24,9 +24,9 @@ from pathlib import Path
 
 # Pylint and isort disagree here.
 # pylint: disable=ungrouped-imports
-import setuptools
 from importlib.metadata import distribution
 from importlib.metadata import PackageNotFoundError
+import setuptools
 from pkg_resources import normalize_path
 from pkg_resources import parse_version
 from pkg_resources import to_filename
@@ -233,8 +233,8 @@ if __name__ == '__main__':
           # Dill doesn't have forwards-compatibility guarantees within minor
           # version. Pickles created with a new version of dill may not unpickle
           # using older version of dill. It is best to use the same version of
-          # dill on client and server, therefore list of allowed versions is very
-          # narrow. See: https://github.com/uqfoundation/dill/issues/341.
+          # dill on client and server, therefore list of allowed versions is
+          # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
           'dill>=0.3.1.1,<0.3.2',
           # It is prudent to use the same version of pickler at job submission
           # and at runtime, therefore bounds need to be tight.
