@@ -82,7 +82,7 @@ RUN  \
 
 # Required for using Beam Python SDK on ARM machines.
 RUN if [ "${TARGETARCH}" = "arm64" ] ; then \
-      apt-get install libgeos-dev \
+      apt-get install libgeos-dev ; \
     fi
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
