@@ -42,7 +42,7 @@ RUN  \
        ccache \
        # Required for using Beam Python SDK on ARM machines.
        if [ "${TARGETARCH}" = "arm64" ] ; then \
-         apt install libgeos-dev \
+         libgeos-dev \
        fi
        && \
     rm -rf /var/lib/apt/lists/* && \
