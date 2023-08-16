@@ -67,7 +67,7 @@ public class BigQueryTableProviderTest {
   public void testSelectDefaultMethodExplicitly() {
     Table table =
         fakeTableWithProperties(
-            "hello", "{\"" + METHOD_PROPERTY + "\": " + "\"" + Method.DEFAULT.toString() + "\" }");
+            "hello", "{" + METHOD_PROPERTY + ": " + "\"" + Method.DEFAULT.toString() + "\" }");
     BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.DEFAULT, sqlTable.method);
@@ -77,8 +77,7 @@ public class BigQueryTableProviderTest {
   public void testSelectDirectReadMethod() {
     Table table =
         fakeTableWithProperties(
-            "hello",
-            "{\"" + METHOD_PROPERTY + "\": " + "\"" + Method.DIRECT_READ.toString() + "\" }");
+            "hello", "{" + METHOD_PROPERTY + ": " + "\"" + Method.DIRECT_READ.toString() + "\" }");
     BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.DIRECT_READ, sqlTable.method);
@@ -88,7 +87,7 @@ public class BigQueryTableProviderTest {
   public void testSelectExportMethod() {
     Table table =
         fakeTableWithProperties(
-            "hello", "{\"" + METHOD_PROPERTY + "\": " + "\"" + Method.EXPORT.toString() + "\" }");
+            "hello", "{" + METHOD_PROPERTY + ": " + "\"" + Method.EXPORT.toString() + "\" }");
     BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.EXPORT, sqlTable.method);
@@ -144,7 +143,7 @@ public class BigQueryTableProviderTest {
 
   @Test
   public void testRuntimeExceptionThrown_whenAnInvalidPropertyIsSpecified() {
-    Table table = fakeTableWithProperties("hello", "{\"" + METHOD_PROPERTY + "\": \"blahblah\" }");
+    Table table = fakeTableWithProperties("hello", "{" + METHOD_PROPERTY + ": \"blahblah\" }");
 
     assertThrows(
         RuntimeException.class,
@@ -155,7 +154,7 @@ public class BigQueryTableProviderTest {
 
   @Test
   public void testRuntimeExceptionThrown_whenAPropertyOfInvalidTypeIsSpecified() {
-    Table table = fakeTableWithProperties("hello", "{\"" + METHOD_PROPERTY + "\": 1337 }");
+    Table table = fakeTableWithProperties("hello", "{" + METHOD_PROPERTY + ": 1337 }");
 
     assertThrows(
         RuntimeException.class,
