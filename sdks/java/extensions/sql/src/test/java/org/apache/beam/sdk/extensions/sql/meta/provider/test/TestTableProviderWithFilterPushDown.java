@@ -291,7 +291,7 @@ public class TestTableProviderWithFilterPushDown {
         .schema(BASIC_SCHEMA)
         .properties(
             TableUtils.parseProperties(
-                "{ \"" + PUSH_DOWN_OPTION + "\": " + "\"" + options.toString() + "\" }"))
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }

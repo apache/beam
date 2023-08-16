@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import static org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider.PUSH_DOWN_OPTION;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
@@ -170,7 +171,7 @@ public class IOPushDownRuleTest {
         .schema(BASIC_SCHEMA)
         .properties(
             TableUtils.parseProperties(
-                "{ \" + PUSH_DOWN_OPTION + \": " + "\"" + options.toString() + "\" }"))
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }
