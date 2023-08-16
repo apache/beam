@@ -23,7 +23,6 @@ grpcio-tools==1.53.0
 mypy-protobuf==3.5.0
 # Avoid https://github.com/pypa/virtualenv/issues/2006
 distlib==0.3.7
-packaging>=22.0
 
 # Numpy headers
 numpy>=1.14.3,<1.26

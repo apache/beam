@@ -27,8 +27,8 @@ from pathlib import Path
 import setuptools
 from importlib.metadata import distribution
 from importlib.metadata import PackageNotFoundError
-from packaging import version
 from pkg_resources import normalize_path
+from pkg_resources import parse_version
 from pkg_resources import to_filename
 from setuptools import Command
 
@@ -98,7 +98,7 @@ different technologies and user communities.
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
   _PIP_VERSION = distribution('pip').version
-  if version.parse(_PIP_VERSION) < version.parse(RECOMMENDED_MIN_PIP_VERSION):
+  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
     warnings.warn(
         "You are using version {0} of pip. " \
         "However, the recommended min version is {1}.".format(
@@ -113,7 +113,7 @@ except PackageNotFoundError:
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = distribution('cython').version
-  if version.parse(_CYTHON_VERSION) < version.parse(REQUIRED_CYTHON_VERSION):
+  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
