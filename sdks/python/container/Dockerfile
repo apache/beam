@@ -40,6 +40,10 @@ RUN  \
        libyaml-dev \
        # This is used to speed up the re-installation of the sdk.
        ccache \
+       # Required for using Beam Python SDK on ARM machines.
+       if [ "${TARGETARCH}" = "arm64" ] ; then \
+         apt install libgeos-dev \
+       fi
        && \
     rm -rf /var/lib/apt/lists/* && \
 
