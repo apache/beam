@@ -89,6 +89,7 @@
 
 * Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
 * [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
+* SDK Java Extensions SQL: remove fastjson library, table property is changed to ObjectNode which belongs to jackson library. ([#24154](https://github.com/apache/beam/issues/24154))
 
 ## Deprecations
 
