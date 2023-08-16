@@ -53,11 +53,13 @@ class SafeLineLoaderTest(unittest.TestCase):
             - type: PyMap
               name: Square
               input: elements
-              fn: "lambda x: x * x"
+              config:
+                fn: "lambda x: x * x"
             - type: PyMap
               name: Cube
               input: elements
-              fn: "lambda x: x * x * x"
+              config:
+                fn: "lambda x: x * x * x"
           output:
               Flatten
           '''
@@ -67,8 +69,8 @@ class SafeLineLoaderTest(unittest.TestCase):
     self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]), 6)
     self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['type']), 6)
     self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['name']), 7)
-    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][1]), 10)
-    self.assertEqual(SafeLineLoader.get_line(spec['output']), 15)
+    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][1]), 11)
+    self.assertEqual(SafeLineLoader.get_line(spec['output']), 17)
     self.assertEqual(SafeLineLoader.get_line(spec['transforms']), "unknown")
 
   def test_strip_metadata(self):
@@ -830,9 +832,11 @@ class MainTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [1,2,3]
+              config:
+                elements: [1,2,3]
             - type: PyMap
-              fn: 'lambda x: x*x'
+              config:
+                fn: 'lambda x: x*x'
       '''
       result = expand_pipeline(p, spec)
 
@@ -846,9 +850,11 @@ class MainTest(unittest.TestCase):
           type: chain
           transforms:
             - type: Create
-              elements: [1,2,3]
+              config:
+                elements: [1,2,3]
             - type: PyMap
-              fn: 'lambda x: x*x'
+              config:
+                fn: 'lambda x: x*x'
       '''
       spec = yaml.load(spec, Loader=SafeLineLoader)
       result = expand_pipeline(p, spec)
@@ -886,9 +892,11 @@ class YamlTransformTest(unittest.TestCase):
         type: chain
         transforms:
           - type: Create
-            elements: [1,2,3]
+            config:
+              elements: [1,2,3]
           - type: PyMap
-            fn: 'lambda x: x*x'
+            config:
+              fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = YamlTransform(spec)
@@ -903,7 +911,8 @@ class YamlTransformTest(unittest.TestCase):
             elements: input
           transforms:
           - type: PyMap
-            fn: 'lambda x: x*x'
+            config:
+              fn: 'lambda x: x*x'
         '''
       spec = yaml.load(spec, Loader=SafeLineLoader)
       create = p | beam.Create([1, 2, 3])
@@ -918,9 +927,11 @@ class YamlTransformTest(unittest.TestCase):
           type: chain
           transforms:
           - type: Create
-            elements: [1,2,3]
+            config:
+              elements: [1,2,3]
           - type: PyMap
-            fn: 'lambda x: x*x'
+            config:
+              fn: 'lambda x: x*x'
         '''
       spec = yaml.load(spec, Loader=SafeLineLoader)
       result = YamlTransform(spec).expand(beam.pvalue.PBegin(p))
@@ -936,7 +947,8 @@ class YamlTransformTest(unittest.TestCase):
               elements: input
           transforms:
           - type: PyMap
-            fn: 'lambda x: x*x'
+            config:
+              fn: 'lambda x: x*x'
         '''
       spec = yaml.load(spec, Loader=SafeLineLoader)
       create = p | beam.Create([1, 2, 3])
