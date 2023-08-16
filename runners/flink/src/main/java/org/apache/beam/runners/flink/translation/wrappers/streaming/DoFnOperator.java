@@ -1587,12 +1587,14 @@ public class DoFnOperator<InputT, OutputT>
         // or long MAX_VALUE. So we should just use the Flink time service watermark in batch mode.
         //
         // In Flink the watermark ranges from
-        // [LONG.MIN_VALUE (-9223372036854775808), LONG.MAX_VALUE (9223372036854775807)] while the beam
+        // [LONG.MIN_VALUE (-9223372036854775808), LONG.MAX_VALUE (9223372036854775807)] while the
+        // beam
         // watermark range is [BoundedWindow.TIMESTAMP_MIN_VALUE (-9223372036854775),
         // BoundedWindow.TIMESTAMP_MAX_VALUE (9223372036854775)]. To ensure the timestamp visible to
         // the users follow the Beam convention, we just use the Beam range instead.
-        return timerService.currentWatermark() == Long.MAX_VALUE ?
-            new Instant(Long.MAX_VALUE) : BoundedWindow.TIMESTAMP_MIN_VALUE;
+        return timerService.currentWatermark() == Long.MAX_VALUE
+            ? new Instant(Long.MAX_VALUE)
+            : BoundedWindow.TIMESTAMP_MIN_VALUE;
       } else {
         return new Instant(getEffectiveInputWatermark());
       }

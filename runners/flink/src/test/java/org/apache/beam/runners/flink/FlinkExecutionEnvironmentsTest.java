@@ -56,14 +56,11 @@ public class FlinkExecutionEnvironmentsTest {
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
-  @Parameterized.Parameter
-  public boolean useDataStreamForBatch;
+  @Parameterized.Parameter public boolean useDataStreamForBatch;
 
   @Parameterized.Parameters(name = "UseDataStreamForBatch = {0}")
   public static Collection<Object[]> useDataStreamForBatchJobValues() {
-    return Arrays.asList(new Object[][] {
-        {false}, {true}
-    });
+    return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
   private FlinkPipelineOptions getDefaultPipelineOptions() {

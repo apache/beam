@@ -64,9 +64,7 @@ public class FlinkStreamingTranslationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public FlinkStreamingTranslationContext(
-      StreamExecutionEnvironment env,
-      PipelineOptions options,
-      boolean isStreaming) {
+      StreamExecutionEnvironment env, PipelineOptions options, boolean isStreaming) {
     this.env = checkNotNull(env);
     this.options = checkNotNull(options);
     this.isStreaming = isStreaming;

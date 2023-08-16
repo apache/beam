@@ -14,20 +14,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-
 public interface VersionDependentFlinkPipelineOptions extends PipelineOptions {
 
-  @Description("When set to true, the batch job execution will use DataStream API. "
-      + "Otherwise, the batch job execution will use the legacy DataSet API.")
+  @Description(
+      "When set to true, the batch job execution will use DataStream API. "
+          + "Otherwise, the batch job execution will use the legacy DataSet API.")
   @Default.Boolean(false)
   Boolean getUseDataStreamForBatch();
 

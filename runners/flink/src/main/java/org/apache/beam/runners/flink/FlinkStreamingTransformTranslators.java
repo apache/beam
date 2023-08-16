@@ -229,12 +229,16 @@ class FlinkStreamingTransformTranslators {
                 ? context.getExecutionEnvironment().getMaxParallelism()
                 : context.getExecutionEnvironment().getParallelism();
 
-        FlinkUnboundedSource<T> unboundedSource = FlinkSource.unbounded(
-            rawSource, new SerializablePipelineOptions(context.getPipelineOptions()), parallelism);
+        FlinkUnboundedSource<T> unboundedSource =
+            FlinkSource.unbounded(
+                rawSource,
+                new SerializablePipelineOptions(context.getPipelineOptions()),
+                parallelism);
         nonDedupSource =
             context
                 .getExecutionEnvironment()
-                .fromSource(unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
+                .fromSource(
+                    unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
                 .uid(fullName);
 
         if (rawSource.requiresDeduping()) {
@@ -345,7 +349,8 @@ class FlinkStreamingTransformTranslators {
     @Override
     public void translateNode(
         PTransform<PBegin, PCollection<T>> transform, FlinkStreamingTranslationContext context) {
-      if (ReadTranslation.sourceIsBounded(context.getCurrentTransform()) == PCollection.IsBounded.BOUNDED) {
+      if (ReadTranslation.sourceIsBounded(context.getCurrentTransform())
+          == PCollection.IsBounded.BOUNDED) {
         boundedTranslator.translateNode(transform, context);
       } else {
         unboundedTranslator.translateNode(transform, context);
@@ -381,17 +386,19 @@ class FlinkStreamingTransformTranslators {
               ? context.getExecutionEnvironment().getMaxParallelism()
               : context.getExecutionEnvironment().getParallelism();
 
-      FlinkBoundedSource<T> flinkBoundedSource = FlinkSource.bounded(
-          rawSource,
-          new SerializablePipelineOptions(context.getPipelineOptions()),
-          parallelism);
+      FlinkBoundedSource<T> flinkBoundedSource =
+          FlinkSource.bounded(
+              rawSource,
+              new SerializablePipelineOptions(context.getPipelineOptions()),
+              parallelism);
 
       DataStream<WindowedValue<T>> source;
       try {
         source =
             context
                 .getExecutionEnvironment()
-                .fromSource(flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
+                .fromSource(
+                    flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
                 .uid(fullName);
       } catch (Exception e) {
         throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
@@ -559,9 +566,9 @@ class FlinkStreamingTransformTranslators {
       KeySelector<WindowedValue<InputT>, ?> keySelector = null;
       boolean stateful = false;
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-      if (!signature.stateDeclarations().isEmpty() ||
-          !signature.timerDeclarations().isEmpty() ||
-          !signature.timerFamilyDeclarations().isEmpty()) {
+      if (!signature.stateDeclarations().isEmpty()
+          || !signature.timerDeclarations().isEmpty()
+          || !signature.timerFamilyDeclarations().isEmpty()) {
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed
         keyCoder = ((KvCoder) input.getCoder()).getKeyCoder();

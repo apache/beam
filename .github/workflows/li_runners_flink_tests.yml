@@ -30,4 +30,4 @@ jobs:
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
     - name: Validate Flink runner # Point to the latest
-      run: ./gradlew :runners:flink:1.15:build :runners:flink:1.15:validatesRunner
+      run: ./gradlew :runners:flink:build :runners:flink:1.16:build :runners:flink:1.16:validatesRunner

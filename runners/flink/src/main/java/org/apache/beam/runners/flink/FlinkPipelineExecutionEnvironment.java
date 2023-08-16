@@ -100,9 +100,11 @@ class FlinkPipelineExecutionEnvironment {
     if (options.isStreaming() || options.getUseDataStreamForBatch()) {
       this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
-        LOG.warn("UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
+        LOG.warn(
+            "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
-      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options, options.isStreaming());
+      translator =
+          new FlinkStreamingPipelineTranslator(flinkStreamEnv, options, options.isStreaming());
       if (!options.isStreaming()) {
         flinkStreamEnv.setRuntimeMode(RuntimeExecutionMode.BATCH);
       }
