@@ -39,6 +39,11 @@ deps:
     artifact: javacc-gradle-plugin
     owners:
 
+  com.alibaba:fastjson:
+    group: com.alibaba
+    artifact: fastjson
+    owners:
+
   com.amazonaws:amazon-kinesis-client:
     group: com.amazonaws
     artifact: amazon-kinesis-client
