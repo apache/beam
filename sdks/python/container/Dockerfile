@@ -43,7 +43,7 @@ RUN  \
        # Required for using Beam Python SDK on ARM machines.
        if [ "${TARGETARCH}" = "arm64" ] ; then \
          libgeos-dev \
-       fi
+       fi \
        && \
     rm -rf /var/lib/apt/lists/* && \
 
