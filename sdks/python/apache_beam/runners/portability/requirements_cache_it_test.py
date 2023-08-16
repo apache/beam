@@ -25,7 +25,8 @@ import os
 import shutil
 import tempfile
 
-import pkg_resources as pkg
+from importlib.metadata import distribution
+from importlib.metadata import PackageNotFoundError
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -40,8 +41,8 @@ def verify_packages_from_requirements_file_are_installed(unused_element):
       _PACKAGE_NOT_IN_REQUIREMENTS_FILE)
   for package_name in packages_to_test:
     try:
-      output = pkg.get_distribution(package_name)
-    except pkg.DistributionNotFound as e:  # pylint: disable=unused-variable
+      output = distribution(package_name)
+    except PackageNotFoundError as e:  # pylint: disable=unused-variable
       output = None
     if package_name in _PACKAGE_IN_REQUIREMENTS_FILE:
       assert output is not None, ('Please check if package %s is specified'

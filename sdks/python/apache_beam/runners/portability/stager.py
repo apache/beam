@@ -60,8 +60,8 @@ from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-import pkg_resources
-from pkg_resources import parse_version
+from importlib.metadata import distribution
+from packaging import version
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -704,8 +704,8 @@ class Stager(object):
     # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
-    pip_version = pkg_resources.get_distribution('pip').version
-    if parse_version(pip_version) >= parse_version('19.3'):
+    pip_version = distribution('pip').version
+    if version.parse(pip_version) >= version.parse('19.3'):
       # pip can only recognize manylinux2014_x86_64 wheels
       # from version 19.3.
       return 'manylinux2014_x86_64'

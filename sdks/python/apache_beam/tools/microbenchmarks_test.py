@@ -21,8 +21,8 @@
 
 import unittest
 
-from pkg_resources import DistributionNotFound
-from pkg_resources import get_distribution
+from importlib.metadata import distribution
+from importlib.metadata import PackageNotFoundError
 
 from apache_beam.tools import coders_microbenchmark
 from apache_beam.tools import utils
@@ -37,9 +37,9 @@ class MicrobenchmarksTest(unittest.TestCase):
 
   def is_cython_installed(self):
     try:
-      get_distribution('cython')
+      distribution('cython')
       return True
-    except DistributionNotFound:
+    except PackageNotFoundError:
       return False
 
   def test_check_compiled(self):
