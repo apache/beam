@@ -303,10 +303,10 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteDynamicDestinationsWithAutoSharding() throws Exception {
+  public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate); // STORAGE_API_AT_LEAST_ONCE ignores auto-sharding
-    writeDynamicDestinations(false, false);
+    writeDynamicDestinations(true, true);
   }
 
   @Test
@@ -1332,8 +1332,8 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testBatchSchemaWriteLoads() throws Exception {
     // This test is actually for batch!
-    // We just invert useStreaming because we need it as true to test
-    // STORAGE_API_AT_LEAST_ONCE,
+    // We test on the useStreaming parameter however because we need it as
+    // true to test STORAGE_API_AT_LEAST_ONCE
     assumeTrue(useStreaming);
     p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
     // withMethod overrides the pipeline option, so we need to explicitly request
