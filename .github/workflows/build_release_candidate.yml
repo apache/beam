@@ -35,7 +35,7 @@ on:
 jobs:
   publish_java_artifacts:
     if: ${{github.event.inputs.PUBLISH_JAVA_ARTIFACTS == 'yes'}}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
