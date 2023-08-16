@@ -265,6 +265,7 @@ class _ModelManager:
     """
     self._max_models = max_models
     self._mh_map: Dict[str, ModelHandler] = mh_map
+    self._key_to_last_update: Dict[str, str] = defaultdict(str)
     self._proxy_map: Dict[str, str] = {}
     self._tag_map: Dict[
         str, multi_process_shared.MultiProcessShared] = OrderedDict()
@@ -294,6 +295,7 @@ class _ModelManager:
       tag_to_remove = self._tag_map.popitem(last=False)[1]
       shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
       shared_handle.release(model_to_remove)
+      del self._proxy_map[tag_to_remove]
 
     # Load the new model
     shared_handle = multi_process_shared.MultiProcessShared(
@@ -316,6 +318,31 @@ class _ModelManager:
           " models mode).")
     self._max_models += increment
 
+  def update_model_handler(self, key, model_path, previous_key):
+    """
+    Updates the model path of this model handler and removes it from memory so
+    that it can be reloaded with the updated path. No-ops if no model update
+    needs to be applied.
+    Args:
+      key: the key associated with the model we'd like to update.
+      model_path: the new path to the model we'd like to load.
+      previous_key: the key that is associated with the old version of this
+        model. This will often be the same as the current key, but sometimes
+        we will want to keep both the old and new models to serve different
+        cohorts. In that case, the keys should be different.
+    """
+    if self._key_to_last_update[key] == model_path:
+      return
+    if key not in self._mh_map:
+      self._mh_map[key] = self._mh_map[previous_key]
+    self._mh_map[key].update_model_path(model_path)
+    if key in self._tag_map:
+      tag_to_remove = self._tag_map[key][1]
+      shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
+      shared_handle.release(model_to_remove)
+      del self._tag_map[key]
+      del self._proxy_map[tag_to_remove]
+
 
 # Use a dataclass instead of named tuple because NamedTuples and generics don't
 # mix well across the board for all versions:
@@ -330,6 +357,20 @@ class KeyMhMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
       self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
     self.keys = keys
     self.mh = mh
+
+
+class KeyModelPathMapping(Generic[KeyT]):
+  """
+  Dataclass for mapping 1 or more keys to 1 model path update used to update
+  that cohort's model path. Given
+  `KeyModelPathMapping(['key1', 'key2'], 'updated/path')`, all examples with
+  keys `key1` or `key2` will have the model used for inference updated to
+  'updated/path'.
+  """
+  def __init__(
+      self, keys: List[KeyT], update_path: str):
+    self.keys = keys
+    self.update_path = update_path
 
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -504,14 +545,60 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     for mh in self._id_to_mh_map.values():
       mh.validate_inference_args(inference_args)
 
-  def update_model_path(self, model_path: Optional[str] = None):
+  def update_model_path(
+      self, 
+      model_path: Optional[Union[str, 
+                                 List[KeyModelPathMapping[KeyT]]]] = None):
     if self._single_model:
       return self._unkeyed.update_model_path(model_path=model_path)
-    if model_path is not None:
-      raise RuntimeError(
-          'Model updates are currently not supported for ' +
-          'KeyedModelHandlers with multiple different per-key ' +
-          'ModelHandlers.')
+    if model_path is None:
+      return
+    # When there are many models, the model handler is responsible for
+    # reorganizing the model handlers into cohorts and telling the model
+    # manager to update every cohort's associated model handler. The model
+    # manager is responsible for performing the updates and tracking which
+    # updates have already been applied.
+    if model_path is not List[KeyModelPathMapping[KeyT]]:
+      raise ValueError(f'Received model update: {model_path}, expected update '
+                       f'of type {List[KeyModelPathMapping[KeyT]]}')
+    # Map cohort ids to a dictionary mapping new model paths to the keys that
+    # were originally in that cohort. We will use this to construct our new
+    # cohorts.
+    cohort_path_mapping: Dict[KeyT, Dict[str, List[KeyT]]] = {}
+    seen_keys = set()
+    for keys, update_path in model_path.items():
+      for key in keys:
+        if key in seen_keys:
+          raise ValueError(f'Invalid model update: {key} appears in multiple '
+                            'update lists.')
+        seen_keys.add(key)
+        if key not in self._key_to_id_map:
+          raise ValueError(f'Invalid model update: {key} appears in '
+                           'update, but not in the original configuration.')
+        cohort_id = self._key_to_id_map[key]
+        if cohort_id not in cohort_path_mapping[cohort_id]:
+          cohort_path_mapping[cohort_id] = defaultdict(list)
+        cohort_path_mapping[cohort_id][update_path].append(key)
+    for key in self._key_to_id_map:
+      if key not in seen_keys:
+        raise ValueError(f'Invalid model update: {key} appears in the '
+                         'original configuration, but not the update.')
+    
+    # We now have our new set of cohorts. For each one, update our local model
+    # handler configuration and send the results to the ModelManager
+    for old_cohort_id, path_key_mapping in cohort_path_mapping.items():
+      for updated_path, keys in path_key_mapping.items():
+        cohort_id = old_cohort_id
+        if old_cohort_id not in keys:
+          # Create new cohort
+          cohort_id = keys[0]
+          for key in keys:
+            self._key_to_id_map[key] = cohort_id
+            self._id_to_mh_map[cohort_id] = self._id_to_mh_map[old_cohort_id]
+        self._id_to_mh_map[cohort_id].update_model_path(updated_path)
+        # TODO - send update to model manager
+
+        
 
   def share_model_across_processes(self) -> bool:
     if self._single_model:
@@ -1107,7 +1194,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return predictions
 
   def process(
-      self, batch, inference_args, si_model_metadata: Optional[ModelMetadata]):
+      self,
+      batch,
+      inference_args,
+      si_model_metadata: Optional[Union[ModelMetadata, List[ModelMetadata]]]):
     """
     When side input is enabled:
       The method checks if the side input model has been updated, and if so,

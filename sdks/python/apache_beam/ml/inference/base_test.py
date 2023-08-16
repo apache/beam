@@ -934,6 +934,99 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected_result))
 
+  def test_run_inference_side_input_in_batch_per_key_models(self):
+    first_ts = math.floor(time.time()) - 30
+    interval = 7
+
+    sample_main_input_elements = ([
+        (first_ts - 2, 'key1'),
+        (first_ts + 1, 'key2'),
+        (first_ts + 8, 'key2'),
+        (first_ts + 15, 'key1'),
+        (first_ts + 22, 'key2'),
+    ])
+
+    sample_side_input_elements = [
+        (
+            first_ts + 1,
+            ('key1', base.ModelMetadata(model_id='', model_name=''))),
+        (
+            first_ts + 1,
+            ('key2', base.ModelMetadata(model_id='', model_name=''))),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            (
+                'key1',
+                base.ModelMetadata(
+                    model_id='fake_model_id_1', model_name='fake_model_id_1'))),
+        (
+            first_ts + 15,
+            (
+                'key2',
+                base.ModelMetadata(
+                    model_id='fake_model_id_2', model_name='fake_model_id_2')))
+    ]
+
+    model_handler = base.KeyedModelHandler([
+        base.KeyMhMapping(['key1'], FakeModelHandlerReturnsPredictionResult()),
+        base.KeyMhMapping(['key2'], FakeModelHandlerReturnsPredictionResult())
+    ])
+
+    # applying GroupByKey to utilize windowing according to
+    # https://beam.apache.org/documentation/programming-guide/#windowing-bounded-collections
+    class _EmitKeyedElement(beam.DoFn):
+      def process(self, element):
+        for e in element[1]:
+          yield (element[0], e)
+
+    class _EmitElement(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
+
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >>
+          beam.Map(lambda x: TimestampedValue((x[1], x[0]), x))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | "MainInputGBK" >> beam.GroupByKey()
+          | beam.ParDo(_EmitKeyedElement())
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input)
+          | beam.Map(lambda x: x[1]))
+
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_2'
+      ]
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i],
+              inference=sample_main_input_elements[i] + 1,
+              model_id=expected_model_id_order[i]) for i in range(5)
+      ]
+
+      assert_that(result_pcoll, equal_to(expected_result))
+
   def test_run_inference_side_input_in_batch_multi_process_shared(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
