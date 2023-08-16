@@ -98,9 +98,9 @@ public class BigQueryTableProviderTest {
     Table table =
         fakeTableWithProperties(
             "hello",
-            "{ \""
+            "{ "
                 + WRITE_DISPOSITION_PROPERTY
-                + "\": "
+                + ": "
                 + "\""
                 + WriteDisposition.WRITE_TRUNCATE.toString()
                 + "\" }");
@@ -114,9 +114,9 @@ public class BigQueryTableProviderTest {
     Table table =
         fakeTableWithProperties(
             "hello",
-            "{ \""
+            "{ "
                 + WRITE_DISPOSITION_PROPERTY
-                + "\": "
+                + ": "
                 + "\""
                 + WriteDisposition.WRITE_APPEND.toString()
                 + "\" }");
@@ -130,9 +130,9 @@ public class BigQueryTableProviderTest {
     Table table =
         fakeTableWithProperties(
             "hello",
-            "{ \""
+            "{ "
                 + WRITE_DISPOSITION_PROPERTY
-                + "\": "
+                + ": "
                 + "\""
                 + WriteDisposition.WRITE_EMPTY.toString()
                 + "\" }");
