@@ -1486,7 +1486,6 @@ class BeamModulePlugin implements Plugin<Project> {
       if (project.hasProperty("compileAndRunTestsWithJava17")) {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
-          options.compilerArgs.addAll(['--release', '17'])
           project.ext.setJava17Options(options)
         }
         project.tasks.withType(Test) {
