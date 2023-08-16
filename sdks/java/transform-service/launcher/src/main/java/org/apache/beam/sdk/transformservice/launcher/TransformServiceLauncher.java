@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -154,15 +155,15 @@ public class TransformServiceLauncher {
     return launchers.get(projectName);
   }
 
-  private void runDockerComposeCommand(String command) throws IOException {
+  private void runDockerComposeCommand(List<String> command) throws IOException {
     this.runDockerComposeCommand(command, null);
   }
 
-  private void runDockerComposeCommand(String command, @Nullable File outputOverride)
+  private void runDockerComposeCommand(List<String> command, @Nullable File outputOverride)
       throws IOException {
     List<String> shellCommand = new ArrayList<>();
     shellCommand.addAll(dockerComposeStartCommandPrefix);
-    shellCommand.add(command);
+    shellCommand.addAll(command);
     System.out.println("Executing command: " + String.join(" ", command));
     ProcessBuilder processBuilder =
         new ProcessBuilder(shellCommand).redirectError(ProcessBuilder.Redirect.INHERIT);
@@ -186,15 +187,15 @@ public class TransformServiceLauncher {
   }
 
   public synchronized void start() throws IOException, TimeoutException {
-    runDockerComposeCommand("up");
+    runDockerComposeCommand(ImmutableList.of("up", "-d"));
   }
 
   public synchronized void shutdown() throws IOException {
-    runDockerComposeCommand("down");
+    runDockerComposeCommand(ImmutableList.of("down"));
   }
 
   public synchronized void status() throws IOException {
-    runDockerComposeCommand("ps");
+    runDockerComposeCommand(ImmutableList.of("ps"));
   }
 
   public synchronized void waitTillUp(int timeout) throws IOException, TimeoutException {
@@ -225,7 +226,7 @@ public class TransformServiceLauncher {
 
   private synchronized String getStatus() throws IOException {
     File outputOverride = File.createTempFile("output_override", null);
-    runDockerComposeCommand("ps", outputOverride);
+    runDockerComposeCommand(ImmutableList.of("ps"), outputOverride);
 
     return outputOverride.getAbsolutePath();
   }
