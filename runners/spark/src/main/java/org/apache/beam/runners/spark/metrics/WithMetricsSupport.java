@@ -26,8 +26,8 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import java.util.Map;
 import java.util.SortedMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
 
 /**
  * A {@link MetricRegistry} decorator-like that supports {@link AggregatorMetric} and {@link

@@ -28,7 +28,7 @@ import java.io.InputStream;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.everit.json.schema.ValidationException;
 import org.json.JSONArray;
 import org.json.JSONObject;

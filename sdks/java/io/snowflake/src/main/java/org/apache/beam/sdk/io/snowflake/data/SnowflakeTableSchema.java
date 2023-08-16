@@ -23,7 +23,7 @@ import java.util.List;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /**
  * POJO representing schema of Table in Snowflake. Used by {@link SnowflakeIO.Write} when {@link

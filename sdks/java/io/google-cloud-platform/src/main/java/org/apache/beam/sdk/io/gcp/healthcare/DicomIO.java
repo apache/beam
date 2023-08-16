@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
@@ -154,7 +154,7 @@ public class DicomIO {
       FetchStudyMetadataFn() {}
 
       /**
-       * Instantiate the healthcare client.
+       * Instantiate the healthcare client (version v1).
        *
        * @throws IOException
        */

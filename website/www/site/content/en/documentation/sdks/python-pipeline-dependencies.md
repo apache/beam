@@ -17,9 +17,8 @@ limitations under the License.
 -->
 # Managing Python Pipeline Dependencies
 
-> **Note:** This page is only applicable to runners that do remote execution.
+Dependency management is about specifying dependencies that your pipeline requires, and controlling which dependencies are used in production.
 
-When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. This tutorial shows you how to make your dependencies available to the remote workers. Each section below refers to a different source that your package may have been installed from.
 
 **Note:** Remote workers used for pipeline execution typically have a standard Python distribution installation in a Debian-based container image. If your code relies only on standard Python packages, then you probably don't need to do anything on this page.
 
@@ -160,3 +159,80 @@ Since serialization of the pipeline happens on the job submission, and deseriali
 To ensure this, Beam typically sets a very narrow supported version range for pickling libraries. If for whatever reason, users cannot use the version of `dill` or `cloudpickle` required by Beam, and choose to
 install a custom version, they must also ensure that they use the same custom version at runtime (e.g. in their custom container,
 or by specifying a pipeline dependency requirement).
+
+## Control the dependencies the pipeline uses {#control-dependencies}
+
+### Pipeline environments
+
+To run a Python pipeline on a remote runner, Apache Beam translates the pipeline into a [runner-independent representation](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto) and submits it for execution. Translation happens in the **launch environment**. You can launch the pipeline from a Python virtual environment with the installed Beam SDK, or with tools like [Dataflow Flex Templates](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates), [Notebook environments](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development), [Apache Airflow](https://airflow.apache.org/), and more.
+
+The [**runtime environment**](https://beam.apache.org/documentation/runtime/environments/) is the Python environment that a runner uses during pipeline execution. This environment is where the pipeline code runs to when it performs data  processing. The runtime environment includes Apache Beam and pipeline runtime dependencies.
+
+### Create reproducible environments {#create-reproducible-environments}
+
+You can use several tools to build reproducible Python environments:
+
+* **Use [requirements files](https://pip.pypa.io/en/stable/user_guide/#requirements-files).**  After you install dependencies, generate the requirements file by using `pip freeze > requirements.txt`. To recreate an environment, install dependencies from the requirements.txt file by using `pip install -r requirements.txt`.
+
+* **Use [constraint files](https://pip.pypa.io/en/stable/user_guide/#constraints-files).** You can use the constraint list to restrict the installation of packages, allowing only specified versions.
+
+* **Use lock files.** Use dependency management tools like [PipEnv](https://pipenv.pypa.io/en/latest/), [Poetry](https://python-poetry.org/), and [pip-tools](https://github.com/jazzband/pip-tools) to specify top-level dependencies, to generate lock files of all transitive dependencies with pinned versions, and to create virtual environments from these lockfiles.
+
+* **Use Docker container images.** You can package the launch and runtime environment inside a Docker container image. If the image includes all necessary dependencies, then the environment only changes when a container image is rebuilt.
+
+Use version control for the configuration files that define the environment.
+
+### Make the pipeline runtime environment reproducible
+
+When a pipeline uses a reproducible runtime environment on a remote runner, the workers on the runner use the same dependencies each time the pipeline runs. A reproducible environment is immune to side-effects caused by releases of the pipeline's direct or transitive dependencies. It doesn’t require dependency resolution at runtime.
+
+You can create a reproducible runtime environment in the following ways:
+
+* Run your pipeline in a custom container image that has all dependencies for your pipeline. Use the `--sdk_container_image` pipeline option.
+
+* Supply an exhaustive list of the pipeline's dependencies in the `--requirements_file` pipeline option. Use the `--prebuild_sdk_container_engine` option to perform the runtime environment initialization sequence before the pipeline execution. If your dependencies don't change, reuse the prebuilt image by using the `--sdk_container_image` option.
+
+A self-contained runtime environment is usually reproducible. To check if the  runtime environment is self-contained, restrict internet access to PyPI in the pipeline runtime. If you use the Dataflow Runner, see the documentation for the [`--no_use_public_ips`](https://cloud.google.com/dataflow/docs/guides/routes-firewall#turn_off_external_ip_address) pipeline option.
+
+If you need to recreate or upgrade the runtime environment, do so in a controlled way with visibility into changed dependencies:
+
+* Do not modify container images when they are in use by running pipelines.
+
+* Avoid using the tag `:latest` with your custom images. Tag your builds with a date or a unique identifier. If something goes wrong, using this type of tag might make it possible to revert the pipeline execution to a previously known working configuration and allow for an inspection of changes.
+
+* Consider storing the output of `pip freeze` or the contents of `requirements.txt` in the version control system.
+
+### Make the pipeline launch environment reproducible
+
+The launch environment runs the **production version** of the pipeline. While developing the pipeline locally, you might use a **development environment** that includes dependencies for development, such as Jupyter or Pylint. The launch environment for production pipelines might not need these additional dependencies. You can construct and maintain it separately from the development environment.
+
+To reduce side-effects on pipeline submissions, it is best to able to [recreate the launch environment in a reproducible manner](#create-reproducible-environments).
+
+[Dataflow Flex Templates](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates) provide an example of a containerized, reproducible launch environment.
+
+To create reproducible installations of Beam into a clean virtual environment, use [requirements files](https://pip.pypa.io/en/stable/user_guide/#requirements-files) that list all Python dependencies included in Beam's default container images constraint files:
+
+```
+BEAM_VERSION=2.48.0
+PYTHON_VERSION=`python -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"`
+pip install apache-beam==$BEAM_VERSION --constraint https://raw.githubusercontent.com/apache/beam/release-${BEAM_VERSION}/sdks/python/container/py${PY_VERSION}/base_image_requirements.txt
+```
+
+Use a constraint file to ensure that Beam dependencies in the launch environment match the versions in default Beam containers. A constraint file might also remove the need for dependency resolution at installation time.
+
+### Make the launch environment compatible with the runtime environment
+
+The launch environment translates the  pipeline graph into a [runner-independent representation](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto). This process involves serializing (or pickling) the code of the transforms. The serialized content is deserialized on the workers. If the runtime worker environment significantly differs from the launch environment, runtime errors might occur for the following reasons:
+
+* Versions of `protobuf` in the submission and runtime environment need to match or be compatible.
+The Apache Beam version and the Python major.minor versions must match in the submission and runtime environments. Otherwise, the pipeline might fail with errors like `Pipeline construction environment and pipeline runtime environment are not compatible`. On older SDK versions, the error might be reported as `SystemError: unknown opcode`.
+
+* Libraries used in the pipeline code might need to match. If serialized pipeline code has references to functions or modules that aren’t available on the workers, the pipeline might fail with `ModuleNotFound` or `AttributeError` exceptions on the remote runner. If you encounter such errors, make sure that the affected libraries are available on the remote worker, and check whether you need to [save the main session](  https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pickling-and-managing-the-main-session).
+
+* The version of the pickling library used at submission time must match the version installed at runtime. To enforce this, Beam sets a tight bounds on the version of serializer libraries (dill and cloudpickle). You can force install a different version of `dill` or `cloudpickle` than required by Beam under the following conditions:
+  * You install the same version in submission and in the runtime environment.
+  * The chosen version works for your pipeline.
+
+To check whether the runtime environment matches the launch environment, inspect differences in the `pip freeze` output in both environments. Update to the latest version of Beam, because environment compatibility checks are included in newer SDK versions.
+
+Finally, you can use the same environment by launching the pipeline from the  containerized environment that you use at runtime. [Dataflow Flex templates built from a custom container image](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#use_custom_container_images) offer this setup. In this scenario, you can recreate both launch and runtime environments in a reproducible manner. Because both containers are created from the same image, the launch and runtime environments are compatible with each other by default.

@@ -17,6 +17,12 @@
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
+pluginManagement {
+  plugins {
+     id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
+  }
+}
+
 plugins {
   id("com.gradle.enterprise") version "3.13.2"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
@@ -97,6 +103,19 @@ include(":playground:backend:containers:scio")
 include(":playground:terraform")
 include(":playground:kafka-emulator")
 
+include(":it:cassandra")
+include(":it:common")
+include(":it:conditions")
+include(":it:elasticsearch")
+include(":it:google-cloud-platform")
+include(":it:jdbc")
+include(":it:kafka")
+include(":it:testcontainers")
+include(":it:truthmatchers")
+include(":it:mongodb")
+include(":it:splunk")
+include(":it:neo4j")
+
 include(":learning:tour-of-beam:frontend")
 
 include(":runners:core-construction-java")
@@ -130,6 +149,7 @@ include(":runners:flink:1.16:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
+include(":runners:google-cloud-dataflow-java:arm")
 include(":runners:google-cloud-dataflow-java:examples")
 include(":runners:google-cloud-dataflow-java:examples-streaming")
 include(":runners:java-fn-execution")
@@ -214,6 +234,7 @@ include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
 include(":sdks:java:io:csv")
 include(":sdks:java:io:file-schema-transform")
+include(":sdks:java:io:google-ads")
 include(":sdks:java:io:google-cloud-platform")
 include(":sdks:java:io:google-cloud-platform:expansion-service")
 include(":sdks:java:io:hadoop-common")
@@ -295,7 +316,7 @@ include(":sdks:typescript:container")
 include(":vendor:bytebuddy-1_12_8")
 include(":vendor:grpc-1_54_0")
 include(":vendor:calcite-1_28_0")
-include(":vendor:guava-26_0-jre")
+include(":vendor:guava-32_1_2-jre")
 include(":website")
 include(":runners:google-cloud-dataflow-java:worker")
 include(":runners:google-cloud-dataflow-java:worker:windmill")

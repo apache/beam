@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptTable;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelWriter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 public class BeamPushDownIOSourceRel extends BeamIOSourceRel {
   private final List<String> usedFields;

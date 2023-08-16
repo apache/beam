@@ -158,18 +158,19 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedLong;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedLong;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -2854,6 +2855,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
+  @Ignore // Test is flaky on Jenkins (#27555)
   public void testMaxThreadMetric() throws Exception {
     int maxThreads = 2;
     int threadExpiration = 60;

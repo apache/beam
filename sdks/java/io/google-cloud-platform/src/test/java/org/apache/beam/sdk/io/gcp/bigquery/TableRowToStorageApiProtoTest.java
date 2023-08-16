@@ -45,11 +45,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -63,7 +63,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoTest {
   // Schemas we test.
-  // The TableRow class has special semantics for fields named "f". To ensure we handel them
+  // The TableRow class has special semantics for fields named "f". To ensure we handle them
   // properly, we test schemas
   // both with and without a field named "f".
   private static final TableSchema BASE_TABLE_SCHEMA =
@@ -114,6 +114,7 @@ public class TableRowToStorageApiProtoTest {
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceTrailingZero"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueMaximum"))
                   .build());
 
   private static final TableSchema BASE_TABLE_SCHEMA_NO_F =
@@ -163,9 +164,10 @@ public class TableRowToStorageApiProtoTest {
                           .setType("TIMESTAMP")
                           .setName("timestampValueSpaceTrailingZero"))
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueMaximum"))
                   .build());
 
-  private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO =
+  private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR =
       DescriptorProto.newBuilder()
           .addField(
               FieldDescriptorProto.newBuilder()
@@ -356,6 +358,157 @@ public class TableRowToStorageApiProtoTest {
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluemaximum")
+                  .setNumber(28)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .build();
+
+  private static final com.google.cloud.bigquery.storage.v1.TableSchema BASE_TABLE_PROTO_SCHEMA =
+      com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("stringvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("f")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("bytesvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("int64value")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("intvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("float64value")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DOUBLE)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("floatvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DOUBLE)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("boolvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BOOL)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("booleanvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BOOL)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timevalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("datetimevalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("datevalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("numericvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("bignumericvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("numericvalue2")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("bignumericvalue2")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("arrayvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampisovalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampisovalueoffsethh")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluelong")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluespace")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluespaceutc")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluezoneregion")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluespacemilli")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluespacetrailingzero")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestampvaluemaximum")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                  .build())
           .build();
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_NO_F_PROTO =
@@ -542,7 +695,154 @@ public class TableRowToStorageApiProtoTest {
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluemaximum")
+                  .setNumber(27)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
           .build();
+
+  private static final com.google.cloud.bigquery.storage.v1.TableSchema
+      BASE_TABLE_NO_F_PROTO_SCHEMA =
+          com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("stringvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("bytesvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("int64value")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("intvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("float64value")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DOUBLE)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("floatvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DOUBLE)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("boolvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BOOL)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("booleanvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BOOL)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timevalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("datetimevalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("datevalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("numericvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("bignumericvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("numericvalue2")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("bignumericvalue2")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("arrayvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BYTES)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampisovalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampisovalueoffsethh")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluelong")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluespace")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluespaceutc")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluezoneregion")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluespacemilli")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluespacetrailingzero")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("datetimevaluespace")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestampvaluemaximum")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                      .build())
+              .build();
   private static final TableSchema NESTED_TABLE_SCHEMA =
       new TableSchema()
           .setFields(
@@ -550,29 +850,33 @@ public class TableRowToStorageApiProtoTest {
                   .add(
                       new TableFieldSchema()
                           .setType("STRUCT")
-                          .setName("nestedValue1")
+                          .setName("nestedvalue1")
+                          .setMode("NULLABLE")
                           .setFields(BASE_TABLE_SCHEMA.getFields()))
                   .add(
                       new TableFieldSchema()
                           .setType("RECORD")
-                          .setName("nestedValue2")
+                          .setName("nestedvalue2")
+                          .setMode("NULLABLE")
                           .setFields(BASE_TABLE_SCHEMA.getFields()))
                   .add(
                       new TableFieldSchema()
                           .setType("STRUCT")
-                          .setName("nestedValueNoF1")
+                          .setName("nestedvaluenof1")
+                          .setMode("NULLABLE")
                           .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
                   .add(
                       new TableFieldSchema()
                           .setType("RECORD")
-                          .setName("nestedValueNoF2")
+                          .setName("nestedvaluenof2")
+                          .setMode("NULLABLE")
                           .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
                   .build());
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testDescriptorFromTableSchema() {
+  public void testDescriptorFromTableSchema() throws Exception {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA, true, false);
     Map<String, Type> types =
@@ -580,18 +884,37 @@ public class TableRowToStorageApiProtoTest {
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     Map<String, Type> expectedTypes =
-        BASE_TABLE_SCHEMA_PROTO.getFieldList().stream()
+        BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedTypes, types);
+
+    com.google.cloud.bigquery.storage.v1.TableSchema roundtripSchema =
+        TableRowToStorageApiProto.tableSchemaFromDescriptor(
+            TableRowToStorageApiProto.wrapDescriptorProto(descriptor));
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type> roundTripTypes =
+        roundtripSchema.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type> roundTripExpectedTypes =
+        BASE_TABLE_PROTO_SCHEMA.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+
+    assertEquals(roundTripExpectedTypes, roundTripTypes);
   }
 
   @Test
-  public void testNestedFromTableSchema() {
+  public void testNestedFromTableSchema() throws Exception {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(NESTED_TABLE_SCHEMA, true, false);
     Map<String, Type> expectedBaseTypes =
-        BASE_TABLE_SCHEMA_PROTO.getFieldList().stream()
+        BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     Map<String, Type> expectedBaseTypesNoF =
@@ -643,6 +966,97 @@ public class TableRowToStorageApiProtoTest {
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypesNoF, nestedTypesNoF2);
+
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type>
+        roundTripExpectedBaseTypes =
+            BASE_TABLE_PROTO_SCHEMA.getFieldsList().stream()
+                .collect(
+                    Collectors.toMap(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type>
+        roundTripExpectedBaseTypesNoF =
+            BASE_TABLE_NO_F_PROTO_SCHEMA.getFieldsList().stream()
+                .collect(
+                    Collectors.toMap(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+
+    com.google.cloud.bigquery.storage.v1.TableSchema roundtripSchema =
+        TableRowToStorageApiProto.tableSchemaFromDescriptor(
+            TableRowToStorageApiProto.wrapDescriptorProto(descriptor));
+
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type> roundTripTypes =
+        roundtripSchema.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+    assertEquals(4, roundTripTypes.size());
+
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT,
+        roundTripTypes.get("nestedvalue1"));
+    com.google.cloud.bigquery.storage.v1.TableFieldSchema nestedType =
+        roundtripSchema.getFieldsList().stream()
+            .filter(f -> f.getName().equals("nestedvalue1"))
+            .findFirst()
+            .get();
+    Map<String, com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type> nestedRoundTripTypes =
+        nestedType.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+    assertEquals(roundTripExpectedBaseTypes, nestedRoundTripTypes);
+
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT,
+        roundTripTypes.get("nestedvalue2"));
+    nestedType =
+        roundtripSchema.getFieldsList().stream()
+            .filter(f -> f.getName().equals("nestedvalue2"))
+            .findFirst()
+            .get();
+    nestedRoundTripTypes =
+        nestedType.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+    assertEquals(roundTripExpectedBaseTypes, nestedRoundTripTypes);
+
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT,
+        roundTripTypes.get("nestedvaluenof1"));
+    nestedType =
+        roundtripSchema.getFieldsList().stream()
+            .filter(f -> f.getName().equals("nestedvaluenof1"))
+            .findFirst()
+            .get();
+    nestedRoundTripTypes =
+        nestedType.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+    assertEquals(roundTripExpectedBaseTypesNoF, nestedRoundTripTypes);
+
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT,
+        roundTripTypes.get("nestedvaluenof2"));
+    nestedType =
+        roundtripSchema.getFieldsList().stream()
+            .filter(f -> f.getName().equals("nestedvaluenof2"))
+            .findFirst()
+            .get();
+    nestedRoundTripTypes =
+        nestedType.getFieldsList().stream()
+            .collect(
+                Collectors.toMap(
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getName,
+                    com.google.cloud.bigquery.storage.v1.TableFieldSchema::getType));
+    assertEquals(roundTripExpectedBaseTypesNoF, nestedRoundTripTypes);
   }
 
   private static final List<Object> REPEATED_BYTES =
@@ -689,7 +1103,8 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01 00:00:00.123456 America/New_York"),
                   new TableCell().setV("1970-01-01 00:00:00.123"),
                   new TableCell().setV("1970-01-01 00:00:00.1230"),
-                  new TableCell().setV("2019-08-16 00:52:07.123456")));
+                  new TableCell().setV("2019-08-16 00:52:07.123456"),
+                  new TableCell().setV("9999-12-31 23:59:59.999999Z")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
       new TableRow()
@@ -721,7 +1136,8 @@ public class TableRowToStorageApiProtoTest {
           .set("timestampValueZoneRegion", "1970-01-01 00:00:00.123456 America/New_York")
           .set("timestampValueSpaceMilli", "1970-01-01 00:00:00.123")
           .set("timestampValueSpaceTrailingZero", "1970-01-01 00:00:00.1230")
-          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456");
+          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456")
+          .set("timestampValueMaximum", "9999-12-31 23:59:59.999999Z");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -761,6 +1177,7 @@ public class TableRowToStorageApiProtoTest {
           .put("timestampvaluespacemilli", 123000L)
           .put("timestampvaluespacetrailingzero", 123000L)
           .put("datetimevaluespace", 142111881387172416L)
+          .put("timestampvaluemaximum", 253402300799999999L)
           .build();
 
   private static final Map<String, Object> BASE_ROW_NO_F_EXPECTED_PROTO_VALUES =
@@ -800,6 +1217,7 @@ public class TableRowToStorageApiProtoTest {
           .put("timestampvaluespacemilli", 123000L)
           .put("timestampvaluespacetrailingzero", 123000L)
           .put("datetimevaluespace", 142111881387172416L)
+          .put("timestampvaluemaximum", 253402300799999999L)
           .build();
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {

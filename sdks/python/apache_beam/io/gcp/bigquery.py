@@ -751,8 +751,17 @@ class _CustomBigQuerySource(BoundedSource):
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
               self.bigquery_job_labels))
-      size = int(job.statistics.totalBytesProcessed)
-      return size
+
+      if job.statistics.totalBytesProcessed is None:
+        # Some queries may not have access to `totalBytesProcessed` as a
+        # result of row-level security.
+        # > BigQuery hides sensitive statistics on all queries against
+        # > tables with row-level security.
+        # See cloud.google.com/bigquery/docs/managing-row-level-security
+        # and cloud.google.com/bigquery/docs/best-practices-row-level-security
+        return None
+
+      return int(job.statistics.totalBytesProcessed)
     else:
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
@@ -785,7 +794,8 @@ class _CustomBigQuerySource(BoundedSource):
     if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
-              self.temp_dataset.datasetId if self.temp_dataset else None))
+              self.temp_dataset.datasetId if self.temp_dataset else None),
+          client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -1082,7 +1092,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def estimate_size(self):
     # Returns the pre-filtering size of the (temporary) table being read.
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
+        self.pipeline_options)
     if self.table_reference is not None:
       return self._get_table_size(bq, self.table_reference)
     elif self.query is not None and self.query.is_accessible():
@@ -1102,8 +1113,17 @@ class _CustomBigQueryStorageSource(BoundedSource):
           kms_key=self.kms_key,
           job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
               self.bigquery_job_labels))
-      size = int(job.statistics.totalBytesProcessed)
-      return size
+
+      if job.statistics.totalBytesProcessed is None:
+        # Some queries may not have access to `totalBytesProcessed` as a
+        # result of row-level security
+        # > BigQuery hides sensitive statistics on all queries against
+        # > tables with row-level security.
+        # See cloud.google.com/bigquery/docs/managing-row-level-security
+        # and cloud.google.com/bigquery/docs/best-practices-row-level-security
+        return None
+
+      return int(job.statistics.totalBytesProcessed)
     else:
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
@@ -1112,7 +1132,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper(
-          temp_table_ref=(self.temp_table if self.temp_table else None))
+          temp_table_ref=(self.temp_table if self.temp_table else None),
+          client=bigquery_tools.BigQueryWrapper._bigquery_client(
+              self.pipeline_options))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -2654,14 +2676,14 @@ class ReadFromBigQuery(PTransform):
     self._args = args
     self._kwargs = kwargs
 
-    if self.method is ReadFromBigQuery.Method.EXPORT \
+    if self.method == ReadFromBigQuery.Method.EXPORT \
         and self.use_native_datetime is True:
       raise TypeError(
           'The "use_native_datetime" parameter cannot be True for EXPORT.'
           ' Please set the "use_native_datetime" parameter to False *OR*'
           ' set the "method" parameter to ReadFromBigQuery.Method.DIRECT_READ.')
 
-    if gcs_location and self.method is ReadFromBigQuery.Method.EXPORT:
+    if gcs_location and self.method == ReadFromBigQuery.Method.EXPORT:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
             '%s: gcs_location must be of type string'
@@ -2682,14 +2704,14 @@ class ReadFromBigQuery(PTransform):
     }
 
   def expand(self, pcoll):
-    if self.method is ReadFromBigQuery.Method.EXPORT:
+    if self.method == ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-    elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
+    elif self.method == ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
 
     else:
       raise ValueError(
-          'The method to read from BigQuery must be either EXPORT'
+          'The method to read from BigQuery must be either EXPORT '
           'or DIRECT_READ.')
     return self._expand_output_type(output_pcollection)
 
@@ -2715,6 +2737,10 @@ class ReadFromBigQuery(PTransform):
                 project_id=table_details.projectId,
                 dataset_id=table_details.datasetId,
                 table_id=table_details.tableId).schema)
+    else:
+      raise ValueError(
+          'The output type from BigQuery must be either PYTHON_DICT '
+          'or BEAM_ROW.')
 
   def _expand_export(self, pcoll):
     # TODO(https://github.com/apache/beam/issues/20683): Make ReadFromBQ rely

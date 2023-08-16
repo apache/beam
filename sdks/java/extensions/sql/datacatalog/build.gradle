@@ -33,7 +33,7 @@ dependencies {
   implementation library.java.proto_google_cloud_datacatalog_v1beta1
   implementation library.java.protobuf_java
   implementation library.java.slf4j_api
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation "com.alibaba:fastjson:1.2.69"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "org.threeten:threetenbp:1.4.5"

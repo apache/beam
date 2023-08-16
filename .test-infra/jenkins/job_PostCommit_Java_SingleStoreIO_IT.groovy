@@ -81,6 +81,7 @@ PostcommitJobBuilder.postCommitJob(jobName,
           switches("-DintegrationTestRunner=dataflow")
           tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIODefaultMapperIT")
           tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOSchemaTransformIT")
+          tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOConnectionAttributesIT")
         }
       }
     }
