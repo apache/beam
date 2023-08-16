@@ -76,23 +76,6 @@ Beam supports executing programs on multiple distributed processing backends thr
 
 Have ideas for new Runners? See the [runner-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-ideas).
 
-## Getting Started
-
-To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or
-[Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
-To play with some Beam examples, try [Beam Playground](https://play.beam.apache.org/?path=SDK_JAVA_MinimalWordCount&sdk=java).
-To learn basic Beam concepts, try [Tour of Beam](https://tour.beam.apache.org/).
-
-
-
-## Contact Us
-
-To get involved in Apache Beam:
-
-* [Subscribe](mailto:user-subscribe@beam.apache.org) or [mail](mailto:user@beam.apache.org) the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
-* [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
-* [Join ASF Slack](https://s.apache.org/slack-invite) on [#beam channel](https://s.apache.org/beam-slack-channel)
-* [Report an issue](https://github.com/apache/beam/issues/new/choose).
 
 Instructions for building and testing Beam itself
 are in the [contribution guide](./CONTRIBUTING.md).
@@ -138,3 +121,12 @@ Here are some resources actively maintained by the Beam community to help you ge
   </tr>
 </tbody>
 </table>
+
+## Contact Us
+
+To get involved with Apache Beam:
+
+* Subscribe or e-mail the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
+* Subscribe or e-mail the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
+* [Join ASF Slack](https://s.apache.org/slack-invite) on [#beam channel](https://s.apache.org/beam-slack-channel)
+* [Report an issue](https://github.com/apache/beam/issues/new/choose).
