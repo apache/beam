@@ -81,7 +81,7 @@ RUN  \
     rm -rf /root/.cache/pip
 
 # Required for using Beam Python SDK on ARM machines.
-RUN if [ "${TARGETARCH}" == "arm64" ] ; then \
+RUN if [ "${TARGETARCH}" = "arm64" ] ; then \
       apt-get install libgeos-dev \
     fi
 
