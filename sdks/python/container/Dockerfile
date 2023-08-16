@@ -40,6 +40,8 @@ RUN  \
        libyaml-dev \
        # This is used to speed up the re-installation of the sdk.
        ccache \
+       # Required for using Beam Python SDK on ARM machines.
+       libgeos-dev \
        && \
     rm -rf /var/lib/apt/lists/* && \
 
@@ -79,12 +81,6 @@ RUN  \
 
     # Remove pip cache.
     rm -rf /root/.cache/pip
-
-# Required for using Beam Python SDK on ARM machines.
-RUN if [ "${TARGETARCH}" = "arm64" ] ; then \
-      apt-get update && \
-      apt-get install libgeos-dev ; \
-    fi
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
