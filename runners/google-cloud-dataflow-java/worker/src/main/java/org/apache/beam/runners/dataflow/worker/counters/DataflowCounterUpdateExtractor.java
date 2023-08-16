@@ -29,7 +29,7 @@ import com.google.api.services.dataflow.model.NameAndKind;
 import com.google.api.services.dataflow.model.SplitInt64;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Factory methods for extracting {@link CounterUpdate} updates from counters. */
 @SuppressWarnings({

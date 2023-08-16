@@ -22,7 +22,7 @@ import static org.junit.Assert.fail;
 
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;

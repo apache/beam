@@ -26,7 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

@@ -619,6 +619,13 @@ class ListHintTestCase(TypeHintTestCase):
       self.assertCompatible(list, typing.List)
       self.assertCompatible(list[int], typing.List[int])
 
+  def test_is_typing_generic(self):
+    self.assertTrue(typehints.is_typing_generic(typing.List[str]))
+
+  def test_builtin_is_typing_generic(self):
+    if sys.version_info >= (3, 9):
+      self.assertTrue(typehints.is_typing_generic(list[str]))
+
 
 class KVHintTestCase(TypeHintTestCase):
   def test_getitem_param_must_be_tuple(self):
@@ -790,6 +797,10 @@ class BaseSetHintTest:
           self.beam_type[list]
         except TypeError:
           self.fail("built-in composite raised TypeError unexpectedly")
+
+    def test_non_typing_generic(self):
+      testCase = DummyTestClass1()
+      self.assertFalse(typehints.is_typing_generic(testCase))
 
     def test_compatibility(self):
       hint1 = self.beam_type[typehints.List[str]]

@@ -133,6 +133,38 @@ class MultiProcessSharedTest(unittest.TestCase):
     with self.assertRaisesRegex(Exception, 'released'):
       counter1.get()
 
+  def test_release_always_proxy(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release_always_proxy', always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release_always_proxy', always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    counter1again = shared1.acquire()
+    self.assertEqual(counter1again.increment(), 3)
+
+    shared1.release(counter1)
+    shared2.release(counter2)
+
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter1.get()
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter2.get()
+
+    self.assertEqual(counter1again.get(), 3)
+
+    shared1.release(counter1again)
+
+    counter1New = shared1.acquire()
+    self.assertEqual(counter1New.get(), 0)
+
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter1.get()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

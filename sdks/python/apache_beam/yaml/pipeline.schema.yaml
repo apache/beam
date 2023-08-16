@@ -118,6 +118,7 @@ $defs:
       type: { type: string }
       transforms:
         type: object
+        properties: { __line__: {}}
         additionalProperties:
           type: string
     required:

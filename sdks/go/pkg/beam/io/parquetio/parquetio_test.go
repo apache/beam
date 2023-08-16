@@ -29,6 +29,10 @@ import (
 	"github.com/xitongsys/parquet-go/reader"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 type Student struct {
 	Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
 	Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`

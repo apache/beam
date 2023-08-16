@@ -24,6 +24,10 @@ docker {
   files '../get-licenses.sh', '../go.mod'
   noCache false
   buildArgs(['sdk_location': "github.com/apache/beam/sdks/v2/${sdkName}/container"])
+  // If Docker buildx builder is used, explicitly load the image into the local repository.
+  // Set the buildx flag to pick up the load flag.
+  buildx true
+  load true
 }
 
 // The mkdir happens at configuration time to allow dockerRun volume to be declared.
