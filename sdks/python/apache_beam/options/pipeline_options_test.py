@@ -25,18 +25,16 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam.options.pipeline_options import (
-    DebugOptions,
-    GoogleCloudOptions,
-    PipelineOptions,
-    ProfilingOptions,
-    TypeOptions,
-    WorkerOptions,
-    _BeamArgumentParser)
-from apache_beam.options.pipeline_options_validator import \
-    PipelineOptionsValidator
-from apache_beam.options.value_provider import (
-    RuntimeValueProvider, StaticValueProvider)
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import WorkerOptions
+from apache_beam.options.pipeline_options import _BeamArgumentParser
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
