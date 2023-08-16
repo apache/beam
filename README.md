@@ -97,9 +97,44 @@ To get involved in Apache Beam:
 Instructions for building and testing Beam itself
 are in the [contribution guide](https://beam.apache.org/contribute/).
 
-## More Information
+## 📚 Learn More
 
-* [Apache Beam](https://beam.apache.org)
-* [Overview](https://beam.apache.org/use/beam-overview/)
-* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)
-* [Community metrics](https://s.apache.org/beam-community-metrics)
+Here are some resources actively maintained by the Beam community to help you get started:
+<table>
+<thead>
+  <tr>
+      <th><b>Resource</b></th>
+      <th><b>Details</b></th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td><a href="https://beam.apache.org" target="_blank" rel="noopener noreferrer">Apache Beam Website</a></td>
+    <td>Our website discussing the project, and it's specifics.</td>
+  </tr>
+  <tr>
+    <td><a href="https://beam.apache.org/get-started/quickstart-java" target="_blank" rel="noopener noreferrer">Java Quickstart</a></td>
+    <td>A guide to getting started with the Java SDK.</td>
+  </tr>
+  <tr>
+    <td><a href="https://beam.apache.org/get-started/quickstart-py" target="_blank" rel="noopener noreferrer">Python Quickstart</a></td>
+    <td>A guide to getting started with the Python SDK.</td>
+  </tr>
+  <tr>
+    <td><a href="https://beam.apache.org/get-started/quickstart-go" target="_blank" rel="noopener noreferrer">Go Quickstart </a></td>
+    <td>A guide to getting started with the Go SDK.</td>
+  </tr>
+  <tr>
+    <td><a href="https://tour.beam.apache.org/" target="_blank" rel="noopener noreferrer">Tour of Beam </a></td>
+    <td>A comprehensive, interactive learning experience covering Beam concepts in depth.</td>
+  </tr>
+  <tr>
+    <td><a href="https://www.cloudskillsboost.google/quests/310" target="_blank" rel="noopener noreferrer">Beam Quest </a></td>
+    <td>A certification granted by Google Cloud, certifying proficiency in Beam.</td>
+  </tr>
+  <tr>
+    <td><a href="https://s.apache.org/beam-community-metrics" target="_blank" rel="noopener noreferrer">Community Metrics </a></td>
+    <td>Beam's Git Community Metrics.</td>
+  </tr>
+</tbody>
+</table>
