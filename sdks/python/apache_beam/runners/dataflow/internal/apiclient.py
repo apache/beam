@@ -1116,8 +1116,7 @@ def translate_value(value, metric_update_proto):
 
 
 def _get_container_image_tag():
-  base_version = version.parse(
-      beam_version.__version__).base_version
+  base_version = version.parse(beam_version.__version__).base_version
   if base_version != beam_version.__version__:
     warnings.warn(
         "A non-standard version of Beam SDK detected: %s. "
