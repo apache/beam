@@ -19,7 +19,8 @@
 
 # Performance alerts for Beam Python performance and load tests
 
-##  Alerts
+## Alerts
+
 Performance regressions or improvements detected with the [Change Point Analysis](https://en.wikipedia.org/wiki/Change_detection) using [edivisive](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
 analyzer are automatically filed as Beam GitHub issues with a label `perf-alert`.
 
@@ -32,7 +33,8 @@ If a performance alert is created on a test, a GitHub issue will be created and 
 URL, issue number along with the change point value and timestamp are exported to BigQuery. This data will be used to analyze the next change point observed on the same test to
 update already created GitHub issue or ignore performance alert by not creating GitHub issue to avoid duplicate issue creation.
 
-##  Config file structure
+## Config file structure
+
 The config file defines the structure to run change point analysis on a given test. To add a test to the config file,
 please follow the below structure.
 
@@ -73,21 +75,22 @@ Sometimes, the change point found might be way back in time and could be irrelev
 reported only when it was observed in the last 7 runs from the current run,
 setting `num_runs_in_change_point_window=7` will achieve it.
 
-##  Register a test for performance alerts
+## Register a test for performance alerts
 
 If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the
 config file.
 
 ## Triage performance alert issues
 
-All the performance/load tests metrics defined at [beam/.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) are imported to [Grafana dashboards](http://104.154.241.245/d/1/getting-started?orgId=1) for visualization. Please
+All the performance/load tests metrics defined at [beam/.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) are imported to [Grafana dashboards](http://metrics.beam.apache.org/d/1/getting-started?orgId=1) for visualization. Please
 find the alerted test dashboard to find a spike in the metric values.
 
 For example, for the below configuration,
-* test_target: `apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks`
-* metric_name: `mean_load_model_latency_milli_secs`
 
-Grafana dashboard can be found at http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
+- test_target: `apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks`
+- metric_name: `mean_load_model_latency_milli_secs`
+
+Grafana dashboard can be found at http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
 
 If the dashboard for a test is not found, you can use the
 notebook `analyze_metric_data.ipynb` to generate a plot for the given test, metric_name.

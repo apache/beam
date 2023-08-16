@@ -56,11 +56,13 @@ class ScopeTest(unittest.TestCase):
       spec = '''
         transforms:
           - type: Create
-            elements: [0, 1, 3, 4]
+            config:
+              elements: [0, 1, 3, 4]
           - type: PyMap
             name: Square
             input: Create
-            fn: "lambda x: x*x"
+            config: 
+              fn: "lambda x: x*x"
         '''
 
     scope, spec = self.get_scope_by_spec(p, spec)
@@ -84,7 +86,8 @@ class ScopeTest(unittest.TestCase):
       spec = '''
         transforms:
           - type: PyMap
-            fn: "lambda x: x*x"
+            config:
+              fn: "lambda x: x*x"
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
 
@@ -111,7 +114,7 @@ class ScopeTest(unittest.TestCase):
       spec = '''
         transforms:
           - type: PyMap
-            args:
+            config:
               fn: "lambda x: x*x"
         '''
       scope, spec = self.get_scope_by_spec(p, spec)

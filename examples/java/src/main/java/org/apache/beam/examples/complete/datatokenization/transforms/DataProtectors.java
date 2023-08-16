@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonArray;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.gson.JsonObject;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;

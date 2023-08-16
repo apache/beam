@@ -47,7 +47,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;

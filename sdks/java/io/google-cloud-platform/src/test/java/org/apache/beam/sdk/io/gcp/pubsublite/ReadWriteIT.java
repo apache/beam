@@ -63,7 +63,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Rule;
@@ -318,7 +318,7 @@ public class ReadWriteIT {
                       return Objects.requireNonNull(row.getInt64("numberInInt")).intValue();
                     }));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply("start signal", signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
@@ -363,7 +363,7 @@ public class ReadWriteIT {
     PCollection<SequencedMessage> messages = readMessages(subscription, pipeline);
     PCollection<Integer> ids = messages.apply(MapElements.via(extractIds()));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

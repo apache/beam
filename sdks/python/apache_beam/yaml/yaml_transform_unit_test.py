@@ -119,9 +119,11 @@ class MainTest(unittest.TestCase):
       type: composite
       transforms:
       - type: Create
-        elements: [0,1,2]
+        config:
+          elements: [0,1,2]
       - type: PyMap
-        fn: 'lambda x: x*x'
+        config:
+          fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = pipeline_as_composite(spec)
@@ -133,9 +135,11 @@ class MainTest(unittest.TestCase):
     spec = '''
       transforms:
       - type: Create
-        elements: [0,1,2]
+        config:
+          elements: [0,1,2]
       - type: PyMap
-        fn: 'lambda x: x*x'
+        config:
+          fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = pipeline_as_composite(spec)
@@ -146,9 +150,11 @@ class MainTest(unittest.TestCase):
   def test_pipeline_as_composite_list(self):
     spec = '''
         - type: Create
-          elements: [0,1,2]
+          config:
+            elements: [0,1,2]
         - type: PyMap
-          fn: 'lambda x: x*x'
+          config:
+            fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = pipeline_as_composite(spec)
@@ -166,7 +172,8 @@ class MainTest(unittest.TestCase):
         name: Custom
         transforms:
           - type: Create
-            elements: [0,1,2]
+            config:
+              elements: [0,1,2]
         output: 
           Create
         '''
@@ -183,7 +190,8 @@ class MainTest(unittest.TestCase):
         transforms:
           - type: PyMap
             input: input
-            fn: 'lambda x: x*x'
+            config:
+              fn: 'lambda x: x*x'
         output: 
           PyMap
         '''
@@ -200,7 +208,8 @@ class MainTest(unittest.TestCase):
         type: composite
         transforms:
           - type: Create
-            elements: [0,1,2]
+            config:
+              elements: [0,1,2]
         output: 
           Create
         '''

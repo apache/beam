@@ -83,7 +83,7 @@ type Job struct {
 
 	// Context used to terminate this job.
 	RootCtx  context.Context
-	CancelFn context.CancelFunc
+	CancelFn context.CancelCauseFunc
 
 	metrics metricsStore
 }
@@ -160,6 +160,7 @@ func (j *Job) Done() {
 
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
-	j.sendState(jobpb.JobState_FAILED)
 	j.failureErr = err
+	j.sendState(jobpb.JobState_FAILED)
+	j.CancelFn(err)
 }

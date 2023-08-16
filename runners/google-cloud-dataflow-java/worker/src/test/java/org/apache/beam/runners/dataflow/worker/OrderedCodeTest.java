@@ -23,8 +23,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Bytes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

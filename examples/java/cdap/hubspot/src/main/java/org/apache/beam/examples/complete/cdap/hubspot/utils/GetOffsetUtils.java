@@ -24,7 +24,7 @@ import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
 import java.util.HashMap;
 import org.apache.beam.sdk.io.cdap.Plugin;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
