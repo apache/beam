@@ -241,16 +241,10 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:extensions-java:metrics:build")
-  dependsOn(":runners:flink:1.12:build")
-  dependsOn(":runners:flink:1.12:job-server:build")
-  dependsOn(":runners:flink:1.13:build")
-  dependsOn(":runners:flink:1.13:job-server:build")
-  dependsOn(":runners:flink:1.14:build")
-  dependsOn(":runners:flink:1.14:job-server:build")
-  dependsOn(":runners:flink:1.15:build")
-  dependsOn(":runners:flink:1.15:job-server:build")
-  dependsOn(":runners:flink:1.16:build")
-  dependsOn(":runners:flink:1.16:job-server:build")
+  // lowest supported flink version
+  var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
+  dependsOn(":runners:flink:${flinkVersions[0]}:build")
+  dependsOn(":runners:flink:${flinkVersions[0]}:job-server:build")
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
@@ -341,6 +335,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
+  dependsOn(":sdks:java:io:google-ads:build")
   dependsOn(":sdks:java:io:hbase:build")
   dependsOn(":sdks:java:io:hcatalog:build")
   dependsOn(":sdks:java:io:influxdb:build")
@@ -359,6 +354,16 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:splunk:build")
   dependsOn(":sdks:java:io:thrift:build")
   dependsOn(":sdks:java:io:tika:build")
+}
+
+// a precommit task testing additional supported flink versions not covered by
+// the main Java PreCommit (lowest supported version)
+tasks.register("flinkPreCommit") {
+  var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
+  for (version in flinkVersions.slice(1..flinkVersions.size - 1)) {
+    dependsOn(":runners:flink:${version}:build")
+    dependsOn(":runners:flink:${version}:job-server:build")
+  }
 }
 
 tasks.register("sqlPreCommit") {
@@ -380,11 +385,9 @@ tasks.register("javaPostCommit") {
 
 tasks.register("javaPostCommitSickbay") {
   dependsOn(":runners:samza:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.12:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.13:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.14:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.15:validatesRunnerSickbay")
-  dependsOn(":runners:flink:1.16:validatesRunnerSickbay")
+  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:validatesRunnerSickbay")
+  }
   dependsOn(":runners:spark:3:job-server:validatesRunnerSickbay")
   dependsOn(":runners:direct-java:validatesRunnerSickbay")
   dependsOn(":runners:portability:java:validatesRunnerSickbay")
@@ -440,19 +443,12 @@ tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
-tasks.register("goPostCommit") {
-  dependsOn(":goIntegrationTests")
+tasks.register("goPostCommitDataflowARM") {
+  dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
 }
 
-tasks.register("goIntegrationTests") {
-  doLast {
-    exec {
-      executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
-    }
-  }
-  dependsOn(":sdks:go:test:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+tasks.register("goPostCommit") {
+  dependsOn(":sdks:go:test:dataflowValidatesRunner")
 }
 
 tasks.register("playgroundPreCommit") {
@@ -472,7 +468,6 @@ tasks.register("pythonPreCommit") {
 tasks.register("pythonPreCommitIT") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
-  dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
 
 tasks.register("pythonDocsPreCommit") {
@@ -573,18 +568,65 @@ tasks.register("typescriptPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }
 
-tasks.register("pushAllDockerImages") {
-  dependsOn(":runners:spark:3:job-server:container:dockerPush")
+tasks.register("pushAllRunnersDockerImages") {
+  dependsOn(":runners:spark:3:job-server:container:docker")
+  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
+    dependsOn(":runners:flink:${version}:job-server-container:docker")
+  }
+
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
+  }
+}
+
+tasks.register("pushAllSdkDockerImages") {
+  // Enforce ordering to allow the prune step to happen between runs.
+  // This will ensure we don't use up too much space (especially in CI environments)
+  mustRunAfter(":pushAllRunnersDockerImages")
+
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
-  for (version in project.ext.get("allFlinkVersions") as Array<*>) {
-    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
   }
-  dependsOn(":sdks:java:expansion-service:container:dockerPush")
-  dependsOn(":sdks:java:transform-service:controller-container:dockerPush")
-  dependsOn(":sdks:python:expansion-service-container:dockerPush")
+}
+
+tasks.register("pushAllXlangDockerImages") {
+  // Enforce ordering to allow the prune step to happen between runs.
+  // This will ensure we don't use up too much space (especially in CI environments)
+  mustRunAfter(":pushAllSdkDockerImages")
+
+  dependsOn(":sdks:java:expansion-service:container:docker")
+  dependsOn(":sdks:java:transform-service:controller-container:docker")
+  dependsOn(":sdks:python:expansion-service-container:docker")
+
+  doLast {
+    if (project.hasProperty("prune-images")) {
+      exec {
+        executable("docker")
+        args("system", "prune", "-a", "--force")
+      }
+    }
+  }
+}
+
+tasks.register("pushAllDockerImages") {
+  dependsOn(":pushAllRunnersDockerImages")
+  dependsOn(":pushAllSdkDockerImages")
+  dependsOn(":pushAllXlangDockerImages")
 }
 
 // Use this task to validate the environment set up for Go, Python and Java

@@ -62,7 +62,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
@@ -119,6 +119,6 @@ func main() {
 	// formatted strings) to a text file.
 	textio.Write(s, "wordcounts.txt", formatted)
 
-	// Run the pipeline on the direct runner.
-	direct.Execute(context.Background(), p)
+	// Run the pipeline on the prism runner.
+	prism.Execute(context.Background(), p)
 }

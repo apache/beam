@@ -17,18 +17,21 @@
 # under the License.
 #
 
-
 FROM ghcr.io/actions-runner-controller/actions-runner-controller/actions-runner:ubuntu-20.04
+#install BuildX
+COPY --from=docker/buildx-bin:0.11.1 /buildx /usr/libexec/docker/cli-plugins/docker-buildx
+RUN docker buildx install && docker buildx version
+
 
 USER root
-#Install Node 
+#Install Node
 RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && \
     tar -C /usr/local -xf node-v18.16.0-linux-x64.tar.xz && \
     rm node-v18.16.0-linux-x64.tar.xz && \
     mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.20.4
+ARG go_version=1.21.0
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
@@ -45,7 +48,21 @@ RUN curl -OL https://services.gradle.org/distributions/gradle-7.3.3-bin.zip && \
     rm gradle-7.3.3-bin.zip && \
     mv gradle-7.3.3 /usr/local/gradle
 ENV PATH="${PATH}:/usr/local/gradle/bin"
-
+#Install GitHub CLI
+RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \
+    tar -xvf gh_2.31.0_linux_amd64.tar.gz && \
+    rm gh_2.31.0_linux_amd64.tar.gz && \
+    mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin 
+#Install GCloud CLI and Kubectl
+RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
+    tar -xvf google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
+    rm google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
+    mv google-cloud-sdk /usr/local/google-cloud-sdk && \
+    /usr/local/google-cloud-sdk/install.sh --quiet && \
+    /usr/local/google-cloud-sdk/bin/gcloud components install kubectl && \
+    #revert permission
+    chown -R runner:runner /home/runner/.config
+ENV PATH="${PATH}:/usr/local/google-cloud-sdk/bin"
 
 # Needed to transfer path addtitions to runner environment
 RUN echo PATH=$PATH >> /runnertmp/.env

@@ -43,10 +43,7 @@ tasks.register("buildAll") {
 }
 
 tasks.register("pushAll") {
-  dependsOn ':sdks:python:container:py38:dockerPush'
-  dependsOn ':sdks:python:container:py39:dockerPush'
-  dependsOn ':sdks:python:container:py310:dockerPush'
-  dependsOn ':sdks:python:container:py311:dockerPush'
+  dependsOn ':sdks:python:container:buildAll'
 }
 
 tasks.register("generatePythonRequirementsAll") {

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
@@ -29,6 +29,7 @@ import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
@@ -88,21 +89,21 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A transform to write sharded records to BigQuery using the Storage API. */
+/** A transform to write sharded records to BigQuery using the Storage API (Streaming). */
 @SuppressWarnings({
   "FutureReturnValueIgnored",
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
@@ -458,21 +459,28 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
-            if (autoUpdateSchema && updatedSchema.read() != null) {
-              // We've seen an updated schema, so we use that.
-              tableSchema = updatedSchema.read();
+            DescriptorProtos.DescriptorProto descriptor;
+            TableSchema updatedSchemaValue = updatedSchema.read();
+            if (autoUpdateSchema && updatedSchemaValue != null) {
+              // We've seen an updated schema, so we use that instead of querying the
+              // MessageConverter.
+              tableSchema = updatedSchemaValue;
+              descriptor =
+                  TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+                      tableSchema, true, false);
             } else {
               // Start off with the base schema. As we get notified of schema updates, we
-              // will update the
-              // descriptor.
-              tableSchema =
-                  messageConverters
-                      .get(element.getKey().getKey(), dynamicDestinations, datasetService)
-                      .getTableSchema();
+              // will update the descriptor.
+              StorageApiDynamicDestinations.MessageConverter<?> converter =
+                  messageConverters.get(
+                      element.getKey().getKey(), dynamicDestinations, datasetService);
+              tableSchema = converter.getTableSchema();
+              descriptor = converter.getDescriptor(false);
             }
             AppendClientInfo info =
                 AppendClientInfo.of(
                         Preconditions.checkStateNotNull(tableSchema),
+                        descriptor,
                         // Make sure that the client is always closed in a different thread
                         // to
                         // avoid blocking.
@@ -483,8 +491,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                                   // Remove the pin that is "owned" by the cache.
                                   client.unpin();
                                   client.close();
-                                }),
-                        false)
+                                }))
                     .withAppendClient(datasetService, getOrCreateStream, false);
             // This pin is "owned" by the cache.
             Preconditions.checkStateNotNull(info.getStreamAppendClient()).pin();
@@ -652,9 +659,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               return RetryType.RETRY_ALL_OPERATIONS;
             }
 
+            Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
+            Status.Code statusCode = Status.fromThrowable(error).getCode();
+            // This means that the offset we have stored does not match the current end of
+            // the stream in the Storage API. Usually this happens because a crash or a bundle
+            // failure
+            // happened after an append but before the worker could checkpoint it's
+            // state. The records that were appended in a failed bundle will be retried,
+            // meaning that the unflushed tail of the stream must be discarded to prevent
+            // duplicates.
+            boolean offsetMismatch =
+                statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
+
             // Invalidate the StreamWriter and force a new one to be created.
-            LOG.error(
-                "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+            if (!offsetMismatch) {
+              // Don't log errors for expected offset mismatch. These will be logged as warnings
+              // below.
+              LOG.error(
+                  "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+            }
 
             // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces them.
             try {
@@ -667,17 +690,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
             boolean explicitStreamFinalized =
                 failedContext.getError() instanceof StreamFinalizedException;
-            Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
-            Status.Code statusCode = Status.fromThrowable(error).getCode();
-            // This means that the offset we have stored does not match the current end of
-            // the stream in the Storage API. Usually this happens because a crash or a bundle
-            // failure
-            // happened after an append but before the worker could checkpoint it's
-            // state. The records that were appended in a failed bundle will be retried,
-            // meaning that the unflushed tail of the stream must be discarded to prevent
-            // duplicates.
-            boolean offsetMismatch =
-                statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
             // This implies that the stream doesn't exist or has already been finalized. In this
             // case we have no choice but to create a new stream.
             boolean streamDoesNotExist =

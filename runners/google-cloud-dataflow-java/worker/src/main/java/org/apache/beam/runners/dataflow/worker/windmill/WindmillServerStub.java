@@ -19,24 +19,13 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream.WorkItemReceiver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Stub for communicating with a Windmill server. */
 @SuppressWarnings({
@@ -69,16 +58,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Report execution information to the server. */
   public abstract Windmill.ReportStatsResponse reportStats(Windmill.ReportStatsRequest request);
 
-  /** Functional interface for receiving WorkItems. */
-  @FunctionalInterface
-  public interface WorkItemReceiver {
-    void receiveWork(
-        String computation,
-        @Nullable Instant inputDataWatermark,
-        Instant synchronizedProcessingTime,
-        Windmill.WorkItem workItem);
-  }
-
   /**
    * Gets work to process, returned as a stream.
    *
@@ -100,137 +79,10 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
 
-  /** Superclass for streams returned by streaming Windmill methods. */
-  @ThreadSafe
-  public interface WindmillStream {
-    /** Indicates that no more requests will be sent. */
-    void close();
-
-    /** Waits for the server to close its end of the connection, with timeout. */
-    boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
-
-    /** Returns when the stream was opened. */
-    Instant startTime();
-  }
-
-  /** Handle representing a stream of GetWork responses. */
-  @ThreadSafe
-  public interface GetWorkStream extends WindmillStream {}
-
-  /** Interface for streaming GetDataRequests to Windmill. */
-  @ThreadSafe
-  public interface GetDataStream extends WindmillStream {
-    /** Issues a keyed GetData fetch, blocking until the result is ready. */
-    KeyedGetDataResponse requestKeyedData(String computation, Windmill.KeyedGetDataRequest request);
-
-    /** Issues a global GetData fetch, blocking until the result is ready. */
-    Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
-
-    /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active);
-  }
-
-  /** Interface for streaming CommitWorkRequests to Windmill. */
-  @ThreadSafe
-  public interface CommitWorkStream extends WindmillStream {
-    /**
-     * Commits a work item and running onDone when the commit has been processed by the server.
-     * Returns true if the request was accepted. If false is returned the stream should be flushed
-     * and the request recommitted.
-     *
-     * <p>onDone will be called with the status of the commit.
-     */
-    boolean commitWorkItem(
-        String computation, Windmill.WorkItemCommitRequest request, Consumer<CommitStatus> onDone);
-
-    /** Flushes any pending work items to the wire. */
-    void flush();
-  }
-
-  /**
-   * Pool of homogeneous streams to Windmill.
-   *
-   * <p>The pool holds a fixed total number of streams, and keeps each stream open for a specified
-   * time to allow for better load-balancing.
-   */
-  @ThreadSafe
-  public static class StreamPool<S extends WindmillStream> {
-
-    private final Duration streamTimeout;
-
-    private final class StreamData {
-      final S stream = supplier.get();
-      int holds = 1;
-    };
-
-    private final List<StreamData> streams;
-    private final Supplier<S> supplier;
-    private final HashMap<S, StreamData> holds;
-
-    public StreamPool(int numStreams, Duration streamTimeout, Supplier<S> supplier) {
-      this.streams = new ArrayList<>(numStreams);
-      for (int i = 0; i < numStreams; i++) {
-        streams.add(null);
-      }
-      this.streamTimeout = streamTimeout;
-      this.supplier = supplier;
-      this.holds = new HashMap<>();
-    }
-
-    // Returns a stream for use that may be cached from a previous call.  Each call of getStream
-    // must be matched with a call of releaseStream.
-    public S getStream() {
-      int index = ThreadLocalRandom.current().nextInt(streams.size());
-      S result;
-      S closeStream = null;
-      synchronized (this) {
-        StreamData streamData = streams.get(index);
-        if (streamData == null
-            || streamData.stream.startTime().isBefore(Instant.now().minus(streamTimeout))) {
-          if (streamData != null && --streamData.holds == 0) {
-            holds.remove(streamData.stream);
-            closeStream = streamData.stream;
-          }
-          streamData = new StreamData();
-          streams.set(index, streamData);
-          holds.put(streamData.stream, streamData);
-        }
-        streamData.holds++;
-        result = streamData.stream;
-      }
-      if (closeStream != null) {
-        closeStream.close();
-      }
-      return result;
-    }
-
-    // Releases a stream that was obtained with getStream.
-    public void releaseStream(S stream) {
-      boolean closeStream = false;
-      synchronized (this) {
-        if (--holds.get(stream).holds == 0) {
-          closeStream = true;
-          holds.remove(stream);
-        }
-      }
-      if (closeStream) {
-        stream.close();
-      }
-    }
-  }
-
   /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static class RpcException extends RuntimeException {
-    public RpcException() {
-      super();
-    }
-
+  public static final class RpcException extends RuntimeException {
     public RpcException(Throwable cause) {
       super(cause);
-    }
-
-    public RpcException(String message, Throwable cause) {
-      super(message, cause);
     }
   }
 }

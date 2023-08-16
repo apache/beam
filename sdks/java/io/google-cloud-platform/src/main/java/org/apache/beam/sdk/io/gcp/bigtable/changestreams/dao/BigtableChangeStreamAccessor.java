@@ -47,7 +47,8 @@ import org.threeten.bp.Duration;
  * backend and the jobs on the same machine shares the same sets of connections.
  */
 @Internal
-class BigtableChangeStreamAccessor {
+public class BigtableChangeStreamAccessor implements AutoCloseable {
+  static final Duration MUTATE_ROW_DEADLINE = Duration.ofSeconds(30);
   // Create one bigtable data/admin client per bigtable config (project/instance/table/app profile)
   private static final ConcurrentHashMap<BigtableConfig, BigtableChangeStreamAccessor>
       bigtableAccessors = new ConcurrentHashMap<>();
@@ -55,14 +56,31 @@ class BigtableChangeStreamAccessor {
   private final BigtableDataClient dataClient;
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableInstanceAdminClient instanceAdminClient;
+  private final BigtableConfig bigtableConfig;
 
   private BigtableChangeStreamAccessor(
       BigtableDataClient dataClient,
       BigtableTableAdminClient tableAdminClient,
-      BigtableInstanceAdminClient instanceAdminClient) {
+      BigtableInstanceAdminClient instanceAdminClient,
+      BigtableConfig bigtableConfig) {
     this.dataClient = dataClient;
     this.tableAdminClient = tableAdminClient;
     this.instanceAdminClient = instanceAdminClient;
+    this.bigtableConfig = bigtableConfig;
+  }
+
+  @Override
+  public synchronized void close() {
+    if (dataClient != null) {
+      dataClient.close();
+    }
+    if (tableAdminClient != null) {
+      tableAdminClient.close();
+    }
+    if (instanceAdminClient != null) {
+      instanceAdminClient.close();
+    }
+    bigtableAccessors.remove(bigtableConfig);
   }
 
   /**
@@ -146,9 +164,10 @@ class BigtableChangeStreamAccessor {
         .readRowsSettings()
         .setRetrySettings(
             readRowsRetrySettings
-                .setInitialRpcTimeout(Duration.ofSeconds(30))
-                .setTotalTimeout(Duration.ofSeconds(30))
-                .setMaxRpcTimeout(Duration.ofSeconds(30))
+                // metadata table scans can get quite large, so use a higher deadline
+                .setInitialRpcTimeout(Duration.ofMinutes(3))
+                .setTotalTimeout(Duration.ofMinutes(3))
+                .setMaxRpcTimeout(Duration.ofMinutes(3))
                 .setMaxAttempts(10)
                 .build());
 
@@ -159,9 +178,9 @@ class BigtableChangeStreamAccessor {
         .mutateRowSettings()
         .setRetrySettings(
             mutateRowRetrySettings
-                .setInitialRpcTimeout(Duration.ofSeconds(30))
-                .setTotalTimeout(Duration.ofSeconds(30))
-                .setMaxRpcTimeout(Duration.ofSeconds(30))
+                .setInitialRpcTimeout(MUTATE_ROW_DEADLINE)
+                .setTotalTimeout(MUTATE_ROW_DEADLINE)
+                .setMaxRpcTimeout(MUTATE_ROW_DEADLINE)
                 .setMaxAttempts(10)
                 .build());
 
@@ -185,9 +204,9 @@ class BigtableChangeStreamAccessor {
         .readChangeStreamSettings()
         .setRetrySettings(
             readChangeStreamRetrySettings
-                .setInitialRpcTimeout(Duration.ofSeconds(60))
-                .setTotalTimeout(Duration.ofSeconds(60))
-                .setMaxRpcTimeout(Duration.ofSeconds(60))
+                .setInitialRpcTimeout(Duration.ofSeconds(15))
+                .setTotalTimeout(Duration.ofSeconds(15))
+                .setMaxRpcTimeout(Duration.ofSeconds(15))
                 .setMaxAttempts(10)
                 .build());
 
@@ -196,7 +215,8 @@ class BigtableChangeStreamAccessor {
         BigtableTableAdminClient.create(tableAdminSettingsBuilder.build());
     BigtableInstanceAdminClient instanceAdminClient =
         BigtableInstanceAdminClient.create(instanceAdminSettingsBuilder.build());
-    return new BigtableChangeStreamAccessor(dataClient, tableAdminClient, instanceAdminClient);
+    return new BigtableChangeStreamAccessor(
+        dataClient, tableAdminClient, instanceAdminClient, bigtableConfig);
   }
 
   public BigtableDataClient getDataClient() {

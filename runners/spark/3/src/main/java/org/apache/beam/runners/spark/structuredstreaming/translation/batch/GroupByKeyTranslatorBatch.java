@@ -36,7 +36,7 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.util
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
 import static org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.collect_list;
 import static org.apache.spark.sql.functions.explode;
@@ -167,7 +167,7 @@ class GroupByKeyTranslatorBatch<K, V>
       result =
           input
               .select(explode(col("windows")).as("window"), col("value"), col("timestamp"))
-              .groupBy(col("value.key"), col("window"))
+              .groupBy(col("value.key").as("key"), col("window"))
               .agg(collect_list(col("value.value")).as("values"), timestampAggregator(tsCombiner))
               .select(
                   inSingleWindow(

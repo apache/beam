@@ -96,64 +96,6 @@ class StagerTest(unittest.TestCase):
     self.create_temp_file(os.path.join(cache_dir, 'abc.txt'), 'nothing')
     self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
 
-  def build_fake_pip_download_command_handler(self, has_wheels):
-    """A stub for apache_beam.utils.processes.check_output that imitates pip.
-
-      Args:
-        has_wheels: Whether pip fake should have a whl distribution of packages.
-      """
-    def pip_fake(args):
-      """Fakes fetching a package from pip by creating a temporary file.
-
-          Args:
-            args: a complete list of command line arguments to invoke pip.
-              The fake is sensitive to the order of the arguments.
-              Supported commands:
-
-              1) Download SDK sources file:
-              python pip -m download --dest /tmp/dir apache-beam==2.0.0 \
-                  --no-deps --no-binary :all:
-
-              2) Download SDK binary wheel file:
-              python pip -m download --dest /tmp/dir apache-beam==2.0.0 \
-                  --no-deps --no-binary :all: --python-version 27 \
-                  --implementation cp --abi cp27mu --platform manylinux1_x86_64
-          """
-      package_file = None
-      if len(args) >= 8:
-        # package_name==x.y.z
-        if '==' in args[6]:
-          distribution_name = args[6][0:args[6].find('==')]
-          distribution_version = args[6][args[6].find('==') + 2:]
-
-          if args[8] == '--no-binary':
-            package_file = '%s-%s.zip' % (
-                distribution_name, distribution_version)
-          elif args[8] == '--only-binary' and len(args) >= 18:
-            if not has_wheels:
-              # Imitate the case when desired wheel distribution is not in PyPI.
-              raise RuntimeError('No matching distribution.')
-
-            # Per PEP-0427 in wheel filenames non-alphanumeric characters
-            # in distribution name are replaced with underscore.
-            distribution_name = distribution_name.replace('-', '_')
-            if args[17] == 'manylinux2014_x86_64':
-              args[17] = 'manylinux_2_17_x86_64.' + args[17]
-            package_file = '%s-%s-%s%s-%s-%s.whl' % (
-                distribution_name,
-                distribution_version,
-                args[13],  # implementation
-                args[11],  # python version
-                args[15],  # abi tag
-                args[17]  # platform
-            )
-
-      assert package_file, 'Pip fake does not support the command: ' + str(args)
-      self.create_temp_file(
-          FileSystems.join(args[5], package_file), 'Package content.')
-
-    return pip_fake
-
   @mock.patch('apache_beam.runners.portability.stager.open')
   @mock.patch('apache_beam.runners.portability.stager.get_new_http')
   def test_download_file_https(self, mock_new_http, mock_open):
@@ -433,38 +375,10 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = 'default'
 
-    with mock.patch(
-        'apache_beam.utils.processes.check_output',
-        self.build_fake_pip_download_command_handler(has_wheels=False)):
-      _, staged_resources = self.stager.create_and_stage_job_resources(
-          options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
+    _, staged_resources = self.stager.create_and_stage_job_resources(
+        options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
-    self.assertEqual([names.STAGED_SDK_SOURCES_FILENAME], staged_resources)
-
-    with open(os.path.join(staging_dir,
-                           names.STAGED_SDK_SOURCES_FILENAME)) as f:
-      self.assertEqual(f.read(), 'Package content.')
-
-  def test_sdk_location_default_with_wheels(self):
-    staging_dir = self.make_temp_dir()
-
-    options = PipelineOptions()
-    self.update_options(options)
-    options.view_as(SetupOptions).sdk_location = 'default'
-
-    with mock.patch(
-        'apache_beam.utils.processes.check_output',
-        self.build_fake_pip_download_command_handler(has_wheels=True)):
-      _, staged_resources = self.stager.create_and_stage_job_resources(
-          options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
-
-      self.assertEqual(len(staged_resources), 2)
-      self.assertEqual(staged_resources[0], names.STAGED_SDK_SOURCES_FILENAME)
-      # Exact name depends on the version of the SDK.
-      self.assertTrue(staged_resources[1].endswith('whl'))
-      for name in staged_resources:
-        with open(os.path.join(staging_dir, name)) as f:
-          self.assertEqual(f.read(), 'Package content.')
+    self.assertEqual([], staged_resources)
 
   def test_sdk_location_local_directory(self):
     staging_dir = self.make_temp_dir()

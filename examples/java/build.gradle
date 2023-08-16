@@ -53,7 +53,7 @@ configurations.sparkRunnerPreCommit {
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
@@ -83,7 +83,7 @@ dependencies {
   implementation library.java.commons_csv
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   implementation library.java.vendored_grpc_1_54_0
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
   implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current

@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.worker;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 
 /**
  * This module provides routines for encoding a sequence of typed entities into a byte array. The

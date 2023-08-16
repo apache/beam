@@ -16,6 +16,8 @@
 package worker
 
 import (
+	"context"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -56,6 +58,8 @@ type B struct {
 	Resp chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
+
+	Fail func(err string) // Called if bundle returns an error.
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -86,6 +90,11 @@ func (b *B) LogValue() slog.Value {
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	if resp.GetError() != "" {
+		b.Fail(resp.GetError())
+		close(b.Resp)
+		return
+	}
 	b.Resp <- resp.GetProcessBundle()
 }
 
@@ -97,7 +106,7 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 //
 // While this method mostly manipulates a W, putting it on a B avoids mixing the workers
 // public GRPC APIs up with local calls.
-func (b *B) ProcessOn(wk *W) <-chan struct{} {
+func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	wk.mu.Lock()
 	wk.activeInstructions[b.InstID] = b
 	wk.mu.Unlock()
@@ -116,7 +125,8 @@ func (b *B) ProcessOn(wk *W) <-chan struct{} {
 
 	// TODO: make batching decisions.
 	for i, d := range b.InputData {
-		wk.DataReqs <- &fnpb.Elements{
+		select {
+		case wk.DataReqs <- &fnpb.Elements{
 			Data: []*fnpb.Elements_Data{
 				{
 					InstructionId: b.InstID,
@@ -125,6 +135,10 @@ func (b *B) ProcessOn(wk *W) <-chan struct{} {
 					IsLast:        i+1 == len(b.InputData),
 				},
 			},
+		}:
+		case <-ctx.Done():
+			b.DataDone()
+			return b.DataWait
 		}
 	}
 	return b.DataWait
@@ -137,18 +151,24 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Unlock()
 }
 
-func (b *B) Progress(wk *W) *fnpb.ProcessBundleProgressResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+// Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
+func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
+	resp := wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
 			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
 				InstructionId: b.InstID,
 			},
 		},
-	}).GetProcessBundleProgress()
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("progress[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetProcessBundleProgress(), nil
 }
 
-func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessBundleSplitResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+// Split sends a split request for the given bundle to the passed in worker, blocking on the response.
+func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
+	resp := wk.sendInstruction(&fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
 			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
 				InstructionId: b.InstID,
@@ -161,5 +181,9 @@ func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessB
 				},
 			},
 		},
-	}).GetProcessBundleSplit()
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("split[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetProcessBundleSplit(), nil
 }

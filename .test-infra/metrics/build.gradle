@@ -27,7 +27,7 @@ ext {
   cluster = 'metrics'
   zone='us-central1-a'
   projectName='apache-beam-testing'
-  kubeConfigPath='/home/jenkins/.kube/config'
+  kubeConfigPath = project.properties['KUBE_CONFIG_PATH'] ?: '/home/jenkins/.kube/config'
 }
 
 applyGroovyNature()

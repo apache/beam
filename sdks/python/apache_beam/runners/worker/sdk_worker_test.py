@@ -23,7 +23,6 @@ import contextlib
 import logging
 import unittest
 from collections import namedtuple
-from typing import Any
 
 import grpc
 import hamcrest as hc
@@ -283,10 +282,19 @@ class SdkWorkerTest(unittest.TestCase):
 
     class FakeDataSampler:
       def samples(self, pcollection_ids):
-        return {
-            'pcoll_id_1': [coder.encode_nested('a')],
-            'pcoll_id_2': [coder.encode_nested('b')],
-        }
+        return beam_fn_api_pb2.SampleDataResponse(
+            element_samples={
+                'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('a'))
+                    ]),
+                'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('b'))
+                    ])
+            })
 
       def stop(self):
         pass

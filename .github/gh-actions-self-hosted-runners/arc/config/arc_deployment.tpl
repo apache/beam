@@ -19,21 +19,42 @@
 apiVersion: actions.summerwind.dev/v1alpha1
 kind: RunnerDeployment
 metadata:
-  name: main-runners
+  name: ${name}
 spec:
   template:
     spec:
-      image: summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7
+      %{~ if selector == true  ~}
+      nodeSelector:
+        runner-pool: ${name} 
+      %{~ endif ~}
+      %{~ if taint == true  ~}
+      tolerations:
+        - key: "runner-pool"
+          operator: "Equal"
+          value: ${name}
+          effect: "NoSchedule"
+      %{~ endif ~}
+      image: ${image}
       organization: ${organization}
       group: "${group}"
       labels:
-        - "ubuntu-20.04"
-        - "self-hosted"
-      env: []
+      %{~ for label in labels ~}
+        - ${label}
+      %{~ endfor ~}
+      env:
+      - name: POD_UID
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.uid
       resources:
-#        limits:
-#          cpu: "4.0"
-#          memory: "8Gi"
         requests:
-          cpu: "500m"
-          memory: "500Mi"
+          cpu: ${requests.cpu}
+          memory: ${requests.memory}
+        limits:
+      %{~ if limits.cpu != "" ~}
+          cpu: ${limits.cpu}
+      %{~ if limits.memory != "" ~}
+          memory: ${limits.memory}
+      %{~ endif ~}
+      %{~ endif ~}
+

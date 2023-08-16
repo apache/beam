@@ -182,10 +182,12 @@ func ExampleEqualsList_mismatch() {
 	EqualsList(s, col, list)
 	err := ptest.Run(p)
 	err = unwrapError(err)
-	fmt.Println(err)
+
+	// Process error for cleaner example output, demonstrating the diff.
+	processedErr := strings.SplitAfter(err.Error(), "/passert.failIfBadEntries] failed:")
+	fmt.Println(processedErr[1])
 
 	// Output:
-	// DoFn[UID:1, PID:passert.failIfBadEntries, Name: github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert.failIfBadEntries] failed:
 	// actual PCollection does not match expected values
 	// =========
 	// 2 correct entries (present in both)

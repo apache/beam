@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -58,9 +58,8 @@ public class ReadChangeStreamPartitionDoFn
   private static final long serialVersionUID = 4418739381635104479L;
   private static final BigDecimal MAX_DOUBLE = BigDecimal.valueOf(Double.MAX_VALUE);
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
-  public static final int THROUGHPUT_ESTIMATION_WINDOW_SECONDS = 10;
+  private static final Duration HEARTBEAT_DURATION = Duration.standardSeconds(1);
 
-  private final Duration heartbeatDuration;
   private final DaoFactory daoFactory;
   private final ChangeStreamMetrics metrics;
   private final ActionFactory actionFactory;
@@ -68,11 +67,7 @@ public class ReadChangeStreamPartitionDoFn
   private ReadChangeStreamPartitionAction readChangeStreamPartitionAction;
 
   public ReadChangeStreamPartitionDoFn(
-      Duration heartbeatDuration,
-      DaoFactory daoFactory,
-      ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
-    this.heartbeatDuration = heartbeatDuration;
+      DaoFactory daoFactory, ActionFactory actionFactory, ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.metrics = metrics;
     this.actionFactory = actionFactory;
@@ -171,7 +166,7 @@ public class ReadChangeStreamPartitionDoFn
             changeStreamDao,
             metrics,
             changeStreamAction,
-            heartbeatDuration,
+            HEARTBEAT_DURATION,
             sizeEstimator);
   }
 

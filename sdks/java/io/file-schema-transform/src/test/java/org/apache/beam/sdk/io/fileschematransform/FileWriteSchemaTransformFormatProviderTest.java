@@ -30,6 +30,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.loadProviders;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 import static org.apache.beam.sdk.values.TypeDescriptors.booleans;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
@@ -56,7 +57,7 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.junit.Rule;
@@ -455,7 +456,8 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   private PCollection<String> applyProviderAndAssertFilesWritten(
       List<Row> rows, Schema schema, FileWriteSchemaTransformConfiguration configuration) {
     PCollection<Row> input = writePipeline.apply(Create.of(rows).withRowSchema(schema));
-    PCollection<String> files = input.apply(getProvider().buildTransform(configuration, schema));
+    PCollection<String> files =
+        input.apply(getProvider().buildTransform(configuration, schema)).get(RESULT_TAG);
     PCollection<Long> count = files.apply("count number of files", Count.globally());
     PAssert.thatSingleton("At least one file should be written", count).notEqualTo(0L);
     return files;

@@ -20,8 +20,22 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
+
+func init() {
+	register.Function2x0(genA)
+	register.Function2x0(genB)
+	register.Function2x0(genC)
+	register.Function2x0(genD)
+	register.Function3x0(shortFn)
+	register.Function5x0(joinFn)
+	register.Function6x0(splitFn)
+	register.Emitter2[string, int]()
+	register.Emitter2[string, string]()
+	register.Iter1[int]()
+}
 
 func genA(_ []byte, emit func(string, int)) {
 	emit("a", 1)

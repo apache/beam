@@ -885,6 +885,9 @@ class JavaJarExpansionService(object):
     self._service_count = 0
     self._append_args = append_args or []
 
+  def is_existing_service(self):
+    return subprocess_server.is_service_endpoint(self._path_to_jar)
+
   @staticmethod
   def _expand_jars(jar):
     if glob.glob(jar):
@@ -985,6 +988,11 @@ def _maybe_use_transform_service(provided_service=None, options=None):
   # provided service. For example, string address of an already available
   # service.
   if not isinstance(provided_service, JavaJarExpansionService):
+    return provided_service
+
+  if provided_service.is_existing_service():
+    # This is an existing service supported through the 'beam_services'
+    # PipelineOption.
     return provided_service
 
   def is_java_available():

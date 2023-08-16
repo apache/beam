@@ -67,10 +67,11 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -167,6 +168,7 @@ public class CloudObjectsTest {
               .add(SetCoder.of(VarLongCoder.of()))
               .add(MapCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))
               .add(NullableCoder.of(IntervalWindow.getCoder()))
+              .add(TimestampedValue.TimestampedValueCoder.of(VarLongCoder.of()))
               .add(
                   UnionCoder.of(
                       ImmutableList.of(

@@ -17,18 +17,15 @@
 
 """Unit tests for BigTable service."""
 
-# pytype: skip-file
 import logging
-import os
-import secrets
 import string
-import time
 import unittest
 import uuid
+# pytype: skip-file
 from datetime import datetime
+from datetime import timezone
 from random import choice
 
-import pytest
 from mock import MagicMock
 from mock import patch
 
@@ -38,113 +35,20 @@ from apache_beam.io.gcp import bigtableio
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 _LOGGER = logging.getLogger(__name__)
 
 # Protect against environments where bigtable library is not available.
 try:
-  from apitools.base.py.exceptions import HttpError
   from google.cloud.bigtable import client
+  from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.instance import Instance
   from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
   from google.cloud.bigtable.table import Table
-  from google.cloud.bigtable_admin_v2.types import instance
   from google.rpc.code_pb2 import OK, ALREADY_EXISTS
   from google.rpc.status_pb2 import Status
 except ImportError as e:
   client = None
-  HttpError = None
-
-
-@pytest.mark.uses_gcp_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
-@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
-class TestReadFromBigTable(unittest.TestCase):
-  INSTANCE = "bt-read-tests"
-  TABLE_ID = "test-table"
-
-  def setUp(self):
-    self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.args = self.test_pipeline.get_full_options_as_args()
-    self.project = self.test_pipeline.get_option('project')
-
-    instance_id = '%s-%s-%s' % (
-        self.INSTANCE, str(int(time.time())), secrets.token_hex(3))
-
-    self.client = client.Client(admin=True, project=self.project)
-    # create cluster and instance
-    self.instance = self.client.instance(
-        instance_id,
-        display_name=self.INSTANCE,
-        instance_type=instance.Instance.Type.DEVELOPMENT)
-    cluster = self.instance.cluster("test-cluster", "us-central1-a")
-    operation = self.instance.create(clusters=[cluster])
-    operation.result(timeout=500)
-    _LOGGER.info(
-        "Created instance [%s] in project [%s]",
-        self.instance.instance_id,
-        self.project)
-
-    # create table inside instance
-    self.table = self.instance.table(self.TABLE_ID)
-    self.table.create()
-    _LOGGER.info("Created table [%s]", self.table.table_id)
-
-  def tearDown(self):
-    try:
-      _LOGGER.info(
-          "Deleting table [%s] and instance [%s]",
-          self.table.table_id,
-          self.instance.instance_id)
-      self.table.delete()
-      self.instance.delete()
-    except HttpError:
-      _LOGGER.debug(
-          "Failed to clean up table [%s] and instance [%s]",
-          self.table.table_id,
-          self.instance.instance_id)
-
-  def add_rows(self, num_rows, num_families, num_columns_per_family):
-    cells = []
-    for i in range(1, num_rows + 1):
-      key = 'key-' + str(i)
-      row = DirectRow(key, self.table)
-      for j in range(num_families):
-        fam_name = 'test_col_fam_' + str(j)
-        # create the table's column families one time only
-        if i == 1:
-          col_fam = self.table.column_family(fam_name)
-          col_fam.create()
-        for k in range(1, num_columns_per_family + 1):
-          row.set_cell(fam_name, f'col-{j}-{k}', f'value-{i}-{j}-{k}')
-
-      # after all mutations on the row are done, commit to Bigtable
-      row.commit()
-      # read the same row back from Bigtable to get the expected data
-      # accumulate rows in `cells`
-      read_row: PartialRowData = self.table.read_row(key)
-      cells.append(read_row.cells)
-
-    return cells
-
-  def test_read_xlang(self):
-    # create rows and retrieve expected cells
-    expected_cells = self.add_rows(
-        num_rows=5, num_families=3, num_columns_per_family=4)
-
-    with beam.Pipeline(argv=self.args) as p:
-      cells = (
-          p
-          | bigtableio.ReadFromBigtable(
-              self.table.table_id, self.instance.instance_id, self.project)
-          | "Extract cells" >> beam.Map(lambda row: row._cells))
-
-      assert_that(cells, equal_to(expected_cells))
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
@@ -203,6 +107,151 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
         for c in beam_row.column_families['family_2']['column_qualifier']
     ],
                      bigtable_row.find_cells('family_2', b'column_qualifier'))
+
+
+@unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+class TestBigtableDirectRowToBeamRow(unittest.TestCase):
+  doFn = bigtableio.WriteToBigTable._DirectRowMutationsToBeamRow()
+
+  def test_set_cell(self):
+    # create some set cell mutations
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.set_cell(
+        'col_fam',
+        b'col',
+        b'a',
+        datetime.fromtimestamp(100_000).replace(tzinfo=timezone.utc))
+    direct_row.set_cell(
+        'col_fam',
+        b'other-col',
+        b'b',
+        datetime.fromtimestamp(200_000).replace(tzinfo=timezone.utc))
+    direct_row.set_cell(
+        'other_col_fam',
+        b'col',
+        b'c',
+        datetime.fromtimestamp(300_000).replace(tzinfo=timezone.utc))
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+
+    # sort both lists of mutations for convenience
+    beam_row_mutations = sorted(beam_row.mutations, key=lambda m: m['value'])
+    bt_row_mutations = sorted(
+        direct_row._get_mutations(), key=lambda m: m.set_cell.value)
+    self.assertEqual(beam_row.key, direct_row.row_key)
+    self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
+
+    # check that the values in each beam mutation is equal to the original
+    # Bigtable direct row mutations
+    for i in range(len(beam_row_mutations)):
+      beam_mutation = beam_row_mutations[i]
+      bt_mutation = bt_row_mutations[i].set_cell
+
+      self.assertEqual(beam_mutation['type'], b'SetCell')
+      self.assertEqual(
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
+      self.assertEqual(
+          beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
+      self.assertEqual(beam_mutation['value'], bt_mutation.value)
+      self.assertEqual(
+          int.from_bytes(beam_mutation['timestamp_micros'], 'big'),
+          bt_mutation.timestamp_micros)
+
+  def test_delete_cells(self):
+    # create some delete cell mutations. one with a timestamp range
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.delete_cell('col_fam', b'col-1')
+    direct_row.delete_cell(
+        'other_col_fam',
+        b'col-2',
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(10_000_000, tz=timezone.utc)))
+    direct_row.delete_cells(
+        'another_col_fam', [b'col-3', b'col-4', b'col-5'],
+        time_range=TimestampRange(
+            start=datetime.fromtimestamp(50_000_000, tz=timezone.utc),
+            end=datetime.fromtimestamp(100_000_000, tz=timezone.utc)))
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+
+    # sort both lists of mutations for convenience
+    beam_row_mutations = sorted(
+        beam_row.mutations, key=lambda m: m['column_qualifier'])
+    bt_row_mutations = sorted(
+        direct_row._get_mutations(),
+        key=lambda m: m.delete_from_column.column_qualifier)
+    self.assertEqual(beam_row.key, direct_row.row_key)
+    self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
+
+    # check that the values in each beam mutation is equal to the original
+    # Bigtable direct row mutations
+    for i in range(len(beam_row_mutations)):
+      beam_mutation = beam_row_mutations[i]
+      bt_mutation = bt_row_mutations[i].delete_from_column
+      print(bt_mutation)
+
+      self.assertEqual(beam_mutation['type'], b'DeleteFromColumn')
+      self.assertEqual(
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
+      self.assertEqual(
+          beam_mutation['column_qualifier'], bt_mutation.column_qualifier)
+
+      # check we set a timestamp range only when appropriate
+      if bt_mutation.time_range.start_timestamp_micros:
+        self.assertEqual(
+            int.from_bytes(beam_mutation['start_timestamp_micros'], 'big'),
+            bt_mutation.time_range.start_timestamp_micros)
+      else:
+        self.assertTrue('start_timestamp_micros' not in beam_mutation)
+
+      if bt_mutation.time_range.end_timestamp_micros:
+        self.assertEqual(
+            int.from_bytes(beam_mutation['end_timestamp_micros'], 'big'),
+            bt_mutation.time_range.end_timestamp_micros)
+      else:
+        self.assertTrue('end_timestamp_micros' not in beam_mutation)
+
+  def test_delete_column_family(self):
+    # create mutation to delete column family
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.delete_cells('col_fam-1', direct_row.ALL_COLUMNS)
+    direct_row.delete_cells('col_fam-2', direct_row.ALL_COLUMNS)
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+
+    # sort both lists of mutations for convenience
+    beam_row_mutations = sorted(
+        beam_row.mutations, key=lambda m: m['family_name'])
+    bt_row_mutations = sorted(
+        direct_row._get_mutations(),
+        key=lambda m: m.delete_from_column.family_name)
+    self.assertEqual(beam_row.key, direct_row.row_key)
+    self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
+
+    # check that the values in each beam mutation is equal to the original
+    # Bigtable direct row mutations
+    for i in range(len(beam_row_mutations)):
+      beam_mutation = beam_row_mutations[i]
+      bt_mutation = bt_row_mutations[i].delete_from_family
+
+      self.assertEqual(beam_mutation['type'], b'DeleteFromFamily')
+      self.assertEqual(
+          beam_mutation['family_name'].decode(), bt_mutation.family_name)
+
+  def test_delete_row(self):
+    # create mutation to delete the Bigtable row
+    direct_row: DirectRow = DirectRow('key-1')
+    direct_row.delete()
+
+    # get equivalent beam row
+    beam_row = next(self.doFn.process(direct_row))
+    self.assertEqual(beam_row.key, direct_row.row_key)
+
+    beam_mutation = beam_row.mutations[0]
+    self.assertEqual(beam_mutation['type'], b'DeleteFromRow')
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
