@@ -209,7 +209,8 @@ class ExternalTransformTest(unittest.TestCase):
         '--dry_run=True',
         '--sdk_location=container',
         '--runner=DataflowRunner',
-        '--streaming'
+        '--streaming',
+        '--region=us-central1'
     ]
 
     with beam.Pipeline(options=PipelineOptions(pipeline_properties)) as p:
