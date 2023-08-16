@@ -95,7 +95,7 @@ To get involved in Apache Beam:
 * [Report an issue](https://github.com/apache/beam/issues/new/choose).
 
 Instructions for building and testing Beam itself
-are in the [contribution guide](https://beam.apache.org/contribute/).
+are in the [contribution guide](./CONTRIBUTING.md).
 
 ## 📚 Learn More
 
