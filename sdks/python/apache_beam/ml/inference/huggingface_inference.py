@@ -291,8 +291,6 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
         model.to(torch.device("cuda"))
     if callable(getattr(model, 'requires_grad_', None)):
       model.requires_grad_(False)
-    else:
-      raise Exception(f'oh no {self._model_class}')
     return model
 
   def run_inference(
@@ -471,8 +469,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
         self._model_uri, **self._model_config_args)
     if callable(getattr(model, 'requires_grad_', None)):
       model.requires_grad_(False)
-    else:
-      raise Exception(f'oh no {self._model_class}')
     return model
 
   def run_inference(
