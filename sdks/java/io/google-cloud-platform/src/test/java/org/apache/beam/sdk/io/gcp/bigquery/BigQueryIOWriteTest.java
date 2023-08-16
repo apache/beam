@@ -299,15 +299,22 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinations() throws Exception {
-    writeDynamicDestinations(false);
+    writeDynamicDestinations(false, false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsWithAutoSharding() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate); // STORAGE_API_AT_LEAST_ONCE ignores auto-sharding
+    writeDynamicDestinations(false, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsWithBeamSchemas() throws Exception {
-    writeDynamicDestinations(true);
+    writeDynamicDestinations(true, false);
   }
 
-  public void writeDynamicDestinations(boolean schemas) throws Exception {
+  public void writeDynamicDestinations(boolean schemas, boolean autoSharding) throws Exception {
     final Schema schema =
         Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT64).build();
 
@@ -432,7 +439,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 return new TableRow().set("name", matcher.group(1)).set("id", matcher.group(2));
               });
     }
-    if (useStreaming && !useStorageApiApproximate) {
+    if (autoSharding) {
       write = write.withAutoSharding();
     }
     WriteResult results = users.apply("WriteBigQuery", write);
