@@ -20,12 +20,12 @@ import Foundation
 extension Data {
     /// Read a variable length integer from the current data
     mutating func varint() throws -> Int {
-        var data = self
-        let result = try data.withUnsafeBytes {
+        var advance: Int = 0
+        let result = try self.withUnsafeBytes {
             try $0.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: 4) {
                 var p = $0
                 if(p.pointee & 0x80 == 0) {
-                    data = data.advanced(by: 1)
+                    advance += 1
                     return Int(UInt64(p.pointee))
                 }
                 var value = UInt64(p.pointee & 0x7f)
@@ -39,7 +39,7 @@ extension Data {
                     count += 1
                     value |= UInt64(p.pointee & 0x7f) << shift
                     if(p.pointee & 0x80 == 0) {
-                        data = data.advanced(by: count)
+                        advance += count
                         return Int(value)
                     }
                     p = p.successor()
@@ -47,7 +47,7 @@ extension Data {
                 }
             }
         }
-        self = data
+        self = self.advanced(by: advance)
         return result
     }
     
