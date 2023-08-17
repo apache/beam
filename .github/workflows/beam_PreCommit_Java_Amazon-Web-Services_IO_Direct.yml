@@ -111,7 +111,7 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: python-code-coverage-report
+          name: java-code-coverage-report
           path: "**/build/test-results/**/*.xml"
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v3

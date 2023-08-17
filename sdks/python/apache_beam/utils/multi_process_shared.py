@@ -82,7 +82,23 @@ class _SingletonProxy:
   def __getattr__(self, name):
     if not self._SingletonProxy_valid:
       raise RuntimeError('Entry was released.')
-    return getattr(self._SingletonProxy_entry.obj, name)
+    try:
+      return getattr(self._SingletonProxy_entry.obj, name)
+    except AttributeError as e:
+      # Swallow AttributeError exceptions so that they are ignored when
+      # calculating public functions. These can occur if __getattr__ is
+      # overriden, for example to only support some platforms. This will mean
+      # that these functions will be silently unavailable to the
+      # MultiProcessShared object, leading to worse errors when someone tries
+      # to use them, but it will keep them from breaking the whole object for
+      # functions which are unusable anyways.
+      logging.info(
+          'Attribute %s is unavailable as a public function because '
+          'its __getattr__ function raised the following exception '
+          '%s',
+          name,
+          e)
+      return None
 
   def __dir__(self):
     # Needed for multiprocessing.managers's proxying.

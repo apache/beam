@@ -331,6 +331,8 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider startJobServer
     // Job server cleanup task.
     TaskProvider cleanupJobServer
+    // any additional environment variables specific to the suite of tests
+    Map<String,String> additionalEnvs
   }
 
   // A class defining the configuration for CrossLanguageUsingJavaExpansion.
@@ -356,6 +358,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String expansionProjectPath
     // Collect Python pipeline tests with this marker
     String collectMarker
+    // any additional environment variables to be exported
+    Map<String,String> additionalEnvs
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
@@ -396,6 +400,30 @@ class BeamModulePlugin implements Plugin<Project> {
     String semiPersistDir = "/tmp"
     // classpath for running tests.
     FileCollection classpath
+  }
+
+  // A class defining the configuration for createTransformServiceTask.
+  static class TransformServiceConfiguration {
+    // Task name TransformService case.
+    String name = 'transformService'
+
+    List<String> pythonPipelineOptions = []
+
+    List<String> javaPipelineOptions = []
+
+    // Additional pytest options
+    List<String> pytestOptions = []
+    // Job server startup task.
+    TaskProvider startJobServer
+    // Job server cleanup task.
+    TaskProvider cleanupJobServer
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Whether the pipeline needs --sdk_location option
+    boolean needsSdkLocation = false
+
+    // Collect Python pipeline tests with this marker
+    String collectMarker
   }
 
   def isRelease(Project project) {
@@ -663,7 +691,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230129-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230510-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230728-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230617-$google_clients_version",
@@ -2525,6 +2553,9 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
+            for (envs in config.additionalEnvs){
+              environment envs.getKey(), envs.getValue()
+            }
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
@@ -2730,6 +2761,108 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       cleanupTask.configure { mustRunAfter goTask }
       config.cleanupJobServer.configure { mustRunAfter goTask }
+    }
+
+    /** ***********************************************************************************************/
+
+    // Method to create the createTransformServiceTask.
+    // The method takes TransformServiceConfiguration as parameter.
+    project.ext.createTransformServiceTask = {
+      // This task won't work if the python build file doesn't exist.
+      if (!project.project(":sdks:python").buildFile.exists()) {
+        System.err.println 'Python build file not found. Skipping createTransformServiceTask.'
+        return
+      }
+      def config = it ? it as TransformServiceConfiguration : new TransformServiceConfiguration()
+
+      project.evaluationDependsOn(":sdks:python")
+      project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:java:extensions:python")
+      project.evaluationDependsOn(":sdks:java:transform-service:launcher")
+
+      def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
+
+      // Task for launching transform services
+      def envDir = project.project(":sdks:python").envdir
+      def pythonDir = project.project(":sdks:python").projectDir
+      def externalPort = getRandomPort()
+      def launcherJar = project.project(':sdks:java:transform-service:launcher').shadowJar.archivePath
+      def transformServiceOpts = [
+        "transform_service_launcher_jar": launcherJar,
+        "group_id": project.name,
+        "external_port": externalPort,
+        "beam_version": project.version
+      ]
+      def serviceArgs = project.project(':sdks:python').mapToArgString(transformServiceOpts)
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
+      def javaContainerSuffix
+      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+        javaContainerSuffix = 'java8'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        javaContainerSuffix = 'java11'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+        javaContainerSuffix = 'java17'
+      } else {
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
+      }
+
+      def setupTask = project.tasks.register(config.name+"Setup", Exec) {
+        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
+        dependsOn ':sdks:java:transform-service:controller-container:docker'
+        dependsOn ':sdks:python:expansion-service-container:docker'
+        dependsOn ':sdks:java:expansion-service:container:docker'
+        dependsOn ":sdks:python:installGcpTest"
+        dependsOn project.project(':sdks:java:transform-service:launcher').shadowJar.getPath()
+
+        if (usesDataflowRunner) {
+          dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
+        }
+
+        // setup test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_transform_service.sh stop $serviceArgs && $pythonDir/scripts/run_transform_service.sh start $serviceArgs"
+      }
+
+      if (config.needsSdkLocation) {
+        setupTask.configure {dependsOn ':sdks:python:sdist'}
+      }
+
+      def pythonTask = project.tasks.register(config.name+"PythonUsingJava") {
+        group = "Verification"
+        description = "Runs Python SDK pipeline tests that use transform service"
+        dependsOn setupTask
+        dependsOn config.startJobServer
+        doLast {
+          def beamPythonTestPipelineOptions = [
+            "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
+              "--sdk_location=${project.ext.sdkLocation}"]
+            : []),
+            "test_opts": config.pytestOptions,
+            "suite": config.name,
+            "collect": config.collectMarker,
+          ]
+          def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+
+          project.exec {
+            environment "EXPANSION_PORT", externalPort
+            executable 'sh'
+            args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+          }
+        }
+      }
+
+      def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
+        // teardown test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_transform_service.sh stop $serviceArgs"
+      }
+      setupTask.configure {finalizedBy cleanupTask}
+      config.startJobServer.configure {finalizedBy config.cleanupJobServer}
+
+      cleanupTask.configure{mustRunAfter pythonTask}
+      config.cleanupJobServer.configure{mustRunAfter pythonTask}
     }
 
     /** ***********************************************************************************************/
