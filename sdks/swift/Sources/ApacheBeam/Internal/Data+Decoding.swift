@@ -47,7 +47,7 @@ extension Data {
                 }
             }
         }
-        self = self.advanced(by: advance)
+        self = advance == count ? Data() : self.advanced(by: advance)
         return result
     }
     
