@@ -20,7 +20,6 @@
 import os
 import sys
 import warnings
-
 # Pylint and isort disagree here.
 # pylint: disable=ungrouped-imports
 from importlib.metadata import PackageNotFoundError

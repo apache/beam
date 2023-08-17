@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import unittest
-
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 

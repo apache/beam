@@ -24,7 +24,6 @@ import logging
 import os
 import shutil
 import tempfile
-
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 
