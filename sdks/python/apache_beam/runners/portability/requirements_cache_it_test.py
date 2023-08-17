@@ -25,8 +25,8 @@ import os
 import shutil
 import tempfile
 
-from importlib.metadata import distribution
 from importlib.metadata import PackageNotFoundError
+from importlib.metadata import distribution
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions

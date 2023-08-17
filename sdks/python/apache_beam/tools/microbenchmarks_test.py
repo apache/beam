@@ -21,8 +21,8 @@
 
 import unittest
 
-from importlib.metadata import distribution
 from importlib.metadata import PackageNotFoundError
+from importlib.metadata import distribution
 
 from apache_beam.tools import coders_microbenchmark
 from apache_beam.tools import utils

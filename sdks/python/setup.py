@@ -20,12 +20,14 @@
 import os
 import sys
 import warnings
-from pathlib import Path
 
 # Pylint and isort disagree here.
 # pylint: disable=ungrouped-imports
-from importlib.metadata import distribution
 from importlib.metadata import PackageNotFoundError
+from importlib.metadata import distribution
+from pathlib import Path
+
+# pylint: disable=ungrouped-imports
 import setuptools
 from pkg_resources import normalize_path
 from pkg_resources import parse_version

@@ -54,13 +54,13 @@ import os
 import shutil
 import sys
 import tempfile
+from importlib.metadata import distribution
 from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-from importlib.metadata import distribution
 from packaging import version
 
 from apache_beam.internal import pickler
