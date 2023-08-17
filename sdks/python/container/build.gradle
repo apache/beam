@@ -20,6 +20,8 @@ plugins { id 'org.apache.beam.module' }
 applyGoNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
+int min_python_version=8
+int max_python_version=11
 
 configurations {
   sdkSourceTarball
@@ -42,11 +44,11 @@ tasks.register("buildAll") {
   dependsOn ':sdks:python:container:py311:docker'
 }
 
-for(int i=8; i<=11; ++i) {
+for(int i=min_python_version; i<=max_python_version; ++i) {
   String cur = "3" + i
   String prev = "3" + (i-1)
   tasks.register("push" + cur) {
-    if (cur != "38") {
+    if (i != min_python_version) {
       // Enforce ordering to allow the prune step to happen between runs.
       // This will ensure we don't use up too much space (especially in CI environments)
       mustRunAfter(":sdks:python:container:push" + prev)
