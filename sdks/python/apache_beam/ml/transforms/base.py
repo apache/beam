@@ -122,12 +122,13 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     MLTransform is a Beam PTransform that can be used to apply
     transformations to the data. MLTransform is used to wrap the
     data processing transforms provided by Apache Beam. MLTransform
-    works in two modes: produce and consume. In the produce mode,
+    works in two modes: write and read. In the write mode,
     MLTransform will apply the transforms to the data and store the
-    artifacts in the artifact_location. In the consume mode, MLTransform
-    will read the artifacts from the artifact_location and apply the
-    transforms to the data. The artifact_location should be a valid
-    storage path where the artifacts can be written to or read from.
+    artifacts in the write_artifact_location. In the read mode,
+    MLTransform will read the artifacts from the
+    read_artifact_location and apply the transforms to the data. The
+    artifact location should be a valid storage path where the artifacts
+    can be written to or read from.
 
     Note that when consuming artifacts, it is not necessary to pass the
     transforms since they are inherently stored within the artifacts
