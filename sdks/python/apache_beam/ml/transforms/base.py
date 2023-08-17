@@ -143,7 +143,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         Later MLTransforms can reuse produced artifacts by setting
         `read_artifact_mode` instead of `write_artifact_mode`. The value
         assigned to `write_artifact_location` should be a valid storage
-        directory where the artifacts from this transform can be written to.
+        directory that the artifacts from this transform can be written to.
         If no directory exists at this location, one will be created. This will
         overwrite any artifacts already in this location, so distinct locations
         should be used for each instance of MLTransform. Only one of
