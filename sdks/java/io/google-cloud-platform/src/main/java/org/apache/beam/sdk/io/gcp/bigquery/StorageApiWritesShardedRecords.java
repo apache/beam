@@ -673,7 +673,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             boolean offsetMismatch =
                 statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
 
-            // Invalidate the StreamWriter and force a new one to be created.
+            boolean quotaError = statusCode.equals(Code.RESOURCE_EXHAUSTED);
             if (!offsetMismatch) {
               // Don't log errors for expected offset mismatch. These will be logged as warnings
               // below.
@@ -681,13 +681,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
             }
 
-            // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces them.
             try {
+              // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces
+              // them.
               tryCreateTable.call();
             } catch (Exception e) {
               throw new RuntimeException(e);
             }
-            clearClients.accept(failedContexts);
+
+            if (!quotaError) {
+              // This forces us to close and reopen all gRPC connections to Storage API on error,
+              // which empirically fixes random stuckness issues.
+              clearClients.accept(failedContexts);
+            }
             appendFailures.inc();
 
             boolean explicitStreamFinalized =
