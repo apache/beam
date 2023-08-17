@@ -19,7 +19,7 @@
 protocol ProtoConversion {
     associatedtype Proto
     
-    var proto: Proto { get throws }
+    func populate(_ proto: inout Proto) throws
 }
 
 

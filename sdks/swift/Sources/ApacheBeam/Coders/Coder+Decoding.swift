@@ -49,7 +49,7 @@ public extension Coder {
         case let .keyvalue(keyCoder, valueCoder):
             return .kv(try keyCoder.decode(&data), try valueCoder.decode(&data))
         case let .iterable(coder):
-            let length = try data.next(Int32.self)
+            let length = try data.next(Int32.self).byteSwapped
             return .array(try (0..<length).map({ _ in try coder.decode(&data) }))
         case let .windowedvalue(valueCoder, windowCoder):
             let timestamp = try data.next(Int64.self).byteSwapped &+ Int64(-9223372036854775808)

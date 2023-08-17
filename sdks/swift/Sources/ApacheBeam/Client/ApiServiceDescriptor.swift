@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+import GRPC
+import NIOCore
+
+
 /// Representation of the API Service Descriptors used to communicate with runners (and vice versa)
 public struct ApiServiceDescriptor {
     
@@ -41,15 +45,14 @@ extension ApiServiceDescriptor {
 
 extension ApiServiceDescriptor : ProtoConversion {
     
-    typealias Proto = Org_Apache_Beam_Model_Pipeline_V1_ApiServiceDescriptor
-    var proto: Org_Apache_Beam_Model_Pipeline_V1_ApiServiceDescriptor {
-        .with { $0.url = self.url }
+    func populate(_ proto: inout Org_Apache_Beam_Model_Pipeline_V1_ApiServiceDescriptor) throws {
+        proto.url = self.url
     }
-
-    
 }
 
-
+extension ApiServiceDescriptor : Hashable {
+    
+}
 
 public extension ApiServiceDescriptor {
     static func from(env:String,format:EncodedAs = .textproto) throws -> ApiServiceDescriptor {
@@ -58,6 +61,31 @@ public extension ApiServiceDescriptor {
             ApiServiceDescriptor(proto: try .init(textFormatString: env))
         case .json:
             ApiServiceDescriptor(proto: try .init(jsonString: env))
+        }
+    }
+}
+
+public extension GRPCChannelPool {
+    static func with(endpoint:ApiServiceDescriptor, eventLoopGroup: EventLoopGroup) throws -> GRPCChannel {
+        let url = endpoint.url
+        //TODO: Transport Security configuration
+        if(url.starts(with: "unix://")) {
+            return try GRPCChannelPool.with(target: .unixDomainSocket(url.replacing("unix://",with:"")),
+                                        transportSecurity: .plaintext,
+                                        eventLoopGroup: eventLoopGroup)
+        } else {
+            if let lastNdx = url.lastIndex(of: ":") {
+                guard lastNdx.utf16Offset(in: url) > 0 else {
+                    throw ApacheBeamError.runtimeError("Service URL must be of the form host:port")
+                }
+                let host = String(url.prefix(upTo: lastNdx))
+                let port = Int(url.suffix(from:url.index(lastNdx,offsetBy:1)))!
+                return try GRPCChannelPool.with(target: .host(host, port: port),
+                                                transportSecurity: .plaintext,
+                                                eventLoopGroup: eventLoopGroup)
+            } else {
+                throw ApacheBeamError.runtimeError("Service URL must be of the form host:port")
+            }
         }
     }
 }

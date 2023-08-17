@@ -22,7 +22,7 @@ public struct SerializableFnBundleContext {
     let instruction:String
     let transform:String
     let payload:Data
-    let log:Logger
+    let log:Logging.Logger
 }
 
 /// SerialiableFn is a protocol for functions that should be parameterized for the pipeline. This is intended as a fairly low level class and users

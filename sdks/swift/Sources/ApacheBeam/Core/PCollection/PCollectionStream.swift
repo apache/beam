@@ -52,7 +52,7 @@ public final class PCollectionStream<Of> : AsyncSequence {
     // a more clever way of doing this, but I don't know what it is.
     
     func emit<K,V>(key: K,value: [V],timestamp: Date,window:Window) {
-        emit(KV(key,value) as! Of,timestamp:timestamp,window:window)
+        emit(KV(key,values:value) as! Of,timestamp:timestamp,window:window)
     }
     
     func emit<K>(key: K,value: BeamValue,timestamp: Date,window:Window) throws {
@@ -63,11 +63,11 @@ public final class PCollectionStream<Of> : AsyncSequence {
         // won't be much in the way of new scalar values.
         if case .array(let array) = value {
             switch array.first {
-            case .boolean(_):emit(key:key,value:array.map({$0.baseValue as! Bool}),timestamp:timestamp,window:window)
-            case .bytes(_):  emit(key:key,value:array.map({$0.baseValue as! Data}),timestamp:timestamp,window:window)
-            case .double(_): emit(key:key,value:array.map({$0.baseValue as! Double}),timestamp:timestamp,window:window)
-            case .integer(_):emit(key:key,value:array.map({$0.baseValue as! Int}),timestamp:timestamp,window:window)
-            case .string(_): emit(key:key,value:array.map({$0.baseValue as! String}),timestamp:timestamp,window:window)
+            case .boolean(_):emit(key:key,value:array.map({$0.baseValue! as! Bool}),timestamp:timestamp,window:window)
+            case .bytes(_):  emit(key:key,value:array.map({$0.baseValue! as! Data}),timestamp:timestamp,window:window)
+            case .double(_): emit(key:key,value:array.map({$0.baseValue! as! Double}),timestamp:timestamp,window:window)
+            case .integer(_):emit(key:key,value:array.map({$0.baseValue! as! Int}),timestamp:timestamp,window:window)
+            case .string(_): emit(key:key,value:array.map({$0.baseValue! as! String}),timestamp:timestamp,window:window)
             default:
                 throw ApacheBeamError.runtimeError("Can't use \(String(describing:array.first)) as a value in a key value pair")
             }
@@ -90,11 +90,11 @@ public final class PCollectionStream<Of> : AsyncSequence {
         if case let .kv(key,value) = value {
             // Unwrap the key first
             switch key {
-            case let .boolean(v):try emit(key:v,value:value,timestamp:timestamp,window:window)
-            case let .bytes(v):  try emit(key:v,value:value,timestamp:timestamp,window:window)
-            case let .double(v): try emit(key:v,value:value,timestamp:timestamp,window:window)
-            case let .integer(v):try emit(key:v,value:value,timestamp:timestamp,window:window)
-            case let .string(v): try emit(key:v,value:value,timestamp:timestamp,window:window)
+            case let .boolean(v):try emit(key:v!,value:value,timestamp:timestamp,window:window)
+            case let .bytes(v):  try emit(key:v!,value:value,timestamp:timestamp,window:window)
+            case let .double(v): try emit(key:v!,value:value,timestamp:timestamp,window:window)
+            case let .integer(v):try emit(key:v!,value:value,timestamp:timestamp,window:window)
+            case let .string(v): try emit(key:v!,value:value,timestamp:timestamp,window:window)
             default:
                 throw ApacheBeamError.runtimeError("Can't use \(value) as a value in a key value pair")
             }

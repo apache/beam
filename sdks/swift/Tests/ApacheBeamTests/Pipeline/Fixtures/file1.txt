@@ -1,0 +1,4 @@
+This file contains some text where we would like to count things
+This is another line
+This is a third line
+Wow there are definitely some lines here.

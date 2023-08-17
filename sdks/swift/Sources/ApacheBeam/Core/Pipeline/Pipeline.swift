@@ -10,15 +10,8 @@ public final class Pipeline {
         self.content = content
     }
     
-    public func run(loopback:Bool = false) throws {
-        let job = try context
-        log.info("\(job.proto)")
-        
-        var proto = job.proto
-        if loopback {
-            //If we are in loopback mode we want to replace the default environment
-        }
-        
+    public func run(_ runner: PipelineRunner) async throws {
+        try await runner.run(try self.context)        
     }
     
     
@@ -127,6 +120,7 @@ public final class Pipeline {
                             .with {
                                 $0.uniqueName = uniqueName("c")
                                 $0.coderID = coder.name
+                                $0.windowingStrategyID = defaultStrategy.name
                                 $0.isBounded = .bounded //TODO: Get this from the coder
                             }
                     }
@@ -248,12 +242,10 @@ public final class Pipeline {
                         }
                     }
                 }
-
-                
-                
+                proto.rootTransformIds = rootIds
                 
             }
-            return PipelineContext(pipeline,defaultEnvironment.name)
+            return PipelineContext(pipeline,defaultEnvironment.name,collections,fns)
         }
     }
 }

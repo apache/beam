@@ -23,9 +23,12 @@ actor WorkerProvider : Org_Apache_Beam_Model_FnExecution_V1_BeamFnExternalWorker
     private let log = Logging.Logger(label: "Worker")
     private var workers: [String:Worker] = [:]
 
+    private let collections: [String:AnyPCollection]
     private let functions: [String:SerializableFn]
     
-    init(_ functions: [String:SerializableFn]) {
+    
+    init(_ collections: [String:AnyPCollection],_ functions: [String:SerializableFn]) throws {
+        self.collections = collections
         self.functions = functions
     }
     
@@ -35,15 +38,19 @@ actor WorkerProvider : Org_Apache_Beam_Model_FnExecution_V1_BeamFnExternalWorker
     func startWorker(request: Org_Apache_Beam_Model_FnExecution_V1_StartWorkerRequest, context: GRPC.GRPCAsyncServerCallContext) async throws -> Org_Apache_Beam_Model_FnExecution_V1_StartWorkerResponse {
         log.info("Got request to start worker \(request.workerID)")
         do {
-            if let worker = workers[request.workerID] {
+            if workers[request.workerID] != nil {
                 log.info("Worker \(request.workerID) is already running.")
                 return .with { _ in }
             } else {
-                workers[request.workerID] = try Worker(id: request.workerID)
+                let worker = Worker(id: request.workerID,
+                                                       control: ApiServiceDescriptor(proto:request.controlEndpoint),
+                                                       log:ApiServiceDescriptor(proto: request.loggingEndpoint),
+                                                       collections: collections,
+                                                       functions: functions)
+                try await worker.start()
+                workers[request.workerID] = worker
             }
-            return .with { _ in
-                
-            }
+            return .with { _ in }
         } catch {
             log.error("Unable to start worker \(request.workerID): \(error)")
             return .with {
@@ -55,6 +62,22 @@ actor WorkerProvider : Org_Apache_Beam_Model_FnExecution_V1_BeamFnExternalWorker
     func stopWorker(request: Org_Apache_Beam_Model_FnExecution_V1_StopWorkerRequest, context: GRPC.GRPCAsyncServerCallContext) async throws -> Org_Apache_Beam_Model_FnExecution_V1_StopWorkerResponse {
         return .with { _ in }
     }
+}
+
+public struct WorkerServer {
+    private let server: Server
+
+    public let endpoint: ApiServiceDescriptor
     
-    
+    public init(_ collections: [String:AnyPCollection],_ fns: [String:SerializableFn],host:String="localhost",port:Int=0) throws {
+        server = try .insecure(group: PlatformSupport.makeEventLoopGroup(loopCount:1))
+            .withServiceProviders([WorkerProvider(collections,fns)])
+            .bind(host:host,port:port)
+            .wait()
+        if let port = server.channel.localAddress?.port {
+            endpoint = ApiServiceDescriptor(host: host, port: port)
+        } else {
+            throw ApacheBeamError.runtimeError("Unable to get server local address port.")
+        }
+    }
 }

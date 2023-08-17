@@ -42,3 +42,53 @@ public struct Environment {
     }
 }
 
+extension Environment : ProtoConversion {
+    
+    func populate(_ proto: inout EnvironmentProto) throws {
+        proto.urn = switch category {
+        case .docker(_): .beamUrn("docker",type:"env")
+        case .system: .beamUrn("default",type:"env")
+        case .process(_, _, _, _): .beamUrn("process",type:"env")
+        case .external(_): .beamUrn("external",type:"env")
+        }
+        proto.capabilities = capabilities
+        
+        proto.dependencies = try dependencies.map({ artifact in
+            try .with {
+                try artifact.populate(&$0)
+            }
+        })
+            
+        if case let .docker(containerImage) = category {
+            proto.payload = try Org_Apache_Beam_Model_Pipeline_V1_DockerPayload.with {
+                $0.containerImage = containerImage
+            }.serializedData()
+        }
+        
+        if case let .external(endpoint) = category {
+            proto.payload = try Org_Apache_Beam_Model_Pipeline_V1_ExternalPayload.with {
+                $0.endpoint = try .with {
+                    try endpoint.populate(&$0)
+                }
+            }.serializedData()
+        }
+        
+        if case let .process(command,arch,os,env) = category {
+            proto.payload = try Org_Apache_Beam_Model_Pipeline_V1_ProcessPayload.with {
+                $0.arch = arch
+                $0.command = command
+                $0.os = os
+                $0.env = env
+            }.serializedData()
+        }
+    }
+    
+    public static func docker(_ imageName: String,capabilities:[String]=[],dependencies:[ArtifactInfo]=[]) -> Environment {
+        Environment(.docker(imageName),capabilities:capabilities,dependencies:dependencies)
+    }
+    
+    public static func external(_ endpoint: ApiServiceDescriptor,capabilities:[String]=[],dependencies:[ArtifactInfo]=[]) -> Environment {
+        Environment(.external(endpoint),capabilities:capabilities,dependencies:dependencies)
+    }
+
+}

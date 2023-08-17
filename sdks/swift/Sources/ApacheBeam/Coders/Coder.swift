@@ -155,7 +155,7 @@ struct BundleCoderContainer : CoderContainer {
 }
 
 extension Coder {
-    static func of(name:String,in container:CoderContainer) -> Coder? {
+    static func of(name:String,in container:CoderContainer) throws -> Coder {
         if let baseCoder = container[name] {
             switch baseCoder.spec.urn {
             case "beam:coder:bytes:v1":
@@ -167,24 +167,24 @@ extension Coder {
             case "beam:coder:double:v1":
                 return .double
             case "beam:coder:iterable:v1":
-                return .iterable(.of(name: baseCoder.componentCoderIds[0], in: container)!)
+                return .iterable(try .of(name: baseCoder.componentCoderIds[0], in: container))
             case "beam:coder:kv:v1":
                 return .keyvalue(
-                    .of(name: baseCoder.componentCoderIds[0],in:container)!,
-                    .of(name: baseCoder.componentCoderIds[1], in:container)!)
+                    try .of(name: baseCoder.componentCoderIds[0],in:container),
+                    try .of(name: baseCoder.componentCoderIds[1], in:container))
             case "beam:coder:global_window:v1":
                 return .globalwindow
             case "beam:coder:windowed_value:v1":
                 return .windowedvalue(
-                    .of(name: baseCoder.componentCoderIds[0],in:container)!,
-                    .of(name: baseCoder.componentCoderIds[1],in:container)!)
+                    try .of(name: baseCoder.componentCoderIds[0],in:container),
+                    try .of(name: baseCoder.componentCoderIds[1],in:container))
             case "beam:coder:length_prefix:v1":
-                return .lengthprefix(.of(name: baseCoder.componentCoderIds[0],in:container)!)
+                return .lengthprefix(try .of(name: baseCoder.componentCoderIds[0],in:container))
             default:
                 return .unknown(baseCoder.spec.urn)
             }
         } else {
-            return nil
+            throw ApacheBeamError.runtimeError("Unable to location coder \(name) in container.")
         }
     }
 }

@@ -16,6 +16,8 @@ public extension PCollection {
 
 /// Convenience logging mappers
 public extension PCollection {
+    
+    @discardableResult
     func log(prefix:String,name:String = "\(#file):\(#line)") -> PCollection<Of> where Of == String {
         pardo(name,prefix) { prefix,input,output in
             for await element in input {
@@ -25,6 +27,7 @@ public extension PCollection {
         }
     }
     
+    @discardableResult
     func log<K,V>(prefix:String,name:String = "\(#file):\(#line)") -> PCollection<KV<K,V>> where Of == KV<K,V> {
         pardo(name,prefix) { prefix,input,output in
             for await element in input {

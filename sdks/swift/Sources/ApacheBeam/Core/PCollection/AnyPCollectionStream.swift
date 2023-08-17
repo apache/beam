@@ -78,6 +78,10 @@ public struct AnyPCollectionStream : AsyncSequence {
         return value as! PCollectionStream<Out>
     }
     
+    public func emit(value element: Any) throws {
+        try emitClosure(value,element)
+    }
+    
     public func finish() {
         finishClosure(self.value)
     }

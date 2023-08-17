@@ -33,8 +33,8 @@ final class IntegrationTests: XCTestCase {
     override func tearDownWithError() throws {
     }
 
-    func testPortableWordcount() throws {
-        try Pipeline { pipeline in
+    func testPortableWordcount() async throws {
+        try await Pipeline { pipeline in
             let (contents,errors) = pipeline
                 .create(["file1.txt","file2.txt","missing.txt"])
                 .pardo { filenames,output,errors in
@@ -61,16 +61,17 @@ final class IntegrationTests: XCTestCase {
                 .flatMap({ $0.components(separatedBy: .whitespaces) })
                 .groupBy({ ($0,1) })
                 .sum()
+                .log(prefix:"INTERMEDIATE OUTPUT")
             
             let normalizedCounts = baseCount.groupBy {
                 ($0.key.lowercased().trimmingCharacters(in: .punctuationCharacters),
                  $0.value ?? 1)
             }.sum()
             
-            _ = normalizedCounts.log(prefix:"COUNT OUTPUT")
-            _ = errors.log(prefix:"ERROR OUTPUT")
+            normalizedCounts.log(prefix:"COUNT OUTPUT")
+            errors.log(prefix:"ERROR OUTPUT")
             
-        }.run()
+        }.run(PortableRunner(loopback:true)) 
         
         
     }

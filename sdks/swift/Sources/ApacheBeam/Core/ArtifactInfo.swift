@@ -22,10 +22,8 @@ public struct ArtifactInfo {
 }
 
 extension ArtifactInfo : ProtoConversion {
-    var proto: Org_Apache_Beam_Model_Pipeline_V1_ArtifactInformation {
-        .with {
-            $0.roleUrn = .beamUrn(role,type:"artifact:type")
-            $0.typeUrn = .beamUrn(type,type:"artifact:role")
-        }
+    func populate(_ proto: inout Org_Apache_Beam_Model_Pipeline_V1_ArtifactInformation) throws {
+        proto.roleUrn = .beamUrn(role,type:"artifact:type")
+        proto.typeUrn = .beamUrn(type,type:"artifact:role")
     }
 }
