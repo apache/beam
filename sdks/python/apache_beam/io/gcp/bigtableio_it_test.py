@@ -50,7 +50,6 @@ except ImportError as e:
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-@pytest.mark.uses_transform_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
@@ -143,7 +142,6 @@ class TestReadFromBigTableIT(unittest.TestCase):
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-@pytest.mark.uses_transform_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
