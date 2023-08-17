@@ -38,7 +38,7 @@ public struct POutput<Of> : DynamicProperty {
 }
 
 @propertyWrapper
-public struct Logger : DynamicProperty {
+public struct RemoteLog : DynamicProperty {
     public var wrappedValue: Logging.Logger
     public init(wrappedValue: Logging.Logger = Logging.Logger(label: "TEST")) {
         self.wrappedValue = wrappedValue
