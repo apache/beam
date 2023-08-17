@@ -56,7 +56,7 @@ RUN cd /app &&\
 # Getting the result into NGINX.
 # ------------------------------------------------
 
-FROM nginx:1.21.3
+FROM nginx:1.25.1
 COPY --from=build /app/nginx_default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/web/ /usr/share/nginx/html
 RUN cp -r /usr/share/nginx/html/assets/assets/* /usr/share/nginx/html/assets/
