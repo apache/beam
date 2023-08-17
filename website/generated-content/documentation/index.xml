@@ -15447,34 +15447,41 @@ implementations. This information can be accessed by using the conventional
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">    &lt;span class="k">return&lt;/span> &lt;span class="n">input_type&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;h2 id="transform-service">15 Transform Service&lt;/h2>
-&lt;p>Starting version 2.49.0, Beam introduced a &lt;a href="https://docs.docker.com/compose/">Docker Compose&lt;/a> based service named &lt;em>Transform Service&lt;/em>. The Transform Service allows Beam portable
-pipelines to perform expansion of supported transforms using Docker.&lt;/p>
-&lt;p>The basic architecture of the Transform Service is given below.&lt;/p>
-&lt;p>&lt;img src="/images/transform_service.png" alt="Diagram of the transform service architecture">&lt;/p>
-&lt;p>The Transform Service can be useful in many contexts. We have identified two primary use-cases below. Note that to use the transform service, Docker (and Docker Compose) needs to be available in the machine where the service will be started at.&lt;/p>
-&lt;ul>
-&lt;li>Perform expansion of cross-language transforms without installing other language runtimes.&lt;/li>
-&lt;/ul>
-&lt;p>Transforms Service allows multi-language pipelines to use/expand cross-language transforms implemented in other SDKs without installing runtimes for implementation languages of such SDKs.
-For example, with the Transform Service, a Beam Python pipeline can use Java GCP I/O transforms and Java Kafka I/O transforms without installing a Java runtime locally.&lt;/p>
-&lt;ul>
-&lt;li>Upgrade transforms without upgrading the Beam version.&lt;/li>
-&lt;/ul>
-&lt;p>The transform service can be used to upgrade individual transforms used by Beam pipelines to a new Beam version without upgrading the Beam version used by the pipeline.
-This feature is currently in development. Please see the &lt;a href="https://github.com/apache/beam/issues/27943">tracking issue&lt;/a> for more details.&lt;/p>
-&lt;h3 id="transform-service-usage">15.1 Using the the Transform Service&lt;/h3>
-&lt;p>Beam SDKs may automatically startup a transform service to perform expansion when using cross-language transforms. More specifically,&lt;/p>
+&lt;h2 id="transform-service">15 Transform service&lt;/h2>
+&lt;p>The Apache Beam SDK versions 2.49.0 and later include a &lt;a href="https://docs.docker.com/compose/">Docker Compose&lt;/a>
+service named &lt;em>Transform service&lt;/em>. Use the Transform service to perform expansions of supported transforms
+on Beam portable pipelines by using Docker.&lt;/p>
+&lt;p>The following diagram illustrates the basic architecture of the Transform service.&lt;/p>
+&lt;p>&lt;img src="/images/transform_service.png" alt="Diagram of the Transform service architecture">&lt;/p>
+&lt;p>To use the Transform service, Docker and Docker Compose must be available on the machine that starts the service.&lt;/p>
+&lt;p>The Transform service has the following primary use cases:&lt;/p>
 &lt;ul>
 &lt;li>
-&lt;p>Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java">PythonExternalTransform API&lt;/a> will automatically
-startup the Transform Service for you if a Python runtime is not available locally but Docker is available.&lt;/p>
+&lt;p>Perform expansion of cross-language transforms without installing other language runtimes.&lt;/p>
+&lt;p>The Transform service allows multi-language pipelines to use and expand cross-language transforms implemented
+in other SDKs without requiring you to install runtimes for the implementation languages of those SDKs.
+For example, with the Transform service, a Beam Python pipeline can use the Google Cloud Java I/O transforms and Java Kafka I/O transforms
+without a local Java runtime installation.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Beam Python multi-language wrappers may automatically startup a Transform Service for you when using Java transforms, if a Java language runtime is not available locally but Docker is available.&lt;/p>
+&lt;p>Upgrade transforms without upgrading the Apache Beam SDK version.&lt;/p>
+&lt;p>Use the Transform service to upgrade the Beam SDK versions of individual transforms used by Beam pipelines without upgrading the Beam version of the pipeline.
+This feature is currently in development. For more details, see
+&lt;a href="https://github.com/apache/beam/issues/27943">GitHub issue #27943: Upgrade transforms without upgrading the pipeline using the Transform Service&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;/ul>
-&lt;p>Additionally, if needed, a Transform Service instance can be manually started using utilities provided with Beam SDKs.&lt;/p>
+&lt;h3 id="transform-service-usage">15.1 Use the Transform service&lt;/h3>
+&lt;p>In some cases, Apache Beam SDKs automatically start the Transform service, such as in the following scenarios:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>The Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java">&lt;code>PythonExternalTransform&lt;/code> API&lt;/a> automatically
+starts the Transform service when a Python runtime isn&amp;rsquo;t available locally, but Docker is.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The Apache Beam Python multi-language wrappers might automatically start the Transform service when you&amp;rsquo;re using Java transforms, a Java language runtime isn&amp;rsquo;t available locally, and Docker is available locally.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>To manually start a Transform service instance by using utilities provided with the Apache Beam SDKs, use the following commands.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -15499,7 +15506,7 @@ startup the Transform Service for you if a Python runtime is not available local
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">This&lt;/span> &lt;span class="nx">feature&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">currently&lt;/span> &lt;span class="nx">in&lt;/span> &lt;span class="nx">development&lt;/span>&lt;span class="p">.&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>To stop the transform service use the following commands.&lt;/p>
+&lt;p>To stop the transform service, use the following commands.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -15524,18 +15531,21 @@ startup the Transform Service for you if a Python runtime is not available local
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">This&lt;/span> &lt;span class="nx">feature&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">currently&lt;/span> &lt;span class="nx">in&lt;/span> &lt;span class="nx">development&lt;/span>&lt;span class="p">.&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;h3 id="transform-service-included-transforms">15.2 Portable Transforms included in the Transform Service&lt;/h3>
-&lt;p>Transforms service includes a number of portable transforms implemented in Beam Java and Python SDKs.&lt;/p>
-&lt;p>Some of the transforms currently included in the Trasnform Service are given below.&lt;/p>
+&lt;h3 id="transform-service-included-transforms">15.2 Portable transforms included in the Transform service&lt;/h3>
+&lt;p>The Transform service includes portable transforms implemented in the Apache Beam Java and Python SDKs.&lt;/p>
+&lt;p>The following transforms are included in the Trasnform service:&lt;/p>
 &lt;ul>
 &lt;li>
-&lt;p>Java transforms - GCP I/O connectors, Kafka I/O connector, JDBC I/O connector.&lt;/p>
+&lt;p>Java transforms: Google Cloud I/O connectors, the Kafka I/O connector, and the JDBC I/O connector&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Python transforms - all portable transforms implemented within Beam Python SDK, for example, RunInference and Dataframe transforms.&lt;/p>
+&lt;p>Python transforms: all portable transforms implemented within the Apache Beam Python SDK, such as
+&lt;a href="/documentation/transforms/python/elementwise/runinference/">RunInference&lt;/a> and
+&lt;a href="/documentation/dsls/dataframes/overview/">DataFrame&lt;/a> transforms.&lt;/p>
 &lt;/li>
 &lt;/ul>
-&lt;p>For a more detailed list of available transforms, please see &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Transform+Service">here&lt;/a>.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
+&lt;p>For a more comprehensive list of available transforms, see the
+&lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Transform+Service">Transform service&lt;/a> developer guide.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
