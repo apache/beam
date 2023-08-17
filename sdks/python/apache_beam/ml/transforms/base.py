@@ -138,17 +138,15 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       write_artifact_location: A storage location for artifacts resulting from
         MLTransform. These artifacts include transformations applied to
         the dataset and generated values like min, max from ScaleTo01,
-        and mean, var from ScaleToZScore. Artifacts are produced and stored
-        in this location when the `artifact_mode` is set to 'produce'.
-        Conversely, when `artifact_mode` is set to 'consume', artifacts are
-        retrieved from this location. Note that when consuming artifacts,
-        it is not necessary to pass the transforms since they are inherently
-        stored within the artifacts themselves. The value assigned to
-        `write_artifact_location` should be a valid storage directory where the
-        artifacts from this transform can be written to. If no directory exists
-        at this location, one will be created. This will overwrite any
-        artifacts already in this location, so distinct locations should be
-        used for each instance of MLTransform. Only one of
+        and mean, var from ScaleToZScore. Artifacts are produced and written
+        to this location when using `write_artifact_mode`.
+        Later MLTransforms can reuse produced artifacts by setting
+        `read_artifact_mode` instead of `write_artifact_mode`. The value
+        assigned to `write_artifact_location` should be a valid storage
+        directory where the artifacts from this transform can be written to.
+        If no directory exists at this location, one will be created. This will
+        overwrite any artifacts already in this location, so distinct locations
+        should be used for each instance of MLTransform. Only one of
         write_artifact_location and read_artifact_location should be specified.
       read_artifact_location: A storage location to read artifacts resulting
         froma previous MLTransform. These artifacts include transformations
