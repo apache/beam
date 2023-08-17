@@ -16,4 +16,10 @@ let package = Package(
 )
 ```
 
+## Writing a Pipeline
+
+```
+import ApacheBeam
+
+
 

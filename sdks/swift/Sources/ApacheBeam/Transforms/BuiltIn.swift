@@ -33,68 +33,68 @@ public extension PCollection {
     // TODO: Replace with parameter pack version once https://github.com/apple/swift/issues/67192 is resolved
     
     // No Output
-    func pardo<F:SerializableFn>(_ name: String = "\(#file):\(#line)",_ fn: F) {
-        self.apply(.pardo(name, fn, []))
+    func pardo<F:SerializableFn>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: F) {
+        self.apply(.pardo(name ?? "\(_file):\(_line)", fn, []))
     }
-    func pardo(_ name: String = "\(#file):\(#line)",_ fn: @Sendable @escaping (PCollection<Of>.Stream) async throws -> Void) {
-        self.apply(.pardo(name, ClosureFn(fn),[]))
+    func pardo(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (PCollection<Of>.Stream) async throws -> Void) {
+        self.apply(.pardo(name ?? "\(_file):\(_line)", ClosureFn(fn),[]))
     }
-    func pardo<Param:Codable>(_ name: String = "\(#file):\(#line)",_ param:Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream) async throws -> Void) {
-        self.apply(.pardo(name, ParameterizedClosureFn(param,fn), []))
+    func pardo<Param:Codable>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ param:Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream) async throws -> Void) {
+        self.apply(.pardo(name ?? "\(_file):\(_line)", ParameterizedClosureFn(param,fn), []))
     }
 
 
     // Single Output
-    func pardo<F:SerializableFn,O0>(_ name: String = "\(#file):\(#line)",_ fn: F,
+    func pardo<F:SerializableFn,O0>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: F,
                                     _ o0:PCollection<O0>) {
-        self.apply(.pardo(name, fn, [AnyPCollection(o0)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)", fn, [AnyPCollection(o0)]))
     }
-    func pardo<O0>(_ name: String = "\(#file):\(#line)",
+    func pardo<O0>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,
                    _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
         let output = PCollection<O0>()
-        self.apply(.pardo(name,ClosureFn(fn),[AnyPCollection(output)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output)]))
         return output
     }
-    func pardo<Param:Codable,O0>(_ name: String = "\(#file):\(#line)",_ param: Param,
+    func pardo<Param:Codable,O0>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ param: Param,
                    _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
         let output = PCollection<O0>()
-        self.apply(.pardo(name,ParameterizedClosureFn(param,fn),[AnyPCollection(output)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output)]))
         return output
     }
 
     // Two Outputs
-    func pardo<F:SerializableFn,O0,O1>(_ name: String = "\(#file):\(#line)",_ fn: F,
+    func pardo<F:SerializableFn,O0,O1>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: F,
                                     _ o0:PCollection<O0>,_ o1:PCollection<O1>) {
-        self.apply(.pardo(name, fn, [AnyPCollection(o0),AnyPCollection(o1)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)", fn, [AnyPCollection(o0),AnyPCollection(o1)]))
     }
-    func pardo<O0,O1>(_ name: String = "\(#file):\(#line)",
+    func pardo<O0,O1>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,
                       _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
         let output = (PCollection<O0>(),PCollection<O1>())
-        self.apply(.pardo(name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
         return output
     }
-    func pardo<Param:Codable,O0,O1>(_ name: String = "\(#file):\(#line)",_ param: Param,
+    func pardo<Param:Codable,O0,O1>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ param: Param,
                                     _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
         let output = (PCollection<O0>(),PCollection<O1>())
-        self.apply(.pardo(name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
         return output
     }
 
     // Three Outputs
-    func pardo<F:SerializableFn,O0,O1,O2>(_ name: String = "\(#file):\(#line)",_ fn: F,
+    func pardo<F:SerializableFn,O0,O1,O2>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: F,
                                           _ o0:PCollection<O0>,_ o1:PCollection<O1>,_ o2:PCollection<O2>) {
-        self.apply(.pardo(name, fn, [AnyPCollection(o0),AnyPCollection(o1),AnyPCollection(o2)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)", fn, [AnyPCollection(o0),AnyPCollection(o1),AnyPCollection(o2)]))
     }
-    func pardo<O0,O1,O2>(_ name: String = "\(#file):\(#line)",
+    func pardo<O0,O1,O2>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,
                          _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>,PCollection<O2>) {
         let output = (PCollection<O0>(),PCollection<O1>(),PCollection<O2>())
-        self.apply(.pardo(name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
         return output
     }
-    func pardo<Param:Codable,O0,O1,O2>(_ name: String = "\(#file):\(#line)",_ param: Param,
+    func pardo<Param:Codable,O0,O1,O2>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ param: Param,
                                        _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>,PCollection<O2>) {
         let output = (PCollection<O0>(),PCollection<O1>(),PCollection<O2>())
-        self.apply(.pardo(name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        self.apply(.pardo(name ?? "\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
         return output
     }
 

@@ -20,8 +20,9 @@
 public extension PCollection {
 
     /// Each time the input fires output all of the values in this list.
-    func create<Value:Codable>(_ values: [Value],_ name:String = "\(#file):\(#line)") -> PCollection<Value> {
-        return pardo(name,values) { values,input,output in
+    func create<Value:Codable>(_ values: [Value],_ name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
+        
+        return pardo(name,_file:_file,_line:_line,values) { values,input,output in
             for try await (_,ts,w) in input {
                 for v in values {
                     output.emit(v,timestamp:ts,window:w)
@@ -35,8 +36,8 @@ public extension PCollection {
 public extension PCollection {
     
     @discardableResult
-    func log(prefix:String,name:String = "\(#file):\(#line)") -> PCollection<Of> where Of == String {
-        pardo(name,prefix) { prefix,input,output in
+    func log(prefix:String,_ name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Of> where Of == String {
+        pardo(name,_file:_file,_line:_line,prefix) { prefix,input,output in
             for await element in input {
                 print("\(prefix): \(element)")
                 output.emit(element)
@@ -45,8 +46,8 @@ public extension PCollection {
     }
     
     @discardableResult
-    func log<K,V>(prefix:String,name:String = "\(#file):\(#line)") -> PCollection<KV<K,V>> where Of == KV<K,V> {
-        pardo(name,prefix) { prefix,input,output in
+    func log<K,V>(prefix:String,_ name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<KV<K,V>> where Of == KV<K,V> {
+        pardo(name,_file:_file,_line:_line,prefix) { prefix,input,output in
             for await element in input {
                 let kv = element.0
                 for v in kv.values {
@@ -62,16 +63,16 @@ public extension PCollection {
 public extension PCollection {
     
     /// Modify a value without changing its window or timestamp
-    func map<Out>(name:String = "\(#file):\(#line)",_ fn: @Sendable @escaping (Of) -> Out) -> PCollection<Out> {
-        return pardo(name) { input,output in
+    func map<Out>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> Out) -> PCollection<Out> {
+        return pardo(name,_file:_file,_line:_line) { input,output in
             for try await (v,ts,w) in input {
                 output.emit(fn(v),timestamp:ts,window:w)
             }
         }
     }
     
-    func map<K,V>(name:String = "\(#file):\(#line)",_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
-        return pardo(name) { input,output in
+    func map<K,V>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
+        return pardo(name,_file:_file,_line:_line) { input,output in
             for try await (i,ts,w) in input {
                 let (key,value) = fn(i)
                 output.emit(KV(key,value),timestamp:ts,window:w)
@@ -80,8 +81,8 @@ public extension PCollection {
     }
 
     /// Produce multiple outputs as a single value without modifying window or timestamp
-    func flatMap<Out>(name:String = "\(#file):\(#line)",_ fn: @Sendable @escaping (Of) -> [Out]) -> PCollection<Out> {
-        return pardo(name) { input,output in
+    func flatMap<Out>(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> [Out]) -> PCollection<Out> {
+        return pardo(name,_file:_file,_line:_line) { input,output in
             for try await (v,ts,w) in input {
                 for i in fn(v) {
                     output.emit(i,timestamp:ts,window:w)
@@ -94,7 +95,7 @@ public extension PCollection {
 
 public extension PCollection<Never> {
     /// Convenience function to add an impulse when we are at the root of the pipeline
-    func create<Value:Codable>(_ values: [Value],_ name:String = "\(#file):\(#line)") -> PCollection<Value> {
-        return impulse().create(values,name)
+    func create<Value:Codable>(_ values: [Value],_ name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
+        return impulse().create(values,name,_file:_file,_line:_line)
     }
 }

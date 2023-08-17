@@ -19,8 +19,8 @@
 /// Basic grouping functionality
 ///
 public extension PCollection {
-    func groupBy<K,V>(name: String = "\(#file):\(#line)",_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
-        return map(name:name,fn)
+    func groupBy<K,V>(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
+        return map(name,_file:_file,_line:_line,fn)
             .groupByKey()
     }
 }
