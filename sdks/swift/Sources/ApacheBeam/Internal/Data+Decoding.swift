@@ -47,7 +47,12 @@ extension Data {
                 }
             }
         }
+        // On non-macOS platforms this crashes due to differences in Foundation implementations
+        #if os(macOS)
+        self = self.advanced(by: advance)
+        #else
         self = advance == count ? Data() : self.advanced(by: advance)
+        #endif
         return result
     }
     
