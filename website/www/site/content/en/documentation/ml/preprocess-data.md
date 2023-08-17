@@ -17,7 +17,7 @@ limitations under the License.
 
 # Preprocess data with MLTransform
 
-Use the `MLTransform` class to preprocess data for machine learning (ML)
+This page explains how to use the `MLTransform` class to preprocess data for machine learning (ML)
 workflows. Apache Beam provides a set of data processing transforms for
 preprocessing data for training and inference. The `MLTransform` class wraps the
 various transforms in one class, simplifying your workflow. For a full list of
@@ -42,8 +42,9 @@ modules for machine learning tasks.
         the observed data distribution.
     -   Convert `strings` to `ints` by generating vocabulary over the
         entire dataset.
-    -   Count the occurrences of  words in all the documents to
-        calculate TF-IDF weights.
+    -   Count the occurrences of words in all the documents to calculate
+        [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
+        weights.
 
 ## Support and limitations {#support}
 
@@ -72,7 +73,7 @@ TensorFlow documentation.
 | TFIDF | See [`tft.tfidf`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/tfidf) in the TensorFlow documentation. |:
 {{< /table >}}
 
-You can apply the transforms on either single or multiple columns passed as a
+Apply the transforms on either single or multiple columns passed as a
 `dict` on structured data. Keys are column names and values are lists containing
 each column's data.
 
@@ -94,64 +95,65 @@ Examples of artifacts are the minimum and maximum values from a `ScaleTo01`
 transformation, or the mean and variance from a `ScaleToZScore`
 transformation.
 
-In the `MLTransform` class, the `artifact_mode` parameter determines how the
-class handles the artifacts generated or consumed by the data transformations.
-The `artifact_mode` parameter has two states: *produce* and *consume*. The state
-determines whether the `MLTransform` class creates artifacts or retrieves
+In the `MLTransform` class, the `write_artifact_location` and the
+`read_artifact_location` parameters determine
+whether the `MLTransform` class creates artifacts or retrieves
 artifacts.
 
-### Produce mode {#produce-mode}
+### Write mode {#write-mode}
 
-When you set `artifact_mode` to `produce`, the `MLTransform` class runs the
+When you use the `write_artifact_location` parameter, the `MLTransform` class runs the
 specified transformations on the dataset and then creates artifacts from these
 transformations. The artifacts are stored in the location that you specify in
-the `artifact_location` parameter or in the `MLTransform` output. The default
-value for `artifact_mode` is `produce`.
+the `write_artifact_location` parameter or in the `MLTransform` output.
 
-Produce mode is useful when you want to store the results of your transformations
+Write mode is useful when you want to store the results of your transformations
 for future use. For example, if you apply the same transformations on a
-different dataset, you can use the artifacts to verify whether the
-transformation parameters remain consistent.
+different dataset, use write mode to ensure that the transformation parameters
+remain consistent.
 
-The following examples demonstrate how produce mode works.
+The following examples demonstrate how write mode works.
 
 -   The `ComputeAndApplyVocabulary` transform generates a vocabulary file that contains the
     vocabulary generated over the entire dataset. The vocabulary file is stored in
-    the location specified by `artifact_location`. The `ComputeAndApplyVocabulary`
+    the location specified by the `write_artifact_location` parameter value.
+    The `ComputeAndApplyVocabulary`
     transform outputs the indices of the vocabulary to the vocabulary file.
 -   The `ScaleToZScore` transform calculates the mean and variance over the entire dataset
     and then normalizes the entire dataset using the mean and variance. The
-    mean and variance are outputted in the `MLTransform` output.
-    When you set `artifact_mode` to `produce`, these
+    mean and variance are outputted by the `MLTransform` operation.
+    When you use the `write_artifact_location` parameter, these
     values are stored as a `tensorflow` graph in the location specified by
-    `artifact_location`. You can reuse the values in consume mode.
+    the `write_artifact_location` parameter value. You can reuse the values in read mode
+    to ensure that future transformations use the same mean and variance for normalization.
 
-### Consume mode {#consume-mode}
+### Read mode {#read-mode}
 
-When you set `artifact_mode` to `consume,` the `MLTransform` class expects the
-artifacts to exist in the value provided in the `artifact_location` parameter.
+When you use the `read_artifact_location` parameter, the `MLTransform` class expects the
+artifacts to exist in the value provided in the `read_artifact_location` parameter.
 In this mode, `MLTransform` retrieves the artifacts and uses them in the
 transform. Because the transformations are stored in the artifacts when you use
-consume mode, you don't need to specify the transformations.
+read mode, you don't need to specify the transformations.
 
 ### Artifact workflow {#artifact-workflow}
 
 The following scenario provides an example use case for artifacts.
 
-Before training a machine learning model, you set `artifact_mode` to `produce`.
+Before training a machine learning model, you use `MLTransform` with the
+`write_artifact_location` parameter.
 When you run `MLTransform`, it applies transformations that preprocess the
 dataset. The transformation produces artifacts that are stored in the location
-specified by the `artifact_location` parameter.
+specified by the `write_artifact_location` parameter value.
 
 After preprocessing, you use the transformed data to train the machine learning
 model.
 
-After training, you run inference. You use new test data and set
-`artifact_mode` to `consume`. By using this setting, you ensure that the test
-data undergoes the same preprocessing steps as the training data. In consume
+After training, you run inference. You use new test data and use the
+`read_artifact_location` parameter. By using this setting, you ensure that the test
+data undergoes the same preprocessing steps as the training data. In read
 mode, running `MLTransform` fetches the transformation artifacts from the
-location specified in the `artifact_location` parameter. `MLTransform` applies
-these artifacts to the test data.
+location specified in the `read_artifact_location` parameter value.
+`MLTransform` applies these artifacts to the test data.
 
 This workflow provides consistency in preprocessing steps for both training and
 test data. This consistency ensures that the model can accurately evaluate the
@@ -181,7 +183,7 @@ your pipeline:
     transformed_data = (
         p
         | beam.Create(data)
-        | MLTransform(artifact_location=artifact_location).with_transform(
+        | MLTransform(write_artifact_location=artifact_location).with_transform(
             <TRANSFORM_FUNCTION_NAME>)
         | beam.Map(print))
 ```
@@ -207,7 +209,7 @@ Use the following snippet to apply `ScaleTo01` on column `x` of the input
 data.
 
 ```
-data_pcoll | MLTransform(artifact_location=<some_location>).with_transform(ScaleTo01(columns=['x']))
+data_pcoll | MLTransform(write_artifact_location=<LOCATION>).with_transform(ScaleTo01(columns=['x']))
 ```
 
 The `ScaleTo01` transformation produces two artifacts: the `min` and the `max`
