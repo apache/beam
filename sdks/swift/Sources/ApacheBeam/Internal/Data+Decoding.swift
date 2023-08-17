@@ -18,6 +18,23 @@
 import Foundation
 
 extension Data {
+    
+    /// advanced(by:) has issues on non-macOS Foundation implementations
+    @inlinable
+    func safeAdvance(by: Int) -> Data {
+        #if os(macOS)
+        return self.advanced(by: by)
+        #else
+        if(by == 0) {
+            return self
+        } else if(by >= self.count) {
+            return Data()
+        } else {
+            return self.advanced(by: by)
+        }
+        #endif
+    }
+    
     /// Read a variable length integer from the current data
     mutating func varint() throws -> Int {
         var advance: Int = 0
@@ -47,12 +64,7 @@ extension Data {
                 }
             }
         }
-        // On non-macOS platforms this crashes due to differences in Foundation implementations
-        #if os(macOS)
-        self = self.advanced(by: advance)
-        #else
-        self = advance == count ? Data() : self.advanced(by: advance)
-        #endif
+        self = self.safeAdvance(by: advance)
         return result
     }
     
@@ -60,7 +72,7 @@ extension Data {
     mutating func subdata() throws -> Data {
         let length = try self.varint()
         let result = self.subdata(in: 0..<length)
-        self = self.advanced(by: length)
+        self = self.safeAdvance(by: length)
         return result
     }
     
@@ -70,7 +82,7 @@ extension Data {
         let result = self.withUnsafeBytes {
             $0.baseAddress!.withMemoryRebound(to: T.self, capacity: 1) { $0.pointee }
         }
-        self = self.advanced(by: size)
+        self = self.safeAdvance(by: size)
         return result
     }
     
