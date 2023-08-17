@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.wrappers;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -41,8 +42,8 @@ import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing a {@link Source} as a Flink {@link InputFormat}. */
 @SuppressWarnings({
-    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
@@ -112,11 +113,12 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   private long getDesiredSizeBytes(int numSplits) throws Exception {
     long totalSize = initialSource.getEstimatedSizeBytes(options);
     long defaultSplitSize = totalSize / numSplits;
-    if(initialSource instanceof FileBasedSource) {
+    if (initialSource instanceof FileBasedSource) {
+      long maxSplitSize = options.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeBytes();
       // Most of the time parallelism is < number of files in source.
       // Each file becomes a unique split which commonly create skew.
       // This limits the size of splits to 128Mb to reduce skew.
-      return Math.min(defaultSplitSize, 128 * 1024 * 1024);
+      return Math.min(defaultSplitSize, maxSplitSize);
     } else {
       return defaultSplitSize;
     }
