@@ -17,28 +17,30 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 public class TableUtils {
   private static ObjectMapper objectMapper =
-      sonMapper.builder().enable(
-JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER,
-        JsonReadFeature.ALLOW_JAVA_COMMENTS,
-        JsonReadFeature.ALLOW_MISSING_VALUES,
-        JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS,
-        JsonReadFeature.ALLOW_LEADING_ZEROS_FOR_NUMBERS,
-        JsonReadFeature.ALLOW_SINGLE_QUOTES,
-        JsonReadFeature.ALLOW_TRAILING_COMMA,
-        JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS,
-        JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES)
-        .build();
+      JsonMapper.builder()
+          .enable(
+              JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER,
+              JsonReadFeature.ALLOW_JAVA_COMMENTS,
+              JsonReadFeature.ALLOW_MISSING_VALUES,
+              JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS,
+              JsonReadFeature.ALLOW_LEADING_ZEROS_FOR_NUMBERS,
+              JsonReadFeature.ALLOW_SINGLE_QUOTES,
+              JsonReadFeature.ALLOW_TRAILING_COMMA,
+              JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS,
+              JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES)
+          .build();
 
   private TableUtils() {
     // nothing here
