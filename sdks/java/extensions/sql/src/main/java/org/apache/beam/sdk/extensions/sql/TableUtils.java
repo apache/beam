@@ -28,7 +28,7 @@ import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 public class TableUtils {
-  private static ObjectMapper objectMapper =
+  private static final ObjectMapper objectMapper =
       JsonMapper.builder()
           .enable(
               JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER,
