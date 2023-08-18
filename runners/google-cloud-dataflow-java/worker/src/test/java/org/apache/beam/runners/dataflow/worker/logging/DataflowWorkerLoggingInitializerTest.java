@@ -46,6 +46,8 @@ import java.util.logging.Logger;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions.SdkHarnessLogLevelOverrides;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.After;
@@ -102,7 +104,7 @@ public class DataflowWorkerLoggingInitializerTest {
   }
 
   @Test
-  public void testWithConfigurationOverride() {
+  public void testWithWorkerConfigurationOverride() {
     DataflowWorkerLoggingOptions options =
         PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
     options.setDefaultWorkerLogLevel(DataflowWorkerLoggingOptions.Level.WARN);
@@ -116,7 +118,20 @@ public class DataflowWorkerLoggingInitializerTest {
   }
 
   @Test
-  public void testWithCustomLogLevels() {
+  public void testWithSdkHarnessConfigurationOverride() {
+    SdkHarnessOptions options = PipelineOptionsFactory.as(SdkHarnessOptions.class);
+    options.setDefaultSdkHarnessLogLevel(SdkHarnessOptions.LogLevel.WARN);
+
+    DataflowWorkerLoggingInitializer.configure(options.as(DataflowWorkerLoggingOptions.class));
+
+    Logger rootLogger = LogManager.getLogManager().getLogger("");
+    assertEquals(1, rootLogger.getHandlers().length);
+    assertEquals(Level.WARNING, rootLogger.getLevel());
+    assertIsDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0], Level.ALL);
+  }
+
+  @Test
+  public void testWithWorkerCustomLogLevels() {
     DataflowWorkerLoggingOptions options =
         PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
     options.setWorkerLogLevelOverrides(
@@ -132,6 +147,27 @@ public class DataflowWorkerLoggingInitializerTest {
     assertTrue(aLogger.getUseParentHandlers());
 
     Logger bLogger = LogManager.getLogManager().getLogger("B");
+    assertEquals(Level.SEVERE, bLogger.getLevel());
+    assertEquals(0, bLogger.getHandlers().length);
+    assertTrue(aLogger.getUseParentHandlers());
+  }
+
+  @Test
+  public void testWithSdkHarnessCustomLogLevels() {
+    SdkHarnessOptions options = PipelineOptionsFactory.as(SdkHarnessOptions.class);
+    options.setSdkHarnessLogLevelOverrides(
+        new SdkHarnessLogLevelOverrides()
+            .addOverrideForName("C", SdkHarnessOptions.LogLevel.DEBUG)
+            .addOverrideForName("D", SdkHarnessOptions.LogLevel.ERROR));
+
+    DataflowWorkerLoggingInitializer.configure(options.as(DataflowWorkerLoggingOptions.class));
+
+    Logger aLogger = LogManager.getLogManager().getLogger("C");
+    assertEquals(0, aLogger.getHandlers().length);
+    assertEquals(Level.FINE, aLogger.getLevel());
+    assertTrue(aLogger.getUseParentHandlers());
+
+    Logger bLogger = LogManager.getLogManager().getLogger("D");
     assertEquals(Level.SEVERE, bLogger.getLevel());
     assertEquals(0, bLogger.getHandlers().length);
     assertTrue(aLogger.getUseParentHandlers());

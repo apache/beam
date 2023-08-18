@@ -21,7 +21,7 @@ import java.util.stream.Collectors
 
 plugins {
   id 'org.apache.beam.module'
-  id 'ca.coglinc.javacc'
+  id 'org.javacc.javacc'
 }
 applyJavaNature(
   generatedClassPatterns: [
