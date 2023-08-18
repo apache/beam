@@ -71,8 +71,8 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations}
- * and can be overridden with {@code --input}.
+ * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations} and
+ * can be overridden with {@code --input}.
  */
 public class FilterExamples {
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.

@@ -63,8 +63,8 @@ import org.slf4j.LoggerFactory;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations}
- * and can be overridden with {@code --input}.
+ * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations} and
+ * can be overridden with {@code --input}.
  */
 public class BigQueryTornadoes {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTornadoes.class);
