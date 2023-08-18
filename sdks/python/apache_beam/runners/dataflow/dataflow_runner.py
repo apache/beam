@@ -478,7 +478,7 @@ class DataflowRunner(PipelineRunner):
     # template creation). If a request was sent and failed then the call will
     # raise an exception.
     result = DataflowPipelineResult(
-        self.dataflow_client.create_job(self.job), self)
+        self.dataflow_client.create_job(self.job), self, options)
 
     # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
     from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
@@ -648,7 +648,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
 
 class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
-  def __init__(self, job, runner):
+  def __init__(self, job, runner, options=None):
     """Initialize a new DataflowPipelineResult instance.
 
     Args:
@@ -658,6 +658,7 @@ class DataflowPipelineResult(PipelineResult):
     """
     self._job = job
     self._runner = runner
+    self._options = options
     self.metric_results = None
 
   def _update_job(self):
@@ -735,10 +736,11 @@ class DataflowPipelineResult(PipelineResult):
     if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
+      gcp_options = self._options.view_as(GoogleCloudOptions)
       consoleUrl = (
           "Console URL: https://console.cloud.google.com/"
-          f"dataflow/jobs/<RegionId>/{self.job_id()}"
-          "?project=<ProjectId>")
+          f"dataflow/jobs/{gcp_options.region}/{self.job_id()}"
+          f"?project={gcp_options.project}")
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
           args=(self._runner, self, duration))
