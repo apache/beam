@@ -29,7 +29,7 @@
 //
 //	--output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
 //
-// The BigQuery input table defaults to clouddataflow-readonly:samples.weather_stations
+// The BigQuery input table defaults to apache-beam-testing.samples.weather_stations
 // and can be overridden with {@code --input}.
 package main
 
@@ -48,7 +48,7 @@ import (
 )
 
 var (
-	input  = flag.String("input", "clouddataflow-readonly:samples.weather_stations", "BigQuery table with weather data to read from, specified as <project_id>:<dataset_id>.<table_id>")
+	input  = flag.String("input", "apache-beam-testing.samples.weather_stations", "BigQuery table with weather data to read from, specified as <project_id>:<dataset_id>.<table_id>")
 	output = flag.String("output", "", "BigQuery table to write to, specified as <project_id>:<dataset_id>.<table_id>. The dataset must already exist")
 )
 

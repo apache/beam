@@ -268,7 +268,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * PCollection<TableRow> weatherData = pipeline.apply(
- *     BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations"));
+ *     BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations"));
  * }</pre>
  *
  * <b>Example: Reading rows of a table and parsing them into a custom type.</b>
@@ -281,7 +281,7 @@ import org.slf4j.LoggerFactory;
  *          return new WeatherRecord(...);
  *        }
  *      })
- *      .from("clouddataflow-readonly:samples.weather_stations"))
+ *      .from("apache-beam-testing.samples.weather_stations"))
  *      .withCoder(SerializableCoder.of(WeatherRecord.class));
  * }</pre>
  *

@@ -35,7 +35,7 @@ The `logOutput` struct is defined as a custom `DoFn` that implements the Process
 {{if (eq .Sdk "java")}}
 ```
  PCollection<TableRow> pCollection = pipeline
-                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ))
+                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ))
 ```
 
 The `BigQueryIO.readTableRows()` method is called to create a `BigQueryIO.Read` transform that will read data from a `BigQuery` table.
