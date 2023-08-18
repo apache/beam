@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -80,7 +79,6 @@ class DatabaseProvider implements TableProvider {
         .schema(tableSchema.get())
         .name(table)
         .location("")
-        .properties(new JSONObject())
         .comment("")
         .type("hcatalog")
         .build();

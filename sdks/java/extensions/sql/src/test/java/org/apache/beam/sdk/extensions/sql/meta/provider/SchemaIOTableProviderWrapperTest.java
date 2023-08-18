@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -57,7 +57,7 @@ public class SchemaIOTableProviderWrapperTest {
           .name("table")
           .comment("table")
           .schema(inputSchema)
-          .properties(JSON.parseObject("{}"))
+          .properties(TableUtils.parseProperties("{}"))
           .type("test")
           .build();
 

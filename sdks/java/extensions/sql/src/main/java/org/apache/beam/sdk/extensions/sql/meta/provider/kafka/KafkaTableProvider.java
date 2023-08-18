@@ -21,10 +21,12 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.PAY
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
@@ -80,11 +82,11 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     return parsed;
   }
 
-  private static List<String> mergeParam(Optional<String> initial, @Nullable List<Object> toMerge) {
+  private static List<String> mergeParam(Optional<String> initial, @Nullable ArrayNode toMerge) {
     ImmutableList.Builder<String> merged = ImmutableList.builder();
     initial.ifPresent(merged::add);
     if (toMerge != null) {
-      toMerge.forEach(o -> merged.add(o.toString()));
+      toMerge.forEach(o -> merged.add(o.asText()));
     }
     return merged.build();
   }
@@ -92,23 +94,23 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
-    JSONObject properties = table.getProperties();
+    ObjectNode properties = table.getProperties();
 
     Optional<ParsedLocation> parsedLocation = Optional.empty();
     if (!Strings.isNullOrEmpty(table.getLocation())) {
       parsedLocation = Optional.of(parseLocation(checkArgumentNotNull(table.getLocation())));
     }
     List<String> topics =
-        mergeParam(parsedLocation.map(loc -> loc.topic), properties.getJSONArray("topics"));
+        mergeParam(parsedLocation.map(loc -> loc.topic), (ArrayNode) properties.get("topics"));
     List<String> allBootstrapServers =
         mergeParam(
             parsedLocation.map(loc -> loc.brokerLocation),
-            properties.getJSONArray("bootstrap_servers"));
+            (ArrayNode) properties.get("bootstrap_servers"));
     String bootstrapServers = String.join(",", allBootstrapServers);
 
     Optional<String> payloadFormat =
-        properties.containsKey("format")
-            ? Optional.of(properties.getString("format"))
+        properties.has("format")
+            ? Optional.of(properties.get("format").asText())
             : Optional.empty();
     if (Schemas.isNestedSchema(schema)) {
       Optional<PayloadSerializer> serializer =
@@ -117,7 +119,7 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
                   PayloadSerializers.getSerializer(
                       format,
                       checkArgumentNotNull(schema.getField(PAYLOAD_FIELD).getType().getRowSchema()),
-                      properties.getInnerMap()));
+                      TableUtils.convertNode2Map(properties)));
       return new NestedPayloadKafkaTable(schema, bootstrapServers, topics, serializer);
     } else {
       /*
@@ -130,7 +132,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
         return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
       }
       PayloadSerializer serializer =
-          PayloadSerializers.getSerializer(payloadFormat.get(), schema, properties.getInnerMap());
+          PayloadSerializers.getSerializer(
+              payloadFormat.get(), schema, TableUtils.convertNode2Map(properties));
       return new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer);
     }
   }
