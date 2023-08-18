@@ -32,12 +32,32 @@ from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 _LOGGER = logging.getLogger(__name__)
+
+
+# Mock runners to use for validations.
+class MockRunners(object):
+  class DataflowRunner(object):
+    def get_default_gcp_region(self):
+      # Return a default so we don't have to specify --region in every test
+      # (unless specifically testing it).
+      return 'us-central1'
+
+
+class MockGoogleCloudOptionsNoBucket(GoogleCloudOptions):
+  def _create_default_gcs_bucket(self):
+    return None
+
+
+class MockGoogleCloudOptionsWithBucket(GoogleCloudOptions):
+  def _create_default_gcs_bucket(self):
+    return "gs://default/bucket"
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -702,6 +722,85 @@ class PipelineOptionsTest(unittest.TestCase):
         " with different dest/option_name from the flag name, please add "
         "the dest and the flag name to the map "
         "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
+
+  def test_validation_good_stg_good_temp(self):
+    runner = MockRunners.DataflowRunner()
+    options = GoogleCloudOptions([
+        '--project=myproject',
+        '--staging_location=gs://beam/stg',
+        '--temp_location=gs://beam/tmp'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
+    self.assertEqual(
+        options.get_all_options()['staging_location'], "gs://beam/stg")
+    self.assertEqual(
+        options.get_all_options()['temp_location'], "gs://beam/tmp")
+
+  def test_validation_bad_stg_good_temp(self):
+    runner = MockRunners.DataflowRunner()
+    options = GoogleCloudOptions([
+        '--project=myproject',
+        '--staging_location=badGSpath',
+        '--temp_location=gs://beam/tmp'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
+    self.assertEqual(
+        options.get_all_options()['staging_location'], "gs://beam/tmp")
+    self.assertEqual(
+        options.get_all_options()['temp_location'], "gs://beam/tmp")
+
+  def test_validation_good_stg_bad_temp(self):
+    runner = MockRunners.DataflowRunner()
+    options = GoogleCloudOptions([
+        '--project=myproject',
+        '--staging_location=gs://beam/stg',
+        '--temp_location=badGSpath'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
+    self.assertEqual(
+        options.get_all_options()['staging_location'], "gs://beam/stg")
+    self.assertEqual(
+        options.get_all_options()['temp_location'], "gs://beam/stg")
+
+  def test_validation_bad_stg_bad_temp_with_default(self):
+    runner = MockRunners.DataflowRunner()
+    options = MockGoogleCloudOptionsWithBucket([
+        '--project=myproject',
+        '--staging_location=badGSpath',
+        '--temp_location=badGSpath'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(errors, [])
+    self.assertEqual(
+        options.get_all_options()['staging_location'], "gs://default/bucket")
+    self.assertEqual(
+        options.get_all_options()['temp_location'], "gs://default/bucket")
+
+  def test_validation_bad_stg_bad_temp_no_default(self):
+    runner = MockRunners.DataflowRunner()
+    options = MockGoogleCloudOptionsNoBucket([
+        '--project=myproject',
+        '--staging_location=badGSpath',
+        '--temp_location=badGSpath'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = options._handle_temp_and_staging_locations(validator)
+    self.assertEqual(len(errors), 2, errors)
+    self.assertIn(
+        'Invalid GCS path (badGSpath), given for the option: temp_location.',
+        errors,
+        errors)
+    self.assertIn(
+        'Invalid GCS path (badGSpath), given for the option: staging_location.',
+        errors,
+        errors)
 
 
 if __name__ == '__main__':
