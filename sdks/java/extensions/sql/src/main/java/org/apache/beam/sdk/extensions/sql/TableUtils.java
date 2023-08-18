@@ -28,9 +28,17 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 
 public class TableUtils {
   private static ObjectMapper objectMapper =
-      new ObjectMapper()
-          .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
-          .configure(JsonParser.Feature.ALLOW_TRAILING_COMMA, true);
+      sonMapper.builder().enable(
+JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER,
+        JsonReadFeature.ALLOW_JAVA_COMMENTS,
+        JsonReadFeature.ALLOW_MISSING_VALUES,
+        JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS,
+        JsonReadFeature.ALLOW_LEADING_ZEROS_FOR_NUMBERS,
+        JsonReadFeature.ALLOW_SINGLE_QUOTES,
+        JsonReadFeature.ALLOW_TRAILING_COMMA,
+        JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS,
+        JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES)
+        .build();
 
   private TableUtils() {
     // nothing here
