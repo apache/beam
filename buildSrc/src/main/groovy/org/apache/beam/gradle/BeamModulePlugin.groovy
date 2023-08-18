@@ -1058,7 +1058,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['--release', '8']
+          options.compilerArgs += ['-source', '8']
+          options.compilerArgs += ['-target', '8']
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
           options.compilerArgs += ['-XDoptimizeOuterThis=false']
