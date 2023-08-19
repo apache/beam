@@ -67,6 +67,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: be2c4e66155853d94acf13369ee337d67ea1be68
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
