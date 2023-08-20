@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -36,10 +37,15 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.common.time.Deadline;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,24 +83,36 @@ public class FlinkPortableClientEntryPoint {
   private static final Duration JOB_SERVICE_STARTUP_TIMEOUT = Duration.ofSeconds(30);
 
   private final String driverCmd;
+  private final String artifactStagingPath;
+  private final boolean cleanArtifactsPerJob;
   private FlinkJobServerDriver jobServer;
   private Thread jobServerThread;
   private DetachedJobInvokerFactory jobInvokerFactory;
   private int jobPort = 0; // pick any free port
 
-  public FlinkPortableClientEntryPoint(String driverCmd) {
+  public FlinkPortableClientEntryPoint(String driverCmd, String artifactStagingPath,
+                                       boolean cleanArtifactsPerJob) {
     Preconditions.checkState(
         !driverCmd.contains(JOB_ENDPOINT_FLAG),
         "Driver command must not contain " + JOB_ENDPOINT_FLAG);
     this.driverCmd = driverCmd;
+    this.cleanArtifactsPerJob = cleanArtifactsPerJob;
+    this.artifactStagingPath = artifactStagingPath;
   }
 
   /** Main method to be called standalone or by Flink (CLI or REST API). */
   public static void main(String[] args) throws Exception {
+    // TODO: Expose the fileSystem related options.
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // Limiting gcs upload buffer to reduce memory usage while doing parallel artifact uploads.
+    options.as(GcsOptions.class).setGcsUploadBufferSizeBytes(1024 * 1024);
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(options);
     LOG.info("entry points args: {}", Arrays.asList(args));
     EntryPointConfiguration configuration = parseArgs(args);
     FlinkPortableClientEntryPoint runner =
-        new FlinkPortableClientEntryPoint(configuration.driverCmd);
+        new FlinkPortableClientEntryPoint(configuration.driverCmd, configuration.artifactStagingPath,
+                configuration.cleanArtifactsPerJob);
     try {
       runner.startJobService();
       runner.runDriverProgram();
@@ -115,6 +133,21 @@ public class FlinkPortableClientEntryPoint {
             "Command that launches the Python driver program. "
                 + "(The job service endpoint will be appended as --job_endpoint=localhost:<port>.)")
     private String driverCmd;
+
+    @Option(
+            name = "--artifacts-dir",
+            usage =
+                    "The location to store staged artifact files. "
+                            + "If artifact staging is needed, this directory must be accessible by the execution engine's workers.")
+    private String artifactStagingPath =
+            Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
+
+    @Option(
+            name = "--clean-artifacts-per-job",
+            usage = "When true, remove each job's staged artifacts when it completes",
+            // Allows setting boolean parameters to false which default to true
+            handler = ExplicitBooleanOptionHandler.class)
+    private boolean cleanArtifactsPerJob = true;
   }
 
   private static EntryPointConfiguration parseArgs(String[] args) {
@@ -135,7 +168,11 @@ public class FlinkPortableClientEntryPoint {
     jobServer =
         FlinkJobServerDriver.fromConfig(
             FlinkJobServerDriver.parseArgs(
-                new String[] {"--job-port=" + jobPort, "--artifact-port=0", "--expansion-port=0"}),
+                new String[] {
+                        "--job-port=" + jobPort, "--artifact-port=0", "--expansion-port=0",
+                        "--artifacts-dir="+this.artifactStagingPath,
+                        "--clean-artifacts-per-job="+this.cleanArtifactsPerJob,
+                }),
             jobInvokerFactory);
     jobServerThread = new Thread(jobServer);
     jobServerThread.start();
