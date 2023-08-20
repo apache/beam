@@ -65,7 +65,7 @@ public class Task {
          */
 
         PCollection<TableRow> pCollection = pipeline
-                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ));
+                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ));
 
         final PTransform<PCollection<TableRow>, PCollection<Iterable<TableRow>>> sample = Sample.fixedSizeGlobally(5);
 

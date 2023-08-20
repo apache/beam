@@ -31,7 +31,7 @@ PCollection<WeatherData> weatherData =
                 })
             .fromQuery(
                 "SELECT year, month, day, max_temperature "
-                    + "FROM [clouddataflow-readonly:samples.weather_stations] "
+                    + "FROM [apache-beam-testing.samples.weather_stations] "
                     + "WHERE year BETWEEN 2007 AND 2009")
             .withCoder(AvroCoder.of(WeatherData.class)));
 
