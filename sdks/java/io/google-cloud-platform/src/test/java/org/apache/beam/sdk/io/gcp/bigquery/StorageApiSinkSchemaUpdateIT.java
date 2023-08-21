@@ -353,7 +353,7 @@ public class StorageApiSinkSchemaUpdateIT {
     Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
-    boolean waitLonger = changeTableSchema && useAutoSchemaUpdate;
+    boolean waitLonger = changeTableSchema && (useAutoSchemaUpdate || !useInputSchema);
     Duration interval = waitLonger ? Duration.standardSeconds(1) : Duration.millis(1);
     Duration stop =
         waitLonger ? Duration.standardSeconds(TOTAL_N - 1) : Duration.millis(TOTAL_N - 1);
