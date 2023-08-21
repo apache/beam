@@ -254,13 +254,24 @@ class GCSFileSystem(FileSystem):
       gcs_batches.append(gcs_current_batch)
 
     # Execute GCS renames if any and return exceptions.
-    try:
-      for batch in gcs_batches:
-        self._gcsIO().copy_batch(batch)
-        self._gcsIO().delete_batch(source_file_names)
+    exceptions = {}
+    for batch in gcs_batches:
+      copy_statuses = self._gcsIO().copy_batch(batch)
+      copy_succeeded = []
+      for src, dest, exception in copy_statuses:
+        if exception:
+          exceptions[(src, dest)] = exception
+        else:
+          copy_succeeded.append((src, dest))
+      delete_batch = [src for src, dest in copy_succeeded]
+      delete_statuses = self._gcsIO().delete_batch(delete_batch)
+      for i, (src, exception) in enumerate(delete_statuses):
+        dest = copy_succeeded[i][1]
+        if exception:
+          exceptions[(src, dest)] = exception
 
-    except Exception as exception:
-      raise BeamIOError("Rename operation failed", exception)
+    if exceptions:
+      raise BeamIOError("Rename operation failed", exceptions)
 
   def exists(self, path):
     """Check if the provided path exists on the FileSystem.
