@@ -374,7 +374,7 @@ class GCSFileSystemTest(unittest.TestCase):
     # Issue batch delete.
     with self.assertRaisesRegex(BeamIOError, r'^Delete operation failed'):
       self.fs.delete(files)
-    gcsio_mock.delete_batch.assert_called(files)
+    gcsio_mock.delete_batch.assert_called_once_with(files)
 
 
 if __name__ == '__main__':
