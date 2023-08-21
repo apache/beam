@@ -52,12 +52,12 @@ In this example, `MLTransform` receives a value for `write_artifact_location`. `
 MLTransform(transforms=transforms, write_artifact_location=write_artifact_location)
 ```
 
-The transforms passed to `MLTransform` are applied sequentially on the dataset. `MLTransform` expects a dictionary and return a transformed Row objecst with numpy arrays.
+The transforms passed to `MLTransform` are applied sequentially on the dataset. `MLTransform` expects a dictionary and returns a transformed row object with NumPy arrays.
 ## Examples
 
 The following examples demonstrate how to to create pipelines that use `MLTransform` to preprocess data.
 
-MLTransform can do a full pass on the dataset, which is useful when you need to transform a single element only after analyzing the entire dataset.
+`MLTransform` can do a full pass on the dataset, which is useful when you need to transform a single element only after analyzing the entire dataset.
 The first two examples require a full pass over the dataset to complete the data transformation.
 
 * For the `ComputeAndApplyVocabulary` transform, the transform needs access to all of the unique words in the dataset.
@@ -66,7 +66,7 @@ The first two examples require a full pass over the dataset to complete the data
 ### Example 1
 
 This example creates a pipeline that uses `MLTransform` to scale data between 0 and 1.
-The example takes a list of ints and converts them into the range of 0 to 1 using the transform `ScaleTo01`.
+The example takes a list of integers and converts them into the range of 0 to 1 using the transform `ScaleTo01`.
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform.py"
   class="notebook-skip" >}}
@@ -100,7 +100,6 @@ Output:
 {{< /highlight >}}
 
 
-The above two examples requires a full pass over the dataset to transform the dataset. For `ComputeAndApplyVocabulary`, all the unqiue words in the dataset needs to be known before transforming the data. For `ScaleTo01`, the minimum and maximum of the dataset needs to be known before transforming the dataset. This is acheived by `MLTransform`.
 ### Example 3
 
 This example creates a pipeline that uses `MLTransform` to compute vocabulary on the entire dataset and assign indices to each unique vocabulary item. This pipeline takes a single element as input instead of a list of elements.
