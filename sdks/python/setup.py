@@ -250,7 +250,7 @@ if __name__ == '__main__':
           'httplib2>=0.8,<0.23.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<1.25.0',  # Update build-requirements.txt as well.
+          'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.7.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',

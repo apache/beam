@@ -77,7 +77,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Build source
         working-directory: ./sdks/python
         run: pip install -U build && python -m build --sdist
