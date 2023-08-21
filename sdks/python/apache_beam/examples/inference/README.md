@@ -29,7 +29,6 @@ Some examples are also used in [our benchmarks](http://s.apache.org/beam-communi
 You must have the latest (possibly unreleased) `apache-beam` or greater installed from the Beam repo in order to run these pipelines,
 because some examples rely on the latest features that are actively in development. To install Beam, run the following from the `sdks/python` directory:
 ```
-pip install -r build-requirements.txt
 pip install -e .[gcp]
 ```
 

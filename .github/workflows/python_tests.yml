@@ -78,9 +78,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.8
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
       - name: Build source
         working-directory: ./sdks/python
         run: pip install -U build && python -m build --sdist
