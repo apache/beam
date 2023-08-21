@@ -44,7 +44,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -119,8 +119,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
   @BeforeClass
   public static void beforeClass() throws IOException {
     resourceManager =
-        GcsResourceManager.builder(TestProperties.artifactBucket(), "textiolt")
-            .setCredentials(CREDENTIALS)
+        GcsResourceManager.builder(TestProperties.artifactBucket(), "textiolt", CREDENTIALS)
             .build();
   }
 
@@ -188,7 +187,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
             .build();
-    PipelineLauncher.LaunchInfo writeInfo = pipelineLauncher.launch(PROJECT, REGION, writeOptions);
+    PipelineLauncher.LaunchInfo writeInfo = pipelineLauncher.launch(project, region, writeOptions);
     PipelineOperator.Result writeResult =
         pipelineOperator.waitUntilDone(
             createConfig(writeInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -202,7 +201,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
             .build();
-    PipelineLauncher.LaunchInfo readInfo = pipelineLauncher.launch(PROJECT, REGION, readOptions);
+    PipelineLauncher.LaunchInfo readInfo = pipelineLauncher.launch(project, region, readOptions);
     PipelineOperator.Result readResult =
         pipelineOperator.waitUntilDone(
             createConfig(readInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -213,8 +212,8 @@ public class FileBasedIOLT extends IOLoadTestBase {
     // check metrics
     double numRecords =
         pipelineLauncher.getMetric(
-            PROJECT,
-            REGION,
+            project,
+            region,
             readInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.datastore;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.MovingFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * An implementation of client-side adaptive throttling. See

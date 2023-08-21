@@ -26,11 +26,12 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -51,37 +52,36 @@ permissions:
 
 jobs:
   beam_PreCommit_SQL_Java11:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_SQL_Java11]
+        job_phrase: [Run SQL_Java11 PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run SQL_Java11 PreCommit'
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    name: beam_PreCommit_SQL_Java11
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Rerun on comment
-        if: github.event.comment.body == 'Run SQL_Java11 PreCommit'
-        uses: ./.github/actions/rerun-job-action
-        with:
-          pull_request_url: ${{ github.event.issue.pull_request.url }}
-          github_repository: ${{ github.repository }}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ github.job }}
-          github_current_run_id: ${{ github.run_id }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Set up Java
         uses: actions/setup-java@v3.8.0
         with:
           distribution: 'temurin'
           java-version: '11'
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
       - name: Install Python
         uses: actions/setup-python@v4
         with:
@@ -107,7 +107,7 @@ jobs:
           name: JUnit Test Results
           path: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'

@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.sdk.io.aws2.kinesis.RateLimitPolicyFactory.DefaultRateLimiter;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
 public class RateLimitPolicyFactoryTest {

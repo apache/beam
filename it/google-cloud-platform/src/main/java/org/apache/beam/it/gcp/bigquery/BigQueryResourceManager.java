@@ -17,11 +17,8 @@
  */
 package org.apache.beam.it.gcp.bigquery;
 
-import static org.apache.beam.it.gcp.bigquery.BigQueryResourceManagerUtils.checkValidTableId;
-
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryError;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -37,14 +34,13 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.it.common.ResourceManager;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,8 +94,8 @@ public final class BigQueryResourceManager implements ResourceManager {
     this.bigQuery = bigQuery;
   }
 
-  public static Builder builder(String testId, String projectId) throws IOException {
-    return new Builder(testId, projectId);
+  public static Builder builder(String testId, String projectId, Credentials credentials) {
+    return new Builder(testId, projectId, credentials);
   }
 
   public String getProjectId() {
@@ -239,7 +235,7 @@ public final class BigQueryResourceManager implements ResourceManager {
       String tableName, Schema schema, Long expirationTimeMillis)
       throws BigQueryResourceManagerException {
     // Check table ID
-    checkValidTableId(tableName);
+    BigQueryResourceManagerUtils.checkValidTableId(tableName);
 
     // Check schema
     if (schema == null) {
@@ -480,11 +476,11 @@ public final class BigQueryResourceManager implements ResourceManager {
     private String datasetId;
     private Credentials credentials;
 
-    private Builder(String testId, String projectId) throws IOException {
+    private Builder(String testId, String projectId, Credentials credentials) {
       this.testId = testId;
       this.projectId = projectId;
       this.datasetId = null;
-      this.credentials = GoogleCredentials.getApplicationDefault();
+      this.credentials = credentials;
     }
 
     public Builder setDatasetId(String datasetId) {

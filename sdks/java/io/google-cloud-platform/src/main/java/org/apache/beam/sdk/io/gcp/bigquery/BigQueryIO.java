@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.Clustering;
@@ -126,17 +126,17 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -3128,32 +3128,80 @@ public class BigQueryIO {
                       .collect(Collectors.toList())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
+      // Perform some argument checks
+      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       Write.Method method = resolveMethod(input);
-      if (input.isBounded() == IsBounded.UNBOUNDED
-          && (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API)) {
-        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-        Duration triggeringFrequency =
-            (method == Write.Method.STORAGE_WRITE_API)
-                ? getStorageApiTriggeringFrequency(bqOptions)
-                : getTriggeringFrequency();
-        checkArgument(
-            triggeringFrequency != null,
-            "When writing an unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, "
-                + "triggering frequency must be specified");
-      } else {
-        checkArgument(
-            getTriggeringFrequency() == null && getNumFileShards() == 0,
-            "Triggering frequency or number of file shards can be specified only when writing an"
-                + " unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, but: the collection"
-                + " was %s and the method was %s",
-            input.isBounded(),
-            method);
+      if (input.isBounded() == IsBounded.UNBOUNDED) {
+        if (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API) {
+          Duration triggeringFrequency =
+              (method == Write.Method.STORAGE_WRITE_API)
+                  ? getStorageApiTriggeringFrequency(bqOptions)
+                  : getTriggeringFrequency();
+          checkArgument(
+              triggeringFrequency != null,
+              "When writing an unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API, "
+                  + "triggering frequency must be specified");
+        } else {
+          checkArgument(
+              getTriggeringFrequency() == null,
+              "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
+              method);
+        }
+        if (method != Method.FILE_LOADS) {
+          checkArgument(
+              getNumFileShards() == 0,
+              "Number of file shards can be specified only when writing via FILE_LOADS, but the method was %s.",
+              method);
+        }
+        if (method == Method.STORAGE_API_AT_LEAST_ONCE
+            && getStorageApiTriggeringFrequency(bqOptions) != null) {
+          LOG.warn(
+              "Storage API triggering frequency option will be ignored is it can only be specified only "
+                  + "when writing via STORAGE_WRITE_API, but the method was {}.",
+              method);
+        }
+        if (getAutoSharding()) {
+          if (method == Method.STORAGE_WRITE_API && getStorageApiNumStreams(bqOptions) > 0) {
+            LOG.warn(
+                "Both numStorageWriteApiStreams and auto-sharding options are set. Will default to auto-sharding."
+                    + " To set a fixed number of streams, do not enable auto-sharding.");
+          } else if (method == Method.FILE_LOADS && getNumFileShards() > 0) {
+            LOG.warn(
+                "Both numFileShards and auto-sharding options are set. Will default to auto-sharding."
+                    + " To set a fixed number of file shards, do not enable auto-sharding.");
+          } else if (method == Method.STORAGE_API_AT_LEAST_ONCE) {
+            LOG.warn(
+                "The setting of auto-sharding is ignored. It is only supported when writing an"
+                    + " unbounded PCollection via FILE_LOADS, STREAMING_INSERTS or"
+                    + " STORAGE_WRITE_API, but the method was {}.",
+                method);
+          }
+        }
+      } else { // PCollection is bounded
+        String error =
+            String.format(
+                " is only applicable to an unbounded PCollection, but the input PCollection is %s.",
+                input.isBounded());
+        checkArgument(getTriggeringFrequency() == null, "Triggering frequency" + error);
+        checkArgument(!getAutoSharding(), "Auto-sharding" + error);
+        checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
+
+        if (getStorageApiTriggeringFrequency(bqOptions) != null) {
+          LOG.warn("Storage API triggering frequency" + error);
+        }
+        if (getStorageApiNumStreams(bqOptions) != 0) {
+          LOG.warn("Setting the number of Storage API streams" + error);
+        }
+      }
+      if (method == Method.STORAGE_API_AT_LEAST_ONCE && getStorageApiNumStreams(bqOptions) != 0) {
+        LOG.warn(
+            "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
       }
 
       if (method != Method.STORAGE_WRITE_API && method != Method.STORAGE_API_AT_LEAST_ONCE) {
         checkArgument(
             !getAutoSchemaUpdate(),
-            "withAutoSchemaUpdate only supported when using storage-api writes.");
+            "withAutoSchemaUpdate only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
       }
       if (getRowMutationInformationFn() != null) {
         checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
@@ -3170,10 +3218,6 @@ public class BigQueryIO {
             "Auto schema update currently only supported when ignoreUnknownValues also set.");
         checkArgument(
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
-      }
-
-      if (input.isBounded() == IsBounded.BOUNDED) {
-        checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
 
       if (getJsonTimePartitioning() != null) {

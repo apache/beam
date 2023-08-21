@@ -52,7 +52,7 @@ public class DataGenerator {
   private final PipelineOperator pipelineOperator;
 
   private DataGenerator(Builder builder) throws IOException {
-    pipelineLauncher = FlexTemplateClient.builder().setCredentials(CREDENTIALS).build();
+    pipelineLauncher = FlexTemplateClient.builder(CREDENTIALS).build();
     pipelineOperator = new PipelineOperator(pipelineLauncher);
     this.dataGeneratorOptions =
         LaunchConfig.builder(builder.getJobName(), SPEC_PATH)

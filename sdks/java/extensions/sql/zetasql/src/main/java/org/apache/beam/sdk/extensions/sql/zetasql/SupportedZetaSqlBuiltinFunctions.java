@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.ZetaSQLFunction.FunctionSignatureId;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * List of ZetaSQL builtin functions supported by Beam ZetaSQL. Keep this list in sync with

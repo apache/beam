@@ -23,13 +23,16 @@ import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.gener
 import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.generateInstanceId;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.ServerStream;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminSettings;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
+import com.google.cloud.bigtable.admin.v2.models.AppProfile;
+import com.google.cloud.bigtable.admin.v2.models.AppProfile.MultiClusterRoutingPolicy;
+import com.google.cloud.bigtable.admin.v2.models.AppProfile.RoutingPolicy;
+import com.google.cloud.bigtable.admin.v2.models.AppProfile.SingleClusterRoutingPolicy;
+import com.google.cloud.bigtable.admin.v2.models.CreateAppProfileRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateInstanceRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.GCRules;
@@ -44,9 +47,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
@@ -76,7 +81,9 @@ public class BigtableResourceManager implements ResourceManager {
   private final BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory;
 
   // List to store created tables for static RM
-  private List<String> createdTables;
+  private final List<String> createdTables;
+  // List to store created app profiles for static RM
+  private final List<String> createdAppProfiles;
 
   private boolean hasInstance;
   private final boolean usingStaticInstance;
@@ -89,12 +96,13 @@ public class BigtableResourceManager implements ResourceManager {
   BigtableResourceManager(
       Builder builder,
       @Nullable BigtableResourceManagerClientFactory bigtableResourceManagerClientFactory)
-      throws IOException {
+      throws BigtableResourceManagerException, IOException {
 
     // Check that the project ID conforms to GCP standards
     checkValidProjectId(builder.projectId);
     this.projectId = builder.projectId;
     this.createdTables = new ArrayList<>();
+    this.createdAppProfiles = new ArrayList<>();
 
     // Check if RM was configured to use static Bigtable instance.
     if (builder.useStaticInstance) {
@@ -147,8 +155,9 @@ public class BigtableResourceManager implements ResourceManager {
     }
   }
 
-  public static Builder builder(String testId, String projectId) throws IOException {
-    return new Builder(testId, projectId);
+  public static Builder builder(
+      String testId, String projectId, CredentialsProvider credentialsProvider) {
+    return new Builder(testId, projectId, credentialsProvider);
   }
 
   /**
@@ -276,11 +285,35 @@ public class BigtableResourceManager implements ResourceManager {
   public synchronized void createTable(
       String tableId, Iterable<String> columnFamilies, Duration maxAge)
       throws BigtableResourceManagerException {
+    BigtableTableSpec spec = new BigtableTableSpec();
+    spec.setColumnFamilies(columnFamilies);
+    spec.setMaxAge(maxAge);
+    createTable(tableId, spec);
+  }
+
+  /**
+   * Creates a table within the current instance given a table ID and a collection of column family
+   * names.
+   *
+   * <p>Bigtable has the capability to store multiple versions of data in a single cell, which are
+   * indexed using timestamp values. The timestamp can be set by Bigtable, with the default
+   * timestamp value being 1970-01-01, or can be set explicitly. The columns in the created table
+   * will be automatically garbage collected once they reach an age of {@code maxAge} after the set
+   * timestamp.
+   *
+   * <p>Note: Implementations may do instance creation here, if one does not already exist.
+   *
+   * @param tableId The id of the table.
+   * @param bigtableTableSpec Other table configurations
+   * @throws BigtableResourceManagerException if there is an error creating the table in Bigtable.
+   */
+  public synchronized void createTable(String tableId, BigtableTableSpec bigtableTableSpec)
+      throws BigtableResourceManagerException {
     // Check table ID
     checkValidTableId(tableId);
 
     // Check for at least one column family
-    if (!columnFamilies.iterator().hasNext()) {
+    if (!bigtableTableSpec.getColumnFamilies().iterator().hasNext()) {
       throw new IllegalArgumentException(
           "There must be at least one column family specified when creating a table.");
     }
@@ -304,11 +337,12 @@ public class BigtableResourceManager implements ResourceManager {
         bigtableResourceManagerClientFactory.bigtableTableAdminClient()) {
       if (!tableAdminClient.exists(tableId)) {
         CreateTableRequest createTableRequest = CreateTableRequest.of(tableId);
-        for (String columnFamily : columnFamilies) {
-          createTableRequest.addFamily(columnFamily, GCRules.GCRULES.maxAge(maxAge));
+        for (String columnFamily : bigtableTableSpec.getColumnFamilies()) {
+          createTableRequest.addFamily(
+              columnFamily, GCRules.GCRULES.maxAge(bigtableTableSpec.getMaxAge()));
         }
+        // TODO: Set CDC enabled
         tableAdminClient.createTable(createTableRequest);
-
       } else {
         throw new IllegalStateException(
             "Table " + tableId + " already exists for instance " + instanceId + ".");
@@ -322,6 +356,59 @@ public class BigtableResourceManager implements ResourceManager {
     }
 
     LOG.info("Successfully created table {}.{}", instanceId, tableId);
+  }
+
+  /**
+   * Creates an application profile within the current instance
+   *
+   * <p>Note: Implementations may do instance creation here, if one does not already exist.
+   *
+   * @param appProfileId The id of the app profile.
+   * @param allowTransactionWrites Allows transactional writes when single cluster routing is
+   *     enabled
+   * @param clusters Clusters where traffic is going to be routed. If more than one cluster is
+   *     specified, a multi-cluster routing is used. A single-cluster routing is used when a single
+   *     cluster is specified.
+   * @throws BigtableResourceManagerException if there is an error creating the application profile
+   *     in Bigtable.
+   */
+  public synchronized void createAppProfile(
+      String appProfileId, boolean allowTransactionWrites, List<String> clusters)
+      throws BigtableResourceManagerException {
+    checkHasInstance();
+    if (clusters == null || clusters.isEmpty()) {
+      throw new IllegalArgumentException("Cluster list cannot be empty");
+    }
+
+    RoutingPolicy routingPolicy;
+
+    if (clusters.size() == 1) {
+      routingPolicy = SingleClusterRoutingPolicy.of(clusters.get(0), allowTransactionWrites);
+    } else {
+      routingPolicy = MultiClusterRoutingPolicy.of(new HashSet<>(clusters));
+    }
+
+    LOG.info("Creating appProfile {} for instance project {}.", appProfileId, instanceId);
+
+    try (BigtableInstanceAdminClient instanceAdminClient =
+        bigtableResourceManagerClientFactory.bigtableInstanceAdminClient()) {
+      List<AppProfile> existingAppProfiles = instanceAdminClient.listAppProfiles(instanceId);
+      if (!doesAppProfileExist(appProfileId, existingAppProfiles)) {
+        CreateAppProfileRequest request =
+            CreateAppProfileRequest.of(instanceId, appProfileId).setRoutingPolicy(routingPolicy);
+        instanceAdminClient.createAppProfile(request);
+        LOG.info("Successfully created appProfile {}.", appProfileId);
+      } else {
+        throw new IllegalStateException(
+            "App profile " + appProfileId + " already exists for instance " + instanceId + ".");
+      }
+    } catch (Exception e) {
+      throw new BigtableResourceManagerException("Failed to create app profile.", e);
+    }
+
+    if (usingStaticInstance) {
+      createdAppProfiles.add(appProfileId);
+    }
   }
 
   /**
@@ -469,6 +556,15 @@ public class BigtableResourceManager implements ResourceManager {
     LOG.info("Manager successfully cleaned up.");
   }
 
+  private boolean doesAppProfileExist(String appProfileId, List<AppProfile> existingAppProfiles) {
+    for (AppProfile existingProfile : existingAppProfiles) {
+      if (StringUtils.equals(appProfileId, existingProfile.getId())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Builder for {@link BigtableResourceManager}. */
   public static final class Builder {
 
@@ -478,11 +574,10 @@ public class BigtableResourceManager implements ResourceManager {
     private boolean useStaticInstance;
     private CredentialsProvider credentialsProvider;
 
-    private Builder(String testId, String projectId) throws IOException {
+    private Builder(String testId, String projectId, CredentialsProvider credentialsProvider) {
       this.testId = testId;
       this.projectId = projectId;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
       this.instanceId = null;
     }
 
@@ -524,7 +619,6 @@ public class BigtableResourceManager implements ResourceManager {
      * @return this builder object with the useStaticInstance option enabled and instance set if
      *     configured, the same builder otherwise.
      */
-    @SuppressWarnings("nullness")
     public Builder maybeUseStaticInstance() {
       if (System.getProperty("bigtableInstanceId") != null) {
         this.useStaticInstance = true;

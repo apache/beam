@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -114,6 +115,7 @@ public class DetectNewPartitionsActionTest {
         new MetadataTableAdminDao(
             adminClient, null, changeStreamId, MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
     metadataTableAdminDao.createMetadataTable();
+    metadataTableAdminDao.cleanUpPrefix();
     metadataTableDao =
         new MetadataTableDao(
             dataClient,
@@ -687,19 +689,22 @@ public class DetectNewPartitionsActionTest {
 
     HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
     ByteStringRange partitionAB = ByteStringRange.create("a", "b");
-    // Partition missing for 5 minutes less 1 seconds.
+    // Partition missing for 10 minutes less 1 second.
     missingPartitionDurations.put(
-        partitionAB, Instant.now().minus(Duration.standardSeconds(10 * 60 - 1)));
+        partitionAB, Instant.now().minus(Duration.standardSeconds(20 * 60 - 1)));
     metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
 
-    // No new partitions and missing partition has not been missing for long enough.
+    // Since there's no NewPartition corresponding to the missing partition, we can't reconcile with
+    // continuation tokens. In order to reconcile without continuation tokens, the partition needs
+    // to have been missing for more than 10 minutes.
     assertEquals(
         DoFn.ProcessContinuation.resume().withResumeDelay(Duration.millis(100)),
         action.run(
             tracker, receiver, watermarkEstimator, new InitialPipelineState(startTime, false)));
     verify(receiver, never()).outputWithTimestamp(any(), any());
+    assertEquals(1, metadataTableDao.readDetectNewPartitionMissingPartitions().size());
 
-    // Sleep for 1 second, enough that the missing partition needs to be reconciled.
+    // Sleep for more than 1 second, enough that the missing partition needs to be reconciled.
     Thread.sleep(1001);
 
     // We advance the restriction tracker by 1. Because it is not a multiple of 2, we don't
@@ -713,6 +718,7 @@ public class DetectNewPartitionsActionTest {
         action.run(
             tracker, receiver, watermarkEstimator, new InitialPipelineState(startTime, false)));
     verify(receiver, never()).outputWithTimestamp(any(), any());
+    assertEquals(1, metadataTableDao.readDetectNewPartitionMissingPartitions().size());
 
     // Multiple of 2, reconciliation should happen.
     offsetRange = new OffsetRange(54, Long.MAX_VALUE);
@@ -723,6 +729,7 @@ public class DetectNewPartitionsActionTest {
         DoFn.ProcessContinuation.resume().withResumeDelay(Duration.millis(100)),
         action.run(
             tracker, receiver, watermarkEstimator, new InitialPipelineState(startTime, false)));
+    assertEquals(0, metadataTableDao.readDetectNewPartitionMissingPartitions().size());
     verify(receiver, times(1))
         .outputWithTimestamp(partitionRecordArgumentCaptor.capture(), eq(Instant.EPOCH));
     assertEquals(partitionAB, partitionRecordArgumentCaptor.getValue().getPartition());
@@ -734,5 +741,92 @@ public class DetectNewPartitionsActionTest {
     // The startTime should be the startTime of the pipeline because it's less than 1 hour before
     // the low watermark.
     assertEquals(startTime, partitionRecordArgumentCaptor.getValue().getStartTime());
+  }
+
+  // Reconcile runs immediately after a previous reconcile without RCSP working on the previous
+  // reconciled result. This can happen if the runner is backed up and slow.
+  // 1. Partition in NewPartition waiting for 1 minute
+  // 2. Reconciler takes the partition and outputs it. Reconciler marks the partition in
+  // NewPartition as deleted
+  // 3. Reconciler runs again
+  @Test
+  public void testBackToBackReconcile() throws Exception {
+    // We only start reconciling after 50.
+    // We advance watermark on every 2 restriction tracker advancement
+    OffsetRange offsetRange = new OffsetRange(52, Long.MAX_VALUE);
+    when(tracker.currentRestriction()).thenReturn(offsetRange);
+    when(tracker.tryClaim(offsetRange.getFrom())).thenReturn(true);
+
+    // Write 2 partitions to the table, missing [a, b) because [a, b) is trying to merge into [a, c)
+    ByteStringRange partitionEmptyA = ByteStringRange.create("", "a");
+    Instant watermarkEmptyA = endTime.plus(Duration.millis(100));
+    PartitionRecord partitionRecordEmptyA =
+        new PartitionRecord(
+            partitionEmptyA,
+            watermarkEmptyA,
+            UniqueIdGenerator.getNextId(),
+            watermarkEmptyA,
+            Collections.emptyList(),
+            null);
+    metadataTableDao.lockAndRecordPartition(partitionRecordEmptyA);
+    ByteStringRange partitionBEmpty = ByteStringRange.create("b", "");
+    Instant watermarkBEmpty = endTime.plus(Duration.millis(1));
+    PartitionRecord partitionRecordBEmpty =
+        new PartitionRecord(
+            partitionBEmpty,
+            watermarkBEmpty,
+            UniqueIdGenerator.getNextId(),
+            watermarkBEmpty,
+            Collections.emptyList(),
+            null);
+    metadataTableDao.lockAndRecordPartition(partitionRecordBEmpty);
+
+    // NewPartition [a, b) trying to merge into [a, c)
+    ByteStringRange parentPartitionAB = ByteStringRange.create("a", "b");
+    Instant watermarkAB = startTime;
+    ChangeStreamContinuationToken tokenAB =
+        ChangeStreamContinuationToken.create(parentPartitionAB, "ab");
+
+    ByteStringRange childPartitionAC = ByteStringRange.create("a", "c");
+
+    NewPartition newPartitionACFromAB =
+        new NewPartition(childPartitionAC, Collections.singletonList(tokenAB), watermarkAB);
+
+    metadataTableDao.writeNewPartition(newPartitionACFromAB);
+
+    // Artificially create that partitionAB has been missing for more than 1 minute.
+    HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
+    missingPartitionDurations.put(
+        parentPartitionAB, Instant.now().minus(Duration.standardSeconds(121)));
+    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
+
+    assertEquals(1, metadataTableDao.readNewPartitions().size());
+
+    assertEquals(
+        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.millis(100)),
+        action.run(
+            tracker, receiver, watermarkEstimator, new InitialPipelineState(startTime, false)));
+    // AB should be reconciled with token because it's been missing for more than 1 minute
+    verify(receiver, times(1))
+        .outputWithTimestamp(partitionRecordArgumentCaptor.capture(), eq(Instant.EPOCH));
+
+    assertEquals(parentPartitionAB, partitionRecordArgumentCaptor.getValue().getPartition());
+    assertEquals(watermarkAB, partitionRecordArgumentCaptor.getValue().getParentLowWatermark());
+    assertEquals(endTime, partitionRecordArgumentCaptor.getValue().getEndTime());
+    assertEquals(
+        partitionRecordArgumentCaptor.getValue().getChangeStreamContinuationTokens(),
+        Collections.singletonList(tokenAB));
+    assertTrue(metadataTableDao.readNewPartitions().isEmpty());
+    assertTrue(metadataTableDao.readDetectNewPartitionMissingPartitions().isEmpty());
+
+    clearInvocations(receiver);
+    // The reconciled partition was not processed by RCSP, so NewPartition is still marked for
+    // deletion and the partition is still considered missing. We run DNP again.
+    assertEquals(
+        DoFn.ProcessContinuation.resume().withResumeDelay(Duration.millis(100)),
+        action.run(
+            tracker, receiver, watermarkEstimator, new InitialPipelineState(startTime, false)));
+    // We don't reconcile the partition again.
+    verify(receiver, never()).outputWithTimestamp(any(), any());
   }
 }

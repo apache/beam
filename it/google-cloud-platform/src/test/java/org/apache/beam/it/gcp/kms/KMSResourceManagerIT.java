@@ -43,10 +43,7 @@ public class KMSResourceManagerIT extends GCPBaseIT {
   @Before
   public void setUp() throws IOException {
     kmsResourceManager =
-        KMSResourceManager.builder(PROJECT)
-            .setCredentialsProvider(credentialsProvider)
-            .setRegion(KMS_REGION)
-            .build();
+        KMSResourceManager.builder(PROJECT, credentialsProvider).setRegion(KMS_REGION).build();
   }
 
   @Test

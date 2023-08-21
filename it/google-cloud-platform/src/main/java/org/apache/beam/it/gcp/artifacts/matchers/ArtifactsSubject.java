@@ -19,7 +19,7 @@ package org.apache.beam.it.gcp.artifacts.matchers;
 
 import static org.apache.beam.it.gcp.artifacts.matchers.ArtifactAsserts.assertThatGenericRecords;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing.sha256;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing.sha256;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +41,9 @@ import org.apache.beam.it.truthmatchers.RecordsSubject;
  * Subject that has assertion operations for artifact lists (GCS files), usually coming from the
  * result of a template.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ArtifactsSubject extends Subject {
 
   private final List<Artifact> actual;

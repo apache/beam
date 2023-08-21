@@ -27,7 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -104,7 +104,7 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
           if (autoUpdateSchema) {
             try {
               @Nullable TableRow unknownFields = payload.getUnknownFields();
-              if (unknownFields != null) {
+              if (unknownFields != null && !unknownFields.isEmpty()) {
                 // Protocol buffer serialization format supports concatenation. We serialize any new
                 // "known" fields
                 // into a proto and concatenate to the existing proto.

@@ -18,14 +18,13 @@
 package org.apache.beam.it.gcp.artifacts.matchers;
 
 import static com.google.common.truth.Truth.assertAbout;
-import static org.apache.beam.it.gcp.artifacts.matchers.ArtifactsSubject.genericRecordToRecords;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
 
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.it.gcp.artifacts.Artifact;
 import org.apache.beam.it.truthmatchers.RecordsSubject;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class ArtifactAsserts {
 
@@ -58,6 +57,6 @@ public class ArtifactAsserts {
    * @return Truth Subject to chain assertions.
    */
   public static RecordsSubject assertThatGenericRecords(List<GenericRecord> records) {
-    return assertThatRecords(genericRecordToRecords(records));
+    return assertThatRecords(ArtifactsSubject.genericRecordToRecords(records));
   }
 }

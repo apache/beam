@@ -25,7 +25,7 @@ import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockRecords;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShardIterators;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.mockShards;
 import static org.apache.beam.sdk.io.aws2.kinesis.TestHelpers.record;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.concat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -43,7 +43,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -111,12 +111,13 @@ public class KinesisIOReadTest {
   @Test
   public void testReadWithEFOFromShards() {
     SubscribeToShardEvent shard0event = eventWithRecords(3);
-    SubscribeToShardEvent shard1event = eventWithRecords(3);
-    SubscribeToShardEvent shard2event = eventWithRecords(3);
+    SubscribeToShardEvent shard1event = eventWithRecords(4);
+    SubscribeToShardEvent shard2event = eventWithRecords(5);
     EFOStubbedKinesisAsyncClient asyncClientStub = new EFOStubbedKinesisAsyncClient(10);
     asyncClientStub.stubSubscribeToShard("0", shard0event);
     asyncClientStub.stubSubscribeToShard("1", shard1event);
-    asyncClientStub.stubSubscribeToShard("2", shard1event);
+    asyncClientStub.stubSubscribeToShard("2", shard2event);
+
     MockClientBuilderFactory.set(p, KinesisAsyncClientBuilder.class, asyncClientStub);
     Iterable<Record> expectedRecords =
         concat(shard0event.records(), shard1event.records(), shard2event.records());
@@ -128,7 +129,7 @@ public class KinesisIOReadTest {
             .withConsumerArn("consumer")
             .withInitialPositionInStream(TRIM_HORIZON)
             .withArrivalTimeWatermarkPolicy()
-            .withMaxNumRecords(9);
+            .withMaxNumRecords(12);
 
     PCollection<Record> result = p.apply(read).apply(ParDo.of(new KinesisIOReadTest.ToRecord()));
     PAssert.that(result).containsInAnyOrder(expectedRecords);

@@ -28,6 +28,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.InsertAllRequest.RowToInsert;
 import com.google.monitoring.v3.TimeInterval;
 import com.google.protobuf.util.Timestamps;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
@@ -45,7 +46,7 @@ import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.gcp.bigquery.BigQueryResourceManager;
 import org.apache.beam.it.gcp.monitoring.MonitoringClient;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -82,8 +83,13 @@ public abstract class LoadTestBase {
   protected static final Credentials CREDENTIALS = TestProperties.googleCredentials();
   protected static final CredentialsProvider CREDENTIALS_PROVIDER =
       FixedCredentialsProvider.create(CREDENTIALS);
-  protected static final String PROJECT = TestProperties.project();
-  protected static final String REGION = TestProperties.region();
+
+  @SuppressFBWarnings("MS_PKGPROTECT")
+  protected static String project;
+
+  @SuppressFBWarnings("MS_PKGPROTECT")
+  protected static String region;
+
   protected MonitoringClient monitoringClient;
   protected PipelineLauncher pipelineLauncher;
   protected PipelineOperator pipelineOperator;
@@ -102,9 +108,11 @@ public abstract class LoadTestBase {
       };
 
   @Before
+  @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
   public void setUp() throws IOException {
-    monitoringClient =
-        MonitoringClient.builder().setCredentialsProvider(CREDENTIALS_PROVIDER).build();
+    project = TestProperties.project();
+    region = TestProperties.region();
+    monitoringClient = MonitoringClient.builder(CREDENTIALS_PROVIDER).build();
     pipelineLauncher = launcher();
     pipelineOperator = new PipelineOperator(pipelineLauncher);
   }
@@ -115,7 +123,7 @@ public abstract class LoadTestBase {
     monitoringClient.cleanupAll();
   }
 
-  abstract PipelineLauncher launcher();
+  abstract PipelineLauncher launcher() throws IOException;
 
   /**
    * Exports the metrics of given dataflow job to BigQuery.
@@ -128,9 +136,9 @@ public abstract class LoadTestBase {
     LOG.info("Exporting metrics:\n{}", formatForLogging(metrics));
     try {
       // either use the user specified project for exporting, or the same project
-      String exportProject = MoreObjects.firstNonNull(TestProperties.exportProject(), PROJECT);
+      String exportProject = MoreObjects.firstNonNull(TestProperties.exportProject(), project);
       BigQueryResourceManager bigQueryResourceManager =
-          BigQueryResourceManager.builder(testName, exportProject)
+          BigQueryResourceManager.builder(testName, exportProject, CREDENTIALS)
               .setDatasetId(TestProperties.exportDataset())
               .setCredentials(CREDENTIALS)
               .build();
@@ -178,7 +186,7 @@ public abstract class LoadTestBase {
     try {
       // the element count metric always follows the pattern <pcollection name>-ElementCount
       String metricName = pcollection.replace(".", "-") + "-ElementCount";
-      Double metric = pipelineLauncher.getMetric(PROJECT, REGION, jobId, metricName);
+      Double metric = pipelineLauncher.getMetric(project, region, jobId, metricName);
       if ((metric != null) && (metric >= (double) expectedElements)) {
         return true;
       }
@@ -202,7 +210,7 @@ public abstract class LoadTestBase {
       Map<String, Double> metrics, LaunchInfo launchInfo, MetricsConfiguration config)
       throws ParseException {
     // cost info
-    LOG.info("Calculating approximate cost for {} under {}", launchInfo.jobId(), PROJECT);
+    LOG.info("Calculating approximate cost for {} under {}", launchInfo.jobId(), project);
     TimeInterval workerTimeInterval = getWorkerTimeInterval(launchInfo);
     metrics.put(
         "RunTime",
@@ -225,10 +233,10 @@ public abstract class LoadTestBase {
     cost += metrics.get("TotalPdUsage") / 3600 * PD_PER_GB_HR;
     cost += metrics.get("TotalSsdUsage") / 3600 * PD_SSD_PER_GB_HR;
     metrics.put("EstimatedCost", cost);
-    metrics.put("ElapsedTime", monitoringClient.getElapsedTime(PROJECT, launchInfo));
+    metrics.put("ElapsedTime", monitoringClient.getElapsedTime(project, launchInfo));
 
     Double dataProcessed =
-        monitoringClient.getDataProcessed(PROJECT, launchInfo, config.inputPCollection());
+        monitoringClient.getDataProcessed(project, launchInfo, config.inputPCollection());
     if (dataProcessed != null) {
       metrics.put("EstimatedDataProcessedGB", dataProcessed / 1e9d);
     }
@@ -308,7 +316,7 @@ public abstract class LoadTestBase {
 
   protected Map<String, Double> getMetrics(LaunchInfo launchInfo, MetricsConfiguration config)
       throws IOException, InterruptedException, ParseException {
-    Map<String, Double> metrics = pipelineLauncher.getMetrics(PROJECT, REGION, launchInfo.jobId());
+    Map<String, Double> metrics = pipelineLauncher.getMetrics(project, region, launchInfo.jobId());
     if (launchInfo.runner().contains("Dataflow")) {
       // monitoring metrics take up to 3 minutes to show up
       // TODO(pranavbhandari): We should use a library like http://awaitility.org/ to poll for
@@ -330,7 +338,7 @@ public abstract class LoadTestBase {
    * @return CPU Utilization metrics of the job
    */
   protected Map<String, Double> getCpuUtilizationMetrics(String jobId, TimeInterval timeInterval) {
-    List<Double> cpuUtilization = monitoringClient.getCpuUtilization(PROJECT, jobId, timeInterval);
+    List<Double> cpuUtilization = monitoringClient.getCpuUtilization(project, jobId, timeInterval);
     Map<String, Double> cpuUtilizationMetrics = new HashMap<>();
     if (cpuUtilization == null) {
       return cpuUtilizationMetrics;
@@ -352,16 +360,16 @@ public abstract class LoadTestBase {
       String jobId, MetricsConfiguration config, TimeInterval timeInterval) {
     List<Double> inputThroughputBytesPerSec =
         monitoringClient.getThroughputBytesPerSecond(
-            PROJECT, jobId, config.inputPCollection(), timeInterval);
+            project, jobId, config.inputPCollection(), timeInterval);
     List<Double> inputThroughputElementsPerSec =
         monitoringClient.getThroughputElementsPerSecond(
-            PROJECT, jobId, config.inputPCollection(), timeInterval);
+            project, jobId, config.inputPCollection(), timeInterval);
     List<Double> outputThroughputBytesPerSec =
         monitoringClient.getThroughputBytesPerSecond(
-            PROJECT, jobId, config.outputPCollection(), timeInterval);
+            project, jobId, config.outputPCollection(), timeInterval);
     List<Double> outputThroughputElementsPerSec =
         monitoringClient.getThroughputElementsPerSecond(
-            PROJECT, jobId, config.outputPCollection(), timeInterval);
+            project, jobId, config.outputPCollection(), timeInterval);
     return getThroughputMetrics(
         inputThroughputBytesPerSec,
         inputThroughputElementsPerSec,
@@ -377,7 +385,7 @@ public abstract class LoadTestBase {
    * @return Data freshness metrics of the job
    */
   protected Map<String, Double> getDataFreshnessMetrics(String jobId, TimeInterval timeInterval) {
-    List<Double> dataFreshness = monitoringClient.getDataFreshness(PROJECT, jobId, timeInterval);
+    List<Double> dataFreshness = monitoringClient.getDataFreshness(project, jobId, timeInterval);
     Map<String, Double> dataFreshnessMetrics = new HashMap<>();
     if (dataFreshness == null) {
       return dataFreshnessMetrics;
@@ -395,7 +403,7 @@ public abstract class LoadTestBase {
    * @return System latency metrics of the job
    */
   protected Map<String, Double> getSystemLatencyMetrics(String jobId, TimeInterval timeInterval) {
-    List<Double> systemLatency = monitoringClient.getSystemLatency(PROJECT, jobId, timeInterval);
+    List<Double> systemLatency = monitoringClient.getSystemLatency(project, jobId, timeInterval);
     Map<String, Double> systemLatencyMetrics = new HashMap<>();
     if (systemLatency == null) {
       return systemLatencyMetrics;
@@ -409,7 +417,7 @@ public abstract class LoadTestBase {
   protected TimeInterval getWorkerTimeInterval(LaunchInfo info) throws ParseException {
     TimeInterval.Builder builder = TimeInterval.newBuilder();
     List<JobMessage> messages =
-        pipelineLauncher.listMessages(PROJECT, REGION, info.jobId(), "JOB_MESSAGE_DETAILED");
+        pipelineLauncher.listMessages(project, region, info.jobId(), "JOB_MESSAGE_DETAILED");
     for (JobMessage jobMessage : messages) {
       if (jobMessage.getMessageText() != null && !jobMessage.getMessageText().isEmpty()) {
         if (WORKER_START_PATTERN.matcher(jobMessage.getMessageText()).find()) {
@@ -473,8 +481,8 @@ public abstract class LoadTestBase {
   public static PipelineOperator.Config createConfig(LaunchInfo info, Duration timeout) {
     return PipelineOperator.Config.builder()
         .setJobId(info.jobId())
-        .setProject(PROJECT)
-        .setRegion(REGION)
+        .setProject(project)
+        .setRegion(region)
         .setTimeoutAfter(timeout)
         .build();
   }

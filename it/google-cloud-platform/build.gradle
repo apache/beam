@@ -31,7 +31,7 @@ dependencies {
     implementation project(path: ":it:conditions", configuration: "shadow")
     implementation project(path: ":it:truthmatchers", configuration: "shadow")
     implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation 'org.apache.hadoop:hadoop-common:3.3.5'
@@ -64,6 +64,8 @@ dependencies {
     implementation 'com.google.api.grpc:proto-google-cloud-kms-v1'
     implementation 'com.google.cloud:google-cloud-dlp'
     implementation 'com.google.api.grpc:proto-google-cloud-dlp-v2'
+    implementation 'com.google.cloud:google-cloud-secretmanager'
+    provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
 
     testImplementation project(path: ":sdks:java:testing:test-utils")
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")

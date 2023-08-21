@@ -348,6 +348,22 @@ task validatesContainer() {
   }
 }
 
+task validatesContainerARM() {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
+  def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
+              "${project.ext.pythonVersion} " +
+              "${project.ext.sdkLocation} " +
+              "ARM"
+    }
+  }
+}
+
 def tensorRTTests = tasks.create("tensorRTtests") {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'

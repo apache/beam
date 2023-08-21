@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
@@ -53,7 +53,7 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for

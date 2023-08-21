@@ -40,8 +40,8 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import java.io.IOException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -86,7 +86,7 @@ public class BigQueryResourceManagerTest {
 
   @Test
   public void testGetDatasetIdReturnsCorrectValue() throws IOException {
-    BigQueryResourceManager tm = BigQueryResourceManager.builder(TEST_ID, PROJECT_ID).build();
+    BigQueryResourceManager tm = BigQueryResourceManager.builder(TEST_ID, PROJECT_ID, null).build();
 
     assertThat(tm.getDatasetId()).matches(TEST_ID.replace('-', '_') + "_\\d{8}_\\d{6}_\\d{6}");
   }

@@ -26,6 +26,9 @@ import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
  * Subject that has assertion operations for {@link LaunchInfo}, which has the information for a
  * recently launched pipeline.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class LaunchInfoSubject extends Subject {
 
   private final LaunchInfo actual;

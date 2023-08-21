@@ -38,7 +38,7 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,7 +71,7 @@ public class KMSResourceManagerTest {
   public void setUp() throws IOException {
     testManager =
         new KMSResourceManager(
-            kmsClientFactory, KMSResourceManager.builder(PROJECT_ID).setRegion(REGION));
+            kmsClientFactory, KMSResourceManager.builder(PROJECT_ID, null).setRegion(REGION));
   }
 
   @Test

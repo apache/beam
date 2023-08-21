@@ -95,6 +95,7 @@ class SetupTest(unittest.TestCase):
             errors, ['project', 'staging_location', 'temp_location', 'region']),
         [])
 
+  @unittest.skip('Not compatible with new GCS client. See GH issue #26335.')
   def test_gcs_path(self):
     def get_validator(temp_location, staging_location):
       options = ['--project=example:example', '--job_name=job']

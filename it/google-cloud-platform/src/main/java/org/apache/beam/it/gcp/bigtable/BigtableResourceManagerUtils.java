@@ -22,7 +22,7 @@ import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateResou
 import com.google.cloud.bigtable.admin.v2.models.StorageType;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for {@link BigtableResourceManager} implementations. */
 public final class BigtableResourceManagerUtils {

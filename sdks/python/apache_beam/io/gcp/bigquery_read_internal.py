@@ -63,7 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def bigquery_export_destination_uri(
-    gcs_location_vp: Optional[ValueProvider],
+    gcs_location_vp: Union[str, Optional[ValueProvider]],
     temp_location: Optional[str],
     unique_id: str,
     directory_only: bool = False,
@@ -75,7 +75,10 @@ def bigquery_export_destination_uri(
 
   gcs_location = None
   if gcs_location_vp is not None:
-    gcs_location = gcs_location_vp.get()
+    if isinstance(gcs_location_vp, ValueProvider):
+      gcs_location = gcs_location_vp.get()
+    else:
+      gcs_location = gcs_location_vp
 
   if gcs_location is not None:
     gcs_base = gcs_location

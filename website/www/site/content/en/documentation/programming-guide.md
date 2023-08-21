@@ -39,7 +39,7 @@ The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
-The Go SDK supports Go v1.19+. SDK release 2.32.0 is the last experimental version.
+The [Go SDK](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam) supports Go v1.20+.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript">}}
@@ -1124,6 +1124,9 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
+
+The Go SDK cannot support anonymous functions outside of the deprecated Go Direct runner.
+
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
@@ -1170,8 +1173,8 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-// words is the input PCollection of strings
-var words beam.PCollection = ...
+
+The Go SDK cannot support anonymous functions outside of the deprecated Go Direct runner.
 
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_apply_anon >}}
 {{< /highlight >}}
@@ -1191,7 +1194,7 @@ words = ...
 
 <span class="language-go">
 
-> **Note:** Anonymous function DoFns may not work on distributed runners.
+> **Note:** Anonymous function DoFns do not work on distributed runners.
 > It's recommended to use named functions and register them with `register.FunctionXxY` in
 > an `init()` block.
 
