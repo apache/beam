@@ -1579,7 +1579,7 @@ bigquery_v2_messages.TableSchema):
         for record in value:
           list_of_beam_rows.append(beam_row_from_dict(record, field))
         beam_row[name] = list_of_beam_rows
-        # otherwise, create a Beam Row from this record
+      # otherwise, create a Beam Row from this record
       else:
         beam_row[name] = beam_row_from_dict(value, field)
     else:
