@@ -834,7 +834,7 @@ func init() {
 
 ##### 4.2.1.1. Applying ParDo {#applying-pardo}
 
-{{< paragraph class="language-java>}}
+{{< paragraph class="language-java">}}
 Like all Beam transforms, you apply `ParDo` by calling the `apply` method on the
 input `PCollection` and passing `ParDo` as an argument, as shown in the
 following example code:
