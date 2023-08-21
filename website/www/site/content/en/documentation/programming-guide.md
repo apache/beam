@@ -841,7 +841,7 @@ following example code:
 {{< /paragraph >}}
 
 {{< paragraph class="language-py">}}
-Like all Beam transforms, you apply `ParDo` by calling the `beam.ParDo` method on the
+Like all Beam transforms, you apply `ParDo` by calling the `beam.ParDo` on the
 input `PCollection` and passing the `DoFn` as an argument, as shown in the
 following example code:
 {{< /paragraph >}}
