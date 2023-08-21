@@ -6067,8 +6067,11 @@ execution of the DoFns via reflection.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;h5 id="applying-pardo">4.2.1.1. Applying ParDo&lt;/h5>
-&lt;p class="language-java language-py">Like all Beam transforms, you apply &lt;code>ParDo&lt;/code> by calling the &lt;code>apply&lt;/code> method on the
+&lt;p class="language-java">Like all Beam transforms, you apply &lt;code>ParDo&lt;/code> by calling the &lt;code>apply&lt;/code> method on the
 input &lt;code>PCollection&lt;/code> and passing &lt;code>ParDo&lt;/code> as an argument, as shown in the
+following example code:&lt;/p>
+&lt;p class="language-py">Like all Beam transforms, you apply &lt;code>ParDo&lt;/code> by calling the &lt;code>beam.ParDo&lt;/code> on the
+input &lt;code>PCollection&lt;/code> and passing the &lt;code>DoFn&lt;/code> as an argument, as shown in the
 following example code:&lt;/p>
 &lt;p class="language-go">&lt;code>beam.ParDo&lt;/code> applies the passed in &lt;code>DoFn&lt;/code> argument to the input &lt;code>PCollection&lt;/code>,
 as shown in the following example code:&lt;/p>
