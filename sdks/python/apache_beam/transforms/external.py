@@ -404,7 +404,10 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
 
       for identifier in discover_response.schema_transform_configs:
         proto_config = discover_response.schema_transform_configs[identifier]
-        schema = named_tuple_from_schema(proto_config.config_schema)
+        try:
+          schema = named_tuple_from_schema(proto_config.config_schema)
+        except ValueError:
+          continue
 
         yield SchemaTransformsConfig(
             identifier=identifier,
