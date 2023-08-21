@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"../bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
 	pythonConfig    = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
 	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
 	pipelinesFolder = "executable_files"
@@ -1559,6 +1559,73 @@ func Test_readGraphFile(t *testing.T) {
 			readGraphFile(tt.args.pipelineLifeCycleCtx, tt.args.cacheService, tt.args.graphFilePath, tt.args.pipelineId)
 			if v, _ := cacheService.GetValue(tt.args.backgroundCtx, tt.args.pipelineId, cache.Graph); v == nil {
 				t.Errorf("readGraphFile() error: the graph was not cached")
+			}
+		})
+	}
+}
+
+func Test_cancelCheck(t *testing.T) {
+	type args struct {
+		timeout        time.Duration
+		cancelWaitTime time.Duration
+		setCancel      bool
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Successfully canceling the pipeline immediately",
+			args: args{
+				timeout:        5 * time.Minute,
+				cancelWaitTime: 0,
+				setCancel:      true,
+			},
+		},
+		{
+			name: "Successfully canceling the pipeline after timeout",
+			args: args{
+				timeout:        2 * pauseDuration,
+				cancelWaitTime: 3 * pauseDuration,
+				setCancel:      true,
+			},
+		},
+		{
+			name: "Successfully canceling the pipeline after timeout (immediate timeout)",
+			args: args{
+				timeout:        0,
+				cancelWaitTime: 3 * pauseDuration,
+				setCancel:      true,
+			},
+		},
+		{
+			name: "Successfully timing out the pipeline without cancel",
+			args: args{
+				timeout:        3 * pauseDuration,
+				cancelWaitTime: 0,
+				setCancel:      false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), tt.args.timeout)
+			defer cancel()
+
+			id := uuid.New()
+			localCache := local.New(ctx)
+
+			go cancelCheck(ctx, id, cancel, localCache)
+
+			if tt.args.setCancel {
+				_ = localCache.SetValue(ctx, id, cache.Canceled, true)
+			}
+
+			// Wait some time for the cancelCheck to be executed
+			time.Sleep(5 * pauseDuration)
+
+			if err := ctx.Err(); err == nil {
+				t.Errorf("cancelCheck() error expected, err = %v", err)
 			}
 		})
 	}

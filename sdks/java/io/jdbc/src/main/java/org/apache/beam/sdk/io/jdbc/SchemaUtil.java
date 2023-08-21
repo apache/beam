@@ -27,7 +27,7 @@ import static java.sql.JDBCType.NVARCHAR;
 import static java.sql.JDBCType.VARBINARY;
 import static java.sql.JDBCType.VARCHAR;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.sql.Array;
@@ -49,8 +49,6 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
@@ -58,15 +56,14 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
-@Experimental(Kind.SCHEMAS)
-class SchemaUtil {
+public class SchemaUtil {
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
    * ResultSet.
@@ -178,7 +175,7 @@ class SchemaUtil {
   }
 
   /** Infers the Beam {@link Schema} from {@link ResultSetMetaData}. */
-  static Schema toBeamSchema(ResultSetMetaData md) throws SQLException {
+  public static Schema toBeamSchema(ResultSetMetaData md) throws SQLException {
     Schema.Builder schemaBuilder = Schema.builder();
 
     for (int i = 1; i <= md.getColumnCount(); i++) {

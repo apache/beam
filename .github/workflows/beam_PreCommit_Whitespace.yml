@@ -1,0 +1,91 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PreCommit Whitespace
+
+on:
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
+    paths: ['*.md', '*.build.gradle','.github/workflows/beam_PreCommit_Whitespace.yml']
+  pull_request_target:
+    branches: ['master', 'release-*']
+    paths: ['*.md', '*.build.gradle']
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
+
+jobs:
+  beam_PreCommit_Whitespace:
+    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Whitespace]
+        job_phrase: [Run Whitespace PreCommit]
+    timeout-minutes: 120
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Whitespace PreCommit'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run whitespacePreCommit script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :whitespacePreCommit

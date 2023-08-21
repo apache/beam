@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -99,14 +99,16 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStreamPool;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -122,23 +124,23 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.EvictingQueue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MultimapBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -431,6 +433,7 @@ public class StreamingDataflowWorker {
   // Built-in cumulative counters.
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
+  private final Counter<Long, Long> timeAtMaxActiveThreads;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private final Counter<Integer, Integer> memoryThrashing;
   private ScheduledExecutorService refreshWorkTimer;
@@ -609,6 +612,9 @@ public class StreamingDataflowWorker {
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
+    this.timeAtMaxActiveThreads =
+        pendingCumulativeCounters.longSum(
+            StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName());
     this.windmillMaxObservedWorkItemCommitBytes =
         pendingCumulativeCounters.intMax(
             StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
@@ -986,7 +992,11 @@ public class StreamingDataflowWorker {
                 computationWork.getDependentRealtimeInputWatermark());
         for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
           scheduleWorkItem(
-              computationState, inputDataWatermark, synchronizedProcessingTime, workItem);
+              computationState,
+              inputDataWatermark,
+              synchronizedProcessingTime,
+              workItem,
+              /*getWorkStreamLatencies=*/ Collections.emptyList());
         }
       }
     }
@@ -1004,13 +1014,15 @@ public class StreamingDataflowWorker {
               (String computation,
                   Instant inputDataWatermark,
                   Instant synchronizedProcessingTime,
-                  Windmill.WorkItem workItem) -> {
+                  Windmill.WorkItem workItem,
+                  Collection<LatencyAttribution> getWorkStreamLatencies) -> {
                 memoryMonitor.waitForResources("GetWork");
                 scheduleWorkItem(
                     getComputationState(computation),
                     inputDataWatermark,
                     synchronizedProcessingTime,
-                    workItem);
+                    workItem,
+                    getWorkStreamLatencies);
               });
       try {
         // Reconnect every now and again to enable better load balancing.
@@ -1029,7 +1041,8 @@ public class StreamingDataflowWorker {
       final ComputationState computationState,
       final Instant inputDataWatermark,
       final Instant synchronizedProcessingTime,
-      final Windmill.WorkItem workItem) {
+      final Windmill.WorkItem workItem,
+      final Collection<LatencyAttribution> getWorkStreamLatencies) {
     Preconditions.checkNotNull(inputDataWatermark);
     // May be null if output watermark not yet known.
     final @Nullable Instant outputDataWatermark =
@@ -1037,7 +1050,7 @@ public class StreamingDataflowWorker {
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
     Work work =
-        new Work(workItem, clock) {
+        new Work(workItem, clock, getWorkStreamLatencies) {
           @Override
           public void run() {
             process(
@@ -1080,7 +1093,12 @@ public class StreamingDataflowWorker {
       PROCESSING(Windmill.LatencyAttribution.State.ACTIVE),
       READING(Windmill.LatencyAttribution.State.READING),
       COMMIT_QUEUED(Windmill.LatencyAttribution.State.COMMITTING),
-      COMMITTING(Windmill.LatencyAttribution.State.COMMITTING);
+      COMMITTING(Windmill.LatencyAttribution.State.COMMITTING),
+      GET_WORK_IN_WINDMILL_WORKER(Windmill.LatencyAttribution.State.GET_WORK_IN_WINDMILL_WORKER),
+      GET_WORK_IN_TRANSIT_TO_DISPATCHER(
+          Windmill.LatencyAttribution.State.GET_WORK_IN_TRANSIT_TO_DISPATCHER),
+      GET_WORK_IN_TRANSIT_TO_USER_WORKER(
+          Windmill.LatencyAttribution.State.GET_WORK_IN_TRANSIT_TO_USER_WORKER);
 
       private final Windmill.LatencyAttribution.State latencyAttributionState;
 
@@ -1098,14 +1116,18 @@ public class StreamingDataflowWorker {
     private final Instant startTime;
     private Instant stateStartTime;
     private State state;
-    private Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
+    private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState =
+        new EnumMap<>(Windmill.LatencyAttribution.State.class);
 
-    public Work(Windmill.WorkItem workItem, Supplier<Instant> clock) {
+    public Work(
+        Windmill.WorkItem workItem,
+        Supplier<Instant> clock,
+        Collection<LatencyAttribution> getWorkStreamLatencies) {
       this.workItem = workItem;
       this.clock = clock;
       this.startTime = this.stateStartTime = clock.get();
       this.state = State.QUEUED;
-      this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
+      recordGetWorkStreamLatencies(getWorkStreamLatencies);
     }
 
     public Windmill.WorkItem getWorkItem() {
@@ -1133,7 +1155,15 @@ public class StreamingDataflowWorker {
       return stateStartTime;
     }
 
-    public Iterable<Windmill.LatencyAttribution> getLatencyAttributionList() {
+    private void recordGetWorkStreamLatencies(
+        Collection<LatencyAttribution> getWorkStreamLatencies) {
+      for (LatencyAttribution latency : getWorkStreamLatencies) {
+        totalDurationPerState.put(
+            latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
+      }
+    }
+
+    public Collection<Windmill.LatencyAttribution> getLatencyAttributions() {
       List<Windmill.LatencyAttribution> list = new ArrayList<>();
       for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
         Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
@@ -1252,6 +1282,7 @@ public class StreamingDataflowWorker {
             mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
+    String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
 
     try {
       executionState = computationState.getExecutionStateQueue().poll();
@@ -1330,13 +1361,14 @@ public class StreamingDataflowWorker {
                   readNode.getParallelInstruction().getSystemName(),
                   readNode.getParallelInstruction().getName());
           readOperation.receivers[0].addOutputCounter(
+              counterName,
               new OutputObjectAndByteCounter(
                       new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
                           readCoder),
                       mapTaskExecutor.getOutputCounters(),
                       nameContext)
                   .setSamplingPeriod(100)
-                  .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
+                  .countBytes(counterName));
         }
         executionState =
             new ExecutionState(mapTaskExecutor, context, keyCoder, executionStateTracker);
@@ -1400,6 +1432,23 @@ public class StreamingDataflowWorker {
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
 
+      // Reports source bytes processed to workitemcommitrequest if available.
+      try {
+        long sourceBytesProcessed = 0;
+        HashMap<String, ElementCounter> counters =
+            ((DataflowMapTaskExecutor) executionState.getWorkExecutor())
+                .getReadOperation()
+                .receivers[0]
+                .getOutputCounters();
+        if (counters.containsKey(counterName)) {
+          sourceBytesProcessed =
+              ((OutputObjectAndByteCounter) counters.get(counterName)).getByteCount().getAndReset();
+        }
+        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
+      } catch (Exception e) {
+        LOG.error(e.toString());
+      }
+
       Iterables.addAll(
           this.pendingMonitoringInfos, executionState.getWorkExecutor().extractMetricUpdates());
 
@@ -1411,6 +1460,7 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
+      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions());
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
@@ -1434,7 +1484,12 @@ public class StreamingDataflowWorker {
       commitQueue.put(new Commit(commitRequest, computationState, work));
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
-      long stateBytesWritten = outputBuilder.clearOutputMessages().build().getSerializedSize();
+      long stateBytesWritten =
+          outputBuilder
+              .clearOutputMessages()
+              .clearPerWorkItemLatencyAttributions()
+              .build()
+              .getSerializedSize();
       long shuffleBytesRead = 0;
       for (Windmill.InputMessageBundle bundle : workItem.getMessageBundlesList()) {
         for (Windmill.Message message : bundle.getMessagesList()) {
@@ -1472,7 +1527,7 @@ public class StreamingDataflowWorker {
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
-        Duration elapsedTimeSinceStart = new Duration(clock.get(), work.getStartTime());
+        Duration elapsedTimeSinceStart = new Duration(work.getStartTime(), clock.get());
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
               "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "
@@ -1661,8 +1716,8 @@ public class StreamingDataflowWorker {
   }
 
   private void streamingCommitLoop() {
-    StreamPool<CommitWorkStream> streamPool =
-        new StreamPool<>(
+    WindmillStreamPool<CommitWorkStream> streamPool =
+        WindmillStreamPool.create(
             NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream);
     Commit initialCommit = null;
     while (running.get()) {
@@ -1969,9 +2024,15 @@ public class StreamingDataflowWorker {
     javaHarnessMaxMemory.addValue(maxMemory);
   }
 
+  private void updateThreadMetrics() {
+    timeAtMaxActiveThreads.getAndReset();
+    timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());
+  }
+
   @VisibleForTesting
   public void reportPeriodicWorkerUpdates() {
     updateVMMetrics();
+    updateThreadMetrics();
     try {
       sendWorkerUpdatesToDataflowService(pendingDeltaCounters, pendingCumulativeCounters);
     } catch (IOException e) {
@@ -2271,7 +2332,7 @@ public class StreamingDataflowWorker {
                       .setKey(shardedKey.key())
                       .setShardingKey(shardedKey.shardingKey())
                       .setWorkToken(work.getWorkItem().getWorkToken())
-                      .addAllLatencyAttribution(work.getLatencyAttributionList())
+                      .addAllLatencyAttribution(work.getLatencyAttributions())
                       .build());
             }
           }

@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_SEQUENCE_TYPE_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.BYTE_TYPE_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
@@ -28,16 +30,19 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.loadProviders;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformProvider.RESULT_TAG;
 import static org.apache.beam.sdk.values.TypeDescriptors.booleans;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.Compression;
@@ -52,7 +57,7 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.junit.Rule;
@@ -341,6 +346,34 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   }
 
   @Test
+  public void byteTypes() {
+    List<String> formatsThatSupportSingleByteType = Arrays.asList("json", "xml");
+    assumeTrue(formatsThatSupportSingleByteType.contains(getFormat()));
+
+    String to = folder(SchemaAwareJavaBeans.ByteType.class);
+    Schema schema = BYTE_TYPE_SCHEMA;
+    List<Row> rows = DATA.byteTypeRows;
+    applyProviderAndAssertFilesWritten(to, rows, schema);
+    writePipeline.run().waitUntilFinish();
+    assertFolderContainsInAnyOrder(to, rows, schema);
+    readPipeline.run();
+  }
+
+  @Test
+  public void byteSequenceTypes() {
+    List<String> formatsThatSupportByteSequenceType = Arrays.asList("avro", "parquet");
+    assumeTrue(formatsThatSupportByteSequenceType.contains(getFormat()));
+
+    String to = folder(SchemaAwareJavaBeans.ByteSequenceType.class);
+    Schema schema = BYTE_SEQUENCE_TYPE_SCHEMA;
+    List<Row> rows = DATA.byteSequenceTypeRows;
+    applyProviderAndAssertFilesWritten(to, rows, schema);
+    writePipeline.run().waitUntilFinish();
+    assertFolderContainsInAnyOrder(to, rows, schema);
+    readPipeline.run();
+  }
+
+  @Test
   public void arrayPrimitiveDataTypes() {
     String to = folder(SchemaAwareJavaBeans.ArrayPrimitiveDataTypes.class);
     Schema schema = ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
@@ -423,7 +456,8 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   private PCollection<String> applyProviderAndAssertFilesWritten(
       List<Row> rows, Schema schema, FileWriteSchemaTransformConfiguration configuration) {
     PCollection<Row> input = writePipeline.apply(Create.of(rows).withRowSchema(schema));
-    PCollection<String> files = input.apply(getProvider().buildTransform(configuration, schema));
+    PCollection<String> files =
+        input.apply(getProvider().buildTransform(configuration, schema)).get(RESULT_TAG);
     PCollection<Long> count = files.apply("count number of files", Count.globally());
     PAssert.thatSingleton("At least one file should be written", count).notEqualTo(0L);
     return files;

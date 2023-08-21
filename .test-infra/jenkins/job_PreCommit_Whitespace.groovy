@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     triggerPathPatterns: [
       '.*\\.md$',
       '.*build\\.gradle$',
+      '.*build\\.gradle.kts$',
     ]
     )
 builder.build()

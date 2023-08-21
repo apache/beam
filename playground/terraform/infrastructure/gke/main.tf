@@ -21,12 +21,17 @@ resource "google_container_cluster" "playground-gke" {
   name                       = var.name
   project                    = var.project_id
   location                   = var.location
-  initial_node_count         = var.min_count
+  initial_node_count         = var.init_min_count
   network                    = var.network
   subnetwork                 = var.subnetwork
   remove_default_node_pool = true
-}
 
+  private_cluster_config {
+   enable_private_nodes = true
+   enable_private_endpoint = false
+   master_ipv4_cidr_block = var.control_plane_cidr
+}
+}
 resource "google_container_node_pool" "playground-node-pool" {
   name       = "playground-node-pool"
   cluster    = google_container_cluster.playground-gke.name
@@ -35,7 +40,6 @@ resource "google_container_node_pool" "playground-node-pool" {
     min_node_count = var.min_count
     max_node_count = var.max_count
    }
-  node_count = 2 
   management {
     auto_repair  = "true"
     auto_upgrade = "true"

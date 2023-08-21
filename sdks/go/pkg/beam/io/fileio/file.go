@@ -21,6 +21,7 @@ import (
 	"io"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
@@ -32,10 +33,12 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*ReadableFile)(nil)).Elem())
 }
 
-// FileMetadata contains metadata about a file, namely its path and size in bytes.
+// FileMetadata contains metadata about a file, namely its path, size in bytes and last modified
+// time.
 type FileMetadata struct {
-	Path string
-	Size int64
+	Path         string
+	Size         int64
+	LastModified time.Time
 }
 
 // compressionType is the type of compression used to compress a file.

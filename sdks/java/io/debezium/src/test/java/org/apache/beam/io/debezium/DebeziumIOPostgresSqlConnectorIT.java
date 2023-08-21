@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -131,8 +131,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(POSTGRES_SQL_CONTAINER.getMappedPort(5432))
-                            .build())
-                    .buildTransform())
+                            .build()))
             .get("output");
 
     PAssert.that(result)

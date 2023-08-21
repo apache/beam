@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/google/go-cmp/cmp"
@@ -150,6 +151,30 @@ func TestLocal_listNoMatches(t *testing.T) {
 	want := []string(nil)
 	if !cmp.Equal(got, want) {
 		t.Errorf("List(%q) = %v, want %v", glob, got, want)
+	}
+}
+
+func TestLocal_lastModified(t *testing.T) {
+	ctx := context.Background()
+	localFS := &fs{}
+
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "file.txt")
+
+	// Account for time skew between system and go runtime.
+	t1 := time.Now().Truncate(time.Second).Add(-time.Second)
+	if err := filesystem.Write(ctx, localFS, filePath, []byte("")); err != nil {
+		t.Fatalf("filesystem.Write(ctx, %q) error = %v, want nil", filePath, err)
+	}
+	t2 := time.Now().Truncate(time.Second).Add(2 * time.Second)
+
+	got, err := localFS.LastModified(ctx, filePath)
+	if err != nil {
+		t.Fatalf("LastModified(%q) error = %v, want nil", filePath, err)
+	}
+
+	if got.Before(t1) || got.After(t2) {
+		t.Errorf("LastModified(%q) = %v, want in range [%v, %v]", filePath, got, t1, t2)
 	}
 }
 

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.DateTime;
 import com.google.auto.value.AutoValue;
@@ -34,10 +34,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
@@ -357,10 +357,10 @@ public abstract class PubsubClient implements Closeable {
   public abstract static class OutgoingMessage implements Serializable {
 
     /** Underlying Message. May not have publish timestamp set. */
-    public abstract PubsubMessage message();
+    public abstract PubsubMessage getMessage();
 
     /** Timestamp for element (ms since epoch). */
-    public abstract long timestampMsSinceEpoch();
+    public abstract long getTimestampMsSinceEpoch();
 
     /**
      * If using an id attribute, the record id to associate with this record's metadata so the
@@ -368,15 +368,22 @@ public abstract class PubsubClient implements Closeable {
      */
     public abstract @Nullable String recordId();
 
+    public abstract @Nullable String topic();
+
     public static OutgoingMessage of(
-        PubsubMessage message, long timestampMsSinceEpoch, @Nullable String recordId) {
-      return new AutoValue_PubsubClient_OutgoingMessage(message, timestampMsSinceEpoch, recordId);
+        PubsubMessage message,
+        long timestampMsSinceEpoch,
+        @Nullable String recordId,
+        @Nullable String topic) {
+      return new AutoValue_PubsubClient_OutgoingMessage(
+          message, timestampMsSinceEpoch, recordId, topic);
     }
 
     public static OutgoingMessage of(
         org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage message,
         long timestampMsSinceEpoch,
-        @Nullable String recordId) {
+        @Nullable String recordId,
+        @Nullable String topic) {
       PubsubMessage.Builder builder =
           PubsubMessage.newBuilder().setData(ByteString.copyFrom(message.getPayload()));
       if (message.getAttributeMap() != null) {
@@ -385,7 +392,7 @@ public abstract class PubsubClient implements Closeable {
       if (message.getOrderingKey() != null) {
         builder.setOrderingKey(message.getOrderingKey());
       }
-      return of(builder.build(), timestampMsSinceEpoch, recordId);
+      return of(builder.build(), timestampMsSinceEpoch, recordId, topic);
     }
   }
 

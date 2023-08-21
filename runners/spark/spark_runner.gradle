@@ -170,8 +170,8 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_48_1
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_guava_32_1_2_jre
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
@@ -181,7 +181,7 @@ dependencies {
   runtimeOnly library.java.jackson_module_scala_2_12
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
-  provided library.java.hadoop_common
+  provided "org.apache.hadoop:hadoop-client-api:3.3.1"
   provided library.java.commons_io
   provided library.java.hamcrest
   provided "com.esotericsoftware:kryo-shaded:4.0.2"
@@ -279,6 +279,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
 }
 
@@ -351,6 +352,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
 }
 
@@ -362,7 +364,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   // Register various other classes used in tests
   systemProperty 'spark.kryo.classesToRegister',
     'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
-    'org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RegularImmutableList'
+    'org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RegularImmutableList'
   jvmArgs += sparkTestJvmArgs()
   jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
 
@@ -403,6 +405,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
   filter {
     // Combine with context not implemented

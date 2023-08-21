@@ -19,6 +19,7 @@ import org.apache.beam.gradle.kafka.KafkaTestUtilities
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
+        publish: false,
         automaticModuleName: 'org.apache.beam.sdk.io.kafka',
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
@@ -29,7 +30,9 @@ enableJavaPerformanceTesting()
 
 dependencies {
     implementation "org.apache.kafka:kafka-clients:$delimited"
+    permitUnusedDeclared "org.apache.kafka:kafka-clients:$delimited"
     implementation project(":sdks:java:io:kafka")
+    permitUnusedDeclared project(":sdks:java:io:kafka")
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
 }

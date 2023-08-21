@@ -39,7 +39,7 @@ The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
-The Go SDK supports Go v1.19+. SDK release 2.32.0 is the last experimental version.
+The [Go SDK](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam) supports Go v1.20+.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript">}}
@@ -159,6 +159,10 @@ Pipeline p = Pipeline.create(options);
 {{< highlight typescript >}}
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" pipelines_constructing_creating >}}
 {{< /highlight >}}
+
+For a more in-depth tutorial on creating basic pipelines
+in the Python SDK, please read and work through
+[this colab notebook](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb).
 
 ### 2.1. Configuring pipeline options {#configuring-pipeline-options}
 
@@ -593,6 +597,10 @@ such as [ParDo](#pardo) or [Combine](#combine). There are also pre-written
 combine one or more of the core transforms in a useful processing pattern, such
 as counting or combining elements in a collection. You can also define your own
 more complex composite transforms to fit your pipeline's exact use case.
+
+For a more in-depth tutorial of applying various transforms
+in the Python SDK, please read and work through
+[this colab notebook](https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb).
 
 ### 4.1. Applying transforms {#applying-transforms}
 
@@ -1116,6 +1124,9 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
+
+The Go SDK cannot support anonymous functions outside of the deprecated Go Direct runner.
+
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
@@ -1162,8 +1173,8 @@ words = ...
 {{< /highlight >}}
 
 {{< highlight go >}}
-// words is the input PCollection of strings
-var words beam.PCollection = ...
+
+The Go SDK cannot support anonymous functions outside of the deprecated Go Direct runner.
 
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" model_pardo_apply_anon >}}
 {{< /highlight >}}
@@ -1183,7 +1194,7 @@ words = ...
 
 <span class="language-go">
 
-> **Note:** Anonymous function DoFns may not work on distributed runners.
+> **Note:** Anonymous function DoFns do not work on distributed runners.
 > It's recommended to use named functions and register them with `register.FunctionXxY` in
 > an `init()` block.
 
@@ -2560,9 +2571,7 @@ Timers and States are explained in more detail in the
 
 {{< paragraph class="language-go">}}
 **Timer and State:**
-User defined State parameters can be used in a stateful DoFn. Timers aren't implemented in the Go SDK yet;
-see more at [Issue 22737](https://github.com/apache/beam/issues/22737). Once implemented, user defined Timer
-parameters can be used in a stateful DoFn.
+User defined State and Timer parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
@@ -6139,7 +6148,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-{{< code_sample "sdks/go/examples/snippets/04transforms.go" state_and_timers >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" bag_state >}}
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -6262,7 +6271,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" event_time_timer >}}
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -6314,7 +6323,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" processing_time_timer >}}
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
@@ -6375,7 +6384,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" dynamic_timer_tags >}}
 {{< /highlight >}}
 
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
@@ -6427,6 +6436,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_bad >}}
+{{< /highlight >}}
+
 The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
 from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
 to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
@@ -6463,7 +6476,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
         ? Instant.now().plus(Duration.standardMinutes(1)) : new Instant(timerTimestampMs);
     // Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the
     // timer fires. This allows outputting all the elements with their timestamp.
-    timer.withOutputTimestamp(minTimestamp.read()).set(timerToSet).
+    timer.withOutputTimestamp(minTimestamp.read()).s et(timerToSet).
     timerTimestamp.write(timerToSet.getMillis());
   }
 
@@ -6486,7 +6499,7 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_good >}}
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
@@ -6616,7 +6629,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see https://github.com/apache/beam/issues/22737.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_garbage_collection >}}
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -6756,6 +6769,11 @@ _ = (p | 'EventsPerLinkId' >> ReadPerLinkEvents()
        | 'Join DoFn' >> beam.ParDo(JoinDoFn()))
 {{< /highlight >}}
 
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" join_dofn_example >}}
+{{< /highlight >}}
+
 #### 11.5.2. Batching RPCs {#batching-rpcs}
 
 In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
@@ -6821,6 +6839,12 @@ class BufferDoFn(DoFn):
     is_timer_set.clear()
 
 {{< /highlight >}}
+
+
+{{< highlight go >}}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" batching_dofn_example >}}
+{{< /highlight >}}
+
 
 ## 12. Splittable `DoFns` {#splittable-dofns}
 
@@ -7656,7 +7680,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
             | beam.Create(['a', 'b']).with_output_types(unicode)
             | beam.ExternalTransform(
                 TEST_PREFIX_URN,
-                ImplicitSchemaPayloadBuilder({'data': u'0'}),
+                ImplicitSchemaPayloadBuilder({'data': '0'}),
                 <expansion service>))
         assert_that(res, equal_to(['0a', '0b']))
     ```
@@ -8057,3 +8081,82 @@ class RetrieveTimingDoFn(beam.DoFn):
   def infer_output_type(self, input_type):
     return input_type
 {{< /highlight >}}
+
+## 15 Transform service {#transform-service}
+
+The Apache Beam SDK versions 2.49.0 and later include a [Docker Compose](https://docs.docker.com/compose/)
+service named _Transform service_. Use the Transform service to perform expansions of supported transforms
+on Beam portable pipelines by using Docker.
+
+The following diagram illustrates the basic architecture of the Transform service.
+
+![Diagram of the Transform service architecture](/images/transform_service.png)
+
+To use the Transform service, Docker and Docker Compose must be available on the machine that starts the service.
+
+The Transform service has the following primary use cases:
+
+* Perform expansion of cross-language transforms without installing other language runtimes.
+
+  The Transform service allows multi-language pipelines to use and expand cross-language transforms implemented
+  in other SDKs without requiring you to install runtimes for the implementation languages of those SDKs.
+  For example, with the Transform service, a Beam Python pipeline can use the Google Cloud Java I/O transforms and Java Kafka I/O transforms
+  without a local Java runtime installation.
+
+* Upgrade transforms without upgrading the Apache Beam SDK version.
+
+  Use the Transform service to upgrade the Beam SDK versions of individual transforms used by Beam pipelines without upgrading the Beam version of the pipeline.
+  This feature is currently in development. For more details, see
+  [GitHub issue #27943: Upgrade transforms without upgrading the pipeline using the Transform Service](https://github.com/apache/beam/issues/27943).
+
+### 15.1 Use the Transform service {#transform-service-usage}
+
+In some cases, Apache Beam SDKs automatically start the Transform service, such as in the following scenarios:
+
+* The Java [`PythonExternalTransform` API](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) automatically
+starts the Transform service when a Python runtime isn't available locally, but Docker is.
+
+* The Apache Beam Python multi-language wrappers might automatically start the Transform service when you're using Java transforms, a Java language runtime isn't available locally, and Docker is available locally.
+
+To manually start a Transform service instance by using utilities provided with the Apache Beam SDKs, use the following commands.
+
+{{< highlight java >}}
+java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command up
+{{< /highlight >}}
+
+{{< highlight py >}}
+python -m apache_beam.utils.transform_service_launcher --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command up
+{{< /highlight >}}
+
+{{< highlight go >}}
+This feature is currently in development.
+{{< /highlight >}}
+
+To stop the transform service, use the following commands.
+
+{{< highlight java >}}
+java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command down
+{{< /highlight >}}
+
+{{< highlight py >}}
+python -m apache_beam.utils.transform_service_launcher --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command down
+{{< /highlight >}}
+
+{{< highlight go >}}
+This feature is currently in development.
+{{< /highlight >}}
+
+### 15.2 Portable transforms included in the Transform service {#transform-service-included-transforms}
+
+The Transform service includes portable transforms implemented in the Apache Beam Java and Python SDKs.
+
+The following transforms are included in the Trasnform service:
+
+* Java transforms: Google Cloud I/O connectors, the Kafka I/O connector, and the JDBC I/O connector
+
+* Python transforms: all portable transforms implemented within the Apache Beam Python SDK, such as
+  [RunInference](/documentation/transforms/python/elementwise/runinference/) and
+  [DataFrame](/documentation/dsls/dataframes/overview/) transforms.
+
+For a more comprehensive list of available transforms, see the
+[Transform service](https://cwiki.apache.org/confluence/display/BEAM/Transform+Service) developer guide.

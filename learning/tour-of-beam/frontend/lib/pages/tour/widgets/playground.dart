@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
@@ -39,6 +40,13 @@ class PlaygroundWidget extends StatelessWidget {
 
   Widget _buildOnChange(BuildContext context, Widget? child) {
     final playgroundController = tourNotifier.playgroundController;
+    if (playgroundController.codeRunner.result?.errorMessage?.isNotEmpty ??
+        false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleError(context, playgroundController);
+      });
+    }
+
     final snippetController = playgroundController.snippetEditingController;
     if (snippetController == null) {
       return const LoadingIndicator();
@@ -49,6 +57,7 @@ class PlaygroundWidget extends StatelessWidget {
         SplitView(
           direction: Axis.vertical,
           first: SnippetEditor(
+            autofocus: true,
             controller: snippetController,
             isEditable: true,
           ),
@@ -79,7 +88,7 @@ class PlaygroundWidget extends StatelessWidget {
                     PlaygroundComponents.analyticsService.sendUnawaited(
                       RunStartedAnalyticsEvent(
                         snippetContext: tourNotifier.playgroundController
-                            .codeRunner.eventSnippetContext!,
+                            .codeRunner.eventSnippetContext,
                         trigger: EventTrigger.click,
                         additionalParams: tourNotifier.tobEventContext.toJson(),
                       ),
@@ -101,5 +110,17 @@ class PlaygroundWidget extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _handleError(BuildContext context, PlaygroundController controller) {
+    //TODO(alexeyinkin): A better trigger instead of resetErrorMessageText, https://github.com/apache/beam/issues/26319
+    PlaygroundComponents.toastNotifier.add(
+      Toast(
+        description: controller.codeRunner.result?.errorMessage ?? '',
+        title: 'intents.playground.run'.tr(),
+        type: ToastType.error,
+      ),
+    );
+    controller.resetErrorMessageText();
   }
 }

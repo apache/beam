@@ -110,69 +110,65 @@ class SetupTest(unittest.TestCase):
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
-    test_cases = [
-        {
-            'temp_location': None,
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': None,
-            'staging_location': None,
-            'errors': ['staging_location', 'temp_location']
-        },
-        {
-            'temp_location': 'gs://foo/bar',
-            'staging_location': None,
-            'errors': []
-        },
-        {
-            'temp_location': 'gs://foo/bar',
-            'staging_location': 'gs://ABC/bar',
-            'errors': ['staging_location']
-        },
-        {
-            'temp_location': 'gcs:/foo/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs:/foo/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://ABC/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://ABC/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://foo',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://foo/',
-            'staging_location': 'gs://foo/bar',
-            'errors': []
-        },
-        {
-            'temp_location': 'gs://foo/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': []
-        },
-    ]
+    test_cases = [{
+        'temp_location': None, 'staging_location': 'gs://foo/bar', 'errors': []
+    },
+                  {
+                      'temp_location': None,
+                      'staging_location': None,
+                      'errors': ['staging_location', 'temp_location']
+                  },
+                  {
+                      'temp_location': 'gs://foo/bar',
+                      'staging_location': None,
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gs://foo/bar',
+                      'staging_location': 'gs://ABC/bar',
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gcs:/foo/bar',
+                      'staging_location': 'gs://foo/bar',
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gs:/foo/bar',
+                      'staging_location': 'gs://foo/bar',
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gs://ABC/bar',
+                      'staging_location': 'gs://foo/bar',
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gs://ABC/bar',
+                      'staging_location': 'gs://BCD/bar',
+                      'errors': ['temp_location', 'staging_location']
+                  },
+                  {
+                      'temp_location': 'gs://foo',
+                      'staging_location': 'gs://foo/bar',
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gs://foo/',
+                      'staging_location': 'gs://foo/bar',
+                      'errors': []
+                  },
+                  {
+                      'temp_location': 'gs://foo/bar',
+                      'staging_location': 'gs://foo/bar',
+                      'errors': []
+                  }]
 
     for case in test_cases:
       errors = get_validator(case['temp_location'],
                              case['staging_location']).validate()
       self.assertEqual(
-          self.check_errors_for_arguments(errors, case['errors']), [])
+          self.check_errors_for_arguments(errors, case['errors']), [], case)
 
   def test_project(self):
     def get_validator(project):
@@ -318,12 +314,7 @@ class SetupTest(unittest.TestCase):
         {
             'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://another.service.com'],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://another.service.com/'],
-            'expected': False,
+            'expected': True,
         },
         {
             'runner': MockRunners.DataflowRunner(),
@@ -332,7 +323,7 @@ class SetupTest(unittest.TestCase):
         },
         {
             'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
+            'options': ['--dataflow_endpoint=foo: //dataflow. googleapis. com'],
             'expected': True,
         },
         {
@@ -478,20 +469,17 @@ class SetupTest(unittest.TestCase):
     self.assertIn('experiment', errors[0])
     self.assertIn('worker_region', errors[0])
 
-  def test_experiment_region_and_worker_zone_mutually_exclusive(self):
+  def test_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([
-        '--experiments',
-        'worker_region=us-west1',
-        '--worker_zone',
-        'us-east1-b',
+        '--worker_region=us-west1',
+        '--worker_zone=us-east1-b',
         '--project=example:example',
         '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 1)
-    self.assertIn('experiment', errors[0])
     self.assertIn('worker_region', errors[0])
     self.assertIn('worker_zone', errors[0])
 
@@ -556,17 +544,30 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
 
   def test_region_optional_for_non_service_runner(self):
-    runner = MockRunners.DataflowRunner()
+    runner = MockRunners.OtherRunner()
     # Remove default region for this test.
     runner.get_default_gcp_region = lambda: None
     options = PipelineOptions([
         '--project=example:example',
         '--temp_location=gs://foo/bar',
-        '--dataflow_endpoint=http://localhost:20281',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 0)
+
+  def test_dataflow_endpoint_is_a_url(self):
+    runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--staging_location=gs://foo/baz',
+        '--dataflow_endpoint=foo and bar'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1, errors)
+    self.assertIn("Invalid url (foo and bar)", errors[0])
 
   def test_alias_sdk_container_to_worker_harness(self):
     runner = MockRunners.DataflowRunner()
@@ -924,7 +925,7 @@ class SetupTest(unittest.TestCase):
         errors.append(
             'Options "%s" had unexpected validation results: "%s"' %
             (' '.join(case['options']), ' '.join(validation_errors)))
-    self.assertEqual(errors, [])
+    self.assertEqual(errors, [], errors)
 
 
 if __name__ == '__main__':

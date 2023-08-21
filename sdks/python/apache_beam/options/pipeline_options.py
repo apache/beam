@@ -22,6 +22,7 @@
 import argparse
 import json
 import logging
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -532,6 +533,13 @@ class CrossLanguageOptions(PipelineOptions):
             'Should be a json mapping of gradle build targets to pre-built '
             'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
 
+    parser.add_argument(
+        '--use_transform_service',
+        default=False,
+        action='store_true',
+        help='Use the Docker-composed-based transform service when expanding '
+        'cross-language transforms.')
+
 
 def additional_option_ptransform_fn():
   beam.transforms.ptransform.ptransform_fn_typehints_enabled = True
@@ -755,7 +763,6 @@ class GoogleCloudOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Update an existing streaming Cloud Dataflow job. '
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -765,7 +772,6 @@ class GoogleCloudOptions(PipelineOptions):
         help='The transform mapping that maps the named '
         'transforms in your prior pipeline code to names '
         'in your replacement pipeline code.'
-        'Experimental. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
@@ -844,23 +850,35 @@ class GoogleCloudOptions(PipelineOptions):
     else:
       return None
 
+  # If either temp or staging location has an issue, we use the valid one for
+  # both locations. If both are bad we return an error.
+  def _handle_temp_and_staging_locations(self, validator):
+    temp_errors = validator.validate_gcs_path(self, 'temp_location')
+    staging_errors = validator.validate_gcs_path(self, 'staging_location')
+    if temp_errors and not staging_errors:
+      setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      return []
+    elif staging_errors and not temp_errors:
+      setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      return []
+    elif not staging_errors and not temp_errors:
+      return []
+    # Both staging and temp locations are bad, try to use default bucket.
+    else:
+      default_bucket = self._create_default_gcs_bucket()
+      if default_bucket is None:
+        temp_errors.extend(staging_errors)
+        return temp_errors
+      else:
+        setattr(self, 'temp_location', default_bucket)
+        setattr(self, 'staging_location', default_bucket)
+        return []
+
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
+      errors.extend(self._handle_temp_and_staging_locations(validator))
       errors.extend(validator.validate_cloud_options(self))
-
-      # Validating temp_location, or adding a default if there are issues
-      temp_location_errors = validator.validate_gcs_path(self, 'temp_location')
-      if temp_location_errors:
-        default_bucket = self._create_default_gcs_bucket()
-        if default_bucket is None:
-          errors.extend(temp_location_errors)
-        else:
-          setattr(self, 'temp_location', default_bucket)
-
-      if getattr(self, 'staging_location',
-                 None) or getattr(self, 'temp_location', None) is None:
-        errors.extend(validator.validate_gcs_path(self, 'staging_location'))
 
     if self.view_as(DebugOptions).dataflow_job_file:
       if self.view_as(GoogleCloudOptions).template_location:
@@ -875,6 +893,21 @@ class GoogleCloudOptions(PipelineOptions):
               self, 'dataflow_service_options'))
 
     return errors
+
+  def get_cloud_profiler_service_name(self):
+    _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+    if self.dataflow_service_options:
+      if _ENABLE_GOOGLE_CLOUD_PROFILER in self.dataflow_service_options:
+        return os.environ["JOB_NAME"]
+      for option_name in self.dataflow_service_options:
+        if option_name.startswith(_ENABLE_GOOGLE_CLOUD_PROFILER + '='):
+          return option_name.split('=', 1)[1]
+
+    experiments = self.view_as(DebugOptions).experiments or []
+    if _ENABLE_GOOGLE_CLOUD_PROFILER in experiments:
+      return os.environ["JOB_NAME"]
+
+    return None
 
 
 class AzureOptions(PipelineOptions):
@@ -1130,8 +1163,7 @@ class DebugOptions(PipelineOptions):
         help=(
             'Number of threads per worker to use on the runner. If left '
             'unspecified, the runner will compute an appropriate number of '
-            'threads to use. Currently only enabled for DataflowRunner when '
-            'experiment \'use_runner_v2\' is enabled.'))
+            'threads to use.'))
 
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition
@@ -1264,11 +1296,13 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=(
-            'Override the default location from where the Beam SDK is '
-            'downloaded. It can be a URL, a GCS path, or a local path to an '
+            'Path to a custom Beam SDK package to install and use on the'
+            'runner. It can be a URL, a GCS path, or a local path to an '
             'SDK tarball. Workflow submissions will download or copy an SDK '
-            'tarball from here. If set to the string "default", a standard '
-            'SDK location is used. If empty, no SDK is copied.'))
+            'tarball from here. If set to "default", '
+            'runners will use the SDK provided in the default environment.'
+            'Use this flag when running pipelines with an unreleased or '
+            'manually patched version of Beam SDK.'))
     parser.add_argument(
         '--extra_package',
         '--extra_packages',

@@ -24,6 +24,8 @@ class BeamLinks {
 
   // GitHub
   static const github = 'https://github.com/apache/beam';
+  static const newExample =
+      'https://github.com/apache/beam/blob/master/playground/load_your_code.md';
   static const reportIssue = 'https://github.com/apache/beam/issues';
 
   // Projects

@@ -50,8 +50,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -219,7 +219,8 @@ public class PubsubJsonClientTest {
                 .setOrderingKey(ORDERING_KEY)
                 .build(),
             MESSAGE_TIME,
-            RECORD_ID);
+            RECORD_ID,
+            null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -247,7 +248,8 @@ public class PubsubJsonClientTest {
                 .setData(ByteString.copyFromUtf8(DATA))
                 .build(),
             MESSAGE_TIME,
-            RECORD_ID);
+            RECORD_ID,
+            null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -278,7 +280,8 @@ public class PubsubJsonClientTest {
                 .putAllAttributes(attrs)
                 .build(),
             MESSAGE_TIME,
-            RECORD_ID);
+            RECORD_ID,
+            null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

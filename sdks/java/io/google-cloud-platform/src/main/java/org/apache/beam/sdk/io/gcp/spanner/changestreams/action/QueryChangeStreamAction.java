@@ -40,7 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -218,14 +218,23 @@ public class QueryChangeStreamAction {
       the partition.
       */
       if (isTimestampOutOfRange(e)) {
-        LOG.debug(
-            "[{}] query change stream is out of range for {} to {}, finishing stream",
+        LOG.info(
+            "[{}] query change stream is out of range for {} to {}, finishing stream.",
             token,
             startTimestamp,
-            endTimestamp);
+            endTimestamp,
+            e);
       } else {
         throw e;
       }
+    } catch (Exception e) {
+      LOG.error(
+          "[{}] query change stream had exception processing range {} to {}.",
+          token,
+          startTimestamp,
+          endTimestamp,
+          e);
+      throw e;
     }
 
     LOG.debug("[{}] change stream completed successfully", token);

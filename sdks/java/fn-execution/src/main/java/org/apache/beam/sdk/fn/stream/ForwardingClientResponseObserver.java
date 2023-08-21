@@ -17,15 +17,16 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.ClientResponseObserver;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ClientResponseObserver} which delegates all {@link StreamObserver} calls.
  *
  * <p>Used to wrap existing {@link StreamObserver}s to be able to install an {@link
- * ClientCallStreamObserver#setOnReadyHandler(Runnable) onReadyHandler}.
+ * ClientCallStreamObserver#setOnReadyHandler(Runnable) onReadyHandler} and a handler invoked when
+ * the stream terminates.
  *
  * <p>This is as thread-safe as the underlying stream observer that is being wrapped.
  */
@@ -33,15 +34,23 @@ public final class ForwardingClientResponseObserver<ReqT, RespT>
     implements ClientResponseObserver<RespT, ReqT> {
   public static <ReqT, RespT> ForwardingClientResponseObserver<ReqT, RespT> create(
       StreamObserver<ReqT> inbound, Runnable onReadyHandler) {
-    return new ForwardingClientResponseObserver<>(inbound, onReadyHandler);
+    return new ForwardingClientResponseObserver<>(inbound, onReadyHandler, () -> {});
+  }
+
+  public static <ReqT, RespT> ForwardingClientResponseObserver<ReqT, RespT> create(
+      StreamObserver<ReqT> inbound, Runnable onReadyHandler, Runnable onDoneHandler) {
+    return new ForwardingClientResponseObserver<>(inbound, onReadyHandler, onDoneHandler);
   }
 
   private final Runnable onReadyHandler;
+  private final Runnable onDoneHandler;
   private final StreamObserver<ReqT> inboundObserver;
 
-  ForwardingClientResponseObserver(StreamObserver<ReqT> inboundObserver, Runnable onReadyHandler) {
+  private ForwardingClientResponseObserver(
+      StreamObserver<ReqT> inboundObserver, Runnable onReadyHandler, Runnable onDoneHandler) {
     this.inboundObserver = inboundObserver;
     this.onReadyHandler = onReadyHandler;
+    this.onDoneHandler = onDoneHandler;
   }
 
   @Override
@@ -51,11 +60,13 @@ public final class ForwardingClientResponseObserver<ReqT, RespT>
 
   @Override
   public void onError(Throwable t) {
+    onDoneHandler.run();
     inboundObserver.onError(t);
   }
 
   @Override
   public void onCompleted() {
+    onDoneHandler.run();
     inboundObserver.onCompleted();
   }
 

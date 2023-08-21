@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -347,6 +348,12 @@ public class SingleStoreIO {
       String connectionProperties =
           SingleStoreUtil.getArgumentWithDefault(getConnectionProperties(), "");
       connectionProperties += (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
+      connectionProperties +=
+          String.format(
+              ";connectionAttributes=_connector_name:%s,_connector_version:%s,_product_version:%s",
+              "Apache Beam SingleStoreDB I/O",
+              ReleaseInfo.getReleaseInfo().getVersion(),
+              ReleaseInfo.getReleaseInfo().getVersion());
       String username = getUsername();
       String password = getPassword();
 

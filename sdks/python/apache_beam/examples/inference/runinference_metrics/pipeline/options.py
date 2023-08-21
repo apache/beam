@@ -61,7 +61,6 @@ def get_pipeline_options(
     flags = [
         "--experiment=worker_accelerator=type:nvidia-tesla-p4;count:1;"\
           "install-nvidia-driver",
-        "--experiment=use_runner_v2",
     ]
     dataflow_options.update({
         "sdk_container_image": cfg.DOCKER_IMG,

@@ -30,7 +30,7 @@ COPY sdks/python /app/sdks/python
 COPY model /app/model
 
 # This step should look like setupVirtualenv minus virtualenv creation.
-RUN pip install --no-cache-dir tox==3.11.1
+RUN pip install --no-cache-dir tox -r sdks/python/build-requirements.txt
 
 # Run wordcount, and write results to HDFS.
 CMD cd sdks/python && tox -e hdfs_integration_test

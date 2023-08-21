@@ -97,7 +97,7 @@ platform_identifiers_map.each { platform, idsuffix ->
         exec {
           environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
           environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-          environment CIBW_BEFORE_BUILD: "pip install cython numpy && pip install --upgrade setuptools"
+          environment CIBW_BEFORE_BUILD: "pip install cython==0.29.36 numpy && pip install --upgrade setuptools"
           // note: sync cibuildwheel version with GitHub Action
           // .github/workflow/build_wheel.yml:build_wheels "Install cibuildwheel" step
           executable 'sh'
@@ -133,11 +133,6 @@ def depSnapshot = tasks.register("depSnapshot") {
       args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${requirementsFile}"
     }
   }
-}
-
-tasks.register("dependencyUpdates") {
-  dependsOn ':dependencyUpdates'
-  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
 tasks.register("buildSnapshot") {

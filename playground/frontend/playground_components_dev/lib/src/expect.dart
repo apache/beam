@@ -24,30 +24,62 @@ import 'package:playground_components/playground_components.dart';
 import 'examples/example_descriptor.dart';
 import 'widget_tester.dart';
 
-void expectOutput(ExampleDescriptor example, WidgetTester wt) {
+void expectContextLine(
+  int contextLine1Based,
+  WidgetTester wt, {
+  String? reason,
+}) {
+  final controller = wt.findOneCodeController();
+  final selection = controller.selection;
+  final position = controller.code.hiddenRanges.recoverPosition(
+    selection.baseOffset,
+    placeHiddenRanges: TextAffinity.downstream,
+  );
+
+  expect(selection.isCollapsed, true);
+  expect(
+    controller.code.lines.characterIndexToLineIndex(position),
+    contextLine1Based - 1,
+    reason: reason,
+  );
+}
+
+void expectOutputIfDeployed(ExampleDescriptor example, WidgetTester wt) {
   if (example.outputTail != null) {
-    expectOutputEndsWith(example.outputTail, wt);
+    expectOutputEndsWithIfDeployed(example.outputTail, wt);
   } else if (example.outputContains != null) {
     for (final str in example.outputContains!) {
-      expectOutputContains(str, wt);
+      expectOutputContainsIfDeployed(str, wt);
     }
   } else {
     throw AssertionError('No pattern to check example output: ${example.path}');
   }
 }
 
-void expectOutputEquals(String text, WidgetTester wt) {
+void expectOutputEqualsIfDeployed(String text, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   final actualText = wt.findOutputText();
   expect(actualText, text);
 }
 
-void expectOutputContains(String? text, WidgetTester wt) {
+void expectOutputContainsIfDeployed(String? text, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   final actualText = wt.findOutputText();
   expect(text, isNotNull);
   expect(actualText, contains(text));
 }
 
-void expectOutputEndsWith(String? text, WidgetTester wt) {
+void expectOutputEndsWithIfDeployed(String? text, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
+
   final actualText = wt.findOutputText();
   expect(text, isNotNull);
   expect(actualText, endsWith(text!));
@@ -64,25 +96,25 @@ void expectSdk(Sdk sdk, WidgetTester wt) {
   expect(controller.sdk, sdk);
 }
 
-void expectVisibleText(String? visibleText, WidgetTester wt) {
-  final controller = wt.findOneCodeController();
-  expect(visibleText, isNotNull);
-  expect(controller.text, visibleText);
+void expectSimilar(double a, double b) {
+  Matcher closeToFraction(num value, double fraction) =>
+      closeTo(value, value * fraction);
+  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
+  expect(a, onePerCentTolerance(b));
 }
 
-void expectContextLine(int contextLine1Based, WidgetTester wt) {
-  final controller = wt.findOneCodeController();
-  final selection = controller.selection;
-  final position = controller.code.hiddenRanges.recoverPosition(
-    selection.baseOffset,
-    placeHiddenRanges: TextAffinity.downstream,
-  );
+void expectVisibleTextIfDeployed(String? visibleText, WidgetTester wt) {
+  if (!areExamplesDeployed) {
+    return;
+  }
 
-  expect(selection.isCollapsed, true);
-  expect(
-    controller.code.lines.characterIndexToLineIndex(position),
-    contextLine1Based - 1,
-  );
+  expectVisibleText(visibleText, wt);
+}
+
+void expectVisibleText(String? visibleText, WidgetTester wt, {String? reason}) {
+  final controller = wt.findOneCodeController();
+  expect(visibleText, isNotNull);
+  expect(controller.text, visibleText, reason: reason);
 }
 
 void expectLastAnalyticsEvent(

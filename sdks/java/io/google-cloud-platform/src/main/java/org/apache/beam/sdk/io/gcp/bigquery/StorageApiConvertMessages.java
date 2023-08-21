@@ -26,6 +26,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -47,19 +49,23 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   private final Coder<BigQueryStorageApiInsertError> errorCoder;
   private final Coder<KV<DestinationT, StorageApiWritePayload>> successCoder;
 
+  private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
+
   public StorageApiConvertMessages(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
       TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
       Coder<BigQueryStorageApiInsertError> errorCoder,
-      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder) {
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
+      @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedWritesTag = failedWritesTag;
     this.successfulWritesTag = successfulWritesTag;
     this.errorCoder = errorCoder;
     this.successCoder = successCoder;
+    this.rowMutationFn = rowMutationFn;
   }
 
   @Override
@@ -75,7 +81,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                         bqServices,
                         operationName,
                         failedWritesTag,
-                        successfulWritesTag))
+                        successfulWritesTag,
+                        rowMutationFn))
                 .withOutputTags(successfulWritesTag, TupleTagList.of(failedWritesTag))
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(successfulWritesTag).setCoder(successCoder);
@@ -90,6 +97,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     private final BigQueryServices bqServices;
     private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
     private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
+    private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
     private transient @Nullable DatasetService datasetServiceInternal = null;
 
     ConvertMessagesDoFn(
@@ -97,12 +105,14 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         BigQueryServices bqServices,
         String operationName,
         TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
-        TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag) {
+        TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
+        @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn) {
       this.dynamicDestinations = dynamicDestinations;
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.bqServices = bqServices;
       this.failedWritesTag = failedWritesTag;
       this.successfulWritesTag = successfulWritesTag;
+      this.rowMutationFn = rowMutationFn;
     }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
@@ -137,9 +147,17 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       MessageConverter<ElementT> messageConverter =
           messageConverters.get(
               element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
+
+      RowMutationInformation rowMutationInformation = null;
+      if (rowMutationFn != null) {
+        rowMutationInformation =
+            Preconditions.checkStateNotNull(rowMutationFn).apply(element.getValue());
+      }
       try {
         StorageApiWritePayload payload =
-            messageConverter.toMessage(element.getValue()).withTimestamp(timestamp);
+            messageConverter
+                .toMessage(element.getValue(), rowMutationInformation)
+                .withTimestamp(timestamp);
         o.get(successfulWritesTag).output(KV.of(element.getKey(), payload));
       } catch (TableRowToStorageApiProto.SchemaConversionException e) {
         TableRow tableRow = messageConverter.toTableRow(element.getValue());

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.AddUuidsTransform;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.PubsubLiteSink;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
@@ -43,7 +42,6 @@ import org.apache.beam.sdk.values.PDone;
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
  * here</a>.
  */
-@Experimental
 public final class PubsubLiteIO {
   private PubsubLiteIO() {}
 

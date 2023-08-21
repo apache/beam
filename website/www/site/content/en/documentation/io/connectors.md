@@ -61,7 +61,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/AvroIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/avro/io/AvroIO.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -79,7 +79,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>TextIO</td>
+    <td>TextIO (<a href="/performance/textio">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -200,7 +200,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>GcsFileSystem</td>
+    <td>GcsFileSystem (<a href="/performance/textio">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -522,7 +522,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>)</td>
+    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>) (<a href="/performance/bigquery">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -545,7 +545,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigTableIO</td>
+    <td>BigTableIO (<a href="/performance/bigtable">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -554,12 +554,15 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a> (sink)
+      <br>
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">via X-language</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
-    <td class="absent">✔</td>
+    <td class="present">✔</td>
   </tr>
   <tr>
     <td>DatastoreIO</td>
@@ -799,6 +802,23 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
+    <td>DicomIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/DicomIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.healthcare.dicomio.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
     <td>
       FlinkStreaming<br>ImpulseSource
     </td>
@@ -905,13 +925,14 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>SingleStoreDB</td>
+    <td>SingleStoreDB (<a href="/documentation/io/built-in/singlestore/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/singlestore/SingleStoreIO.html">native</a>
     </td>
+    <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
@@ -1090,6 +1111,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       native
     </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://cloud.google.com/bigtable/docs/hbase-dataflow-java">Cloud Bigtable (HBase based)</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>

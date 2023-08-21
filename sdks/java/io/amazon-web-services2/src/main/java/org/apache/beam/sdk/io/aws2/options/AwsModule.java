@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.options;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -45,11 +45,8 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -74,7 +71,6 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityReques
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
  * {@link AwsCredentialsProvider} and some subclasses. The serialized form is a JSON map.
  */
-@Experimental(Kind.SOURCE_SINK)
 @AutoService(Module.class)
 public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
@@ -253,17 +249,6 @@ public class AwsModule extends SimpleModule {
         if (profileName != null && !profileName.equals(envProfileName)) {
           jsonGenerator.writeStringField(PROFILE_NAME, profileName);
         }
-        try {
-          Exception exception = (Exception) readField(credentialsProvider, "loadException");
-          if (exception != null) {
-            LoggerFactory.getLogger(AwsModule.class)
-                .warn("Serialized ProfileCredentialsProvider in faulty state.", exception);
-          }
-        } catch (RuntimeException e) {
-          LoggerFactory.getLogger(AwsModule.class)
-              .warn("Failed to check ProfileCredentialsProvider for loadException.", e);
-        }
-
       } else if (providerClass.equals(StsAssumeRoleCredentialsProvider.class)) {
         Supplier<AssumeRoleRequest> reqSupplier =
             (Supplier<AssumeRoleRequest>)

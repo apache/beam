@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.beam.sdk.io.aws2.kinesis.TimeUtil.minTimestamp;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,8 +38,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.RandomStringUtils;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ForwardingIterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ForwardingIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -59,6 +59,7 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 class EFOShardSubscribersPool {
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscribersPool.class);
   private static final int ON_ERROR_COOL_DOWN_MS_DEFAULT = 1_000;
+  private static final int DEFAULT_MAX_CAPACITY_PER_SHARD = 10;
   private final int onErrorCoolDownMs;
 
   /**
@@ -76,6 +77,8 @@ class EFOShardSubscribersPool {
    * Unbounded queue of events, but events in-flight are limited by the {@link EFOShardSubscriber}.
    */
   private final ConcurrentLinkedQueue<EventRecords> eventQueue = new ConcurrentLinkedQueue<>();
+
+  private final int maxCapacityPerShard;
 
   /**
    * State map of currently active shards that can be checkpoint-ed.
@@ -124,12 +127,7 @@ class EFOShardSubscribersPool {
   private final WatermarkPolicyFactory watermarkPolicyFactory;
 
   EFOShardSubscribersPool(KinesisIO.Read readSpec, String consumerArn, KinesisAsyncClient kinesis) {
-    this.poolId = generatePoolId();
-    this.read = readSpec;
-    this.consumerArn = consumerArn;
-    this.kinesis = kinesis;
-    this.watermarkPolicyFactory = read.getWatermarkPolicyFactory();
-    this.onErrorCoolDownMs = ON_ERROR_COOL_DOWN_MS_DEFAULT;
+    this(readSpec, consumerArn, kinesis, ON_ERROR_COOL_DOWN_MS_DEFAULT);
   }
 
   EFOShardSubscribersPool(
@@ -143,6 +141,10 @@ class EFOShardSubscribersPool {
     this.kinesis = kinesis;
     this.watermarkPolicyFactory = read.getWatermarkPolicyFactory();
     this.onErrorCoolDownMs = onErrorCoolDownMs;
+    this.maxCapacityPerShard =
+        readSpec.getMaxCapacityPerShard() != null
+            ? read.getMaxCapacityPerShard()
+            : DEFAULT_MAX_CAPACITY_PER_SHARD;
   }
 
   /**
@@ -468,6 +470,10 @@ class EFOShardSubscribersPool {
 
   String getPoolId() {
     return poolId;
+  }
+
+  int getMaxCapacityPerShard() {
+    return maxCapacityPerShard;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")

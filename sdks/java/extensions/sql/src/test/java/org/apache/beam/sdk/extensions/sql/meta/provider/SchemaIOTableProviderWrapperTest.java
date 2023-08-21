@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,7 +57,7 @@ public class SchemaIOTableProviderWrapperTest {
           .name("table")
           .comment("table")
           .schema(inputSchema)
-          .properties(JSON.parseObject("{}"))
+          .properties(TableUtils.parseProperties("{}"))
           .type("test")
           .build();
 

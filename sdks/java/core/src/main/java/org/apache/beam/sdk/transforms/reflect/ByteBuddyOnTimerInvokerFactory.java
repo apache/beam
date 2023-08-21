@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
@@ -27,7 +28,6 @@ import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.implementation.Implementation;
@@ -42,12 +42,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodWithExtraParametersDelegation;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CharMatcher;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 
 /**
  * Dynamically generates {@link OnTimerInvoker} instances for invoking a particular {@link TimerId}
@@ -225,9 +225,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
   }
@@ -277,9 +275,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     Class<? extends OnTimerInvoker<?, ?>> res =
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
   }

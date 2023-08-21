@@ -84,10 +84,13 @@ class _BrandedLoginButtons extends StatelessWidget {
     required this.onLoggedIn,
   });
 
+  Future<void> _logIn(AuthProvider authProvider) async {
+    await GetIt.instance.get<AuthNotifier>().logIn(authProvider);
+    onLoggedIn();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authNotifier = GetIt.instance.get<AuthNotifier>();
-
     final isLightTheme = Theme.of(context).brightness == Brightness.light;
     final textStyle =
         MaterialStatePropertyAll(Theme.of(context).textTheme.bodyMedium);
@@ -124,16 +127,17 @@ class _BrandedLoginButtons extends StatelessWidget {
     return Column(
       children: [
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () {
+            _logIn(GithubAuthProvider());
+          },
           style: isLightTheme ? githubLightButtonStyle : darkButtonStyle,
           icon: SvgPicture.asset(Assets.svg.githubLogo),
           label: const Text('ui.continueGitHub').tr(),
         ),
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
-          onPressed: () async {
-            await authNotifier.logIn(GoogleAuthProvider());
-            onLoggedIn();
+          onPressed: () {
+            _logIn(GoogleAuthProvider());
           },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
           icon: SvgPicture.asset(Assets.svg.googleLogo),

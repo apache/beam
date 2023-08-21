@@ -1213,7 +1213,7 @@ When possible, unit tests are favored over integration tests due to faster execu
          <p>Tests that the source/sink populates display data correctly.
       </td>
       <td>
-         <p><a href="https://github.com/apache/beam/blob/c57c983c8ae7d84926f9cf42f7c40af8eaf60545/sdks/java/core/src/test/java/org/apache/beam/sdk/io/AvroIOTest.java#L167">AvroIOTest.testReadDisplayData</a>
+         <p><a href="https://github.com/apache/beam/blob/8bda63bc8ea0c1de9ec29d0da080df1769c65a2b/sdks/java/extensions/avro/src/test/java/org/apache/beam/sdk/extensions/avro/io/AvroIOTest.java#L174">AvroIOTest.testReadDisplayData</a>
          <p><a href="https://github.com/apache/beam/blob/f9ae6d53e2e6ad8346cee955d646f7198dbb6502/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/datastore/DatastoreV1Test.java#L220">DatastoreV1Test.testReadDisplayData</a>
          <p><a href="https://github.com/apache/beam/blob/4012a46d3aa7b2a4c628f1352c8b579733c71b41/sdks/python/apache_beam/io/gcp/bigquery_test.py#L187">bigquery_test.TestBigQuerySourcetest_table_reference_display_data</a>
       </td>

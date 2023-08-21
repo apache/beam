@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
@@ -48,14 +47,14 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +62,6 @@ import org.slf4j.LoggerFactory;
  * {@code BigQueryTable} represent a BigQuery table as a target. This provider does not currently
  * support being a source.
  */
-@Experimental
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -83,11 +81,11 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
 
-    if (table.getProperties().containsKey(METHOD_PROPERTY)) {
+    if (table.getProperties().has(METHOD_PROPERTY)) {
       List<String> validMethods =
           Arrays.stream(Method.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
-      String selectedMethod = table.getProperties().getString(METHOD_PROPERTY).toUpperCase();
+      String selectedMethod = table.getProperties().get(METHOD_PROPERTY).asText().toUpperCase();
 
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
@@ -107,12 +105,12 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     LOG.info("BigQuery method is set to: {}", method);
 
-    if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
+    if (table.getProperties().has(WRITE_DISPOSITION_PROPERTY)) {
       List<String> validWriteDispositions =
           Arrays.stream(WriteDisposition.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
       String selectedWriteDisposition =
-          table.getProperties().getString(WRITE_DISPOSITION_PROPERTY).toUpperCase();
+          table.getProperties().get(WRITE_DISPOSITION_PROPERTY).asText().toUpperCase();
 
       if (validWriteDispositions.contains(selectedWriteDisposition)) {
         writeDisposition = WriteDisposition.valueOf(selectedWriteDisposition);

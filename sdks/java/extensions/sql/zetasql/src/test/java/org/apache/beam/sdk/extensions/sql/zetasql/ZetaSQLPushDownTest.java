@@ -22,7 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 
-import com.alibaba.fastjson.JSON;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -44,7 +44,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPl
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -53,9 +53,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ZetaSQLPushDownTest {
   private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
   private static final Schema BASIC_SCHEMA =
@@ -172,6 +169,9 @@ public class ZetaSQLPushDownTest {
     initializeCalciteEnvironmentWithContext();
   }
 
+  @SuppressWarnings({
+    "rawtypes", // Frameworks.ConfigBuilder.traitDefs has method signature of raw type
+  })
   private static void initializeCalciteEnvironmentWithContext(Context... extraContext) {
     JdbcConnection jdbcConnection =
         JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
@@ -220,7 +220,8 @@ public class ZetaSQLPushDownTest {
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
         .properties(
-            JSON.parseObject("{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
+            TableUtils.parseProperties(
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }

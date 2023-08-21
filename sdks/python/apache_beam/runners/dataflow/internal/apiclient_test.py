@@ -631,13 +631,12 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d-fnapi:%s' %
-            (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
-                names.BEAM_FNAPI_CONTAINER_VERSION)))
+                names.BEAM_DEV_SDK_CONTAINER_TAG)))
 
-    # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment(
@@ -648,10 +647,11 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:%s' % (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:%s' % (
                 sys.version_info[0],
                 sys.version_info[1],
-                names.BEAM_CONTAINER_VERSION)))
+                names.BEAM_DEV_SDK_CONTAINER_TAG)))
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
@@ -670,10 +670,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:2.2.0' %
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
-    # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment(
@@ -684,7 +683,8 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
   @mock.patch(
@@ -704,10 +704,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
             names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:2.2.0' %
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
-    # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment(
@@ -718,7 +717,8 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+            '/beam_python%d.%d_sdk:2.2.0' %
             (sys.version_info[0], sys.version_info[1])))
 
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):

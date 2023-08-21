@@ -129,14 +129,14 @@ configurations {
 
 dependencies {
   compileOnly project(":sdks:java:build-tools")
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(":runners:core-construction-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
@@ -279,6 +279,7 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'

@@ -2735,6 +2735,29 @@ class DeadLettersTest(unittest.TestCase):
               use_subprocess=self.use_subprocess))
       assert_that(good, equal_to([(0, Timestamp(0)), (1, Timestamp(1))]))
 
+  def test_timeout(self):
+    import time
+    timeout = 1 if self.use_subprocess else .1
+
+    with TestPipeline() as p:
+      good, bad = (
+          p
+          | beam.Create('records starting with lowercase S are slow'.split())
+          | beam.Map(
+              lambda x: time.sleep(2.5 * timeout) if x.startswith('s') else x)
+          .with_exception_handling(
+              use_subprocess=self.use_subprocess, timeout=timeout))
+      assert_that(
+          good,
+          equal_to(['records', 'with', 'lowercase', 'S', 'are']),
+          label='CheckGood')
+      assert_that(
+          bad |
+          beam.MapTuple(lambda e, exc_info: (e, exc_info[1].replace(',', ''))),
+          equal_to([('starting', 'TimeoutError()'),
+                    ('slow', 'TimeoutError()')]),
+          label='CheckBad')
+
   def test_lifecycle(self):
     die = type(self).die
 

@@ -46,7 +46,7 @@ class SetContentMessageHandler extends AbstractMessageHandler {
     final descriptor = message.descriptor;
 
     try {
-      await playgroundController.examplesLoader.load(descriptor);
+      await playgroundController.examplesLoader.loadIfNew(descriptor);
     } on Exception catch (ex) {
       PlaygroundComponents.toastNotifier.addException(ex);
 

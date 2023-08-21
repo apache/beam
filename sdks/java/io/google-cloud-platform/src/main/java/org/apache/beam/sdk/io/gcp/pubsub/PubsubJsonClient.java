@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
@@ -48,10 +48,10 @@ import java.util.TreeMap;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
@@ -141,10 +141,10 @@ public class PubsubJsonClient extends PubsubClient {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage =
-          new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
+          new PubsubMessage().encodeData(outgoingMessage.getMessage().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
-      if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
-        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
+      if (!outgoingMessage.getMessage().getOrderingKey().isEmpty()) {
+        pubsubMessage.setOrderingKey(outgoingMessage.getMessage().getOrderingKey());
       }
 
       // N.B. publishTime and messageId are intentionally not set on the message that is published
@@ -158,13 +158,14 @@ public class PubsubJsonClient extends PubsubClient {
 
   private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
     Map<String, String> attributes = null;
-    if (outgoingMessage.message().getAttributesMap() == null) {
+    if (outgoingMessage.getMessage().getAttributesMap() == null) {
       attributes = new TreeMap<>();
     } else {
-      attributes = new TreeMap<>(outgoingMessage.message().getAttributesMap());
+      attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
     }
     if (timestampAttribute != null) {
-      attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
+      attributes.put(
+          timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
     }
     if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
       attributes.put(idAttribute, outgoingMessage.recordId());

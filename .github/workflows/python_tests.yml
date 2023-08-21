@@ -37,7 +37,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
@@ -77,7 +77,10 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
       - name: Build source
         working-directory: ./sdks/python
         run: pip install -U build && python -m build --sdist
@@ -98,7 +101,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
@@ -135,7 +137,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -160,7 +162,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -169,9 +171,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
       - name: Download source from artifacts
         uses: actions/download-artifact@v3
         with:

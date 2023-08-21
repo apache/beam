@@ -108,10 +108,10 @@ import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -920,6 +920,7 @@ public class BigQueryServicesImplTest {
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} does not go over limit of rows per request. */
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   public void testInsertWithinRequestByteSizeLimitsErrorsOut() throws Exception {
     TableReference ref =
@@ -969,9 +970,10 @@ public class BigQueryServicesImplTest {
                     false,
                     successfulRows));
 
-    assertThat(e.getMessage(), containsString("this row is too large."));
+    assertThat(e.getMessage(), containsString("exceeded BigQueryIO limit of 9MB."));
   }
 
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   public void testInsertRetryTransientsAboveRequestByteSizeLimits() throws Exception {
     TableReference ref =

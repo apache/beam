@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1.18-bullseye
+ARG BASE_IMAGE=golang:1.20-bullseye
 #Two-stage assembly
 FROM $BASE_IMAGE AS build
 ARG GIT_COMMIT="<unknown>"
@@ -38,6 +38,10 @@ RUN go mod tidy -v &&\
     go mod download &&\
     cd cmd/server &&\
     go build -ldflags="-X main.BuildCommitHash=$GIT_COMMIT -X main.BuildCommitTimestamp=$GIT_TIMESTAMP" -o /go/bin/server_go_backend
+
+# Build migration tool
+RUN cd cmd/migration_tool &&\
+    go build -o /go/bin/migration_tool
 
 # Null image
 FROM debian:stable-20221114-slim
@@ -61,6 +65,7 @@ ENV PROPERTY_PATH=/opt/playground/backend/
 
 # Copy build result
 COPY --from=build /go/bin/server_go_backend /opt/playground/backend/
+COPY --from=build /go/bin/migration_tool /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 
 COPY sdks.yaml /opt/playground/backend/sdks.yaml

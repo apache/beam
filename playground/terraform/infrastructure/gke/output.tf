@@ -24,3 +24,7 @@ output "gke_name" {
 output "playground_gke_project" {
   value = google_container_cluster.playground-gke.project
 }
+
+output "control_plane_cidr" {
+  value = var.control_plane_cidr
+}

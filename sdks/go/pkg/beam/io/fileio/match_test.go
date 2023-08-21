@@ -27,6 +27,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 type testFile struct {
 	filename string
 	data     []byte
@@ -55,6 +59,9 @@ func TestMatchFiles(t *testing.T) {
 		write(t, filepath.Join(testDir, tf.filename), tf.data)
 	}
 
+	fp1 := filepath.Join(testDir, "file1.txt")
+	fp2 := filepath.Join(testDir, "file2.txt")
+
 	tests := []struct {
 		name string
 		glob string
@@ -66,12 +73,14 @@ func TestMatchFiles(t *testing.T) {
 			glob: filepath.Join(dir, "*", "file*.txt"),
 			want: []any{
 				FileMetadata{
-					Path: filepath.Join(testDir, "file1.txt"),
-					Size: 5,
+					Path:         fp1,
+					Size:         5,
+					LastModified: modTime(t, fp1),
 				},
 				FileMetadata{
-					Path: filepath.Join(testDir, "file2.txt"),
-					Size: 0,
+					Path:         fp2,
+					Size:         0,
+					LastModified: modTime(t, fp2),
 				},
 			},
 		},
@@ -104,6 +113,10 @@ func TestMatchAll(t *testing.T) {
 		write(t, filepath.Join(testDir, tf.filename), tf.data)
 	}
 
+	fp1 := filepath.Join(testDir, "file1.txt")
+	fp2 := filepath.Join(testDir, "file2.txt")
+	fp3 := filepath.Join(testDir, "file3.csv")
+
 	tests := []struct {
 		name    string
 		opts    []MatchOptionFn
@@ -119,16 +132,19 @@ func TestMatchAll(t *testing.T) {
 			},
 			want: []any{
 				FileMetadata{
-					Path: filepath.Join(testDir, "file1.txt"),
-					Size: 5,
+					Path:         fp1,
+					Size:         5,
+					LastModified: modTime(t, fp1),
 				},
 				FileMetadata{
-					Path: filepath.Join(testDir, "file2.txt"),
-					Size: 0,
+					Path:         fp2,
+					Size:         0,
+					LastModified: modTime(t, fp2),
 				},
 				FileMetadata{
-					Path: filepath.Join(testDir, "file3.csv"),
-					Size: 5,
+					Path:         fp3,
+					Size:         5,
+					LastModified: modTime(t, fp3),
 				},
 			},
 		},
@@ -238,6 +254,10 @@ func Test_metadataFromFiles(t *testing.T) {
 		files[i] = file
 	}
 
+	fp1 := filepath.Join(dir, "file1.txt")
+	fp2 := filepath.Join(dir, "file2.txt")
+	fp3 := filepath.Join(dir, "file3.csv")
+
 	tests := []struct {
 		name  string
 		files []string
@@ -248,16 +268,19 @@ func Test_metadataFromFiles(t *testing.T) {
 			files: files,
 			want: []FileMetadata{
 				{
-					Path: filepath.Join(dir, "file1.txt"),
-					Size: 5,
+					Path:         fp1,
+					Size:         5,
+					LastModified: modTime(t, fp1),
 				},
 				{
-					Path: filepath.Join(dir, "file2.txt"),
-					Size: 0,
+					Path:         fp2,
+					Size:         0,
+					LastModified: modTime(t, fp2),
 				},
 				{
-					Path: filepath.Join(dir, "file3.csv"),
-					Size: 5,
+					Path:         fp3,
+					Size:         5,
+					LastModified: modTime(t, fp3),
 				},
 			},
 		},

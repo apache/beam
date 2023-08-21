@@ -26,10 +26,11 @@ Some examples are also used in [our benchmarks](http://s.apache.org/beam-communi
 
 ## Prerequisites
 
-You must have `apache-beam>=2.40.0` or greater installed in order to run these pipelines,
-because the `apache_beam.examples.inference` module was added in that release.
+You must have the latest (possibly unreleased) `apache-beam` or greater installed from the Beam repo in order to run these pipelines,
+because some examples rely on the latest features that are actively in development. To install Beam, run the following from the `sdks/python` directory:
 ```
-pip install apache-beam==2.40.0
+pip install -r build-requirements.txt
+pip install -e .[gcp]
 ```
 
 ### Tensorflow dependencies
@@ -38,8 +39,9 @@ The following installation requirement is for the Tensorflow model handler examp
 
 The RunInference API supports the Tensorflow framework. To use Tensorflow locally, first install `tensorflow`.
 ```
-pip install tensorflow==2.11.0
+pip install tensorflow==2.12.0
 ```
+
 
 ### PyTorch dependencies
 
@@ -62,6 +64,21 @@ pip install transformers
 
 For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
+
+
+### Transformers dependencies
+
+The following installation requirement is for the Hugging Face model handler examples.
+
+The RunInference API supports loading models from the Hugging Face Hub. To use it, first install `transformers`.
+```
+pip install transformers==4.30.0
+```
+Additional dependicies for PyTorch and TensorFlow may need to be installed separately:
+```
+pip install tensorflow==2.12.0
+pip install torch==1.10.0
+```
 
 
 ### TensorRT dependencies
@@ -321,9 +338,9 @@ the second item is the word that the model predicts for the mask.
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing, passes the pixels to the Scikit-learn implementation of RunInference, and then writes the predictions to a text file.
 
-### Dataset and model for language modeling
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for language modeling.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named `INPUT.csv` that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -435,9 +452,9 @@ A comedy-drama of nearly epic proportions rooted in a sincere performance by the
 
 The pipeline reads rows of pixels corresponding to a digit, performs basic preprocessing(converts the input shape to 28x28), passes the pixels to the trained Tensorflow model with RunInference, and then writes the predictions to a text file.
 
-### Dataset and model for language modeling
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for language modeling.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -535,9 +552,9 @@ The pipeline reads rows of pixels corresponding to a digit, performs basic prepr
 The model is loaded from the saved model weights. This can be done by passing a function which creates the model and setting the model type as
 `ModelType.SAVED_WEIGHTS` to the `TFModelHandler`. The path to saved weights saved using `model.save_weights(path)` should be passed to the `model_path` argument.
 
-### Dataset and model for language modeling
+### Dataset and model for MNIST digit classification
 
-To use this transform, you need a dataset and model for language modeling.
+To use this transform, you need a dataset and model for MNIST digit classification.
 
 1. Create a file named [`INPUT.csv`](gs://apache-beam-ml/testing/inputs/it_mnist_data.csv) that contains labels and pixels to feed into the model. Each row should have comma-separated elements. The first element is the label. All other elements are pixel values. The csv should not have column headers. The content of the file should be similar to the following example:
 ```
@@ -580,11 +597,11 @@ This writes the output to the `predictions.txt` with contents like:
 Each line has data separated by a comma ",". The first item is the actual label of the digit. The second item is the predicted label of the digit.
 ## Iris Classification
 
-[`xgboost_iris_classification.py.py`](./xgboost_iris_classification.py.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
+[`xgboost_iris_classification.py`](./xgboost_iris_classification.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
 
 The pipeline reads rows that contain the features of a given iris. The features are Sepal Length, Sepal Width, Petal Length and Petal Width. The pipeline passes those features to the XGBoost implementation of RunInference which writes the iris type predictions to a text file.
 
-### Dataset and model for language modeling
+### Dataset and model for iris classification
 
 To use this transform, you need to have sklearn installed. The dataset is loaded from using sklearn. The `_train_model` function can be used to train a simple classifier. The function outputs it's configuration in a file that can be loaded by the `XGBoostModelHandler`.
 
@@ -686,3 +703,60 @@ MilkQualityAggregation(bad_quality_measurements=6, medium_quality_measurements=4
 MilkQualityAggregation(bad_quality_measurements=3, medium_quality_measurements=3, high_quality_measurements=3)
 MilkQualityAggregation(bad_quality_measurements=1, medium_quality_measurements=2, high_quality_measurements=1)
 ```
+
+---
+## Language modeling with Hugging Face Hub
+
+[`huggingface_language_modeling.py`](./huggingface_language_modeling.py) contains an implementation for a RunInference pipeline that performs masked language modeling (that is, decoding a masked token in a sentence) using the `AutoModelForMaskedLM` architecture from Hugging Face.
+
+The pipeline reads sentences, performs basic preprocessing to convert the last word into a `<mask>` token, passes the masked sentence to the Hugging Face implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Choose a checkpoint to load from Hugging Face Hub, eg:[MaskedLanguageModel](https://huggingface.co/stevhliu/my_awesome_eli5_mlm_model).
+2. (Optional) Create a file named `SENTENCES.txt` that contains sentences to feed into the model. The content of the file should be similar to the following example:
+```
+The capital of France is Paris .
+He looked up and saw the sun and stars .
+...
+```
+
+### Running `huggingface_language_modeling.py`
+
+To run the language modeling pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --input SENTENCES \
+  --output OUTPUT \
+  --model_name REPOSITORY_ID
+```
+The `input` argument is optional. If none is provided, it will run the pipeline with some
+example sentences.
+
+For example, if you've followed the naming conventions recommended above:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --input SENTENCES.txt \
+  --output predictions.csv \
+  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+```
+Or, using the default example sentences:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --output predictions.csv \
+  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+```
+
+This writes the output to the `predictions.csv` with contents like:
+```
+The capital of France is Paris .;paris
+He looked up and saw the sun and stars .;moon
+...
+```
+Each line has data separated by a semicolon ";".
+The first item is the input sentence. The model masks the last word and tries to predict it;
+the second item is the word that the model predicts for the mask.
+
+---

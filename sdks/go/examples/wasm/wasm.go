@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// wasm is an EXPERIMENTAL simple example that loads and executes a wasm file function.
+// wasm is a simple example that loads and executes a wasm file function.
 // greet.wasm, Cargo.toml and greet.rs were copied from the example provided by the wazero library:
 // https://github.com/tetratelabs/wazero/blob/v1.0.0-pre.3/examples/allocation/rust/greet.go
 //

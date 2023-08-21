@@ -21,8 +21,8 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTablePro
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 
-import com.alibaba.fastjson.JSON;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -110,7 +110,8 @@ public class BigQueryFilterTest {
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
         .properties(
-            JSON.parseObject("{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
+            TableUtils.parseProperties(
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }

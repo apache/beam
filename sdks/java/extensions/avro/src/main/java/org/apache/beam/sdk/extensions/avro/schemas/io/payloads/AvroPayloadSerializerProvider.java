@@ -19,8 +19,6 @@ package org.apache.beam.sdk.extensions.avro.schemas.io.payloads;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -28,7 +26,6 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(PayloadSerializerProvider.class)
 public class AvroPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override

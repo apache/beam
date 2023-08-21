@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.state;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A {@link ReadableState} cell mapping keys to bags of values. Keys are considered equivalent if
@@ -32,7 +30,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * @param <K> the type of keys maintained by this multimap
  * @param <V> the type of mapped values
  */
-@Experimental(Kind.STATE)
 public interface MultimapState<K, V> extends State {
 
   /**

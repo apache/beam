@@ -30,8 +30,10 @@ class UnitModel extends NodeModel {
         );
 
   @override
-  NodeModel getFirstUnit() => this;
+  NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds) => this;
 
   @override
-  NodeModel? getNodeByTreeIds(List<String> treeIds) => this;
+  List<UnitModel> getUnits() {
+    return [this];
+  }
 }

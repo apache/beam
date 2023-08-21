@@ -23,7 +23,6 @@ import '../../components/logo/logo_component.dart';
 import '../../constants/sizes.dart';
 import '../../modules/actions/components/new_example.dart';
 import '../../modules/actions/components/reset.dart';
-import '../../modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown.dart';
 import '../../modules/examples/example_selector.dart';
 import '../../modules/sdk/components/sdk_selector.dart';
 import '../../modules/shortcuts/components/shortcuts_manager.dart';

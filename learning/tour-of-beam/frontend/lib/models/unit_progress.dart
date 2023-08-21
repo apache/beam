@@ -20,16 +20,20 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'unit_progress.g.dart';
 
-@JsonSerializable(createToJson: false)
+@JsonSerializable()
 class UnitProgressModel {
   final String id;
   final bool isCompleted;
+  final String? userSnippetId;
 
   const UnitProgressModel({
     required this.id,
     required this.isCompleted,
+    required this.userSnippetId,
   });
 
   factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>
       _$UnitProgressModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$UnitProgressModelToJson(this);
 }

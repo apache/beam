@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.state;
 
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
@@ -33,7 +31,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of value extracted from the state
  */
-@Experimental(Kind.STATE)
 public interface CombiningState<InputT, AccumT, OutputT> extends GroupingState<InputT, OutputT> {
 
   @Override

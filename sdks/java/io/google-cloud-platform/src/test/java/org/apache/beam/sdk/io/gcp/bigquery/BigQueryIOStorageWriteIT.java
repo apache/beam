@@ -34,7 +34,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -128,15 +128,15 @@ public class BigQueryIOStorageWriteIT {
   }
 
   @Test
-  public void testBigQueryStorageWrite30MProto() {
+  public void testBigQueryStorageWrite3MProto() {
     setUpTestEnvironment(WriteMode.EXACT_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE, false);
+    runBigQueryIOStorageWritePipeline(3_000_000, WriteMode.EXACT_ONCE, false);
   }
 
   @Test
-  public void testBigQueryStorageWrite30MProtoALO() {
+  public void testBigQueryStorageWrite3MProtoALO() {
     setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.AT_LEAST_ONCE, false);
+    runBigQueryIOStorageWritePipeline(3_000_000, WriteMode.AT_LEAST_ONCE, false);
   }
 
   @Test

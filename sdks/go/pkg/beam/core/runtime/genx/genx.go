@@ -103,6 +103,9 @@ func handleDoFn(fn *graph.DoFn, c cache) {
 	c.pullMethod(fn.ProcessElementFn())
 	c.pullMethod(fn.FinishBundleFn())
 	c.pullMethod(fn.TeardownFn())
+	if timerFn, ok := fn.OnTimerFn(); ok {
+		c.pullMethod(timerFn)
+	}
 	if !fn.IsSplittable() {
 		return
 	}

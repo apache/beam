@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
@@ -29,6 +29,7 @@ import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -87,21 +89,21 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A transform to write sharded records to BigQuery using the Storage API. */
+/** A transform to write sharded records to BigQuery using the Storage API (Streaming). */
 @SuppressWarnings({
   "FutureReturnValueIgnored",
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
@@ -352,20 +354,30 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
         Timer streamIdleTimer,
-        DatasetService datasetService) {
+        DatasetService datasetService,
+        Callable<Boolean> tryCreateTable) {
       try {
-        String stream = streamName.read();
-        if (stream == null || "".equals(stream)) {
+        final @Nullable String streamValue = streamName.read();
+        AtomicReference<String> stream = new AtomicReference<>();
+        if (streamValue == null || "".equals(streamValue)) {
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
-          stream = datasetService.createWriteStream(tableId, Type.BUFFERED).getName();
-          streamName.write(stream);
+          CreateTableHelpers.createTableWrapper(
+              () -> {
+                stream.set(datasetService.createWriteStream(tableId, Type.BUFFERED).getName());
+                return null;
+              },
+              tryCreateTable);
+
+          streamName.write(stream.get());
           streamOffset.write(0L);
           streamsCreated.inc();
+        } else {
+          stream.set(streamValue);
         }
         // Reset the idle timer.
         streamIdleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
 
-        return stream;
+        return stream.get();
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -426,26 +438,49 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final DatasetService datasetService = getDatasetService(pipelineOptions);
 
+      Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
+      Callable<Boolean> tryCreateTable =
+          () -> {
+            CreateTableHelpers.possiblyCreateTable(
+                c.getPipelineOptions().as(BigQueryOptions.class),
+                tableDestination,
+                () -> dynamicDestinations.getSchema(element.getKey().getKey()),
+                createDisposition,
+                destinationCoder,
+                kmsKey,
+                bqServices);
+            return true;
+          };
+
       Supplier<String> getOrCreateStream =
-          () -> getOrCreateStream(tableId, streamName, streamOffset, idleTimer, datasetService);
+          () ->
+              getOrCreateStream(
+                  tableId, streamName, streamOffset, idleTimer, datasetService, tryCreateTable);
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
-            if (autoUpdateSchema && updatedSchema.read() != null) {
-              // We've seen an updated schema, so we use that.
-              tableSchema = updatedSchema.read();
+            DescriptorProtos.DescriptorProto descriptor;
+            TableSchema updatedSchemaValue = updatedSchema.read();
+            if (autoUpdateSchema && updatedSchemaValue != null) {
+              // We've seen an updated schema, so we use that instead of querying the
+              // MessageConverter.
+              tableSchema = updatedSchemaValue;
+              descriptor =
+                  TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+                      tableSchema, true, false);
             } else {
               // Start off with the base schema. As we get notified of schema updates, we
-              // will update the
-              // descriptor.
-              tableSchema =
-                  messageConverters
-                      .get(element.getKey().getKey(), dynamicDestinations, datasetService)
-                      .getTableSchema();
+              // will update the descriptor.
+              StorageApiDynamicDestinations.MessageConverter<?> converter =
+                  messageConverters.get(
+                      element.getKey().getKey(), dynamicDestinations, datasetService);
+              tableSchema = converter.getTableSchema();
+              descriptor = converter.getDescriptor(false);
             }
             AppendClientInfo info =
                 AppendClientInfo.of(
                         Preconditions.checkStateNotNull(tableSchema),
+                        descriptor,
                         // Make sure that the client is always closed in a different thread
                         // to
                         // avoid blocking.
@@ -479,7 +514,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         if (appendClientInfo.get().hasSchemaChanged(updatedSchemaValue)) {
           appendClientInfo.set(
               AppendClientInfo.of(
-                  updatedSchemaValue, appendClientInfo.get().getCloseAppendClient()));
+                  updatedSchemaValue, appendClientInfo.get().getCloseAppendClient(), false));
           APPEND_CLIENTS.invalidate(element.getKey());
           APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
         }
@@ -494,11 +529,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
               bytes -> appendClientInfo.get().toTableRow(bytes),
-              (failedRow, errorMessage) ->
-                  o.get(failedRowsTag)
-                      .outputWithTimestamp(
-                          new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
-                          failedRow.getTimestamp()),
+              (failedRow, errorMessage) -> {
+                o.get(failedRowsTag)
+                    .outputWithTimestamp(
+                        new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
+                        failedRow.getTimestamp());
+                rowsSentToFailedRowsCollection.inc();
+              },
               autoUpdateSchema,
               ignoreUnknownValues,
               elementTs);
@@ -622,14 +659,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               return RetryType.RETRY_ALL_OPERATIONS;
             }
 
-            // Invalidate the StreamWriter and force a new one to be created.
-            LOG.error(
-                "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
-            clearClients.accept(failedContexts);
-            appendFailures.inc();
-
-            boolean explicitStreamFinalized =
-                failedContext.getError() instanceof StreamFinalizedException;
             Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
             Status.Code statusCode = Status.fromThrowable(error).getCode();
             // This means that the offset we have stored does not match the current end of
@@ -641,6 +670,26 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // duplicates.
             boolean offsetMismatch =
                 statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
+
+            // Invalidate the StreamWriter and force a new one to be created.
+            if (!offsetMismatch) {
+              // Don't log errors for expected offset mismatch. These will be logged as warnings
+              // below.
+              LOG.error(
+                  "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
+            }
+
+            // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces them.
+            try {
+              tryCreateTable.call();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+            clearClients.accept(failedContexts);
+            appendFailures.inc();
+
+            boolean explicitStreamFinalized =
+                failedContext.getError() instanceof StreamFinalizedException;
             // This implies that the stream doesn't exist or has already been finalized. In this
             // case we have no choice but to create a new stream.
             boolean streamDoesNotExist =
@@ -721,6 +770,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                     timestamp);
           }
+          rowsSentToFailedRowsCollection.inc(splitValue.getProtoRows().getSerializedRowsCount());
         } else {
           ++numAppends;
           // RetryManager
@@ -751,16 +801,23 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         if (autoUpdateSchema) {
           @Nullable
           StreamAppendClient streamAppendClient = appendClientInfo.get().getStreamAppendClient();
+          TableSchema originalSchema = appendClientInfo.get().getTableSchema();
+          ;
           @Nullable
-          TableSchema newSchema =
+          TableSchema updatedSchemaReturned =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
           // Update the table schema and clear the append client.
-          if (newSchema != null) {
-            appendClientInfo.set(
-                AppendClientInfo.of(newSchema, appendClientInfo.get().getCloseAppendClient()));
-            APPEND_CLIENTS.invalidate(element.getKey());
-            APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
-            updatedSchema.write(newSchema);
+          if (updatedSchemaReturned != null) {
+            Optional<TableSchema> newSchema =
+                TableSchemaUpdateUtils.getUpdatedSchema(originalSchema, updatedSchemaReturned);
+            if (newSchema.isPresent()) {
+              appendClientInfo.set(
+                  AppendClientInfo.of(
+                      newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
+              APPEND_CLIENTS.invalidate(element.getKey());
+              APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+              updatedSchema.write(newSchema.get());
+            }
           }
         }
 

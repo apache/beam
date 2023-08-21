@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BEAM_VERSION=2.44.0
-FROM golang:1.18-bullseye AS build
+FROM golang:1.20-bullseye AS build
 ARG BEAM_VERSION
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
@@ -55,7 +55,7 @@ RUN mvn dependency:copy-dependencies
 FROM apache/beam_java11_sdk:$BEAM_VERSION
 
 ARG BEAM_VERSION
-ARG SPRING_VERSION=5.3.25
+ARG SPRING_VERSION=5.3.27
 ARG KAFKA_CLIENTS_VERSION=2.3.1
 ENV BEAM_VERSION=$BEAM_VERSION
 ENV SERVER_IP=0.0.0.0
@@ -63,6 +63,9 @@ ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_JAVA"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
+ARG CALCITE_VERSION=1_28_0
+ARG BYTEBUDDY_VERSION=1.12.14
+ARG JANINO_VERSION=3.0.11
 
 # Copy build result
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
@@ -88,22 +91,28 @@ RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_
 # Install Spring JCL
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
     mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
+
+# Install sql extensions service and dependencies for Beam
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-extensions-sql/$BEAM_VERSION/beam-sdks-java-extensions-sql-$BEAM_VERSION.jar &&\
+    mv beam-sdks-java-extensions-sql-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-extensions-sql.jar
+
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-$CALCITE_VERSION/0.2/beam-vendor-calcite-$CALCITE_VERSION-0.2.jar &&\
+    mv beam-vendor-calcite-$CALCITE_VERSION-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite-$CALCITE_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/$BYTEBUDDY_VERSION/byte-buddy-$BYTEBUDDY_VERSION.jar &&\
+    mv byte-buddy-$BYTEBUDDY_VERSION.jar /opt/apache/beam/jars/byte-buddy-$BYTEBUDDY_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/$JANINO_VERSION/janino-$JANINO_VERSION.jar &&\
+    mv janino-$JANINO_VERSION.jar /opt/apache/beam/jars/janino-$JANINO_VERSION.jar
+
+RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/commons-compiler/$JANINO_VERSION/commons-compiler-$JANINO_VERSION.jar &&\
+    mv commons-compiler-$JANINO_VERSION.jar /opt/apache/beam/jars/commons-compiler-$JANINO_VERSION.jar
+    
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
     ./gradlew jar &&\
     mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
-
-# Install mitmpoxy
-RUN mkdir /opt/mitmproxy &&\
-    cd /opt/mitmproxy &&\
-    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
-    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
-    mkdir /usr/local/share/ca-certificates/extra
-COPY allow_list_proxy.py /opt/mitmproxy/
-COPY allow_list.py /opt/mitmproxy/
-ENV HTTP_PROXY="http://127.0.0.1:8081"
-ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
@@ -119,9 +128,9 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 775 /opt/apache/beam/jars/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-11/lib/security/ \
-  && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
+  && chmod +x /entrypoint.sh
 
 # Switch to appuser
 USER appuser

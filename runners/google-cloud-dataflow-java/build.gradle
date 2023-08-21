@@ -49,13 +49,19 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
+ext.dataflowLegacyEnvironmentMajorVersion = '8'
+ext.dataflowFnapiEnvironmentMajorVersion = '8'
+ext.dataflowLegacyContainerVersion = 'beam-master-20230809'
+ext.dataflowFnapiContainerVersion = 'beam-master-20230809'
+ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
+
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-    'dataflow.legacy_environment_major_version' : '8',
-    'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20230112',
-    'dataflow.fnapi_container_version' : 'beam-master-20230112',
-    'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
+    'dataflow.legacy_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.fnapi_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
+    'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
+    'dataflow.container_base_repository' : project.ext.dataflowContainerBaseRepository,
   ]
 }
 
@@ -78,7 +84,7 @@ configurations {
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
@@ -96,7 +102,6 @@ dependencies {
   // Ensures SequencedMessage availability for Spotless
   implementation library.java.proto_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
-  implementation library.java.google_api_services_clouddebugger
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
@@ -111,7 +116,7 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
+  implementation library.java.vendored_grpc_1_54_0
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -400,6 +405,9 @@ task validatesRunnerStreaming {
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
+      // https://github.com/apache/beam/issues/22592
+      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
@@ -501,6 +509,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesTriggeredSideInputs',
     ],
     excludedTests: [
       // TestStream only (partially) supported on UW
@@ -528,9 +537,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // TODO(https://github.com/apache/beam/issues/22592)
-      // Reenable once UW supports autosharding
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
     ]
   ))
 }
@@ -556,12 +562,10 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/StorageApiSinkSchemaUpdateIT.class'  // IT based on test stream
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
-
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -602,6 +606,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/StorageApiSinkSchemaUpdateIT.class'  // IT based on test stream
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
@@ -609,8 +614,6 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest

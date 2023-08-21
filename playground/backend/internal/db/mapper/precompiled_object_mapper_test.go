@@ -40,7 +40,7 @@ func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
 		Categories:      []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
 		PipelineOptions: "MOCK_OPTIONS",
 		Link:            "MOCK_PATH",
-		Multifile:       false,
+		Multifile:       true,
 		DefaultExample:  false,
 		ContextLine:     32,
 		Sdk:             pb.Sdk_SDK_JAVA,
@@ -67,7 +67,7 @@ func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
 		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
 		PipelineOptions: "MOCK_OPTIONS",
 		Link:            "MOCK_PATH",
-		Multifile:       false,
+		Multifile:       true,
 		DefaultExample:  false,
 		ContextLine:     32,
 		Sdk:             pb.Sdk_SDK_JAVA,
@@ -152,7 +152,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		javaCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_JAVA_MOCK_NAME" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_JAVA_SDK_JAVA_MOCK_NAME" ||
-		javaCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
+		javaCatalog.Categories[0].PrecompiledObjects[0].Multifile != true ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
@@ -167,7 +167,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		goCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_GO_MOCK_NAME" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_GO_SDK_GO_MOCK_NAME" ||
-		goCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
+		goCatalog.Categories[0].PrecompiledObjects[0].Multifile != true ||
 		goCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		goCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
@@ -182,7 +182,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_PYTHON_MOCK_NAME" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_PYTHON_SDK_PYTHON_MOCK_NAME" ||
-		pythonCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
+		pythonCatalog.Categories[0].PrecompiledObjects[0].Multifile != true ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
@@ -197,7 +197,7 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		scioCatalog.Categories[0].PrecompiledObjects[0].Name != "SDK_SCIO_MOCK_NAME" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].Description != "MOCK_DESCR" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].CloudPath != "SDK_SCIO_SDK_SCIO_MOCK_NAME" ||
-		scioCatalog.Categories[0].PrecompiledObjects[0].Multifile != false ||
+		scioCatalog.Categories[0].PrecompiledObjects[0].Multifile != true ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].DefaultExample != false ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
@@ -234,15 +234,23 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			PipeOpts:      "MOCK_OPTIONS",
 			Origin:        constants.ExampleOrigin,
 			SchVer:        utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
-			NumberOfFiles: 1,
+			NumberOfFiles: 2,
 			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		},
-		Files: []*entity.FileEntity{{
-			Name:     "MOCK_NAME",
-			Content:  "MOCK_CONTENT",
-			CntxLine: 32,
-			IsMain:   true,
-		}},
+		Files: []*entity.FileEntity{
+			{
+				Name:     "MOCK_NAME_0",
+				Content:  "MOCK_CONTENT",
+				CntxLine: 32,
+				IsMain:   true,
+			},
+			{
+				Name:     "MOCK_NAME_1",
+				Content:  "MOCK_CONTENT",
+				CntxLine: 16,
+				IsMain:   false,
+			},
+		},
 		DefaultExampleName: defaultName,
 		Datasets: []*dto.DatasetDTO{
 			{
@@ -288,7 +296,7 @@ func getCatalogDTO() *dto.CatalogDTO {
 		exampleDTO := getExampleDTO(utils.GetIDWithDelimiter(sdk.Name, "MOCK_NAME"), "MOCK_DEFAULT_EXAMPLE", sdk.Name)
 		examples = append(examples, exampleDTO.Example)
 		snippets = append(snippets, exampleDTO.Snippet)
-		files = append(files, exampleDTO.Files[0])
+		files = append(files, exampleDTO.Files...)
 	}
 	return &dto.CatalogDTO{
 		Examples:   examples,

@@ -43,7 +43,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_48_1,
+        library.java.vendored_grpc_1_54_0,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -191,7 +191,7 @@ dependencies {
     implementation project(":runners:java-fn-execution")
     implementation project(":sdks:java:fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-    shadow library.java.vendored_guava_26_0_jre
+    shadow library.java.vendored_guava_32_1_2_jre
 
     implementation library.java.google_auth_library_credentials
     implementation library.java.proto_google_common_protos
@@ -210,7 +210,7 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.vendored_grpc_1_48_1
+    implementation library.java.vendored_grpc_1_54_0
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14

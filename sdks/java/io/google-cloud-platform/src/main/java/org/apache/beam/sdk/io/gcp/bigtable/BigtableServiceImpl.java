@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.grpc.GrpcCallContext;
@@ -66,14 +66,17 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.FutureCallback;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -334,7 +337,8 @@ class BigtableServiceImpl implements BigtableService {
       this.serviceCallMetric = serviceCallMetric;
       this.buffer = new ArrayDeque<>();
       // Asynchronously refill buffer when there is 10% of the elements are left
-      this.refillSegmentWaterMark = (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE);
+      this.refillSegmentWaterMark =
+          Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
       this.attemptTimeout = attemptTimeout;
       this.operationTimeout = operationTimeout;
     }
@@ -481,9 +485,14 @@ class BigtableServiceImpl implements BigtableService {
   @VisibleForTesting
   static class BigtableWriterImpl implements Writer {
     private Batcher<RowMutationEntry, Void> bulkMutation;
+    private Integer outstandingMutations = 0;
+    private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private String projectId;
     private String instanceId;
     private String tableId;
+
+    private Distribution bulkSize = Metrics.distribution("BigTable-" + tableId, "batchSize");
+    private Distribution latency = Metrics.distribution("BigTable-" + tableId, "batchLatencyMs");
 
     BigtableWriterImpl(
         BigtableDataClient client, String projectId, String instanceId, String tableId) {
@@ -497,7 +506,12 @@ class BigtableServiceImpl implements BigtableService {
     public void flush() throws IOException {
       if (bulkMutation != null) {
         try {
+          stopwatch.start();
           bulkMutation.flush();
+          bulkSize.update(outstandingMutations);
+          outstandingMutations = 0;
+          stopwatch.stop();
+          latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since flush() operation was interrupted.
@@ -510,8 +524,13 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       if (bulkMutation != null) {
         try {
+          stopwatch.start();
           bulkMutation.flush();
           bulkMutation.close();
+          bulkSize.update(outstandingMutations);
+          outstandingMutations = 0;
+          stopwatch.stop();
+          latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since flush() operation was interrupted.
@@ -548,6 +567,7 @@ class BigtableServiceImpl implements BigtableService {
 
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
 
+      outstandingMutations += 1;
       Futures.addCallback(
           new VendoredListenableFutureAdapter<>(bulkMutation.add(entry)),
           new FutureCallback<MutateRowResponse>() {

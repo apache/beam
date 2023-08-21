@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.fn.stream;
 
 import java.util.concurrent.ExecutorService;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 
 /**
  * Creates factories which determine an underlying {@link StreamObserver} implementation to use in
@@ -89,7 +89,9 @@ public abstract class OutboundObserverFactory {
         BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      inboundObserver = ForwardingClientResponseObserver.create(inboundObserver, phaser::arrive);
+      inboundObserver =
+          ForwardingClientResponseObserver.create(
+              inboundObserver, phaser::arrive, phaser::forceTermination);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
               baseOutboundObserverFactory.outboundObserverFor(inboundObserver);
@@ -126,7 +128,9 @@ public abstract class OutboundObserverFactory {
         BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      inboundObserver = ForwardingClientResponseObserver.create(inboundObserver, phaser::arrive);
+      inboundObserver =
+          ForwardingClientResponseObserver.create(
+              inboundObserver, phaser::arrive, phaser::forceTermination);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
               baseOutboundObserverFactory.outboundObserverFor(inboundObserver);

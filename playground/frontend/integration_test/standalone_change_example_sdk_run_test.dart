@@ -35,12 +35,17 @@ void main() {
     await wt.tapAndSettle(find.exampleSelector());
     await wt.tapAndSettle(find.exampleItemInDropdown(javaAggregationMax.name));
 
-    expect(
-      wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
-            await javaAggregationMax.getVisibleText(),
-          ),
-      true,
-    );
+    if (areExamplesDeployed) {
+      final visibleText = await javaAggregationMax.getVisibleText();
+      final lastSpanText =
+          wt.findOneCodeController().lastTextSpan!.toPlainText();
+
+      expect(
+        lastSpanText.isAsIfCutFrom(visibleText),
+        true,
+        reason: '$lastSpanText is not as if cut from $visibleText',
+      );
+    }
 
     expectLastAnalyticsEvent(
       SnippetSelectedAnalyticsEvent(
@@ -60,23 +65,30 @@ public class MyClass {
 }
 ''';
 
-    await wt.enterText(find.codeField(), code);
+    await wt.enterText(find.snippetCodeField(), code);
     await wt.pumpAndSettle();
 
     await wt.tapAndSettle(find.runOrCancelButton());
 
-    expectOutputEquals('$_outputPrefix$text', wt);
+    expectOutputEqualsIfDeployed('$_outputPrefix$text', wt);
   }
 
   Future<void> switchToPython(WidgetTester wt) async {
     await wt.changeSdk(Sdk.python);
 
-    expect(
-      wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
-            await pythonWordCountWithMetrics.getVisibleText(),
-          ),
-      true,
-    );
+    if (areExamplesDeployed) {
+      final visibleText = await pythonWordCountWithMetrics.getVisibleText();
+      final lastSpanText = wt
+          .findOneCodeController()
+          .lastTextSpan!
+          .toPlainText();
+
+      expect(
+        lastSpanText.isAsIfCutFrom(visibleText),
+        true,
+        reason: '$lastSpanText is not as if cut from $visibleText',
+      );
+    }
 
     expectLastAnalyticsEvent(const SdkSelectedAnalyticsEvent(sdk: Sdk.python));
   }
@@ -103,12 +115,12 @@ public class MyClass {
     const text = 'OK';
     const code = 'print("$text", end="")';
 
-    await wt.enterText(find.codeField(), code);
+    await wt.enterText(find.snippetCodeField(), code);
     await wt.pumpAndSettle();
 
     await wt.tapAndSettle(find.runOrCancelButton());
 
-    expectOutputEquals('$_outputPrefix$text', wt);
+    expectOutputEqualsIfDeployed('$_outputPrefix$text', wt);
   }
 
   testWidgets('Change example, change SDK, run', (WidgetTester wt) async {

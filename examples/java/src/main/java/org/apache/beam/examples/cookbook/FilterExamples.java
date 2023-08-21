@@ -71,13 +71,13 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
- * and can be overridden with {@code --input}.
+ * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations} and
+ * can be overridden with {@code --input}.
  */
 public class FilterExamples {
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
   static final Logger LOG = Logger.getLogger(FilterExamples.class.getName());
   static final int MONTH_TO_FILTER = 7;
 

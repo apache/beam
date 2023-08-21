@@ -54,9 +54,11 @@ if [[ "$JENKINS_HOME" != "" ]]; then
 fi
 
 if [[ ! -z $2 ]]; then
-  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$2"
+  SDK_LOCATION="$1"
+  shift;
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
 else
-  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
 fi
 
 exit_code=$?

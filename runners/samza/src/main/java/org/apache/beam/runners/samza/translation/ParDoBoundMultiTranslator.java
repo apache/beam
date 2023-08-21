@@ -42,6 +42,7 @@ import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
+import org.apache.beam.runners.samza.runtime.PortableDoFnOp;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.runners.samza.util.StateUtils;
@@ -68,7 +69,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FlatMapFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
@@ -314,18 +315,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
-    final Coder<?> keyCoder =
-        StateUtils.isStateful(stagePayload)
+
+    // No key coder information required for handing the stateless stage or stage with user states
+    // The key coder information is required for handing the stage with user timers
+    final Coder<?> timerKeyCoder =
+        stagePayload.getTimersCount() > 0
             ? ((KvCoder)
                     ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
                 .getKeyCoder()
             : null;
 
-    final DoFnOp<InT, OutT, RawUnionValue> op =
-        new DoFnOp<>(
+    final PortableDoFnOp<InT, OutT, RawUnionValue> op =
+        new PortableDoFnOp<>(
             mainOutputTag,
             new NoOpDoFn<>(),
-            keyCoder,
+            timerKeyCoder,
             windowedInputCoder.getValueCoder(), // input coder not in use
             windowedInputCoder,
             Collections.emptyMap(), // output coders not in use

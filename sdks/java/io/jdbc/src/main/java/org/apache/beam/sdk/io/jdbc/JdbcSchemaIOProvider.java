@@ -71,6 +71,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         // readQuery
         .addNullableField("partitionColumn", FieldType.STRING)
         .addNullableField("partitions", FieldType.INT16)
+        .addNullableField("maxConnections", FieldType.INT16)
+        .addNullableField("driverJars", FieldType.STRING)
         .build();
   }
 
@@ -202,11 +204,14 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         dataSourceConfiguration = dataSourceConfiguration.withConnectionInitSqls(initSqls);
       }
 
-      if (config.getSchema().hasField("maxConnections")) {
-        @Nullable Integer maxConnections = config.getInt32("maxConnections");
-        if (maxConnections != null) {
-          dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
-        }
+      @Nullable Integer maxConnections = config.getInt32("maxConnections");
+      if (maxConnections != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
+      }
+
+      @Nullable String driverJars = config.getString("driverJars");
+      if (driverJars != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withDriverJars(driverJars);
       }
 
       return dataSourceConfiguration;

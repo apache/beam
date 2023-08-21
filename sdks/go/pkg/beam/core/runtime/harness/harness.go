@@ -45,25 +45,32 @@ import (
 // URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
 const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 
-// TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
+// Options for harness.Main that affect execution of the harness, such as runner capabilities.
+type Options struct {
+	RunnerCapabilities []string // URNs for what runners are able to understand over the FnAPI.
+	StatusEndpoint     string   // Endpoint for worker status reporting.
+}
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
+//
+// Deprecated: Prefer MainWithOptions instead.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
+	return MainWithOptions(ctx, loggingEndpoint, controlEndpoint, Options{})
+}
+
+// MainWithOptions is the main entrypoint for the Go harness. It runs at "runtime" -- not
+// "pipeline-construction time" -- on each worker. It is a FnAPI client and
+// ultimately responsible for correctly executing user code.
+//
+// Options are optional configurations for interfacing with the runner or similar.
+func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint string, opts Options) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
-	// Extract environment variables. These are optional runner supported capabilities.
-	// Expected env variables:
-	// RUNNER_CAPABILITIES : list of runner supported capability urn.
-	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
-	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
-	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
 	rcMap := make(map[string]bool)
-	if len(runnerCapabilities) > 0 {
-		for _, capability := range runnerCapabilities {
-			rcMap[capability] = true
-		}
+	for _, capability := range opts.RunnerCapabilities {
+		rcMap[capability] = true
 	}
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
@@ -151,8 +158,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 
 	// if the runner supports worker status api then expose SDK harness status
-	if statusEndpoint != "" {
-		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint, ctrl.cache, func(statusInfo *strings.Builder) { ctrl.metStoreToString(statusInfo) })
+	if opts.StatusEndpoint != "" {
+		statusHandler, err := newWorkerStatusHandler(ctx, opts.StatusEndpoint, ctrl.cache, func(statusInfo *strings.Builder) { ctrl.metStoreToString(statusInfo) })
 		if err != nil {
 			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
 		} else {
@@ -386,7 +393,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.mu.Unlock()
 
 		if err != nil {
-			return fail(ctx, instID, "Failed: %v", err)
+			c.failed[instID] = err
+			return fail(ctx, instID, "ProcessBundle failed: %v", err)
 		}
 
 		tokens := msg.GetCacheTokens()
@@ -402,7 +410,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		sampler.stop()
 
-		data.Close()
+		dataError := data.Close()
 		state.Close()
 
 		c.cache.CompleteBundle(tokens...)
@@ -416,6 +424,11 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// Mark the instruction as failed.
 		if err != nil {
 			c.failed[instID] = err
+		} else if dataError != io.EOF && dataError != nil {
+			// If there was an error on the data channel reads, fail this bundle
+			// since we may have had a short read.
+			c.failed[instID] = dataError
+			err = dataError
 		} else {
 			// Non failure plans should either be moved to the finalized state
 			// or to plans so they can be re-used.
@@ -573,7 +586,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		// Unsuccessful splits without errors indicate we should return an empty response,
-		// as processing can confinue.
+		// as processing can continue.
 		if sr.Unsuccessful {
 			return &fnpb.InstructionResponse{
 				InstructionId: string(instID),
@@ -695,6 +708,6 @@ func fail(ctx context.Context, id instructionID, format string, args ...any) *fn
 // dial to the specified endpoint. if timeout <=0, call blocks until
 // grpc.Dial succeeds.
 func dial(ctx context.Context, endpoint, purpose string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Infof(ctx, "Connecting via grpc @ %s for %s ...", endpoint, purpose)
+	log.Output(ctx, log.SevDebug, 1, fmt.Sprintf("Connecting via grpc @ %s for %s ...", endpoint, purpose))
 	return grpcx.Dial(ctx, endpoint, timeout)
 }

@@ -34,8 +34,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 
 /** Converts TVFScan. */
 @SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
@@ -68,7 +67,7 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
   @Override
   public List<ResolvedNode> getInputs(ResolvedTVFScan zetaNode) {
-    List<ResolvedNode> inputs = new ArrayList();
+    List<ResolvedNode> inputs = new ArrayList<>();
     if (zetaNode.getTvf() != null
         && context
             .getUserDefinedTableValuedFunctions()

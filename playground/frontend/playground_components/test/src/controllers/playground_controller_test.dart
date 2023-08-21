@@ -33,7 +33,7 @@ Future<void> main() async {
   late PlaygroundController controller;
   final mockExamplesLoader = MockExamplesLoader();
 
-  when(mockExamplesLoader.load(any)).thenAnswer((_) async => 1);
+  when(mockExamplesLoader.loadIfNew(any)).thenAnswer((_) async => 1);
 
   setUp(() {
     controller = PlaygroundController(

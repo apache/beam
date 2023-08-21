@@ -17,16 +17,18 @@ name: Playground Frontend Test
 
 on:
   push:
-    paths: ['playground/frontend/**']
+    paths:
+      - 'playground/frontend/**'
     branches: ['**']
   pull_request:
-    paths: ['playground/frontend/**']
+    paths:
+      - 'playground/frontend/**'
     branches: ['**']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
@@ -35,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      FLUTTER_VERSION: '3.7.3'
+      FLUTTER_VERSION: '3.10.4'
 
     steps:
       - uses: actions/checkout@v3
@@ -82,7 +84,7 @@ jobs:
         working-directory: playground/frontend
         run: flutter test
 
-      - uses: nanasess/setup-chromedriver@v1
+      - uses: nanasess/setup-chromedriver@v2
 
       - name: 'Integration tests'
         run: |

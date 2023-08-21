@@ -21,17 +21,17 @@ import static com.google.cloud.pubsublite.internal.testing.UnitTestExamples.exam
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.alibaba.fastjson.JSONObject;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
 import java.util.Map;
 import java.util.function.Function;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,7 +65,7 @@ public class PubsubLiteTableProviderTest {
             .name("testTable")
             .schema(schema)
             .location(location)
-            .properties(new JSONObject().fluentPutAll(properties))
+            .properties(TableUtils.getObjectMapper().valueToTree(properties))
             .build();
     return PROVIDER.buildBeamSqlTable(table);
   }

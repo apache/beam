@@ -31,6 +31,7 @@ type ObjectInfo struct {
 	UrlVCS          string
 	UrlNotebook     string
 	AlwaysRun       bool
+	NeverRun        bool
 	Multifile       bool
 	ContextLine     int32
 	DefaultExample  bool

@@ -25,8 +25,11 @@ import json
 import os
 import subprocess
 import sys
+import urllib.parse
 import uuid
 from typing import Any
+from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import Mapping
 
@@ -39,6 +42,7 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
+from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
@@ -58,14 +62,53 @@ class Provider:
     raise NotImplementedError(type(self))
 
   def create_transform(
-      self, typ: str, args: Mapping[str, Any]) -> beam.PTransform:
+      self,
+      typ: str,
+      args: Mapping[str, Any],
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
+  ) -> beam.PTransform:
     """Creates a PTransform instance for the given transform type and arguments.
     """
     raise NotImplementedError(type(self))
 
+  def affinity(self, other: "Provider"):
+    """Returns a value approximating how good it would be for this provider
+    to be used immediately following a transform from the other provider
+    (e.g. to encourage fusion).
+    """
+    # TODO(yaml): This is a very rough heuristic. Consider doing better.
+    # E.g. we could look at the the expected environments themselves.
+    # Possibly, we could provide multiple expansions and have the runner itself
+    # choose the actual implementation based on fusion (and other) criteria.
+    return self._affinity(other) + other._affinity(self)
+
+  def _affinity(self, other: "Provider"):
+    if self is other or self == other:
+      return 100
+    elif type(self) == type(other):
+      return 10
+    else:
+      return 0
+
+
+def as_provider(name, provider_or_constructor):
+  if isinstance(provider_or_constructor, Provider):
+    return provider_or_constructor
+  else:
+    return InlineProvider({name: provider_or_constructor})
+
+
+def as_provider_list(name, lst):
+  if not isinstance(lst, list):
+    return as_provider_list(name, [lst])
+  return [as_provider(name, x) for x in lst]
+
 
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
+  _provider_types: Dict[str, Callable[..., Provider]] = {}
+
   def __init__(self, urns, service):
     self._urns = urns
     self._service = service
@@ -74,7 +117,7 @@ class ExternalProvider(Provider):
   def provided_transforms(self):
     return self._urns.keys()
 
-  def create_transform(self, type, args):
+  def create_transform(self, type, args, yaml_create_transform):
     if callable(self._service):
       self._service = self._service()
     if self._schema_transforms is None:
@@ -98,50 +141,89 @@ class ExternalProvider(Provider):
         external.ImplicitSchemaPayloadBuilder(args).payload(),
         self._service)
 
-  @staticmethod
-  def provider_from_spec(spec):
+  @classmethod
+  def provider_from_spec(cls, spec):
     urns = spec['transforms']
     type = spec['type']
-    if spec.get('version', None) == 'BEAM_VERSION':
-      spec['version'] = beam_version
-    if type == 'jar':
-      return ExternalJavaProvider(urns, lambda: spec['jar'])
-    elif type == 'mavenJar':
-      return ExternalJavaProvider(
-          urns,
-          lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-              **{
-                  key: value
-                  for (key, value) in spec.items() if key in [
-                      'artifact_id',
-                      'group_id',
-                      'version',
-                      'repository',
-                      'classifier',
-                      'appendix'
-                  ]
-              }))
-    elif type == 'beamJar':
-      return ExternalJavaProvider(
-          urns,
-          lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
-              **{
-                  key: value
-                  for (key, value) in spec.items() if key in
-                  ['gradle_target', 'version', 'appendix', 'artifact_id']
-              }))
-    elif type == 'pypi':
-      return ExternalPythonProvider(urns, spec['packages'])
-    elif type == 'remote':
-      return RemoteProvider(spec['address'])
-    elif type == 'docker':
-      raise NotImplementedError()
+    from apache_beam.yaml.yaml_transform import SafeLineLoader
+    config = SafeLineLoader.strip_metadata(spec.get('config', {}))
+    if config.get('version', None) == 'BEAM_VERSION':
+      config['version'] = beam_version
+    if type in cls._provider_types:
+      try:
+        return cls._provider_types[type](urns, **config)
+      except Exception as exn:
+        raise ValueError(
+            f'Unable to instantiate provider of type {type} '
+            f'at line {SafeLineLoader.get_line(spec)}: {exn}') from exn
     else:
-      raise NotImplementedError(f'Unknown provider type: {type}')
+      raise NotImplementedError(
+          f'Unknown provider type: {type} '
+          f'at line {SafeLineLoader.get_line(spec)}.')
+
+  @classmethod
+  def register_provider_type(cls, type_name):
+    def apply(constructor):
+      cls._provider_types[type_name] = constructor
+
+    return apply
 
 
+@ExternalProvider.register_provider_type('javaJar')
+def java_jar(urns, jar: str):
+  if not os.path.exists(jar):
+    parsed = urllib.parse.urlparse(jar)
+    if not parsed.scheme or not parsed.netloc:
+      raise ValueError(f'Invalid path or url: {jar}')
+  return ExternalJavaProvider(urns, lambda: jar)
+
+
+@ExternalProvider.register_provider_type('mavenJar')
+def maven_jar(
+    urns,
+    *,
+    artifact_id,
+    group_id,
+    version,
+    repository=subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY,
+    classifier=None,
+    appendix=None):
+  return ExternalJavaProvider(
+      urns,
+      lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id=artifact_id,
+          version=version,
+          repository=repository,
+          classifier=classifier,
+          appendix=appendix))
+
+
+@ExternalProvider.register_provider_type('beamJar')
+def beam_jar(
+    urns,
+    *,
+    gradle_target,
+    appendix=None,
+    version=beam_version,
+    artifact_id=None):
+  return ExternalJavaProvider(
+      urns,
+      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+          gradle_target=gradle_target, version=version, artifact_id=artifact_id)
+  )
+
+
+@ExternalProvider.register_provider_type('docker')
+def docker(urns, **config):
+  raise NotImplementedError()
+
+
+@ExternalProvider.register_provider_type('remote')
 class RemoteProvider(ExternalProvider):
   _is_available = None
+
+  def __init__(self, urns, address: str):
+    super().__init__(urns, service=address)
 
   def available(self):
     if self._is_available is None:
@@ -165,6 +247,7 @@ class ExternalJavaProvider(ExternalProvider):
                           capture_output=True).returncode == 0
 
 
+@ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
   def __init__(self, urns, packages):
     super().__init__(urns, PypiExpansionService(packages))
@@ -181,6 +264,12 @@ class ExternalPythonProvider(ExternalProvider):
             'kwargs': args,
         }).payload(),
         self._service)
+
+  def _affinity(self, other: "Provider"):
+    if isinstance(other, InlineProvider):
+      return 50
+    else:
+      return super()._affinity(other)
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
@@ -231,11 +320,16 @@ class InlineProvider(Provider):
   def provided_transforms(self):
     return self._transform_factories.keys()
 
-  def create_transform(self, type, args):
+  def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](**args)
 
   def to_json(self):
     return {'type': "InlineProvider"}
+
+
+class MetaInlineProvider(InlineProvider):
+  def create_transform(self, type, args, yaml_create_transform):
+    return self._transform_factories[type](yaml_create_transform, **args)
 
 
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
@@ -309,6 +403,32 @@ def create_builtin_provider():
         pcolls = ()
       return pcolls | beam.Flatten(**pipeline_arg)
 
+  class WindowInto(beam.PTransform):
+    def __init__(self, windowing):
+      self._window_transform = self._parse_window_spec(windowing)
+
+    def expand(self, pcoll):
+      return pcoll | self._window_transform
+
+    @staticmethod
+    def _parse_window_spec(spec):
+      spec = dict(spec)
+      window_type = spec.pop('type')
+      # TODO: These are in seconds, perhaps parse duration strings meaningfully?
+      if window_type == 'global':
+        window_fn = window.GlobalWindows()
+      elif window_type == 'fixed':
+        window_fn = window.FixedWindows(spec.pop('size'), spec.pop('offset', 0))
+      elif window_type == 'sliding':
+        window_fn = window.SlidingWindows(
+            spec.pop('size'), spec.pop('period'), spec.pop('offset', 0))
+      elif window_type == 'sessions':
+        window_fn = window.FixedWindows(spec.pop('gap'))
+      if spec:
+        raise ValueError(f'Unknown parameters {spec.keys()}')
+      # TODO: Triggering, etc.
+      return beam.WindowInto(window_fn)
+
   ios = {
       key: getattr(apache_beam.io, key)
       for key in dir(apache_beam.io)
@@ -327,8 +447,8 @@ def create_builtin_provider():
               python_callable.PythonCallableWithSource(fn)),
           'PyFlatMapTuple': lambda fn: beam.FlatMapTuple(
               python_callable.PythonCallableWithSource(fn)),
-          'PyFilter': lambda fn: beam.Filter(
-              python_callable.PythonCallableWithSource(fn)),
+          'PyFilter': lambda keep: beam.Filter(
+              python_callable.PythonCallableWithSource(keep)),
           'PyTransform': fully_qualified_named_transform,
           'PyToRow': lambda fields: beam.Select(
               **{
@@ -337,6 +457,7 @@ def create_builtin_provider():
               }),
           'WithSchema': with_schema,
           'Flatten': Flatten,
+          'WindowInto': WindowInto,
           'GroupByKey': beam.GroupByKey,
       },
            **ios))
@@ -405,17 +526,23 @@ def parse_providers(provider_specs):
 def merge_providers(*provider_sets):
   result = collections.defaultdict(list)
   for provider_set in provider_sets:
+    if isinstance(provider_set, Provider):
+      provider = provider_set
+      provider_set = {
+          transform_type: [provider]
+          for transform_type in provider.provided_transforms()
+      }
     for transform_type, providers in provider_set.items():
       result[transform_type].extend(providers)
   return result
 
 
 def standard_providers():
-  builtin_providers = collections.defaultdict(list)
-  builtin_provider = create_builtin_provider()
-  for transform_type in builtin_provider.provided_transforms():
-    builtin_providers[transform_type].append(builtin_provider)
+  from apache_beam.yaml.yaml_mapping import create_mapping_provider
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
-  return merge_providers(builtin_providers, parse_providers(standard_providers))
+  return merge_providers(
+      create_builtin_provider(),
+      create_mapping_provider(),
+      parse_providers(standard_providers))

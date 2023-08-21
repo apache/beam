@@ -24,7 +24,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.util.Structs.getStrings;
 import static org.apache.beam.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.Base64;
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
@@ -61,11 +61,11 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -247,18 +247,37 @@ public class WorkerCustomSources {
           serializedSize);
     }
 
+    List<BoundedSource<T>> bundlesBeforeCoalesce = bundles;
     int numBundlesBeforeRebundling = bundles.size();
     // To further reduce size of the response and service-side memory usage, coalesce
     // the sources into numBundlesLimit compressed serialized bundles.
-    if (bundles.size() > numBundlesLimit) {
+    while (serializedSize > apiByteLimit || bundles.size() > numBundlesLimit) {
+      // bundle size constrained by API limit, adds 5% allowance
+      int targetBundleSizeApiLimit = (int) (bundles.size() * apiByteLimit / serializedSize * 0.95);
+      // bundle size constrained by numBundlesLimit
+      int targetBundleSizeBundleLimit = Math.min(numBundlesLimit, bundles.size() - 1);
+      int targetBundleSize = Math.min(targetBundleSizeApiLimit, targetBundleSizeBundleLimit);
+
+      if (targetBundleSize <= 1) {
+        String message =
+            String.format(
+                "Unable to coalesce the sources into compressed serialized bundles to satisfy the "
+                    + "allowable limit when splitting %s. With %d bundles, total serialized size "
+                    + "of %d bytes is still larger than the limit %d. For more information, please "
+                    + "check the corresponding FAQ entry at "
+                    + "https://cloud.google.com/dataflow/docs/guides/common-errors#boundedsource-objects-splitintobundles",
+                source, bundles.size(), serializedSize, apiByteLimit);
+        throw new IllegalArgumentException(message);
+      }
+
+      bundles = limitNumberOfBundles(bundlesBeforeCoalesce, targetBundleSize);
+      serializedSize =
+          DataflowApiUtils.computeSerializedSizeBytes(wrapIntoSourceSplitResponse(bundles));
       LOG.warn(
-          "Splitting source {} into bundles of estimated size {} bytes produced {} bundles. "
-              + "Rebundling into {} bundles.",
+          "Re-bundle source {} into bundles of estimated size {} bytes produced {} bundles.",
           source,
-          desiredBundleSizeBytes,
-          bundles.size(),
-          numBundlesLimit);
-      bundles = limitNumberOfBundles(bundles, numBundlesLimit);
+          serializedSize,
+          bundles.size());
     }
 
     SourceOperationResponse response =
@@ -277,7 +296,7 @@ public class WorkerCustomSources {
                   + "it generated %d BoundedSource objects with total serialized size of %d bytes "
                   + "which is larger than the limit %d. "
                   + "For more information, please check the corresponding FAQ entry at "
-                  + "https://cloud.google.com/dataflow/pipelines/troubleshooting-your-pipeline",
+                  + "https://cloud.google.com/dataflow/docs/guides/common-errors#boundedsource-objects-splitintobundles",
               source,
               desiredBundleSizeBytes,
               numBundlesBeforeRebundling,

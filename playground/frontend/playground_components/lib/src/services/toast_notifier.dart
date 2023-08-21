@@ -21,6 +21,7 @@ import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../exceptions/detailed_exception.dart';
 import '../models/toast.dart';
 import '../models/toast_type.dart';
 
@@ -48,6 +49,18 @@ class ToastNotifier {
         type: ToastType.error,
       ),
     );
+
+    _logExceptionToConsole(exception);
+  }
+
+  void _logExceptionToConsole(Exception exception) {
+    final buffer = StringBuffer('$exception\n');
+
+    if (exception is DetailedException) {
+      buffer.writeln(exception.details);
+    }
+
+    print(buffer); // ignore: avoid_print
   }
 
   Future<void> dispose() async {

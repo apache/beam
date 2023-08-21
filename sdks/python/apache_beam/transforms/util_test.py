@@ -39,11 +39,13 @@ from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
@@ -902,6 +904,19 @@ class GroupIntoBatchesTest(unittest.TestCase):
                       GroupIntoBatchesTest.BATCH_SIZE))
           ]))
 
+  def test_in_global_window_with_synthetic_source(self):
+    with beam.Pipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.io.Read(
+              SyntheticSource({
+                  "numRecords": 10, "keySizeBytes": 1, "valueSizeBytes": 1
+              }))
+          | "identical keys" >> beam.Map(lambda x: (None, x[1]))
+          | "Group key" >> beam.GroupIntoBatches(2)
+          | "count size" >> beam.Map(lambda x: len(x[1])))
+      assert_that(collection, equal_to([2, 2, 2, 2, 2]))
+
   def test_with_sharded_key_in_global_window(self):
     with TestPipeline() as pipeline:
       collection = (
@@ -1026,6 +1041,24 @@ class GroupIntoBatchesTest(unittest.TestCase):
           typehints.Tuple[
               ShardedKeyType[typehints.Tuple[int, int]],  # type: ignore[misc]
               typehints.Iterable[str]])
+
+  def test_runtime_type_check(self):
+    options = PipelineOptions()
+    options.view_as(TypeOptions).runtime_type_check = True
+    with TestPipeline(options=options) as pipeline:
+      collection = (
+          pipeline
+          | beam.Create(GroupIntoBatchesTest._create_test_data())
+          | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE))
+      num_batches = collection | beam.combiners.Count.Globally()
+      assert_that(
+          num_batches,
+          equal_to([
+              int(
+                  math.ceil(
+                      GroupIntoBatchesTest.NUM_ELEMENTS /
+                      GroupIntoBatchesTest.BATCH_SIZE))
+          ]))
 
   def _test_runner_api_round_trip(self, transform, urn):
     context = pipeline_context.PipelineContext()

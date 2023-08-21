@@ -18,6 +18,8 @@
 
 export 'src/common_finders.dart';
 
+export 'src/common_tests/toggle_brightness_mode_test.dart';
+
 export 'src/examples/example_descriptor.dart';
 
 export 'src/examples/go/example.dart';
@@ -25,6 +27,7 @@ export 'src/examples/go/minimal_word_count.dart';
 export 'src/examples/go/word_count.dart';
 
 export 'src/examples/java/aggregation_max.dart';
+export 'src/examples/java/example.dart';
 export 'src/examples/java/minimal_word_count.dart';
 
 export 'src/examples/python/aggregation_mean.dart';

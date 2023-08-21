@@ -17,6 +17,7 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"testing"
 )
@@ -33,10 +34,10 @@ func TestBundle_ProcessOn(t *testing.T) {
 	var completed sync.WaitGroup
 	completed.Add(1)
 	go func() {
-		b.ProcessOn(wk)
+		b.ProcessOn(context.Background(), wk)
 		completed.Done()
 	}()
-	b.dataWait.Done()
+	b.DataDone()
 	gotData := <-wk.DataReqs
 	if got, want := gotData.GetData()[0].GetData(), []byte{1, 2, 3}; !bytes.EqualFold(got, want) {
 		t.Errorf("ProcessOn(): data not sent; got %v, want %v", got, want)

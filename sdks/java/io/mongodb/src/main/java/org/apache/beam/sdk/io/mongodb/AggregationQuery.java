@@ -23,15 +23,12 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.lang.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.bson.BsonDocument;
 import org.bson.Document;
 import org.checkerframework.dataflow.qual.Pure;
 
 /** Builds a MongoDB AggregateIterable object. */
-@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 public abstract class AggregationQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {

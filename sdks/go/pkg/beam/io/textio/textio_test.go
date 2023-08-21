@@ -17,7 +17,6 @@
 package textio
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -25,9 +24,18 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func init() {
+	register.Function2x1(toKV)
+}
 
 const testDir = "../../../../data"
 
@@ -35,6 +43,14 @@ var (
 	testFilePath   = filepath.Join(testDir, "textio_test.txt")
 	testGzFilePath = filepath.Join(testDir, "textio_test.gz")
 )
+
+type kv struct {
+	K, V string
+}
+
+func toKV(k, v string) kv {
+	return kv{k, v}
+}
 
 func TestRead(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
@@ -65,6 +81,20 @@ func TestReadAllGzip(t *testing.T) {
 	p, s, files := ptest.CreateList([]string{testGzFilePath})
 	got := ReadAll(s, files, ReadGzip())
 	want := []any{"hello", "go"}
+
+	passert.Equals(s, got, want...)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestReadWithFilename(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	lines := ReadWithFilename(s, testGzFilePath)
+	got := beam.ParDo(s, toKV, lines)
+
+	want := []any{
+		kv{K: testGzFilePath, V: "hello"},
+		kv{K: testGzFilePath, V: "go"},
+	}
 
 	passert.Equals(s, got, want...)
 	ptest.RunAndValidate(t, p)
@@ -122,9 +152,7 @@ func TestReadSdf(t *testing.T) {
 	lines := ReadSdf(s, testFilePath)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestReadAllSdf(t *testing.T) {
@@ -133,7 +161,5 @@ func TestReadAllSdf(t *testing.T) {
 	lines := ReadAllSdf(s, files)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }

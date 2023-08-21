@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,11 +50,11 @@ import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closeables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -550,10 +550,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
               records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
             records = ConsumerRecords.empty();
           }
-          KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-          if (checkpointMark != null) {
-            commitCheckpointMark(checkpointMark);
-          }
+
+          commitCheckpointMark();
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
@@ -569,17 +567,21 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
-  private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
-    LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
-    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+  private void commitCheckpointMark() {
+    KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
 
-    consumer.commitSync(
-        checkpointMark.getPartitions().stream()
-            .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-            .collect(
-                Collectors.toMap(
-                    p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                    p -> new OffsetAndMetadata(p.getNextOffset()))));
+    if (checkpointMark != null) {
+      LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
+      Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+
+      consumer.commitSync(
+          checkpointMark.getPartitions().stream()
+              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+              .collect(
+                  Collectors.toMap(
+                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                      p -> new OffsetAndMetadata(p.getNextOffset()))));
+    }
   }
 
   /**
@@ -732,6 +734,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         LOG.warn("An internal thread is taking a long time to shutdown. will retry.");
       }
     }
+
+    // Commit any pending finalized checkpoint before shutdown.
+    commitCheckpointMark();
 
     Closeables.close(keyDeserializerInstance, true);
     Closeables.close(valueDeserializerInstance, true);

@@ -48,7 +48,7 @@ variable "tier" {
 
 variable "replicas_mode" {
   description = "If enabled read endpoint will be provided and the instance can scale up and down the number of replicas"
-  default     = "READ_REPLICAS_ENABLED"
+  default     = "READ_REPLICAS_DISABLED"
 }
 
 variable "network" {
@@ -63,7 +63,7 @@ variable "subnetwork" {
 variable "replica_count" {
   type        = number
   description = "Redis's replica count"
-  default     = 1
+  default     = 0
 }
 
 variable "memory_size_gb" {

@@ -31,7 +31,7 @@ import 'firebase_options.dart';
 import 'locator.dart';
 import 'router/route_information_parser.dart';
 
-void main() async {
+Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -42,7 +42,7 @@ void main() async {
   const englishLocale = Locale('en');
 
   final pageStack = GetIt.instance.get<PageStack>();
-  final routerDelegate = PageStackRouterDelegate(pageStack);
+  final routerDelegate = GetIt.instance.get<BeamRouterDelegate>();
   final routeInformationParser = TobRouteInformationParser();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 
@@ -96,6 +96,7 @@ class TourOfBeamApp extends StatelessWidget {
             localizationsDelegates: context.localizationDelegates,
             supportedLocales: context.supportedLocales,
             locale: context.locale,
+            title: 'Tour of Beam',
           );
         },
       ),

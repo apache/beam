@@ -136,6 +136,10 @@ playground/frontend/playground_components_dev/pubspec.lock
 **/*.tfstate.*
 **/*.hcl
 **/*.tfvars
+playground/cloudfunction.zip
 
 # Ignore Katas auto-generated files
 **/*-remote-info.yaml
+
+# Exception to .gitignore .test-infra/pipelines related files
+!.test-infra/pipelines/**/apache-beam-testing.tfvars

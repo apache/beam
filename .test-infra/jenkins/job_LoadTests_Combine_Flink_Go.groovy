@@ -23,7 +23,7 @@ import PhraseTriggeringPostCommitBuilder
 import Flink
 import InfluxDBCredentialsHelper
 
-import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_JOBSERVER
 import static LoadTestsBuilder.GO_SDK_CONTAINER
 
 
@@ -107,7 +107,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         GO_SDK_CONTAINER
       ],
       initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
+      "${DOCKER_BEAM_JOBSERVER}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.GO, initialScenarios, 'combine', mode)
@@ -129,7 +129,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Flink_Batch', 'H 8 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Flink_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

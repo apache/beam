@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -86,7 +86,7 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Int64Value;
 import com.google.rpc.RetryInfo;
 import io.grpc.Metadata;
@@ -110,6 +110,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.fn.harness.logging.QuotaEvent;
+import org.apache.beam.fn.harness.logging.QuotaEvent.QuotaEventCloseable;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -129,16 +131,16 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -356,8 +358,17 @@ class BigQueryServicesImpl implements BigQueryServices {
             LOG.info("BigQuery job " + jobRef + " already exists, will not retry inserting it:", e);
             return; // SUCCEEDED
           }
-          // ignore and retry
-          LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
+
+          try (QuotaEventCloseable qec =
+              errorExtractor.quotaExceeded(e) || errorExtractor.rateLimited(e)
+                  ? new QuotaEvent.Builder()
+                      .withFullResourceName(BigQueryHelpers.toJobFullResourceName(jobRef))
+                      .withOperation("start_job")
+                      .create()
+                  : null) {
+            // ignore and retry
+            LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
+          }
           lastException = e;
         }
       } while (nextBackOff(sleeper, backoff));
@@ -729,12 +740,21 @@ class BigQueryServicesImpl implements BigQueryServices {
             try {
               if (BackOffUtils.next(sleeper, backoff)) {
                 if (!retry) {
-                  LOG.info(
-                      "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
-                      table.getTableReference().getProjectId(),
-                      table.getTableReference().getDatasetId(),
-                      table.getTableReference().getTableId(),
-                      TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
+                  String fullResourceName =
+                      BigQueryHelpers.toTableFullResourceName(table.getTableReference());
+                  try (QuotaEventCloseable qec =
+                      new QuotaEvent.Builder()
+                          .withMessageText(extractor.getErrorMessage(e))
+                          .withFullResourceName(fullResourceName)
+                          .withOperation("create_table")
+                          .create()) {
+                    LOG.info(
+                        "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
+                        table.getTableReference().getProjectId(),
+                        table.getTableReference().getDatasetId(),
+                        table.getTableReference().getTableId(),
+                        TimeUnit.MILLISECONDS.toMinutes(RETRY_CREATE_TABLE_DURATION_MILLIS));
+                  }
                   retry = true;
                 }
                 continue;
@@ -999,10 +1019,16 @@ class BigQueryServicesImpl implements BigQueryServices {
               }
               throw e;
             }
-            LOG.info(
-                String.format(
-                    "BigQuery insertAll error, retrying: %s",
-                    ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+            try (QuotaEventCloseable qec =
+                new QuotaEvent.Builder()
+                    .withOperation("insert_all")
+                    .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
+                    .create()) {
+              LOG.info(
+                  String.format(
+                      "BigQuery insertAll error, retrying: %s",
+                      ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+            }
             try {
               long nextBackOffMillis = backoff1.nextBackOffMillis();
               if (nextBackOffMillis == BackOff.STOP) {
@@ -1098,10 +1124,11 @@ class BigQueryServicesImpl implements BigQueryServices {
             if (isRetry) {
               throw new RuntimeException(
                   String.format(
-                      "We have observed a row that is %s bytes in size. BigQuery supports"
-                          + " request sizes up to 10MB, and this row is too large. "
-                          + " You may change your retry strategy to unblock this pipeline, and "
-                          + " the row will be output as a failed insert.",
+                      "We have observed a row that is %s bytes in size and exceeded BigQueryIO"
+                          + " limit of 9MB. While BigQuery supports request sizes up to 10MB,"
+                          + " BigQueryIO sets the limit at 9MB to leave room for request"
+                          + " overhead. You may change your retry strategy to unblock this"
+                          + " pipeline, and the row will be output as a failed insert.",
                       nextRowSize));
             } else {
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
@@ -1325,9 +1352,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public StreamAppendClient getStreamAppendClient(
-        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception {
-      ProtoSchema protoSchema =
-          ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
+        String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+        throws Exception {
+      ProtoSchema protoSchema = ProtoSchema.newBuilder().setProtoDescriptor(descriptor).build();
 
       TransportChannelProvider transportChannelProvider =
           BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()

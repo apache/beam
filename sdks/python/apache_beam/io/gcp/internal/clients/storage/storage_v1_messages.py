@@ -119,7 +119,6 @@ class Bucket(_messages.Message):
       behaves when accessing bucket contents as a web site. See the Static
       Website Examples for more information.
   """
-
   class BillingValue(_messages.Message):
     r"""The bucket's billing configuration.
 
@@ -170,7 +169,6 @@ class Bucket(_messages.Message):
     Fields:
       additionalProperties: An individual label entry.
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -182,7 +180,8 @@ class Bucket(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   class LifecycleValue(_messages.Message):
     r"""The bucket's lifecycle configuration. See lifecycle management for
@@ -195,7 +194,6 @@ class Bucket(_messages.Message):
       rule: A lifecycle management rule, which is made of an action to take
         and the condition(s) under which the action will be taken.
     """
-
     class RuleValueListEntry(_messages.Message):
       r"""A RuleValueListEntry object.
 
@@ -207,7 +205,6 @@ class Bucket(_messages.Message):
         action: The action to take.
         condition: The condition(s) under which the action will be taken.
       """
-
       class ActionValue(_messages.Message):
         r"""The action to take.
 
@@ -254,7 +251,8 @@ class Bucket(_messages.Message):
         isLive = _messages.BooleanField(3)
         matchesPattern = _messages.StringField(4)
         matchesStorageClass = _messages.StringField(5, repeated=True)
-        numNewerVersions = _messages.IntegerField(6, variant=_messages.Variant.INT32)
+        numNewerVersions = _messages.IntegerField(
+            6, variant=_messages.Variant.INT32)
 
       action = _messages.MessageField('ActionValue', 1)
       condition = _messages.MessageField('ConditionValue', 2)
@@ -345,7 +343,8 @@ class Bucket(_messages.Message):
   billing = _messages.MessageField('BillingValue', 2)
   cors = _messages.MessageField('CorsValueListEntry', 3, repeated=True)
   defaultEventBasedHold = _messages.BooleanField(4)
-  defaultObjectAcl = _messages.MessageField('ObjectAccessControl', 5, repeated=True)
+  defaultObjectAcl = _messages.MessageField(
+      'ObjectAccessControl', 5, repeated=True)
   encryption = _messages.MessageField('EncryptionValue', 6)
   etag = _messages.StringField(7)
   id = _messages.StringField(8)
@@ -393,7 +392,6 @@ class BucketAccessControl(_messages.Message):
     role: The access permission for the entity.
     selfLink: The link to this access-control entry.
   """
-
   class ProjectTeamValue(_messages.Message):
     r"""The project team associated with the entity, if any.
 
@@ -472,7 +470,6 @@ class Channel(_messages.Message):
       notification delivered over this channel. Optional.
     type: The type of delivery mechanism used for this channel.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParamsValue(_messages.Message):
     r"""Additional parameters controlling delivery channel behavior. Optional.
@@ -483,7 +480,6 @@ class Channel(_messages.Message):
     Fields:
       additionalProperties: Declares a new parameter by name.
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a ParamsValue object.
 
@@ -495,7 +491,8 @@ class Channel(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   address = _messages.StringField(1)
   expiration = _messages.IntegerField(2)
@@ -521,7 +518,6 @@ class ComposeRequest(_messages.Message):
     sourceObjects: The list of source objects that will be concatenated into a
       single object.
   """
-
   class SourceObjectsValueListEntry(_messages.Message):
     r"""A SourceObjectsValueListEntry object.
 
@@ -536,7 +532,6 @@ class ComposeRequest(_messages.Message):
       objectPreconditions: Conditions that must be met for this operation to
         execute.
     """
-
     class ObjectPreconditionsValue(_messages.Message):
       r"""Conditions that must be met for this operation to execute.
 
@@ -555,7 +550,8 @@ class ComposeRequest(_messages.Message):
 
   destination = _messages.MessageField('Object', 1)
   kind = _messages.StringField(2, default=u'storage#composeRequest')
-  sourceObjects = _messages.MessageField('SourceObjectsValueListEntry', 3, repeated=True)
+  sourceObjects = _messages.MessageField(
+      'SourceObjectsValueListEntry', 3, repeated=True)
 
 
 class Notification(_messages.Message):
@@ -583,7 +579,6 @@ class Notification(_messages.Message):
       Formatted as: '//pubsub.googleapis.com/projects/{project-
       identifier}/topics/{my-topic}'
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class CustomAttributesValue(_messages.Message):
     r"""An optional list of additional attributes to attach to each Cloud
@@ -597,7 +592,6 @@ class Notification(_messages.Message):
       additionalProperties: Additional properties of type
         CustomAttributesValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a CustomAttributesValue object.
 
@@ -609,7 +603,8 @@ class Notification(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   custom_attributes = _messages.MessageField('CustomAttributesValue', 1)
   etag = _messages.StringField(2)
@@ -719,7 +714,6 @@ class Object(_messages.Message):
       timeCreated.
     updated: The modification time of the object metadata in RFC 3339 format.
   """
-
   class CustomerEncryptionValue(_messages.Message):
     r"""Metadata of customer-supplied encryption key, if the object is
     encrypted by such a key.
@@ -742,7 +736,6 @@ class Object(_messages.Message):
     Fields:
       additionalProperties: An individual metadata entry.
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a MetadataValue object.
 
@@ -754,7 +747,8 @@ class Object(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   class OwnerValue(_messages.Message):
     r"""The owner of the object. This will always be the uploader of the
@@ -829,7 +823,6 @@ class ObjectAccessControl(_messages.Message):
     role: The access permission for the entity.
     selfLink: The link to this access-control entry.
   """
-
   class ProjectTeamValue(_messages.Message):
     r"""The project team associated with the entity, if any.
 
@@ -909,7 +902,6 @@ class Policy(_messages.Message):
       The current generation can be denoted with #0. This field is ignored on
       input.
   """
-
   class BindingsValueListEntry(_messages.Message):
     r"""A BindingsValueListEntry object.
 
@@ -1028,7 +1020,6 @@ class StandardQueryParameters(_messages.Message):
       requests.
     userIp: Deprecated. Please use quotaUser instead.
   """
-
   class AltValueValuesEnum(_messages.Enum):
     r"""Data format for the response.
 
@@ -1207,7 +1198,6 @@ class StorageBucketsGetRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class ProjectionValueValuesEnum(_messages.Enum):
     r"""Set of properties to return. Defaults to noAcl.
 
@@ -1248,7 +1238,6 @@ class StorageBucketsInsertRequest(_messages.Message):
       defaults to full.
     userProject: The project to be billed for this request.
   """
-
   class PredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to this bucket.
 
@@ -1307,7 +1296,8 @@ class StorageBucketsInsertRequest(_messages.Message):
 
   bucket = _messages.MessageField('Bucket', 1)
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 2)
-  predefinedDefaultObjectAcl = _messages.EnumField('PredefinedDefaultObjectAclValueValuesEnum', 3)
+  predefinedDefaultObjectAcl = _messages.EnumField(
+      'PredefinedDefaultObjectAclValueValuesEnum', 3)
   project = _messages.StringField(4, required=True)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 5)
   userProject = _messages.StringField(6)
@@ -1329,7 +1319,6 @@ class StorageBucketsListRequest(_messages.Message):
     projection: Set of properties to return. Defaults to noAcl.
     userProject: The project to be billed for this request.
   """
-
   class ProjectionValueValuesEnum(_messages.Enum):
     r"""Set of properties to return. Defaults to noAcl.
 
@@ -1340,7 +1329,8 @@ class StorageBucketsListRequest(_messages.Message):
     full = 0
     noAcl = 1
 
-  maxResults = _messages.IntegerField(1, variant=_messages.Variant.UINT32, default=1000)
+  maxResults = _messages.IntegerField(
+      1, variant=_messages.Variant.UINT32, default=1000)
   pageToken = _messages.StringField(2)
   prefix = _messages.StringField(3)
   project = _messages.StringField(4, required=True)
@@ -1389,7 +1379,6 @@ class StorageBucketsPatchRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class PredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to this bucket.
 
@@ -1449,7 +1438,8 @@ class StorageBucketsPatchRequest(_messages.Message):
   ifMetagenerationMatch = _messages.IntegerField(3)
   ifMetagenerationNotMatch = _messages.IntegerField(4)
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 5)
-  predefinedDefaultObjectAcl = _messages.EnumField('PredefinedDefaultObjectAclValueValuesEnum', 6)
+  predefinedDefaultObjectAcl = _messages.EnumField(
+      'PredefinedDefaultObjectAclValueValuesEnum', 6)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
   userProject = _messages.StringField(8)
 
@@ -1509,7 +1499,6 @@ class StorageBucketsUpdateRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class PredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to this bucket.
 
@@ -1569,7 +1558,8 @@ class StorageBucketsUpdateRequest(_messages.Message):
   ifMetagenerationMatch = _messages.IntegerField(3)
   ifMetagenerationNotMatch = _messages.IntegerField(4)
   predefinedAcl = _messages.EnumField('PredefinedAclValueValuesEnum', 5)
-  predefinedDefaultObjectAcl = _messages.EnumField('PredefinedDefaultObjectAclValueValuesEnum', 6)
+  predefinedDefaultObjectAcl = _messages.EnumField(
+      'PredefinedDefaultObjectAclValueValuesEnum', 6)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
   userProject = _messages.StringField(8)
 
@@ -1924,7 +1914,6 @@ class StorageObjectsComposeRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class DestinationPredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to the destination object.
 
@@ -1951,7 +1940,8 @@ class StorageObjectsComposeRequest(_messages.Message):
   composeRequest = _messages.MessageField('ComposeRequest', 1)
   destinationBucket = _messages.StringField(2, required=True)
   destinationObject = _messages.StringField(3, required=True)
-  destinationPredefinedAcl = _messages.EnumField('DestinationPredefinedAclValueValuesEnum', 4)
+  destinationPredefinedAcl = _messages.EnumField(
+      'DestinationPredefinedAclValueValuesEnum', 4)
   ifGenerationMatch = _messages.IntegerField(5)
   ifMetagenerationMatch = _messages.IntegerField(6)
   kmsKeyName = _messages.StringField(7)
@@ -2011,7 +2001,6 @@ class StorageObjectsCopyRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class DestinationPredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to the destination object.
 
@@ -2048,7 +2037,8 @@ class StorageObjectsCopyRequest(_messages.Message):
 
   destinationBucket = _messages.StringField(1, required=True)
   destinationObject = _messages.StringField(2, required=True)
-  destinationPredefinedAcl = _messages.EnumField('DestinationPredefinedAclValueValuesEnum', 3)
+  destinationPredefinedAcl = _messages.EnumField(
+      'DestinationPredefinedAclValueValuesEnum', 3)
   ifGenerationMatch = _messages.IntegerField(4)
   ifGenerationNotMatch = _messages.IntegerField(5)
   ifMetagenerationMatch = _messages.IntegerField(6)
@@ -2149,7 +2139,6 @@ class StorageObjectsGetRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class ProjectionValueValuesEnum(_messages.Enum):
     r"""Set of properties to return. Defaults to noAcl.
 
@@ -2215,7 +2204,6 @@ class StorageObjectsInsertRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class PredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to this object.
 
@@ -2293,7 +2281,6 @@ class StorageObjectsListRequest(_messages.Message):
     versions: If true, lists all versions of an object as distinct results.
       The default is false. For more information, see Object Versioning.
   """
-
   class ProjectionValueValuesEnum(_messages.Enum):
     r"""Set of properties to return. Defaults to noAcl.
 
@@ -2307,7 +2294,8 @@ class StorageObjectsListRequest(_messages.Message):
   bucket = _messages.StringField(1, required=True)
   delimiter = _messages.StringField(2)
   includeTrailingDelimiter = _messages.BooleanField(3)
-  maxResults = _messages.IntegerField(4, variant=_messages.Variant.UINT32, default=1000)
+  maxResults = _messages.IntegerField(
+      4, variant=_messages.Variant.UINT32, default=1000)
   pageToken = _messages.StringField(5)
   prefix = _messages.StringField(6)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
@@ -2346,7 +2334,6 @@ class StorageObjectsPatchRequest(_messages.Message):
     userProject: The project to be billed for this request, for Requester Pays
       buckets.
   """
-
   class PredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to this object.
 
@@ -2461,7 +2448,6 @@ class StorageObjectsRewriteRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class DestinationPredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to the destination object.
 
@@ -2499,7 +2485,8 @@ class StorageObjectsRewriteRequest(_messages.Message):
   destinationBucket = _messages.StringField(1, required=True)
   destinationKmsKeyName = _messages.StringField(2)
   destinationObject = _messages.StringField(3, required=True)
-  destinationPredefinedAcl = _messages.EnumField('DestinationPredefinedAclValueValuesEnum', 4)
+  destinationPredefinedAcl = _messages.EnumField(
+      'DestinationPredefinedAclValueValuesEnum', 4)
   ifGenerationMatch = _messages.IntegerField(5)
   ifGenerationNotMatch = _messages.IntegerField(6)
   ifMetagenerationMatch = _messages.IntegerField(7)
@@ -2591,7 +2578,6 @@ class StorageObjectsUpdateRequest(_messages.Message):
     userProject: The project to be billed for this request. Required for
       Requester Pays buckets.
   """
-
   class PredefinedAclValueValuesEnum(_messages.Enum):
     r"""Apply a predefined set of access controls to this object.
 
@@ -2668,7 +2654,6 @@ class StorageObjectsWatchAllRequest(_messages.Message):
     versions: If true, lists all versions of an object as distinct results.
       The default is false. For more information, see Object Versioning.
   """
-
   class ProjectionValueValuesEnum(_messages.Enum):
     r"""Set of properties to return. Defaults to noAcl.
 
@@ -2683,7 +2668,8 @@ class StorageObjectsWatchAllRequest(_messages.Message):
   channel = _messages.MessageField('Channel', 2)
   delimiter = _messages.StringField(3)
   includeTrailingDelimiter = _messages.BooleanField(4)
-  maxResults = _messages.IntegerField(5, variant=_messages.Variant.UINT32, default=1000)
+  maxResults = _messages.IntegerField(
+      5, variant=_messages.Variant.UINT32, default=1000)
   pageToken = _messages.StringField(6)
   prefix = _messages.StringField(7)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 8)

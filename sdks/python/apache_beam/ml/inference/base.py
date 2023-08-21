@@ -28,14 +28,20 @@ collection, sharing model between threads, and batching elements.
 """
 
 import logging
+import os
 import pickle
 import sys
 import threading
 import time
+import uuid
+from collections import OrderedDict
+from collections import defaultdict
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Generic
 from typing import Iterable
+from typing import List
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
@@ -45,6 +51,7 @@ from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
+from apache_beam.utils import multi_process_shared
 from apache_beam.utils import shared
 
 try:
@@ -58,7 +65,9 @@ _NANOSECOND_TO_MICROSECOND = 1_000
 
 ModelT = TypeVar('ModelT')
 ExampleT = TypeVar('ExampleT')
+PreProcessT = TypeVar('PreProcessT')
 PredictionT = TypeVar('PredictionT')
+PostProcessT = TypeVar('PostProcessT')
 _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
@@ -91,6 +100,12 @@ class ModelMetadata(NamedTuple):
   model_name: str
 
 
+class RunInferenceDLQ(NamedTuple):
+  failed_inferences: beam.PCollection
+  failed_preprocessing: Sequence[beam.PCollection]
+  failed_postprocessing: Sequence[beam.PCollection]
+
+
 ModelMetadata.model_id.__doc__ = """Unique identifier for the model. This can be
     a file path or a URL where the model can be accessed. It is used to load
     the model for inference."""
@@ -109,6 +124,11 @@ def _to_microseconds(time_ns: int) -> int:
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
+  def __init__(self):
+    """Environment variables are set using a dict named 'env_vars' before
+    loading the model. Child classes can accept this dict as a kwarg."""
+    self._env_vars = {}
+
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
@@ -174,55 +194,329 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """Update the model paths produced by side inputs."""
     pass
 
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    """Gets all preprocessing functions to be run before batching/inference.
+    Functions are in order that they should be applied."""
+    return []
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    """Gets all postprocessing functions to be run after inference.
+    Functions are in order that they should be applied."""
+    return []
+
+  def set_environment_vars(self):
+    """Sets environment variables using a dictionary provided via kwargs.
+    Keys are the env variable name, and values are the env variable value.
+    Child ModelHandler classes should set _env_vars via kwargs in __init__,
+    or else call super().__init__()."""
+    env_vars = getattr(self, '_env_vars', {})
+    for env_variable, env_value in env_vars.items():
+      os.environ[env_variable] = env_value
+
+  def with_preprocess_fn(
+      self, fn: Callable[[PreProcessT], ExampleT]
+  ) -> 'ModelHandler[PreProcessT, PredictionT, ModelT, PreProcessT]':
+    """Returns a new ModelHandler with a preprocessing function
+    associated with it. The preprocessing function will be run
+    before batching/inference and should map your input PCollection
+    to the base ModelHandler's input type. If you apply multiple
+    preprocessing functions, they will be run on your original
+    PCollection in order from last applied to first applied."""
+    return _PreProcessingModelHandler(self, fn)
+
+  def with_postprocess_fn(
+      self, fn: Callable[[PredictionT], PostProcessT]
+  ) -> 'ModelHandler[ExampleT, PostProcessT, ModelT, PostProcessT]':
+    """Returns a new ModelHandler with a postprocessing function
+    associated with it. The postprocessing function will be run
+    after inference and should map the base ModelHandler's output
+    type to your desired output type. If you apply multiple
+    postprocessing functions, they will be run on your original
+    inference result in order from first applied to last applied."""
+    return _PostProcessingModelHandler(self, fn)
+
+  def share_model_across_processes(self) -> bool:
+    """Returns a boolean representing whether or not a model should
+    be shared across multiple processes instead of being loaded per process.
+    This is primary useful for large models that  can't fit multiple copies in
+    memory. Multi-process support may vary by runner, but this will fallback to
+    loading per process as necessary. See
+    https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
+    return False
+
+
+class _ModelManager:
+  """
+  A class for efficiently managing copies of multiple models. Will load a
+  single copy of each model into a multi_process_shared object and then
+  return a lookup key for that object. Optionally takes in a max_models
+  parameter, if that is set it will only hold that many models in memory at
+  once before evicting one (using LRU logic).
+  """
+  def __init__(
+      self, mh_map: Dict[str, ModelHandler], max_models: Optional[int] = None):
+    """
+    Args:
+      mh_map: A map from keys to model handlers which can be used to load a
+        model.
+      max_models: The maximum number of models to load at any given time
+        before evicting 1 from memory (using LRU logic). Leave as None to
+        allow unlimited models.
+    """
+    self._max_models = max_models
+    self._mh_map: Dict[str, ModelHandler] = mh_map
+    self._proxy_map: Dict[str, str] = {}
+    self._tag_map: Dict[
+        str, multi_process_shared.MultiProcessShared] = OrderedDict()
+
+  def load(self, key: str) -> str:
+    """
+    Loads the appropriate model for the given key into memory.
+    Args:
+      key: the key associated with the model we'd like to load.
+    Returns:
+      the tag we can use to access the model using multi_process_shared.py.
+    """
+    # Map the key for a model to a unique tag that will persist until the model
+    # is released. This needs to be unique between releasing/reacquiring th
+    # model because otherwise the ProxyManager will try to reuse the model that
+    # has been released and deleted.
+    if key in self._tag_map:
+      self._tag_map.move_to_end(key)
+    else:
+      self._tag_map[key] = uuid.uuid4().hex
+
+    tag = self._tag_map[key]
+    mh = self._mh_map[key]
+
+    if self._max_models is not None and self._max_models < len(self._tag_map):
+      # If we're about to exceed our LRU size, release the last used model.
+      tag_to_remove = self._tag_map.popitem(last=False)[1]
+      shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
+      shared_handle.release(model_to_remove)
+
+    # Load the new model
+    shared_handle = multi_process_shared.MultiProcessShared(
+        mh.load_model, tag=tag)
+    model_reference = shared_handle.acquire()
+    self._proxy_map[tag] = (shared_handle, model_reference)
+
+    return tag
+
+  def increment_max_models(self, increment: int):
+    """
+    Increments the number of models that this instance of a _ModelManager is
+    able to hold.
+    Args:
+      increment: the amount by which we are incrementing the number of models.
+    """
+    if self._max_models is None:
+      raise ValueError(
+          "Cannot increment max_models if self._max_models is None (unlimited" +
+          " models mode).")
+    self._max_models += increment
+
+
+# Use a dataclass instead of named tuple because NamedTuples and generics don't
+# mix well across the board for all versions:
+# https://github.com/python/typing/issues/653
+class KeyMhMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
+  """
+  Dataclass for mapping 1 or more keys to 1 model handler.
+  Given `KeyMhMapping(['key1', 'key2'], myMh)`, all examples with keys `key1`
+  or `key2` will be run against the model defined by the `myMh` ModelHandler.
+  """
+  def __init__(
+      self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
+    self.keys = keys
+    self.mh = mh
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
                                      Tuple[KeyT, PredictionT],
-                                     ModelT]):
-  def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+                                     Union[ModelT, _ModelManager]]):
+  def __init__(
+      self,
+      unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
+                     List[KeyMhMapping[KeyT, ExampleT, PredictionT, ModelT]]]):
     """A ModelHandler that takes keyed examples and returns keyed predictions.
 
     For example, if the original model is used with RunInference to take a
     PCollection[E] to a PCollection[P], this ModelHandler would take a
     PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], making it possible
-    to use the key to associate the outputs with the inputs.
+    to use the key to associate the outputs with the inputs. KeyedModelHandler
+    is able to accept either a single unkeyed ModelHandler or many different
+    model handlers corresponding to the keys for which that ModelHandler should
+    be used. For example, the following configuration could be used to map keys
+    1-3 to ModelHandler1 and keys 4-5 to ModelHandler2:
+
+        k1 = ['k1', 'k2', 'k3']
+        k2 = ['k4', 'k5']
+        KeyedModelHandler([KeyMhMapping(k1, mh1), KeyMhMapping(k2, mh2)])
+
+    Note that a single copy of each of these models may all be held in memory
+    at the same time; be careful not to load too many large models or your
+    pipeline may cause Out of Memory exceptions.
 
     Args:
-      unkeyed: An implementation of ModelHandler that does not require keys.
+      unkeyed: Either (a) an implementation of ModelHandler that does not
+        require keys or (b) a list of KeyMhMappings mapping lists of keys to
+        unkeyed ModelHandlers.
     """
-    self._unkeyed = unkeyed
+    self._single_model = not isinstance(unkeyed, list)
+    if self._single_model:
+      if len(unkeyed.get_preprocess_fns()) or len(
+          unkeyed.get_postprocess_fns()):
+        raise Exception(
+            'Cannot make make an unkeyed model handler with pre or '
+            'postprocessing functions defined into a keyed model handler. All '
+            'pre/postprocessing functions must be defined on the outer model'
+            'handler.')
+      self._env_vars = unkeyed._env_vars
+      self._unkeyed = unkeyed
+      return
 
-  def load_model(self) -> ModelT:
-    return self._unkeyed.load_model()
+    # To maintain an efficient representation, we will map all keys in a given
+    # KeyMhMapping to a single id (the first key in the KeyMhMapping list).
+    # We will then map that key to a ModelHandler. This will allow us to
+    # quickly look up the appropriate ModelHandler for any given key.
+    self._id_to_mh_map: Dict[str, ModelHandler[ExampleT, PredictionT,
+                                               ModelT]] = {}
+    self._key_to_id_map: Dict[str, str] = {}
+    for mh_tuple in unkeyed:
+      mh = mh_tuple.mh
+      keys = mh_tuple.keys
+      if len(mh.get_preprocess_fns()) or len(mh.get_postprocess_fns()):
+        raise ValueError(
+            'Cannot use an unkeyed model handler with pre or '
+            'postprocessing functions defined in a keyed model handler. All '
+            'pre/postprocessing functions must be defined on the outer model'
+            'handler.')
+      hints = mh.get_resource_hints()
+      if len(hints) > 0:
+        logging.warning(
+            'mh %s defines the following resource hints, which will be'
+            'ignored: %s. Resource hints are not respected when more than one '
+            'model handler is used in a KeyedModelHandler. If you would like '
+            'to specify resource hints, you can do so by overriding the '
+            'KeyedModelHandler.get_resource_hints() method.',
+            mh,
+            hints)
+      batch_kwargs = mh.batch_elements_kwargs()
+      if len(hints) > 0:
+        logging.warning(
+            'mh %s defines the following batching kwargs which will be '
+            'ignored %s. Batching kwargs are not respected when '
+            'more than one model handler is used in a KeyedModelHandler. If '
+            'you would like to specify resource hints, you can do so by '
+            'overriding the KeyedModelHandler.batch_elements_kwargs() method.',
+            hints,
+            batch_kwargs)
+      env_vars = mh._env_vars
+      if len(hints) > 0:
+        logging.warning(
+            'mh %s defines the following _env_vars which will be ignored %s. '
+            '_env_vars are not respected when more than one model handler is '
+            'used in a KeyedModelHandler. If you need env vars set at '
+            'inference time, you can do so with '
+            'a custom inference function.',
+            mh,
+            env_vars)
+
+      if len(keys) == 0:
+        raise ValueError(
+            f'Empty list maps to model handler {mh}. All model handlers must '
+            'have one or more associated keys.')
+      self._id_to_mh_map[keys[0]] = mh
+      for key in keys:
+        if key in self._key_to_id_map:
+          raise ValueError(
+              f'key {key} maps to multiple model handlers. All keys must map '
+              'to exactly one model handler.')
+        self._key_to_id_map[key] = keys[0]
+
+  def load_model(self) -> Union[ModelT, _ModelManager]:
+    if self._single_model:
+      return self._unkeyed.load_model()
+    return _ModelManager(self._id_to_mh_map)
 
   def run_inference(
       self,
       batch: Sequence[Tuple[KeyT, ExampleT]],
-      model: ModelT,
+      model: Union[ModelT, _ModelManager],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[Tuple[KeyT, PredictionT]]:
-    keys, unkeyed_batch = zip(*batch)
-    return zip(
-        keys, self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
+    if self._single_model:
+      keys, unkeyed_batch = zip(*batch)
+      return zip(
+          keys,
+          self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
+
+    batch_by_key = defaultdict(list)
+    key_by_id = defaultdict(set)
+    for key, example in batch:
+      batch_by_key[key].append(example)
+      key_by_id[self._key_to_id_map[key]].add(key)
+
+    predictions = []
+    for id, keys in key_by_id.items():
+      mh = self._id_to_mh_map[id]
+      keyed_model_tag = model.load(id)
+      keyed_model_shared_handle = multi_process_shared.MultiProcessShared(
+          mh.load_model, tag=keyed_model_tag)
+      keyed_model = keyed_model_shared_handle.acquire()
+      for key in keys:
+        unkeyed_batches = batch_by_key[key]
+        for inf in mh.run_inference(unkeyed_batches,
+                                    keyed_model,
+                                    inference_args):
+          predictions.append((key, inf))
+      keyed_model_shared_handle.release(keyed_model)
+
+    return predictions
 
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
-    keys, unkeyed_batch = zip(*batch)
-    return len(pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+    if self._single_model:
+      keys, unkeyed_batch = zip(*batch)
+      return len(
+          pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+    return len(pickle.dumps(batch))
 
   def get_metrics_namespace(self) -> str:
-    return self._unkeyed.get_metrics_namespace()
+    if self._single_model:
+      return self._unkeyed.get_metrics_namespace()
+    return 'BeamML_KeyedModels'
 
   def get_resource_hints(self):
-    return self._unkeyed.get_resource_hints()
+    if self._single_model:
+      return self._unkeyed.get_resource_hints()
+    return {}
 
   def batch_elements_kwargs(self):
-    return self._unkeyed.batch_elements_kwargs()
+    if self._single_model:
+      return self._unkeyed.batch_elements_kwargs()
+    return {}
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
-    return self._unkeyed.validate_inference_args(inference_args)
+    if self._single_model:
+      return self._unkeyed.validate_inference_args(inference_args)
+    for mh in self._id_to_mh_map.values():
+      mh.validate_inference_args(inference_args)
 
   def update_model_path(self, model_path: Optional[str] = None):
-    return self._unkeyed.update_model_path(model_path=model_path)
+    if self._single_model:
+      return self._unkeyed.update_model_path(model_path=model_path)
+    if model_path is not None:
+      raise RuntimeError(
+          'Model updates are currently not supported for ' +
+          'KeyedModelHandlers with multiple different per-key ' +
+          'ModelHandlers.')
+
+  def share_model_across_processes(self) -> bool:
+    if self._single_model:
+      return self._unkeyed.share_model_across_processes()
+    return True
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -248,7 +542,14 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     Args:
       unkeyed: An implementation of ModelHandler that does not require keys.
     """
+    if len(unkeyed.get_preprocess_fns()) or len(unkeyed.get_postprocess_fns()):
+      raise Exception(
+          'Cannot make make an unkeyed model handler with pre or '
+          'postprocessing functions defined into a keyed model handler. All '
+          'pre/postprocessing functions must be defined on the outer model'
+          'handler.')
     self._unkeyed = unkeyed
+    self._env_vars = unkeyed._env_vars
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -300,6 +601,128 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def update_model_path(self, model_path: Optional[str] = None):
     return self._unkeyed.update_model_path(model_path=model_path)
 
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._unkeyed.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._unkeyed.get_postprocess_fns()
+
+  def share_model_across_processes(self) -> bool:
+    return self._unkeyed.share_model_across_processes()
+
+
+class _PreProcessingModelHandler(Generic[ExampleT,
+                                         PredictionT,
+                                         ModelT,
+                                         PreProcessT],
+                                 ModelHandler[PreProcessT, PredictionT,
+                                              ModelT]):
+  def __init__(
+      self,
+      base: ModelHandler[ExampleT, PredictionT, ModelT],
+      preprocess_fn: Callable[[PreProcessT], ExampleT]):
+    """A ModelHandler that has a preprocessing function associated with it.
+
+    Args:
+      base: An implementation of the underlying model handler.
+      preprocess_fn: the preprocessing function to use.
+    """
+    self._base = base
+    self._env_vars = base._env_vars
+    self._preprocess_fn = preprocess_fn
+
+  def load_model(self) -> ModelT:
+    return self._base.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    return self._base.run_inference(batch, model, inference_args)
+
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    return self._base.get_num_bytes(batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._base.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._base.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._base.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    return self._base.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._base.update_model_path(model_path=model_path)
+
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return [self._preprocess_fn] + self._base.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_postprocess_fns()
+
+
+class _PostProcessingModelHandler(Generic[ExampleT,
+                                          PredictionT,
+                                          ModelT,
+                                          PostProcessT],
+                                  ModelHandler[ExampleT, PostProcessT, ModelT]):
+  def __init__(
+      self,
+      base: ModelHandler[ExampleT, PredictionT, ModelT],
+      postprocess_fn: Callable[[PredictionT], PostProcessT]):
+    """A ModelHandler that has a preprocessing function associated with it.
+
+    Args:
+      base: An implementation of the underlying model handler.
+      postprocess_fn: the preprocessing function to use.
+    """
+    self._base = base
+    self._env_vars = base._env_vars
+    self._postprocess_fn = postprocess_fn
+
+  def load_model(self) -> ModelT:
+    return self._base.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    return self._base.run_inference(batch, model, inference_args)
+
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    return self._base.get_num_bytes(batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._base.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._base.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._base.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    return self._base.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._base.update_model_path(model_path=model_path)
+
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_postprocess_fns() + [self._postprocess_fn]
+
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
@@ -310,7 +733,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None):
+      model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
+      watch_model_pattern: Optional[str] = None,
+      **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
@@ -332,6 +757,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         model_metadata_pcoll: PCollection that emits Singleton ModelMetadata
           containing model path and model name, that is used as a side input
           to the _RunInferenceDoFn.
+        watch_model_pattern: A glob pattern used to watch a directory
+          for automatic model refresh.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -340,6 +767,25 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._model_metadata_pcoll = model_metadata_pcoll
     self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
+    self._watch_model_pattern = watch_model_pattern
+    self._kwargs = kwargs
+    # Generate a random tag to use for shared.py and multi_process_shared.py to
+    # allow us to effectively disambiguate in multi-model settings.
+    self._model_tag = uuid.uuid4().hex
+
+  def _get_model_metadata_pcoll(self, pipeline):
+    # avoid circular imports.
+    # pylint: disable=wrong-import-position
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    extra_params = {}
+    if 'interval' in self._kwargs:
+      extra_params['interval'] = self._kwargs['interval']
+    if 'stop_timestamp' in self._kwargs:
+      extra_params['stop_timestamp'] = self._kwargs['stop_timestamp']
+
+    return (
+        pipeline | WatchFilePattern(
+            file_pattern=self._watch_model_pattern, **extra_params))
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -356,13 +802,50 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     """
     return cls(model_handler_provider(**kwargs))
 
+  def _apply_fns(
+      self,
+      pcoll: beam.PCollection,
+      fns: Iterable[Callable[[Any], Any]],
+      step_prefix: str) -> Tuple[beam.PCollection, Iterable[beam.PCollection]]:
+    bad_preprocessed = []
+    for idx in range(len(fns)):
+      fn = fns[idx]
+      if self._with_exception_handling:
+        pcoll, bad = (pcoll
+        | f"{step_prefix}-{idx}" >> beam.Map(
+          fn).with_exception_handling(
+          exc_class=self._exc_class,
+          use_subprocess=self._use_subprocess,
+          threshold=self._threshold))
+        bad_preprocessed.append(bad)
+      else:
+        pcoll = pcoll | f"{step_prefix}-{idx}" >> beam.Map(fn)
+
+    return pcoll, bad_preprocessed
+
   # TODO(https://github.com/apache/beam/issues/21447): Add batch_size back off
   # in the case there are functional reasons large batch sizes cannot be
   # handled.
   def expand(
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
+    # DLQ pcollections
+    bad_preprocessed = []
+    bad_inference = None
+    bad_postprocessed = []
+    preprocess_fns = self._model_handler.get_preprocess_fns()
+    postprocess_fns = self._model_handler.get_postprocess_fns()
+
+    pcoll, bad_preprocessed = self._apply_fns(
+      pcoll, preprocess_fns, 'BeamML_RunInference_Preprocess')
+
     resource_hints = self._model_handler.get_resource_hints()
+
+    # check for the side input
+    if self._watch_model_pattern:
+      self._model_metadata_pcoll = self._get_model_metadata_pcoll(
+          pcoll.pipeline)
+
     batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
@@ -374,7 +857,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
             self._model_handler,
             self._clock,
             self._metrics_namespace,
-            self._enable_side_input_loading),
+            self._enable_side_input_loading,
+            self._model_tag),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
@@ -382,14 +866,26 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
             **resource_hints)
 
     if self._with_exception_handling:
-      run_inference_pardo = run_inference_pardo.with_exception_handling(
+      results, bad_inference = (
+          batched_elements_pcoll
+          | 'BeamML_RunInference' >>
+          run_inference_pardo.with_exception_handling(
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
-          threshold=self._threshold)
+          threshold=self._threshold))
+    else:
+      results = (
+          batched_elements_pcoll
+          | 'BeamML_RunInference' >> run_inference_pardo)
 
-    return (
-        batched_elements_pcoll
-        | 'BeamML_RunInference' >> run_inference_pardo)
+    results, bad_postprocessed = self._apply_fns(
+      results, postprocess_fns, 'BeamML_RunInference_Postprocess')
+
+    if self._with_exception_handling:
+      dlq = RunInferenceDLQ(bad_inference, bad_preprocessed, bad_postprocessed)
+      return results, dlq
+
+    return results
 
   def with_exception_handling(
       self, *, exc_class=Exception, use_subprocess=False, threshold=1):
@@ -404,13 +900,31 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
     For example, one would write::
 
-        good, bad = RunInference(
+        main, other = RunInference(
           maybe_error_raising_model_handler
         ).with_exception_handling()
 
-    and `good` will be a PCollection of PredictionResults and `bad` will
-    contain a tuple of all batches that raised exceptions, along with their
-    corresponding exception.
+    and `main` will be a PCollection of PredictionResults and `other` will
+    contain a `RunInferenceDLQ` object with PCollections containing failed
+    records for each failed inference, preprocess operation, or postprocess
+    operation. To access each collection of failed records, one would write:
+
+        failed_inferences = other.failed_inferences
+        failed_preprocessing = other.failed_preprocessing
+        failed_postprocessing = other.failed_postprocessing
+
+    failed_inferences is in the form
+    PCollection[Tuple[failed batch, exception]].
+
+    failed_preprocessing is in the form
+    list[PCollection[Tuple[failed record, exception]]]], where each element of
+    the list corresponds to a preprocess function. These PCollections are
+    in the same order that the preprocess functions are applied.
+
+    failed_postprocessing is in the form
+    List[PCollection[Tuple[failed record, exception]]]], where each element of
+    the list corresponds to a postprocess function. These PCollections are
+    in the same order that the postprocess functions are applied.
 
 
     Args:
@@ -437,7 +951,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
 
 class _MetricsCollector:
-  """A metrics collector that tracks ML related performance and memory usage."""
+  """
+  A metrics collector that tracks ML related performance and memory usage.
+  """
   def __init__(self, namespace: str, prefix: str = ''):
     """
     Args:
@@ -501,7 +1017,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock,
       metrics_namespace,
-      enable_side_input_loading: bool = False):
+      enable_side_input_loading: bool = False,
+      model_tag: str = "RunInference"):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -510,6 +1027,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         metrics_namespace: Namespace of the transform to collect metrics.
         enable_side_input_loading: Bool to indicate if model updates
             with side inputs.
+        model_tag: Tag to use to disambiguate models in multi-model settings.
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
@@ -518,6 +1036,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._metrics_namespace = metrics_namespace
     self._enable_side_input_loading = enable_side_input_loading
     self._side_input_path = None
+    self._model_tag = model_tag
 
   def _load_model(self, side_input_model_path: Optional[str] = None):
     def load():
@@ -536,7 +1055,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    model = self._shared_model_handle.acquire(load, tag=side_input_model_path)
+    if self._model_handler.share_model_across_processes():
+      model = multi_process_shared.MultiProcessShared(
+          load, tag=side_input_model_path or self._model_tag).acquire()
+    else:
+      model = self._shared_model_handle.acquire(
+          load, tag=side_input_model_path or self._model_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead
@@ -557,6 +1081,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
+    self._model_handler.set_environment_vars()
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 

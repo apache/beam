@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -113,6 +114,11 @@ func TestNew(t *testing.T) {
 			Name:  "good10",
 			Fn:    func(sdf.RTracker, state.Provider, []byte) {},
 			Param: []FnParamKind{FnRTracker, FnStateProvider, FnValue},
+		},
+		{
+			Name:  "good11",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, state.Provider, timers.Provider, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnStateProvider, FnTimerProvider, FnValue},
 		},
 		{
 			Name:  "good-method",
@@ -226,6 +232,21 @@ func TestNew(t *testing.T) {
 			Name: "errInputPrecedence- StateProvider after output",
 			Fn:   func(int, state.Provider) {},
 			Err:  errStateProviderPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- TimerProvider before RTracker",
+			Fn:   func(timers.Provider, sdf.RTracker, int) {},
+			Err:  errRTrackerPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- TimerProvider after output",
+			Fn:   func(int, timers.Provider) {},
+			Err:  errTimerProviderPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- TimerProvider before StateProvider",
+			Fn:   func(int, timers.Provider, state.Provider) {},
+			Err:  errTimerProviderPrecedence,
 		},
 		{
 			Name: "errInputPrecedence- input after output",
@@ -487,7 +508,7 @@ func TestWindow(t *testing.T) {
 			}
 			fn := &Fn{Param: params}
 
-			// Validate we get expected results for pane function.
+			// Validate we get expected results for Window function.
 			pos, exists := fn.Window()
 			if exists != test.Exists {
 				t.Errorf("Window(%v) - exists: got %v, want %v", params, exists, test.Exists)
@@ -531,7 +552,7 @@ func TestBundleFinalization(t *testing.T) {
 			}
 			fn := &Fn{Param: params}
 
-			// Validate we get expected results for pane function.
+			// Validate we get expected results for BundleFinalization function.
 			pos, exists := fn.BundleFinalization()
 			if exists != test.Exists {
 				t.Errorf("BundleFinalization(%v) - exists: got %v, want %v", params, exists, test.Exists)
@@ -575,13 +596,101 @@ func TestWatermarkEstimator(t *testing.T) {
 			}
 			fn := &Fn{Param: params}
 
-			// Validate we get expected results for pane function.
+			// Validate we get expected results for WatermarkEstimator function.
 			pos, exists := fn.WatermarkEstimator()
 			if exists != test.Exists {
 				t.Errorf("WatermarkEstimator(%v) - exists: got %v, want %v", params, exists, test.Exists)
 			}
 			if pos != test.Pos {
 				t.Errorf("WatermarkEstimator(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestTimerProvider(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "TimerProvider input",
+			Params: []FnParamKind{FnContext, FnWindow, FnEventTime, FnTimerProvider},
+			Pos:    3,
+			Exists: true,
+		},
+		{
+			Name:   "no TimerProvider input",
+			Params: []FnParamKind{FnContext, FnWindow, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for TimerProvider function.
+			pos, exists := fn.TimerProvider()
+			if exists != test.Exists {
+				t.Errorf("TimerProvider(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("TimerProvider(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestStateProvider(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "StateProvider input",
+			Params: []FnParamKind{FnContext, FnWindow, FnStateProvider},
+			Pos:    2,
+			Exists: true,
+		},
+		{
+			Name:   "no StateProvider input",
+			Params: []FnParamKind{FnContext, FnWindow},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for StateProvider function.
+			pos, exists := fn.StateProvider()
+			if exists != test.Exists {
+				t.Errorf("StateProvider(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("StateProvider(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}

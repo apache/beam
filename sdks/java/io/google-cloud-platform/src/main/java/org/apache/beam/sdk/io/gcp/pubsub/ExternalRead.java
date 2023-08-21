@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubSubscription;
@@ -31,11 +30,10 @@ import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exposes {@link PubsubIO.Read} as an external transform for cross-language usage. */
-@Experimental
 @AutoService(ExternalTransformRegistrar.class)
 public final class ExternalRead implements ExternalTransformRegistrar {
   public ExternalRead() {}

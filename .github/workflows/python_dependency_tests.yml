@@ -1,0 +1,51 @@
+name: Python Dependency Tests
+
+on:
+  schedule:
+    - cron: '10 2 * * *'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    # paths where Beam Python's dependencies are configured.
+    paths: ['sdks/python/setup.py', 'sdks/python/build-requirements.txt', 'sdks/python/container/base_image_requirements_manual.txt']
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
+
+jobs:
+
+  python_dependency_tests:
+    permissions:
+      issues: write
+    name: 'Python Dependency Tests'
+    runs-on: ${{matrix.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+          os: [ubuntu-latest]
+          params: [
+            {"py_ver": "3.8", "py_env": "py38"},
+            {"py_ver": "3.9", "py_env": "py39"},
+            {"py_ver": "3.10", "py_env": "py310" },
+            { "py_ver": "3.11", "py_env": "py311" },
+          ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.params.py_ver }}
+      - name: Install Build dependencies
+        working-directory: ./sdks/python
+        run: pip install -r build-requirements.txt
+      - name: Install base_image_requirements.txt
+        working-directory: ./sdks/python
+        run: pip install --no-deps -r container/${{ matrix.params.py_env }}/base_image_requirements.txt
+      - name: Install Apache Beam
+        working-directory: ./sdks/python
+        run: pip install --no-deps -v -e .[test,gcp,interactive,dataframe,aws,azure]
+      - name: Run pip check
+        run: pip check || (echo "Workflow failed. It can be due to conflicting dependencies or does not include required Beam's dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt. See https://s.apache.org/beam-python-requirements-generate" && exit 1)

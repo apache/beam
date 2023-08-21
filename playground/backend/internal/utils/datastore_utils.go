@@ -16,6 +16,7 @@
 package utils
 
 import (
+	"beam.apache.org/playground/backend/internal/logger"
 	"context"
 	"os"
 	"strconv"
@@ -93,7 +94,11 @@ func getNameKey(ctx context.Context, kind, id string, parentId *datastore.Key) *
 }
 
 func GetNamespace(ctx context.Context) string {
-	namespace, ok := ctx.Value(constants.DatastoreNamespaceKey).(string)
+	namespaceValue := ctx.Value(constants.DatastoreNamespaceKey)
+	namespace, ok := namespaceValue.(string)
+	if namespaceValue != nil && !ok {
+		logger.Warnf("GetNamespace(): %s value is set in context, but is not a string", constants.DatastoreNamespaceKey)
+	}
 	if !ok {
 		namespace, ok = os.LookupEnv(constants.DatastoreNamespaceKey)
 		if !ok {

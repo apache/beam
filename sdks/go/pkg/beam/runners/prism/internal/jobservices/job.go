@@ -29,7 +29,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
@@ -39,7 +41,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var capabilities = map[string]struct{}{
+var supportedRequirements = map[string]struct{}{
 	urns.RequirementSplittableDoFn: {},
 }
 
@@ -48,13 +50,13 @@ var capabilities = map[string]struct{}{
 func isSupported(requirements []string) error {
 	var unsupported []string
 	for _, req := range requirements {
-		if _, ok := capabilities[req]; !ok {
+		if _, ok := supportedRequirements[req]; !ok {
 			unsupported = append(unsupported, req)
 		}
 	}
 	if len(unsupported) > 0 {
 		sort.Strings(unsupported)
-		return fmt.Errorf("local runner doesn't support the following required features: %v", strings.Join(unsupported, ","))
+		return fmt.Errorf("prism runner doesn't support the following required features: %v", strings.Join(unsupported, ","))
 	}
 	return nil
 }
@@ -70,19 +72,35 @@ type Job struct {
 	options  *structpb.Struct
 
 	// Management side concerns.
-	msgChan   chan string
-	state     atomic.Value // jobpb.JobState_Enum
-	stateChan chan jobpb.JobState_Enum
+	streamCond *sync.Cond
+	// TODO, consider unifying messages and state to a single ordered buffer.
+	minMsg, maxMsg int // logical indices into the message slice
+	msgs           []string
+	stateIdx       int
+	state          atomic.Value // jobpb.JobState_Enum
+	stateTime      time.Time
+	failureErr     error
 
 	// Context used to terminate this job.
 	RootCtx  context.Context
-	CancelFn context.CancelFunc
+	CancelFn context.CancelCauseFunc
 
 	metrics metricsStore
 }
 
-func (j *Job) ContributeMetrics(payloads *fnpb.ProcessBundleResponse) {
-	j.metrics.ContributeMetrics(payloads)
+// ContributeTentativeMetrics returns the datachannel read index, and any unknown monitoring short ids.
+func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+	return j.metrics.ContributeTentativeMetrics(payloads)
+}
+
+// ContributeFinalMetrics returns any unknown monitoring short ids.
+func (j *Job) ContributeFinalMetrics(payloads *fnpb.ProcessBundleResponse) []string {
+	return j.metrics.ContributeFinalMetrics(payloads)
+}
+
+// AddMetricShortIDs populates metric short IDs with their metadata.
+func (j *Job) AddMetricShortIDs(ids *fnpb.MonitoringInfosMetadataResponse) {
+	j.metrics.AddShortIDs(ids)
 }
 
 func (j *Job) String() string {
@@ -96,25 +114,53 @@ func (j *Job) LogValue() slog.Value {
 }
 
 func (j *Job) SendMsg(msg string) {
-	j.msgChan <- msg
+	j.streamCond.L.Lock()
+	defer j.streamCond.L.Unlock()
+	j.maxMsg++
+	// Trim so we never have more than 120 messages, keeping the last 100 for sure
+	// but amortize it so that messages are only trimmed every 20 messages beyond
+	// that.
+	// TODO, make this configurable
+	const buffered, trigger = 100, 20
+	if len(j.msgs) > buffered+trigger {
+		copy(j.msgs[0:], j.msgs[trigger:])
+		for k, n := len(j.msgs)-trigger, len(j.msgs); k < n; k++ {
+			j.msgs[k] = ""
+		}
+		j.msgs = j.msgs[:len(j.msgs)-trigger]
+		j.minMsg += trigger // increase the "min" message higher as a result.
+	}
+	j.msgs = append(j.msgs, msg)
+	j.streamCond.Broadcast()
+}
+
+func (j *Job) sendState(state jobpb.JobState_Enum) {
+	j.streamCond.L.Lock()
+	defer j.streamCond.L.Unlock()
+	j.stateTime = time.Now()
+	j.stateIdx++
+	j.state.Store(state)
+	j.streamCond.Broadcast()
 }
 
 // Start indicates that the job is preparing to execute.
 func (j *Job) Start() {
-	j.stateChan <- jobpb.JobState_STARTING
+	j.sendState(jobpb.JobState_STARTING)
 }
 
 // Running indicates that the job is executing.
 func (j *Job) Running() {
-	j.stateChan <- jobpb.JobState_RUNNING
+	j.sendState(jobpb.JobState_RUNNING)
 }
 
 // Done indicates that the job completed successfully.
 func (j *Job) Done() {
-	j.stateChan <- jobpb.JobState_DONE
+	j.sendState(jobpb.JobState_DONE)
 }
 
 // Failed indicates that the job completed unsuccessfully.
-func (j *Job) Failed() {
-	j.stateChan <- jobpb.JobState_FAILED
+func (j *Job) Failed(err error) {
+	j.failureErr = err
+	j.sendState(jobpb.JobState_FAILED)
+	j.CancelFn(err)
 }

@@ -38,6 +38,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
@@ -348,9 +349,9 @@ class TestPartitionFiles(unittest.TestCase):
 
   def test_partition_files_dofn_file_split(self):
     """Force partitions to split based on max_files"""
-    multiple_partitions_result = [('destination0', ['file0', 'file1']),
-                                  ('destination0', ['file2', 'file3'])]
-    single_partition_result = [('destination1', ['file0', 'file1'])]
+    multiple_partitions_result = [('destination0', (0, ['file0', 'file1'])),
+                                  ('destination0', (1, ['file2', 'file3']))]
+    single_partition_result = [('destination1', (0, ['file0', 'file1']))]
     with TestPipeline() as p:
       destination_file_pairs = p | beam.Create(self._ELEMENTS, reshuffle=False)
       partitioned_files = (
@@ -363,20 +364,22 @@ class TestPartitionFiles(unittest.TestCase):
       single_partition = partitioned_files[bqfl.PartitionFiles\
                                            .SINGLE_PARTITION_TAG]
 
-    assert_that(
-        multiple_partitions,
-        equal_to(multiple_partitions_result),
-        label='CheckMultiplePartitions')
-    assert_that(
-        single_partition,
-        equal_to(single_partition_result),
-        label='CheckSinglePartition')
+      assert_that(
+          multiple_partitions,
+          equal_to(multiple_partitions_result),
+          label='CheckMultiplePartitions')
+      assert_that(
+          single_partition,
+          equal_to(single_partition_result),
+          label='CheckSinglePartition')
 
   def test_partition_files_dofn_size_split(self):
     """Force partitions to split based on max_partition_size"""
-    multiple_partitions_result = [('destination0', ['file0', 'file1', 'file2']),
-                                  ('destination0', ['file3'])]
-    single_partition_result = [('destination1', ['file0', 'file1'])]
+    multiple_partitions_result = [
+        ('destination0', (0, ['file0', 'file1',
+                              'file2'])), ('destination0', (1, ['file3']))
+    ]
+    single_partition_result = [('destination1', (0, ['file0', 'file1']))]
     with TestPipeline() as p:
       destination_file_pairs = p | beam.Create(self._ELEMENTS, reshuffle=False)
       partitioned_files = (
@@ -389,14 +392,14 @@ class TestPartitionFiles(unittest.TestCase):
       single_partition = partitioned_files[bqfl.PartitionFiles\
                                            .SINGLE_PARTITION_TAG]
 
-    assert_that(
-        multiple_partitions,
-        equal_to(multiple_partitions_result),
-        label='CheckMultiplePartitions')
-    assert_that(
-        single_partition,
-        equal_to(single_partition_result),
-        label='CheckSinglePartition')
+      assert_that(
+          multiple_partitions,
+          equal_to(multiple_partitions_result),
+          label='CheckMultiplePartitions')
+      assert_that(
+          single_partition,
+          equal_to(single_partition_result),
+          label='CheckSinglePartition')
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
@@ -583,8 +586,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Get.side_effect = [
         job_1_waiting, job_2_done, job_1_done, job_2_done
     ]
-    partition_1 = ('project:dataset.table0', ['file0'])
-    partition_2 = ('project:dataset.table1', ['file1'])
+    partition_1 = ('project:dataset.table0', (0, ['file0']))
+    partition_2 = ('project:dataset.table1', (1, ['file1']))
     bq_client.jobs.Insert.side_effect = [job_1, job_2]
     test_job_prefix = "test_job"
 
@@ -626,8 +629,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Get.side_effect = [
         job_1_waiting, job_2_done, job_1_error, job_2_done
     ]
-    partition_1 = ('project:dataset.table0', ['file0'])
-    partition_2 = ('project:dataset.table1', ['file1'])
+    partition_1 = ('project:dataset.table0', (0, ['file0']))
+    partition_2 = ('project:dataset.table1', (1, ['file1']))
     bq_client.jobs.Insert.side_effect = [job_1, job_2]
     test_job_prefix = "test_job"
 
@@ -715,10 +718,15 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to([6]),
           label='CheckCopyJobCount')
 
+  @parameterized.expand([
+      param(write_disposition=BigQueryDisposition.WRITE_TRUNCATE),
+      param(write_disposition=BigQueryDisposition.WRITE_EMPTY)
+  ])
   @mock.patch(
       'apache_beam.io.gcp.bigquery_file_loads.TriggerCopyJobs.process',
       wraps=lambda *x: None)
-  def test_multiple_partition_files_write_truncate(self, mock_call_process):
+  def test_multiple_partition_files_write_dispositions(
+      self, mock_call_process, write_disposition):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -751,8 +759,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               max_file_size=45,
               max_partition_size=80,
               max_files_per_partition=2,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
-
+              write_disposition=write_disposition))
     # TriggerCopyJob only processes once
     self.assertEqual(mock_call_process.call_count, 1)
 
@@ -1036,7 +1043,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
     # Override these parameters to induce copy jobs
     bqfl._DEFAULT_MAX_FILE_SIZE = 100
-    bqfl._MAXIMUM_LOAD_SIZE = 400
+    bqfl._MAXIMUM_LOAD_SIZE = 200
 
     with beam.Pipeline(argv=args) as p:
       stream_source = (

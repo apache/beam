@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestData.DATA;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
@@ -40,7 +40,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,7 +71,7 @@ public class CsvIOWriteTest {
         writePipeline.apply(
             Create.of(DATA.allPrimitiveDataTypeRows)
                 .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
-    String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
+    String expectedHeader = "aBoolean,aDecimal,aDouble,aFloat,aLong,aString,anInteger";
     CSVFormat csvFormat =
         CSVFormat.DEFAULT.withHeaderComments("foo", "bar", "baz").withCommentMarker('#');
 
@@ -116,7 +116,7 @@ public class CsvIOWriteTest {
         writePipeline.apply(
             Create.of(DATA.allPrimitiveDataTypeRows)
                 .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
-    String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
+    String expectedHeader = "aBoolean,aDecimal,aDouble,aFloat,aLong,aString,anInteger";
     CSVFormat csvFormat = CSVFormat.DEFAULT;
 
     input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(3));
@@ -155,30 +155,19 @@ public class CsvIOWriteTest {
     PCollection<AllPrimitiveDataTypes> input =
         writePipeline.apply(
             Create.of(
+                allPrimitiveDataTypes(false, BigDecimal.TEN, 1.0, 1.0f, 1, 1L, "a"),
                 allPrimitiveDataTypes(
-                    false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a"),
-                allPrimitiveDataTypes(
-                    false,
-                    (byte) 2,
-                    BigDecimal.TEN.add(BigDecimal.TEN),
-                    2.0,
-                    2.0f,
-                    (short) 2.0,
-                    2,
-                    2L,
-                    "b"),
+                    false, BigDecimal.TEN.add(BigDecimal.TEN), 2.0, 2.0f, 2, 2L, "b"),
                 allPrimitiveDataTypes(
                     false,
-                    (byte) 3,
                     BigDecimal.TEN.add(BigDecimal.TEN).add(BigDecimal.TEN),
                     3.0,
                     3.0f,
-                    (short) 3.0,
                     3,
                     3L,
                     "c")));
 
-    String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
+    String expectedHeader = "aBoolean,aDecimal,aDouble,aFloat,aLong,aString,anInteger";
     CSVFormat csvFormat = CSVFormat.DEFAULT;
     input.apply(
         CsvIO.<AllPrimitiveDataTypes>write(toFilenamePrefix(folder), csvFormat).withNumShards(1));
@@ -188,9 +177,9 @@ public class CsvIOWriteTest {
     PAssert.that(readPipeline.apply(TextIO.read().from(toFilenamePrefix(folder) + "*")))
         .containsInAnyOrder(
             expectedHeader,
-            "false,1,10,1.0,1.0,1,1,a,1",
-            "false,2,20,2.0,2.0,2,2,b,2",
-            "false,3,30,3.0,3.0,3,3,c,3");
+            "false,10,1.0,1.0,1,a,1",
+            "false,20,2.0,2.0,2,b,2",
+            "false,30,3.0,3.0,3,c,3");
 
     readPipeline.run();
   }
@@ -238,9 +227,7 @@ public class CsvIOWriteTest {
 
     PAssert.that(readPipeline.apply(TextIO.read().from(toFilenamePrefix(folder) + "*")))
         .containsInAnyOrder(
-            "false,1,10,1.0,1.0,1,1,a,1",
-            "false,2,20,2.0,2.0,2,2,b,2",
-            "false,3,30,3.0,3.0,3,3,c,3");
+            "false,10,1.0,1.0,1,a,1", "false,20,2.0,2.0,2,b,2", "false,30,3.0,3.0,3,c,3");
 
     readPipeline.run();
   }
@@ -256,7 +243,7 @@ public class CsvIOWriteTest {
         writePipeline.apply(
             Create.of(DATA.allPrimitiveDataTypeRows)
                 .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
-    String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
+    String expectedHeader = "aBoolean,aDecimal,aDouble,aFloat,aLong,aString,anInteger";
     CSVFormat csvFormat = CSVFormat.DEFAULT;
 
     input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(1));
@@ -266,9 +253,9 @@ public class CsvIOWriteTest {
     PAssert.that(readPipeline.apply(TextIO.read().from(toFilenamePrefix(folder) + "*")))
         .containsInAnyOrder(
             expectedHeader,
-            "false,1,10,1.0,1.0,1,1,a,1",
-            "false,2,20,2.0,2.0,2,2,b,2",
-            "false,3,30,3.0,3.0,3,3,c,3");
+            "false,10,1.0,1.0,1,a,1",
+            "false,20,2.0,2.0,2,b,2",
+            "false,30,3.0,3.0,3,c,3");
 
     readPipeline.run();
   }

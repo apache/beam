@@ -22,143 +22,177 @@ import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:rate_limiter/rate_limiter.dart';
 
 import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/unit_progress.dart';
-import '../../config.dart';
+import '../../enums/save_code_status.dart';
+import '../../enums/snippet_type.dart';
 import '../../models/event_context.dart';
+import '../../models/node.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../services/analytics/events/unit_closed.dart';
 import '../../services/analytics/events/unit_opened.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
-import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
+  static const _saveUserCodeDebounceDuration = Duration(seconds: 2);
+  Debounce? _saveCodeDebounced;
+
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
-  UnitController? currentUnitController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  bool _isPlaygroundShown = false;
   DateTime? _currentUnitOpenedAt;
 
   TobEventContext _tobEventContext = TobEventContext.empty;
   TobEventContext get tobEventContext => _tobEventContext;
 
   TourNotifier({
-    required String initialSdkId,
-    List<String> initialTreeIds = const [],
+    List<String> initialBreadcrumbIds = const [],
   })  : contentTreeController = ContentTreeController(
-          initialSdkId: initialSdkId,
-          initialTreeIds: initialTreeIds,
+          initialBreadcrumbIds: initialBreadcrumbIds,
         ),
-        playgroundController = _createPlaygroundController(initialSdkId) {
+        playgroundController = _createPlaygroundController() {
     contentTreeController.addListener(_onUnitChanged);
-    _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
-    _authNotifier.addListener(_onUnitProgressChanged);
-    _onUnitChanged();
+    _authNotifier.addListener(_onAuthChanged);
+    _saveCodeDebounced = _saveCode.debounced(
+      _saveUserCodeDebounceDuration,
+    );
+    // setSdk creates snippetEditingController if it doesn't exist.
+    playgroundController.setSdk(currentSdk);
+    _listenToCurrentSnippetEditingController();
+    unawaited(_onUnitChanged());
+  }
+
+  @override
+  void setStateMap(Map<String, dynamic> state) {
+    super.setStateMap(state);
+    _appNotifier.sdk = Sdk.parseOrCreate(state['sdkId']);
   }
 
   @override
   PagePath get path => TourPath(
-        sdkId: contentTreeController.sdkId,
-        treeIds: contentTreeController.treeIds,
+        sdkId: GetIt.instance.get<AppNotifier>().sdk.id,
+        breadcrumbIds: contentTreeController.breadcrumbIds,
       );
 
-  String? get currentUnitId => currentUnitController?.unit.id;
+  bool get isAuthenticated => _authNotifier.isAuthenticated;
+
+  Sdk get currentSdk => _appNotifier.sdk;
+  String? get currentUnitId => _currentUnitContent?.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
-  bool get doesCurrentUnitHaveSolution =>
-      currentUnitContent?.solutionSnippetId != null;
-  bool _isShowingSolution = false;
-  bool get isShowingSolution => _isShowingSolution;
 
-  void toggleShowingSolution() {
-    if (doesCurrentUnitHaveSolution) {
-      _isShowingSolution = !_isShowingSolution;
+  bool get hasSolution => _currentUnitContent?.solutionSnippetId != null;
+  bool get isCodeSaved => _unitProgressCache.hasSavedSnippet(currentUnitId);
 
-      final snippetId = _isShowingSolution
-          ? _currentUnitContent?.solutionSnippetId
-          : _currentUnitContent?.taskSnippetId;
-      if (snippetId != null) {
-        // TODO(nausharipov): store/recover
-        unawaited(_setPlaygroundSnippet(snippetId));
-      }
+  SnippetType _snippetType = SnippetType.original;
+  SnippetType get snippetType => _snippetType;
 
-      notifyListeners();
-    }
-  }
+  bool _isLoadingSnippet = false;
 
-  void _createCurrentUnitController(Sdk sdk, UnitModel unit) {
-    currentUnitController = UnitController(
-      unit: unit,
-      sdk: sdk,
-    );
-  }
-
-  Future<void> _onUnitProgressChanged() async {
-    await _unitProgressCache.updateCompletedUnits();
-  }
-
-  void _onAppNotifierChanged() {
-    final sdkId = _appNotifier.sdkId;
-    if (sdkId != null) {
-      playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
-      contentTreeController.sdkId = sdkId;
-      _onUnitProgressChanged();
-    }
-  }
-
-  void _onUnitChanged() {
-    emitPathChanged();
-    final currentNode = contentTreeController.currentNode;
-    if (currentNode is UnitModel) {
-      final sdk = contentTreeController.sdk;
-      _createCurrentUnitController(contentTreeController.sdk, currentNode);
-      _setCurrentUnitContent(currentNode, sdk: sdk);
-    } else {
-      _emptyPlayground();
-    }
-
+  SaveCodeStatus _saveCodeStatus = SaveCodeStatus.saved;
+  SaveCodeStatus get saveCodeStatus => _saveCodeStatus;
+  set saveCodeStatus(SaveCodeStatus saveCodeStatus) {
+    _saveCodeStatus = saveCodeStatus;
     notifyListeners();
   }
 
-  Future<void> _setCurrentUnitContent(
-    UnitModel unit, {
-    required Sdk sdk,
-  }) async {
-    final content = _unitContentCache.getUnitContent(
-      sdk.id,
-      unit.id,
+  bool get isPlaygroundShown => _isPlaygroundShown;
+  bool get isSnippetLoading => _isLoadingSnippet;
+
+  Future<void> _onAuthChanged() async {
+    await _unitProgressCache.loadUnitProgress(currentSdk);
+    // The local changes are preserved if the user signs in.
+    if (_snippetType != SnippetType.saved || !isAuthenticated) {
+      _trySetSnippetType(SnippetType.saved);
+      await _loadSnippetByType();
+    }
+    notifyListeners();
+  }
+
+  Future<void> _onAppNotifierChanged() async {
+    playgroundController.setSdk(currentSdk);
+    _listenToCurrentSnippetEditingController();
+    final currentNode = contentTreeController.currentNode;
+    if (currentNode != null) {
+      await _loadUnit(currentNode);
+    }
+  }
+
+  Future<void> _onUnitChanged() async {
+    emitPathChanged();
+    final currentNode = contentTreeController.currentNode;
+    if (currentNode is! UnitModel) {
+      await _emptyPlayground();
+    } else {
+      await _loadUnit(currentNode);
+    }
+    notifyListeners();
+  }
+
+  Future<void> _loadUnit(NodeModel node) async {
+    _setUnitContent(null);
+    notifyListeners();
+
+    final content = await _unitContentCache.getUnitContent(
+      currentSdk.id,
+      node.id,
     );
-    if (content == _currentUnitContent) {
+
+    _setUnitContent(content);
+    await _unitProgressCache.loadUnitProgress(currentSdk);
+
+    if (content != _currentUnitContent) {
+      return; // Changed while waiting.
+    }
+
+    _trySetSnippetType(SnippetType.saved);
+    await _loadSnippetByType();
+  }
+
+  void _setUnitContent(UnitContentModel? unitContent) {
+    if (unitContent == _currentUnitContent) {
       return;
     }
 
     if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
-      PlaygroundComponents.analyticsService.sendUnawaited(
-        UnitClosedTobAnalyticsEvent(
-          tobContext: _tobEventContext,
-          timeSpent: DateTime.now().difference(_currentUnitOpenedAt!),
-        ),
-      );
+      _trackUnitClosed();
     }
 
-    _currentUnitContent = content;
-    if (content == null) {
-      return;
+    _currentUnitContent = unitContent;
+    if (_currentUnitContent != null) {
+      _isPlaygroundShown = _currentUnitContent!.taskSnippetId != null;
     }
 
+    if (_currentUnitContent != null) {
+      _trackUnitOpened(_currentUnitContent!.id);
+    }
+  }
+
+  void _trackUnitClosed() {
+    PlaygroundComponents.analyticsService.sendUnawaited(
+      UnitClosedTobAnalyticsEvent(
+        tobContext: _tobEventContext,
+        timeSpent: DateTime.now().difference(_currentUnitOpenedAt!),
+      ),
+    );
+  }
+
+  void _trackUnitOpened(String unitId) {
     _currentUnitOpenedAt = DateTime.now();
     _tobEventContext = TobEventContext(
-      sdkId: sdk.id,
-      unitId: unit.id,
+      sdkId: currentSdk.id,
+      unitId: unitId,
     );
     playgroundController
         .requireSnippetEditingController()
@@ -168,63 +202,179 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         tobContext: _tobEventContext,
       ),
     );
-
-    final taskSnippetId = content.taskSnippetId;
-    await _setPlaygroundSnippet(taskSnippetId);
-    _isShowingSolution = false;
   }
 
-  Future<void> _setPlaygroundSnippet(String? snippetId) async {
-    if (snippetId == null) {
-      await _emptyPlayground();
-      return;
+  // Save user code.
+
+  Future<void> showSnippetByType(SnippetType snippetType) async {
+    _trySetSnippetType(snippetType);
+    await _loadSnippetByType();
+    notifyListeners();
+  }
+
+  void _listenToCurrentSnippetEditingController() {
+    playgroundController.snippetEditingController?.addListener(
+      _onActiveFileControllerChanged,
+    );
+  }
+
+  void _onActiveFileControllerChanged() {
+    playgroundController
+        .snippetEditingController?.activeFileController?.codeController
+        .addListener(_onCodeChanged);
+  }
+
+  void _onCodeChanged() {
+    final snippetEditingController =
+        playgroundController.snippetEditingController!;
+    final isCodeChanged =
+        snippetEditingController.activeFileController?.isChanged ?? false;
+    final snippetFiles = snippetEditingController.getFiles();
+
+    final doSave = _isSnippetTypeSavable() &&
+        isCodeChanged &&
+        _currentUnitContent != null &&
+        snippetFiles.isNotEmpty;
+
+    if (doSave) {
+      // Snapshot of sdk and unitId at the moment of editing.
+      final sdk = currentSdk;
+      final unitId = currentUnitId;
+      _saveCodeDebounced?.call([], {
+        const Symbol('sdk'): sdk,
+        const Symbol('snippetFiles'): snippetFiles,
+        const Symbol('unitId'): unitId,
+      });
+    }
+  }
+
+  bool _isSnippetTypeSavable() {
+    return snippetType != SnippetType.solution;
+  }
+
+  Future<void> _saveCode({
+    required Sdk sdk,
+    required List<SnippetFile> snippetFiles,
+    required String unitId,
+  }) async {
+    saveCodeStatus = SaveCodeStatus.saving;
+    try {
+      await _unitProgressCache.saveSnippet(
+        sdk: sdk,
+        snippetFiles: snippetFiles,
+        snippetType: _snippetType,
+        unitId: unitId,
+      );
+      saveCodeStatus = SaveCodeStatus.saved;
+      await _unitProgressCache.loadUnitProgress(currentSdk);
+      _trySetSnippetType(SnippetType.saved);
+    } on Exception catch (e) {
+      print(['Could not save code: ', e]);
+      _saveCodeStatus = SaveCodeStatus.error;
+    }
+  }
+
+  void _trySetSnippetType(SnippetType snippetType) {
+    if (snippetType == SnippetType.saved && !isCodeSaved) {
+      _snippetType = SnippetType.original;
+    } else {
+      _snippetType = snippetType;
+    }
+    notifyListeners();
+  }
+
+  Future<void> _loadSnippetByType() async {
+    final ExampleLoadingDescriptor descriptor;
+    switch (_snippetType) {
+      case SnippetType.original:
+        descriptor = _getStandardOrEmptyDescriptor(
+          currentSdk,
+          _currentUnitContent!.taskSnippetId,
+        );
+        break;
+      case SnippetType.saved:
+        descriptor = await _unitProgressCache.getSavedDescriptor(
+          sdk: currentSdk,
+          unitId: _currentUnitContent!.id,
+        );
+        break;
+      case SnippetType.solution:
+        descriptor = _getStandardOrEmptyDescriptor(
+          currentSdk,
+          _currentUnitContent!.solutionSnippetId,
+        );
+        break;
     }
 
-    final selectedSdk = _appNotifier.sdk;
-    if (selectedSdk != null) {
+    try {
+      _isLoadingSnippet = true;
+      notifyListeners();
+
       await playgroundController.examplesLoader.load(
         ExamplesLoadingDescriptor(
           descriptors: [
-            UserSharedExampleLoadingDescriptor(
-              sdk: selectedSdk,
-              snippetId: snippetId,
-            ),
+            descriptor,
           ],
         ),
       );
+    } finally {
+      _isLoadingSnippet = false;
+      notifyListeners();
     }
+
+    _fillFeedbackController();
+  }
+
+  void _fillFeedbackController() {
+    final controller = GetIt.instance.get<FeedbackController>();
+    controller.eventSnippetContext = playgroundController.eventSnippetContext;
+    controller.additionalParams = _tobEventContext.toJson();
+  }
+
+  ExampleLoadingDescriptor _getStandardOrEmptyDescriptor(
+    Sdk sdk,
+    String? snippetId,
+  ) {
+    if (snippetId == null) {
+      return EmptyExampleLoadingDescriptor(
+        sdk: currentSdk,
+      );
+    }
+    return StandardExampleLoadingDescriptor(
+      path: snippetId,
+      sdk: sdk,
+    );
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.
   Future<void> _emptyPlayground() async {
-    await playgroundController.examplesLoader.load(
+    await playgroundController.examplesLoader.loadIfNew(
       ExamplesLoadingDescriptor(
         descriptors: [
-          EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
+          EmptyExampleLoadingDescriptor(sdk: currentSdk),
         ],
       ),
     );
   }
 
-  static PlaygroundController _createPlaygroundController(String initialSdkId) {
-    final exampleRepository = GetIt.instance.get<ExampleRepository>();
-    final codeRepository = GetIt.instance.get<CodeRepository>();
+  // Playground controller.
 
-    final exampleCache = ExampleCache(
-      exampleRepository: exampleRepository,
-    );
-
+  static PlaygroundController _createPlaygroundController() {
     final playgroundController = PlaygroundController(
-      codeRepository: codeRepository,
-      exampleCache: exampleCache,
+      codeClient: GetIt.instance.get<CodeClient>(),
+      exampleCache: ExampleCache(
+        exampleRepository: GetIt.instance.get<ExampleRepository>(),
+      ),
       examplesLoader: ExamplesLoader(),
     );
 
     unawaited(
-      playgroundController.examplesLoader.load(
+      playgroundController.examplesLoader.loadIfNew(
         ExamplesLoadingDescriptor(
           descriptors: [
-            EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
+            EmptyExampleLoadingDescriptor(
+              sdk: GetIt.instance.get<AppNotifier>().sdk,
+            ),
           ],
         ),
       ),
@@ -235,10 +385,15 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   Future<void> dispose() async {
-    _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
-    _authNotifier.removeListener(_onUnitProgressChanged);
+    _authNotifier.removeListener(_onAuthChanged);
+    playgroundController.snippetEditingController
+        ?.removeListener(_onActiveFileControllerChanged);
+    // TODO(nausharipov): Use stream events https://github.com/apache/beam/issues/25185
+    playgroundController
+        .snippetEditingController?.activeFileController?.codeController
+        .removeListener(_onCodeChanged);
     await super.dispose();
   }
 }

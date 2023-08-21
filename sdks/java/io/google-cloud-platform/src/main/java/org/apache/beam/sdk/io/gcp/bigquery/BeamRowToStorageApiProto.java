@@ -24,6 +24,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,11 +45,11 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Bytes;
 import org.joda.time.ReadableInstant;
 
 /**
@@ -102,9 +103,23 @@ public class BeamRowToStorageApiProto {
           .put(TypeName.BOOLEAN, Function.identity())
           // A Beam DATETIME is actually a timestamp, not a DateTime.
           .put(TypeName.DATETIME, o -> ((ReadableInstant) o).getMillis() * 1000)
-          .put(TypeName.BYTES, o -> ByteString.copyFrom((byte[]) o))
+          .put(TypeName.BYTES, BeamRowToStorageApiProto::toProtoByteString)
           .put(TypeName.DECIMAL, o -> serializeBigDecimalToNumeric((BigDecimal) o))
           .build();
+
+  private static ByteString toProtoByteString(Object o) {
+    if (o instanceof byte[]) {
+      return ByteString.copyFrom((byte[]) o);
+    } else if (o instanceof ByteBuffer) {
+      return ByteString.copyFrom((ByteBuffer) o);
+    } else if (o instanceof String) {
+      return ByteString.copyFromUtf8((String) o);
+    } else {
+      throw new ClassCastException(
+          String.format(
+              "Cannot cast %s to a compatible object to build ByteString.", o.getClass()));
+    }
+  }
 
   // A map of supported logical types to their encoding functions.
   static final Map<String, BiFunction<LogicalType<?, ?>, Object, Object>> LOGICAL_TYPE_ENCODERS =
@@ -132,7 +147,8 @@ public class BeamRowToStorageApiProto {
    * Given a Beam {@link Row} object, returns a protocol-buffer message that can be used to write
    * data using the BigQuery Storage streaming API.
    */
-  public static DynamicMessage messageFromBeamRow(Descriptor descriptor, Row row) {
+  public static DynamicMessage messageFromBeamRow(
+      Descriptor descriptor, Row row, @Nullable String changeType, long changeSequenceNum) {
     Schema beamSchema = row.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (int i = 0; i < row.getFieldCount(); ++i) {
@@ -145,6 +161,16 @@ public class BeamRowToStorageApiProto {
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
+    }
+    if (changeType != null) {
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+          changeSequenceNum);
     }
     return builder.build();
   }
@@ -162,6 +188,9 @@ public class BeamRowToStorageApiProto {
 
   private static TableFieldSchema fieldDescriptorFromBeamField(Field field) {
     TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
+    if (StorageApiCDC.COLUMNS.contains(field.getName())) {
+      throw new RuntimeException("Reserved field name " + field.getName() + " in user schema.");
+    }
     builder = builder.setName(field.getName().toLowerCase());
 
     switch (field.getType().getTypeName()) {
@@ -243,7 +272,7 @@ public class BeamRowToStorageApiProto {
       FieldDescriptor fieldDescriptor, FieldType beamFieldType, Object value) {
     switch (beamFieldType.getTypeName()) {
       case ROW:
-        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value);
+        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value, null, -1);
       case ARRAY:
         List<Object> list = (List<Object>) value;
         @Nullable FieldType arrayElementType = beamFieldType.getCollectionElementType();

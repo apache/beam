@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static software.amazon.awssdk.services.kinesis.model.ShardFilterType.AT_LATEST;
@@ -27,7 +27,6 @@ import static software.amazon.awssdk.services.kinesis.model.ShardFilterType.AT_L
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -36,21 +35,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
+import org.apache.beam.sdk.io.aws2.common.AsyncBatchWriteHandler;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.common.ObjectPool;
 import org.apache.beam.sdk.io.aws2.common.ObjectPool.ClientPool;
-import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.ExplicitPartitioner;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
@@ -65,7 +62,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -73,9 +69,9 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.DateTimeUtils;
@@ -83,14 +79,14 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
@@ -227,7 +223,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * <p>When EFO is enabled, the following configurations are ignored:
  *
  * <ul>
- *   <li>{@link Read#withMaxCapacityPerShard(Integer)}
  *   <li>{@link Read#withRequestRecordsLimit(int)}
  *   <li>{@link Read#withCustomRateLimitPolicy(RateLimitPolicyFactory)}
  *   <li>{@link Read#withFixedDelayRateLimitPolicy()}
@@ -331,7 +326,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
-@Experimental(Kind.SOURCE_SINK)
 public final class KinesisIO {
 
   /** Returns a new {@link Read} transform for reading from Kinesis. */
@@ -342,7 +336,6 @@ public final class KinesisIO {
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
         .setRateLimitPolicyFactory(RateLimitPolicyFactory.withDefaultRateLimiter())
-        .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
 
@@ -374,9 +367,7 @@ public final class KinesisIO {
 
     abstract @Nullable StartingPoint getInitialPosition();
 
-    abstract @Nullable ClientConfiguration getClientConfiguration();
-
-    abstract @Nullable AWSClientsProvider getAWSClientsProvider();
+    abstract ClientConfiguration getClientConfiguration();
 
     abstract long getMaxNumRecords();
 
@@ -390,7 +381,7 @@ public final class KinesisIO {
 
     abstract RateLimitPolicyFactory getRateLimitPolicyFactory();
 
-    abstract Integer getMaxCapacityPerShard();
+    abstract @Nullable Integer getMaxCapacityPerShard();
 
     abstract Builder toBuilder();
 
@@ -404,8 +395,6 @@ public final class KinesisIO {
       abstract Builder setInitialPosition(StartingPoint startingPoint);
 
       abstract Builder setClientConfiguration(ClientConfiguration config);
-
-      abstract Builder setAWSClientsProvider(AWSClientsProvider clientProvider);
 
       abstract Builder setMaxNumRecords(long maxNumRecords);
 
@@ -447,61 +436,8 @@ public final class KinesisIO {
       return toBuilder().setInitialPosition(new StartingPoint(initialTimestamp)).build();
     }
 
-    /**
-     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
-     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
-     */
-    @Deprecated
-    public Read withAWSClientsProvider(AWSClientsProvider clientProvider) {
-      checkArgument(clientProvider != null, "AWSClientsProvider cannot be null");
-      return toBuilder().setClientConfiguration(null).setAWSClientsProvider(clientProvider).build();
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Region region) {
-      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(
-        String awsAccessKey, String awsSecretKey, Region region, String serviceEndpoint) {
-      AwsCredentialsProvider awsCredentialsProvider =
-          StaticCredentialsProvider.create(AwsBasicCredentials.create(awsAccessKey, awsSecretKey));
-      return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint);
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(
-        AwsCredentialsProvider awsCredentialsProvider, Region region) {
-      return withAWSClientsProvider(awsCredentialsProvider, region, null);
-    }
-
-    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
-    @Deprecated
-    public Read withAWSClientsProvider(
-        AwsCredentialsProvider awsCredentialsProvider, Region region, String serviceEndpoint) {
-      URI endpoint = serviceEndpoint != null ? URI.create(serviceEndpoint) : null;
-      return updateClientConfig(
-          b ->
-              b.credentialsProvider(awsCredentialsProvider)
-                  .region(region)
-                  .endpoint(endpoint)
-                  .build());
-    }
-
     /** Configuration of Kinesis & Cloudwatch clients. */
     public Read withClientConfiguration(ClientConfiguration config) {
-      return updateClientConfig(ignore -> config);
-    }
-
-    private Read updateClientConfig(Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
-      checkState(
-          getAWSClientsProvider() == null,
-          "Legacy AWSClientsProvider is set, but incompatible with ClientConfiguration.");
-      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
       checkArgument(config != null, "ClientConfiguration cannot be null");
       return toBuilder().setClientConfiguration(config).build();
     }
@@ -618,7 +554,15 @@ public final class KinesisIO {
       return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
     }
 
-    /** Specifies the maximum number of messages per one shard. */
+    /**
+     * Specifies the maximum number of messages per one shard.
+     *
+     * <p>Note: When using consumers with dedicated throughput (Enhanced Fan-Out), this capacity
+     * corresponds to the number of in-flight shard events which itself can contain multiple,
+     * potentially even aggregated records.
+     *
+     * @see #withConsumerArn(String)
+     */
     public Read withMaxCapacityPerShard(Integer maxCapacity) {
       checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
       return toBuilder().setMaxCapacityPerShard(maxCapacity).build();
@@ -628,11 +572,8 @@ public final class KinesisIO {
     public PCollection<KinesisRecord> expand(PBegin input) {
       checkArgument(getWatermarkPolicyFactory() != null, "WatermarkPolicyFactory is required");
       checkArgument(getRateLimitPolicyFactory() != null, "RateLimitPolicyFactory is required");
-      if (getAWSClientsProvider() == null) {
-        checkArgument(getClientConfiguration() != null, "ClientConfiguration is required");
-        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
-        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
-      }
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
 
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
@@ -962,30 +903,32 @@ public final class KinesisIO {
 
       protected final Write<T> spec;
       protected final Stats stats;
-      protected final AsyncPutRecordsHandler handler;
+      protected final AsyncBatchWriteHandler<PutRecordsRequestEntry, PutRecordsResultEntry> handler;
       protected final KinesisAsyncClient kinesis;
-
       private List<PutRecordsRequestEntry> requestEntries;
       private int requestBytes = 0;
 
       Writer(PipelineOptions options, Write<T> spec) {
         ClientConfiguration clientConfig = spec.clientConfiguration();
-        RetryConfiguration retryConfig = clientConfig.retry();
-        FluentBackoff backoff = FluentBackoff.DEFAULT.withMaxRetries(PARTIAL_RETRIES);
-        if (retryConfig != null) {
-          if (retryConfig.throttledBaseBackoff() != null) {
-            backoff = backoff.withInitialBackoff(retryConfig.throttledBaseBackoff());
-          }
-          if (retryConfig.maxBackoff() != null) {
-            backoff = backoff.withMaxBackoff(retryConfig.maxBackoff());
-          }
-        }
         this.spec = spec;
         this.stats = new Stats();
         this.kinesis = CLIENTS.retain(options.as(AwsOptions.class), clientConfig);
-        this.handler =
-            new AsyncPutRecordsHandler(kinesis, spec.concurrentRequests(), backoff, stats);
         this.requestEntries = new ArrayList<>();
+        this.handler =
+            AsyncBatchWriteHandler.byPosition(
+                spec.concurrentRequests(),
+                PARTIAL_RETRIES,
+                clientConfig.retry(),
+                stats,
+                (stream, records) -> putRecords(kinesis, stream, records),
+                r -> r.errorCode());
+      }
+
+      private static CompletableFuture<List<PutRecordsResultEntry>> putRecords(
+          KinesisAsyncClient kinesis, String stream, List<PutRecordsRequestEntry> records) {
+        PutRecordsRequest req =
+            PutRecordsRequest.builder().streamName(stream).records(records).build();
+        return kinesis.putRecords(req).thenApply(resp -> resp.records());
       }
 
       public void startBundle() {
@@ -1059,7 +1002,7 @@ public final class KinesisIO {
           List<PutRecordsRequestEntry> recordsToWrite = requestEntries;
           requestEntries = new ArrayList<>();
           requestBytes = 0;
-          handler.putRecords(spec.streamName(), recordsToWrite);
+          handler.batchWrite(spec.streamName(), recordsToWrite);
         }
       }
 
@@ -1176,7 +1119,7 @@ public final class KinesisIO {
         }
 
         // only check timeouts sporadically if concurrency is already maxed out
-        if (handler.pendingRequests() < spec.concurrentRequests() || Math.random() < 0.05) {
+        if (handler.requestsInProgress() < spec.concurrentRequests() || Math.random() < 0.05) {
           checkAggregationTimeouts();
         }
       }
@@ -1336,7 +1279,7 @@ public final class KinesisIO {
       }
     }
 
-    private static class Stats implements AsyncPutRecordsHandler.Stats {
+    private static class Stats implements AsyncBatchWriteHandler.Stats {
       private static final Logger LOG = LoggerFactory.getLogger(Stats.class);
       private static final Duration LOG_STATS_PERIOD = Duration.standardSeconds(10);
 
@@ -1389,7 +1332,7 @@ public final class KinesisIO {
       }
 
       @Override
-      public void addPutRecordsRequest(long latencyMillis, boolean isPartialRetry) {
+      public void addBatchWriteRequest(long latencyMillis, boolean isPartialRetry) {
         long timeMillis = DateTimeUtils.currentTimeMillis();
         numPutRequests.add(timeMillis, 1);
         if (isPartialRetry) {

@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -350,7 +349,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *   });
    * }</pre>
    */
-  @Experimental
   public static <InputT extends PInput, OutputT extends POutput>
       PTransform<InputT, OutputT> compose(SerializableFunction<InputT, OutputT> fn) {
     return new PTransform<InputT, OutputT>() {
@@ -362,7 +360,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   }
 
   /** Like {@link #compose(SerializableFunction)}, but with a custom name. */
-  @Experimental
   public static <InputT extends PInput, OutputT extends POutput>
       PTransform<InputT, OutputT> compose(String name, SerializableFunction<InputT, OutputT> fn) {
     return new PTransform<InputT, OutputT>(name) {

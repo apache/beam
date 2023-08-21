@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.sns;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sns.AmazonSNS;
@@ -29,8 +29,6 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.function.Predicate;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -45,8 +43,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -90,7 +88,6 @@ import org.slf4j.LoggerFactory;
  *     eventually removed. Please migrate to {@link org.apache.beam.sdk.io.aws2.sns.SnsIO} in module
  *     <code>beam-sdks-java-io-amazon-web-services2</code>.
  */
-@Experimental(Kind.SOURCE_SINK)
 @Deprecated
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

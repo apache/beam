@@ -33,6 +33,7 @@ import mock
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+import apache_beam
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
@@ -473,7 +474,9 @@ class TestGCSIO(unittest.TestCase):
       # soon after the GCS API is called.
       pass
     call = get_new_http_mock.return_value.request.mock_calls[-2]
-    self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
+    self.assertIn(
+        "apache-beam/%s (GPN:Beam)" % apache_beam.__version__,
+        call[2]['headers']['User-Agent'])
 
   @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_delete_batch(self, *unused_args):

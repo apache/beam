@@ -940,7 +940,8 @@ try:
       **kwargs: Extra arguments passed to `pandas.read_csv` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
-    return ReadViaPandas('csv', path, splittable=splittable, **kwargs)
+    return 'ReadFromCsv' >> ReadViaPandas(
+        'csv', path, splittable=splittable, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])
@@ -973,7 +974,7 @@ try:
       kwargs['num_shards'] = num_shards
     if file_naming is not None:
       kwargs['file_naming'] = file_naming
-    return WriteViaPandas('csv', path, index=False, **kwargs)
+    return 'WriteToCsv' >> WriteViaPandas('csv', path, index=False, **kwargs)
 
   @append_pandas_args(pandas.read_json, exclude=['path_or_buf'])
   def ReadFromJson(
@@ -992,7 +993,8 @@ try:
       **kwargs: Extra arguments passed to `pandas.read_json` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
-    return ReadViaPandas('json', path, orient=orient, lines=lines, **kwargs)
+    return 'ReadFromJson' >> ReadViaPandas(
+        'json', path, orient=orient, lines=lines, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_json, exclude=['path_or_buf', 'index'])
@@ -1036,7 +1038,8 @@ try:
       kwargs['file_naming'] = file_naming
     if lines is None:
       lines = orient == 'records'
-    return WriteViaPandas('json', path, orient=orient, lines=lines, **kwargs)
+    return 'WriteToJson' >> WriteViaPandas(
+        'json', path, orient=orient, lines=lines, **kwargs)
 
 except ImportError:
 

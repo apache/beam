@@ -29,18 +29,16 @@ import java.io.Serializable;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
 public class KinesisReaderCheckpointTest {
-  /**
-   * This was generated with Beam master branch.
-   * https://github.com/apache/beam/commit/ca0787642a6b3804a742326147281c99ae8d08d2
-   */
+
+  /** This was generated manually. */
   private static final String OLDER_VERSION_SERIALIZED_CHECKPOINT =
-      "rO0ABXNyADtvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIua2luZXNpcy5LaW5lc2lzUmVhZGVyQ2hlY2twb2ludKHLb3bO/6XJAgABTAAQc2hhcmRDaGVja3BvaW50c3QAEExqYXZhL3V0aWwvTGlzdDt4cHNyAF1vcmcuYXBhY2hlLmJlYW0udmVuZG9yLmd1YXZhLnYyNl8wX2pyZS5jb20uZ29vZ2xlLmNvbW1vbi5jb2xsZWN0LkltbXV0YWJsZUxpc3QkU2VyaWFsaXplZEZvcm0AAAAAAAAAAAIAAVsACGVsZW1lbnRzdAATW0xqYXZhL2xhbmcvT2JqZWN0O3hwdXIAE1tMamF2YS5sYW5nLk9iamVjdDuQzlifEHMpbAIAAHhwAAAAAXNyADNvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIua2luZXNpcy5TaGFyZENoZWNrcG9pbnQBb9XvUdq1BwIABkwADnNlcXVlbmNlTnVtYmVydAASTGphdmEvbGFuZy9TdHJpbmc7TAAHc2hhcmRJZHEAfgAJTAARc2hhcmRJdGVyYXRvclR5cGV0AEFMc29mdHdhcmUvYW1hem9uL2F3c3Nkay9zZXJ2aWNlcy9raW5lc2lzL21vZGVsL1NoYXJkSXRlcmF0b3JUeXBlO0wACnN0cmVhbU5hbWVxAH4ACUwAEXN1YlNlcXVlbmNlTnVtYmVydAAQTGphdmEvbGFuZy9Mb25nO0wACXRpbWVzdGFtcHQAF0xvcmcvam9kYS90aW1lL0luc3RhbnQ7eHB0AAI0MnQACXNoYXJkLTAwMH5yAD9zb2Z0d2FyZS5hbWF6b24uYXdzc2RrLnNlcnZpY2VzLmtpbmVzaXMubW9kZWwuU2hhcmRJdGVyYXRvclR5cGUAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0ABVBRlRFUl9TRVFVRU5DRV9OVU1CRVJ0AAlzdHJlYW0tMDFzcgAOamF2YS5sYW5nLkxvbmc7i+SQzI8j3wIAAUoABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwAAAAAAAAAAxw";
+      "rO0ABXNyADtvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmF3czIua2luZXNpcy5LaW5lc2lzUmVhZGVyQ2hlY2twb2ludKHLb3bO/6XJAgABTAAQc2hhcmRDaGVja3BvaW50c3QAEExqYXZhL3V0aWwvTGlzdDt4cHNyAF9vcmcuYXBhY2hlLmJlYW0udmVuZG9yLmd1YXZhLnYzMl8xXzJfanJlLmNvbS5nb29nbGUuY29tbW9uLmNvbGxlY3QuSW1tdXRhYmxlTGlzdCRTZXJpYWxpemVkRm9ybQAAAAAAAAAAAgABWwAIZWxlbWVudHN0ABNbTGphdmEvbGFuZy9PYmplY3Q7eHB1cgATW0xqYXZhLmxhbmcuT2JqZWN0O5DOWJ8QcylsAgAAeHAAAAABc3IAM29yZy5hcGFjaGUuYmVhbS5zZGsuaW8uYXdzMi5raW5lc2lzLlNoYXJkQ2hlY2twb2ludAFv1e9R2rUHAgAGTAAOc2VxdWVuY2VOdW1iZXJ0ABJMamF2YS9sYW5nL1N0cmluZztMAAdzaGFyZElkcQB+AAlMABFzaGFyZEl0ZXJhdG9yVHlwZXQAQUxzb2Z0d2FyZS9hbWF6b24vYXdzc2RrL3NlcnZpY2VzL2tpbmVzaXMvbW9kZWwvU2hhcmRJdGVyYXRvclR5cGU7TAAKc3RyZWFtTmFtZXEAfgAJTAARc3ViU2VxdWVuY2VOdW1iZXJ0ABBMamF2YS9sYW5nL0xvbmc7TAAJdGltZXN0YW1wdAAXTG9yZy9qb2RhL3RpbWUvSW5zdGFudDt4cHQAAjQydAAJc2hhcmQtMDAwfnIAP3NvZnR3YXJlLmFtYXpvbi5hd3NzZGsuc2VydmljZXMua2luZXNpcy5tb2RlbC5TaGFyZEl0ZXJhdG9yVHlwZQAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQAFUFGVEVSX1NFUVVFTkNFX05VTUJFUnQACXN0cmVhbS0wMXNyAA5qYXZhLmxhbmcuTG9uZzuL5JDMjyPfAgABSgAFdmFsdWV4cgAQamF2YS5sYW5nLk51bWJlcoaslR0LlOCLAgAAeHAAAAAAAAAADHA=";
 
   private ShardCheckpoint a =
       new ShardCheckpoint(
@@ -79,13 +77,21 @@ public class KinesisReaderCheckpointTest {
     String serializedCheckpoint = serializeObjectToString(checkpoint);
     KinesisReaderCheckpoint deserializedCheckpoint =
         (KinesisReaderCheckpoint) deSerializeObjectFromString(serializedCheckpoint);
-
-    KinesisReaderCheckpoint olderVersionDeserializedCheckpoint =
-        (KinesisReaderCheckpoint) deSerializeObjectFromString(OLDER_VERSION_SERIALIZED_CHECKPOINT);
-
     assertThat(checkpoint).containsExactlyInAnyOrder(shardCheckpoint);
     assertThat(deserializedCheckpoint).containsExactlyInAnyOrder(shardCheckpoint);
-    assertThat(olderVersionDeserializedCheckpoint).containsExactlyInAnyOrder(shardCheckpoint);
+
+    try {
+      KinesisReaderCheckpoint olderVersionDeserializedCheckpoint =
+          (KinesisReaderCheckpoint)
+              deSerializeObjectFromString(OLDER_VERSION_SERIALIZED_CHECKPOINT);
+      assertThat(olderVersionDeserializedCheckpoint).containsExactlyInAnyOrder(shardCheckpoint);
+    } catch (ClassNotFoundException e) {
+      String errorMessage =
+          String.format(
+              "KinesisReaderCheckpoint may have changed. Consider update OLDER_VERSION_SERIALIZED_CHECKPOINT: \"%s\"",
+              serializedCheckpoint);
+      throw new RuntimeException(errorMessage, e);
+    }
   }
 
   private void verifySplitInto(KinesisReaderCheckpoint checkpoint, int size) {

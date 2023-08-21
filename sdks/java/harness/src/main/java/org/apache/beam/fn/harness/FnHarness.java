@@ -17,9 +17,14 @@
  */
 package org.apache.beam.fn.harness;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import javax.annotation.Nullable;
@@ -54,12 +59,12 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +93,8 @@ public class FnHarness {
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
   private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
+
+  private static final String PIPELINE_OPTIONS_FILE = "PIPELINE_OPTIONS_FILE";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
   private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
@@ -116,11 +123,29 @@ public class FnHarness {
         "Control location %s%n", environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
     System.out.format(
         "Status location %s%n", environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
-    System.out.format("Pipeline options %s%n", environmentVarGetter.apply(PIPELINE_OPTIONS));
-
     String id = environmentVarGetter.apply(HARNESS_ID);
-    PipelineOptions options =
-        PipelineOptionsTranslation.fromJson(environmentVarGetter.apply(PIPELINE_OPTIONS));
+
+    String pipelineOptionsJson = environmentVarGetter.apply(PIPELINE_OPTIONS);
+    // Try looking for a file first. If that exists it should override PIPELINE_OPTIONS to avoid
+    // maxing out the kernel's environment space
+    try {
+      String pipelineOptionsPath = environmentVarGetter.apply(PIPELINE_OPTIONS_FILE);
+      System.out.format("Pipeline Options File %s%n", pipelineOptionsPath);
+      if (pipelineOptionsPath != null) {
+        Path filePath = Paths.get(pipelineOptionsPath);
+        if (Files.exists(filePath)) {
+          System.out.format(
+              "Pipeline Options File %s exists. Overriding existing options.%n",
+              pipelineOptionsPath);
+          pipelineOptionsJson = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
+        }
+      }
+    } catch (Exception e) {
+      System.out.format("Problem loading pipeline options from file: %s%n", e.getMessage());
+    }
+
+    System.out.format("Pipeline options %s%n", pipelineOptionsJson);
+    PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
         getApiServiceDescriptor(environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
@@ -153,7 +178,7 @@ public class FnHarness {
    *
    * @param id Harness ID
    * @param options The options for this pipeline
-   * @param runnerCapabilites
+   * @param runnerCapabilities
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
    * @param statusApiServiceDescriptor
@@ -162,7 +187,7 @@ public class FnHarness {
   public static void main(
       String id,
       PipelineOptions options,
-      Set<String> runnerCapabilites,
+      Set<String> runnerCapabilities,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
       @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
@@ -179,7 +204,7 @@ public class FnHarness {
     main(
         id,
         options,
-        runnerCapabilites,
+        runnerCapabilities,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
         statusApiServiceDescriptor,
@@ -228,7 +253,7 @@ public class FnHarness {
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
     try (BeamFnLoggingClient logging =
-        new BeamFnLoggingClient(
+        BeamFnLoggingClient.createAndStart(
             options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
       LOG.info("Fn Harness started");
       // Register standard file systems.
@@ -353,11 +378,13 @@ public class FnHarness {
               outboundObserverFactory,
               executorService,
               handlers);
-      control.waitForTermination();
+      CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();
       }
       processBundleHandler.shutdown();
+    } catch (Exception e) {
+      System.out.println("Shutting down harness due to exception: " + e.toString());
     } finally {
       System.out.println("Shutting SDK harness down.");
       executionStateSampler.stop();

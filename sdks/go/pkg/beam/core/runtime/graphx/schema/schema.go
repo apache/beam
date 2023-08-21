@@ -93,6 +93,8 @@ func getUUID(ut reflect.Type) string {
 // the schema package.
 func (r *Registry) Registered(ut reflect.Type) bool {
 	r.reconcileRegistrations()
+	r.rwmu.RLock()
+	defer r.rwmu.RUnlock()
 	_, ok := r.syntheticToUser[ut]
 	return ok
 }
@@ -103,11 +105,15 @@ var sdfRtrackerType = reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
 // a synthetic type so we can map from the synthetic type back to the user type.
 // Recursively registers other named struct types in any component parts.
 func (r *Registry) RegisterType(ut reflect.Type) {
+	r.rwmu.Lock()
+	defer r.rwmu.Unlock()
 	r.toReconcile = append(r.toReconcile, ut)
 }
 
 // reconcileRegistrations actually finishes the registration process.
 func (r *Registry) reconcileRegistrations() (deferedErr error) {
+	r.rwmu.Lock()
+	defer r.rwmu.Unlock()
 	var ut reflect.Type
 	defer func() {
 		if r := recover(); r != nil {
@@ -196,6 +202,7 @@ func ignoreField(t reflect.Type, sf reflect.StructField) (ignore, isAnon bool, e
 	return false, false, nil
 }
 
+// registerType must only be called when the r.rwmu write Lock is held.
 func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{}) error {
 	// Ignore rtrackers.
 	if implements(ut, sdfRtrackerType) {
@@ -293,6 +300,7 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 	return nil
 }
 
+// registerType must only be called when the r.rwmu write Lock is held.
 func (r *Registry) addToMaps(synth, ut reflect.Type) {
 	synth = reflectx.SkipPtr(synth)
 	ut = reflectx.SkipPtr(ut)
@@ -683,9 +691,12 @@ func (r *Registry) ToType(s *pipepb.Schema) (reflect.Type, error) {
 	if err := r.reconcileRegistrations(); err != nil {
 		return nil, errors.Wrap(err, "reconciling for ToType")
 	}
+	r.rwmu.RLock()
+	defer r.rwmu.RUnlock()
 	return r.toType(s)
 }
 
+// toType must only be called while holding the r.rwmu lock (read or write)
 func (r *Registry) toType(s *pipepb.Schema) (reflect.Type, error) {
 	if t, ok := r.idToType[s.GetId()]; ok {
 		return t, nil

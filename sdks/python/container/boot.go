@@ -157,20 +157,33 @@ func launchSDKProcess() error {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
-	venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
-	if err != nil {
-		return errors.New("failed to initialize Python venv")
+	// Create a separate virtual environment (with access to globally installed packages), unless disabled by the user.
+	// This improves usability on runners that persist the execution environment for the boot entrypoint between multiple pipeline executions.
+	if os.Getenv("RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT") == "" {
+		venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
+		if err != nil {
+			return errors.New(
+				"failed to create a virtual environment. If running on Ubuntu systems, " +
+					"you might need to install `python3-venv` package. " +
+					"To run the SDK process in default environment instead, " +
+					"set the environment variable `RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT=1`. " +
+					"In custom Docker images, you can do that with an `ENV` statement. " +
+					fmt.Sprintf("Encountered error: %v", err))
+		}
+		cleanupFunc := func() {
+			os.RemoveAll(venvDir)
+			logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
+		}
+		defer cleanupFunc()
 	}
-	cleanupFunc := func() {
-		os.RemoveAll(venvDir)
-		logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
-	}
-	defer cleanupFunc()
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve staged files: %v", err)
+		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
+		// Send error message to logging service before returning up the call stack
+		logger.Errorf(ctx, fmtErr.Error())
+		return fmtErr
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It
@@ -188,7 +201,10 @@ func launchSDKProcess() error {
 	}
 
 	if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
-		return fmt.Errorf("failed to install required packages: %v", setupErr)
+		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
+		// Send error message to logging service before returning up the call stack
+		logger.Errorf(ctx, fmtErr.Error())
+		return fmtErr
 	}
 
 	// (3) Invoke python
@@ -232,7 +248,7 @@ func launchSDKProcess() error {
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
 				time.Sleep(5 * time.Second)
 				if err := syscall.Kill(-pid, syscall.SIGKILL); err == nil {
-					logger.Printf(ctx, "Worker process %v did not respond, killed it.", pid)
+					logger.Warnf(ctx, "Worker process %v did not respond, killed it.", pid)
 				}
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
@@ -268,7 +284,7 @@ func launchSDKProcess() error {
 					// DoFns throwing exceptions.
 					errorCount += 1
 					if errorCount < 4 {
-						logger.Printf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
+						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
 						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
@@ -308,9 +324,8 @@ func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.C
 
 // setupVenv initializes a local Python venv and sets the corresponding env variables
 func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId string) (string, error) {
-	logger.Printf(ctx, "Initializing temporary Python venv ...")
-
 	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
+	logger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
 		logger.Printf(ctx, "Cleaning up previous venv ...")
@@ -362,6 +377,11 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
+	pkgName := "apache-beam"
+	isSdkInstalled := isPackageInstalled(pkgName)
+	if !isSdkInstalled {
+		return fmt.Errorf("Apache Beam is not installed in the runtime environment. If you use a custom container image, you must install apache-beam package in the custom image using same version of Beam as in the pipeline submission environment. For more information, see: the https://beam.apache.org/documentation/runtime/environments/.")
+	}
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.

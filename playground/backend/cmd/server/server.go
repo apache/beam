@@ -16,12 +16,12 @@
 package main
 
 import (
+	"beam.apache.org/playground/backend/internal/external_functions"
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
+	"os"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -32,8 +32,6 @@ import (
 	"beam.apache.org/playground/backend/internal/db/datastore"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
-	"beam.apache.org/playground/backend/internal/db/schema"
-	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tasks"
@@ -67,21 +65,26 @@ func runServer() error {
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	// Database setup only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
+		externalFunctions := external_functions.NewExternalFunctionsComponent(envService.ApplicationEnvs)
+
 		props, err = environment.NewProperties(envService.ApplicationEnvs.PropertyPath())
 		if err != nil {
 			return err
 		}
 
-		dbClient, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), envService.ApplicationEnvs.GoogleProjectId())
+		dbClient, err = datastore.New(ctx, mapper.NewPrecompiledObjectMapper(), externalFunctions, envService.ApplicationEnvs.GoogleProjectId())
 		if err != nil {
 			return err
 		}
 
 		downloadCatalogsToDatastoreEmulator(ctx)
 
-		if err = setupDBStructure(ctx, dbClient, &envService.ApplicationEnvs, props); err != nil {
+		migrationVersion, err := dbClient.GetCurrentDbMigrationVersion(ctx)
+		if err != nil {
 			return err
 		}
+
+		envService.ApplicationEnvs.SetSchemaVersion(migrationVersion)
 
 		sdks, err := setupSdkCatalog(ctx, cacheService, dbClient)
 		if err != nil {
@@ -97,7 +100,7 @@ func runServer() error {
 
 		// Since only router server has the scheduled task, the task creation is here
 		scheduledTasks := tasks.New(ctx)
-		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, props.RemovingUnusedSnptsDays, dbClient); err != nil {
+		if err = scheduledTasks.StartRemovingExtraSnippets(props.RemovingUnusedSnptsCron, externalFunctions); err != nil {
 			return err
 		}
 	}
@@ -221,26 +224,6 @@ func setupExamplesCatalogFromDatastore(ctx context.Context, cacheService cache.C
 			return err
 		}
 	}
-	return nil
-}
-
-// setupDBStructure initializes the data structure
-func setupDBStructure(ctx context.Context, db db.Database, appEnv *environment.ApplicationEnvs, props *environment.Properties) error {
-	versions := []schema.Version{
-		new(migration.InitialStructure),
-		new(migration.AddingComplexityProperty),
-	}
-	dbSchema := schema.New(ctx, db, appEnv, props, versions)
-	actualSchemaVersion, err := dbSchema.InitiateData()
-	if err != nil {
-		return err
-	}
-	if actualSchemaVersion == "" {
-		errMsg := "schema version must not be empty"
-		logger.Error(errMsg)
-		return fmt.Errorf(errMsg)
-	}
-	appEnv.SetSchemaVersion(actualSchemaVersion)
 	return nil
 }
 

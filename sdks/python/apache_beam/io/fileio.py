@@ -119,7 +119,6 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -259,7 +258,6 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-@experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
@@ -502,7 +500,6 @@ class FileResult(_FileResult):
   pass
 
 
-@experimental()
 class WriteToFiles(beam.PTransform):
   r"""Write the incoming PCollection to a set of output files.
 

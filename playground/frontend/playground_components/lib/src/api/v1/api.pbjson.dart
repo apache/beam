@@ -325,11 +325,12 @@ const PrecompiledObject$json = const {
     const {'1': 'url_vcs', '3': 14, '4': 1, '5': 9, '10': 'urlVcs'},
     const {'1': 'url_notebook', '3': 15, '4': 1, '5': 9, '10': 'urlNotebook'},
     const {'1': 'always_run', '3': 16, '4': 1, '5': 8, '10': 'alwaysRun'},
+    const {'1': 'never_run', '3': 17, '4': 1, '5': 8, '10': 'neverRun'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncxIrCghkYXRhc2V0cxgNIAMoCzIPLmFwaS52MS5EYXRhc2V0UghkYXRhc2V0cxIXCgd1cmxfdmNzGA4gASgJUgZ1cmxWY3MSIQoMdXJsX25vdGVib29rGA8gASgJUgt1cmxOb3RlYm9vaxIdCgphbHdheXNfcnVuGBAgASgIUglhbHdheXNSdW4=');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxlEh0KA3NkaxgKIAEoDjILLmFwaS52MS5TZGtSA3NkaxIyCgpjb21wbGV4aXR5GAsgASgOMhIuYXBpLnYxLkNvbXBsZXhpdHlSCmNvbXBsZXhpdHkSEgoEdGFncxgMIAMoCVIEdGFncxIrCghkYXRhc2V0cxgNIAMoCzIPLmFwaS52MS5EYXRhc2V0UghkYXRhc2V0cxIXCgd1cmxfdmNzGA4gASgJUgZ1cmxWY3MSIQoMdXJsX25vdGVib29rGA8gASgJUgt1cmxOb3RlYm9vaxIdCgphbHdheXNfcnVuGBAgASgIUglhbHdheXNSdW4SGwoJbmV2ZXJfcnVuGBEgASgIUghuZXZlclJ1bg==');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',

@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.PAUSE
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.RUNNING;
 import static org.apache.beam.sdk.io.aws2.kinesis.EFOShardSubscriber.State.STOPPED;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import io.netty.channel.ChannelException;
 import java.nio.channels.ClosedChannelException;
@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.reactivestreams.Subscriber;
@@ -56,7 +56,6 @@ class EFOShardSubscriber {
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscriber.class);
-  private static final Integer IN_FLIGHT_LIMIT = 10;
 
   private final EFOShardSubscribersPool pool;
   private final String consumerArn;
@@ -148,7 +147,7 @@ class EFOShardSubscriber {
 
           if (error != null && isRetryable(error) && state != STOPPED) {
             String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
-            if (inFlight.get() == IN_FLIGHT_LIMIT) {
+            if (inFlight.get() == pool.getMaxCapacityPerShard()) {
               state = PAUSED;
             } else {
               if (lastContinuationSequenceNumber != null) {
@@ -260,7 +259,7 @@ class EFOShardSubscriber {
     if (state == PAUSED) {
       state = RUNNING;
       internalReSubscribe(checkStateNotNull(eventsSubscriber.sequenceNumber));
-    } else if (prevInFlight == IN_FLIGHT_LIMIT) {
+    } else if (prevInFlight == pool.getMaxCapacityPerShard()) {
       Subscription s = eventsSubscriber.subscription;
       if (s != null) {
         s.request(1);
@@ -296,7 +295,7 @@ class EFOShardSubscriber {
       this.subscription = subscription;
       if (state == STOPPED) {
         cancel();
-      } else if (inFlight.get() < IN_FLIGHT_LIMIT) {
+      } else if (inFlight.get() < pool.getMaxCapacityPerShard()) {
         subscription.request(1);
       }
     }
@@ -313,9 +312,9 @@ class EFOShardSubscriber {
     public void visit(SubscribeToShardEvent event) {
       pool.enqueueEvent(shardId, event);
       sequenceNumber = event.continuationSequenceNumber();
-      int currentInFlight = inFlight.incrementAndGet();
-      checkState(currentInFlight <= IN_FLIGHT_LIMIT, "Exceeded in-flight limit");
-      if (currentInFlight < IN_FLIGHT_LIMIT && subscription != null) {
+      int capacity = pool.getMaxCapacityPerShard() - inFlight.incrementAndGet();
+      checkState(capacity >= 0, "Exceeded in-flight limit");
+      if (capacity > 0 && subscription != null) {
         subscription.request(1);
       }
     }

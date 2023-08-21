@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,8 +50,6 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -62,7 +60,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // CHECKSTYLE.OFF: JavadocStyle
@@ -126,7 +124,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     org.apache.beam.sdk.extensions.avro.io.AvroSource</code> instead of this one.
  */
 // CHECKSTYLE.ON: JavadocStyle
-@Experimental(Kind.SOURCE_SINK)
+
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -556,7 +554,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    *
    * @param <T> The type of records stored in the block.
    */
-  @Experimental(Kind.SOURCE_SINK)
   static class AvroBlock<T> extends Block<T> {
 
     // The current record in the block. Initialized in readNextRecord.
@@ -611,7 +608,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    *
    * @param <T> The type of records contained in the block.
    */
-  @Experimental(Kind.SOURCE_SINK)
   public static class AvroReader<T> extends BlockBasedReader<T> {
 
     private static class SeekableChannelInput implements SeekableInput {

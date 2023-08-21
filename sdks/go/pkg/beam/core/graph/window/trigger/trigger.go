@@ -13,8 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package trigger helps construct aggregation triggers. It defines the trigger API
-// for Go SDK. It is experimental and subject to change.
+// Package trigger helps construct aggregation triggers with beam.WindowInto.
 package trigger
 
 import (

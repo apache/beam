@@ -25,8 +25,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
@@ -42,11 +42,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -290,7 +290,8 @@ public class TestTableProviderWithFilterPushDown {
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
         .properties(
-            JSON.parseObject("{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
+            TableUtils.parseProperties(
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }

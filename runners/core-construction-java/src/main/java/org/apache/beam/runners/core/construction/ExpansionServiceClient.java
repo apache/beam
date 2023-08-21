@@ -22,4 +22,7 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 /** A high-level client for a cross-language expansion service. */
 public interface ExpansionServiceClient extends AutoCloseable {
   ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request);
+
+  ExpansionApi.DiscoverSchemaTransformResponse discover(
+      ExpansionApi.DiscoverSchemaTransformRequest request);
 }

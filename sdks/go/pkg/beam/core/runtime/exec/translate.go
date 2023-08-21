@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -192,7 +193,11 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 
 		input := unmarshalKeyedValues(transform.GetInputs())
 		for i, from := range input {
-			succ[from] = append(succ[from], linkID{id, i})
+			// We don't need to multiplex successors for pardo side inputs.
+			// so we only do so for SDK side Flattens.
+			if i == 0 || transform.GetSpec().GetUrn() == graphx.URNFlatten {
+				succ[from] = append(succ[from], linkID{id, i})
+			}
 		}
 		output := unmarshalKeyedValues(transform.GetOutputs())
 		for _, to := range output {
@@ -462,6 +467,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		var data string
 		var sides map[string]*pipepb.SideInput
 		var userState map[string]*pipepb.StateSpec
+		var userTimers map[string]*pipepb.TimerFamilySpec
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -475,6 +481,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			data = string(pardo.GetDoFn().GetPayload())
 			sides = pardo.GetSideInputs()
 			userState = pardo.GetStateSpecs()
+			userTimers = pardo.GetTimerFamilySpecs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -586,6 +593,21 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							}
 							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 						}
+					}
+
+					if len(userTimers) > 0 {
+						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
+
+						familyToSpec := map[string]timerFamilySpec{}
+						for fam, spec := range userTimers {
+							domain := timers.TimeDomain(spec.GetTimeDomain())
+							timerCoder, err := b.coders.Coder(spec.GetTimerFamilyCoderId())
+							if err != nil {
+								return nil, errors.WithContextf(err, "couldn't retreive coder for timer %v in DoFn %v, ID %v", fam, dofn.Name(), n.PID)
+							}
+							familyToSpec[fam] = newTimerFamilySpec(domain, timerCoder)
+						}
+						n.TimerTracker = newUserTimerAdapter(sID, familyToSpec)
 					}
 
 					for i := 1; i < len(input); i++ {
@@ -713,7 +735,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
 			// the DataSource that preceeds them.
-			trueOut := out[0].(*PCollection).Out
+			trueOut := out[0]
+			if pcol, ok := trueOut.(*PCollection); ok {
+				trueOut = pcol.Out
+			}
 			b.units = b.units[:len(b.units)-1]
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 

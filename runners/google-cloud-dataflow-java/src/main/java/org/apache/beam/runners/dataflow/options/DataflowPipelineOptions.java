@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.google.api.services.dataflow.Dataflow;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;
@@ -51,7 +51,6 @@ public interface DataflowPipelineOptions
         BigQueryOptions,
         GcsOptions,
         StreamingOptions,
-        CloudDebuggerOptions,
         DataflowWorkerLoggingOptions,
         DataflowProfilingOptions,
         PubsubOptions {
@@ -119,7 +118,6 @@ public interface DataflowPipelineOptions
   void setDataflowServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
-  @Experimental
   @Description("Run the job as a specific service account, instead of the default GCE robot.")
   String getServiceAccount();
 
@@ -139,6 +137,25 @@ public interface DataflowPipelineOptions
 
   void setRegion(String region);
 
+  /**
+   * Dataflow endpoint to use.
+   *
+   * <p>Defaults to the current version of the Google Cloud Dataflow API, at the time the current
+   * SDK version was released.
+   *
+   * <p>If the string contains "://", then this is treated as a URL, otherwise {@link
+   * #getApiRootUrl()} is used as the root URL.
+   */
+  @Description(
+      "The URL for the Dataflow API. If the string contains \"://\", this"
+          + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
+  @Override
+  @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
+  String getDataflowEndpoint();
+
+  @Override
+  void setDataflowEndpoint(String value);
+
   /** Labels that will be applied to the billing records for this job. */
   @Description("Labels that will be applied to the billing records for this job.")
   Map<String, String> getLabels();
@@ -154,7 +171,7 @@ public interface DataflowPipelineOptions
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
-  void setDataflowWorkerJar(String dataflowWorkerJar);
+  void setDataflowWorkerJar(String dataflowWorkerJafr);
 
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {

@@ -199,7 +199,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     }
 
 CronJobBuilder.cronJob(
-    'beam_Inference_Python_Benchmarks_Dataflow', 'H 15 * * *',
+    'beam_Inference_Python_Benchmarks_Dataflow', 'H H * * *',
     this
     ) {
       loadTestJob(delegate)

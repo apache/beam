@@ -24,6 +24,7 @@ import Flink
 import InfluxDBCredentialsHelper
 
 import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+import static LoadTestsBuilder.DOCKER_BEAM_JOBSERVER
 import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
@@ -76,7 +77,8 @@ def batchScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 10,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -102,7 +104,8 @@ def batchScenarios = { datasetName ->
     //                         input_options        : '\'{' +
     //                                 '"num_records": 20000000,' +
     //                                 '"key_size": 10,' +
-    //                                 '"value_size": 90}\'',
+    //                                 '"value_size": 90,' +
+    //                                 '"algorithm": "lcg"}\'',
     //                         iterations           : 200,
     //                         number_of_counter_operations: 0,
     //                         number_of_counters   : 0,
@@ -126,7 +129,8 @@ def batchScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 10,
         number_of_counters   : 1,
@@ -150,7 +154,8 @@ def batchScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 100,
         number_of_counters   : 1,
@@ -180,7 +185,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 10,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -208,7 +214,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 200,
         number_of_counter_operations: 0,
         number_of_counters   : 0,
@@ -234,7 +241,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 10,
         number_of_counters   : 1,
@@ -260,7 +268,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 20000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 1,
         number_of_counter_operations: 100,
         number_of_counters   : 1,
@@ -286,7 +295,8 @@ def streamingScenarios = { datasetName ->
         input_options        : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
-        '"value_size": 90}\'',
+        '"value_size": 90,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 5,
         number_of_counter_operations: 10,
         number_of_counters   : 3,
@@ -320,7 +330,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
+      "${DOCKER_BEAM_JOBSERVER}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', mode)
 }
@@ -345,7 +355,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
@@ -354,7 +364,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', 
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 12 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H H * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,

@@ -1,0 +1,99 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PostCommit Go Dataflow ARM
+
+on:
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
+    paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml']
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
+
+jobs:
+  beam_PostCommit_Go_Dataflow_ARM:
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Go PostCommit Dataflow ARM'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PostCommit_Go_Dataflow_ARM"]
+        job_phrase: ["Run Go PostCommit Dataflow ARM"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Authenticate on GCP
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker us.gcr.io
+      - name: run goPostCommitDataflowARM script
+        run: ./gradlew :goPostCommitDataflowARM
+        env:
+          USER: github-actions

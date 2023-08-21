@@ -24,3 +24,6 @@ intents:
     showSuggestions: 'Show Suggestions'
     viewOnGithub: 'View on GitHub'
     usesEmulatedData: 'This examples uses emulated data'
+
+ui:
+  feedbackTitle: 'Enjoying Playground?'

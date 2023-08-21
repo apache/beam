@@ -108,6 +108,7 @@ class CommonJobProperties {
       credentialsBinding {
         string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+        usernamePassword("GRADLE_ENTERPRISE_CACHE_USERNAME", "GRADLE_ENTERPRISE_CACHE_PASSWORD", "beam_cache_node_credentials")
       }
       timestamps()
       colorizeOutput()
@@ -228,20 +229,13 @@ class CommonJobProperties {
   static void setAutoJob(context,
       String buildSchedule = 'H H/6 * * *',
       notifyAddress = 'builds@beam.apache.org',
-      triggerOnCommit = false,
       emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(buildSchedule)
-
-      if (triggerOnCommit){
-        githubPush()
-      }
     }
-
-
 
     context.publishers {
       // Notify an email address for each failed build (defaults to builds@).

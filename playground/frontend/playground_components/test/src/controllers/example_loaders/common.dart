@@ -21,7 +21,9 @@ import 'package:playground_components/src/controllers/example_loaders/example_lo
 import 'package:playground_components/src/controllers/example_loaders/example_loader_factory.dart';
 
 class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  @override
   final Sdk? sdk;
+
   final bool succeed;
 
   const TestExampleLoadingDescriptor(
@@ -37,6 +39,9 @@ class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   Map<String, dynamic> toJson() => throw UnimplementedError();
+
+  @override
+  bool get isSerializableToUrl => true;
 }
 
 class TestExampleLoader extends ExampleLoader {

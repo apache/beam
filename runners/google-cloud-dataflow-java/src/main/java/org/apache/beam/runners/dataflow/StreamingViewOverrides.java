@@ -28,11 +28,14 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /**
  * Dataflow streaming overrides for {@link CreatePCollectionView}, specialized for different view
@@ -63,8 +66,23 @@ class StreamingViewOverrides {
 
       @Override
       public PCollection<ElemT> expand(PCollection<ElemT> input) {
-        return input
-            .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
+        PCollection<List<ElemT>> elements;
+        if (view.getViewFn() instanceof PCollectionViews.IsSingletonView) {
+          elements =
+              input.apply(
+                  ParDo.of(
+                      new DoFn<ElemT, List<ElemT>>() {
+                        @DoFn.ProcessElement
+                        public void process(@Element ElemT elemT, OutputReceiver<List<ElemT>> o) {
+                          List<ElemT> elements = Lists.newArrayListWithExpectedSize(1);
+                          elements.add(elemT);
+                          o.output(elements);
+                        }
+                      }));
+        } else {
+          elements = input.apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults());
+        }
+        return elements
             .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
             .apply(CreateDataflowView.forStreaming(view));
       }

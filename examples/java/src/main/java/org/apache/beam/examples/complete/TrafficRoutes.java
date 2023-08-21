@@ -24,7 +24,7 @@ package org.apache.beam.examples.complete;
 //     of predefined 'routes', and looks for 'slowdowns' in those routes. It writes its
 //     results to a BigQuery table.
 //   multifile: true
-//   context_line: 97
+//   context_line: 399
 //   categories:
 //     - Combiners
 //     - Streaming
@@ -71,7 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;

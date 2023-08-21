@@ -24,7 +24,7 @@ import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.internal.TopicStatsClientSettings;
 import java.io.Serializable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
 
 @AutoValue
 abstract class TopicBacklogReaderSettings implements Serializable {

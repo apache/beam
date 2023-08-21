@@ -83,7 +83,7 @@ STANDARD_QUERY = (
 NEW_TYPES_QUERY = ('SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
 DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
-DIALECT_OUTPUT_EXPECTED = [(u'apple', ), (u'orange', )]
+DIALECT_OUTPUT_EXPECTED = [('apple', ), ('orange', )]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):

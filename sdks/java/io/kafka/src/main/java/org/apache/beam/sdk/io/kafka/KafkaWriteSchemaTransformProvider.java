@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -35,18 +37,23 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class KafkaWriteSchemaTransformProvider
@@ -56,6 +63,13 @@ public class KafkaWriteSchemaTransformProvider
   public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
+      new TupleTag<KV<byte[], byte[]>>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
+  private static final Logger LOG =
+      LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
@@ -77,48 +91,75 @@ public class KafkaWriteSchemaTransformProvider
     return new KafkaWriteSchemaTransform(configuration);
   }
 
-  static final class KafkaWriteSchemaTransform implements SchemaTransform, Serializable {
+  static final class KafkaWriteSchemaTransform extends SchemaTransform implements Serializable {
     final KafkaWriteSchemaTransformConfiguration configuration;
 
     KafkaWriteSchemaTransform(KafkaWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
-    @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          Schema inputSchema = input.get("input").getSchema();
-          final SerializableFunction<Row, byte[]> toBytesFn =
-              configuration.getFormat().equals("JSON")
-                  ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-                  : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+    public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {
+      private SerializableFunction<Row, byte[]> toBytesFn;
+      private Counter errorCounter;
+      private Long errorsInBundle = 0L;
 
-          final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
+      public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
+        this.toBytesFn = toBytesFn;
+        errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
+      }
+
+      @ProcessElement
+      public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
+        try {
+          receiver.get(OUTPUT_TAG).output(KV.of(new byte[1], toBytesFn.apply(row)));
+        } catch (Exception e) {
+          errorsInBundle += 1;
+          LOG.warn("Error while processing the element", e);
+          receiver
+              .get(ERROR_TAG)
+              .output(Row.withSchema(ERROR_SCHEMA).addValues(e.toString(), row.toString()).build());
+        }
+      }
+
+      @FinishBundle
+      public void finish() {
+        errorCounter.inc(errorsInBundle);
+        errorsInBundle = 0L;
+      }
+    }
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      Schema inputSchema = input.get("input").getSchema();
+      final SerializableFunction<Row, byte[]> toBytesFn =
+          configuration.getFormat().equals("JSON")
+              ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
+              : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+
+      final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
+      PCollectionTuple outputTuple =
           input
               .get("input")
               .apply(
-                  "Map Rows to Kafka Messages",
-                  MapElements.via(
-                      new SimpleFunction<Row, KV<byte[], byte[]>>(
-                          row -> KV.of(new byte[1], toBytesFn.apply(row))) {}))
-              .apply(
-                  KafkaIO.<byte[], byte[]>write()
-                      .withTopic(configuration.getTopic())
-                      .withBootstrapServers(configuration.getBootstrapServers())
-                      .withProducerConfigUpdates(
-                          configOverrides == null
-                              ? new HashMap<>()
-                              : new HashMap<String, Object>(configOverrides))
-                      .withKeySerializer(ByteArraySerializer.class)
-                      .withValueSerializer(ByteArraySerializer.class));
-          return PCollectionRowTuple.empty(input.getPipeline());
-        }
-      };
+                  "Map rows to Kafka messages",
+                  ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
+                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+      outputTuple
+          .get(OUTPUT_TAG)
+          .apply(
+              KafkaIO.<byte[], byte[]>write()
+                  .withTopic(configuration.getTopic())
+                  .withBootstrapServers(configuration.getBootstrapServers())
+                  .withProducerConfigUpdates(
+                      configOverrides == null
+                          ? new HashMap<>()
+                          : new HashMap<String, Object>(configOverrides))
+                  .withKeySerializer(ByteArraySerializer.class)
+                  .withValueSerializer(ByteArraySerializer.class));
+
+      return PCollectionRowTuple.of(
+          "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
   }
 

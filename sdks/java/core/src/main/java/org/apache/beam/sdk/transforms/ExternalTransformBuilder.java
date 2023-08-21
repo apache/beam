@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PInput;
@@ -42,7 +40,6 @@ import org.apache.beam.sdk.values.POutput;
  * @param <InputT> The input type of the externally configured PTransform.
  * @param <OutputT> The output type of the externally configured PTransform.
  */
-@Experimental(Kind.PORTABILITY)
 public interface ExternalTransformBuilder<ConfigT, InputT extends PInput, OutputT extends POutput> {
 
   /** Builds the transform after it has been configured. */
