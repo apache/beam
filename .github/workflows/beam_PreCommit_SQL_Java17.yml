@@ -18,26 +18,26 @@ name: PreCommit SQL Java17
 on:
   push:
     tags: ['v*']
-    branches: ['master', 'release-*']
+    branches: ['master', 'release-*', 'JUnit_Test*']
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java17.yml']
   pull_request_target:
-    branches: ['master', 'release-*']
+    branches: ['master', 'release-*', 'JUnit_Test*']
     paths: [sdks/java/extensions/sql/**]
   issue_comment:
     types: [created]
-  # schedule:
-  #   - cron: '0 */6 * * *'
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
+  pull-requests: write
   checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -48,7 +48,7 @@ permissions:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   beam_PreCommit_SQL_Java17:
@@ -67,8 +67,6 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: be2c4e66155853d94acf13369ee337d67ea1be68
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -106,9 +104,13 @@ jobs:
         with:
           name: JUnit Test Results
           path: '**/build/test-results/**/*.xml'
-      - name: Publish Spotbugs Results
-        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+      - name: Archive SpotBugs Results
+        uses: actions/upload-artifact@v2
+        with:
+          name: SpotBugs Results
+          path: '**/build/reports/spotbugs/*.html'
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          name: Spotbugs
-          path: '**/build/reports/spotbugs/*.html'
+          files: '**/build/test-results/**/*.xml'
