@@ -64,7 +64,7 @@ For more information on changes in 2.50.0, check out the [detailed release notes
 ## Breaking Changes
 
 * Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
-* [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
+* Python SDK: Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Deprecations
 
