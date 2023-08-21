@@ -269,6 +269,10 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
   }
 
   public AvroSource<AvroT, T> withEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment) {
+    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      // emptyMatchTreatment is unused for mode SINGLE_FILE_OR_SUBRANGE
+      return this;
+    }
     return new AvroSource<>(
         getFileOrPatternSpecProvider(), emptyMatchTreatment, getMinBundleSize(), mode);
   }
@@ -281,19 +285,7 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
   public <X> AvroSource<X, X> withSchema(Class<X> clazz, String schema) {
     checkArgument(clazz != null, "clazz can not be null");
     checkArgument(schema != null, "schema can not be null");
-    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
-      return new AvroSource<>(
-          getSingleFileMetadata(),
-          getMinBundleSize(),
-          getStartOffset(),
-          getEndOffset(),
-          mode.withSchema(clazz, schema));
-    }
-    return new AvroSource<>(
-        getFileOrPatternSpecProvider(),
-        getEmptyMatchTreatment(),
-        getMinBundleSize(),
-        mode.withSchema(clazz, schema));
+    return updateSourceMode(this, mode.withSchema(clazz, schema));
   }
 
   /** Like {@link #withSchema(String)}. */
@@ -310,19 +302,7 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X, X> withSchema(Class<X> clazz) {
     checkArgument(clazz != null, "clazz can not be null");
-    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
-      return new AvroSource<>(
-          getSingleFileMetadata(),
-          getMinBundleSize(),
-          getStartOffset(),
-          getEndOffset(),
-          mode.withSchema(clazz));
-    }
-    return new AvroSource<>(
-        getFileOrPatternSpecProvider(),
-        getEmptyMatchTreatment(),
-        getMinBundleSize(),
-        mode.withSchema(clazz));
+    return updateSourceMode(this, mode.withSchema(clazz));
   }
 
   /**
@@ -333,19 +313,7 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
       SerializableFunction<AvroT, X> parseFn, Coder<X> coder) {
     checkArgument(parseFn != null, "parseFn can not be null");
     checkArgument(coder != null, "coder can not be null");
-    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
-      return new AvroSource<>(
-          getSingleFileMetadata(),
-          getMinBundleSize(),
-          getStartOffset(),
-          getEndOffset(),
-          mode.withParseFunction(parseFn, coder));
-    }
-    return new AvroSource<>(
-        getFileOrPatternSpecProvider(),
-        getEmptyMatchTreatment(),
-        getMinBundleSize(),
-        mode.withParseFunction(parseFn, coder));
+    return updateSourceMode(this, mode.withParseFunction(parseFn, coder));
   }
 
   /**
@@ -367,25 +335,13 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
    */
   public AvroSource<AvroT, T> withDatumReaderFactory(DatumReaderFactory<AvroT> factory) {
     checkArgument(factory != null, "factory can not be null");
-    Mode<AvroT, T> newMode = mode.withReaderFactory(factory);
-    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
-      return new AvroSource<>(
-          getSingleFileMetadata(), getMinBundleSize(), getStartOffset(), getEndOffset(), newMode);
-    }
-    return new AvroSource<>(
-        getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), getMinBundleSize(), newMode);
+    return updateSourceMode(this, mode.withReaderFactory(factory));
   }
 
   /** Specifies the coder for the result of the {@code AvroSource}. */
   public AvroSource<AvroT, T> withCoder(Coder<T> coder) {
     checkArgument(coder != null, "coder can not be null");
-    Mode<AvroT, T> newMode = mode.withCoder(coder);
-    if (getMode() == SINGLE_FILE_OR_SUBRANGE) {
-      return new AvroSource<>(
-          getSingleFileMetadata(), getMinBundleSize(), getStartOffset(), getEndOffset(), newMode);
-    }
-    return new AvroSource<>(
-        getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), getMinBundleSize(), newMode);
+    return updateSourceMode(this, mode.withCoder(coder));
   }
 
   /** Constructor for FILEPATTERN mode. */
@@ -407,6 +363,24 @@ public class AvroSource<AvroT, T> extends BlockBasedSource<T> {
       Mode<AvroT, T> mode) {
     super(metadata, minBundleSize, startOffset, endOffset);
     this.mode = mode;
+  }
+
+  /** Constructor from old source and new mode. */
+  private static <AvroT, T> AvroSource<AvroT, T> updateSourceMode(
+      AvroSource<?, ?> oldSource, Mode<AvroT, T> newMode) {
+    if (oldSource.getMode() == SINGLE_FILE_OR_SUBRANGE) {
+      return new AvroSource<>(
+          oldSource.getSingleFileMetadata(),
+          oldSource.getMinBundleSize(),
+          oldSource.getStartOffset(),
+          oldSource.getEndOffset(),
+          newMode);
+    }
+    return new AvroSource<>(
+        oldSource.getFileOrPatternSpecProvider(),
+        oldSource.getEmptyMatchTreatment(),
+        oldSource.getMinBundleSize(),
+        newMode);
   }
 
   @Override
