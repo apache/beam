@@ -52,14 +52,15 @@ Row(x=array([0.42857143, 0.14285715, 1.        ], dtype=float32), x_max=array([8
   return expected
 
 
-def check_mltranform_compute_and_apply_vocab_scalar():
-  expected = '''[START mltransform_compute_and_apply_vocab_scalar]
+def check_mltransform_compute_and_apply_vocabulary_with_scalar():
+  expected = '''[START mltransform_compute_and_apply_vocabulary_with_scalar]
 Row(x=array([4]))
 Row(x=array([1]))
 Row(x=array([0]))
 Row(x=array([2]))
 Row(x=array([3]))
-  [END mltransform_compute_and_apply_vocab_scalar] '''.splitlines()[1:-1]
+  [END mltransform_compute_and_apply_vocabulary_with_scalar] '''.splitlines(
+  )[1:-1]
   return expected
 
 

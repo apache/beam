@@ -88,6 +88,7 @@ The example takes a list of ints and converts them into the range of 0 to 1 usin
 This example creates a pipeline that use `MLTransform` to compute vocabulary on the entire dataset and assign indices to each unique vocabulary item.
 It takes a list of strings, computes vocabulary over the entire dataset, and then applies a unique index to each vocabulary item.
 
+
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform.py"
   class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform.py" mltransform_compute_and_apply_vocabulary >}}
@@ -97,8 +98,9 @@ It takes a list of strings, computes vocabulary over the entire dataset, and the
 Output:
 {{< /paragraph >}}
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform_test.py" mltransform_compute_and_apply_vocabulary >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform_test.py" mltransform_compute_and_apply_vocab >}}
 {{< /highlight >}}
+
 
 
 This example takes a list of strings, computes vocab over the entire dataset and applies a unique index to each vocab.
@@ -108,6 +110,7 @@ The above two examples requires a full pass over the dataset to transform the da
 ### Example 3
 
 This example creates a pipeline that uses `MLTransform` to compute vocabulary on the entire dataset and assign indices to each unique vocabulary item. This pipeline takes a single element as input instead of a list of elements.
+
 
 {{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform.py"
   class="notebook-skip" >}}
@@ -120,3 +123,4 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform_test.py" mltransform_compute_and_apply_vocabulary_with_scalar >}}
 {{< /highlight >}}
+

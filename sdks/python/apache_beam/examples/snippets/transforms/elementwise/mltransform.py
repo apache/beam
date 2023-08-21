@@ -76,12 +76,12 @@ def mltransform_compute_and_apply_vocabulary(test=None):
         | MLTransform(artifact_location=artifact_location).with_transform(
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
-  # [END mltransform_compute_and_apply_vocabulary]
-  if test:
-    test(transformed_data)
+    # [END mltransform_compute_and_apply_vocabulary]
+    if test:
+      test(transformed_data)
 
 
-def mltransform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
+def mltransform_compute_and_apply_vocabulary_with_scalar(test=None):
   # [START mltransform_compute_and_apply_vocabulary_with_scalar]
   import apache_beam as beam
   from apache_beam.ml.transforms.base import MLTransform
@@ -110,7 +110,6 @@ def mltransform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
 
   artifact_location = tempfile.mkdtemp()
   compute_and_apply_vocabulary_fn = ComputeAndApplyVocabulary(columns=['x'])
-
   with beam.Pipeline() as p:
     transformed_data = (
         p
@@ -118,7 +117,6 @@ def mltransform_compute_and_apply_vocabulary_with_non_columnar_data(test=None):
         | MLTransform(artifact_location=artifact_location).with_transform(
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
-
-  # [END mltransform_compute_and_apply_vocabulary_with_scalar]
-  if test:
-    test(transformed_data)
+    # [END mltransform_compute_and_apply_vocabulary_with_scalar]
+    if test:
+      test(transformed_data)
