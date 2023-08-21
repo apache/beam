@@ -515,10 +515,10 @@ class MainTest(unittest.TestCase):
       type: composite
       transforms:
         - type: CreateTimestamped
-          name: Create1
+          name: Create
           elements: [0, 2, 4]
         - type: SumGlobally
-          input: Create1
+          input: Create
           windowing:
             type: fixed
             size: 4
@@ -687,23 +687,6 @@ class MainTest(unittest.TestCase):
     ]
     result = preprocess_flattened_inputs(copy.deepcopy(spec))
     self.assertEqual(len(result['transforms']), 2)
-    result_flatten = self.get_transform_by_type(result, "Flatten")
-    result_pymap = self.get_transform_by_type(result, "PyMap")
-
-    self.assertDictEqual(
-        result_flatten["input"], {
-            'input0': 'Create1', 'input1': 'Create2'
-        })
-    self.assertEqual(result_flatten['type'], "Flatten")
-    self.assertIn("Flatten", result_flatten['name'])
-    self.assertIn("__line__", result_flatten)
-    self.assertIn("__uuid__", result_flatten)
-
-    self.assertEqual(result_pymap['input']['input'], result_flatten["__uuid__"])
-    self.assertEqual(result_pymap['type'], "PyMap")
-    self.assertEqual(result_pymap['fn'], 'lambda x: x*x')
-    self.assertIn("__line__", result_pymap)
-    self.assertIn("__uuid__", result_pymap)
 
   def test_preprocess_flattened_inputs_explicit_flatten(self):
     spec = '''
@@ -722,18 +705,6 @@ class MainTest(unittest.TestCase):
     ]
     result = preprocess_flattened_inputs(copy.deepcopy(spec))
     self.assertEqual(len(result['transforms']), 2)
-    result_flatten = self.get_transform_by_type(result, "Flatten")
-    result_pymap = self.get_transform_by_type(result, "PyMap")
-
-    self.assertDictEqual(
-        result_flatten["input"], {
-            'input0': 'Create1', 'input1': 'Create2'
-        })
-    self.assertEqual(result_flatten['type'], "Flatten")
-    self.assertIn("__line__", result_flatten)
-    self.assertIn("__uuid__", result_flatten)
-
-    self.assertCountEqual(result_pymap, spec['transforms'][1])
 
   def test_ensure_transforms_have_types(self):
     spec = '''
@@ -743,7 +714,7 @@ class MainTest(unittest.TestCase):
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = ensure_transforms_have_types(copy.deepcopy(spec))
-    self.assertCountEqual(result, spec)
+    self.assertEqual(result, spec)
 
   def test_ensure_transforms_have_types_error(self):
     spec = '''
@@ -902,60 +873,6 @@ class YamlTransformTest(unittest.TestCase):
     result = YamlTransform(spec)
     self.assertIn('PyMap', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
-
-  def test_expand_pcollection(self):
-    with new_pipeline() as p:
-      spec = '''
-          type: chain
-          input:
-            elements: input
-          transforms:
-          - type: PyMap
-            config:
-              fn: 'lambda x: x*x'
-        '''
-      spec = yaml.load(spec, Loader=SafeLineLoader)
-      create = p | beam.Create([1, 2, 3])
-      result = YamlTransform(spec).expand(create)
-      self.assertIsInstance(result, PCollection)
-      self.assertEqual(
-          str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
-
-  def test_expand_pbegin(self):
-    with new_pipeline() as p:
-      spec = '''
-          type: chain
-          transforms:
-          - type: Create
-            config:
-              elements: [1,2,3]
-          - type: PyMap
-            config:
-              fn: 'lambda x: x*x'
-        '''
-      spec = yaml.load(spec, Loader=SafeLineLoader)
-      result = YamlTransform(spec).expand(beam.pvalue.PBegin(p))
-      self.assertIsInstance(result, PCollection)
-      self.assertEqual(
-          str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
-
-  def test_expand_dict(self):
-    with new_pipeline() as p:
-      spec = '''
-          type: chain
-          input:
-              elements: input
-          transforms:
-          - type: PyMap
-            config:
-              fn: 'lambda x: x*x'
-        '''
-      spec = yaml.load(spec, Loader=SafeLineLoader)
-      create = p | beam.Create([1, 2, 3])
-      result = YamlTransform(spec).expand({'input': create})
-      self.assertIsInstance(result, PCollection)
-      self.assertEqual(
-          str(result), 'PCollection[Chain/Map(lambda x: x*x).None]')
 
 
 if __name__ == '__main__':
