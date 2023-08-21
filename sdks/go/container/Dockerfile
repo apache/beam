@@ -23,6 +23,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 ARG pull_licenses
+ARG BUILDX_NO_DEFAULT_ATTESTATIONS
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
