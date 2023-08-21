@@ -351,22 +351,20 @@ class GCSFileSystem(FileSystem):
     Args:
       paths: list of paths that give the file objects to be deleted
     """
-    def _delete_path(path):
-      """Recursively delete the file or directory at the provided path.
-      """
+
+    exceptions = {}
+
+    for path in paths:
       if path.endswith('/'):
         path_to_use = path + '*'
       else:
         path_to_use = path
       match_result = self.match([path_to_use])[0]
-      self._gcsIO().delete_batch([m.path for m in match_result.metadata_list])
-
-    exceptions = {}
-    for path in paths:
-      try:
-        _delete_path(path)
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[path] = e
+      statuses = self._gcsIO().delete_batch(
+          [m.path for m in match_result.metadata_list])
+      for target, exception in statuses:
+        if exception:
+          exceptions[target] = exception
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
