@@ -101,6 +101,13 @@ def new_pipeline():
 
 
 class MainTest(unittest.TestCase):
+  def assertYaml(self, expected, result):
+    result = SafeLineLoader.strip_metadata(result)
+    expected = yaml.load(expected, Loader=SafeLineLoader)
+    expected = SafeLineLoader.strip_metadata(expected)
+
+    self.assertEqual(expected, result)
+
   def get_transform_by_type(self, result, type):
     return ([t for t in result['transforms'] if t['type'] == type][0])
 
@@ -161,11 +168,18 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = pipeline_as_composite(spec)
 
-    self.assertEqual(result['type'], 'composite')
-    self.assertEqual(result['name'], None)
-    self.assertEqual(result['transforms'], spec)
-    self.assertTrue('__line__' in result)
-    self.assertTrue('__uuid__' in result)
+    expected = '''
+      type: composite
+      name: null
+      transforms:
+      - type: Create
+        config:
+          elements: [0,1,2]
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+    '''
+    self.assertYaml(expected, result)
 
   def test_expand_composite_transform_with_name(self):
     with new_pipeline() as p:
@@ -225,19 +239,33 @@ class MainTest(unittest.TestCase):
         type: chain
         transforms:
         - type: Create
-          elements: [0,1,2]
+          config:
+            elements: [0,1,2]
         - type: PyMap
-          fn: 'lambda x: x*x'
+          config:
+            fn: 'lambda x: x*x'
+        
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = chain_as_composite(spec)
-    self.assertEqual(result['type'], "composite")
-    self.assertEqual(result['name'], "Chain")
-    self.assertEqual(len(result['transforms']), 2)
-    self.assertEqual(result['transforms'][0]["input"], {})
-    self.assertEqual(
-        result['transforms'][1]["input"], spec['transforms'][0]['__uuid__'])
-    self.assertEqual(result['output'], spec['transforms'][1]['__uuid__'])
+
+    expected = f'''
+      type: composite
+      name: Chain
+      input: {{}}
+      transforms:
+      - type: Create
+        config:
+          elements: [0,1,2]
+        input: {{}}
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+        input: {spec['transforms'][0]['__uuid__']}
+      output: {spec['transforms'][1]['__uuid__']}
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_chain_as_composite_with_wrong_output_type(self):
     spec = '''
@@ -303,96 +331,161 @@ class MainTest(unittest.TestCase):
     spec = '''
         source:
           type: Create
-          elements: [0,1,2]
+          config:
+            elements: [0,1,2]
         transforms:
         - type: PyMap
-          fn: 'lambda x: x*x'
+          config:
+            fn: 'lambda x: x*x'
         sink:
           type: PyMap
-          fn: "lambda x: x + 41"
+          config:
+            fn: "lambda x: x + 41"
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
-    self.assertTrue('source' not in result)
-    self.assertTrue('sink' not in result)
-    self.assertEqual(len(result['transforms']), 3)
-    self.assertEqual(result['transforms'][0], spec['source'])
-    self.assertEqual(result['transforms'][2], spec['sink'])
+
+    expected = '''
+      transforms:
+      - type: Create
+        config:
+          elements: [0,1,2]
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+      - type: PyMap
+        config:
+          fn: "lambda x: x + 41"
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_normalize_source_sink_only_source(self):
     spec = '''
         source:
           type: Create
-          elements: [0,1,2]
+          config:
+            elements: [0,1,2]
         transforms:
         - type: PyMap
-          fn: 'lambda x: x*x'
+          config:
+            fn: 'lambda x: x*x'
        
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
-    self.assertTrue('source' not in result)
-    self.assertTrue('sink' not in result)
-    self.assertEqual(len(result['transforms']), 2)
-    self.assertEqual(result['transforms'][0], spec['source'])
+
+    expected = '''
+      transforms:
+      - type: Create
+        config:
+          elements: [0,1,2]
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_normalize_source_sink_only_sink(self):
     spec = '''
         transforms:
         - type: PyMap
-          fn: 'lambda x: x*x'
+          config:
+            fn: 'lambda x: x*x'
         sink:
           type: PyMap
-          fn: "lambda x: x + 41"
+          config:
+            fn: "lambda x: x + 41"
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
-    self.assertTrue('source' not in result)
-    self.assertTrue('sink' not in result)
-    self.assertEqual(len(result['transforms']), 2)
-    self.assertEqual(result['transforms'][1], spec['sink'])
+    expected = '''
+      transforms:
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+      - type: PyMap
+        config:
+          fn: "lambda x: x + 41"
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_normalize_source_sink_no_source_no_sink(self):
     spec = '''
         transforms:
         - type: PyMap
-          fn: 'lambda x: x*x'
+          config:
+            fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
-    self.assertTrue('source' not in result)
-    self.assertTrue('sink' not in result)
-    self.assertEqual(len(result['transforms']), 1)
+
+    expected = '''
+      transforms:
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_source_sink_composite(self):
     spec = '''
       type: composite
       source:
-          type: Create
+        type: Create
+        config:
           elements: [0,1,2]
       transforms:
       - type: PyMap
-        fn: 'lambda x: x*x'
+        config:
+          fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
-    self.assertTrue('source' not in result)
-    self.assertEqual(len(result['transforms']), 2)
+
+    expected = '''
+      type: composite
+      transforms:
+      - type: Create
+        config:
+          elements: [0,1,2]
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_source_sink_chain(self):
     spec = '''
       type: chain
       source:
-          type: Create
+        type: Create
+        config:
           elements: [0,1,2]
       transforms:
       - type: PyMap
-        fn: 'lambda x: x*x'
+        config:
+          fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
-    self.assertTrue('source' not in result)
-    self.assertEqual(len(result['transforms']), 2)
+
+    expected = '''
+      type: chain
+      transforms:
+      - type: Create
+        config:
+          elements: [0,1,2]
+      - type: PyMap
+        config:
+          fn: 'lambda x: x*x'
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_source_sink_other(self):
     spec = '''
@@ -411,8 +504,17 @@ class MainTest(unittest.TestCase):
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_inputs_outputs(spec)
-    self.assertCountEqual(result['input'], {"input": ["Create1", "Create2"]})
-    self.assertCountEqual(result['output'], {"output": "Squared"})
+
+    expected = '''
+      type: PyMap
+      input: 
+        input: [Create1, Create2]
+      fn: 'lambda x: x*x'
+      output: 
+        output: Squared
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_normalize_inputs_outputs_dict(self):
     spec = '''
@@ -425,13 +527,18 @@ class MainTest(unittest.TestCase):
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_inputs_outputs(spec)
-    self.assertCountEqual(result['input'], {"input": ["Create1", "Create2"]})
-    self.assertCountEqual(
-        result['output'], {
-            "out1": "Squared1", "out2": "Squared2"
-        })
-    self.assertTrue("__uuid__" not in result['output'])
-    self.assertTrue("__line_" not in result['output'])
+
+    expected = '''
+      type: PyMap
+      input: 
+        input: [Create1, Create2]
+      fn: 'lambda x: x*x'
+      output: 
+        out1: Squared1
+        out2: Squared2
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_identify_object_with_name(self):
     spec = '''
@@ -496,19 +603,40 @@ class MainTest(unittest.TestCase):
       windowing:
         type: fixed
         size: 2
-        
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     spec = normalize_inputs_outputs(spec)
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
+
     result = push_windowing_to_roots(spec)
-    self.assertCountEqual(
-        result['transforms'][0]['windowing'], spec['windowing'])
-    self.assertEqual(result['transforms'][0]['__consumed_outputs'], {None})
-    self.assertTrue('windowing' not in result['transforms'][1])
-    self.assertTrue('__consumed_outputs' not in result['transforms'][1])
+
+    expected = '''
+      type: composite
+      transforms:
+      - type: Create
+        elements: [0,1,2]
+        windowing:
+          type: fixed
+          size: 2
+        __consumed_outputs: 
+          - null
+        input: {}
+        output: {}
+      - type: PyMap
+        fn: 'lambda x: x*x'
+        input: 
+          input: Create
+        output: {}
+      windowing:
+        type: fixed
+        size: 2
+      input: {}
+      output: {}
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_windowing_custom_type(self):
     spec = '''
@@ -534,48 +662,37 @@ class MainTest(unittest.TestCase):
     # Pass a copy of spec_sum, because preprocess_windowing modifies
     # the dict (spec.pop('windowing'))
     result = preprocess_windowing(dict(spec_sum))
-    # Get resulting WindowInto transform
-    result_window = ([
-        t for t in result['transforms'] if t['type'] == "WindowInto"
-    ][0])
 
-    # Get resulting SumGlobally transform
-    result_sum = ([
-        t for t in result['transforms'] if t['type'] == "SumGlobally"
-    ][0])
+    expected = f'''
+      type: composite
+      name: SumGlobally
+      input:
+        input: Create
+      transforms:
+        - type: SumGlobally
+          input:  
+            input: {result['transforms'][1]['__uuid__']}
+          output: {{}}
+        - type: WindowInto
+          name: WindowInto[input]
+          windowing:
+            type: fixed
+            size: 4
+          input: input
+      output: {result['transforms'][0]['__uuid__']}
+    '''
 
-    self.assertEqual(result['type'], "composite")
-    self.assertEqual(result['name'], "SumGlobally")
-    self.assertEqual(len(result['transforms']), 2)
-    self.assertCountEqual(result['input'], spec_sum['input'])
-    self.assertEqual(result['__line__'], spec_sum['__line__'])
-    self.assertEqual(result['__uuid__'], spec_sum['__uuid__'])
-
-    # SumGlobally's input is the output of WindowInto
-    self.assertEqual(result_sum['input']['input'], result_window["__uuid__"])
-
-    self.assertEqual(result_sum['type'], "SumGlobally")
-    self.assertNotEqual(result_sum['__uuid__'], spec_sum['__uuid__'])
-    self.assertNotIn('windowing', result_sum)
-    self.assertIn('__line__', result_sum)
-    self.assertIn('__uuid__', result_sum)
-
-    self.assertEqual(result_window['type'], "WindowInto")
-    self.assertEqual(result_window['name'], "WindowInto[input]")
-    self.assertCountEqual(result_window['windowing'], spec_sum['windowing'])
-    self.assertEqual(result_window['input'], "input")
-    self.assertIn('__line__', result_window)
-    self.assertIn('__uuid__', result_window)
+    self.assertYaml(expected, result)
 
   def test_preprocess_windowing_composite_with_windowing_outer(self):
     spec = '''
       type: composite
       transforms:
         - type: CreateTimestamped
-          name: Create1
+          name: Create
           elements: [0, 2, 4]
         - type: SumGlobally
-          input: Create1
+          input: Create
       windowing:
         type: fixed
         size: 4
@@ -590,19 +707,40 @@ class MainTest(unittest.TestCase):
     # Pass a copy of spec_sum, because preprocess_windowing modifies
     # the dict (spec.pop('windowing'))
     result = preprocess_windowing(copy.deepcopy(spec))
-    self.assertNotIn('windowing', result)
-    self.assertCountEqual(
-        spec['windowing'], result['transforms'][0]['windowing'])
+
+    expected = '''
+      type: composite
+      input: {}
+      transforms:
+        - type: CreateTimestamped
+          name: Create
+          elements: [0, 2, 4]
+          windowing:
+            type: fixed
+            size: 4
+          __consumed_outputs:
+            - null
+          input: {}
+          output: {}
+        - type: SumGlobally
+          input: 
+            input: Create
+          output: {}
+      output: 
+        output: SumGlobally
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_windowing_composite_with_windowing_on_input(self):
     spec = '''
       type: composite
       transforms:
         - type: CreateTimestamped
-          name: Create1
+          name: Create
           elements: [0, 2, 4]
         - type: SumGlobally
-          input: Create1
+          input: Create
           windowing:
             type: fixed
             size: 4
@@ -617,15 +755,35 @@ class MainTest(unittest.TestCase):
     # Pass a copy of spec_sum, because preprocess_windowing modifies
     # the dict (spec.pop('windowing'))
     result = preprocess_windowing(copy.deepcopy(spec))
-    self.assertCountEqual(spec, result)
-    self.assertEqual(spec['transforms'], result['transforms'])
+
+    expected = '''
+      type: composite
+      input: {}
+      transforms:
+        - type: CreateTimestamped
+          name: Create
+          elements: [0, 2, 4]
+          input: {}
+          output: {}
+        - type: SumGlobally
+          input: 
+            input: Create
+          windowing:
+            type: fixed
+            size: 4
+          output: {}
+      output: 
+        output: SumGlobally
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_windowing_other_type_with_no_inputs(self):
     spec = '''
       type: composite
       transforms:
         - type: CreateTimestamped
-          name: Create1
+          name: Create
           elements: [0, 2, 4]
           windowing:
             type: fixed
@@ -644,33 +802,25 @@ class MainTest(unittest.TestCase):
     spec = spec['transforms'][0]
     result = preprocess_windowing(copy.deepcopy(spec))
 
-    # Get resulting WindowInto transform
-    result_window = self.get_transform_by_type(result, "WindowInto")
+    expected = f'''
+      type: composite
+      name: Create
+      transforms:
+        - type: CreateTimestamped
+          name: Create
+          elements: [0, 2, 4]
+          input: {{}}
+          output: {{}}
+        - type: WindowInto
+          name: WindowInto[None]
+          input: {result['transforms'][0]["__uuid__"]}
+          windowing:
+            type: fixed
+            size: 4
+      output: {result['transforms'][1]["__uuid__"]}
+    '''
 
-    # Get resulting SumGlobally transform
-    result_create = self.get_transform_by_type(result, "CreateTimestamped")
-
-    self.assertEqual(result['type'], "composite")
-    self.assertEqual(result['name'], "Create1")
-    self.assertEqual(len(result['transforms']), 2)
-    self.assertEqual(result['output'], result_window['__uuid__'])
-    self.assertEqual(result['__line__'], spec['__line__'])
-    self.assertEqual(result['__uuid__'], spec['__uuid__'])
-
-    # WindowInto's input is the output of CreateTimestamped
-    self.assertEqual(result_window['input'], result_create["__uuid__"])
-
-    self.assertEqual(result_create['type'], "CreateTimestamped")
-    self.assertNotEqual(result_create['__uuid__'], spec['__uuid__'])
-    self.assertNotIn('windowing', result_create)
-    self.assertIn('__line__', result_create)
-    self.assertIn('__uuid__', result_create)
-
-    self.assertEqual(result_window['type'], "WindowInto")
-    self.assertEqual(result_window['name'], "WindowInto[None]")
-    self.assertCountEqual(result_window['windowing'], spec['windowing'])
-    self.assertIn('__line__', result_window)
-    self.assertIn('__uuid__', result_window)
+    self.assertYaml(expected, result)
 
   def test_preprocess_flattened_inputs_implicit(self):
     spec = '''
@@ -686,7 +836,24 @@ class MainTest(unittest.TestCase):
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
     result = preprocess_flattened_inputs(copy.deepcopy(spec))
-    self.assertEqual(len(result['transforms']), 2)
+
+    expected = f'''
+      type: composite
+      transforms:
+        - type: Flatten
+          name: PyMap-Flatten[input]
+          input:
+            input0: Create1
+            input1: Create2
+        - type: PyMap
+          fn: 'lambda x: x*x'
+          input: 
+            input: {result['transforms'][0]['__uuid__']}
+          output: {{}}
+      output: CreateTimestamped
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_preprocess_flattened_inputs_explicit_flatten(self):
     spec = '''
@@ -704,7 +871,24 @@ class MainTest(unittest.TestCase):
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
     result = preprocess_flattened_inputs(copy.deepcopy(spec))
-    self.assertEqual(len(result['transforms']), 2)
+
+    expected = '''
+      type: composite
+      transforms:
+        - type: Flatten
+          input:
+            input0: Create1
+            input1: Create2
+          output: {}
+        - type: PyMap
+          fn: 'lambda x: x*x'
+          input: 
+            input: Flatten
+          output: {}
+      output: CreateTimestamped
+    '''
+
+    self.assertYaml(expected, result)
 
   def test_ensure_transforms_have_types(self):
     spec = '''
