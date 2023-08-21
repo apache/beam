@@ -79,8 +79,9 @@ import org.slf4j.LoggerFactory;
 public class FlinkPortableClientEntryPoint {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPortableClientEntryPoint.class);
   private static final String JOB_ENDPOINT_FLAG = "--job_endpoint";
-  private static final Duration JOB_INVOCATION_TIMEOUT = Duration.ofSeconds(30);
-  private static final Duration JOB_SERVICE_STARTUP_TIMEOUT = Duration.ofSeconds(30);
+  // TODO: add environments variable or parameters
+  private static final Duration JOB_INVOCATION_TIMEOUT = Duration.ofSeconds(90);
+  private static final Duration JOB_SERVICE_STARTUP_TIMEOUT = Duration.ofSeconds(90);
 
   private final String driverCmd;
   private final String artifactStagingPath;
