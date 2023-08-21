@@ -94,8 +94,7 @@ func main() {
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
 		pythonVersion, err := expansionx.GetPythonVersion()
 		if err != nil {
-			log.Print("Python SDK worker pool exited.")
-			os.Exit(0)
+			log.Fatalf("Python SDK worker pool exited with error: %v", err)
 		}
 		if err := execx.Execute(pythonVersion, args...); err != nil {
 			log.Fatalf("Python SDK worker pool exited with error: %v", err)
@@ -344,7 +343,7 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	}
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
-		return "", fmt.Errorf("python installation not found: %v", err)
+		return "", err
 	}
 	if err := execx.Execute(pythonVersion, "-m", "venv", "--system-site-packages", dir); err != nil {
 		return "", fmt.Errorf("python venv initialization failed: %s", err)

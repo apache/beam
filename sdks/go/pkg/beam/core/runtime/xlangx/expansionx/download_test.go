@@ -234,7 +234,9 @@ func TestGetPythonVersion(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		os.Setenv("PYTHON_PATH", test.PYTHON_PATH)
+		if test.PYTHON_PATH != "" {
+			os.Setenv("PYTHON_PATH", test.PYTHON_PATH)
+		}
 		pythonVersion, err := GetPythonVersion()
 		if err != nil {
 			t.Errorf("python installation not found: %v, when PYTHON_PATH=%v", err, test.PYTHON_PATH)
@@ -242,6 +244,8 @@ func TestGetPythonVersion(t *testing.T) {
 		if test.PYTHON_PATH != "" && pythonVersion != test.PYTHON_PATH {
 			t.Errorf("incorrect PYTHON_PATH, want: %v, got: %v", test.PYTHON_PATH, pythonVersion)
 		}
-		os.Unsetenv(test.PYTHON_PATH)
+		if test.PYTHON_PATH != "" {
+			os.Unsetenv(test.PYTHON_PATH)
+		}
 	}
 }

@@ -396,7 +396,9 @@ func GetPythonVersion() (string, error) {
 			return v, nil
 		}
 	}
-	return "", fmt.Errorf("no python installation found")
+	return "", errors.New("no python installation found. If you use a" +
+		"custom container image, please check if python/python3 is available or specify the" +
+		"full path to the python interpreter in PYTHON_PATH environment variable")
 }
 
 // SetUpPythonEnvironment sets up the virtual ennvironment required for the
