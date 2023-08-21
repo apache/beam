@@ -319,13 +319,6 @@ def find_by_ext(root_dir, ext):
       if file.endswith(ext):
         yield clean_path(os.path.join(root, file))
 
-
-try:
-  from grpc_tools import protoc  # pylint: disable=unused-import
-except Exception as e:
-  raise RuntimeError(e)
-
-
 def build_relative_import(root_path, import_path, start_file_path):
   tail_path = import_path.replace('.', os.path.sep)
   source_path = os.path.join(root_path, tail_path)
@@ -480,62 +473,66 @@ def generate_proto_files(force=False):
     os.mkdir(PYTHON_OUTPUT_PATH)
 
   protoc_gen_mypy = _find_protoc_gen_mypy()
-  from grpc_tools import protoc
-  builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
-  args = (
-      [sys.executable] +  # expecting to be called from command line
-      ['--proto_path=%s' % builtin_protos] +
-      ['--proto_path=%s' % d
-       for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
-      ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
-      # new version of mypy-protobuf converts None to zero default value
-      # and remove Optional from the param type annotation. This causes
-      # some mypy errors. So to mitigate and fall back to old behavior,
-      # use `relax_strict_optional_primitives` flag. more at
-      # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
-      ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH
-       ] +
-      # TODO(robertwb): Remove the prefix once it's the default.
-      ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] + proto_files)
+  try:
+    from grpc_tools import protoc
+    builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+    args = (
+        [sys.executable] +  # expecting to be called from command line
+        ['--proto_path=%s' % builtin_protos] +
+        ['--proto_path=%s' % d
+        for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
+        ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
+        # new version of mypy-protobuf converts None to zero default value
+        # and remove Optional from the param type annotation. This causes
+        # some mypy errors. So to mitigate and fall back to old behavior,
+        # use `relax_strict_optional_primitives` flag. more at
+        # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
+        ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH
+        ] +
+        # TODO(robertwb): Remove the prefix once it's the default.
+        ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] + proto_files)
 
-  LOG.info('Regenerating Python proto definitions (%s).' % regenerate_reason)
-  ret_code = protoc.main(args)
-  if ret_code:
-    raise RuntimeError(
-        'Protoc returned non-zero status (see logs for details): '
-        '%s' % ret_code)
+    LOG.info('Regenerating Python proto definitions (%s).' % regenerate_reason)
+    ret_code = protoc.main(args)
+    if ret_code:
+      raise RuntimeError(
+          'Protoc returned non-zero status (see logs for details): '
+          '%s' % ret_code)
 
-  # copy resource files
-  for path in MODEL_RESOURCES:
-    shutil.copy2(os.path.join(PROJECT_ROOT, path), PYTHON_OUTPUT_PATH)
+    # copy resource files
+    for path in MODEL_RESOURCES:
+      shutil.copy2(os.path.join(PROJECT_ROOT, path), PYTHON_OUTPUT_PATH)
 
-  proto_packages = set()
-  # see: https://github.com/protocolbuffers/protobuf/issues/1491
-  # force relative import paths for proto files
-  compiled_import_re = re.compile('^from (.*) import (.*)$')
-  for file_path in find_by_ext(PYTHON_OUTPUT_PATH,
-                               ('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
-    proto_packages.add(os.path.dirname(file_path))
-    lines = []
-    with open(file_path, encoding='utf-8') as f:
-      for line in f:
-        match_obj = compiled_import_re.match(line)
-        if match_obj and \
-                match_obj.group(1).startswith('org.apache.beam.model'):
-          new_import = build_relative_import(
-              PYTHON_OUTPUT_PATH, match_obj.group(1), file_path)
-          line = 'from %s import %s\n' % (new_import, match_obj.group(2))
+    proto_packages = set()
+    # see: https://github.com/protocolbuffers/protobuf/issues/1491
+    # force relative import paths for proto files
+    compiled_import_re = re.compile('^from (.*) import (.*)$')
+    for file_path in find_by_ext(PYTHON_OUTPUT_PATH,
+                                ('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
+      proto_packages.add(os.path.dirname(file_path))
+      lines = []
+      with open(file_path, encoding='utf-8') as f:
+        for line in f:
+          match_obj = compiled_import_re.match(line)
+          if match_obj and \
+                  match_obj.group(1).startswith('org.apache.beam.model'):
+            new_import = build_relative_import(
+                PYTHON_OUTPUT_PATH, match_obj.group(1), file_path)
+            line = 'from %s import %s\n' % (new_import, match_obj.group(2))
 
-        lines.append(line)
+          lines.append(line)
 
-    with open(file_path, 'w') as f:
-      f.writelines(lines)
+      with open(file_path, 'w') as f:
+        f.writelines(lines)
 
-  generate_init_files_lite(PYTHON_OUTPUT_PATH)
-  for proto_package in proto_packages:
-    generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
+    generate_init_files_lite(PYTHON_OUTPUT_PATH)
+    for proto_package in proto_packages:
+      generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
 
-    generate_init_files_full(PYTHON_OUTPUT_PATH)
+      generate_init_files_full(PYTHON_OUTPUT_PATH)
+  except ImportError as e:
+    # this means the required _pb2 files are already generated.
+    pass
 
 
 if __name__ == '__main__':
