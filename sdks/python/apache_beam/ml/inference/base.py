@@ -404,7 +404,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             mh,
             hints)
       batch_kwargs = mh.batch_elements_kwargs()
-      if len(hints) > 0:
+      if len(batch_kwargs) > 0:
         logging.warning(
             'mh %s defines the following batching kwargs which will be '
             'ignored %s. Batching kwargs are not respected when '
@@ -414,7 +414,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             hints,
             batch_kwargs)
       env_vars = mh._env_vars
-      if len(hints) > 0:
+      if len(env_vars) > 0:
         logging.warning(
             'mh %s defines the following _env_vars which will be ignored %s. '
             '_env_vars are not respected when more than one model handler is '
