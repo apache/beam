@@ -82,7 +82,7 @@ class MLTransformStdOutTest(unittest.TestCase):
   def test_mltransform_compute_and_apply_vocab_scalar(self, mock_stdout):
     mltransform_compute_and_apply_vocabulary_with_non_columnar_data()
     predicted = mock_stdout.getvalue().splitlines()
-    expected = check_mltranform_compute_and_apply_vocab_scalar()
+    expected = check_mltransform_compute_and_apply_vocabulary_with_scalar()
     self.assertEqual(predicted, expected)
 
 
