@@ -55,7 +55,6 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
-from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -492,12 +491,19 @@ class DataflowApplicationClient(object):
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
 
-    self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
+    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
+    from google.cloud import storage
+    if _is_runner_v2_disabled(options):
+      self.environment_version = _LEGACY_ENVIRONMENT_MAJOR_VERSION
+    else:
+      self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
 
     if self.google_cloud_options.no_auth:
       credentials = None
+      storage_credentials = None
     else:
       credentials = get_service_credentials(options)
+      storage_credentials = credentials.get_google_auth_credentials()
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
@@ -506,12 +512,10 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
-    self._storage_client = storage.StorageV1(
-        url='https://www.googleapis.com/storage/v1',
-        credentials=credentials,
-        get_credentials=(not self.google_cloud_options.no_auth),
-        http=http_client,
-        response_encoding=get_response_encoding())
+    if storage_credentials:
+      self._storage_client = storage.Client(credentials=storage_credentials)
+    else:
+      self._storage_client = storage.Client.create_anonymous_client()
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
 
   def _get_sdk_image_overrides(self, pipeline_options):
@@ -654,6 +658,8 @@ class DataflowApplicationClient(object):
       mime_type='application/octet-stream',
       total_size=None):
     """Stages a file at a GCS or local path with stream-supplied contents."""
+    from google.cloud.exceptions import Forbidden
+    from google.cloud.exceptions import NotFound
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
       _LOGGER.info('Staging file locally to %s', local_path)
@@ -661,31 +667,36 @@ class DataflowApplicationClient(object):
         f.write(stream.read())
       return
     gcs_location = FileSystems.join(gcs_or_local_path, file_name)
-    bucket, name = gcs_location[5:].split('/', 1)
-
-    request = storage.StorageObjectsInsertRequest(bucket=bucket, name=name)
+    bucket_name, blob_name = gcs_location[5:].split('/', 1)
     start_time = time.time()
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
-    upload = storage.Upload(stream, mime_type, total_size)
     try:
-      response = self._storage_client.objects.Insert(request, upload=upload)
-    except exceptions.HttpError as e:
-      reportable_errors = {
-          403: 'access denied',
-          404: 'bucket not found',
-      }
-      if e.status_code in reportable_errors:
+      from google.cloud.storage import Blob
+      from google.cloud.storage.fileio import BlobWriter
+      bucket = self._storage_client.get_bucket(bucket_name)
+      blob = bucket.get_blob(blob_name)
+      if not blob:
+        blob = Blob(blob_name, bucket)
+      with BlobWriter(blob) as f:
+        f.write(stream.read())
+      return
+    except Exception as e:
+      reportable_errors = [
+          Forbidden,
+          NotFound,
+      ]
+      if type(e) in reportable_errors:
         raise IOError((
             'Could not upload to GCS path %s: %s. Please verify '
-            'that credentials are valid and that you have write '
-            'access to the specified path.') %
-                      (gcs_or_local_path, reportable_errors[e.status_code]))
+            'that credentials are valid, that the specified path '
+            'exists, and that you have write access to it.') %
+                      (gcs_or_local_path, e))
       raise
-    _LOGGER.info(
-        'Completed GCS upload to %s in %s seconds.',
-        gcs_location,
-        int(time.time() - start_time))
-    return response
+    finally:
+      _LOGGER.info(
+          'Completed GCS upload to %s in %s seconds.',
+          gcs_location,
+          int(time.time() - start_time))
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):

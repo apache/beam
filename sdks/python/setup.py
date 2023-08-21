@@ -302,30 +302,31 @@ if __name__ == '__main__':
               'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
-              'cachetools>=3.1.0,<6',
-              'google-api-core>=2.0.0,<3',
-              'google-apitools>=0.5.31,<0.5.32',
-              # NOTE: Maintainers, please do not require google-auth>=2.x.x
-              # Until this issue is closed
-              # https://github.com/googleapis/google-cloud-python/issues/10566
-              'google-auth>=1.18.0,<3',
-              'google-auth-httplib2>=0.1.0,<0.2.0',
-              'google-cloud-datastore>=2.0.0,<3',
-              'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-pubsublite>=1.2.0,<2',
-              # GCP packages required by tests
-              'google-cloud-bigquery>=2.0.0,<4',
-              'google-cloud-bigquery-storage>=2.6.3,<3',
-              'google-cloud-core>=2.0.0,<3',
-              'google-cloud-bigtable>=2.19.0,<3',
-              'google-cloud-spanner>=3.0.0,<4',
-              # GCP Packages required by ML functionality
-              'google-cloud-dlp>=3.0.0,<4',
-              'google-cloud-language>=2.0,<3',
-              'google-cloud-videointelligence>=2.0,<3',
-              'google-cloud-vision>=2,<4',
-              'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0'
+            'cachetools>=3.1.0,<6',
+            'google-api-core>=2.0.0,<3',
+            'google-apitools>=0.5.31,<0.5.32',
+            # NOTE: Maintainers, please do not require google-auth>=2.x.x
+            # Until this issue is closed
+            # https://github.com/googleapis/google-cloud-python/issues/10566
+            'google-auth>=1.18.0,<3',
+            'google-auth-httplib2>=0.1.0,<0.2.0',
+            'google-cloud-datastore>=2.0.0,<3',
+            'google-cloud-pubsub>=2.1.0,<3',
+            'google-cloud-pubsublite>=1.2.0,<2',
+            'google-cloud-storage>=2.10.0,<3',
+            # GCP packages required by tests
+            'google-cloud-bigquery>=2.0.0,<4',
+            'google-cloud-bigquery-storage>=2.6.3,<3',
+            'google-cloud-core>=2.0.0,<3',
+            'google-cloud-bigtable>=2.19.0,<3',
+            'google-cloud-spanner>=3.0.0,<4',
+            # GCP Packages required by ML functionality
+            'google-cloud-dlp>=3.0.0,<4',
+            'google-cloud-language>=2.0,<3',
+            'google-cloud-videointelligence>=2.0,<3',
+            'google-cloud-vision>=2,<4',
+            'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
+            'google-cloud-aiplatform>=1.26.0, < 2.0'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
