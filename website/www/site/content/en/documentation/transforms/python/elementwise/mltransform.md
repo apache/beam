@@ -81,8 +81,6 @@ Output:
 {{< /highlight >}}
 
 
-The example takes a list of ints and converts them into the range of 0 to 1 using the transform `ScaleTo01`.
-
 ### Example 2
 
 This example creates a pipeline that use `MLTransform` to compute vocabulary on the entire dataset and assign indices to each unique vocabulary item.
@@ -100,10 +98,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform_test.py" mltransform_compute_and_apply_vocab >}}
 {{< /highlight >}}
-
-
-
-This example takes a list of strings, computes vocab over the entire dataset and applies a unique index to each vocab.
 
 
 The above two examples requires a full pass over the dataset to transform the dataset. For `ComputeAndApplyVocabulary`, all the unqiue words in the dataset needs to be known before transforming the data. For `ScaleTo01`, the minimum and maximum of the dataset needs to be known before transforming the dataset. This is acheived by `MLTransform`.
