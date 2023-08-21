@@ -40,8 +40,8 @@ docker {
   tags containerImageTags()
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                     project.rootProject.hasProperty(["isRelease"])],
-           ['BUILDX_NO_DEFAULT_ATTESTATIONS': 1])
+                     project.rootProject.hasProperty(["isRelease"]),
+           'BUILDX_NO_DEFAULT_ATTESTATIONS': 1])
   buildx useBuildx
   platform(*project.containerPlatforms())
   load useBuildx && !pushContainers
