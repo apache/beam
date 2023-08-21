@@ -33,6 +33,7 @@ For more information on changes in 2.50.0, check out the [detailed release notes
 
 * Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
 * The Go SDK has a new default local runner, called Prism ([#24789](https://github.com/apache/beam/issues/24789)).
+* All Beam released container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image) that support both x86 and ARM CPU architectures. 
 
 ## I/Os
 
