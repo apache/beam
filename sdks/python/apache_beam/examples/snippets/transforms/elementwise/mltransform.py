@@ -44,7 +44,7 @@ def mltransform_scale_to_0_1(test=None):
     transformed_data = (
         p
         | beam.Create(data)
-        | MLTransform(artifact_location=artifact_location).with_transform(
+        | MLTransform(write_artifact_location=artifact_location).with_transform(
             scale_to_0_1_fn)
         | beam.Map(print))
     # [END mltransform_scale_to_0_1]
@@ -73,7 +73,7 @@ def mltransform_compute_and_apply_vocabulary(test=None):
     transformed_data = (
         p
         | beam.Create(data)
-        | MLTransform(artifact_location=artifact_location).with_transform(
+        | MLTransform(write_artifact_location=artifact_location).with_transform(
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
     # [END mltransform_compute_and_apply_vocabulary]
@@ -107,14 +107,13 @@ def mltransform_compute_and_apply_vocabulary_with_scalar(test=None):
           'x': 'awesome'
       },
   ]
-
   artifact_location = tempfile.mkdtemp()
   compute_and_apply_vocabulary_fn = ComputeAndApplyVocabulary(columns=['x'])
   with beam.Pipeline() as p:
     transformed_data = (
         p
         | beam.Create(data)
-        | MLTransform(artifact_location=artifact_location).with_transform(
+        | MLTransform(write_artifact_location=artifact_location).with_transform(
             compute_and_apply_vocabulary_fn)
         | beam.Map(print))
     # [END mltransform_compute_and_apply_vocabulary_with_scalar]
