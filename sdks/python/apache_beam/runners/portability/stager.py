@@ -775,10 +775,12 @@ class Stager(object):
       if build_setup_args is None:
         build_setup_args = [
             Stager._get_python_executable(),
+            '-m',
+            'build',
+            '--sdist',
+            '--outdir',
+            temp_dir,
             os.path.basename(setup_file),
-            'sdist',
-            '--dist-dir',
-            temp_dir
         ]
       _LOGGER.info('Executing command: %s', build_setup_args)
       processes.check_output(build_setup_args)

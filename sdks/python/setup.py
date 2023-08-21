@@ -229,6 +229,7 @@ if __name__ == '__main__':
       ],
                             language_level=3),
       install_requires=[
+          'build>=0.9.0,<0.11.0',
           'crcmod>=1.7,<2.0',
           'orjson<4.0',
           # Dill doesn't have forwards-compatibility guarantees within minor
