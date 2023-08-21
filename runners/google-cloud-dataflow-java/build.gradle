@@ -49,13 +49,19 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
+ext.dataflowLegacyEnvironmentMajorVersion = '8'
+ext.dataflowFnapiEnvironmentMajorVersion = '8'
+ext.dataflowLegacyContainerVersion = 'beam-master-20230809'
+ext.dataflowFnapiContainerVersion = 'beam-master-20230809'
+ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
+
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-    'dataflow.legacy_environment_major_version' : '8',
-    'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20230807',
-    'dataflow.fnapi_container_version' : 'beam-master-20230426',
-    'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
+    'dataflow.legacy_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.fnapi_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
+    'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
+    'dataflow.container_base_repository' : project.ext.dataflowContainerBaseRepository,
   ]
 }
 
@@ -556,11 +562,10 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/StorageApiSinkSchemaUpdateIT.class'  // IT based on test stream
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -601,6 +606,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/StorageApiSinkSchemaUpdateIT.class'  // IT based on test stream
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
@@ -608,8 +614,6 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest

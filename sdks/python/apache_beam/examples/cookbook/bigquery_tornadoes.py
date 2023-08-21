@@ -68,7 +68,7 @@ def run(argv=None):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',
-      default='clouddataflow-readonly:samples.weather_stations',
+      default='apache-beam-testing.samples.weather_stations',
       help=(
           'Input BigQuery table to process specified as: '
           'PROJECT:DATASET.TABLE or DATASET.TABLE.'))

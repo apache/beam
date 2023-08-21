@@ -106,8 +106,8 @@ function cleanup_container {
     do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
   done
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
-  # the associated container images can't be deleted because they are not tagged. However, the multi-arch containers
-  # are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs every 6 weeks.
+  # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
+  # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
   if [[ "$ARCH" == "x86" ]]; then
     gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   fi
@@ -125,9 +125,8 @@ cd sdks/python
 SDK_LOCATION=$2
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
-pytest -o junit_suite_name=$IMAGE_NAME \
+pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
   -m=$TEST_SUITE_TAG \
-  --show-capture=no \
   --numprocesses=1 \
   --timeout=1800 \
   --junitxml=$XUNIT_FILE \

@@ -41,7 +41,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataResponse;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.sdk.util.BackOff;

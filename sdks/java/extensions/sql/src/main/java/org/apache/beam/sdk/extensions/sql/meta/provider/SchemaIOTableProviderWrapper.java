@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
-import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
@@ -66,7 +66,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
-    JSONObject tableProperties = tableDefinition.getProperties();
+    ObjectNode tableProperties = tableDefinition.getProperties();
 
     try {
       RowJson.RowJsonDeserializer deserializer =
@@ -84,8 +84,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     } catch (InvalidConfigurationException | InvalidSchemaException e) {
       throw new InvalidTableException(e.getMessage());
     } catch (JsonProcessingException e) {
-      throw new AssertionError(
-          "Failed to re-parse TBLPROPERTIES JSON " + tableProperties.toString());
+      throw new AssertionError("Failed to re-parse TBLPROPERTIES JSON " + tableProperties);
     }
   }
 

@@ -17,6 +17,12 @@
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
+pluginManagement {
+  plugins {
+     id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
+  }
+}
+
 plugins {
   id("com.gradle.enterprise") version "3.13.2"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
@@ -228,6 +234,7 @@ include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
 include(":sdks:java:io:csv")
 include(":sdks:java:io:file-schema-transform")
+include(":sdks:java:io:google-ads")
 include(":sdks:java:io:google-cloud-platform")
 include(":sdks:java:io:google-cloud-platform:expansion-service")
 include(":sdks:java:io:hadoop-common")

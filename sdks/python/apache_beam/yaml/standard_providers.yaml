@@ -19,7 +19,8 @@
 # TODO(robertwb): Perhaps auto-generate this file?
 
 - type: 'beamJar'
-  gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
-  version: BEAM_VERSION
+  config:
+    gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+    version: BEAM_VERSION
   transforms:
      Sql: 'beam:external:java:sql:v1'

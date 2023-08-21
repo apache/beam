@@ -21,7 +21,7 @@ import static junit.framework.TestCase.assertNotNull;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.junit.Assert.assertEquals;
 
-import com.alibaba.fastjson.JSON;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
@@ -108,6 +108,6 @@ public class PubsubTableProviderTest {
         .location("projects/project/topics/topic")
         .schema(Schema.builder().build())
         .type("pubsub")
-        .properties(JSON.parseObject("{ \"timestampAttributeKey\" : \"ts_field\" }"));
+        .properties(TableUtils.parseProperties("{ \"timestampAttributeKey\" : \"ts_field\" }"));
   }
 }

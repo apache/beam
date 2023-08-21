@@ -19,6 +19,7 @@
 import logging
 import threading
 import unittest
+from typing import Any
 
 from apache_beam.utils import multi_process_shared
 
@@ -57,6 +58,30 @@ class Counter(object):
     raise RuntimeError(msg)
 
 
+class CounterWithBadAttr(object):
+  def __init__(self, start=0):
+    self.running = start
+    self.lock = threading.Lock()
+
+  def get(self):
+    return self.running
+
+  def increment(self, value=1):
+    with self.lock:
+      self.running += value
+      return self.running
+
+  def error(self, msg):
+    raise RuntimeError(msg)
+
+  def __getattribute__(self, __name: str) -> Any:
+    if __name == 'error':
+      raise AttributeError('error is not actually supported on this platform')
+    else:
+      # Default behaviour
+      return object.__getattribute__(self, __name)
+
+
 class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -71,6 +96,15 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(self.shared.increment(10), 11)
     self.assertEqual(self.shared.increment(value=10), 21)
     self.assertEqual(self.shared.get(), 21)
+
+  def test_call_illegal_attr(self):
+    shared_handle = multi_process_shared.MultiProcessShared(
+        CounterWithBadAttr, tag='test_call_illegal_attr', always_proxy=True)
+    shared = shared_handle.acquire()
+
+    self.assertEqual(shared.get(), 0)
+    self.assertEqual(shared.increment(), 1)
+    self.assertEqual(shared.get(), 1)
 
   def test_call_callable(self):
     self.assertEqual(self.sharedCallable(), 0)

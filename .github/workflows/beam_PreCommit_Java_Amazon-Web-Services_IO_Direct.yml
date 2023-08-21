@@ -74,10 +74,10 @@ concurrency:
 jobs:
   beam_PreCommit_Java_Amazon-Web-Services_IO_Direct:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      strategy:
-        matrix:
-          job_name: ["beam_PreCommit_Java_Amazon-Web-Services_IO_Direct"]
-          job_phrase: ["Run Java_Amazon-Web-Services_IO_Direct PreCommit"]
+    strategy:
+      matrix:
+        job_name: ["beam_PreCommit_Java_Amazon-Web-Services_IO_Direct"]
+        job_phrase: ["Run Java_Amazon-Web-Services_IO_Direct PreCommit"]
     timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
@@ -111,7 +111,7 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: python-code-coverage-report
+          name: java-code-coverage-report
           path: "**/build/test-results/**/*.xml"
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v3
