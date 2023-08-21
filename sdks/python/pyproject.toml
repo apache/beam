@@ -26,7 +26,9 @@ requires = [
     # Avoid https://github.com/pypa/virtualenv/issues/2006
     "distlib==0.3.7",
     # Numpy headers
-    "numpy>=1.14.3,<1.26"
+    "numpy>=1.14.3,<1.26",
+    # having cython here will create wheels that are platform dependent.
+    "cython",
 ]
 
 # legacy installation is needed to generate `apache_beam.portability.api` package.
