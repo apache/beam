@@ -41,7 +41,7 @@ docker {
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"]),
-           'BUILDX_NO_DEFAULT_ATTESTATIONS': true])
+           'BUILDX_NO_DEFAULT_ATTESTATIONS': '1'])
   buildx useBuildx
   platform(*project.containerPlatforms())
   load useBuildx && !pushContainers
