@@ -640,28 +640,15 @@ class MainTest(unittest.TestCase):
 
   def test_preprocess_windowing_custom_type(self):
     spec = '''
-      type: composite
-      transforms:
-        - type: CreateTimestamped
-          name: Create
-          elements: [0, 2, 4]
-        - type: SumGlobally
-          input: Create
-          windowing:
-            type: fixed
-            size: 4
-      output: SumGlobally
+        type: SumGlobally
+        input: Create
+        windowing:
+          type: fixed
+          size: 4
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     spec = normalize_inputs_outputs(spec)
-    spec['transforms'] = [
-        normalize_inputs_outputs(t) for t in spec['transforms']
-    ]
-
-    spec_sum = spec['transforms'][1]
-    # Pass a copy of spec_sum, because preprocess_windowing modifies
-    # the dict (spec.pop('windowing'))
-    result = preprocess_windowing(dict(spec_sum))
+    result = preprocess_windowing(spec)
 
     expected = f'''
       type: composite
@@ -704,9 +691,7 @@ class MainTest(unittest.TestCase):
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
 
-    # Pass a copy of spec_sum, because preprocess_windowing modifies
-    # the dict (spec.pop('windowing'))
-    result = preprocess_windowing(copy.deepcopy(spec))
+    result = preprocess_windowing(spec)
 
     expected = '''
       type: composite
@@ -752,9 +737,7 @@ class MainTest(unittest.TestCase):
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
 
-    # Pass a copy of spec_sum, because preprocess_windowing modifies
-    # the dict (spec.pop('windowing'))
-    result = preprocess_windowing(copy.deepcopy(spec))
+    result = preprocess_windowing(spec)
 
     expected = '''
       type: composite
@@ -780,27 +763,16 @@ class MainTest(unittest.TestCase):
 
   def test_preprocess_windowing_other_type_with_no_inputs(self):
     spec = '''
-      type: composite
-      transforms:
-        - type: CreateTimestamped
-          name: Create
-          elements: [0, 2, 4]
-          windowing:
-            type: fixed
-            size: 4
-      output: CreateTimestamped
+      type: CreateTimestamped
+      name: Create
+      elements: [0, 2, 4]
+      windowing:
+        type: fixed
+        size: 4
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     spec = normalize_inputs_outputs(spec)
-    spec['transforms'] = [
-        normalize_inputs_outputs(t) for t in spec['transforms']
-    ]
-
-    # Pass a copy of spec_sum, because preprocess_windowing modifies
-    # the dict (spec.pop('windowing'))
-    spec = preprocess_windowing(copy.deepcopy(spec))
-    spec = spec['transforms'][0]
-    result = preprocess_windowing(copy.deepcopy(spec))
+    result = preprocess_windowing(spec)
 
     expected = f'''
       type: composite
