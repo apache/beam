@@ -19,7 +19,7 @@
 /// Basic reducers
 public extension PCollection {
     func reduce<Result:Codable,K,V>(name:String? = nil,_file:String=#fileID,_line:Int=#line,into:Result,_ accumulator: @Sendable @escaping (V,inout Result) -> Void) -> PCollection<KV<K,Result>> where Of == KV<K,V> {
-        return pardo(name,_file:_file,_line:_line,into) { initialValue,input,output in
+        return pardo(name:name ?? "\(_file):\(_line)",into) { initialValue,input,output in
             for await (kv,ts,w) in input {
                 var result = initialValue
                 for v in kv.values {

@@ -205,6 +205,8 @@ public final class Pipeline {
                             toVisit.append(.collection(o))
                         case .flatten(_, _):
                             throw ApacheBeamError.runtimeError("flatten not implemented yet")
+                        case .external:
+                            throw ApacheBeamError.runtimeError("External Transforms not implemented yet")
                         case .groupByKey(let o):
                             let outputs = [o].enumerated().map {
                                 ("\($0)",collection(from: $1).name)

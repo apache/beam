@@ -48,7 +48,7 @@ final class IntegrationTests: XCTestCase {
         try await Pipeline { pipeline in
             let (contents,errors) = pipeline
                 .create(["file1.txt","file2.txt","missing.txt"])
-                .pardo { filenames,output,errors in
+                .pardo(name:"Read Files") { filenames,output,errors in
                     for await (filename,_,_) in filenames {
                         do {
                             output.emit(String(decoding:try fixtureData(filename),as:UTF8.self))
@@ -58,7 +58,7 @@ final class IntegrationTests: XCTestCase {
                     }
                 }
             
-            // Simple ParDo that takes advantage of enumerateLines
+            // Simple ParDo that takes advantage of enumerateLines. No name to test name generation of pardos 
             let lines = contents.pardo { contents,lines in
                 for await (content,_,_) in contents {
                     content.enumerateLines { line,_ in

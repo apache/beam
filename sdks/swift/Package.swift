@@ -27,6 +27,8 @@ let dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
     
     // Additional Transform Dependencies
+    .package(url: "https://github.com/awslabs/aws-sdk-swift.git", from: "0.23.0"),
+    .package(url: "https://github.com/googleapis/google-auth-library-swift",from:"0.0.0"),
     
     
     // Swift Package Manager Plugins
@@ -52,7 +54,8 @@ let package = Package(
             name: "ApacheBeam",
             dependencies: [
                 .product(name:"GRPC",package:"grpc-swift"),
-                .product(name: "Logging",package:"swift-log")
+                .product(name: "Logging",package:"swift-log"),
+                .product(name: "AWSS3",package:"aws-sdk-swift")
             ]
         ),
         .testTarget(

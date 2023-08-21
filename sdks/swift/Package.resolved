@@ -1,12 +1,66 @@
 {
   "pins" : [
     {
+      "identity" : "aws-crt-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/awslabs/aws-crt-swift",
+      "state" : {
+        "revision" : "997904873945e074aaf5c51ea968d9a84684525a",
+        "version" : "0.13.0"
+      }
+    },
+    {
+      "identity" : "aws-sdk-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/awslabs/aws-sdk-swift.git",
+      "state" : {
+        "revision" : "14cfdb636d918e589f1b053e43acc118e75af5ce",
+        "version" : "0.23.0"
+      }
+    },
+    {
+      "identity" : "bigint",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/attaswift/BigInt",
+      "state" : {
+        "revision" : "0ed110f7555c34ff468e72e1686e59721f2b0da6",
+        "version" : "5.3.0"
+      }
+    },
+    {
+      "identity" : "cryptoswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzyzanowskim/CryptoSwift.git",
+      "state" : {
+        "revision" : "af1b58fc569bfde777462349b9f7314b61762be0",
+        "version" : "1.3.2"
+      }
+    },
+    {
+      "identity" : "google-auth-library-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleapis/google-auth-library-swift",
+      "state" : {
+        "revision" : "4b510d91fc74f1415eae6dabc9836b8c3e1f44f6",
+        "version" : "0.5.3"
+      }
+    },
+    {
       "identity" : "grpc-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/grpc/grpc-swift.git",
       "state" : {
         "revision" : "735d88f8196467f24189896f29c4625af7cbd072",
         "version" : "1.19.0"
+      }
+    },
+    {
+      "identity" : "smithy-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/awslabs/smithy-swift",
+      "state" : {
+        "revision" : "f277bd61b9a869a6a4a4b4a0e808240147713f7f",
+        "version" : "0.27.0"
       }
     },
     {
@@ -106,6 +160,15 @@
       "state" : {
         "revision" : "ce20dc083ee485524b802669890291c0d8090170",
         "version" : "1.22.1"
+      }
+    },
+    {
+      "identity" : "xmlcoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/MaxDesiatov/XMLCoder.git",
+      "state" : {
+        "revision" : "80b4a1646399b8e4e0ce80711653476a85bd5e37",
+        "version" : "0.17.0"
       }
     }
   ],

@@ -32,8 +32,8 @@ public indirect enum Coder {
     case lengthprefix(Coder)
     case windowedvalue(Coder,Coder)
     
-
     // TODO: Row Coder
+    
 }
 
 
