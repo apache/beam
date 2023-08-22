@@ -128,8 +128,15 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
 
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
+  include '**/*IT.class'
+  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/SpannerWriteIT.class'
+  exclude '**/*KmsKeyIT.class'
+  exclude '**/FhirIOReadIT.class'
+  exclude '**/FhirIOWriteIT.class'
+  exclude '**/FhirIOLROIT.class'
+  exclude '**/FhirIOSearchIT.class'
+  exclude '**/FhirIOPatientEverythingIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
