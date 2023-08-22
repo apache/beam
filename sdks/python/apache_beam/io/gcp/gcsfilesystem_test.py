@@ -320,7 +320,6 @@ class GCSFileSystemTest(unittest.TestCase):
     ]]
     gcsio_mock.delete_batch.side_effect = [[
         ('gs://bucket/from1', None),
-        ('gs://bucket/from2', None),
         ('gs://bucket/from3', None),
     ]]
 
@@ -335,7 +334,6 @@ class GCSFileSystemTest(unittest.TestCase):
     ])
     gcsio_mock.delete_batch.assert_called_once_with([
         'gs://bucket/from1',
-        'gs://bucket/from2',
         'gs://bucket/from3',
     ])
 
@@ -367,8 +365,11 @@ class GCSFileSystemTest(unittest.TestCase):
         'gs://bucket/from2',
         'gs://bucket/from3',
     ]
-    gcsio_mock.delete_batch.side_effect = [[(f, Exception("BadThings"))
-                                            for f in files]]
+    gcsio_mock.delete_batch.side_effect = [
+        ('gs://bucket/from1', None),
+        ('gs://bucket/from2', Exception("BadThings")),
+        ('gs://bucket/from3', None),
+    ]
     # Issue batch delete.
     with self.assertRaisesRegex(BeamIOError, r'^Delete operation failed'):
       self.fs.delete(files)
