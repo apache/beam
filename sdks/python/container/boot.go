@@ -380,26 +380,26 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 	pkgName := "apache-beam"
 	isSdkInstalled := isPackageInstalled(pkgName)
 	if !isSdkInstalled {
-		return fmt.Errorf("Apache Beam is not installed in the runtime environment. If you use a custom container image, you must install apache-beam package in the custom image using same version of Beam as in the pipeline submission environment. For more information, see: the https://beam.apache.org/documentation/runtime/environments/.")
+		return fmt.Errorf("apache-beam is not installed in the runtime environment. If you use a custom container image, you must install apache-beam package in the custom image using same version of Beam as in the pipeline submission environment. For more information, see: the https://beam.apache.org/documentation/runtime/environments/")
 	}
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
 	if err := installSdk(files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
-		return fmt.Errorf("failed to install SDK: %v", err)
+		return fmt.Errorf("failed to install SDK (this may be unrecoverable): %v", err)
 	}
 	// The staged files will not disappear due to restarts because workDir is a
 	// folder that is mapped to the host (and therefore survives restarts).
 	for _, f := range requirementsFiles {
 		if err := pipInstallRequirements(files, workDir, f); err != nil {
-			return fmt.Errorf("failed to install requirements: %v", err)
+			return fmt.Errorf("failed to install requirements (this may be unrecoverable): %v", err)
 		}
 	}
 	if err := installExtraPackages(files, extraPackagesFile, workDir); err != nil {
-		return fmt.Errorf("failed to install extra packages: %v", err)
+		return fmt.Errorf("failed to install extra packages (this may be unrecoverable): %v", err)
 	}
 	if err := pipInstallPackage(files, workDir, workflowFile, false, true, nil); err != nil {
-		return fmt.Errorf("failed to install workflow: %v", err)
+		return fmt.Errorf("failed to install workflow (this may be unrecoverable): %v", err)
 	}
 
 	return nil
