@@ -83,9 +83,12 @@ jobs:
           cache-read-only: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         with:
-          provenance: false
-          sbom: false
+          arguments: |
+            --sbom=false
+            --provenance=false
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
