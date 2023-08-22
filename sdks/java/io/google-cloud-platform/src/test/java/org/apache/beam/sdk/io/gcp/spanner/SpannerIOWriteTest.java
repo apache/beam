@@ -758,12 +758,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void retryOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
-
     String errString =
         "Transaction aborted. "
             + "Database schema probably changed during transaction, retry may succeed.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
 
+  @Test
+  public void retryOnEmulatorRejectedConcurrentTransaction() throws InterruptedException {
+    String errString =
+        "Transaction 199 aborted due to active transaction 167. "
+            + "The emulator only supports one transaction at a time.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
+
+  public void retryOnAbortedExceptionWithMessage(String errString) throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
@@ -806,11 +816,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void retryMaxOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
-
     String errString =
         "Transaction aborted. "
             + "Database schema probably changed during transaction, retry may succeed.";
+    retryMaxOnAbortedExceptionWithMessage(errString);
+  }
+
+  @Test
+  public void retryMaxOnEmulatorRejectedConcurrentTransaction() throws InterruptedException {
+    String errString =
+        "Transaction 199 aborted due to active transaction 167. "
+            + "The emulator only supports one transaction at a time.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
+
+  public void retryMaxOnAbortedExceptionWithMessage(String errString) throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
