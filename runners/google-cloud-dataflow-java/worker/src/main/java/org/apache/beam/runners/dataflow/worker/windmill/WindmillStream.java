@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
+import com.google.auto.value.AutoValue;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,30 @@ public interface WindmillStream {
           @Nullable Instant synchronizedProcessingTime,
           Windmill.WorkItem workItem,
           Collection<Windmill.LatencyAttribution> getWorkStreamLatencies);
+    }
+
+    @AutoValue
+    abstract class GetWorkBudget {
+      public static GetWorkBudget.Builder builder() {
+        return new AutoValue_WindmillStream_GetWorkStream_GetWorkBudget.Builder();
+      }
+
+      public GetWorkBudget consumeBudgetUpdate(long bytes, long items) {
+        return GetWorkBudget.builder().setBytes(bytes() + bytes).setItems(items() + items).build();
+      }
+
+      public abstract long bytes();
+
+      public abstract long items();
+
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract Builder setBytes(long bytes);
+
+        public abstract Builder setItems(long budget);
+
+        public abstract GetWorkBudget build();
+      }
     }
   }
 
