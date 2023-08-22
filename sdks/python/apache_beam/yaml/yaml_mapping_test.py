@@ -17,9 +17,13 @@
 
 import logging
 import os
+import shutil
+import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.io import localfilesystem
+from apache_beam.options import pipeline_options
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml.readme_test import createTestSuite
@@ -33,20 +37,27 @@ DATA = [
 
 
 class YamlMappingTest(unittest.TestCase):
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+    self.fs = localfilesystem.LocalFileSystem(pipeline_options)
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
   def test_basic(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
-          type: MapToFields
-          input: input
-          config:
-              language: python
-              fields:
-                label: label
-                isogeny: "label[-1]"
-          ''')
+        type: MapToFields
+        input: input
+        config:
+            language: python
+            fields:
+              label: label
+              isogeny: "label[-1]"
+        ''')
       assert_that(
           result,
           equal_to([
@@ -61,13 +72,13 @@ class YamlMappingTest(unittest.TestCase):
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
-          type: MapToFields
-          input: input
-          config:
-              fields: {}
-              append: true
-              drop: [conductor]
-          ''')
+        type: MapToFields
+        input: input
+        config:
+            fields: {}
+            append: true
+            drop: [conductor]
+        ''')
       assert_that(
           result,
           equal_to([
@@ -82,14 +93,14 @@ class YamlMappingTest(unittest.TestCase):
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
-          type: MapToFields
-          input: input
-          config:
-              language: python
-              fields:
-                label: label
-              keep: "rank > 0"
-          ''')
+        type: MapToFields
+        input: input
+        config:
+            language: python
+            fields:
+              label: label
+            keep: "rank > 0"
+        ''')
       assert_that(
           result, equal_to([
               beam.Row(label='37a'),
@@ -105,16 +116,16 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: MapToFields
-          input: input
-          config:
-              language: python
-              append: true
-              fields:
-                range: "range(a)"
-              explode: [range, b]
-              cross_product: true
-          ''')
+        type: MapToFields
+        input: input
+        config:
+            language: python
+            append: true
+            fields:
+              range: "range(a)"
+            explode: [range, b]
+            cross_product: true
+        ''')
       assert_that(
           result,
           equal_to([
@@ -130,6 +141,275 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(a=3, b='y', c=.125, range=0),
               beam.Row(a=3, b='y', c=.125, range=1),
               beam.Row(a=3, b='y', c=.125, range=2),
+          ]))
+
+  def test_map_to_fields_filter_inline_js(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+  type: MapToFields
+  input: input
+  config:
+    language: javascript
+    fields:
+      label:
+        callable: "function label_map(x) {return x.label + 'x'}"
+      conductor:
+        callable: "function conductor_map(x) {return x.conductor + 1}"
+      other: "conductor / 2"
+    keep:
+      callable: "function filter(x) {return x.rank > 0}"
+  ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37ax', conductor=38, other=18.5),
+              beam.Row(label='389ax', conductor=390, other=194.5),
+          ]))
+
+  def test_map_to_fields_filter_inline_py(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+  type: MapToFields
+  input: input
+  config:
+    language: python
+    fields:
+      label:
+        callable: "lambda x: x.label + 'x'"
+      conductor:
+        callable: "lambda x: x.conductor + 1"
+      other: 
+        expression: "conductor / 2.0"
+    keep: 
+      callable: "lambda x: x.rank > 0"
+  ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37ax', conductor=38, other=18.5),
+              beam.Row(label='389ax', conductor=390, other=194.5),
+          ]))
+
+  def test_filter_inline_js(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+  type: Filter
+  input: input
+  config:
+    language: javascript
+    keep: 
+      callable: "function filter(x) {return x.rank > 0}"
+  ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
+
+  def test_filter_inline_py(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+  type: Filter
+  input: input
+  config:
+    language: python
+    keep: 
+      callable: "lambda x: x.rank > 0"
+  ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
+
+  def test_filter_expression_js(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+  type: Filter
+  input: input
+  config:
+    language: javascript
+    keep: 
+      expression: "label.toUpperCase().indexOf('3') == -1 && conductor"
+  ''')
+      assert_that(
+          result, equal_to([
+              beam.Row(label='11a', conductor=11, rank=0),
+          ]))
+
+  def test_filter_expression_py(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+  type: Filter
+  input: input
+  config:
+    language: python
+    keep: 
+      expression: "'3' not in label"
+  ''')
+      assert_that(
+          result, equal_to([
+              beam.Row(label='11a', conductor=11, rank=0),
+          ]))
+
+  def test_filter_inline_js_file(self):
+    file_data = '''
+    function f(x) {
+      return x.rank > 0
+    }
+    function g(x) {
+      return x.rank > 1
+    }
+    '''.replace('    ', '')
+
+    path = os.path.join(self.tmpdir, 'udf.js')
+    self.fs.create(path).write(file_data.encode('utf8'))
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          f'''
+        type: Filter
+        input: input
+        config:
+          language: javascript
+          keep: 
+            path: {path}
+            name: "f"
+        ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
+
+  def test_filter_inline_py_file(self):
+    file_data = '''
+    def f(x):
+      return x.rank > 0
+    def g(x):
+      return x.rank > 1
+    '''.replace('    ', '')
+
+    path = os.path.join(self.tmpdir, 'udf.py')
+    self.fs.create(path).write(file_data.encode('utf8'))
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          f'''
+        type: Filter
+        input: input
+        config:
+          language: python
+          keep: 
+            path: {path}
+            name: "f"
+        ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
+
+  def test_map_to_fields_filter_mixed_js(self):
+    file_data = '''
+        function f(x) {
+          return x.rank > 0
+        }
+        function g(x) {
+          return x.rank > 1
+        }
+        '''.replace('    ', '')
+
+    path = os.path.join(self.tmpdir, 'udf.js')
+    self.fs.create(path).write(file_data.encode('utf8'))
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          f'''
+    type: MapToFields
+    input: input
+    config:
+      language: javascript
+      fields:
+        label:
+          expression: "label + 'x'"
+        conductor:
+          callable: "function conductor_map(x) {{return x.conductor + 1}}"
+        other: "conductor / 2"
+      keep:
+        path: {path}
+        name: "f"
+    ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37ax', conductor=38, other=18.5),
+              beam.Row(label='389ax', conductor=390, other=194.5),
+          ]))
+
+  def test_map_to_fields_filter_mixed_py(self):
+    file_data = '''
+        def f(x):
+          return x.rank > 0
+        def g(x):
+          return x.rank > 1
+        '''.replace('    ', '')
+
+    path = os.path.join(self.tmpdir, 'udf.py')
+    self.fs.create(path).write(file_data.encode('utf8'))
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          f'''
+    type: MapToFields
+    input: input
+    config:
+      language: python
+      fields:
+        label:
+          expression: "label + 'x'"
+        conductor:
+          callable: "lambda x: x.conductor + 1"
+        other: "conductor / 2.0"
+      keep:
+        path: {path}
+        name: "f"
+    ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37ax', conductor=38, other=18.5),
+              beam.Row(label='389ax', conductor=390, other=194.5),
           ]))
 
 

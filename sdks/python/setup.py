@@ -331,7 +331,9 @@ if __name__ == '__main__':
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0'
+              'google-cloud-aiplatform>=1.26.0, < 2.0',
+              # GCP Packages required by YAML
+              'google-cloud-storage>=2.0.0,<4'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
