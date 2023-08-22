@@ -37,6 +37,15 @@
       }
     },
     {
+      "identity" : "duckdb-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/duckdb/duckdb-swift",
+      "state" : {
+        "revision" : "439899503fa15a06d931947e9d055baaf6a9dd89",
+        "version" : "0.8.1"
+      }
+    },
+    {
       "identity" : "google-auth-library-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/googleapis/google-auth-library-swift",

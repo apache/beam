@@ -21,11 +21,13 @@ public protocol PCollectionProtocol {
     
     typealias Stream = PCollectionStream<Of>
     
+    var parent: PipelineTransform? { get }
     var consumers: [PipelineTransform] { get }
     var coder: Coder { get }
     var stream: Stream { get }
     
-    func apply(_ transform: PipelineTransform)
+    @discardableResult
+    func apply(_ transform: PipelineTransform) -> PipelineTransform
 }
 
 
@@ -33,18 +35,27 @@ public final class PCollection<Of> : PCollectionProtocol {
 
     public let coder: Coder
     public var consumers: [PipelineTransform]
+    public private(set) var parent: PipelineTransform?
     
-    public init(coder: Coder = .of(type: Of.self)!,consumers:[PipelineTransform] = []) {
+    public init(coder: Coder = .of(type: Of.self)!,parent: PipelineTransform? = nil,consumers:[PipelineTransform] = []) {
         self.coder = coder
         self.consumers = consumers
+        self.parent = parent
     }
 
     public var stream: PCollectionStream<Of> {
         return PCollectionStream<Of>()
     }
     
-    public func apply(_ transform: PipelineTransform) {
+    @discardableResult
+    public func apply(_ transform: PipelineTransform) -> PipelineTransform {
         consumers.append(transform)
+        return transform
     }
+    
+    func parent(_ transform: PipelineTransform) {
+        self.parent = transform
+    }
+    
     
 }

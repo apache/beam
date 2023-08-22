@@ -24,7 +24,8 @@ public struct AnyPCollection : PCollectionProtocol {
     let ofType: Any.Type
     let collection: Any
     
-    let applyClosure: (Any,PipelineTransform) -> Void
+    let parentClosure: (Any) -> PipelineTransform?
+    let applyClosure: (Any,PipelineTransform) -> PipelineTransform
     let consumersClosure: (Any) -> [PipelineTransform]
     let coderClosure: (Any) -> Coder
     let streamClosure: (Any) -> AnyPCollectionStream
@@ -41,6 +42,7 @@ public struct AnyPCollection : PCollectionProtocol {
             self.consumersClosure = { ($0 as! C).consumers }
             self.coderClosure = { ($0 as! C).coder }
             self.streamClosure = { AnyPCollectionStream(($0 as! C).stream) }
+            self.parentClosure = { ($0 as! C).parent }
         }
     }
     
@@ -49,10 +51,15 @@ public struct AnyPCollection : PCollectionProtocol {
         consumersClosure(collection)
     }
     
-    public func apply(_ transform: PipelineTransform) {
+    @discardableResult
+    public func apply(_ transform: PipelineTransform) -> PipelineTransform {
         applyClosure(collection,transform)
     }
 
+    
+    public var parent: PipelineTransform? {
+        parentClosure(collection)
+    }
     
     public var coder: Coder {
         coderClosure(collection)

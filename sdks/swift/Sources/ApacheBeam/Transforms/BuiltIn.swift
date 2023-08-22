@@ -23,7 +23,7 @@ public extension PCollection where Of == Never {
     /// which is the root transform used by Pipelines.
     func impulse() -> PCollection<Data> {
         let output = PCollection<Data>()
-        self.apply(.impulse(AnyPCollection(output)))
+        self.apply(.impulse(AnyPCollection(self),AnyPCollection(output)))
         return output
     }
 }
@@ -34,56 +34,56 @@ public extension PCollection {
     
     // No Output
     func pardo<F:SerializableFn>(name:String,_ fn: F) {
-        self.apply(.pardo(name, fn, []))
+        self.apply(.pardo(AnyPCollection(self),name, fn, []))
     }
     func pardo(name:String,_ fn: @Sendable @escaping (PCollection<Of>.Stream) async throws -> Void) {
-        self.apply(.pardo(name, ClosureFn(fn),[]))
+        self.apply(.pardo(AnyPCollection(self),name, ClosureFn(fn),[]))
     }
     func pardo<Param:Codable>(name:String,_ param:Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream) async throws -> Void) {
-        self.apply(.pardo(name, ParameterizedClosureFn(param,fn), []))
+        self.apply(.pardo(AnyPCollection(self),name, ParameterizedClosureFn(param,fn), []))
     }
     
     // No Output Generated Names
     func pardo<F:SerializableFn>(_file:String=#fileID,_line:Int=#line,_ fn: F) {
-        self.apply(.pardo("\(_file):\(_line)", fn, []))
+        self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)", fn, []))
     }
     func pardo(_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (PCollection<Of>.Stream) async throws -> Void) {
-        self.apply(.pardo("\(_file):\(_line)", ClosureFn(fn),[]))
+        self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)", ClosureFn(fn),[]))
     }
     func pardo<Param:Codable>(_file:String=#fileID,_line:Int=#line,_ param:Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream) async throws -> Void) {
-        self.apply(.pardo("\(_file):\(_line)", ParameterizedClosureFn(param,fn), []))
+        self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)", ParameterizedClosureFn(param,fn), []))
     }
 
 
     // Single Output
     func pardo<F:SerializableFn,O0>(name:String,fn: F,
                                     _ o0:PCollection<O0>) {
-        self.apply(.pardo(name, fn, [AnyPCollection(o0)]))
+        self.apply(.pardo(AnyPCollection(self),name, fn, [AnyPCollection(o0)]))
     }
     func pardo<O0>(name:String,_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
         let output = PCollection<O0>()
-        self.apply(.pardo(name,ClosureFn(fn),[AnyPCollection(output)]))
+        self.apply(.pardo(AnyPCollection(self),name,ClosureFn(fn),[AnyPCollection(output)]))
         return output
     }
     func pardo<Param:Codable,O0>(name:String,_ param: Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
         let output = PCollection<O0>()
-        self.apply(.pardo(name,ParameterizedClosureFn(param,fn),[AnyPCollection(output)]))
+        self.apply(.pardo(AnyPCollection(self),name,ParameterizedClosureFn(param,fn),[AnyPCollection(output)]))
         return output
     }
     
     // Single Output Generated Names
     func pardo<F:SerializableFn,O0>(_file:String=#fileID,_line:Int=#line,fn: F,
                                     _ o0:PCollection<O0>) {
-        self.apply(.pardo("\(_file):\(_line)", fn, [AnyPCollection(o0)]))
+        self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)", fn, [AnyPCollection(o0)]))
     }
     func pardo<O0>(_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
         let output = PCollection<O0>()
-        self.apply(.pardo("\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output)]))
+        output.parent(self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output)])))
         return output
     }
     func pardo<Param:Codable,O0>(_file:String=#fileID,_line:Int=#line,_ param: Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
         let output = PCollection<O0>()
-        self.apply(.pardo("\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output)]))
+        output.parent(self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output)])))
         return output
     }
 
@@ -92,36 +92,46 @@ public extension PCollection {
     // Two Outputs
     func pardo<F:SerializableFn,O0,O1>(name:String,_ fn: F,
                                     _ o0:PCollection<O0>,_ o1:PCollection<O1>) {
-        self.apply(.pardo(name, fn, [AnyPCollection(o0),AnyPCollection(o1)]))
+        self.apply(.pardo(AnyPCollection(self),name, fn, [AnyPCollection(o0),AnyPCollection(o1)]))
     }
     func pardo<O0,O1>(name:String,
                       _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
         let output = (PCollection<O0>(),PCollection<O1>())
-        self.apply(.pardo(name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
         return output
     }
     func pardo<Param:Codable,O0,O1>(name:String,_ param: Param,
                                     _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
         let output = (PCollection<O0>(),PCollection<O1>())
-        self.apply(.pardo(name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
         return output
     }
     
     // Two Outputs Generated Names
     func pardo<F:SerializableFn,O0,O1>(_file:String=#fileID,_line:Int=#line,_ fn: F,
                                     _ o0:PCollection<O0>,_ o1:PCollection<O1>) {
-        self.apply(.pardo("\(_file):\(_line)", fn, [AnyPCollection(o0),AnyPCollection(o1)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)", fn, [AnyPCollection(o0),AnyPCollection(o1)]))
+        o0.parent(parent)
+        o1.parent(parent)
     }
     func pardo<O0,O1>(_file:String=#fileID,_line:Int=#line,
                       _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
         let output = (PCollection<O0>(),PCollection<O1>())
-        self.apply(.pardo("\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
         return output
     }
     func pardo<Param:Codable,O0,O1>(_file:String=#fileID,_line:Int=#line,_ param: Param,
                                     _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
         let output = (PCollection<O0>(),PCollection<O1>())
-        self.apply(.pardo("\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
         return output
     }
 
@@ -130,36 +140,48 @@ public extension PCollection {
     // Three Outputs
     func pardo<F:SerializableFn,O0,O1,O2>(name:String,_ fn: F,
                                           _ o0:PCollection<O0>,_ o1:PCollection<O1>,_ o2:PCollection<O2>) {
-        self.apply(.pardo(name, fn, [AnyPCollection(o0),AnyPCollection(o1),AnyPCollection(o2)]))
+        self.apply(.pardo(AnyPCollection(self),name, fn, [AnyPCollection(o0),AnyPCollection(o1),AnyPCollection(o2)]))
     }
     func pardo<O0,O1,O2>(name:String,
                          _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>,PCollection<O2>) {
         let output = (PCollection<O0>(),PCollection<O1>(),PCollection<O2>())
-        self.apply(.pardo(name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
+        output.2.parent(parent)
         return output
     }
     func pardo<Param:Codable,O0,O1,O2>(name:String,_ param: Param,
                                        _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>,PCollection<O2>) {
         let output = (PCollection<O0>(),PCollection<O1>(),PCollection<O2>())
-        self.apply(.pardo(name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
+        output.2.parent(parent)
         return output
     }
     
     // Three Outputs Generated Names
     func pardo<F:SerializableFn,O0,O1,O2>(_file:String=#fileID,_line:Int=#line,_ fn: F,
                                           _ o0:PCollection<O0>,_ o1:PCollection<O1>,_ o2:PCollection<O2>) {
-        self.apply(.pardo("\(_file):\(_line)", fn, [AnyPCollection(o0),AnyPCollection(o1),AnyPCollection(o2)]))
+        self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)", fn, [AnyPCollection(o0),AnyPCollection(o1),AnyPCollection(o2)]))
     }
     func pardo<O0,O1,O2>(_file:String=#fileID,_line:Int=#line,
                          _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>,PCollection<O2>) {
         let output = (PCollection<O0>(),PCollection<O1>(),PCollection<O2>())
-        self.apply(.pardo("\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)",ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
+        output.2.parent(parent)
         return output
     }
     func pardo<Param:Codable,O0,O1,O2>(_file:String=#fileID,_line:Int=#line,_ param: Param,
                                        _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>,PCollection<O2>) {
         let output = (PCollection<O0>(),PCollection<O1>(),PCollection<O2>())
-        self.apply(.pardo("\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        let parent = self.apply(.pardo(AnyPCollection(self),"\(_file):\(_line)",ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1),AnyPCollection(output.2)]))
+        output.0.parent(parent)
+        output.1.parent(parent)
+        output.2.parent(parent)
         return output
     }
 
@@ -172,7 +194,7 @@ public extension PCollection {
     func groupByKey<K,V>() -> PCollection<KV<K,V>> where Of == KV<K,V> {
         // Adjust the coder for the pcollection to reflect GBK semantcs
         let output = PCollection<KV<K,V>>(coder:.keyvalue(.of(type: K.self)!, .of(type: Array<V>.self)!))
-        self.apply(.groupByKey(AnyPCollection(output)))
+        self.apply(.groupByKey(AnyPCollection(self),AnyPCollection(output)))
         return output
     }
     

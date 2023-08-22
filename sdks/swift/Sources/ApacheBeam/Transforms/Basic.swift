@@ -70,7 +70,7 @@ public extension PCollection {
         }
     }
     
-    func map<K,V>(_ name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
+    func map<K,V>(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
         return pardo(name:name ?? "\(_file):\(_line)") { input,output in
             for try await (i,ts,w) in input {
                 let (key,value) = fn(i)
@@ -97,4 +97,9 @@ public extension PCollection<Never> {
     func create<Value:Codable>(_ values: [Value],name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
         return impulse().create(values,name:name,_file:_file,_line:_line)
     }
+}
+
+public func create<Value:Codable>(_ values: [Value],name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
+    let root = PCollection<Never>()
+    return root.create(values,name:name,_file:_file,_line:_line)
 }

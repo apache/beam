@@ -26,6 +26,18 @@ struct GSBucket : Codable {
 
 public extension PCollection {
     
+    func listFiles(s3 bucket:String) {
+        
+    }
     
+    func listFiles(gs bucket:String) {
+    }
+    
+}
+
+public func listFiles(s3 bucket: String) {
+}
+
+public func listFiles(gs bucket: String) {
     
 }

@@ -20,6 +20,7 @@
 public protocol PTransform {
     associatedtype Expansion: PTransform
     
+    @PTransformBuilder
     var expand: Expansion { get }
 }
 

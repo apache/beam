@@ -28,6 +28,15 @@ public final class Pipeline {
         self.content = content
     }
     
+    public init<Transform:PTransform>(log: Logging.Logger = .init(label:"Pipeline"),@PTransformBuilder content: () -> Transform) {
+        self.log = log
+        
+        let transform = content()
+        self.content = { root in
+            //TODO: Attach transform to the root
+        }
+    }
+    
     public func run(_ runner: PipelineRunner) async throws {
         try await runner.run(try self.context)        
     }
@@ -162,7 +171,7 @@ public final class Pipeline {
                         let inputs = parents.enumerated().map({ ("\($0)","\($1.name)")}).dict()
                         switch pipelineTransform {
                             
-                        case let .pardo(n, fn, o):
+                        case let .pardo(_, n, fn, o):
                             let outputs = o.enumerated().map {
                                 ("\($0)",collection(from: $1).name)
                             }.dict()
@@ -187,7 +196,7 @@ public final class Pipeline {
                             rootIds.append(p.name) //TODO: Composite transform handling
                             fns[p.transform!.uniqueName] = fn
                             toVisit.append(contentsOf: o.map { .collection($0) })
-                        case .impulse(let o):
+                        case .impulse(_, let o):
                             let outputs = [o].enumerated().map {
                                 ("\($0)",collection(from: $1).name)
                             }.dict()
@@ -207,7 +216,7 @@ public final class Pipeline {
                             throw ApacheBeamError.runtimeError("flatten not implemented yet")
                         case .external:
                             throw ApacheBeamError.runtimeError("External Transforms not implemented yet")
-                        case .groupByKey(let o):
+                        case .groupByKey(_,let o):
                             let outputs = [o].enumerated().map {
                                 ("\($0)",collection(from: $1).name)
                             }.dict()
@@ -224,7 +233,7 @@ public final class Pipeline {
                             }
                             rootIds.append(p.name)
                             toVisit.append(.collection(o))
-                        case let .custom(urn,payload,env,o):
+                        case let .custom(_,urn,payload,env,o):
                             let outputs = o.enumerated().map {
                                 ("\($0)",collection(from: $1).name)
                             }.dict()
@@ -247,7 +256,7 @@ public final class Pipeline {
                             }
                             rootIds.append(p.name)
                             toVisit.append(contentsOf:o.map { .collection($0) })
-                        case .composite(_):
+                        case .composite(_,_):
                             throw ApacheBeamError.runtimeError("Composite transforms are not yet implemented")
                         }
                     } else if case .collection(let anyPCollection) = item {

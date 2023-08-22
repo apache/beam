@@ -29,6 +29,7 @@ let dependencies: [Package.Dependency] = [
     // Additional Transform Dependencies
     .package(url: "https://github.com/awslabs/aws-sdk-swift.git", from: "0.23.0"),
     .package(url: "https://github.com/googleapis/google-auth-library-swift",from:"0.0.0"),
+    .package(url: "https://github.com/duckdb/duckdb-swift", .upToNextMinor(from: .init(0, 8, 0))),
     
     
     // Swift Package Manager Plugins
@@ -55,7 +56,8 @@ let package = Package(
             dependencies: [
                 .product(name:"GRPC",package:"grpc-swift"),
                 .product(name: "Logging",package:"swift-log"),
-                .product(name: "AWSS3",package:"aws-sdk-swift")
+                .product(name: "AWSS3",package:"aws-sdk-swift"),
+                .product(name: "DuckDB", package: "duckdb-swift")
             ]
         ),
         .testTarget(

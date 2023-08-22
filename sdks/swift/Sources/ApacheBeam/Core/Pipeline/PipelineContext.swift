@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+
+public protocol StatusProtocol {
+    
+}
+
 public final class PipelineContext {
 
     var proto : PipelineProto
