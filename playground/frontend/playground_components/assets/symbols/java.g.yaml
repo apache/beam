@@ -5945,6 +5945,7 @@ HttpHealthcareApiClient:
   - createHL7v2Message
   - createHL7v2Store
   - deidentifyFhirStore
+  - dicomWebDeleteStudy
   - deleteDicomStore
   - deleteFhirStore
   - deleteHL7v2Message
