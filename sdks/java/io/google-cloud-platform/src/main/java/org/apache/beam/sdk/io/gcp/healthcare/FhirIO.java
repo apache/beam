@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1.model.HttpBody;
 import com.google.api.services.healthcare.v1.model.Operation;
+import com.google.api.services.healthcare.v1beta1.model.conditionalDelete;
 import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
