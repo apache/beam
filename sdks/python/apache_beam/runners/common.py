@@ -1427,7 +1427,8 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exn: BaseException, windowed_value: WindowedValue) -> None:
+      self, exn: BaseException,
+      windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return
