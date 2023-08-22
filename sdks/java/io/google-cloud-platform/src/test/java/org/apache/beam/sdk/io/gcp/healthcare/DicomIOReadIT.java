@@ -61,7 +61,6 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
-  @Ignore("https://github.com/apache/beam/issues/20644")
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
