@@ -54,6 +54,7 @@ import os
 import shutil
 import sys
 import tempfile
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 from typing import Callable
 from typing import List
@@ -900,8 +901,8 @@ class Stager(object):
     """Downloads SDK package from PyPI and returns path to local path."""
     package_name = Stager.get_sdk_package_name()
     try:
-      version = pkg_resources.get_distribution(package_name).version
-    except pkg_resources.DistributionNotFound:
+      version = distribution(package_name).version
+    except PackageNotFoundError:
       raise RuntimeError(
           'Please set --sdk_location command-line option '
           'or install a valid {} distribution.'.format(package_name))
