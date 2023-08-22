@@ -39,7 +39,7 @@ public class DicomIOReadIT {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private String healthcareDataset;
-  private String project= "apache-beam-testing";
+  private String project;
   private HealthcareApiClient client;
   private String storeName = "foo";
 
