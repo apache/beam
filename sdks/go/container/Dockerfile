@@ -19,11 +19,13 @@
 FROM debian:bullseye
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 
+ENV BUILDX_NO_DEFAULT_ATTESTATIONS=1
+RUN echo "The ENV variable BUILDX_NO_DEFAULT_ATTESTATIONS is $BUILDX_NO_DEFAULT_ATTESTATIONS"
+
 ARG TARGETOS
 ARG TARGETARCH
 
 ARG pull_licenses
-ENV BUILDX_NO_DEFAULT_ATTESTATIONS yes
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
