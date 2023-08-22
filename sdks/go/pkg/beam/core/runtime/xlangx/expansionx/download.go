@@ -396,8 +396,8 @@ func GetPythonVersion() (string, error) {
 			return v, nil
 		}
 	}
-	return "", errors.New("no python installation found. If you use a" +
-		"custom container image, please check if python/python3 is available or specify the" +
+	return "", errors.New("no python installation found. If you use a " +
+		"custom container image, please check if python/python3 is available or specify the " +
 		"full path to the python interpreter in PYTHON_PATH environment variable")
 }
 
