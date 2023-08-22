@@ -360,17 +360,15 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
-    gcsio_mock.delete_batch.side_effect = [[
-        ('gs://bucket/from1', None),
-        ('gs://bucket/from2', Exception("BadThings")),
-        ('gs://bucket/from3', None),
-    ]]
+
     gcsio_mock._status.return_value = {'size': 0, 'updated': 99999.0}
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',
         'gs://bucket/from3',
     ]
+    gcsio_mock.delete_batch.side_effect = [[(f, Exception("BadThings"))
+                                            for f in files]]
     # Issue batch delete.
     with self.assertRaisesRegex(BeamIOError, r'^Delete operation failed'):
       self.fs.delete(files)

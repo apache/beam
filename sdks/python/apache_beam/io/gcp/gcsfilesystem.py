@@ -257,17 +257,18 @@ class GCSFileSystem(FileSystem):
     exceptions = {}
     for batch in gcs_batches:
       copy_statuses = self._gcsIO().copy_batch(batch)
-      copy_succeeded = []
+      copy_succeeded = {}
+      delete_targets = []
       for src, dest, exception in copy_statuses:
         if exception:
           exceptions[(src, dest)] = exception
         else:
-          copy_succeeded.append((src, dest))
-      delete_batch = [src for src, dest in copy_succeeded]
-      delete_statuses = self._gcsIO().delete_batch(delete_batch)
-      for i, (src, exception) in enumerate(delete_statuses):
-        dest = copy_succeeded[i][1]
+          copy_succeeded[src] = dest
+          delete_targets.append(src)
+      delete_statuses = self._gcsIO().delete_batch(delete_targets)
+      for src, exception in delete_statuses:
         if exception:
+          dest = copy_succeeded[src]
           exceptions[(src, dest)] = exception
 
     if exceptions:
