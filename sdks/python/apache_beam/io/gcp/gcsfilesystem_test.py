@@ -366,9 +366,9 @@ class GCSFileSystemTest(unittest.TestCase):
         'gs://bucket/from3',
     ]
     gcsio_mock.delete_batch.side_effect = [
-        ('gs://bucket/from1', None),
-        ('gs://bucket/from2', Exception("BadThings")),
-        ('gs://bucket/from3', None),
+        [('gs://bucket/from1', None)],
+        [('gs://bucket/from2', Exception("BadThings"))],
+        [('gs://bucket/from3', None)],
     ]
     # Issue batch delete.
     with self.assertRaisesRegex(BeamIOError, r'^Delete operation failed'):
