@@ -48,6 +48,10 @@ func RunPipeline(j *jobservices.Job) {
 	// here, we only want and need the go one, operating
 	// in loopback mode.
 	envs := j.Pipeline.GetComponents().GetEnvironments()
+	if len(envs) != 1 {
+		j.Failed(fmt.Errorf("unable to execute multi-environment pipelines;\npipeline has environments: %+v", envs))
+		return
+	}
 	env, _ := getOnlyPair(envs)
 	wk := worker.New(env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
