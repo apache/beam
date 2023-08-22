@@ -16,8 +16,9 @@
 #
 
 """This module defines the basic MapToFields operation."""
-
+import builtins
 import itertools
+import json
 
 import apache_beam as beam
 from apache_beam.typehints import row_type
@@ -27,33 +28,140 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 
 
-def _as_callable(original_fields, expr):
-  if expr in original_fields:
-    return expr
+# TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
+def expand_mapping_func(
+    transform_name,
+    language,
+    original_fields,
+    expression=None,
+    callable=None,
+    path=None,
+    name=None):
+
+  # Argument checking
+  if not expression and not callable and not path and not name:
+    raise ValueError(
+        f'{transform_name} must specify either "expression", "callable", or both "path" and "name"'
+    )
+  if expression and callable:
+    raise ValueError(
+        f'{transform_name} cannot specify "expression" and "callable"')
+  if (expression or callable) and (path or name):
+    raise ValueError(
+        f'{transform_name} cannot specify "expression" or "callable" with "path" or "name"'
+    )
+  if path and not name:
+    raise ValueError(f'{transform_name} cannot specify "path" without "name"')
+  if name and not path:
+    raise ValueError(f'{transform_name} cannot specify "name" without "path"')
+
+  def _get_udf_from_file():
+    # Local UDF file case
+    if not path.startswith("gs://"):
+      try:
+        with open(path, 'r') as local_udf_file:
+          return local_udf_file.read()
+      except Exception as e:
+        raise IOError(f'Error opening file "{path}": {e}')
+
+    # GCS UDF file case
+    from google.cloud import storage
+
+    # Parse GCS file location
+    gcs_file_parts = str(path[5:]).split('/')
+    gcs_bucket_name = gcs_file_parts[0]
+    gcs_folder = '/'.join(gcs_file_parts[1:])
+
+    # Instantiates a client and downloads file to string
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(gcs_bucket_name)
+    blob = bucket.blob(gcs_folder)
+    gcs_file = blob.download_as_string().decode('utf-8')
+
+    return gcs_file
+
+  def _check_file_ext(ext):
+    if not path.endswith(ext):
+      raise ValueError(f'File "{path}" is not a valid {ext} file.')
+
+  def _js2py_import():
+    return (['  try:'] + ['    import js2py'] + ['  except ImportError:'] + [
+        '    raise ImportError("js2py must be installed to run javascript UDF\'s for YAML mapping transforms.")'
+    ])
+
+  # Javascript UDF case
+  if language == 'javascript':
+    # Javascript expression case
+    if expression:
+      parameters = [name for name in original_fields if name in expression]
+      js_func = 'function fn(' + ','.join(
+          [name for name in parameters]) + '){' + 'return (' + expression + ')}'
+      source = '\n'.join(['def fn(__row__):'] + _js2py_import() +
+                         [f'  {name} = __row__.{name}' for name in parameters] +
+                         [
+                             f'  return js2py.eval_js(\'\'\'{js_func}\'\'\')(' +
+                             ','.join([name for name in parameters]) + ')'
+                         ])
+    else:
+      # Javascript file UDF case
+      if not callable:
+        _check_file_ext('.js')
+        udf_code = _get_udf_from_file()
+      # Javascript inline UDF case
+      else:
+        udf_code = callable
+
+      source = '\n'.join(['def fn(__row__):'] + _js2py_import() + [
+          '  row_dict = {label: getattr(__row__, label) for label in __row__._fields}'
+      ] + ([f'  return js2py.eval_js(\'\'\'{udf_code}\'\'\')(row_dict)']
+           if callable else ['  js = js2py.EvalJs()'] +
+           [f'  js.eval(\'\'\'{udf_code}\'\'\')'] +
+           [f'  return getattr(js, "{name}")(row_dict)']))
+  # Python UDF case
   else:
-    # TODO(yaml): support a type parameter
-    # TODO(yaml): support an imports parameter
-    # TODO(yaml): support a requirements parameter (possibly at a higher level)
-    if isinstance(expr, str):
-      expr = {'expression': expr}
-    if not isinstance(expr, dict):
-      raise ValueError(
-          f"Ambiguous expression type (perhaps missing quoting?): {expr}")
-    elif len(expr) != 1:
-      raise ValueError(f"Ambiguous expression type: {list(expr.keys())}")
-    if 'expression' in expr:
+    # Python expression case
+    if expression:
       # TODO(robertwb): Consider constructing a single callable that takes
-      # the row and returns the new row, rather than invoking (and unpacking)
-      # for each field individually.
+      ## the row and returns the new row, rather than invoking (and unpacking)
+      ## for each field individually.
       source = '\n'.join(['def fn(__row__):'] + [
           f'  {name} = __row__.{name}'
-          for name in original_fields if name in expr['expression']
-      ] + ['  return (' + expr['expression'] + ')'])
-    elif 'callable' in expr:
-      source = expr['callable']
+          for name in original_fields if name in expression
+      ] + ['  return (' + expression + ')'])
+
+    # Python file UDF case
+    elif path and name:
+      _check_file_ext('.py')
+      py_file = _get_udf_from_file()
+
+      # Parse file into python function using given method name
+      return python_callable.PythonCallableWithSource.load_from_script(
+          py_file, name)
+
+    # Python inline UDF case - already valid python code
     else:
-      raise ValueError(f"Unknown expression type: {list(expr.keys())}")
-    return python_callable.PythonCallableWithSource(source)
+      source = callable
+
+  # Return source UDF code as python callable
+  return python_callable.PythonCallableWithSource(source)
+
+
+def _as_callable(original_fields, expr, transform_name, language):
+  if expr in original_fields:
+    return expr
+
+  # TODO(yaml): support a type parameter
+  # TODO(yaml): support an imports parameter
+  # TODO(yaml): support a requirements parameter (possibly at a higher level)
+  if isinstance(expr, str):
+    expr = {'expression': expr}
+  if not isinstance(expr, dict):
+    raise ValueError(
+        f"Ambiguous expression type (perhaps missing quoting?): {expr}")
+  elif len(expr) != 1 and ('path' not in expr or 'name' not in expr):
+    raise ValueError(f"Ambiguous expression type: {list(expr.keys())}")
+
+  return expand_mapping_func(transform_name, language, original_fields, **expr)
 
 
 # TODO(yaml): This should be available in all environments, in which case
@@ -116,6 +224,8 @@ def _PythonProjectionTransform(
     pcoll,
     *,
     fields,
+    transform_name,
+    language,
     keep=None,
     explode=(),
     cross_product=True,
@@ -138,19 +248,18 @@ def _PythonProjectionTransform(
     if isinstance(keep, str) and keep in original_fields:
       keep_fn = lambda row: getattr(row, keep)
     else:
-      keep_fn = _as_callable(original_fields, keep)
+      keep_fn = _as_callable(original_fields, keep, transform_name, language)
     filtered = pcoll | beam.Filter(keep_fn)
   else:
     filtered = pcoll
 
-  if list(fields.items()) == [(name, name) for name in original_fields]:
-    projected = filtered
-  else:
-    projected = filtered | beam.Select(
-        **{
-            name: _as_callable(original_fields, expr)
-            for (name, expr) in fields.items()
-        })
+  # TODO(yaml) - Is there a better way to convert to pvalue.Row
+  # for Filter transform without calling beam.Select
+  projected = filtered | beam.Select(
+      **{
+          name: _as_callable(original_fields, expr, transform_name, language)
+          for (name, expr) in fields.items()
+      })
 
   if explode:
     result = projected | _Explode(explode, cross_product=cross_product)
@@ -177,6 +286,7 @@ def MapToFields(
     drop=(),
     language=None,
     error_handling=None,
+    transform_name="MapToFields",
     **language_keywords):
 
   if isinstance(explode, str):
@@ -242,13 +352,15 @@ def MapToFields(
 
     return result
 
-  elif language == 'python':
+  elif language == 'python' or language == 'javascript':
     return pcoll | yaml_create_transform({
         'type': 'PyTransform',
         'config': {
             'constructor': __name__ + '._PythonProjectionTransform',
             'kwargs': {
                 'fields': fields,
+                'transform_name': transform_name,
+                'language': language,
                 'keep': keep,
                 'explode': explode,
                 'cross_product': cross_product,
@@ -281,6 +393,7 @@ def create_mapping_provider():
               keep=keep,
               fields={},
               append=True,
+              transform_name='Filter',
               **kwargs)),
       'Explode': (
           lambda yaml_create_transform,
@@ -290,5 +403,6 @@ def create_mapping_provider():
               explode=explode,
               fields={},
               append=True,
+              transform_name='Explode',
               **kwargs)),
   })

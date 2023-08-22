@@ -77,7 +77,7 @@ class PythonCallableWithSource(object):
     return o
 
   @staticmethod
-  def load_from_script(source):
+  def load_from_script(source, method_name=None):
     lines = [
         line for line in source.split('\n')
         if line.strip() and line.strip()[0] != '#'
@@ -88,12 +88,12 @@ class PythonCallableWithSource(object):
     for ix, line in reversed(list(enumerate(lines))):
       if line[0] != ' ':
         if line.startswith('def '):
-          name = line[4:line.index('(')].strip()
+          name = method_name or line[4:line.index('(')].strip()
         elif line.startswith('class '):
-          name = line[5:line.index('(') if '(' in
-                      line else line.index(':')].strip()
+          name = method_name or line[5:line.index('(') if '(' in
+                                     line else line.index(':')].strip()
         else:
-          name = '__python_callable__'
+          name = method_name or '__python_callable__'
           lines[ix] = name + ' = ' + line
         break
     else:
