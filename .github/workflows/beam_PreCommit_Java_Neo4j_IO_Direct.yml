@@ -88,7 +88,7 @@ jobs:
       - name: run Neo4j IO IT script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:neo4j:integrationTest --info
+          gradle-command: :sdks:java:io:neo4j:integrationTest
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
