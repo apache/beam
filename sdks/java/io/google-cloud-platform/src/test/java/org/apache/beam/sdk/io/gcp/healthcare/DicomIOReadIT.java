@@ -39,7 +39,7 @@ public class DicomIOReadIT {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private String healthcareDataset;
-  private String project;
+  private String project= "apache-beam-testing";
   private HealthcareApiClient client;
   private String storeName = "foo";
 
@@ -60,5 +60,34 @@ public class DicomIOReadIT {
   public void deleteDicomStore() throws IOException {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
-  // Author integration tests (https://github.com/apache/beam/issues/28099)
+
+  @Ignore("https://github.com/apache/beam/issues/28099")
+  @Test
+  public void testDicomMetadataRead() throws IOException {
+    String webPath =
+        String.format(
+            "%s/dicomStores/%s/dicomWeb/studies/%s",
+            healthcareDataset, storeName, TEST_FILE_STUDY_ID);
+
+    DicomIO.ReadStudyMetadata.Result result =
+        pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
+
+    PAssert.that(result.getFailedReads()).empty();
+    PAssert.that(result.getReadResponse())
+        .satisfies(
+            input -> {
+              for (String resp : input) {
+                Assert.assertTrue(resp.contains(TEST_FILE_STUDY_ID));
+              }
+              return null;
+            });
+
+    PipelineResult job = pipeline.run();
+
+    try {
+      job.cancel();
+    } catch (UnsupportedOperationException exc) {
+      // noop - if runner does not support job.cancel()
+    }
+  }
 }
