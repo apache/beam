@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -49,18 +48,6 @@ func pipInstallRequirements(files []string, dir, name string) error {
 		}
 	}
 	return nil
-}
-
-// isPackageInstalled checks if the given package is installed in the
-// environment.
-func isPackageInstalled(pkgName string) bool {
-	cmd := exec.Command("python", "-m", "pip", "show", pkgName)
-	if err := cmd.Run(); err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
-			return false
-		}
-	}
-	return true
 }
 
 // pipInstallPackage installs the given package, if present.
