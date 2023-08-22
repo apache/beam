@@ -223,6 +223,12 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public Empty dicomWebDeleteStudy(String dicomStoreName, String studyId) throws IOException {
+    return client.projects().locations().datasets().dicomStores().studies()
+    .delete(dicomStoreName, "studies/" + studyId).execute();
+  }
+
+  @Override
   public DicomStore createDicomStore(String dataset, String name) throws IOException {
     return createDicomStore(dataset, name, null);
   }

@@ -241,6 +241,8 @@ public interface HealthcareApiClient {
 
   String retrieveDicomStudyMetadata(String dicomWebPath) throws IOException;
 
+  Empty dicomWebDeleteStudy(String dicomStoreName, String studyId) throws IOException;
+
   DicomStore createDicomStore(String dataset, String name) throws IOException;
 
   DicomStore createDicomStore(String dataset, String name, String pubsubTopic) throws IOException;

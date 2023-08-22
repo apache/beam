@@ -61,6 +61,11 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
+  @After
+  public void dicomWebDeleteStudy() throws IOException {
+    client.dicomWebDeleteStudy(storeName, "studies/" + TEST_FILE_STUDY_ID);
+  }
+
   @Ignore("https://github.com/apache/beam/issues/20644")
   @Test
   public void testDicomMetadataRead() throws IOException {
