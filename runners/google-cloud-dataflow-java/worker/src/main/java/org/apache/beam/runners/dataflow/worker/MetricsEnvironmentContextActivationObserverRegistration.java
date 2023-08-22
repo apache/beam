@@ -22,7 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Registration of a {@link ContextActivationObserver} for the {@link MetricsEnvironment} with the

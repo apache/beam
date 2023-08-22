@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -125,7 +124,9 @@ func main() {
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
 	os.Setenv("HARNESS_ID", *id)
-	os.Setenv("PIPELINE_OPTIONS", options)
+	if err := makePipelineOptionsFile(options); err != nil {
+		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
+	}
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
@@ -245,6 +246,22 @@ func main() {
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
 }
 
+// makePipelineOptionsFile writes the pipeline options to a file.
+// Assumes the options string is JSON formatted.
+func makePipelineOptionsFile(options string) error {
+	fn := "pipeline_options.json"
+	f, err := os.Create(fn)
+	if err != nil {
+		return fmt.Errorf("unable to create %v: %w", fn, err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(options); err != nil {
+		return fmt.Errorf("error writing %v: %w", f.Name(), err)
+	}
+	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
+	return nil
+}
+
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
 // it returns 70% of the physical memory on the machine. If it cannot determine
 // that value, it returns 1GB. This is an imperfect heuristic. It aims to
@@ -327,7 +344,7 @@ func LoadMetaOptions(ctx context.Context, logger *tools.Logger, dir string) ([]*
 			return nil
 		}
 
-		content, err := ioutil.ReadFile(path)
+		content, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}

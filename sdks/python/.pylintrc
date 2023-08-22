@@ -69,6 +69,7 @@ variable-rgx=^[a-z][a-z0-9_]*$
 inlinevar-rgx=^[a-z][a-z0-9_]*$
 
 # List of builtins function names that should not be used, separated by a comma
+# TODO(https://github.com/apache/beam/issues/27473) Remove or re-enable
 bad-functions=input,apply,reduce
 
 # Good variable names which should always be accepted, separated by a comma
@@ -84,8 +85,7 @@ disable =
   arguments-differ,
   arguments-renamed,
   attribute-defined-outside-init,
-  bad-builtin,
-  bad-continuation,
+  bad-builtin, # TODO(https://github.com/apache/beam/issues/27473) Remove or re-enable
   broad-except,
   comparison-with-callable,
   consider-using-enumerate,
@@ -106,10 +106,10 @@ disable =
   keyword-arg-before-vararg,
   len-as-condition,
   locally-disabled,
-  locally-enabled,
   logging-not-lazy,
   missing-docstring,
   multiple-statements,
+  no-self-use,
   no-else-break,
   no-else-continue,
   no-else-raise,
@@ -117,7 +117,6 @@ disable =
   no-member,
   no-name-in-module,
   no-self-argument,
-  no-self-use,
   no-value-for-parameter,
   not-callable,
   pointless-statement,
@@ -126,9 +125,7 @@ disable =
   raising-format-tuple,
   redefined-builtin,
   redefined-outer-name,
-  redefined-variable-type,
   redundant-keyword-arg,
-  relative-import,
   similarities,
   simplifiable-if-statement,
   stop-iteration-return,

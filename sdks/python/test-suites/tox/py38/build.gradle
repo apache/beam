@@ -130,6 +130,19 @@ toxTask "testPy38tensorflow-212", "py38-tensorflow-212", "${posargs}"
 test.dependsOn "testPy38tensorflow-212"
 preCommitPyCoverage.dependsOn "testPy38tensorflow-212"
 
+// Create a test task for each minor version of transformers
+toxTask "testPy38transformers-428", "py38-transformers-428", "${posargs}"
+test.dependsOn "testPy38transformers-428"
+preCommitPyCoverage.dependsOn "testPy38transformers-428"
+
+toxTask "testPy38transformers-429", "py38-transformers-429", "${posargs}"
+test.dependsOn "testPy38transformers-429"
+preCommitPyCoverage.dependsOn "testPy38transformers-429"
+
+toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
+test.dependsOn "testPy38transformers-430"
+preCommitPyCoverage.dependsOn "testPy38transformers-430"
+
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
 task archiveFilesToLint(type: Zip) {

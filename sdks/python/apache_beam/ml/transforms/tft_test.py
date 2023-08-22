@@ -98,7 +98,7 @@ class ScaleZScoreTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
       _ = (result | beam.Map(assert_z_score_artifacts))
 
@@ -109,7 +109,7 @@ class ScaleZScoreTest(unittest.TestCase):
           p
           | "listCreate" >> beam.Create(list_data)
           | "listMLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
       _ = (list_result | beam.Map(assert_z_score_artifacts))
 
@@ -128,7 +128,7 @@ class ScaleTo01Test(unittest.TestCase):
           p
           | "listCreate" >> beam.Create(list_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
       _ = (list_result | beam.Map(assert_ScaleTo01_artifacts))
 
@@ -147,7 +147,7 @@ class ScaleTo01Test(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
 
       _ = (result | beam.Map(assert_ScaleTo01_artifacts))
@@ -177,7 +177,7 @@ class BucketizeTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
       _ = (result | beam.Map(assert_bucketize_artifacts))
 
@@ -200,7 +200,7 @@ class BucketizeTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(list_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
       _ = (list_result | beam.Map(assert_bucketize_artifacts))
 
@@ -232,7 +232,7 @@ class BucketizeTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=num_buckets)))
       actual_boundaries = (
           result
@@ -263,7 +263,7 @@ class ApplyBucketsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ApplyBuckets(
                       columns=['x'], bucket_boundaries=bucket_boundaries)))
       expected_output = []
@@ -302,7 +302,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(input_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(columns=['x'])))
       actual_data |= beam.Map(lambda x: x.as_dict())
 
@@ -334,7 +334,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(input_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(columns=['x'])))
       actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
@@ -351,7 +351,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(columns=['x'])))
       result = result | beam.Map(lambda x: x.x)
       expected_result = [np.array([3, 2, 1]), np.array([0, 0, 1])]
@@ -368,7 +368,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(
                       columns=['x'], split_string_by_delimiter=' ')))
       result = result | beam.Map(lambda x: x.x)
@@ -389,7 +389,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(
                       columns=['x'], split_string_by_delimiter=' ;')))
       result = result | beam.Map(lambda x: x.x)
@@ -420,7 +420,8 @@ class TFIDIFTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(raw_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location, transforms=transforms))
+              write_artifact_location=self.artifact_location,
+              transforms=transforms))
       actual_output |= beam.Map(lambda x: x.as_dict())
 
       def equals_fn(a, b):
@@ -467,7 +468,7 @@ class ScaleToMinMaxTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleByMinMax(
                       columns=['x'],
                       min_value=-1,
@@ -509,7 +510,7 @@ class NGramsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location,
+              write_artifact_location=self.artifact_location,
               transforms=[
                   tft.NGrams(
                       columns=['x'], ngram_range=(1, 3), ngrams_separator=' ')
@@ -536,7 +537,7 @@ class NGramsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location,
+              write_artifact_location=self.artifact_location,
               transforms=[
                   tft.NGrams(
                       columns=['x'],
@@ -567,7 +568,7 @@ class NGramsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location,
+              write_artifact_location=self.artifact_location,
               transforms=[
                   tft.NGrams(
                       columns=['x'],

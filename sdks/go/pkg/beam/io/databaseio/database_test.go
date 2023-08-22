@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	_ "github.com/proullon/ramsql/driver"

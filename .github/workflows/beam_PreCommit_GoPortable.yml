@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PreCommit GoPortable
+
+on:
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
+    paths: ['model/**', 'sdks/go.**', 'release/**','.github/workflows/beam_PreCommit_GoPortable.yml']
+  pull_request_target:
+    branches: ['master', 'release-*']
+    paths: ['model/**', 'sdks/go.**', 'release/**']
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  cancel-in-progress: true
+
+# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+jobs:
+  beam_PreCommit_GoPortable:
+    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_GoPortable]
+        job_phrase: [Run GoPortable PreCommit]
+    timeout-minutes: 120
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run GoPortable PreCommit'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
+        with:
+          requires-py-39: false
+          requires-go: false
+      - name: Run goPortablePreCommit script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :goPortablePreCommit

@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+<!DOCTYPE suppressions PUBLIC
+"-//Puppy Crawl//DTD Suppressions 1.1//EN"
+"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+  <suppress checks="JavadocPackage" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]maven-archetypes[\\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]examples[\\\/].*"/>
+  
+  <suppress checks="JavadocMethod" files=".*Test\.java"/>
+  <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
+  <suppress checks="JavadocMethod" files=".*[\\\/]examples[\\\/].*"/>
+  
+
+  <!-- suppress all checks in the generated directories -->
+  <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-src[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-sources[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-test-avro-java[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-test-sources[\\\/].+\.java" />
+
+  <!-- Guava use exceptions -->
+  <!-- Non-vendored guava imports are allowed for files that depend on libraries that expose guava in its public API -->
+  <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisIO\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*kinesis.*KinesisProducerMock\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*TableScanConverter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ExpressionConverter\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*BeamZetaSqlCatalog\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*pubsublite.*BufferingPullSubscriberTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*cdap.*Plugin\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*cdap.*PluginConfigInstantiationUtils\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*cdap.*Plugin\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*PipelineLauncher\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*ResourceManager\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*ResourceManagerTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*TemplateClientTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*it.*LT\.java" />
+
+  <!-- gRPC/protobuf exceptions -->
+  <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*protobuf.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*DummyRateLimitPolicy\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV14\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV14Test\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakeBatchTransactionId\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*pubsublite.RowHandler.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*ProtoPayloadSerializerProvider.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*datacatalog.*DataCatalogTableProvider\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtils\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlDialectSpecTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlTimeFunctionsTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtilsTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*TableResolutionTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLPushDownTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*datatokenization.*BigTableIO\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*aws2.*kinesis.*RecordsAggregator\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*pipelines.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*DefaultPipelineLauncher\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ResourceManager\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*datastream.*Source\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*Base\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*Client\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*LT\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ResourceManagerTest\.java" />
+
+  <!-- Flink -->
+  <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
+  <suppress checks="JavadocPackage" files=".*runners.flink.*AbstractStreamOperatorCompat\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*EncodedTypeSerializer\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*BeamStoppableFunction\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*BeamFlinkRemoteStreamEnvironment\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*FlinkCapabilities\.java"/>
+
+  <!-- Spark Structured Streaming -->
+  <!-- list of version specific classes -->
+  <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*TranslationContext\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*DatasetSourceBatch\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*EncoderFactory\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*DatasetSourceStreaming\.java"/>
+
+
+
+  <!-- ThriftIO -->
+  <!-- Suppress Checkstyle for Thrift generated test files. -->
+  <suppress files="org.apache.beam.sdk.io.thrift.TestThriftStruct.java" checks="[a-zA-Z0-9]*"/>
+  <suppress files="org.apache.beam.sdk.io.thrift.TestThriftInnerStruct.java" checks="[a-zA-Z0-9]*"/>
+  <suppress files="org.apache.beam.sdk.io.thrift.TestThriftUnion.java" checks="[a-zA-Z0-9]*"/>
+  <suppress files="org.apache.beam.sdk.io.thrift.payloads.*" checks="[a-zA-Z0-9]*"/>
+
+  <!-- Test deliberately uses the default package. -->
+  <suppress checks="PackageDeclaration" files="org.apache.beam.sdk.transforms.reflect.DefaultPackageTest.java"/>
+
+</suppressions>

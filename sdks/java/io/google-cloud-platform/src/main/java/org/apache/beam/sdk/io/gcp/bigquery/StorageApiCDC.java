@@ -36,7 +36,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
  */
 
 import java.util.Set;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /** Constants and variables for CDC support. */
 public class StorageApiCDC {

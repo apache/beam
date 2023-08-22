@@ -1106,10 +1106,7 @@ class SdfProcessSizedElements(DoOperation):
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
     # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
-    def encode_progress(value):
-      # type: (float) -> bytes
-      coder = coders.IterableCoder(coders.FloatCoder())
-      return coder.encode([value])
+    progress_coder = coders.IterableCoder(coders.FloatCoder())
 
     with self.lock:
       infos = super(SdfProcessSizedElements,
@@ -1128,12 +1125,12 @@ class SdfProcessSizedElements(DoOperation):
             urn=monitoring_infos.WORK_COMPLETED_URN,
             type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=encode_progress(completed))
+            payload=progress_coder.encode([completed]))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
             type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=encode_progress(remaining))
+            payload=progress_coder.encode([remaining]))
         infos[monitoring_infos.to_key(completed_mi)] = completed_mi
         infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
     return infos

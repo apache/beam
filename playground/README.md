@@ -41,7 +41,7 @@ build, test, and deploy the frontend and backend services.
 > - buf
 > - sbt
 
-1. Install Go 1.18+
+1. Install Go 1.20+
 
     **Ubuntu 22.04 and newer:**
     ```shell

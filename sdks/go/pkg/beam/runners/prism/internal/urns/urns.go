@@ -57,6 +57,7 @@ var (
 	// SDK transforms.
 	TransformParDo                = ptUrn(pipepb.StandardPTransforms_PAR_DO)
 	TransformCombinePerKey        = ctUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY)
+	TransformReshuffle            = ctUrn(pipepb.StandardPTransforms_RESHUFFLE)
 	TransformPreCombine           = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_PRECOMBINE)
 	TransformMerge                = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_MERGE_ACCUMULATORS)
 	TransformExtract              = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_EXTRACT_OUTPUTS)

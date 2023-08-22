@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Utilities related to {@link PCollection}s. */
 public class PCollectionLists {

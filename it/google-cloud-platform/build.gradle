@@ -1,0 +1,76 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.it.gcp',
+)
+
+description = "Apache Beam :: IT :: Google Cloud Platform"
+ext.summary = "Integration test utilities for Google Cloud Platform."
+
+dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(path: ":runners:google-cloud-dataflow-java")
+    implementation project(path: ":it:conditions", configuration: "shadow")
+    implementation project(path: ":it:truthmatchers", configuration: "shadow")
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+    implementation 'org.apache.hadoop:hadoop-common:3.3.5'
+    implementation 'org.apache.avro:avro:1.11.1'
+    implementation 'org.apache.parquet:parquet-avro:1.12.0'
+    implementation 'org.apache.parquet:parquet-common:1.12.0'
+    implementation 'org.apache.parquet:parquet-hadoop:1.12.0'
+    implementation library.java.gax
+    implementation library.java.google_api_common
+    implementation library.java.protobuf_java_util
+    implementation library.java.protobuf_java
+    implementation library.java.threetenbp
+    // Google Cloud Dependencies
+    implementation library.java.google_api_services_bigquery
+    implementation library.java.google_cloud_core
+    implementation 'com.google.cloud:google-cloud-storage'
+    implementation 'com.google.cloud:google-cloud-bigquery'
+    implementation 'com.google.cloud:google-cloud-monitoring'
+    implementation 'com.google.api.grpc:proto-google-cloud-monitoring-v3'
+    implementation 'com.google.cloud:google-cloud-bigtable'
+    implementation 'com.google.cloud:google-cloud-spanner'
+    implementation 'com.google.cloud:google-cloud-pubsub'
+    implementation 'com.google.api.grpc:proto-google-cloud-pubsub-v1'
+    implementation 'com.google.cloud:google-cloud-pubsublite'
+    implementation 'com.google.api.grpc:proto-google-cloud-pubsublite-v1'
+    implementation 'com.google.cloud:google-cloud-datastore'
+    implementation 'com.google.cloud:google-cloud-datastream'
+    implementation 'com.google.api.grpc:proto-google-cloud-datastream-v1'
+    implementation 'com.google.cloud:google-cloud-kms'
+    implementation 'com.google.api.grpc:proto-google-cloud-kms-v1'
+    implementation 'com.google.cloud:google-cloud-dlp'
+    implementation 'com.google.api.grpc:proto-google-cloud-dlp-v2'
+    implementation 'com.google.cloud:google-cloud-secretmanager'
+    provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
+
+    testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform")
+    testImplementation project(path: ":sdks:java:io:synthetic")
+    testImplementation library.java.mockito_inline
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
+    testRuntimeOnly library.java.slf4j_simple
+}

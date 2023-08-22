@@ -162,7 +162,7 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
         for (key, value) in spec.items()
     }
     if spec.get('type', None) == transform_type:
-      spec[arg_name] = arg_value
+      spec['config'][arg_name] = arg_value
     return spec
   elif isinstance(spec, list):
     return [
@@ -225,7 +225,8 @@ def parse_test_methods(markdown_lines):
                 '  type: chain',
                 '  transforms:',
                 '    - type: ReadFromCsv',
-                '      path: whatever',
+                '      config:',
+                '        path: whatever',
             ] + ['    ' + line for line in code_lines]
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)

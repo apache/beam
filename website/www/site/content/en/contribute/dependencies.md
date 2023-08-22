@@ -72,10 +72,6 @@ This will be a blocker for next major and minor version releases of Beam.
 
 For manually identified critical dependency updates, Beam community members should create blocking Issues for next release. In addition to this Beam community members may trigger patch releases for any critical dependency fixes that should be made available to users urgently.
 
-__Dependency declarations may identify owners that are responsible for upgrading respective dependencies.__
-
-Owners can be mentioned in the yaml files. Blocking Issues will be initially assigned to these owners (if available). Release manager may choose to re-assign these Issues. A dependency may have more than one declared owner and in this case the Issue will be assigned to one of the owners mentioned.
-
 __Dependencies of Java SDK components that may cause issues to other components if leaked should be vendored.__
 
 [Vendoring](https://www.ardanlabs.com/blog/2013/10/manage-dependencies-with-godep.html) is the process of creating copies of third party dependencies. Combined with repackaging, vendoring allows Beam components to depend on third party libraries without causing conflicts to other components. Vendoring should be done in a case-by-case basis since this can increase the total number of dependencies deployed in user's enviroment.

@@ -562,7 +562,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
-    <td class="absent">✔</td>
+    <td class="present">✔</td>
   </tr>
   <tr>
     <td>DatastoreIO</td>
@@ -796,6 +796,23 @@ This table provides a consolidated, at-a-glance overview of the available built-
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html">native</a>
     </td>
     <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>DicomIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/DicomIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.healthcare.dicomio.html">native</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
@@ -1094,6 +1111,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       native
     </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://cloud.google.com/bigtable/docs/hbase-dataflow-java">Cloud Bigtable (HBase based)</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>

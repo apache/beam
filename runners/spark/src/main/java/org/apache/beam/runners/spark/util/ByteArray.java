@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.util;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedBytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Serializable byte array. */

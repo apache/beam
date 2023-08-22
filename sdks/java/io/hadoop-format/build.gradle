@@ -56,7 +56,7 @@ configurations.all {
 
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.slf4j_api
   implementation project(":sdks:java:io:hadoop-common")
   implementation library.java.joda_time

@@ -50,7 +50,7 @@ import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

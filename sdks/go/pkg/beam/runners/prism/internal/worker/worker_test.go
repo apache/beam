@@ -146,7 +146,7 @@ func TestWorker_Control_HappyPath(t *testing.T) {
 	b := &B{}
 	b.Init()
 	wk.activeInstructions[instID] = b
-	b.ProcessOn(wk)
+	b.ProcessOn(ctx, wk)
 
 	ctrlStream.Send(&fnpb.InstructionResponse{
 		InstructionId: instID,
@@ -193,7 +193,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		b.ProcessOn(wk)
+		b.ProcessOn(ctx, wk)
 	}()
 
 	wk.InstReqs <- &fnpb.InstructionRequest{

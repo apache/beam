@@ -69,10 +69,9 @@ class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
   Every execution of the run() method will submit an independent job for
-  remote execution that consists of the nodes reachable from the passed in
-  node argument or entire graph if node is None. The run() method returns
-  after the service created the job and  will not wait for the job to finish
-  if blocking is set to False.
+  remote execution that consists of the nodes reachable from the passed-in
+  node argument or entire graph if the node is None. The run() method returns
+  after the service creates the job, and the job status is reported as RUNNING.
   """
 
   # A list of PTransformOverride objects to be applied before running a pipeline
@@ -197,11 +196,21 @@ class DataflowRunner(PipelineRunner):
           # Skip empty messages.
           if m.messageImportance is None:
             continue
-          _LOGGER.info(message)
-          if str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
+          message_importance = str(m.messageImportance)
+          if (message_importance == 'JOB_MESSAGE_DEBUG' or
+              message_importance == 'JOB_MESSAGE_DETAILED'):
+            _LOGGER.debug(message)
+          elif message_importance == 'JOB_MESSAGE_BASIC':
+            _LOGGER.info(message)
+          elif message_importance == 'JOB_MESSAGE_WARNING':
+            _LOGGER.warning(message)
+          elif message_importance == 'JOB_MESSAGE_ERROR':
+            _LOGGER.error(message)
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
               last_error_msg = m.messageText
+          else:
+            _LOGGER.info(message)
         if not page_token:
           break
 

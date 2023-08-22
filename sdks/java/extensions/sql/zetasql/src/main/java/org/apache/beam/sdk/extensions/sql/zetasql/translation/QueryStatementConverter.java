@@ -38,7 +38,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMultimap;
 
 /**
  * Converts a resolved Zeta SQL query represented by a tree to corresponding Calcite representation.

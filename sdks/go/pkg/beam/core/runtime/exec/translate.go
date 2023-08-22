@@ -193,7 +193,11 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 
 		input := unmarshalKeyedValues(transform.GetInputs())
 		for i, from := range input {
-			succ[from] = append(succ[from], linkID{id, i})
+			// We don't need to multiplex successors for pardo side inputs.
+			// so we only do so for SDK side Flattens.
+			if i == 0 || transform.GetSpec().GetUrn() == graphx.URNFlatten {
+				succ[from] = append(succ[from], linkID{id, i})
+			}
 		}
 		output := unmarshalKeyedValues(transform.GetOutputs())
 		for _, to := range output {
@@ -731,7 +735,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
 			// the DataSource that preceeds them.
-			trueOut := out[0].(*PCollection).Out
+			trueOut := out[0]
+			if pcol, ok := trueOut.(*PCollection); ok {
+				trueOut = pcol.Out
+			}
 			b.units = b.units[:len(b.units)-1]
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 

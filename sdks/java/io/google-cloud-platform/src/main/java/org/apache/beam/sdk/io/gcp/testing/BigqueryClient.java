@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.testing;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -64,8 +64,8 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -293,7 +293,8 @@ public class BigqueryClient {
       String query, String projectId, boolean typed, boolean useStandardSql)
       throws IOException, InterruptedException {
     Random rnd = new Random(System.currentTimeMillis());
-    String temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
+    String temporaryDatasetId =
+        String.format("_dataflow_temporary_dataset_%s_%s", System.nanoTime(), rnd.nextInt(1000000));
     String temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
     TableReference tempTableReference =
         new TableReference()
@@ -569,5 +570,20 @@ public class BigqueryClient {
             "Unable to get BigQuery response after retrying %d times for tables.get (%s)",
             MAX_QUERY_RETRIES, tableId),
         lastException);
+  }
+
+  public void updateTableSchema(
+      String projectId, String datasetId, String tableId, TableSchema newSchema)
+      throws IOException {
+    this.bqClient
+        .tables()
+        .patch(projectId, datasetId, tableId, new Table().setSchema(newSchema))
+        .execute();
+    LOG.info(
+        "Successfully updated the schema of table {}:{}.{}. New schema:\n{}",
+        projectId,
+        datasetId,
+        tableId,
+        newSchema.toPrettyString());
   }
 }

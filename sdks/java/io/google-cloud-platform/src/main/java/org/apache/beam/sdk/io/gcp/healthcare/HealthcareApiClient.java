@@ -36,7 +36,7 @@ import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareH
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-/** Defines a client that talks to the Cloud Healthcare API. */
+/** Defines a client that talks to the Cloud Healthcare API (version v1). */
 public interface HealthcareApiClient {
 
   /**
@@ -191,7 +191,7 @@ public interface HealthcareApiClient {
       throws IOException;
 
   /**
-   * Fhir get patient everythhing http body.
+   * Fhir get patient everything http body.
    *
    * @param resourceName the resource name, in format
    *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}

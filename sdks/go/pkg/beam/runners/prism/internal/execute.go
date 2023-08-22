@@ -47,20 +47,30 @@ func RunPipeline(j *jobservices.Job) {
 	// environments, and start up docker containers, but
 	// here, we only want and need the go one, operating
 	// in loopback mode.
-	env := "go"
+	envs := j.Pipeline.GetComponents().GetEnvironments()
+	if len(envs) != 1 {
+		j.Failed(fmt.Errorf("unable to execute multi-environment pipelines;\npipeline has environments: %+v", envs))
+		return
+	}
+	env, _ := getOnlyPair(envs)
 	wk := worker.New(env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
 
-	// When this function exits, we
+	// When this function exits, we cancel the context to clear
+	// any related job resources.
 	defer func() {
-		j.CancelFn()
+		j.CancelFn(nil)
 	}()
 	go runEnvironment(j.RootCtx, j, env, wk)
 
 	j.SendMsg("running " + j.String())
 	j.Running()
 
-	executePipeline(j.RootCtx, wk, j)
+	err := executePipeline(j.RootCtx, wk, j)
+	if err != nil {
+		j.Failed(err)
+		return
+	}
 	j.SendMsg("pipeline completed " + j.String())
 
 	// Stop the worker.
@@ -126,14 +136,14 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 type transformExecuter interface {
 	ExecuteUrns() []string
 	ExecuteWith(t *pipepb.PTransform) string
-	ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
+	ExecuteTransform(stageID, tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
 }
 
 type processor struct {
 	transformExecuters map[string]transformExecuter
 }
 
-func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
+func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) error {
 	pipeline := j.Pipeline
 	comps := proto.Clone(pipeline.GetComponents()).(*pipepb.Components)
 
@@ -145,7 +155,8 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 		Combine(CombineCharacteristic{EnableLifting: true}),
 		ParDo(ParDoCharacteristic{DisableSDF: true}),
 		Runner(RunnerCharacteristic{
-			SDKFlatten: false,
+			SDKFlatten:   false,
+			SDKReshuffle: false,
 		}),
 	}
 
@@ -175,10 +186,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 	// TODO move this loop and code into the preprocessor instead.
 	stages := map[string]*stage{}
 	var impulses []string
-	for i, stage := range topo {
-		if len(stage.transforms) != 1 {
-			panic(fmt.Sprintf("unsupported stage[%d]: contains multiple transforms: %v; TODO: implement fusion", i, stage.transforms))
-		}
+	for _, stage := range topo {
 		tid := stage.transforms[0]
 		t := ts[tid]
 		urn := t.GetSpec().GetUrn()
@@ -255,16 +263,16 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 			wk.Descriptors[stage.ID] = stage.desc
 		case wk.ID:
 			// Great! this is for this environment. // Broken abstraction.
-			buildStage(stage, tid, t, comps, wk)
+			buildDescriptor(stage, comps, wk)
 			stages[stage.ID] = stage
 			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
-			em.AddStage(stage.ID, []string{stage.mainInputPCol}, stage.sides, outputs)
+			em.AddStage(stage.ID, []string{stage.primaryInput}, stage.sides, outputs)
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 			slog.Error("Execute", err)
-			panic(err)
+			return err
 		}
 	}
 
@@ -281,10 +289,11 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) {
 		go func(rb engine.RunBundle) {
 			defer func() { <-maxParallelism }()
 			s := stages[rb.StageID]
-			s.Execute(j, wk, comps, em, rb)
+			s.Execute(ctx, j, wk, comps, em, rb)
 		}(rb)
 	}
 	slog.Info("pipeline done!", slog.String("job", j.String()))
+	return nil
 }
 
 func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comps *pipepb.Components) func(io.Reader) []byte {
@@ -298,12 +307,17 @@ func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, cod
 	return makeWindowCoders(coders[wcID])
 }
 
-func getOnlyValue[K comparable, V any](in map[K]V) V {
+func getOnlyPair[K comparable, V any](in map[K]V) (K, V) {
 	if len(in) != 1 {
-		panic(fmt.Sprintf("expected single value map, had %v", len(in)))
+		panic(fmt.Sprintf("expected single value map, had %v - %v", len(in), in))
 	}
-	for _, v := range in {
-		return v
+	for k, v := range in {
+		return k, v
 	}
 	panic("unreachable")
+}
+
+func getOnlyValue[K comparable, V any](in map[K]V) V {
+	_, v := getOnlyPair(in)
+	return v
 }

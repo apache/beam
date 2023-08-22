@@ -65,16 +65,16 @@ func applyWordLen(s beam.Scope, words beam.PCollection) beam.PCollection {
 	return wordLengths
 }
 
+// [START model_pardo_apply_anon]
+
+func wordLengths(word string) int { return len(word) }
+func init()                       { register.Function1x1(wordLengths) }
+
 func applyWordLenAnon(s beam.Scope, words beam.PCollection) beam.PCollection {
-	// [START model_pardo_apply_anon]
-	// Apply an anonymous function as a DoFn PCollection words.
-	// Save the result as the PCollection wordLengths.
-	wordLengths := beam.ParDo(s, func(word string) int {
-		return len(word)
-	}, words)
-	// [END model_pardo_apply_anon]
-	return wordLengths
+	return beam.ParDo(s, wordLengths, words)
 }
+
+// [END model_pardo_apply_anon]
 
 func applyGbk(s beam.Scope, input []stringPair) beam.PCollection {
 	// [START groupbykey]
@@ -345,26 +345,29 @@ func globallyAverage(s beam.Scope, ints beam.PCollection) beam.PCollection {
 	return average
 }
 
+// [START combine_global_with_default]
+
+func returnSideOrDefault(d float64, iter func(*float64) bool) float64 {
+	var c float64
+	if iter(&c) {
+		// Side input has a value, so return it.
+		return c
+	}
+	// Otherwise, return the default
+	return d
+}
+func init() { register.Function2x1(returnSideOrDefault) }
+
 func globallyAverageWithDefault(s beam.Scope, ints beam.PCollection) beam.PCollection {
-	// [START combine_global_with_default]
 	// Setting combine defaults has requires no helper function in the Go SDK.
 	average := beam.Combine(s, &averageFn{}, ints)
 
 	// To add a default value:
 	defaultValue := beam.Create(s, float64(0))
-	avgWithDefault := beam.ParDo(s, func(d float64, iter func(*float64) bool) float64 {
-		var c float64
-		if iter(&c) {
-			// Side input has a value, so return it.
-			return c
-		}
-		// Otherwise, return the default
-		return d
-	}, defaultValue, beam.SideInput{Input: average})
-	// [END combine_global_with_default]
-	return avgWithDefault
+	return beam.ParDo(s, returnSideOrDefault, defaultValue, beam.SideInput{Input: average})
 }
 
+// [END combine_global_with_default]
 func perKeyAverage(s beam.Scope, playerAccuracies beam.PCollection) beam.PCollection {
 	// [START combine_per_key]
 	avgAccuracyPerPlayer := stats.MeanPerKey(s, playerAccuracies)

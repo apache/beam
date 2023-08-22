@@ -570,7 +570,7 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 
 	var toProcess, notYet []element
 	for _, e := range ss.pending {
-		if !ss.aggregate || ss.aggregate && ss.strat.EarliestCompletion(e.window) <= watermark {
+		if !ss.aggregate || ss.aggregate && ss.strat.EarliestCompletion(e.window) < watermark {
 			toProcess = append(toProcess, e)
 		} else {
 			notYet = append(notYet, e)
@@ -707,7 +707,6 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 	ready := true
 	for _, side := range ss.sides {
 		pID, ok := em.pcolParents[side]
-		// These panics indicate pre-process/stage construction problems.
 		if !ok {
 			panic(fmt.Sprintf("stage[%v] no parent ID for side input %v", ss.ID, side))
 		}

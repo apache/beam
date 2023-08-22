@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -56,6 +56,7 @@ public class PeriodicSequence
     public Instant first;
     public Instant last;
     public Long durationMilliSec;
+    public boolean catchUpToNow;
 
     public SequenceDefinition() {}
 
@@ -63,6 +64,15 @@ public class PeriodicSequence
       this.first = first;
       this.last = last;
       this.durationMilliSec = duration.getMillis();
+      this.catchUpToNow = true;
+    }
+
+    public SequenceDefinition(
+        Instant first, Instant last, Duration duration, boolean catchUpToNow) {
+      this.first = first;
+      this.last = last;
+      this.durationMilliSec = duration.getMillis();
+      this.catchUpToNow = catchUpToNow;
     }
 
     @Override
@@ -223,11 +233,17 @@ public class PeriodicSequence
           estimator.setWatermark(output);
           nextOutput = nextOutput + interval;
         }
+        if (!srcElement.catchUpToNow) {
+          break;
+        }
       }
 
       ProcessContinuation continuation = ProcessContinuation.stop();
       if (claimSuccess) {
-        Duration offset = new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput));
+        Duration offset =
+            srcElement.catchUpToNow
+                ? new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput))
+                : new Duration(interval);
         continuation = ProcessContinuation.resume().withResumeDelay(offset);
       }
       return continuation;

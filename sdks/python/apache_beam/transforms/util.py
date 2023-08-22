@@ -665,7 +665,8 @@ class BatchElements(PTransform):
   operations. For a fixed batch size, set the min and max to be equal.
 
   Elements are batched per-window and batches emitted in the window
-  corresponding to its contents.
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
 
   Args:
     min_batch_size: (optional) the smallest size of a batch

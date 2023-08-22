@@ -25,9 +25,11 @@ import json
 import os
 import subprocess
 import sys
+import urllib.parse
 import uuid
 from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import Mapping
 
@@ -105,6 +107,8 @@ def as_provider_list(name, lst):
 
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
+  _provider_types: Dict[str, Callable[..., Provider]] = {}
+
   def __init__(self, urns, service):
     self._urns = urns
     self._service = service
@@ -137,50 +141,89 @@ class ExternalProvider(Provider):
         external.ImplicitSchemaPayloadBuilder(args).payload(),
         self._service)
 
-  @staticmethod
-  def provider_from_spec(spec):
+  @classmethod
+  def provider_from_spec(cls, spec):
     urns = spec['transforms']
     type = spec['type']
-    if spec.get('version', None) == 'BEAM_VERSION':
-      spec['version'] = beam_version
-    if type == 'javaJar':
-      return ExternalJavaProvider(urns, lambda: spec['jar'])
-    elif type == 'mavenJar':
-      return ExternalJavaProvider(
-          urns,
-          lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-              **{
-                  key: value
-                  for (key, value) in spec.items() if key in [
-                      'artifact_id',
-                      'group_id',
-                      'version',
-                      'repository',
-                      'classifier',
-                      'appendix'
-                  ]
-              }))
-    elif type == 'beamJar':
-      return ExternalJavaProvider(
-          urns,
-          lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
-              **{
-                  key: value
-                  for (key, value) in spec.items() if key in
-                  ['gradle_target', 'version', 'appendix', 'artifact_id']
-              }))
-    elif type == 'pythonPackage':
-      return ExternalPythonProvider(urns, spec['packages'])
-    elif type == 'remote':
-      return RemoteProvider(spec['address'])
-    elif type == 'docker':
-      raise NotImplementedError()
+    from apache_beam.yaml.yaml_transform import SafeLineLoader
+    config = SafeLineLoader.strip_metadata(spec.get('config', {}))
+    if config.get('version', None) == 'BEAM_VERSION':
+      config['version'] = beam_version
+    if type in cls._provider_types:
+      try:
+        return cls._provider_types[type](urns, **config)
+      except Exception as exn:
+        raise ValueError(
+            f'Unable to instantiate provider of type {type} '
+            f'at line {SafeLineLoader.get_line(spec)}: {exn}') from exn
     else:
-      raise NotImplementedError(f'Unknown provider type: {type}')
+      raise NotImplementedError(
+          f'Unknown provider type: {type} '
+          f'at line {SafeLineLoader.get_line(spec)}.')
+
+  @classmethod
+  def register_provider_type(cls, type_name):
+    def apply(constructor):
+      cls._provider_types[type_name] = constructor
+
+    return apply
 
 
+@ExternalProvider.register_provider_type('javaJar')
+def java_jar(urns, jar: str):
+  if not os.path.exists(jar):
+    parsed = urllib.parse.urlparse(jar)
+    if not parsed.scheme or not parsed.netloc:
+      raise ValueError(f'Invalid path or url: {jar}')
+  return ExternalJavaProvider(urns, lambda: jar)
+
+
+@ExternalProvider.register_provider_type('mavenJar')
+def maven_jar(
+    urns,
+    *,
+    artifact_id,
+    group_id,
+    version,
+    repository=subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY,
+    classifier=None,
+    appendix=None):
+  return ExternalJavaProvider(
+      urns,
+      lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id=artifact_id,
+          version=version,
+          repository=repository,
+          classifier=classifier,
+          appendix=appendix))
+
+
+@ExternalProvider.register_provider_type('beamJar')
+def beam_jar(
+    urns,
+    *,
+    gradle_target,
+    appendix=None,
+    version=beam_version,
+    artifact_id=None):
+  return ExternalJavaProvider(
+      urns,
+      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+          gradle_target=gradle_target, version=version, artifact_id=artifact_id)
+  )
+
+
+@ExternalProvider.register_provider_type('docker')
+def docker(urns, **config):
+  raise NotImplementedError()
+
+
+@ExternalProvider.register_provider_type('remote')
 class RemoteProvider(ExternalProvider):
   _is_available = None
+
+  def __init__(self, urns, address: str):
+    super().__init__(urns, service=address)
 
   def available(self):
     if self._is_available is None:
@@ -204,6 +247,7 @@ class ExternalJavaProvider(ExternalProvider):
                           capture_output=True).returncode == 0
 
 
+@ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
   def __init__(self, urns, packages):
     super().__init__(urns, PypiExpansionService(packages))

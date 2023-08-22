@@ -29,7 +29,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoService(ExternalTransformRegistrar.class)
@@ -43,7 +43,7 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
-    return org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.of(
+    return org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.of(
         URN, Builder.class);
   }
 
