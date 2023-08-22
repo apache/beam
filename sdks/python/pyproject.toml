@@ -28,7 +28,7 @@ requires = [
     # Numpy headers
     "numpy>=1.14.3,<1.26",
     # having cython here will create wheels that are platform dependent.
-    "cython",
+    "Cython",
 ]
 
 # legacy installation is needed to generate `apache_beam.portability.api` package.
