@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,6 +66,7 @@ public final class KafkaResourceManagerTest {
 
   @Before
   public void setUp() throws IOException {
+    doReturn(container).when(container).withLogConsumer(any());
     testManager =
         new KafkaResourceManager(kafkaClient, container, KafkaResourceManager.builder(TEST_ID));
   }

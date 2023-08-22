@@ -15,5 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /** Package for Datastore Truth matchers / subjects to have reusable assertions. */
 package org.apache.beam.it.gcp.datastore.matchers;

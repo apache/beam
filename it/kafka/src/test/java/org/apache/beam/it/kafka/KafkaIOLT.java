@@ -69,7 +69,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void beforeClass() throws IOException {
+  public static void beforeClass() {
     resourceManager = KafkaResourceManager.builder("io-kafka-lt").build();
   }
 
