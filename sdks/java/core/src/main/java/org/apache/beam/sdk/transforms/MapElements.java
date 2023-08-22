@@ -159,6 +159,10 @@ public class MapElements<InputT, OutputT>
 
   /** A DoFn implementation that handles a trivial map call. */
   private abstract class MapDoFn extends DoFn<InputT, OutputT> {
+
+    /** Holds {@link MapDoFn#outer instance} of enclosing class, used by runner implementations. */
+    final MapElements<InputT, OutputT> outer = MapElements.this;
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.delegate(MapElements.this);
