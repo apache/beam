@@ -75,20 +75,19 @@ class ReadAndShuffleData(beam.PTransform):
     negative_examples = (
         pcoll
         | "ReadNegativeExample" >> beam.io.ReadFromText(self.neg_file_pattern)
-        | 'PairWithZero' >> beam.Map(lambda review: (review, 0)))
+        | 'PairWithZero' >> beam.Map(lambda review: (review, 0))
+        | 'DistinctNeg' >> beam.Distinct())
 
     positive_examples = (
         pcoll
         | "ReadPositiveExample" >> beam.io.ReadFromText(self.pos_file_pattern)
-        | 'PairWithOne' >> beam.Map(lambda review: (review, 1)))
+        | 'PairWithOne' >> beam.Map(lambda review: (review, 1))
+        | 'DistinctPos' >> beam.Distinct())
 
     all_examples = ((negative_examples, positive_examples)
                     | 'FlattenPColls' >> beam.Flatten())
 
-    shuffled_examples = (
-        all_examples
-        | 'Distinct' >> beam.Distinct()
-        | 'Shuffle' >> Shuffle())
+    shuffled_examples = (all_examples | 'Shuffle' >> Shuffle())
 
     # tag with column names for MLTransform
     return (
@@ -118,10 +117,11 @@ def preprocess_data(
       |
       'ReadTrainData' >> ReadAndShuffleData(positive_pattern, negative_pattern))
   ml_transform = MLTransform(
-      artifact_location=artifact_location,
+      write_artifact_location=artifact_location,
   ).with_transform(
       ComputeAndApplyVocabulary(
           top_k=VOCAB_SIZE,
+          frequency_threshold=10,
           columns=[REVIEW_COLUMN],
           split_string_by_delimiter=DELIMITERS)).with_transform(
               TFIDF(columns=[REVIEW_COLUMN], vocab_size=VOCAB_SIZE))
@@ -130,7 +130,7 @@ def preprocess_data(
   data_pcoll = (
       data_pcoll | beam.ParDo(MapTFIDFScoreToVocab(artifact_location)))
 
-  _ = (data_pcoll | beam.io.WriteToText(output_dir))
+  #   _ = (data_pcoll | beam.io.WriteToText(output_dir))
 
   _ = data_pcoll | beam.Map(logging.info)
 
