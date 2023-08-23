@@ -56,6 +56,7 @@ public class PeriodicSequence
     public Instant first;
     public Instant last;
     public Long durationMilliSec;
+    public boolean catchUpToNow;
 
     public SequenceDefinition() {}
 
@@ -63,6 +64,15 @@ public class PeriodicSequence
       this.first = first;
       this.last = last;
       this.durationMilliSec = duration.getMillis();
+      this.catchUpToNow = true;
+    }
+
+    public SequenceDefinition(
+        Instant first, Instant last, Duration duration, boolean catchUpToNow) {
+      this.first = first;
+      this.last = last;
+      this.durationMilliSec = duration.getMillis();
+      this.catchUpToNow = catchUpToNow;
     }
 
     @Override
@@ -223,11 +233,17 @@ public class PeriodicSequence
           estimator.setWatermark(output);
           nextOutput = nextOutput + interval;
         }
+        if (!srcElement.catchUpToNow) {
+          break;
+        }
       }
 
       ProcessContinuation continuation = ProcessContinuation.stop();
       if (claimSuccess) {
-        Duration offset = new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput));
+        Duration offset =
+            srcElement.catchUpToNow
+                ? new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput))
+                : new Duration(interval);
         continuation = ProcessContinuation.resume().withResumeDelay(offset);
       }
       return continuation;
