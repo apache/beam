@@ -113,10 +113,14 @@ public class CreateTables<DestinationT, ElementT>
                     dest);
                 Supplier<@Nullable TableSchema> schemaSupplier =
                     () -> dynamicDestinations.getSchema(dest);
+                Supplier<@Nullable List<String>> primaryKeySupplier =
+                    () -> dynamicDestinations.getPrimaryKey(dest);
+
                 return CreateTableHelpers.possiblyCreateTable(
                     context.getPipelineOptions().as(BigQueryOptions.class),
                     tableDestination1,
                     schemaSupplier,
+                    primaryKeySupplier,
                     createDisposition,
                     dynamicDestinations.getDestinationCoder(),
                     kmsKey,

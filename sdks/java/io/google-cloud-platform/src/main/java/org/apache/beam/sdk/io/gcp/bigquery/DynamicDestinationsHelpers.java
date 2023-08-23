@@ -178,6 +178,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public @Nullable List<String> getPrimaryKey(DestinationT destination) {
+      return inner.getPrimaryKey(destination);
+    }
+
+    @Override
     public TableDestination getTable(DestinationT destination) {
       return inner.getTable(destination);
     }
@@ -211,6 +216,30 @@ class DynamicDestinationsHelpers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
+    }
+  }
+
+  static class ConstantPrimaryKeyDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final List<String> primaryKey;
+
+    ConstantPrimaryKeyDestinations(
+        DynamicDestinations<T, DestinationT> inner, List<String> primaryKey) {
+      super(inner);
+      this.primaryKey = primaryKey;
+    }
+
+    @Override
+    public List<String> getPrimaryKey(DestinationT destination) {
+      return primaryKey;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("primaryKey", primaryKey)
+          .toString();
     }
   }
 

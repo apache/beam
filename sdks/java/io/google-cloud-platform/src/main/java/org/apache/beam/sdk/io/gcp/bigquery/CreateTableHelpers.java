@@ -25,11 +25,13 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import io.grpc.StatusRuntimeException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -86,6 +88,7 @@ public class CreateTableHelpers {
       BigQueryOptions bigQueryOptions,
       TableDestination tableDestination,
       Supplier<@Nullable TableSchema> schemaSupplier,
+      Supplier<@Nullable List<String>> primaryKeySupplier,
       CreateDisposition createDisposition,
       @Nullable Coder<?> tableDestinationCoder,
       @Nullable String kmsKey,
@@ -125,6 +128,7 @@ public class CreateTableHelpers {
           tryCreateTable(
               bigQueryOptions,
               schemaSupplier,
+              primaryKeySupplier,
               tableDestination,
               createDisposition,
               tableSpec,
@@ -139,6 +143,7 @@ public class CreateTableHelpers {
   private static void tryCreateTable(
       BigQueryOptions options,
       Supplier<@Nullable TableSchema> schemaSupplier,
+      Supplier<@Nullable List<String>> primaryKeySupplier,
       TableDestination tableDestination,
       CreateDisposition createDisposition,
       String tableSpec,
@@ -151,6 +156,7 @@ public class CreateTableHelpers {
               tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
           == null) {
         TableSchema tableSchema = schemaSupplier.get();
+        @Nullable List<String> primaryKey = primaryKeySupplier.get();
         Preconditions.checkArgumentNotNull(
             tableSchema,
             "Unless create disposition is %s, a schema must be specified, i.e. "
@@ -161,6 +167,13 @@ public class CreateTableHelpers {
             createDisposition,
             tableDestination);
         Table table = new Table().setTableReference(tableReference).setSchema(tableSchema);
+
+        if (primaryKey != null) {
+          table =
+              table.setTableConstraints(
+                  new TableConstraints()
+                      .setPrimaryKey(new TableConstraints.PrimaryKey().setColumns(primaryKey)));
+        }
 
         String tableDescription = tableDestination.getTableDescription();
         if (tableDescription != null) {

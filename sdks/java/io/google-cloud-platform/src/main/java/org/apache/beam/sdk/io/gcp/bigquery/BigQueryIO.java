@@ -2318,6 +2318,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
+    abstract @Nullable List<String> getPrimaryKey();
+
     abstract Boolean getOptimizeWrites();
 
     abstract Boolean getUseBeamSchema();
@@ -2416,7 +2418,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setIgnoreInsertIds(Boolean ignoreInsertIds);
 
-      abstract Builder<T> setKmsKey(String kmsKey);
+      abstract Builder<T> setKmsKey(@Nullable String kmsKey);
+
+      abstract Builder<T> setPrimaryKey(@Nullable List<String> primaryKey);
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
@@ -2947,6 +2951,10 @@ public class BigQueryIO {
       return toBuilder().setKmsKey(kmsKey).build();
     }
 
+    public Write<T> withPrimaryKey(List<String> primaryKey) {
+      return toBuilder().setPrimaryKey(primaryKey).build();
+    }
+
     /**
      * If true, enables new codepaths that are expected to use less resources while writing to
      * BigQuery. Not enabled by default in order to maintain backwards compatibility.
@@ -3241,6 +3249,7 @@ public class BigQueryIO {
           LOG.warn("Setting the number of Storage API streams" + error);
         }
       }
+
       if (method == Method.STORAGE_API_AT_LEAST_ONCE && getStorageApiNumStreams(bqOptions) != 0) {
         LOG.warn(
             "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
@@ -3254,9 +3263,12 @@ public class BigQueryIO {
       if (getRowMutationInformationFn() != null) {
         checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
         checkArgument(
-            getCreateDisposition() == CreateDisposition.CREATE_NEVER,
-            "CREATE_IF_NEEDED is not supported when applying row updates. Tables must be precreated "
-                + "with a primary key specified.");
+            getCreateDisposition() == CreateDisposition.CREATE_NEVER || getPrimaryKey() != null,
+            "If specifying CREATE_IF_NEEDED along with row updates, a primary key needs to be specified");
+      }
+      if (getPrimaryKey() != null) {
+        checkArgument(
+            getMethod() != Method.FILE_LOADS, "Primary key not supported when using FILE_LOADS");
       }
 
       if (getAutoSchemaUpdate()) {
@@ -3310,6 +3322,11 @@ public class BigQueryIO {
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
                   StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+        }
+        if (getPrimaryKey() != null) {
+          dynamicDestinations =
+              new DynamicDestinationsHelpers.ConstantPrimaryKeyDestinations<>(
+                  (DynamicDestinations<T, TableDestination>) dynamicDestinations, getPrimaryKey());
         }
       }
       return expandTyped(input, dynamicDestinations);

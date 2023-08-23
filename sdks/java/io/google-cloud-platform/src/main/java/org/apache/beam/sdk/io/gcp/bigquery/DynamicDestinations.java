@@ -154,6 +154,14 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   /** Returns the table schema for the destination. */
   public abstract @Nullable TableSchema getSchema(DestinationT destination);
 
+  /**
+   * Returns a list of field names to be used as a primary key when creating the table. Note: this
+   * is not currently supported when using FILE_LOADS!.
+   */
+  public @Nullable List<String> getPrimaryKey(DestinationT destination) {
+    return null;
+  }
+
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
   // registry. If no coder can be found, throws CannotProvideCoderException.
   Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
