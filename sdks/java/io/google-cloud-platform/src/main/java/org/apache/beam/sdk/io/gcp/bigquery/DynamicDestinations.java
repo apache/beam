@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import java.util.List;
@@ -155,10 +156,10 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   public abstract @Nullable TableSchema getSchema(DestinationT destination);
 
   /**
-   * Returns a list of field names to be used as a primary key when creating the table. Note: this
-   * is not currently supported when using FILE_LOADS!.
+   * Returns TableConstraints (including primary and foreign key) to be used when creating the
+   * table. Note: this is not currently supported when using FILE_LOADS!.
    */
-  public @Nullable List<String> getPrimaryKey(DestinationT destination) {
+  public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
     return null;
   }
 

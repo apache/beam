@@ -23,6 +23,7 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -178,8 +179,8 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
-    public @Nullable List<String> getPrimaryKey(DestinationT destination) {
-      return inner.getPrimaryKey(destination);
+    public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
+      return inner.getTableConstraints(destination);
     }
 
     @Override
@@ -219,26 +220,26 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  static class ConstantPrimaryKeyDestinations<T, DestinationT>
+  static class ConstantTableConstraintsDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
-    private final List<String> primaryKey;
+    private final String jsonTableConstraints;
 
-    ConstantPrimaryKeyDestinations(
-        DynamicDestinations<T, DestinationT> inner, List<String> primaryKey) {
+    ConstantTableConstraintsDestinations(
+        DynamicDestinations<T, DestinationT> inner, TableConstraints tableConstraints) {
       super(inner);
-      this.primaryKey = primaryKey;
+      this.jsonTableConstraints = BigQueryHelpers.toJsonString(tableConstraints);
     }
 
     @Override
-    public List<String> getPrimaryKey(DestinationT destination) {
-      return primaryKey;
+    public TableConstraints getTableConstraints(DestinationT destination) {
+      return BigQueryHelpers.fromJsonString(jsonTableConstraints, TableConstraints.class);
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
           .add("inner", inner)
-          .add("primaryKey", primaryKey)
+          .add("tableConstraints", jsonTableConstraints)
           .toString();
     }
   }

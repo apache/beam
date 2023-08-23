@@ -939,7 +939,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 c.getPipelineOptions().as(BigQueryOptions.class),
                 tableDestination1,
                 () -> dynamicDestinations.getSchema(destination),
-                () -> dynamicDestinations.getPrimaryKey(destination),
+                () -> dynamicDestinations.getTableConstraints(destination),
                 createDisposition,
                 destinationCoder,
                 kmsKey,

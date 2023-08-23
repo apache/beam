@@ -446,7 +446,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 c.getPipelineOptions().as(BigQueryOptions.class),
                 tableDestination,
                 () -> dynamicDestinations.getSchema(dest),
-                () -> dynamicDestinations.getPrimaryKey(dest),
+                () -> dynamicDestinations.getTableConstraints(dest),
                 createDisposition,
                 destinationCoder,
                 kmsKey,
