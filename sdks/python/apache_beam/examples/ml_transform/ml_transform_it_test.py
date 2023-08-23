@@ -25,6 +25,7 @@ import pytest
 
 try:
   from apache_beam.examples.ml_transform import vocab_tfidf_processing
+  from apache_beam.io.filesystems import FileSystems
   from apache_beam.ml.transforms.utils import ArtifactsFetcher
   from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
@@ -90,7 +91,8 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
     actual_vocab_list = artifacts_fetcher.get_vocab_list()
 
     expected_artifact_filepath = 'gs://apache-beam-ml/testing/expected_outputs/compute_and_apply_vocab'  # pylint: disable=line-too-long
-    with open(expected_artifact_filepath, 'r') as f:
+
+    with FileSystems.open(expected_artifact_filepath, 'r') as f:
       expected_vocab_list = f.readlines()
 
     expected_vocab_list = [s.rstrip('\n') for s in expected_vocab_list]
