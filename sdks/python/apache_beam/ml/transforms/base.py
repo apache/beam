@@ -122,12 +122,13 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     MLTransform is a Beam PTransform that can be used to apply
     transformations to the data. MLTransform is used to wrap the
     data processing transforms provided by Apache Beam. MLTransform
-    works in two modes: produce and consume. In the produce mode,
+    works in two modes: write and read. In the write mode,
     MLTransform will apply the transforms to the data and store the
-    artifacts in the artifact_location. In the consume mode, MLTransform
-    will read the artifacts from the artifact_location and apply the
-    transforms to the data. The artifact_location should be a valid
-    storage path where the artifacts can be written to or read from.
+    artifacts in the write_artifact_location. In the read mode,
+    MLTransform will read the artifacts from the
+    read_artifact_location and apply the transforms to the data. The
+    artifact location should be a valid storage path where the artifacts
+    can be written to or read from.
 
     Note that when consuming artifacts, it is not necessary to pass the
     transforms since they are inherently stored within the artifacts
@@ -137,17 +138,15 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       write_artifact_location: A storage location for artifacts resulting from
         MLTransform. These artifacts include transformations applied to
         the dataset and generated values like min, max from ScaleTo01,
-        and mean, var from ScaleToZScore. Artifacts are produced and stored
-        in this location when the `artifact_mode` is set to 'produce'.
-        Conversely, when `artifact_mode` is set to 'consume', artifacts are
-        retrieved from this location. Note that when consuming artifacts,
-        it is not necessary to pass the transforms since they are inherently
-        stored within the artifacts themselves. The value assigned to
-        `write_artifact_location` should be a valid storage directory where the
-        artifacts from this transform can be written to. If no directory exists
-        at this location, one will be created. This will overwrite any
-        artifacts already in this location, so distinct locations should be
-        used for each instance of MLTransform. Only one of
+        and mean, var from ScaleToZScore. Artifacts are produced and written
+        to this location when using `write_artifact_mode`.
+        Later MLTransforms can reuse produced artifacts by setting
+        `read_artifact_mode` instead of `write_artifact_mode`. The value
+        assigned to `write_artifact_location` should be a valid storage
+        directory that the artifacts from this transform can be written to.
+        If no directory exists at this location, one will be created. This will
+        overwrite any artifacts already in this location, so distinct locations
+        should be used for each instance of MLTransform. Only one of
         write_artifact_location and read_artifact_location should be specified.
       read_artifact_location: A storage location to read artifacts resulting
         froma previous MLTransform. These artifacts include transformations

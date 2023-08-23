@@ -76,10 +76,15 @@ TEMP_DIR=/tmp
 case $STARTSTOP in
   start)
     echo "Starting the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
-    java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command up  >$TEMP_DIR/$FILE_BASE-java1.log 2>&1 </dev/null &
+    java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command up  >$TEMP_DIR/$FILE_BASE-java1.log 2>&1 </dev/null
     ;;
   stop)
     echo "Stopping the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER  transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
-    java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command down  >$TEMP_DIR/$FILE_BASE-java2.log 2>&1 </dev/null &
+    java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command down  >$TEMP_DIR/$FILE_BASE-java2.log 2>&1 </dev/null
+    TRANSFORM_SERVICE_TEMP_DIR=$TEMP_DIR/$GROUP_ID
+    if [[ -d ${TRANSFORM_SERVICE_TEMP_DIR} ]]; then
+      echo "Removing transform service temporary directory $TRANSFORM_SERVICE_TEMP_DIR"
+      rm -rf ${TRANSFORM_SERVICE_TEMP_DIR}
+    fi
     ;;
 esac
