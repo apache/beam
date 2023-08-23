@@ -313,6 +313,11 @@ class SetupTest(unittest.TestCase):
         },
         {
             'runner': MockRunners.DataflowRunner(),
+            'options': [],
+            'expected': True,
+        },
+        {
+            'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://another.service.com'],
             'expected': True,
         },
@@ -320,6 +325,11 @@ class SetupTest(unittest.TestCase):
             'runner': MockRunners.DataflowRunner(),
             'options': ['--dataflow_endpoint=https://dataflow.googleapis.com'],
             'expected': True,
+        },
+        {
+            'runner': MockRunners.DataflowRunner(),
+            'options': ['--dataflow_endpoint=http://localhost:1000'],
+            'expected': False,
         },
         {
             'runner': MockRunners.DataflowRunner(),
@@ -336,7 +346,7 @@ class SetupTest(unittest.TestCase):
     for case in test_cases:
       validator = PipelineOptionsValidator(
           PipelineOptions(case['options']), case['runner'])
-      self.assertEqual(validator.is_service_runner(), case['expected'])
+      self.assertEqual(validator.is_service_runner(), case['expected'], case)
 
   def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
     runner = MockRunners.OtherRunner()
