@@ -25,6 +25,7 @@ import pytest
 
 try:
   from apache_beam.examples.ml_transform import vocab_tfidf_processing
+  from apache_beam.ml.transforms.utils import ArtifactsFetcher
   from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
   from apache_beam.testing.test_pipeline import TestPipeline
@@ -83,6 +84,17 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
         metric_value=end_time - start_time,
         metrics_table=metrics_table,
         metric_name='runtime_sec')
+
+    artifacts_fetcher = ArtifactsFetcher(artifact_location=artifact_location)
+
+    actual_vocab_list = artifacts_fetcher.get_vocab_list()
+
+    tmp = artifacts_fetcher.get_vocab_filepath()
+    with open(tmp, 'r') as f:
+      expected_vocab_list = f.readlines()
+
+    expected_vocab_list = [s.rstrip('\n') for s in expected_vocab_list]
+    self.assertListEqual(actual_vocab_list, expected_vocab_list)
 
 
 if __name__ == '__main__':
