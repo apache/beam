@@ -36,6 +36,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -91,7 +92,11 @@ func main() {
 			"--container_executable=/opt/apache/beam/boot",
 		}
 		log.Printf("Starting worker pool %v: python %v", workerPoolId, strings.Join(args, " "))
-		if err := execx.Execute("python", args...); err != nil {
+		pythonVersion, err := expansionx.GetPythonVersion()
+		if err != nil {
+			log.Fatalf("Python SDK worker pool exited with error: %v", err)
+		}
+		if err := execx.Execute(pythonVersion, args...); err != nil {
 			log.Fatalf("Python SDK worker pool exited with error: %v", err)
 		}
 		log.Print("Python SDK worker pool exited.")
@@ -336,7 +341,11 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create Python venv directory: %s", err)
 	}
-	if err := execx.Execute("python", "-m", "venv", "--system-site-packages", dir); err != nil {
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return "", err
+	}
+	if err := execx.Execute(pythonVersion, "-m", "venv", "--system-site-packages", dir); err != nil {
 		return "", fmt.Errorf("python venv initialization failed: %s", err)
 	}
 
