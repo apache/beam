@@ -51,7 +51,7 @@ public class DataGenerator {
   private final PipelineLauncher pipelineLauncher;
   private final PipelineOperator pipelineOperator;
 
-  private DataGenerator(Builder builder) throws IOException {
+  private DataGenerator(Builder builder) {
     pipelineLauncher = FlexTemplateClient.builder(CREDENTIALS).build();
     pipelineOperator = new PipelineOperator(pipelineLauncher);
     this.dataGeneratorOptions =
@@ -249,7 +249,7 @@ public class DataGenerator {
       return this;
     }
 
-    public DataGenerator build() throws IOException {
+    public DataGenerator build() {
       return new DataGenerator(this);
     }
   }

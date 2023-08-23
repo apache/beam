@@ -81,7 +81,7 @@ public final class FlexTemplateClientTest {
   @Captor private ArgumentCaptor<LaunchFlexTemplateRequest> requestCaptor;
 
   @Test
-  public void testCreateWithCredentials() throws IOException {
+  public void testCreateWithCredentials() {
     Credentials credentials = mock(Credentials.class);
     FlexTemplateClient.builder(credentials).build();
     // Lack of exception is all we really can test

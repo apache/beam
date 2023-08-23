@@ -41,7 +41,7 @@ public class DefaultPipelineLauncherTest {
 
   @Test
   public void testPipelineMetrics() throws IOException {
-    DefaultPipelineLauncher launcher = DefaultPipelineLauncher.builder().build();
+    DefaultPipelineLauncher launcher = DefaultPipelineLauncher.builder(null).build();
     final String timeMetrics = "run_time";
     final String counterMetrics = "counter";
     final long numElements = 1000L;
