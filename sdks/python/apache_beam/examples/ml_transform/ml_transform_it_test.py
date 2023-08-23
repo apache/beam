@@ -89,8 +89,8 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
 
     actual_vocab_list = artifacts_fetcher.get_vocab_list()
 
-    tmp = artifacts_fetcher.get_vocab_filepath()
-    with open(tmp, 'r') as f:
+    expected_artifact_filepath = 'gs://apache-beam-ml/testing/expected_outputs/compute_and_apply_vocab'  # pylint: disable=line-too-long
+    with open(expected_artifact_filepath, 'r') as f:
       expected_vocab_list = f.readlines()
 
     expected_vocab_list = [s.rstrip('\n') for s in expected_vocab_list]
