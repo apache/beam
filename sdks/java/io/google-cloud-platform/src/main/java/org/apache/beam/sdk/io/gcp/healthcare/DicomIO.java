@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import java.io.IOException;
 import java.util.Collection;
+import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -32,6 +33,80 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1.model.HttpBody;
+import com.google.api.services.healthcare.v1.model.Operation;
+import com.google.auto.value.AutoValue;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.UUID;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.FhirResourcePagesIterator;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
@@ -194,6 +269,87 @@ public class DicomIO {
                   .withOutputTags(
                       ReadStudyMetadata.METADATA,
                       TupleTagList.of(ReadStudyMetadata.ERROR_MESSAGE))));
+    }
+  }
+
+  /** Deidentify DICOM resources from a DICOM store to a destination DICOM store. */
+  public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
+
+    private final ValueProvider<String> sourceDicomStore;
+    private final ValueProvider<String> destinationDicomStore;
+    private final ValueProvider<DeidentifyConfig> deidConfig;
+
+    public Deidentify(
+        ValueProvider<String> sourceDicomStore,
+        ValueProvider<String> destinationDicomStore,
+        ValueProvider<DeidentifyConfig> deidConfig) {
+      this.sourceFhirStore = sourceDicomStore;
+      this.destinationFhirStore = destinationDicomStore;
+      this.deidConfig = deidConfig;
+    }
+
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .getPipeline()
+          .apply(Create.ofProvider(sourceDicomStore, StringUtf8Coder.of()))
+          .apply(
+              "ScheduleDeidentifyDicomStoreOperations",
+              ParDo.of(new DeidentifyFn(destinationDicomStore, deidConfig)));
+    }
+
+    /** A function that schedules a deidentify operation and monitors the status. */
+    public static class DeidentifyFn extends DoFn<String, String> {
+
+      private static final Counter DEIDENTIFY_OPERATION_SUCCESS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_success_count");
+      private static final Counter DEIDENTIFY_OPERATION_ERRORS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_failure_count");
+      private static final Counter RESOURCES_DEIDENTIFIED_SUCCESS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_success_count");
+      private static final Counter RESOURCES_DEIDENTIFIED_ERRORS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
+
+      private HealthcareApiClient client;
+      private final ValueProvider<String> destinationFhirStore;
+      private static final Gson gson = new Gson();
+      private final String deidConfigJson;
+
+      public DeidentifyFn(
+          ValueProvider<String> destinationDicomStore, ValueProvider<DeidentifyConfig> deidConfig) {
+        this.destinationDicomStore = destinationDicomStore;
+        this.deidConfigJson = gson.toJson(deidConfig.get());
+      }
+
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      @ProcessElement
+      public void deidentify(ProcessContext context) throws IOException, InterruptedException {
+        String sourceDicomStore = context.element();
+        String destinationDicomStore = this.destinationDicomStore.get();
+        DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
+        Operation operation =
+            client.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
+        operation = client.pollOperation(operation, 15000L);
+        incrementLroCounters(
+            operation,
+            DEIDENTIFY_OPERATION_SUCCESS,
+            DEIDENTIFY_OPERATION_ERRORS,
+            RESOURCES_DEIDENTIFIED_SUCCESS,
+            RESOURCES_DEIDENTIFIED_ERRORS);
+        if (operation.getError() != null) {
+          throw new IOException(
+              String.format("DeidentifyDicomStore operation (%s) failed.", operation.getName()));
+        }
+        context.output(destinationDicomStore);
+      }
     }
   }
 }

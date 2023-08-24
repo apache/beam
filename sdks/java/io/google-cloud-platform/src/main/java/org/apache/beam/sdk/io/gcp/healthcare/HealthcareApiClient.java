@@ -248,4 +248,8 @@ public interface HealthcareApiClient {
   Empty deleteDicomStore(String name) throws IOException;
 
   Empty uploadToDicomStore(String webPath, String filePath) throws IOException, URISyntaxException;
+
+  Operation deidentifyDicomStore(
+      String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidConfig)
+      throws IOException;
 }

@@ -33,6 +33,7 @@ import com.google.api.services.healthcare.v1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1.model.DeidentifyFhirStoreRequest;
+import com.google.api.services.healthcare.v1.model.DicomStoreRequest; 
 import com.google.api.services.healthcare.v1.model.DicomStore;
 import com.google.api.services.healthcare.v1.model.Empty;
 import com.google.api.services.healthcare.v1.model.ExportResourcesRequest;
@@ -269,6 +270,22 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         .dicomStores()
         .create(dataset, store)
         .setDicomStoreId(name)
+        .execute();
+  }
+
+  @Override
+  public Operation deidentifyDicomStore(
+      String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidConfig)
+      throws IOException {
+    DeidentifyDicomStoreRequest deidRequest = new DeidentifyDicomStoreRequest();
+    deidRequest.setDestinationStore(destinationDicomStore);
+    deidRequest.setConfig(deidConfig);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .dicomStores()
+        .deidentify(sourceDicomStore, deidRequest)
         .execute();
   }
 
