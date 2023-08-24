@@ -346,7 +346,7 @@ def expand_leaf_transform(spec, scope):
     # TODO: Handle (or at least reject) nested case.
     return outputs
   elif isinstance(outputs, (tuple, list)):
-    return {'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
+    return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
   else:
