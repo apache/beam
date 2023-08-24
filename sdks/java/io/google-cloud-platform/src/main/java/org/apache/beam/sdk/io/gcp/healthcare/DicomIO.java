@@ -128,6 +128,12 @@ import org.slf4j.LoggerFactory;
  */
 public class DicomIO {
 
+  static final String BASE_METRIC_PREFIX = "dicomio/";
+  private static final String LRO_COUNTER_KEY = "counter";
+  private static final String LRO_SUCCESS_KEY = "success";
+  private static final String LRO_FAILURE_KEY = "failure";
+  private static final Logger LOG = LoggerFactory.getLogger(DicomIO.class);
+
   public static ReadStudyMetadata readStudyMetadata() {
     return new ReadStudyMetadata();
   }
@@ -283,8 +289,8 @@ public class DicomIO {
         ValueProvider<String> sourceDicomStore,
         ValueProvider<String> destinationDicomStore,
         ValueProvider<DeidentifyConfig> deidConfig) {
-      this.sourceFhirStore = sourceDicomStore;
-      this.destinationFhirStore = destinationDicomStore;
+      this.sourceDicomStore = sourceDicomStore;
+      this.destinationDicomStore = destinationDicomStore;
       this.deidConfig = deidConfig;
     }
 
