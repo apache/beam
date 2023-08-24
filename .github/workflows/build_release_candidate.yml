@@ -219,6 +219,8 @@ jobs:
         # settings.xml file
         run: rm ~/.m2/settings.xml || true
       - name: create documentation pr for website
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
             BEAM_ROOT_DIR=${{ github.workspace }}/beam
             SITE_ROOT_DIR=${{ github.workspace }}/beam-site
@@ -275,23 +277,5 @@ jobs:
              
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
-            git push -f ${USER_REMOTE_URL}
-             
-            # Check if hub is installed. See https://stackoverflow.com/a/677212
-            if ! hash hub 2> /dev/null; then
-              echo "installing hub with sudo permission"
-              HUB_VERSION=2.5.0
-              HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
-              wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
-              tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
-              sudo ./${HUB_ARTIFACTS_NAME}/install
-              echo "eval "$(hub alias -s)"" >> ~/.bashrc
-              rm -rf ${HUB_ARTIFACTS_NAME}*
-            fi
-            if hash hub 2> /dev/null; then
-              hub pull-request -m "Publish ${{ github.event.inputs.RELEASE }} release" -h ${{ github.actor }}:updates_release_${{ github.event.inputs.RELEASE }} -b apache:release-docs \
-               || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
-            else
-              echo "Without hub, you need to create PR manually."
-            fi
-            echo "Finished ${ RC_TAG } doc creation."
+           
+            gh pr create -f
