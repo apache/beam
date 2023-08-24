@@ -194,6 +194,8 @@ jobs:
     env:
       RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       BRANCH_NAME: updates_release_${{ github.event.inputs.RELEASE }}
+      BEAM_ROOT_DIR: ${{ github.workspace }}/beam
+      SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
       - name: Checkout Beam Repo
         uses: actions/checkout@v3
@@ -226,32 +228,30 @@ jobs:
         # net.linguica.gradle.maven.settings plugin and github's provided maven
         # settings.xml file
         run: rm ~/.m2/settings.xml || true
-      - name: create documentation commit for website
+      - name: Create documentation commit for website
         run: |
-            BEAM_ROOT_DIR=${{ github.workspace }}/beam
-            SITE_ROOT_DIR=${{ github.workspace }}/beam-site
-             
-            # Get the commit from the beam repo, not the beam-site repo.
-            cd ${BEAM_ROOT_DIR}
-            RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
-
-            # echo "------------------Building Python Doc------------------------"
+            echo "OK!"
+      - name: Build Python Docs
+        working-directory: beam/sdks/python
+        run: |
+            echo "------------------Building Python Doc------------------------"
             # pip install --upgrade pip setuptools wheel
             # pip install -U pip
             # pip install tox
-
             # # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-            # cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+            # pip install -r build-requirements.txt && tox -e py38-docs
             # GENERATED_PYDOC=${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
             # rm -rf ${GENERATED_PYDOC}/.doctrees
-             
+      - name: Build Typescript Docs
+        working-directory: beam/sdks/typescript
+        run: |
             echo "------------------Building Typescript Doc------------------------"
-            cd ${BEAM_ROOT_DIR}
-            cd sdks/typescript && npm install ttypescript@1.5.15 && npm ci && npm run docs
+            npm install ttypescript@1.5.15 && npm ci && npm run docs
             GENERATED_TYPEDOC=${BEAM_ROOT_DIR}/sdks/typescript/docs
-             
-            # echo "----------------------Building Java Doc----------------------"
-            # cd ${BEAM_ROOT_DIR}
+      - name: Build Java Docs
+        working-directory: beam
+        run: |
+            echo "----------------------Building Java Doc----------------------"
             # ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
             # GENERATE_JAVADOC=${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
              
@@ -277,18 +277,22 @@ jobs:
             # Update current symlink to point to the latest release
             unlink typedoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
-             
-            echo "............Creating Commit.........."
+      - name: Create beam-site PR
+        working-directory: ${BEAM_ROOT_DIR}
+        run: |
+            # Get the commit from the beam repo, not the beam-site repo.
+            RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
+            cd ${SITE_ROOT_DIR}
             git config user.name $GITHUB_ACTOR
             git config user.email actions@"$RUNNER_NAME".local
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
             git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam-site PR
-        working-directory: beam-site
+        working-directory: ${SITE_ROOT_DIR}
         env:
           GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
           PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release}"
           PR_BODY: "Content generated from  https://github.com/apache/beam/tree/v${RC_TAG}."
         run: |
-            gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs || echo "PR likely already exists, but has been updated."
+            gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
