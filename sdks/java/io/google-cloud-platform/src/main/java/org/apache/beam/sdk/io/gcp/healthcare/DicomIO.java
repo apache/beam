@@ -278,6 +278,57 @@ public class DicomIO {
     }
   }
 
+  /**
+   * Increments success and failure counters for an LRO. To be used after the LRO has completed.
+   * This function leverages the fact that the LRO metadata is always of the format: "counter": {
+   * "success": "1", "failure": "1" }
+   *
+   * @param operation LRO operation object.
+   * @param operationSuccessCounter the success counter for the operation.
+   * @param operationFailureCounter the failure counter for the operation.
+   * @param resourceSuccessCounter the success counter for individual resources in the operation.
+   * @param resourceFailureCounter the failure counter for individual resources in the operation.
+   */
+  private static void incrementLroCounters(
+      Operation operation,
+      Counter operationSuccessCounter,
+      Counter operationFailureCounter,
+      Counter resourceSuccessCounter,
+      Counter resourceFailureCounter) {
+    // Update operation counters.
+    com.google.api.services.healthcare.v1.model.Status error = operation.getError();
+    if (error == null) {
+      operationSuccessCounter.inc();
+      LOG.debug(String.format("Operation %s finished successfully.", operation.getName()));
+    } else {
+      operationFailureCounter.inc();
+      LOG.error(
+          String.format(
+              "Operation %s failed with error code: %d and message: %s.",
+              operation.getName(), error.getCode(), error.getMessage()));
+    }
+
+    // Update resource counters.
+    Map<String, Object> opMetadata = operation.getMetadata();
+    if (opMetadata.containsKey(LRO_COUNTER_KEY)) {
+      try {
+        Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_KEY);
+        if (counters.containsKey(LRO_SUCCESS_KEY)) {
+          resourceSuccessCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
+        }
+        if (counters.containsKey(LRO_FAILURE_KEY)) {
+          Long numFailures = Long.parseLong(counters.get(LRO_FAILURE_KEY));
+          resourceFailureCounter.inc(numFailures);
+          if (numFailures > 0) {
+            LOG.error("Operation " + operation.getName() + " had " + numFailures + " failures.");
+          }
+        }
+      } catch (Exception e) {
+        LOG.error("failed to increment LRO counters, error message: " + e.getMessage());
+      }
+    }
+  }
+
   /** Deidentify DICOM resources from a DICOM store to a destination DICOM store. */
   public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
 
@@ -321,7 +372,7 @@ public class DicomIO {
               DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
 
       private HealthcareApiClient client;
-      private final ValueProvider<String> destinationFhirStore;
+      private final ValueProvider<String> destinationDicomStore;
       private static final Gson gson = new Gson();
       private final String deidConfigJson;
 
