@@ -536,4 +536,14 @@ def generate_proto_files(force=False):
 
 
 if __name__ == '__main__':
-  generate_proto_files(force=True)
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--no-force',
+      action='store_true',
+      help="Don't force regenerate all proto files.")
+  args = parser.parse_args()
+
+  force = not args.no_force
+
+  generate_proto_files(force=force)

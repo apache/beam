@@ -18,6 +18,7 @@
 """Apache Beam SDK for Python setup file."""
 
 import os
+import subprocess
 import sys
 import warnings
 # Pylint and isort disagree here.
@@ -62,7 +63,6 @@ class mypy(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    import subprocess
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
@@ -156,10 +156,16 @@ dataframe_dependency = [
 def generate_protos_first():
   try:
     # pylint: disable=wrong-import-position
-    import gen_protos
-    gen_protos.generate_proto_files()
+    cwd = os.path.abspath(os.path.dirname(__file__))
+    p = subprocess.call([
+      sys.executable,
+      os.path.join(cwd, 'gen_protos.py'),
+      '--no-force'
+    ])
+    if p != 0:
+      raise RuntimeError()
 
-  except ImportError:
+  except RuntimeError:
     RuntimeError("Could not import gen_protos, skipping proto generation.")
 
 
@@ -187,6 +193,7 @@ if __name__ == '__main__':
   # In order to find the tree of proto packages, the directory
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
+  # while True: print(os.listdir())
   generate_protos_first()
 
   # generate cythonize extensions only if we are building a wheel or
