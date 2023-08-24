@@ -286,4 +286,4 @@ jobs:
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
             
             echo "............Creating PR.........."
-            gh pr create -f --head ${{ github.actor }}:updates_release_${{ github.event.inputs.RELEASE }}
+            gh pr create -f --base release-docs --head ${{ github.actor }}:updates_release_${{ github.event.inputs.RELEASE }}
