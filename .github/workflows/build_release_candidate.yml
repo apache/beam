@@ -241,7 +241,6 @@ jobs:
             # pip install -U pip
             # pip install tox
 
-
             # # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
             # cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
             # GENERATED_PYDOC=${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
@@ -288,4 +287,4 @@ jobs:
             git push -f --set-upstream origin $BRANCH_NAME
             
             echo "............Creating PR.........."
-            gh pr create --title "Update beam-site for release ${{ github.event.inputs.RELEASE }}" --body "Content generated from commit ${RELEASE_COMMIT}." --base release-docs
+            gh pr create --title "Publish docs for ${RELEASE} release}" --body "Content generated from commit ${RELEASE_COMMIT}." --base release-docs
