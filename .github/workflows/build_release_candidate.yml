@@ -31,6 +31,10 @@ on:
         description: Whether to stage SDK docker images to docker hub Apache organization
         required: true
         default: 'no'
+      CREATE_BEAM_SITE_PR:
+        description: Whether to create the documentation update PR against apache/beam-site.
+        required: true
+        default: 'no'
 
 jobs:
   publish_java_artifacts:
@@ -177,3 +181,108 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
         run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
+
+
+  beam_site_pr:
+    if: ${{github.event.inputs.CREATE_BEAM_SITE_PR == 'yes'}}
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+          path: beam
+      - name: Checkout tools repo
+        uses: actions/checkout@v3
+        with:
+          repository: apache/beam-site
+          path: beam-site
+          fetch-depth: 0
+      - name: Install Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: create documentation pr for website
+        run: |
+            BEAM_ROOT_DIR=${GITHUB_WORKSPACE}/beam
+            SITE_ROOT_DIR=${GITHUB_WORKSPACE}/beam-site
+            USER_REMOTE_URL=git@github.com:${ github.actor }/beam-site
+            RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+             
+            echo "------------------Building Python Doc------------------------"
+            pip install --upgrade pip setuptools wheel
+            pip install -U pip
+            pip install tox
+            cd ${BEAM_ROOT_DIR}
+            # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
+            cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+            GENERATED_PYDOC=${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
+            rm -rf ${GENERATED_PYDOC}/.doctrees
+             
+            echo "------------------Building Typescript Doc------------------------"
+            cd ${BEAM_ROOT_DIR}
+            cd sdks/typescript && npm ci && npm run docs
+            GENERATED_TYPEDOC=${BEAM_ROOT_DIR}/sdks/typescript/docs
+             
+            echo "----------------------Building Java Doc----------------------"
+            cd ${BEAM_ROOT_DIR}
+            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+            GENERATE_JAVADOC=${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
+             
+            echo "------------------Updating Release Docs---------------------"
+            cd ${SITE_ROOT_DIR}
+            git checkout release-docs
+            git checkout -b updates_release_${ github.event.inputs.RELEASE } release-docs
+             
+            echo "..........Copying generated javadoc into beam-site.........."
+            cp -r ${GENERATE_JAVADOC} javadoc/${ github.event.inputs.RELEASE }
+            # Update current symlink to point to the latest release
+            unlink javadoc/current
+            ln -s ${ github.event.inputs.RELEASE } javadoc/current
+             
+            echo "............Copying generated pydoc into beam-site.........."
+            cp -r ${GENERATED_PYDOC} pydoc/${  github.event.inputs.RELEASE }
+            # Update current symlink to point to the latest release
+            unlink pydoc/current
+            ln -s ${ github.event.inputs.RELEASE } pydoc/current
+             
+            echo "............Copying generated typedoc into beam-site.........."
+            mkdir -p typedoc
+            cp -r ${GENERATED_TYPEDOC} typedoc/${ github.event.inputs.RELEASE }
+            # Update current symlink to point to the latest release
+            unlink typedoc/current | true
+            ln -s ${ github.event.inputs.RELEASE } typedoc/current
+             
+            git add -A
+            RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
+            git commit -m "Update beam-site for release ${ github.event.inputs.RELEASE }." -m "Content generated from commit ${RELEASE_COMMIT}."
+            git push -f ${USER_REMOTE_URL}
+             
+            # Check if hub is installed. See https://stackoverflow.com/a/677212
+            if ! hash hub 2> /dev/null; then
+              echo "installing hub with sudo permission"
+              HUB_VERSION=2.5.0
+              HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+              wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+              tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+              sudo ./${HUB_ARTIFACTS_NAME}/install
+              echo "eval "$(hub alias -s)"" >> ~/.bashrc
+              rm -rf ${HUB_ARTIFACTS_NAME}*
+            fi
+            if hash hub 2> /dev/null; then
+              hub pull-request -m "Publish ${ github.event.inputs.RELEASE } release" -h ${ github.actor }:updates_release_${ github.event.inputs.RELEASE } -b apache:release-docs \
+               || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
+            else
+              echo "Without hub, you need to create PR manually."
+            fi
+            echo "Finished ${ RC_TAG } doc creation."
