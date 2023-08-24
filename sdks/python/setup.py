@@ -190,8 +190,9 @@ if __name__ == '__main__':
   generate_protos_first()
 
   # generate cythonize extensions only if we are building a wheel or
-  # building an extension.
-  if 'bdist_wheel' in sys.argv or 'build_ext' in sys.argv:
+  # building an extension or running in editable mode.
+  cythonize_cmds = ('bdist_wheel', 'build_ext', 'editable_wheel')
+  if any(cmd in sys.argv for cmd in cythonize_cmds):
     extensions = cythonize([
             'apache_beam/**/*.pyx',
             'apache_beam/coders/coder_impl.py',
