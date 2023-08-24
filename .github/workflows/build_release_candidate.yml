@@ -274,7 +274,7 @@ jobs:
             unlink typedoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
       - name: Create beam-site PR
-        working-directory: ${BEAM_ROOT_DIR}
+        working-directory: beam
         run: |
             # Get the commit from the beam repo, not the beam-site repo.
             RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
