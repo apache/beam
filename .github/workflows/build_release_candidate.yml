@@ -275,6 +275,9 @@ jobs:
             unlink typedoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
              
+            echo "............Creating PR.........."
+            git config user.name $GITHUB_ACTOR
+            git config user.email actions@"$RUNNER_NAME".local
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
            
