@@ -214,9 +214,9 @@ jobs:
           node-version: '16'
       - name: create documentation pr for website
         run: |
-            BEAM_ROOT_DIR=${GITHUB_WORKSPACE}/beam
-            SITE_ROOT_DIR=${GITHUB_WORKSPACE}/beam-site
-            USER_REMOTE_URL=git@github.com:${ github.actor }/beam-site
+            BEAM_ROOT_DIR=${{ github.workspace }}/beam
+            SITE_ROOT_DIR=${{ github.workspace }}/beam-site
+            USER_REMOTE_URL=git@github.com:${{} github.actor }}/beam-site
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
              
             echo "------------------Building Python Doc------------------------"
@@ -242,30 +242,30 @@ jobs:
             echo "------------------Updating Release Docs---------------------"
             cd ${SITE_ROOT_DIR}
             git checkout release-docs
-            git checkout -b updates_release_${ github.event.inputs.RELEASE } release-docs
+            git checkout -b updates_release_${{ github.event.inputs.RELEASE }} release-docs
              
             echo "..........Copying generated javadoc into beam-site.........."
-            cp -r ${GENERATE_JAVADOC} javadoc/${ github.event.inputs.RELEASE }
+            cp -r ${GENERATE_JAVADOC} javadoc/${{ github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink javadoc/current
-            ln -s ${ github.event.inputs.RELEASE } javadoc/current
+            ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
              
             echo "............Copying generated pydoc into beam-site.........."
-            cp -r ${GENERATED_PYDOC} pydoc/${  github.event.inputs.RELEASE }
+            cp -r ${GENERATED_PYDOC} pydoc/${{  github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink pydoc/current
-            ln -s ${ github.event.inputs.RELEASE } pydoc/current
+            ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
              
             echo "............Copying generated typedoc into beam-site.........."
             mkdir -p typedoc
-            cp -r ${GENERATED_TYPEDOC} typedoc/${ github.event.inputs.RELEASE }
+            cp -r ${GENERATED_TYPEDOC} typedoc/${{ github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink typedoc/current | true
-            ln -s ${ github.event.inputs.RELEASE } typedoc/current
+            ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
              
             git add -A
             RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
-            git commit -m "Update beam-site for release ${ github.event.inputs.RELEASE }." -m "Content generated from commit ${RELEASE_COMMIT}."
+            git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
             git push -f ${USER_REMOTE_URL}
              
             # Check if hub is installed. See https://stackoverflow.com/a/677212
@@ -280,7 +280,7 @@ jobs:
               rm -rf ${HUB_ARTIFACTS_NAME}*
             fi
             if hash hub 2> /dev/null; then
-              hub pull-request -m "Publish ${ github.event.inputs.RELEASE } release" -h ${ github.actor }:updates_release_${ github.event.inputs.RELEASE } -b apache:release-docs \
+              hub pull-request -m "Publish ${{ github.event.inputs.RELEASE }} release" -h ${{ github.actor }}:updates_release_${{ github.event.inputs.RELEASE }} -b apache:release-docs \
                || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
             else
               echo "Without hub, you need to create PR manually."
