@@ -236,37 +236,37 @@ jobs:
             # Get the commit from the beam repo, not the beam-site repo.
             RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
 
-            # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-            cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
-            GENERATED_PYDOC=${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
-            rm -rf ${GENERATED_PYDOC}/.doctrees
+            # # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
+            # cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+            # GENERATED_PYDOC=${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
+            # rm -rf ${GENERATED_PYDOC}/.doctrees
              
             echo "------------------Building Typescript Doc------------------------"
             cd ${BEAM_ROOT_DIR}
             cd sdks/typescript && npm install ttypescript@1.5.15 && npm ci && npm run docs
             GENERATED_TYPEDOC=${BEAM_ROOT_DIR}/sdks/typescript/docs
              
-            echo "----------------------Building Java Doc----------------------"
-            cd ${BEAM_ROOT_DIR}
-            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
-            GENERATE_JAVADOC=${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
+            # echo "----------------------Building Java Doc----------------------"
+            # cd ${BEAM_ROOT_DIR}
+            # ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+            # GENERATE_JAVADOC=${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
              
             echo "------------------Updating Release Docs---------------------"
             cd ${SITE_ROOT_DIR}
             git checkout release-docs
             git checkout -b updates_release_${{ github.event.inputs.RELEASE }} release-docs
              
-            echo "..........Copying generated javadoc into beam-site.........."
-            cp -r ${GENERATE_JAVADOC} javadoc/${{ github.event.inputs.RELEASE }}
-            # Update current symlink to point to the latest release
-            unlink javadoc/current
-            ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
+            # echo "..........Copying generated javadoc into beam-site.........."
+            # cp -r ${GENERATE_JAVADOC} javadoc/${{ github.event.inputs.RELEASE }}
+            # # Update current symlink to point to the latest release
+            # unlink javadoc/current
+            # ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
              
-            echo "............Copying generated pydoc into beam-site.........."
-            cp -r ${GENERATED_PYDOC} pydoc/${{  github.event.inputs.RELEASE }}
-            # Update current symlink to point to the latest release
-            unlink pydoc/current
-            ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
+            # echo "............Copying generated pydoc into beam-site.........."
+            # cp -r ${GENERATED_PYDOC} pydoc/${{  github.event.inputs.RELEASE }}
+            # # Update current symlink to point to the latest release
+            # unlink pydoc/current
+            # ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
              
             echo "............Copying generated typedoc into beam-site.........."
             mkdir -p typedoc
