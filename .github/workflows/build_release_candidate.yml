@@ -288,4 +288,4 @@ jobs:
             git push -f --set-upstream origin $BRANCH_NAME
             
             echo "............Creating PR.........."
-            gh pr create -f --base release-docs --head ${{ github.actor }}:$BRANCH_NAME
+            gh pr create -f
