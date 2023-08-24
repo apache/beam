@@ -35,6 +35,10 @@ on:
         description: Whether to create the documentation update PR against apache/beam-site.
         required: true
         default: 'no'
+      BEAM_SITE_TOKEN:
+        description: Github token with permissions to create prs on your beam-site fork.
+        required: true
+        default: ''
 
 jobs:
   publish_java_artifacts:
@@ -220,7 +224,7 @@ jobs:
         run: rm ~/.m2/settings.xml || true
       - name: create documentation pr for website
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
         run: |
             BEAM_ROOT_DIR=${{ github.workspace }}/beam
             SITE_ROOT_DIR=${{ github.workspace }}/beam-site
@@ -280,9 +284,6 @@ jobs:
             git config user.email actions@"$RUNNER_NAME".local
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
-           
-            echo "............Pushing to remote ${USER_REMOTE_URL}.........."
-            git push -f ${USER_REMOTE_URL}
             
             echo "............Creating PR.........."
-            gh pr create -f
+            gh pr create -f --head ${{ github.actor }}:updates_release_${{ github.event.inputs.RELEASE }}
