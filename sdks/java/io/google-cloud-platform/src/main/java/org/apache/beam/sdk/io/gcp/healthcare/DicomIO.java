@@ -371,7 +371,7 @@ public class DicomIO {
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
 
-      private HealthcareApiClient client;
+      private HealthcareApiClient dicomStore;
       private final ValueProvider<String> destinationDicomStore;
       private static final Gson gson = new Gson();
       private final String deidConfigJson;
@@ -382,17 +382,9 @@ public class DicomIO {
         this.deidConfigJson = gson.toJson(deidConfig.get());
       }
 
-      /**
-       * Instantiate the healthcare client (version v1).
-       *
-       * @throws IOException
-       */
-      
       @Setup
-      public void instantiateHealthcareClient() throws IOException {
-        if (dicomStore == null) {
-          this.dicomStore = new HttpHealthcareApiClient();
-        }
+      public void initClient() throws IOException {
+        this.dicomStore = new HttpHealthcareApiClient();
       }
 
       @ProcessElement
@@ -401,8 +393,8 @@ public class DicomIO {
         String destinationDicomStore = this.destinationDicomStore.get();
         DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
-            client.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
-        operation = client.pollOperation(operation, 15000L);
+            dicomStore.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
+        operation = dicomStore.pollOperation(operation, 15000L);
         incrementLroCounters(
             operation,
             DEIDENTIFY_OPERATION_SUCCESS,
