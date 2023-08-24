@@ -30,5 +30,27 @@ public enum PipelineTransform {
     case external(AnyPCollection,[AnyPCollection])
 }
 
-
+extension PipelineTransform : PipelineMember {
+    var roots: [PCollection<Never>] {
+        switch self {
+            
+        case .pardo(let p, _, _, _):
+            return p.roots
+        case .impulse(let p, _):
+            return p.roots
+        case .flatten(let p, _):
+            return p.flatMap({ $0.roots })
+        case .groupByKey(let p, _):
+            return p.roots
+        case .custom(let p, _, _, _, _):
+            return p.roots
+        case .composite(let p, _):
+            return p.roots
+        case .external(let p, _):
+            return p.roots
+        }
+    }
+    
+    
+}
 

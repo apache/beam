@@ -13,6 +13,7 @@ public indirect enum FieldType {
 
 public struct Field {
     let name: String
+    let description: String?
     let type: FieldType
 }
 

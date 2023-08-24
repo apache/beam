@@ -59,3 +59,18 @@ public final class PCollection<Of> : PCollectionProtocol {
     
     
 }
+
+extension PCollection : PipelineMember {
+    var roots: [PCollection<Never>] { 
+        if let p = parent {
+            return p.roots
+        } else if let p = self as? PCollection<Never> {
+            return [p]
+        } else {
+            return []
+        }
+    }
+    
+    
+}
+

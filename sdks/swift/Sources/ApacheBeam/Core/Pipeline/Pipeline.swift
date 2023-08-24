@@ -19,6 +19,10 @@
 import GRPC
 import Logging
 
+protocol PipelineMember {
+    var roots: [PCollection<Never>] { get }
+}
+
 public final class Pipeline {
     let content: (inout PCollection<Never>) -> Void
     let log: Logging.Logger

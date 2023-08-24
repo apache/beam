@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-public struct AnyPCollection : PCollectionProtocol {
+public struct AnyPCollection : PCollectionProtocol,PipelineMember {
     
     
     
@@ -29,6 +29,7 @@ public struct AnyPCollection : PCollectionProtocol {
     let consumersClosure: (Any) -> [PipelineTransform]
     let coderClosure: (Any) -> Coder
     let streamClosure: (Any) -> AnyPCollectionStream
+    let rootsClosure: (Any) -> [PCollection<Never>]
     
     public init<C>(_ collection: C) where C : PCollectionProtocol {
         if let anyCollection = collection as? AnyPCollection {
@@ -43,6 +44,7 @@ public struct AnyPCollection : PCollectionProtocol {
             self.coderClosure = { ($0 as! C).coder }
             self.streamClosure = { AnyPCollectionStream(($0 as! C).stream) }
             self.parentClosure = { ($0 as! C).parent }
+            self.rootsClosure = { ($0 as! PipelineMember).roots }
         }
     }
     
@@ -71,6 +73,10 @@ public struct AnyPCollection : PCollectionProtocol {
     
     public var anyStream: AnyPCollectionStream {
         streamClosure(collection)
+    }
+    
+    var roots: [PCollection<Never>] {
+        rootsClosure(collection)
     }
     
 }

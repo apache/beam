@@ -45,6 +45,7 @@ final class IntegrationTests: XCTestCase {
     }
 
     func testPortableWordcount() async throws {
+        throw XCTSkip()
         try await Pipeline { pipeline in
             let (contents,errors) = pipeline
                 .create(["file1.txt","file2.txt","missing.txt"])

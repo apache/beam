@@ -64,6 +64,15 @@
       }
     },
     {
+      "identity" : "pythonkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pvieito/PythonKit.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "060e1c8b0d14e4d241b3623fdbe83d0e3c81a993"
+      }
+    },
+    {
       "identity" : "smithy-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/awslabs/smithy-swift",

@@ -3,7 +3,7 @@ public struct NamedCollectionPTransform<Of> : _PrimitivePTransform {
     let collection: PCollection<Of>
 }
 
-/// Captures a single pcollection and gives it a name
+/// Captures a PCollection and gives it a name so it can be used as an output
 public struct Output<Of> : PTransform {
     let name: String
     let fn: () -> PCollection<Of>

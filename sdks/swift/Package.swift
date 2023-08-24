@@ -30,8 +30,8 @@ let dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/awslabs/aws-sdk-swift.git", from: "0.23.0"),
     .package(url: "https://github.com/googleapis/google-auth-library-swift",from:"0.0.0"),
     .package(url: "https://github.com/duckdb/duckdb-swift", .upToNextMinor(from: .init(0, 8, 0))),
-    
-    
+    .package(url: "https://github.com/pvieito/PythonKit.git", branch: "master"),
+
     // Swift Package Manager Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
 ]
@@ -54,10 +54,12 @@ let package = Package(
         .target(
             name: "ApacheBeam",
             dependencies: [
-                .product(name:"GRPC",package:"grpc-swift"),
+                .product(name: "GRPC",package:"grpc-swift"),
                 .product(name: "Logging",package:"swift-log"),
                 .product(name: "AWSS3",package:"aws-sdk-swift"),
-                .product(name: "DuckDB", package: "duckdb-swift")
+                .product(name: "DuckDB", package: "duckdb-swift"),
+                .product(name: "PythonKit", package:"PythonKit"),
+                .product(name: "OAuth2", package:"google-auth-library-swift")
             ]
         ),
         .testTarget(

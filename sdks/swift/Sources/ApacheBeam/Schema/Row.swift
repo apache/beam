@@ -16,28 +16,13 @@
  * limitations under the License.
  */
 
-struct S3Bucket : Codable {
-    let bucket:String
+import Foundation
+
+/// Dynamic representation of a Row that lets us treat a row value like JSON. Obviously this is less performant and
+/// when using schema objects internally, particularly in PCollections we would favor @Row structs
+public struct Row {
+    let data: Data
+    let schema: Schema
 }
 
-struct GSBucket : Codable {
-    let bucket:String
-}
 
-public extension PCollection {
-    
-    func listFiles(s3 bucket:String) {
-        
-    }
-    
-    func listFiles(gs bucket:String) {
-    }
-    
-}
-
-public func listFiles(s3 bucket: String) {
-}
-
-public func listFiles(gs bucket: String) {
-    
-}
