@@ -2731,12 +2731,12 @@ class ReadFromBigQuery(PTransform):
         raise TypeError(
             '%s: table must be of type string'
             '; got a callable instead' % self.__class__.__name__)
-      return output_pcollection | bigquery_schema_tools.\
-            convert_to_usertype(
-            bigquery_tools.BigQueryWrapper().get_table(
-                project_id=table_details.projectId,
-                dataset_id=table_details.datasetId,
-                table_id=table_details.tableId).schema)
+      return output_pcollection | bigquery_schema_tools.convert_to_usertype(
+          bigquery_tools.BigQueryWrapper().get_table(
+              project_id=table_details.projectId,
+              dataset_id=table_details.datasetId,
+              table_id=table_details.tableId).schema,
+          self._kwargs.get('selected_fields', None))
     else:
       raise ValueError(
           'The output type from BigQuery must be either PYTHON_DICT '
