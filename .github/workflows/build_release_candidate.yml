@@ -192,6 +192,7 @@ jobs:
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
     runs-on: ubuntu-latest
     env:
+      RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       BRANCH_NAME: updates_release_${{ github.event.inputs.RELEASE }}
     steps:
       - name: Checkout Beam Repo
@@ -229,7 +230,6 @@ jobs:
         run: |
             BEAM_ROOT_DIR=${{ github.workspace }}/beam
             SITE_ROOT_DIR=${{ github.workspace }}/beam-site
-            RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
              
             # Get the commit from the beam repo, not the beam-site repo.
             cd ${BEAM_ROOT_DIR}
@@ -285,10 +285,11 @@ jobs:
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
             git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam-site PR
+        working-directory: beam-site
         env:
           GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
+          PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release}"
+          PR_BODY: "Content generated from  https://github.com/apache/beam/tree/v${RC_TAG}."
         run: |
-            PR_TITLE="Publish docs for ${{ github.event.inputs.RELEASE }} release}"
-            PR_BODY="Content generated from commit https://github.com/apache/beam/tree/${RELEASE_COMMIT}."
             # Update the body if the PR already exists and reopen it. Create it otherwise.
             gh pr edit $BRANCH_NAME -b "$PR_BODY"  && gh pr reopen $BRANCH_NAME || gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
