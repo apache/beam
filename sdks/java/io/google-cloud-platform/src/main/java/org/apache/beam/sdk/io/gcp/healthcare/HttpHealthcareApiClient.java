@@ -33,7 +33,7 @@ import com.google.api.services.healthcare.v1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1.model.DeidentifyFhirStoreRequest;
-import com.google.api.services.healthcare.v1.model.DicomStoreRequest; 
+import com.google.api.services.healthcare.v1.model.DeidentifyDicomStoreRequest; 
 import com.google.api.services.healthcare.v1.model.DicomStore;
 import com.google.api.services.healthcare.v1.model.Empty;
 import com.google.api.services.healthcare.v1.model.ExportResourcesRequest;
