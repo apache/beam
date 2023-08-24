@@ -289,8 +289,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     if self._framework == 'pt':
       if self._device == "GPU" and is_gpu_available_torch:
         model.to(torch.device("cuda"))
-    if callable(getattr(model, 'requires_grad_', None)):
-      model.requires_grad_(False)
+      if callable(getattr(model, 'requires_grad_', None)):
+        model.requires_grad_(False)
     return model
 
   def run_inference(
