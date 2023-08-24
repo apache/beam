@@ -240,40 +240,36 @@ jobs:
             # pip install tox
             # # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
             # pip install -r build-requirements.txt && tox -e py38-docs
-            # GENERATED_PYDOC=${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
-            # rm -rf ${GENERATED_PYDOC}/.doctrees
+            # rm -rf target/docs/_build/.doctrees
       - name: Build Typescript Docs
         working-directory: beam/sdks/typescript
         run: |
-            echo "------------------Building Typescript Doc------------------------"
             npm install ttypescript@1.5.15 && npm ci && npm run docs
-            GENERATED_TYPEDOC=${BEAM_ROOT_DIR}/sdks/typescript/docs
       - name: Build Java Docs
         working-directory: beam
         run: |
             echo "----------------------Building Java Doc----------------------"
             # ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
-            # GENERATE_JAVADOC=${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
-             
-            echo "------------------Updating Release Docs---------------------"
-            cd ${SITE_ROOT_DIR}
+      - name: Update Release Docs
+        working-directory: beam-site
+        run: |
             git checkout -b $BRANCH_NAME release-docs
              
             # echo "..........Copying generated javadoc into beam-site.........."
-            # cp -r ${GENERATE_JAVADOC} javadoc/${{ github.event.inputs.RELEASE }}
+            # cp -r ${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/ javadoc/${{ github.event.inputs.RELEASE }}
             # # Update current symlink to point to the latest release
             # unlink javadoc/current
             # ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
              
             # echo "............Copying generated pydoc into beam-site.........."
-            # cp -r ${GENERATED_PYDOC} pydoc/${{  github.event.inputs.RELEASE }}
+            # cp -r ${BEAM_ROOT_DIR}/sdks/python/target/docs/_build pydoc/${{  github.event.inputs.RELEASE }}
             # # Update current symlink to point to the latest release
             # unlink pydoc/current
             # ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
              
             echo "............Copying generated typedoc into beam-site.........."
             mkdir -p typedoc
-            cp -r ${GENERATED_TYPEDOC} typedoc/${{ github.event.inputs.RELEASE }}
+            cp -r ${BEAM_ROOT_DIR}/sdks/typescript/docs typedoc/${{ github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink typedoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
