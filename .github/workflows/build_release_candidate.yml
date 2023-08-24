@@ -203,7 +203,6 @@ jobs:
         with:
           repository: apache/beam-site
           path: beam-site
-          fetch-depth: 0
           token: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
           ref: release-docs
       - name: Install Python 3.8
@@ -230,6 +229,7 @@ jobs:
         run: |
             BEAM_ROOT_DIR=${{ github.workspace }}/beam
             SITE_ROOT_DIR=${{ github.workspace }}/beam-site
+            BRANCH_NAME=updates_release_${{ github.event.inputs.RELEASE }}
             USER_REMOTE_URL=git@github.com:${{ github.actor }}/beam-site
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
              
@@ -259,7 +259,7 @@ jobs:
              
             echo "------------------Updating Release Docs---------------------"
             cd ${SITE_ROOT_DIR}
-            git checkout -b updates_release_${{ github.event.inputs.RELEASE }} release-docs
+            git checkout -b $BRANCH_NAME release-docs
              
             # echo "..........Copying generated javadoc into beam-site.........."
             # cp -r ${GENERATE_JAVADOC} javadoc/${{ github.event.inputs.RELEASE }}
@@ -285,7 +285,7 @@ jobs:
             git config user.email actions@"$RUNNER_NAME".local
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
-            git push -f
+            git push -f --set-upstream origin $BRANCH_NAME
             
             echo "............Creating PR.........."
-            gh pr create -f --base release-docs --head ${{ github.actor }}:updates_release_${{ github.event.inputs.RELEASE }}
+            gh pr create -f --base release-docs --head ${{ github.actor }}:$BRANCH_NAME
