@@ -383,8 +383,10 @@ public class DicomIO {
       }
 
       @Setup
-      public void initClient() throws IOException {
-        this.dicomStore = new HttpHealthcareApiClient();
+      public void instantiateHealthcareClient() throws IOException {
+        if (dicomStore == null) {
+          this.dicomStore = new HttpHealthcareApiClient();
+        }
       }
 
       @ProcessElement
