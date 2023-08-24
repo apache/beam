@@ -288,4 +288,4 @@ jobs:
             git push -f --set-upstream origin $BRANCH_NAME
             
             echo "............Creating PR.........."
-            gh pr create -f
+            gh pr create --title "Update beam-site for release ${{ github.event.inputs.RELEASE }} --body "Content generated from commit ${RELEASE_COMMIT}."
