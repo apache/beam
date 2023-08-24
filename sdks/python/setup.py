@@ -155,7 +155,8 @@ dataframe_dependency = [
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
   try:
-    # pylint: disable=wrong-import-position
+    # Pyproject toml build happens in isolated environemnts. In those envs,
+    # gen_protos is unable to get imported. so we run a subprocess call.
     cwd = os.path.abspath(os.path.dirname(__file__))
     p = subprocess.call([
       sys.executable,
