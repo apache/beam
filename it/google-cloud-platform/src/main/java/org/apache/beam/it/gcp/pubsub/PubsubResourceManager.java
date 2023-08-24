@@ -28,6 +28,7 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.FieldMask;
 import com.google.pubsub.v1.Encoding;
 import com.google.pubsub.v1.ProjectName;
 import com.google.pubsub.v1.PubsubMessage;
@@ -271,6 +272,7 @@ public final class PubsubResourceManager implements ResourceManager {
     createdSchemas.add(SchemaName.parse(schema.getName()));
     topicAdminClient.updateTopic(
         UpdateTopicRequest.newBuilder()
+            .setUpdateMask(FieldMask.newBuilder().addPaths("schema_settings"))
             .setTopic(
                 Topic.newBuilder()
                     .setName(schemaTopic.toString())
