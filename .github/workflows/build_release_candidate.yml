@@ -288,7 +288,7 @@ jobs:
         working-directory: beam-site
         env:
           GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
-          PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release}"
-          PR_BODY: "Content generated from  https://github.com/apache/beam/tree/v${RC_TAG}."
+          PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release"
+          PR_BODY: "Content generated from https://github.com/apache/beam/tree/v${{ env.RC_TAG }}."
         run: |
             gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
