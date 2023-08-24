@@ -188,6 +188,26 @@ if __name__ == '__main__':
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
   generate_protos_first()
+
+  # generate cythonize extensions only if we are building a wheel or
+  # building an extension.
+  if 'bdist_wheel' in sys.argv or 'build_ext' in sys.argv:
+    extensions = cythonize([
+            'apache_beam/**/*.pyx',
+            'apache_beam/coders/coder_impl.py',
+            'apache_beam/metrics/cells.py',
+            'apache_beam/metrics/execution.py',
+            'apache_beam/runners/common.py',
+            'apache_beam/runners/worker/logger.py',
+            'apache_beam/runners/worker/opcounters.py',
+            'apache_beam/runners/worker/operations.py',
+            'apache_beam/transforms/cy_combiners.py',
+            'apache_beam/transforms/stats.py',
+            'apache_beam/utils/counters.py',
+            'apache_beam/utils/windowed_value.py',
+        ])
+  else:
+    extensions = []
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
@@ -213,21 +233,7 @@ if __name__ == '__main__':
               *get_portability_package_data()
           ]
       },
-      ext_modules=cythonize([
-          'apache_beam/**/*.pyx',
-          'apache_beam/coders/coder_impl.py',
-          'apache_beam/metrics/cells.py',
-          'apache_beam/metrics/execution.py',
-          'apache_beam/runners/common.py',
-          'apache_beam/runners/worker/logger.py',
-          'apache_beam/runners/worker/opcounters.py',
-          'apache_beam/runners/worker/operations.py',
-          'apache_beam/transforms/cy_combiners.py',
-          'apache_beam/transforms/stats.py',
-          'apache_beam/utils/counters.py',
-          'apache_beam/utils/windowed_value.py',
-      ],
-                            language_level=3),
+      ext_modules=extensions,
       install_requires=[
           'build>=0.9.0,<0.11.0',
           'crcmod>=1.7,<2.0',
