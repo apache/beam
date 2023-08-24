@@ -232,14 +232,15 @@ jobs:
             BRANCH_NAME=updates_release_${{ github.event.inputs.RELEASE }}
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
              
-            echo "------------------Building Python Doc------------------------"
-            pip install --upgrade pip setuptools wheel
-            pip install -U pip
-            pip install tox
-            cd ${BEAM_ROOT_DIR}
-
             # Get the commit from the beam repo, not the beam-site repo.
+            cd ${BEAM_ROOT_DIR}
             RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
+
+            # echo "------------------Building Python Doc------------------------"
+            # pip install --upgrade pip setuptools wheel
+            # pip install -U pip
+            # pip install tox
+
 
             # # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
             # cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
