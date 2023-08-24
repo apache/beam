@@ -162,7 +162,7 @@ jobs:
       - name: Setup repository
         uses: actions/checkout@v3
         with:
-          ref: eb960d4f17006550b213d4527a447d417fe1c53b
+          ref: a46a35b52fc145649312ebfa4801d0784dd807ae
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
