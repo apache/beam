@@ -291,5 +291,4 @@ jobs:
           PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release}"
           PR_BODY: "Content generated from  https://github.com/apache/beam/tree/v${RC_TAG}."
         run: |
-            # Update the body if the PR already exists and reopen it. Create it otherwise.
-            gh pr edit $BRANCH_NAME -b "$PR_BODY"  && gh pr reopen $BRANCH_NAME || gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
+            gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs || echo "PR likely already exists, but has been updated."
