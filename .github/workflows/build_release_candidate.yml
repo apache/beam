@@ -287,4 +287,7 @@ jobs:
             git push -f --set-upstream origin $BRANCH_NAME
             
             echo "............Creating PR.........."
-            gh pr create --title "Publish docs for ${RELEASE} release}" --body "Content generated from commit ${RELEASE_COMMIT}." --base release-docs
+            PR_TITLE="Publish docs for ${RELEASE} release}"
+            PR_BODY="Content generated from commit ${RELEASE_COMMIT}."
+            # Update the title and body if the PR already exists and reopen it. Create it otherwise.
+            gh pr edit $BRANCH_NAME -t $PR_TITLE -b $PR_BODY  && gh pr reopen $BRANCH_NAME || gh pr create -t $PR_TITLE -b $PR_BODY --base release-docs
