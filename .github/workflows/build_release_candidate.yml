@@ -231,7 +231,7 @@ jobs:
              
             echo "------------------Building Typescript Doc------------------------"
             cd ${BEAM_ROOT_DIR}
-            cd sdks/typescript && npm ci && npm run docs
+            cd sdks/typescript && npm install ttypescript@1.5.15 && npm ci && npm run docs
             GENERATED_TYPEDOC=${BEAM_ROOT_DIR}/sdks/typescript/docs
              
             echo "----------------------Building Java Doc----------------------"
