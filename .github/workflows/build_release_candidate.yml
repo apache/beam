@@ -216,7 +216,7 @@ jobs:
         run: |
             BEAM_ROOT_DIR=${{ github.workspace }}/beam
             SITE_ROOT_DIR=${{ github.workspace }}/beam-site
-            USER_REMOTE_URL=git@github.com:${{} github.actor }}/beam-site
+            USER_REMOTE_URL=git@github.com:${{ github.actor }}/beam-site
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
              
             echo "------------------Building Python Doc------------------------"
