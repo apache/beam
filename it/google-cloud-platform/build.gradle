@@ -44,26 +44,27 @@ dependencies {
     implementation library.java.protobuf_java_util
     implementation library.java.protobuf_java
     implementation library.java.threetenbp
+    implementation 'org.awaitility:awaitility:4.2.0'
     // Google Cloud Dependencies
     implementation library.java.google_api_services_bigquery
     implementation library.java.google_cloud_core
     implementation 'com.google.cloud:google-cloud-storage'
     implementation 'com.google.cloud:google-cloud-bigquery'
     implementation 'com.google.cloud:google-cloud-monitoring'
-    implementation 'com.google.api.grpc:proto-google-cloud-monitoring-v3'
+    provided 'com.google.api.grpc:proto-google-cloud-monitoring-v3'
     implementation 'com.google.cloud:google-cloud-bigtable'
     implementation 'com.google.cloud:google-cloud-spanner'
     implementation 'com.google.cloud:google-cloud-pubsub'
-    implementation 'com.google.api.grpc:proto-google-cloud-pubsub-v1'
+    provided 'com.google.api.grpc:proto-google-cloud-pubsub-v1'
     implementation 'com.google.cloud:google-cloud-pubsublite'
-    implementation 'com.google.api.grpc:proto-google-cloud-pubsublite-v1'
+    provided 'com.google.api.grpc:proto-google-cloud-pubsublite-v1'
     implementation 'com.google.cloud:google-cloud-datastore'
     implementation 'com.google.cloud:google-cloud-datastream'
-    implementation 'com.google.api.grpc:proto-google-cloud-datastream-v1'
+    provided 'com.google.api.grpc:proto-google-cloud-datastream-v1'
     implementation 'com.google.cloud:google-cloud-kms'
-    implementation 'com.google.api.grpc:proto-google-cloud-kms-v1'
+    provided 'com.google.api.grpc:proto-google-cloud-kms-v1'
     implementation 'com.google.cloud:google-cloud-dlp'
-    implementation 'com.google.api.grpc:proto-google-cloud-dlp-v2'
+    provided 'com.google.api.grpc:proto-google-cloud-dlp-v2'
     implementation 'com.google.cloud:google-cloud-secretmanager'
     provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
 

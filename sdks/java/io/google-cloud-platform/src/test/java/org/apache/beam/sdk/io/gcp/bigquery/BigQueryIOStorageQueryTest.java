@@ -82,6 +82,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MoreCollectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -426,6 +427,12 @@ public class BigQueryIOStorageQueryTest {
 
     List<? extends BoundedSource<TableRow>> sources = querySource.split(bundleSize, options);
     assertEquals(expectedStreamCount, sources.size());
+    assertEquals(
+        TableRowJsonCoder.of(),
+        sources.stream()
+            .map(BoundedSource<TableRow>::getOutputCoder)
+            .distinct()
+            .collect(MoreCollectors.onlyElement()));
   }
 
   /**
@@ -520,6 +527,12 @@ public class BigQueryIOStorageQueryTest {
 
     List<? extends BoundedSource<TableRow>> sources = querySource.split(1024, options);
     assertEquals(1024, sources.size());
+    assertEquals(
+        TableRowJsonCoder.of(),
+        sources.stream()
+            .map(BoundedSource<TableRow>::getOutputCoder)
+            .distinct()
+            .collect(MoreCollectors.onlyElement()));
   }
 
   private static final String AVRO_SCHEMA_STRING =

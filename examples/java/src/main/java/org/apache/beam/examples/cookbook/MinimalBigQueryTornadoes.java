@@ -58,14 +58,14 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Concepts: Reading/writing BigQuery; counting a PCollection; user-defined PTransforms
  *
- * <p>The BigQuery input is taken from {@code clouddataflow-readonly:samples.weather_stations}
+ * <p>The BigQuery input is taken from {@code apache-beam-testing.samples.weather_stations}
  */
 public class MinimalBigQueryTornadoes {
   private static final Logger LOG = LoggerFactory.getLogger(MinimalBigQueryTornadoes.class);
 
   // Use a 1000 row subset of the public weather station table publicdata:samples.gsod.
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
 
   /**
    * Examines each row in the input table. If a tornado was recorded in that sample, the month in
