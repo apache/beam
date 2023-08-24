@@ -382,9 +382,17 @@ public class DicomIO {
         this.deidConfigJson = gson.toJson(deidConfig.get());
       }
 
+      /**
+       * Instantiate the healthcare client (version v1).
+       *
+       * @throws IOException
+       */
+      
       @Setup
-      public void initClient() throws IOException {
-        this.client = new HttpHealthcareApiClient();
+      public void instantiateHealthcareClient() throws IOException {
+        if (dicomStore == null) {
+          this.dicomStore = new HttpHealthcareApiClient();
+        }
       }
 
       @ProcessElement
