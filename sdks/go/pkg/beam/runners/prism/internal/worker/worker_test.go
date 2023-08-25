@@ -119,16 +119,16 @@ func TestWorker_Logging(t *testing.T) {
 
 	logStream.Send(&fnpb.LogEntry_List{
 		LogEntries: []*fnpb.LogEntry{{
-			Severity: fnpb.LogEntry_Severity_INFO,
-			Message:  "squeamish ossiphrage",
+			Severity:    fnpb.LogEntry_Severity_INFO,
+			Message:     "squeamish ossiphrage",
 			LogLocation: "intentionally.go:124",
 		}},
 	})
 
 	logStream.Send(&fnpb.LogEntry_List{
 		LogEntries: []*fnpb.LogEntry{{
-			Severity: fnpb.LogEntry_Severity_INFO,
-			Message:  "squeamish ossiphrage the second",
+			Severity:    fnpb.LogEntry_Severity_INFO,
+			Message:     "squeamish ossiphrage the second",
 			LogLocation: "intentionally bad log location",
 		}},
 	})
