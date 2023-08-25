@@ -257,6 +257,19 @@ class ExternalJavaProvider(ExternalProvider):
                           capture_output=True).returncode == 0
 
 
+@ExternalProvider.register_provider_type('python')
+def python(urns, packages=()):
+  if packages:
+    return ExternalPythonProvider(urns, packages)
+  else:
+    return InlineProvider({
+        name:
+        python_callable.PythonCallableWithSource.load_from_fully_qualified_name(
+            constructor)
+        for (name, constructor) in urns.items()
+    })
+
+
 @ExternalProvider.register_provider_type('pythonPackage')
 class ExternalPythonProvider(ExternalProvider):
   def __init__(self, urns, packages):
