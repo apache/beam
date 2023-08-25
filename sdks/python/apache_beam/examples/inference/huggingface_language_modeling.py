@@ -113,7 +113,7 @@ def parse_known_args(argv):
       '--model_class',
       dest='model_class',
       default=AutoModelForMaskedLM,
-      help="Name of the model from Hugging Face")
+      help='Name of the model from Hugging Face')
   parser.add_argument(
       '--large_model',
       action='store_true',

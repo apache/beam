@@ -1228,7 +1228,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_tag = side_input_model_path
     if self._model_handler.share_model_across_processes():
       model = multi_process_shared.MultiProcessShared(
-          load, tag=model_tag).acquire()
+          load, tag=model_tag, always_proxy=True).acquire()
     else:
       model = self._shared_model_handle.acquire(load, tag=model_tag)
     # since shared_model_handle is shared across threads, the model path
