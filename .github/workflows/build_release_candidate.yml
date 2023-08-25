@@ -20,7 +20,7 @@ on:
         description: Your Apache password. Required if you want to stage artifacts into https://dist.apache.org/repos/dist/dev/beam/
         required: false
       BEAM_SITE_TOKEN:
-        description:  Required if you want to create the beam-site docs PR.
+        description:  Github Personal Access Token with repo permission if you want to create the beam-site docs PR. See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens.
         default: ''
       PUBLISH_JAVA_ARTIFACTS:
         description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
