@@ -161,7 +161,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: a46a35b52fc145649312ebfa4801d0784dd807ae
+          ref: 44b639fdd7e8cdc7b29bef8bbe99545a0f3b3dc8
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
