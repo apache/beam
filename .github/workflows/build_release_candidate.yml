@@ -242,7 +242,7 @@ jobs:
       - name: Build Typescript Docs
         working-directory: beam/sdks/typescript
         run: |
-            npm install ttypescript@1.5.15 && npm ci && npm run docs
+            npm ci && npm run docs
       - name: Build Java Docs
         working-directory: beam
         run: |
