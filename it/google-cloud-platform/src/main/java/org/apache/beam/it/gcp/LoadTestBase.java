@@ -123,7 +123,7 @@ public abstract class LoadTestBase {
     monitoringClient.cleanupAll();
   }
 
-  abstract PipelineLauncher launcher() throws IOException;
+  abstract PipelineLauncher launcher();
 
   /**
    * Exports the metrics of given dataflow job to BigQuery.
@@ -131,8 +131,7 @@ public abstract class LoadTestBase {
    * @param launchInfo Job info of the job
    * @param metrics metrics to export
    */
-  protected void exportMetricsToBigQuery(LaunchInfo launchInfo, Map<String, Double> metrics)
-      throws IOException {
+  protected void exportMetricsToBigQuery(LaunchInfo launchInfo, Map<String, Double> metrics) {
     LOG.info("Exporting metrics:\n{}", formatForLogging(metrics));
     try {
       // either use the user specified project for exporting, or the same project
@@ -140,7 +139,6 @@ public abstract class LoadTestBase {
       BigQueryResourceManager bigQueryResourceManager =
           BigQueryResourceManager.builder(testName, exportProject, CREDENTIALS)
               .setDatasetId(TestProperties.exportDataset())
-              .setCredentials(CREDENTIALS)
               .build();
       // exporting metrics to bigQuery table
       Map<String, Object> rowContent = new HashMap<>();

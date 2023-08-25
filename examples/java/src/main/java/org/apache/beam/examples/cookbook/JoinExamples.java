@@ -58,7 +58,7 @@ import org.apache.beam.sdk.values.TupleTag;
 public class JoinExamples {
 
   // A 1000-row sample of the GDELT data here: gdelt-bq:full.events.
-  private static final String GDELT_EVENTS_TABLE = "clouddataflow-readonly:samples.gdelt_sample";
+  private static final String GDELT_EVENTS_TABLE = "apache-beam-testing.samples.gdelt_sample";
   // A table that maps country codes to country names.
   private static final String COUNTRY_CODES = "gdelt-bq:full.crosswalk_geocountrycodetohuman";
 

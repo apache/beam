@@ -404,7 +404,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             mh,
             hints)
       batch_kwargs = mh.batch_elements_kwargs()
-      if len(hints) > 0:
+      if len(batch_kwargs) > 0:
         logging.warning(
             'mh %s defines the following batching kwargs which will be '
             'ignored %s. Batching kwargs are not respected when '
@@ -414,7 +414,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             hints,
             batch_kwargs)
       env_vars = mh._env_vars
-      if len(hints) > 0:
+      if len(env_vars) > 0:
         logging.warning(
             'mh %s defines the following _env_vars which will be ignored %s. '
             '_env_vars are not respected when more than one model handler is '
@@ -1057,7 +1057,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # model.
     if self._model_handler.share_model_across_processes():
       model = multi_process_shared.MultiProcessShared(
-          load, tag=side_input_model_path or self._model_tag).acquire()
+          load, tag=side_input_model_path or self._model_tag,
+          always_proxy=True).acquire()
     else:
       model = self._shared_model_handle.acquire(
           load, tag=side_input_model_path or self._model_tag)
