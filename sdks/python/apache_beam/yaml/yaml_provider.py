@@ -122,16 +122,18 @@ class ExternalProvider(Provider):
       self._service = self._service()
     if self._schema_transforms is None:
       try:
-        self._schema_transforms = [
-            config.identifier
+        self._schema_transforms = {
+            config.identifier: config
             for config in external.SchemaAwareExternalTransform.discover(
-                self._service)
-        ]
+                self._service, ignore_errors=True)
+        }
       except Exception:
-        self._schema_transforms = []
+        # It's possible this service doesn't vend schema transforms.
+        self._schema_transforms = {}
     urn = self._urns[type]
     if urn in self._schema_transforms:
-      return external.SchemaAwareExternalTransform(urn, self._service, **args)
+      return external.SchemaAwareExternalTransform(
+          urn, self._service, rearrange_based_on_discovery=True, **args)
     else:
       return type >> self.create_external_transform(urn, args)
 

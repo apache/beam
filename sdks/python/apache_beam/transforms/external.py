@@ -194,6 +194,56 @@ class SchemaTransformPayloadBuilder(PayloadBuilder):
     return payload
 
 
+class ExplicitSchemaTransformPayloadBuilder(PayloadBuilder):
+  def __init__(self, identifier, schema_proto, **kwargs):
+    self._identifier = identifier
+    self._schema_proto = schema_proto
+    self._kwargs = kwargs
+
+  def build(self):
+    def dict_to_row_recursive(field_type, py_value):
+      if py_value is None:
+        return None
+      type_info = field_type.WhichOneof('type_info')
+      if type_info == 'row_type':
+        return dict_to_row(field_type.row_type.schema, py_value)
+      elif type_info == 'array_type':
+        return [
+            dict_to_row_recursive(field_type.array_type.element_type, value)
+            for value in py_value
+        ]
+      elif type_info == 'map_type':
+        return {
+            key: dict_to_row_recursive(field_type.map_type.value_type, value)
+            for key,
+            value in py_value.items()
+        }
+      else:
+        return py_value
+
+    def dict_to_row(schema_proto, py_value):
+      row_type = named_tuple_from_schema(schema_proto)
+      if isinstance(py_value, dict):
+        extra = set(py_value.keys()) - set(row_type._fields)
+        if extra:
+          raise ValueError(
+              f"Unknown fields: {extra}. Valid fields: {row_type._fields}")
+        return row_type(
+            *[
+                dict_to_row_recursive(
+                    field.type, py_value.get(field.name, None))
+                for field in schema_proto.fields
+            ])
+      else:
+        return row_type(py_value)
+
+    return external_transforms_pb2.SchemaTransformPayload(
+        identifier=self._identifier,
+        configuration_schema=self._schema_proto,
+        configuration_row=RowCoder(self._schema_proto).encode(
+            dict_to_row(self._schema_proto, self._kwargs)))
+
+
 class JavaClassLookupPayloadBuilder(PayloadBuilder):
   """
   Builds a payload for directly instantiating a Java transform using a
@@ -351,37 +401,16 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
 
     _kwargs = kwargs
     if rearrange_based_on_discovery:
-      _kwargs = self._rearrange_kwargs(identifier)
+      config = SchemaAwareExternalTransform.discover_config(
+          self._expansion_service, identifier)
+      self._payload_builder = ExplicitSchemaTransformPayloadBuilder(
+          identifier,
+          named_tuple_to_schema(config.configuration_schema),
+          **_kwargs)
 
-    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **_kwargs)
-
-  def _rearrange_kwargs(self, identifier):
-    # discover and fetch the external SchemaTransform configuration then
-    # use it to build an appropriate payload
-    schematransform_config = SchemaAwareExternalTransform.discover_config(
-        self._expansion_service, identifier)
-
-    external_config_fields = schematransform_config.configuration_schema._fields
-    ordered_kwargs = OrderedDict()
-    missing_fields = []
-
-    for field in external_config_fields:
-      if field not in self._kwargs:
-        missing_fields.append(field)
-      else:
-        ordered_kwargs[field] = self._kwargs[field]
-
-    extra_fields = list(set(self._kwargs.keys()) - set(external_config_fields))
-    if missing_fields:
-      raise ValueError(
-          'Input parameters are missing the following SchemaTransform config '
-          'fields: %s' % missing_fields)
-    elif extra_fields:
-      raise ValueError(
-          'Input parameters include the following extra fields that are not '
-          'found in the SchemaTransform config schema: %s' % extra_fields)
-
-    return ordered_kwargs
+    else:
+      self._payload_builder = SchemaTransformPayloadBuilder(
+          identifier, **_kwargs)
 
   def expand(self, pcolls):
     # Expand the transform using the expansion service.
@@ -390,14 +419,18 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         self._payload_builder,
         self._expansion_service)
 
-  @staticmethod
-  def discover(expansion_service):
+  @classmethod
+  @functools.lru_cache
+  def discover(cls, expansion_service, ignore_errors=False):
     """Discover all SchemaTransforms available to the given expansion service.
 
     :return: a list of SchemaTransformsConfigs that represent the discovered
         SchemaTransforms.
     """
+    return list(cls.discover_iter(expansion_service, ignore_errors))
 
+  @staticmethod
+  def discover_iter(expansion_service, ignore_errors=True):
     with ExternalTransform.service(expansion_service) as service:
       discover_response = service.DiscoverSchemaTransform(
           beam_expansion_api_pb2.DiscoverSchemaTransformRequest())
@@ -406,8 +439,12 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         proto_config = discover_response.schema_transform_configs[identifier]
         try:
           schema = named_tuple_from_schema(proto_config.config_schema)
-        except ValueError:
-          continue
+        except Exception as exn:
+          if ignore_errors:
+            logging.info("Bad schema for %s: %s", identifier, str(exn)[:250])
+            continue
+          else:
+            raise
 
         yield SchemaTransformsConfig(
             identifier=identifier,
@@ -427,7 +464,8 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       are discovered
     """
 
-    schematransforms = SchemaAwareExternalTransform.discover(expansion_service)
+    schematransforms = SchemaAwareExternalTransform.discover(
+        expansion_service, ignore_errors=True)
     matched = []
 
     for st in schematransforms:
