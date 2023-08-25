@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -191,8 +193,16 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			if l.Severity >= minsev {
 				// TODO: Connect to the associated Job for this worker instead of
 				// logging locally for SDK side logging.
+				ll := l.GetLogLocation()
+				i := strings.LastIndex(ll, ":")
+				file := ll[:i]
+				line, _ := strconv.Atoi(ll[i+1:])
+
 				slog.LogAttrs(context.TODO(), toSlogSev(l.GetSeverity()), l.GetMessage(),
-					slog.String(slog.SourceKey, l.GetLogLocation()),
+					slog.Any(slog.SourceKey, &slog.Source{
+						File: file,
+						Line: line,
+					}),
 					slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
 					slog.Any("worker", wk),
 				)
