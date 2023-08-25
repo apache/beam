@@ -193,10 +193,12 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			if l.Severity >= minsev {
 				// TODO: Connect to the associated Job for this worker instead of
 				// logging locally for SDK side logging.
-				ll := l.GetLogLocation()
-				i := strings.LastIndex(ll, ":")
-				file := ll[:i]
-				line, _ := strconv.Atoi(ll[i+1:])
+				file := l.GetLogLocation()
+				i := strings.LastIndex(file, ":")
+				line, _ := strconv.Atoi(file[i+1:])
+				if i > 0 {
+					file = file[:i]
+				}
 
 				slog.LogAttrs(context.TODO(), toSlogSev(l.GetSeverity()), l.GetMessage(),
 					slog.Any(slog.SourceKey, &slog.Source{
