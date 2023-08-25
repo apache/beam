@@ -19,6 +19,9 @@ on:
       APACHE_PASSWORD:
         description: Your Apache password. Required if you want to stage artifacts into https://dist.apache.org/repos/dist/dev/beam/
         required: false
+      BEAM_SITE_TOKEN:
+        description:  Github Personal Access Token with repo permission if you want to create the beam-site docs PR. See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens.
+        default: ''
       PUBLISH_JAVA_ARTIFACTS:
         description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
         required: true
@@ -29,6 +32,10 @@ on:
         default: 'no'
       STAGE_DOCKER_ARTIFACTS:
         description: Whether to stage SDK docker images to docker hub Apache organization
+        required: true
+        default: 'no'
+      CREATE_BEAM_SITE_PR:
+        description: Whether to create the documentation update PR against apache/beam-site.
         required: true
         default: 'no'
 
@@ -179,3 +186,108 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
         run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
+
+
+  beam_site_pr:
+    if: ${{github.event.inputs.CREATE_BEAM_SITE_PR == 'yes'}}
+    # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
+    runs-on: ubuntu-latest
+    env:
+      RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+      BRANCH_NAME: updates_release_${{ github.event.inputs.RELEASE }}
+      BEAM_ROOT_DIR: ${{ github.workspace }}/beam
+      SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
+    steps:
+      - name: Checkout Beam Repo
+        uses: actions/checkout@v3
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+          path: beam
+      - name: Checkout Beam Site Repo
+        uses: actions/checkout@v3
+        with:
+          repository: apache/beam-site
+          path: beam-site
+          token: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
+          ref: release-docs
+      - name: Install Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Install Java 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml || true
+      - name: Create documentation commit for website
+        run: |
+            echo "OK!"
+      - name: Build Python Docs
+        working-directory: beam/sdks/python
+        run: |
+            pip install --upgrade pip setuptools wheel
+            pip install -U pip
+            pip install tox
+            # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
+            pip install -r build-requirements.txt && tox -e py38-docs
+            rm -rf target/docs/_build/.doctrees
+      - name: Build Typescript Docs
+        working-directory: beam/sdks/typescript
+        run: |
+            npm ci && npm run docs
+      - name: Build Java Docs
+        working-directory: beam
+        run: |
+            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+      - name: Consolidate Release Docs to beam-site branch with symlinks
+        working-directory: beam-site
+        run: |
+            git checkout -b $BRANCH_NAME release-docs
+             
+            echo "..........Copying generated javadoc into beam-site.........."
+            cp -r ${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/ javadoc/${{ github.event.inputs.RELEASE }}
+            # Update current symlink to point to the latest release
+            unlink javadoc/current
+            ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
+             
+            echo "............Copying generated pydoc into beam-site.........."
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/target/docs/_build pydoc/${{  github.event.inputs.RELEASE }}
+            # Update current symlink to point to the latest release
+            unlink pydoc/current
+            ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
+             
+            echo "............Copying generated typedoc into beam-site.........."
+            mkdir -p typedoc
+            cp -r ${BEAM_ROOT_DIR}/sdks/typescript/docs typedoc/${{ github.event.inputs.RELEASE }}
+            # Update current symlink to point to the latest release
+            unlink typedoc/current | true
+            ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
+      - name: Create commit on beam-site branch
+        working-directory: beam
+        run: |
+            # Get the commit from the beam repo, not the beam-site repo.
+            RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
+            cd ${SITE_ROOT_DIR}
+            git config user.name $GITHUB_ACTOR
+            git config user.email actions@"$RUNNER_NAME".local
+            git add -A
+            git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
+            git push -f --set-upstream origin $BRANCH_NAME
+      - name: Create beam-site PR
+        working-directory: beam-site
+        env:
+          GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
+          PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release"
+          PR_BODY: "Content generated from https://github.com/apache/beam/tree/${{ env.RC_TAG }}."
+        run: |
+            gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
