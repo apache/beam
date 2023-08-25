@@ -160,6 +160,8 @@ jobs:
       github.event.comment.body == 'Run Java PreCommit'
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: a46a35b52fc145649312ebfa4801d0784dd807ae
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -189,5 +191,3 @@ jobs:
         with:
           name: Spotbugs
           path: '**/build/reports/spotbugs/*.html'
-          
-          
