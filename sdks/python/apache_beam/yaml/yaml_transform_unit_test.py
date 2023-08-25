@@ -485,7 +485,7 @@ class MainTest(unittest.TestCase):
         fn: 'lambda x: x*x'
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    self.assertCountEqual(normalize_source_sink(spec), spec)
+    self.assertEqual(normalize_source_sink(spec), spec)
 
   def test_normalize_inputs_outputs(self):
     spec = '''
@@ -909,8 +909,8 @@ class MainTest(unittest.TestCase):
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
     result = ensure_errors_consumed(spec)
-    self.assertCountEqual(result, spec)
-    self.assertCountEqual(result['transforms'], spec['transforms'])
+    self.assertEqual(result, spec)
+    self.assertEqual(result['transforms'], spec['transforms'])
 
   def test_ensure_errors_consumed_no_output_in_error_handling(self):
     spec = '''
