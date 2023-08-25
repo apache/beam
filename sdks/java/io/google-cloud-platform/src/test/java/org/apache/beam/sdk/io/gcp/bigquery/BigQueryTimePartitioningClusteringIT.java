@@ -48,7 +48,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryTimePartitioningClusteringIT {
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryTimePartitioningIT";
   private static final TimePartitioning TIME_PARTITIONING =
       new TimePartitioning().setField("date").setType("DAY");
