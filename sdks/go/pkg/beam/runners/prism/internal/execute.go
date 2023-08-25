@@ -263,7 +263,9 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			wk.Descriptors[stage.ID] = stage.desc
 		case wk.ID:
 			// Great! this is for this environment. // Broken abstraction.
-			buildDescriptor(stage, comps, wk)
+			if err := buildDescriptor(stage, comps, wk); err != nil {
+				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
+			}
 			stages[stage.ID] = stage
 			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
