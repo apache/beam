@@ -293,8 +293,11 @@ class Scope(LightweightScope):
     if 'name' in spec:
       name = spec['name']
       strictness += 1
-    else:
+    elif 'ExternalTransform' not in ptransform.label:
+      # The label may have interesting information.
       name = ptransform.label
+    else:
+      name = spec['type']
     if name in self._seen_names:
       if strictness >= 2:
         raise ValueError(f'Duplicate name at {identify_object(spec)}: {name}')
