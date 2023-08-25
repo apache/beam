@@ -19,6 +19,9 @@ on:
       APACHE_PASSWORD:
         description: Your Apache password. Required if you want to stage artifacts into https://dist.apache.org/repos/dist/dev/beam/
         required: false
+      BEAM_SITE_TOKEN:
+        description:  Required if you want to create the beam-site docs PR.
+        default: ''
       PUBLISH_JAVA_ARTIFACTS:
         description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
         required: true
@@ -35,10 +38,6 @@ on:
         description: Whether to create the documentation update PR against apache/beam-site.
         required: true
         default: 'no'
-      BEAM_SITE_TOKEN:
-        description: Github token with permissions to create prs on your beam-site fork.
-        required: true
-        default: ''
 
 jobs:
   publish_java_artifacts:
@@ -287,6 +286,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
           PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release"
-          PR_BODY: "Content generated from https://github.com/apache/beam/tree/v${{ env.RC_TAG }}."
+          PR_BODY: "Content generated from https://github.com/apache/beam/tree/${{ env.RC_TAG }}."
         run: |
             gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
