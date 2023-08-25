@@ -2509,7 +2509,7 @@ class StorageWriteToBigQuery(PTransform):
 
   Experimental; no backwards compatibility guarantees.
   """
-  URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
+  URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"
   FAILED_ROWS = "FailedRows"
   FAILED_ROWS_WITH_ERRORS = "FailedRowsWithErrors"
 
@@ -2574,11 +2574,17 @@ class StorageWriteToBigQuery(PTransform):
         triggeringFrequencySeconds=self._triggering_frequency,
         useAtLeastOnceSemantics=self._use_at_least_once,
         writeDisposition=self._write_disposition,
-    )
+        errorHandling={
+            'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
+        })
 
     input_tag = self.schematransform_config.inputs[0]
 
-    return {input_tag: input} | external_storage_write
+    result = {input_tag: input} | external_storage_write
+    result[StorageWriteToBigQuery.FAILED_ROWS] = result[
+        StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS] | beam.Map(
+            lambda row_and_error: row_and_error[0])
+    return result
 
 
 class ReadFromBigQuery(PTransform):
@@ -2813,14 +2819,14 @@ class ReadFromBigQuery(PTransform):
     else:
       project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
 
+    pipeline_details = {}
+    if temp_table_ref is not None:
+      pipeline_details['temp_table_ref'] = temp_table_ref
+    elif project_id is not None:
+      pipeline_details['project_id'] = project_id
+      pipeline_details['bigquery_dataset_labels'] = self.bigquery_dataset_labels
+
     def _get_pipeline_details(unused_elm):
-      pipeline_details = {}
-      if temp_table_ref is not None:
-        pipeline_details['temp_table_ref'] = temp_table_ref
-      elif project_id is not None:
-        pipeline_details['project_id'] = project_id
-        pipeline_details[
-            'bigquery_dataset_labels'] = self.bigquery_dataset_labels
       return pipeline_details
 
     project_to_cleanup_pcoll = beam.pvalue.AsList(

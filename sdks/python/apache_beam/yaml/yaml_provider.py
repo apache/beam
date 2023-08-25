@@ -452,12 +452,6 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  ios = {
-      key: getattr(apache_beam.io, key)
-      for key in dir(apache_beam.io)
-      if key.startswith('ReadFrom') or key.startswith('WriteTo')
-  }
-
   return InlineProvider(
       dict({
           'Create': lambda elements,
@@ -482,8 +476,7 @@ def create_builtin_provider():
           'Flatten': Flatten,
           'WindowInto': WindowInto,
           'GroupByKey': beam.GroupByKey,
-      },
-           **ios))
+      }))
 
 
 class PypiExpansionService:
@@ -606,10 +599,12 @@ def merge_providers(*provider_sets):
 
 def standard_providers():
   from apache_beam.yaml.yaml_mapping import create_mapping_provider
+  from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
   return merge_providers(
       create_builtin_provider(),
       create_mapping_provider(),
+      io_providers(),
       parse_providers(standard_providers))
