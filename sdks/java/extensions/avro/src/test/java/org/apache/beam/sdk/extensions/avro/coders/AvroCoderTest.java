@@ -139,7 +139,7 @@ public class AvroCoderTest {
     public DateTime timestamp;
 
     // Empty constructor required for Avro decoding.
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     public Pojo() {}
 
     public Pojo(String text, int count, DateTime timestamp) {
@@ -525,16 +525,16 @@ public class AvroCoderTest {
   }
 
   private static class SimpleDeterministicClass {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private Integer intField;
 
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private char charField;
 
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private Integer[] intArray;
 
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private Utf8 utf8field;
   }
 
@@ -544,7 +544,7 @@ public class AvroCoderTest {
   }
 
   private static class UnorderedMapClass {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private Map<String, String> mapField;
   }
 
@@ -583,7 +583,7 @@ public class AvroCoderTest {
   }
 
   private static class NonDeterministicArray {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private UnorderedMapClass[] arrayField;
   }
 
@@ -609,7 +609,7 @@ public class AvroCoderTest {
   }
 
   private static class SubclassHidingParent extends UnorderedMapClass {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     @AvroName("mapField2") // AvroName is not enough
     private int mapField;
   }
@@ -630,7 +630,7 @@ public class AvroCoderTest {
 
   private static class FieldWithAvroName {
     @AvroName("name")
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private int someField;
   }
 
@@ -645,7 +645,7 @@ public class AvroCoderTest {
   }
 
   private static class StringSortedMapField {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     SortedMap<String, String> sortedMapField;
   }
 
@@ -662,7 +662,7 @@ public class AvroCoderTest {
   }
 
   private static class TreeMapNonDetValue {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     TreeMap<String, NonDeterministicArray> nonDeterministicField;
   }
 
@@ -679,7 +679,7 @@ public class AvroCoderTest {
   }
 
   private static class LinkedHashMapField {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     LinkedHashMap<String, String> nonDeterministicMap;
   }
 
@@ -694,7 +694,7 @@ public class AvroCoderTest {
   }
 
   private static class StringCollection {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     Collection<String> stringCollection;
   }
 
@@ -705,12 +705,12 @@ public class AvroCoderTest {
   }
 
   private static class StringList {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     List<String> stringCollection;
   }
 
   private static class StringArrayList {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     ArrayList<String> stringCollection;
   }
 
@@ -727,17 +727,17 @@ public class AvroCoderTest {
   }
 
   private static class StringSortedSet {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     SortedSet<String> stringCollection;
   }
 
   private static class StringTreeSet {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     TreeSet<String> stringCollection;
   }
 
   private static class StringHashSet {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     HashSet<String> stringCollection;
   }
 
@@ -752,12 +752,12 @@ public class AvroCoderTest {
   }
 
   private static class OrderedSetOfNonDetValues {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     SortedSet<UnorderedMapClass> set;
   }
 
   private static class ListOfNonDetValues {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     List<UnorderedMapClass> set;
   }
 
@@ -797,25 +797,25 @@ public class AvroCoderTest {
   }
 
   private static class Cyclic {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     int intField;
 
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     Cyclic cyclicField;
   }
 
   private static class CyclicField {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     Cyclic cyclicField2;
   }
 
   private static class IndirectCycle1 {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     IndirectCycle2 field1;
   }
 
   private static class IndirectCycle2 {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     IndirectCycle1 field2;
   }
 
@@ -886,12 +886,12 @@ public class AvroCoderTest {
   private static class UnionCase1 extends DeterministicUnionBase {}
 
   private static class UnionCase2 extends DeterministicUnionBase {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     String field;
   }
 
   private static class UnionCase3 extends NonDeterministicUnionBase {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private Map<String, String> mapField;
   }
 
@@ -1043,7 +1043,7 @@ public class AvroCoderTest {
   }
 
   private static class NullableField {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private @Nullable String nullable;
   }
 
@@ -1053,17 +1053,17 @@ public class AvroCoderTest {
   }
 
   private static class NullableNonDeterministicField {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private @Nullable NonDeterministicArray nullableNonDetArray;
   }
 
   private static class NullableCyclic {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private @Nullable NullableCyclic nullableNullableCyclicField;
   }
 
   private static class NullableCyclicField {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private @Nullable Cyclic nullableCyclicField;
   }
 
@@ -1110,7 +1110,7 @@ public class AvroCoderTest {
     }
 
     // For deserialization only
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     protected GenericWithAnnotation() {}
 
     @Override
@@ -1153,12 +1153,12 @@ public class AvroCoderTest {
   }
 
   private static class SomeGeneric<T> {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     private T foo;
   }
 
   private static class Foo {
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
     String id;
   }
 }

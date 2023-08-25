@@ -161,8 +161,6 @@ jobs:
     steps:
       - name: Setup repository
         uses: actions/checkout@v3
-        with:
-          ref: a46a35b52fc145649312ebfa4801d0784dd807ae
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
