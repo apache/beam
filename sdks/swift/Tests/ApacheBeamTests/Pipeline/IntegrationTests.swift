@@ -83,7 +83,7 @@ final class IntegrationTests: XCTestCase {
             normalizedCounts.log(prefix:"COUNT OUTPUT")
             errors.log(prefix:"ERROR OUTPUT")
             
-        }.run(PortableRunner(loopback:true)) 
+        }.run(PortableRunner(port:8099,loopback:true)) 
         
         
     }

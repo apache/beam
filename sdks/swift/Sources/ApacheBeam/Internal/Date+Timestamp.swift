@@ -22,6 +22,6 @@ extension Date {
         Int64((self.timeIntervalSince1970 * 1000.0).rounded())
     }
     init(millisecondsSince1970: Int64) {
-        self = Date(timeIntervalSince1970: TimeInterval(millisecondsSince1970) / 1000)
+        self = Date(timeIntervalSince1970: Double(millisecondsSince1970) / 1000.0)
     }
 }

@@ -17,25 +17,32 @@
  */
 
 import Foundation
+import Logging
 
 /// Custom SerializableFn that reads/writes from an external data stream using a defined coder. It assumes that a given
 /// data element might contain more than one coder
 final class Source : SerializableFn {
-
+    
     let client: DataplaneClient
     let coder: Coder
+    let log: Logger
     
     public init(client: DataplaneClient,coder:Coder) {
         self.client = client
         self.coder = coder
-
+        self.log = Logger(label:"Source")
     }
     
     
     func process(context: SerializableFnBundleContext,
                  inputs: [AnyPCollectionStream], outputs: [AnyPCollectionStream]) async throws -> (String, String) {
+        log.info("Waiting for input on \(context.instruction)-\(context.transform)")
         let (stream,_) = await client.makeStream(instruction: context.instruction, transform: context.transform)
+        
+        var messages: Int = 0
+        var count: Int = 0
         for await message in stream {
+            messages += 1
             switch message {
             case let .data(data):
                 var d = data
@@ -43,6 +50,7 @@ final class Source : SerializableFn {
                     let value = try coder.decode(&d)
                     for output in outputs {
                         try output.emit(value: value)
+                        count += 1
                     }
                 }
             case let .last(id, transform):
@@ -50,9 +58,11 @@ final class Source : SerializableFn {
                     output.finish()
                 }
                 await client.finalizeStream(instruction: id, transform: transform)
+                log.info("Source \(context.instruction),\(context.transform) handled \(count) items over \(messages) messages")
                 return (id,transform)
             //TODO: Handle timer messages
             default:
+                log.info("Unhanled message \(message)")
                 break
             }
         }

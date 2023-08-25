@@ -52,8 +52,10 @@ public extension Coder {
             let length = try data.next(Int32.self).byteSwapped
             return .array(try (0..<length).map({ _ in try coder.decode(&data) }))
         case let .windowedvalue(valueCoder, windowCoder):
-            let timestamp = try data.next(Int64.self).byteSwapped &+ Int64(-9223372036854775808)
-            let windowCount = try data.next(Int32.self).byteSwapped
+            // This will be big endian to match java
+            let timestamp = try data.instant()
+
+            let windowCount = Int32(bigEndian: try data.next(Int32.self))
             if windowCount > 1 {
                 throw ApacheBeamError.runtimeError("Windowed values with > 1 window not yet supported")
             }
@@ -72,7 +74,7 @@ public extension Coder {
             default:
                 throw ApacheBeamError.runtimeError("Invalid pane encoding \(String(pane,radix:2))")
             }
-            return .windowed(try valueCoder.decode(&data), Date(millisecondsSince1970: timestamp), pane, window)
+            return .windowed(try valueCoder.decode(&data), timestamp, pane, window)
         default:
             throw ApacheBeamError.runtimeError("Decoding of \(self.urn) coders not supported.")
         }

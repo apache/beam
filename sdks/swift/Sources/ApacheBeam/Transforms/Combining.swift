@@ -25,7 +25,8 @@ public extension PCollection {
                 for v in kv.values {
                     accumulator(v,&result)
                 }
-                output.emit(KV(kv.key,result),timestamp:ts,window:w)
+                let intermediate = KV(kv.key,result)
+                output.emit(intermediate,timestamp:ts,window:w)
             }
                 
         }

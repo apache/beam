@@ -30,8 +30,8 @@ final class FileIOTests: XCTestCase {
     }
 
     func testGoogleStorageReadFiles() async throws {
+        throw XCTSkip()
         try await PCollectionTest(PCollection<KV<String,String>>().readFiles(in: GoogleStorage.self)) { log,inputs,outputs in
-            throw XCTSkip()
             log.info("Sending value")
             try inputs[0].emit(value:KV("dataflow-samples","shakespeare/asyoulikeit.txt"))
             log.info("Value sent")
@@ -43,11 +43,13 @@ final class FileIOTests: XCTestCase {
     }
 
     func testShakespeareWordcount() async throws {
+        //throw XCTSkip()
         try await Pipeline { pipeline in
             let contents = pipeline
                 .create(["dataflow-samples/shakespeare"])
                 .map({ value in
                     let parts = value.split(separator: "/",maxSplits: 1)
+                    print("Got filename \(parts) from \(value)")
                     return KV(parts[0].lowercased(),parts[1].lowercased())
                 })
                 .listFiles(in: GoogleStorage.self)
@@ -64,10 +66,9 @@ final class FileIOTests: XCTestCase {
             
             // Our first group by operation
             let baseCount = lines
-                .flatMap({ $0.components(separatedBy: .whitespaces) })
+                .flatMap({ (line:String) in line.components(separatedBy: .whitespaces) })
                 .groupBy({ ($0,1) })
                 .sum()
-                .log(prefix:"INTERMEDIATE OUTPUT")
             
             let normalizedCounts = baseCount.groupBy {
                 ($0.key.lowercased().trimmingCharacters(in: .punctuationCharacters),
@@ -76,7 +77,7 @@ final class FileIOTests: XCTestCase {
             
             normalizedCounts.log(prefix:"COUNT OUTPUT")
             
-        }.run(PortableRunner(loopback:true))
+        }.run(PortableRunner(port:8099,loopback:true))
     }
     
 

@@ -90,12 +90,12 @@ public extension Coder {
         case let .windowedvalue(valueCoder, windowCoder):
             if let (v,ts,w) = value as? (Any,Date,Window) {
                 //Timestamp
-                data.next( (ts.millisecondsSince1970 &- Int64(-9223372036854775808)).bigEndian )
+                data.instant(ts)
                 switch w {
                 case .global:
-                    data.next(Int32(0))
+                    data.next(Int32(1).bigEndian)
                 default:
-                    data.next(Int32(1))
+                    data.next(Int32(1).bigEndian)
                     try windowCoder.encode(w,data:&data)
                 }
                 // TODO: Real Panes

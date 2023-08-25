@@ -211,7 +211,6 @@ public final class Pipeline {
                                         $0.spec = .with {
                                             $0.urn = .transformUrn("impulse")
                                         }
-                                        $0.environmentID = defaultEnvironment.name
                                     }
                             }
                             rootIds.append(p.name)
@@ -232,7 +231,6 @@ public final class Pipeline {
                                         $0.spec = .with {
                                             $0.urn = .transformUrn("group_by_key")
                                         }
-                                        $0.environmentID = defaultEnvironment.name
                                     }
                             }
                             rootIds.append(p.name)

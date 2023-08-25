@@ -67,7 +67,7 @@ actor DataplaneClient {
     private var streams: [Pair:(Stream,Stream.Continuation,MultiplexContinuation)] = [:]
     private let flush: Int
 
-    public init(id:String,endpoint:ApiServiceDescriptor,flush:Int=100) throws {
+    public init(id:String,endpoint:ApiServiceDescriptor,flush:Int=1000) throws {
         self.id  = id
         self.log = Logging.Logger(label: "Dataplane(\(id),\(endpoint.url))")
         self.multiplex = AsyncStream.makeStream(of:Multiplex.self)
@@ -80,7 +80,9 @@ actor DataplaneClient {
             log.info("Initiating data plane multiplexing.")
             
             let input = multiplex.0
-
+            var count: Int = 0
+            var flushes: Int = 0
+            
             var elements = Org_Apache_Beam_Model_FnExecution_V1_Elements()
             for try await element in input {
                 var shouldFlush: Bool = false
@@ -92,6 +94,7 @@ actor DataplaneClient {
                         $0.transformID = element.transform
                         $0.data = payload
                     })
+                    count += 1
                 case let .timer(family, payload):
                     elements.timers.append(.with {
                         $0.instructionID = element.id
@@ -99,6 +102,7 @@ actor DataplaneClient {
                         $0.timerFamilyID = family
                         $0.timers = payload
                     })
+                    count += 1
                 case let .last(id, transform):
                     elements.data.append(.with {
                         $0.instructionID = id
@@ -106,19 +110,36 @@ actor DataplaneClient {
                         $0.isLast = true
                     })
                     shouldFlush = true
+                    count += 1
                 case .flush:
                     shouldFlush = true
                 }
                 if shouldFlush || elements.data.count + elements.timers.count >= flush {
                     do {
+                        if case .last = element.message {
+                            log.info("Got last message, flushing \(elements.data.count + elements.timers.count) elements to data plane")
+                        }
                         try await stream.requestStream.send(elements)
                     } catch {
                         log.error("Unable to multiplex elements onto data plane: \(error)")
                     }
                     elements = Org_Apache_Beam_Model_FnExecution_V1_Elements()
                     shouldFlush = false
+                    flushes += 1
+                }
+                if count % 50000 == 0 && count > 0 {
+                    log.info("Processed \(count) elements (\(flushes) flushes)")
                 }
             }
+            if(elements.data.count + elements.timers.count > 0) {
+                do {
+                    log.info("Flushing final elements to data plane.")
+                    try await stream.requestStream.send(elements)
+                } catch {
+                    log.error("Unable to multiplex final elements onto data plane: \(error)")
+                }
+            }
+            log.info("Shutting down dataplane multiplexing")
         }
 
         // Demux task
@@ -132,7 +153,6 @@ actor DataplaneClient {
                     
                     for element in elements.data {
                         let key = Pair(id: element.instructionID, transform: element.transformID)
-                        //Drop zero-length elements
                         if element.data.count > 0 {
                             messages[key,default:[]].append(.data(element.data))
                         }
@@ -159,15 +179,20 @@ actor DataplaneClient {
                         }
                     }
                     // Send any last messages
+                    // TODO: Fix known race here. We try to re-use streams across bundles which can lead to a race where yield is sent too early.
                     for (key,value) in last {
                         let output = await self.makeStream(key: key).1
                         output.yield(value)
                     }
                 }
             } catch {
-                log.error("Lost data plane connection.")
+                log.error("Lost data plane connection. Closing all outstanding streams")
+                for (id,stream) in await streams {
+                    log.info("Closing stream \(id)")
+                    stream.1.finish()
+                }
             }
-            
+            multiplex.1.finish()
         }
     }
     
@@ -192,7 +217,11 @@ actor DataplaneClient {
     }
     
     func finalizeStream(instruction:String,transform:String) {
-        //TODO: Implement finalization.
+        let key = Pair(id:instruction,transform:transform)
+        log.info("Done with stream \(key)")
+        if let element = streams.removeValue(forKey: key) {
+            element.1.finish()
+        }
     }
 
     

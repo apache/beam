@@ -39,6 +39,7 @@ final class Sink : SerializableFn {
         }
         emitter.yield(.last(context.instruction, context.transform))
         emitter.finish()
+        await client.finalizeStream(instruction: context.instruction, transform: context.transform)
         return (context.instruction,context.transform)
     }
 }

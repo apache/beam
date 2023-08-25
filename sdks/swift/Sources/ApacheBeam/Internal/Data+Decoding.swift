@@ -68,6 +68,11 @@ extension Data {
         return result
     }
     
+    mutating func instant() throws -> Date {
+        let millis = Int64(bigEndian:try next(Int64.self)) &+ Int64(-9223372036854775808)
+        return Date(millisecondsSince1970: millis)
+    }
+    
     /// Read a length prefixed chunk of data
     mutating func subdata() throws -> Data {
         let length = try self.varint()
@@ -80,7 +85,7 @@ extension Data {
     mutating func next<T>(_ type: T.Type) throws -> T {
         let size = MemoryLayout<T>.size
         let result = self.withUnsafeBytes {
-            $0.baseAddress!.withMemoryRebound(to: T.self, capacity: 1) { $0.pointee }
+            $0.load(as: T.self)
         }
         self = self.safeAdvance(by: size)
         return result

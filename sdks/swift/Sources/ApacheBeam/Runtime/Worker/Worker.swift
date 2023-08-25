@@ -52,6 +52,7 @@ actor Worker {
         //Start the response task. This will continue until a yield call is sent from responder
         Task {
             for await r in responses {
+                log.info("Sending response \(r)")
                 try await control.requestStream.send(r)
             }
         }
@@ -75,8 +76,14 @@ actor Worker {
             for try await instruction in control.responseStream {
                 switch instruction.request {
                 case .processBundle(let pbr):
-                    try await processor(for:pbr.processBundleDescriptorID)
-                        .process(instruction: instruction.instructionID,responder:responder)
+                    do {
+                        let p = try await processor(for:pbr.processBundleDescriptorID)
+                        Task {
+                            await p.process(instruction: instruction.instructionID,responder:responder)
+                        }
+                    } catch {
+                        log.error("Unable to process bundle \(pbr.processBundleDescriptorID): \(error)")
+                    }
                     break
                 default:
                     log.warning("Ignoring instruction \(instruction.instructionID). Not yet implemented.")

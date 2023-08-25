@@ -27,6 +27,12 @@ extension Data {
         self.append(UInt8(current))
     }
     
+    mutating func instant(_ value: Date) {
+        Swift.withUnsafeBytes(of:(Int64(value.millisecondsSince1970) &- Int64(-9223372036854775808)).bigEndian) {
+            self.append(contentsOf: $0)
+        }
+    }
+    
     mutating func next<T>(_ value: T) {
         Swift.withUnsafeBytes(of:value) {
             self.append(contentsOf: $0)

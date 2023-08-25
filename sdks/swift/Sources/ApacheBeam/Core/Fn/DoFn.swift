@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import Logging
+import Foundation
 
 /// A higher level interface to SerializableFn using dependency injected dynamic properties in the same
 /// way as we define Composite PTransforms
@@ -29,4 +29,31 @@ public extension DoFn {
     func finishBundle() async throws { }
 }
 
+public struct PInput<Of> {
+    public let value: Of
+    public let timestamp: Date
+    public let window: Window
+    
+    public init(_ value: Of,_ timestamp: Date,_ window: Window) {
+        self.value = value
+        self.timestamp = timestamp
+        self.window = window
+    }
+    
+    public init(_ element: (Of,Date,Window)) {
+        self.value = element.0
+        self.timestamp = element.1
+        self.window = element.2
+    }
+    
+}
 
+public struct POutput<Of> {
+    let stream: PCollectionStream<Of>
+    let timestamp: Date
+    let window: Window
+    
+    func emit(_ value: Of,timestamp: Date? = nil,window: Window? = nil) {
+        stream.emit(value,timestamp: timestamp ?? self.timestamp,window: window ?? self.window)
+    }
+}
