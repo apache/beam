@@ -456,7 +456,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 
 ## 8. Build a release candidate
 
-## Checklist before proceeding
+#### Checklist before proceeding
 
 * Release Manager’s GPG key is published to `dist.apache.org`;
 * Release Manager’s GPG key is configured in `git` configuration;
@@ -509,7 +509,7 @@ is perfectly safe since the script does not depend on the current working tree.
 
 See the source of the script for more details, or to run commands manually in case of a problem.
 
-## Run build_release_candidate GitHub Action to create a release candidate
+### Run build_release_candidate GitHub Action to create a release candidate
 
 Note: This step is partially automated (in progress), so part of the rc creation is done by GitHub Actions and the rest is done by a script.
 You don't need to wait for the action to complete to start running the script.
