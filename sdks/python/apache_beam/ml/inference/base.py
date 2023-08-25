@@ -127,11 +127,17 @@ def _to_microseconds(time_ns: int) -> int:
 @dataclass(frozen=True)
 class KeyModelPathMapping(Generic[KeyT]):
   """
-  Dataclass for mapping 1 or more keys to 1 model path update used to update
-  that cohort's model path. Given
+  Dataclass for mapping 1 or more keys to 1 model path. This is used in
+  conjunction with a KeyedModelHandler with many model handlers to update
+  a set of keys' model handlers with the new path. Given
   `KeyModelPathMapping(keys: ['key1', 'key2'], update_path: 'updated/path')`,
-  all examples with keys `key1` or `key2` will have the model used for
-  inference updated to 'updated/path'.
+  all examples with keys `key1` or `key2` will have their corresponding model
+  handler's update_model function called with 'updated/path'. For more
+  information see the
+  KeyedModelHandler documentation
+  https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
+  documentation and the website section on model updates
+  https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
   """
   keys: List[KeyT]
   update_path: str
@@ -209,7 +215,9 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """
     Update the model path produced by side inputs. update_model_path should be
     used when a ModelHandler represents a single model, not multiple models.
-    This will be true in most cases.
+    This will be true in most cases. For more information see the website
+    section on model updates
+    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
     """
     pass
 
@@ -220,7 +228,11 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """
     Update the model paths produced by side inputs. update_model_paths should
     be used when updating multiple models at once (e.g. when using a
-    KeyedModelHandler that holds multiple models)
+    KeyedModelHandler that holds multiple models).  For more information see
+    the KeyedModelHandler documentation
+    https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
+    documentation and the website section on model updates
+    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
     """
     pass
 
@@ -371,7 +383,7 @@ class _ModelManager:
       return
     self._key_to_last_update[key] = model_path
     if key not in self._mh_map:
-      self._mh_map[key] = self._mh_map[previous_key]
+      self._mh_map[key] = deepcopy(self._mh_map[previous_key])
     self._mh_map[key].update_model_path(model_path)
     if key in self._tag_map:
       tag_to_remove = self._tag_map[key]
@@ -436,16 +448,17 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         [KeyModelPathMapping(keys=['k1', 'k2'], update_path='update/path/1'),
         KeyModelPathMapping(keys=['k3'], update_path='update/path/2')]
 
-    will update the model represented corresponding to keys 'k1' and 'k2' with
+    will update the model corresponding to keys 'k1' and 'k2' with path
     'update/path/1' and the model corresponding to 'k3' with 'update/path/2'.
-    In order to do a side input update, (1) all restrictions mentioned in
+    In order to do a side input update: (1) all restrictions mentioned in
     https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
-    (2) The set of keys originally defined cannot change. This means that if
-    originally you have defined model handlers for 'key1', 'key2', and 'key3',
-    all 3 of those keys must appear in your list of KeyModelPathMappings
-    exactly once. No additional keys can be added.
-    (3) All update_paths must be non-empty, even if they are not being updated
-    from their original values.
+    must be met, (2) all update_paths must be non-empty, even if they are not
+    being updated from their original values, and (3) the set of keys
+    originally defined cannot change. This means that if originally you have
+    defined model handlers for 'key1', 'key2', and 'key3', all 3 of those keys
+    must appear in your list of KeyModelPathMappings exactly once. No
+    additional keys can be added.
+
 
     Args:
       unkeyed: Either (a) an implementation of ModelHandler that does not
@@ -614,8 +627,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     # cohort_path_mapping will be structured as follows:
     # {
     # original_cohort_id: {
-    #    'update/path/1': ['keyFromOriginalCohort1', keyFromOriginalCohort2'],
-    #    'update/path/2': ['keyFromOriginalCohort3', keyFromOriginalCohort4'],
+    #    'update/path/1': ['key1FromOriginalCohort', key2FromOriginalCohort'],
+    #    'update/path/2': ['key3FromOriginalCohort', key4FromOriginalCohort'],
     #    }
     # }
     cohort_path_mapping: Dict[KeyT, Dict[str, List[KeyT]]] = {}
@@ -660,9 +673,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         self._id_to_mh_map[cohort_id].update_model_path(updated_path)
         model.update_model_handler(cohort_id, updated_path, old_cohort_id)
 
-  def update_model_path(
-      self,
-      model_path: Optional[Union[str, List[KeyModelPathMapping[KeyT]]]] = None):
+  def update_model_path(self, model_path: Optional[str] = None):
     if self._single_model:
       return self._unkeyed.update_model_path(model_path=model_path)
     if model_path is not None:
