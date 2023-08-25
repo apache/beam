@@ -53,8 +53,6 @@ public struct AnyPCollectionStream : AsyncSequence {
                 try stream.emit(beamValue)
             } else if let element = $1 as? Element {
                 stream.emit((element.0 as! Of,element.1,element.2))
-            } else if let element = $1 as? Of {
-                stream.emit(element)
             } else {
                 throw ApacheBeamError.runtimeError("Unable to send \($1) to \(stream)")
             }

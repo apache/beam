@@ -36,15 +36,22 @@ public final class PCollection<Of> : PCollectionProtocol {
     public let coder: Coder
     public var consumers: [PipelineTransform]
     public private(set) var parent: PipelineTransform?
+
+    private let staticStream : PCollectionStream<Of>?
     
-    public init(coder: Coder = .of(type: Of.self)!,parent: PipelineTransform? = nil,consumers:[PipelineTransform] = []) {
+    public init(coder: Coder = .of(type: Of.self)!,
+                parent: PipelineTransform? = nil,
+                consumers:[PipelineTransform] = [],
+                stream:PCollectionStream<Of>? = nil
+    ) {
         self.coder = coder
         self.consumers = consumers
         self.parent = parent
+        self.staticStream = stream
     }
 
     public var stream: PCollectionStream<Of> {
-        return PCollectionStream<Of>()
+        return staticStream ?? PCollectionStream<Of>()
     }
     
     @discardableResult

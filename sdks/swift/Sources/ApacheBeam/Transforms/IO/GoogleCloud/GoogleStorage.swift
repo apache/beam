@@ -36,12 +36,12 @@ struct ListFilesResponse: Codable {
 
 public struct GoogleStorage : FileIOSource {
     public static func readFiles(matching: PCollection<KV<String,String>>) -> PCollection<Data> {
-        matching.pardo { matching,output in
+        matching.pstream { matching,output in
             guard let tokenProvider = DefaultTokenProvider(scopes: ["storage.objects.get"]) else {
                 throw ApacheBeamError.runtimeError("Unable to get OAuth2 token.")
             }
             let connection = Connection(provider: tokenProvider)
-            for await (file,_,_) in matching {
+            for await (file,ts,w) in matching {
                 let bucket = file.key
                 for name in file.values {
                     let url = "https://storage.googleapis.com/storage/v1/b/\(bucket)/o/\(name.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!)"
@@ -62,7 +62,7 @@ public struct GoogleStorage : FileIOSource {
                         }
                     }
                     if let d = response {
-                        output.emit(d)
+                        output.emit(d,timestamp:ts,window:w)
                     }
                 }
             }
@@ -70,13 +70,13 @@ public struct GoogleStorage : FileIOSource {
     }
     
     public static func listFiles(matching: PCollection<KV<String,String>>) -> PCollection<KV<String,String>> {
-        matching.pardo { matching,output in
+        matching.pstream { matching,output in
             
             guard let tokenProvider = DefaultTokenProvider(scopes: ["storage.objects.list"]) else {
                 throw ApacheBeamError.runtimeError("Unable to get OAuth2 token.")
             }
             let connection = Connection(provider: tokenProvider)
-            for await (match,_,_) in matching {
+            for await (match,ts,w) in matching {
                 let bucket = match.key
                 for prefix in match.values {
                     let response:Data? = try await withCheckedThrowingContinuation { continuation in
@@ -100,7 +100,7 @@ public struct GoogleStorage : FileIOSource {
                         let listfiles = try JSONDecoder().decode(ListFilesResponse.self, from: data)
                         for item in listfiles.items {
                             if item.size != "0" {
-                                output.emit(KV(item.bucket,item.name))
+                                output.emit(KV(item.bucket,item.name),timestamp: ts,window: w)
                             }
                         }
                     }

@@ -42,6 +42,7 @@ struct BundleProcessor {
         var temp: [Step] = []
         var coders =  BundleCoderContainer(bundle:descriptor)
         
+        
         var streams: [String:AnyPCollectionStream] = [:]
         // First make streams for everything in this bundle (maybe I could use the pcollection array for this?)
         for (_,transform) in descriptor.transforms {
@@ -64,6 +65,7 @@ struct BundleProcessor {
             //Map the input and output streams in the correct order
             let inputs = transform.inputs.sorted().map { streams[$0.1]! }
             let outputs = transform.outputs.sorted().map { streams[$0.1]! }
+
             if urn == "beam:runner:source:v1" {
                 let remotePort = try RemoteGrpcPort(serializedData: transform.spec.payload)
                 let coder = try Coder.of(name: remotePort.coderID, in: coders)

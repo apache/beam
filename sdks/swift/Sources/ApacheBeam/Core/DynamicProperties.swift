@@ -20,22 +20,6 @@ import Logging
 
 public protocol DynamicProperty { }
 
-@propertyWrapper
-public struct PInput<Of> : DynamicProperty {
-    public var wrappedValue: PCollectionStream<Of>
-    
-    public init(wrappedValue: PCollectionStream<Of> = .init()) {
-        self.wrappedValue = wrappedValue
-    }
-}
-
-@propertyWrapper
-public struct POutput<Of> : DynamicProperty {
-    public var wrappedValue: PCollectionStream<Of>
-    public init(wrappedValue: PCollectionStream<Of> = .init()) {
-        self.wrappedValue = wrappedValue
-    }
-}
 
 @propertyWrapper
 public struct RemoteLog : DynamicProperty {

@@ -71,10 +71,11 @@ public struct AnyPCollection : PCollectionProtocol,PipelineMember {
         fatalError("Do not use `stream` on AnyPCollection. Use `anyStream` instead.")
     }
     
+    
     public var anyStream: AnyPCollectionStream {
         streamClosure(collection)
     }
-    
+        
     var roots: [PCollection<Never>] {
         rootsClosure(collection)
     }

@@ -54,10 +54,10 @@ final class FileIOTests: XCTestCase {
                 .readFiles(in: GoogleStorage.self)
             
             // Simple ParDo that takes advantage of enumerateLines. No name to test name generation of pardos
-            let lines = contents.pardo { contents,lines in
-                for await (content,_,_) in contents {
+            let lines = contents.pstream { contents,lines in
+                for await (content,ts,w) in contents {
                     String(data:content,encoding:.utf8)!.enumerateLines { line,_ in
-                        lines.emit(line)
+                        lines.emit(line,timestamp:ts,window:w)
                     }
                 }
             }

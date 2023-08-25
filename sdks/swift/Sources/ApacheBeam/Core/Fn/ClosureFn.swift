@@ -18,11 +18,13 @@
 
 import Foundation
 
+
+
 /// A SerializableFn that holds a reference to a function that takes a single input and produces a variable number of outputs
 public final class ClosureFn : SerializableFn {
     let processClosure: (SerializableFnBundleContext,[AnyPCollectionStream],[AnyPCollectionStream]) async throws -> Void
 
-    //TODO: Replace this with a parameter pack version once I figure out how to do that
+    
 
     public init<Of>(_ fn: @Sendable @escaping (PCollection<Of>.Stream) async throws -> Void) {
         self.processClosure = { context,inputs,outputs in
@@ -35,6 +37,7 @@ public final class ClosureFn : SerializableFn {
             try await fn(inputs[0].stream(),outputs[0].stream())
         }
     }
+    
 
     public init<Of,O0,O1>(_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) {
         self.processClosure = { context,inputs,outputs in
@@ -42,17 +45,22 @@ public final class ClosureFn : SerializableFn {
         }
     }
     
+
+    
     public init<Of,O0,O1,O2>(_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream) async throws -> Void) {
         self.processClosure = { context,inputs,outputs in
             try await fn(inputs[0].stream(),outputs[0].stream(),outputs[1].stream(),outputs[2].stream())
         }
     }
+    
+
 
     public init<Of,O0,O1,O2,O3>(_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream,PCollection<O2>.Stream,PCollection<O3>.Stream) async throws -> Void) {
         self.processClosure = { context,inputs,outputs in
             try await fn(inputs[0].stream(),outputs[0].stream(),outputs[1].stream(),outputs[2].stream(),outputs[3].stream())
         }
     }
+
     
     public func process(context: SerializableFnBundleContext, inputs: [AnyPCollectionStream], outputs: [AnyPCollectionStream]) async throws -> (String, String) {
         try await processClosure(context,inputs,outputs)

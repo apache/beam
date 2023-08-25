@@ -21,7 +21,7 @@ public extension PCollection {
 
     /// Each time the input fires output all of the values in this list.
     func create<Value:Codable>(_ values: [Value],name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
-        return pardo(name:name ?? "\(_file):\(_line)",values) { values,input,output in
+        return pstream(name:name ?? "\(_file):\(_line)",values) { values,input,output in
             for try await (_,ts,w) in input {
                 for v in values {
                     output.emit(v,timestamp:ts,window:w)
@@ -36,7 +36,7 @@ public extension PCollection {
     
     @discardableResult
     func log(prefix:String,_ name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Of> where Of == String {
-        pardo(name:name ?? "\(_file):\(_line)",prefix) { prefix,input,output in
+        pstream(name:name ?? "\(_file):\(_line)",prefix) { prefix,input,output in
             for await element in input {
                 print("\(prefix): \(element)")
                 output.emit(element)
@@ -46,7 +46,7 @@ public extension PCollection {
     
     @discardableResult
     func log<K,V>(prefix:String,_ name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<KV<K,V>> where Of == KV<K,V> {
-        pardo(name:name ?? "\(_file):\(_line)",prefix) { prefix,input,output in
+        pstream(name:name ?? "\(_file):\(_line)",prefix) { prefix,input,output in
             for await element in input {
                 let kv = element.0
                 for v in kv.values {
@@ -64,28 +64,23 @@ public extension PCollection {
     /// Modify a value without changing its window or timestamp
     func map<Out>(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> Out) -> PCollection<Out> {
         return pardo(name:name ?? "\(_file):\(_line)") { input,output in
-            for try await (v,ts,w) in input {
-                output.emit(fn(v),timestamp:ts,window:w)
-            }
+            output.emit(fn(input.value))
         }
     }
     
+    /// Map function to convert a tuple pair into an encodable key-value pair
     func map<K,V>(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> (K,V)) -> PCollection<KV<K,V>> {
         return pardo(name:name ?? "\(_file):\(_line)") { input,output in
-            for try await (i,ts,w) in input {
-                let (key,value) = fn(i)
-                output.emit(KV(key,value),timestamp:ts,window:w)
-            }
+            let (key,value) = fn(input.value)
+            output.emit(KV(key,value))
         }
     }
 
     /// Produce multiple outputs as a single value without modifying window or timestamp
     func flatMap<Out>(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> [Out]) -> PCollection<Out> {
         return pardo(name:name ?? "\(_file):\(_line)") { input,output in
-            for try await (v,ts,w) in input {
-                for i in fn(v) {
-                    output.emit(i,timestamp:ts,window:w)
-                }
+            for i in fn(input.value) {
+                output.emit(i)
             }
         }
     }

@@ -19,20 +19,20 @@ public struct FixtureWordCount : PTransform {
     public var expand: some PTransform {
         
         let (contents,errors) = create(self.fixtures)
-            .pardo(name:"Read Files") { (filenames,output:PCollectionStream<String>,errors:PCollectionStream<String>) in
-            for await (filename,_,_) in filenames {
+            .pstream(name:"Read Files") { (filenames,output:PCollectionStream<String>,errors:PCollectionStream<String>) in
+            for await (filename,ts,w) in filenames {
                 do {
-                    output.emit(String(decoding:try fixtureData(filename),as:UTF8.self))
+                    output.emit(String(decoding:try fixtureData(filename),as:UTF8.self),timestamp:ts,window:w)
                 } catch {
-                    errors.emit("Unable to read \(filename): \(error)")
+                    errors.emit("Unable to read \(filename): \(error)",timestamp:ts,window:w)
                 }
             }
         }
         
-        let baseCount = contents.pardo { (contents,lines:PCollectionStream<String>) in
-            for await (content,_,_) in contents {
+        let baseCount = contents.pstream { (contents,lines:PCollectionStream<String>) in
+            for await (content,ts,w) in contents {
                 content.enumerateLines { line,_ in
-                    lines.emit(line)
+                    lines.emit(line,timestamp:ts,window:w)
                 }
             }
         }

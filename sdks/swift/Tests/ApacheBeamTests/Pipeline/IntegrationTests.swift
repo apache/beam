@@ -49,21 +49,21 @@ final class IntegrationTests: XCTestCase {
         try await Pipeline { pipeline in
             let (contents,errors) = pipeline
                 .create(["file1.txt","file2.txt","missing.txt"])
-                .pardo(name:"Read Files") { filenames,output,errors in
-                    for await (filename,_,_) in filenames {
+                .pstream(name:"Read Files") { filenames,output,errors in
+                    for await (filename,ts,w) in filenames {
                         do {
-                            output.emit(String(decoding:try fixtureData(filename),as:UTF8.self))
+                            output.emit(String(decoding:try fixtureData(filename),as:UTF8.self),timestamp:ts,window:w)
                         } catch {
-                            errors.emit("Unable to read \(filename): \(error)")
+                            errors.emit("Unable to read \(filename): \(error)",timestamp:ts,window:w)
                         }
                     }
                 }
             
             // Simple ParDo that takes advantage of enumerateLines. No name to test name generation of pardos 
-            let lines = contents.pardo { contents,lines in
-                for await (content,_,_) in contents {
+            let lines = contents.pstream { contents,lines in
+                for await (content,ts,w) in contents {
                     content.enumerateLines { line,_ in
-                        lines.emit(line)
+                        lines.emit(line,timestamp:ts,window:w)
                     }
                 }
             }

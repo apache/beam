@@ -18,12 +18,15 @@
 
 import Foundation
 
+
+
 /// The worker side realization of a PCollection that supports reading and writing
 public final class PCollectionStream<Of> : AsyncSequence {
     public typealias Element = (Of,Date,Window)
     
     private let stream: AsyncStream<Element>
     private let emitter: AsyncStream<Element>.Continuation
+    
     
     public init() {
         (self.stream,self.emitter) = AsyncStream.makeStream(of:Element.self)
@@ -42,7 +45,7 @@ public final class PCollectionStream<Of> : AsyncSequence {
         emitter.yield(value)
     }
     
-    public func emit(_ value: Of,timestamp: Date = .now,window:Window = .global) {
+    public func emit(_ value: Of,timestamp: Date,window:Window) {
         emit((value,timestamp,window))
     }
     

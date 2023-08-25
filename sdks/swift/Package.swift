@@ -62,6 +62,7 @@ let package = Package(
                 .product(name: "OAuth2", package:"google-auth-library-swift")
             ]
         ),
+        .target(name:"Wordcount",dependencies: ["ApacheBeam"],path:"Sources/Examples/Wordcount"),
         .testTarget(
             name: "ApacheBeamTests",
             dependencies: ["ApacheBeam"]),
