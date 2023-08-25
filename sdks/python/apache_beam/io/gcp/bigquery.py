@@ -417,6 +417,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
@@ -2148,6 +2149,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           failed_rows=outputs[BigQueryWriteFn.FAILED_ROWS],
           failed_rows_with_errors=outputs[
               BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS])
+
     elif method_to_use == WriteToBigQuery.Method.FILE_LOADS:
       if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
         if self.schema == SCHEMA_AUTODETECT:
@@ -2212,33 +2214,45 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS],
           destination_copy_jobid_pairs=output[
               BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS])
-    else:
-      # Storage Write API
+
+    elif method_to_use == WriteToBigQuery.Method.STORAGE_WRITE_API:
       if self.schema is None:
-        raise AttributeError(
-            "A schema is required in order to prepare rows"
-            "for writing with STORAGE_WRITE_API.")
-      if callable(self.schema):
+        try:
+          schema = schema_from_element_type(pcoll.element_type)
+          is_rows = True
+        except TypeError as exn:
+          raise ValueError(
+              "A schema is required in order to prepare rows"
+              "for writing with STORAGE_WRITE_API.") from exn
+      elif callable(self.schema):
         raise NotImplementedError(
             "Writing to dynamic destinations is not"
             "supported for this write method.")
       elif isinstance(self.schema, vp.ValueProvider):
         schema = self.schema.get()
+        is_rows = False
       else:
         schema = self.schema
+        is_rows = False
 
       table = bigquery_tools.get_hashable_destination(self.table_reference)
       # None type is not supported
       triggering_frequency = self.triggering_frequency or 0
       # SchemaTransform expects Beam Rows, so map to Rows first
+      if is_rows:
+        input_beam_rows = pcoll
+      else:
+        input_beam_rows = (
+            pcoll
+            | "Convert dict to Beam Row" >> beam.Map(
+                lambda row: bigquery_tools.beam_row_from_dict(row, schema)
+            ).with_output_types(
+                RowTypeConstraint.from_fields(
+                    bigquery_tools.get_beam_typehints_from_tableschema(schema)))
+        )
       output_beam_rows = (
-          pcoll
-          | "Convert dict to Beam Row" >>
-          beam.Map(lambda row: bigquery_tools.beam_row_from_dict(row, schema)).
-          with_output_types(
-              RowTypeConstraint.from_fields(
-                  bigquery_tools.get_beam_typehints_from_tableschema(schema)))
-          | "StorageWriteToBigQuery" >> StorageWriteToBigQuery(
+          input_beam_rows
+          | StorageWriteToBigQuery(
               table=table,
               create_disposition=self.create_disposition,
               write_disposition=self.write_disposition,
@@ -2247,22 +2261,30 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               with_auto_sharding=self.with_auto_sharding,
               expansion_service=self.expansion_service))
 
-      # return back from Beam Rows to Python dict elements
-      failed_rows = (
-          output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS]
-          | beam.Map(lambda row: row.as_dict()))
-      failed_rows_with_errors = (
-          output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
-          | beam.Map(
-              lambda row: {
-                  "error_message": row.error_message,
-                  "failed_row": row.failed_row.as_dict()
-              }))
+      if is_rows:
+        failed_rows = output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS]
+        failed_rows_with_errors = output_beam_rows[
+            StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
+      else:
+        # return back from Beam Rows to Python dict elements
+        failed_rows = (
+            output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS]
+            | beam.Map(lambda row: row.as_dict()))
+        failed_rows_with_errors = (
+            output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
+            | beam.Map(
+                lambda row: {
+                    "error_message": row.error_message,
+                    "failed_row": row.failed_row.as_dict()
+                }))
 
       return WriteResult(
           method=WriteToBigQuery.Method.STORAGE_WRITE_API,
           failed_rows=failed_rows,
           failed_rows_with_errors=failed_rows_with_errors)
+
+    else:
+      raise ValueError(f"Unsupported method {method_to_use}")
 
   def display_data(self):
     res = {}
