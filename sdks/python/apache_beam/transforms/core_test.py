@@ -87,19 +87,19 @@ class TestDoFn8(beam.DoFn):
 
 
 class TestDoFn9(beam.DoFn):
-  """test process returning None"""
+  """test process returning None explicitly"""
   def process(self, element):
     return None
 
 
 class TestDoFn10(beam.DoFn):
-  """test process returning None implicitly (no return and no yield)"""
+  """test process returning None (no return and no yield)"""
   def process(self, element):
     pass
 
 
 class TestDoFn11(beam.DoFn):
-  """test process returning None implicitly (return statement without a value)"""
+  """test process returning None (return statement without a value)"""
   def process(self, element):
     return
 
