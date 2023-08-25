@@ -27,6 +27,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/elementwise/keys">Keys</a></td><td>Extracts the key from each element in a collection of key-value pairs.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/kvswap">KvSwap</a></td><td>Swaps the key and value of each element in a collection of key-value pairs.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/map">Map</a></td><td>Applies a function to every element in the input and outputs the result.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/elementwise/mltransform">MLTransform</a></td><td>Applies data processing transforms to the dataset.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/pardo">ParDo</a></td><td>The most-general mechanism for applying a user-defined <code>DoFn</code> to every element
   in the input collection.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/partition">Partition</a></td><td>Routes each input element to a specific output collection based on some partition
@@ -39,6 +40,7 @@ limitations under the License.
   and updates the implicit timestamp associated with each input. Note that it is only
   safe to adjust timestamps forwards.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/values">Values</a></td><td>Extracts the value from each element in a collection of key-value pairs.</td></tr>
+
 </table>
 
 ## Aggregation

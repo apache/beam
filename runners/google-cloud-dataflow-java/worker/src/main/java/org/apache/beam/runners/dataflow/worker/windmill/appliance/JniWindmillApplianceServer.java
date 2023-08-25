@@ -15,19 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.appliance;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerBase;
 
-/** Implementation of a WindmillServerBase. */
+/**
+ * JNI Implementation of a {@link WindmillServerBase}.
+ *
+ * @implNote This is only for use in Streaming Appliance.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class WindmillServer extends WindmillServerBase {
+public class JniWindmillApplianceServer extends WindmillServerBase {
   private static final String WINDMILL_SERVER_JNI_LIBRARY_PROPERTY = "windmill.jni_library";
   private static final String DEFAULT_SHUFFLE_CLIENT_LIBRARY = "libwindmill_service_jni.so";
 
@@ -50,7 +55,7 @@ public class WindmillServer extends WindmillServerBase {
    * The host should be specified as protocol://address:port to connect to a windmill server through
    * rpcz.
    */
-  public WindmillServer(String host) {
+  public JniWindmillApplianceServer(String host) {
     super(host);
   }
 }

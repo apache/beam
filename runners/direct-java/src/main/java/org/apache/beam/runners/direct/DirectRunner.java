@@ -322,6 +322,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     @Override
     public State getState() {
+      if (this.state == State.RUNNING) {
+        this.state = executor.getPipelineState();
+      }
       return state;
     }
 

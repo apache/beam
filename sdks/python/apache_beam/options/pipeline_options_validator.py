@@ -23,6 +23,8 @@ For internal use only; no backwards-compatibility guarantees.
 
 import logging
 import re
+import string
+from urllib.parse import urlparse
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -92,6 +94,8 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_PROJECT_ID = (
       'Invalid Project ID (%s). Please make sure you specified the Project ID, '
       'not project description.')
+  ERR_INVALID_ENDPOINT = (
+      'Invalid url (%s) for dataflow endpoint. Please provide a valid url.')
   ERR_INVALID_NOT_POSITIVE = (
       'Invalid value (%s) for option: %s. Value needs '
       'to be positive.')
@@ -125,7 +129,6 @@ class PipelineOptionsValidator(object):
   JOB_PATTERN = '[a-z]([-a-z0-9]*[a-z0-9])?'
   PROJECT_ID_PATTERN = '[a-z][-a-z0-9:.]+[a-z0-9]'
   PROJECT_NUMBER_PATTERN = '[0-9]*'
-  ENDPOINT_PATTERN = r'https://[\S]*googleapis\.com[/]?'
 
   def __init__(self, options, runner):
     self.options = options
@@ -154,10 +157,7 @@ class PipelineOptionsValidator(object):
 
     dataflow_endpoint = (
         self.options.view_as(GoogleCloudOptions).dataflow_endpoint)
-    is_service_endpoint = (
-        dataflow_endpoint is not None and
-        self.is_full_string_match(self.ENDPOINT_PATTERN, dataflow_endpoint))
-
+    is_service_endpoint = (dataflow_endpoint is not None)
     return is_service_runner and is_service_endpoint
 
   def is_full_string_match(self, pattern, string):
@@ -189,7 +189,6 @@ class PipelineOptionsValidator(object):
       return self._validate_error(self.ERR_INVALID_GCS_BUCKET, arg, arg_name)
     if gcs_object is None or '\n' in gcs_object or '\r' in gcs_object:
       return self._validate_error(self.ERR_INVALID_GCS_OBJECT, arg, arg_name)
-
     return []
 
   def validate_cloud_options(self, view):
@@ -231,6 +230,15 @@ class PipelineOptionsValidator(object):
         errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'region'))
       else:
         view.region = default_region
+    dataflow_endpoint = view.dataflow_endpoint
+    if dataflow_endpoint is None:
+      errors.extend(
+          self._validate_error(self.ERR_MISSING_OPTION, dataflow_endpoint))
+    else:
+      valid_endpoint = self.validate_endpoint_url(dataflow_endpoint)
+      if valid_endpoint is False:
+        errors.extend(
+            self._validate_error(self.ERR_INVALID_ENDPOINT, dataflow_endpoint))
     return errors
 
   def validate_sdk_container_image_options(self, view):
@@ -291,7 +299,7 @@ class PipelineOptionsValidator(object):
           self._validate_error(
               'Cannot use deprecated flag --zone along with worker_region or '
               'worker_zone.'))
-    if self.options.view_as(DebugOptions).lookup_experiment('worker_region')\
+    if self.options.view_as(DebugOptions).lookup_experiment('worker_region') \
         and (view.worker_region or view.worker_zone):
       errors.extend(
           self._validate_error(
@@ -393,3 +401,16 @@ class PipelineOptionsValidator(object):
       return self._validate_error(
           self.ERR_REPEATABLE_OPTIONS_NOT_SET_AS_LIST, arg, arg_name)
     return []
+
+  # Minimally validates the endpoint url. This is not a strict application
+  # of http://www.faqs.org/rfcs/rfc1738.html.
+  def validate_endpoint_url(self, endpoint_url):
+    url_parts = urlparse(endpoint_url, allow_fragments=False)
+    if not url_parts.scheme or not url_parts.netloc:
+      return False
+    if url_parts.scheme not in ['http', 'https']:
+      return False
+    if set(
+        url_parts.netloc) <= set(string.ascii_letters + string.digits + '-.'):
+      return True
+    return False

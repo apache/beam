@@ -2233,12 +2233,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       # SchemaTransform expects Beam Rows, so map to Rows first
       output_beam_rows = (
           pcoll
-          |
+          | "Convert dict to Beam Row" >>
           beam.Map(lambda row: bigquery_tools.beam_row_from_dict(row, schema)).
           with_output_types(
               RowTypeConstraint.from_fields(
                   bigquery_tools.get_beam_typehints_from_tableschema(schema)))
-          | StorageWriteToBigQuery(
+          | "StorageWriteToBigQuery" >> StorageWriteToBigQuery(
               table=table,
               create_disposition=self.create_disposition,
               write_disposition=self.write_disposition,
