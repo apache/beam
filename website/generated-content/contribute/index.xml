@@ -345,7 +345,11 @@ limitations under the License.
 &lt;/li>
 &lt;li>&lt;a href="#8-build-a-release-candidate">8. Build a release candidate&lt;/a>
 &lt;ul>
+&lt;li>
+&lt;ul>
 &lt;li>&lt;a href="#checklist-before-proceeding">Checklist before proceeding&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;li>&lt;a href="#tag-a-chosen-commit-for-the-rc">Tag a chosen commit for the RC&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#run-build_release_candidate-github-action-to-create-a-release-candidate">Run build_release_candidate GitHub Action to create a release candidate&lt;/a>
 &lt;ul>
@@ -812,7 +816,7 @@ Neither late releases nor not fully tested code will provide positive user value
 Consider adding known issues there for minor issues instead of accepting cherry picks to the release branch.&lt;/p>
 &lt;hr>
 &lt;h2 id="8-build-a-release-candidate">8. Build a release candidate&lt;/h2>
-&lt;h3 id="checklist-before-proceeding">Checklist before proceeding&lt;/h3>
+&lt;h4 id="checklist-before-proceeding">Checklist before proceeding&lt;/h4>
 &lt;ul>
 &lt;li>Release Manager’s GPG key is published to &lt;code>dist.apache.org&lt;/code>;&lt;/li>
 &lt;li>Release Manager’s GPG key is configured in &lt;code>git&lt;/code> configuration;&lt;/li>
@@ -876,6 +880,11 @@ You don&amp;rsquo;t need to wait for the action to complete to start running the
 &lt;li>Clone the repo at the selected RC tag.&lt;/li>
 &lt;li>Run gradle publish to push java artifacts into Maven staging repo.&lt;/li>
 &lt;li>Stage SDK docker images to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">docker hub Apache organization&lt;/a>.&lt;/li>
+&lt;li>Build javadoc, pydoc, typedocs for a PR to update beam-site.
+&lt;ul>
+&lt;li>&lt;strong>NOTE&lt;/strong>: Do not merge this PR until after an RC has been approved (see &amp;ldquo;Finalize the Release&amp;rdquo;).&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;/ul>
@@ -921,7 +930,8 @@ help with this step. Please email &lt;code>dev@&lt;/code> and ask a member of th
 &lt;ul>
 &lt;li>Copy python doc into beam-site&lt;/li>
 &lt;li>Copy java doc into beam-site&lt;/li>
-&lt;li>&lt;strong>NOTE&lt;/strong>: Do not merge this PR until after an RC has been approved (see &amp;ldquo;Finalize the Release&amp;rdquo;).&lt;/li>
+&lt;li>&lt;strong>NOTE&lt;/strong>: Do not merge this PR until after an RC has been approved (see &amp;ldquo;Finalize the Release&amp;rdquo;).
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ol>
