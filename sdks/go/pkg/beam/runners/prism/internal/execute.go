@@ -297,13 +297,19 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 }
 
 func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comps *pipepb.Components) func(io.Reader) []byte {
-	cID := lpUnknownCoders(coldCId, coders, comps.GetCoders())
+	cID, err := lpUnknownCoders(coldCId, coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
 	return pullDecoder(coders[cID], coders)
 }
 
 func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
 	ws := comps.GetWindowingStrategies()[col.GetWindowingStrategyId()]
-	wcID := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+	wcID, err := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
 	return makeWindowCoders(coders[wcID])
 }
 
