@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import copy
 import logging
 import unittest
 
@@ -794,7 +793,7 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    result = preprocess_flattened_inputs(copy.deepcopy(spec))
+    result = preprocess_flattened_inputs(spec)
 
     expected = f'''
       type: composite
@@ -828,7 +827,7 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    result = preprocess_flattened_inputs(copy.deepcopy(spec))
+    result = preprocess_flattened_inputs(spec)
 
     expected = '''
       type: composite
@@ -854,7 +853,7 @@ class MainTest(unittest.TestCase):
       input: Flatten
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    result = ensure_transforms_have_types(copy.deepcopy(spec))
+    result = ensure_transforms_have_types(spec)
     self.assertEqual(result, spec)
 
   def test_ensure_transforms_have_types_error(self):
@@ -865,7 +864,7 @@ class MainTest(unittest.TestCase):
     '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     with self.assertRaisesRegex(ValueError, r"Missing type .*"):
-      ensure_transforms_have_types(copy.deepcopy(spec))
+      ensure_transforms_have_types(spec)
 
   def test_ensure_errors_consumed_unconsumed(self):
     spec = '''
@@ -909,7 +908,7 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    result = ensure_errors_consumed(copy.deepcopy(spec))
+    result = ensure_errors_consumed(spec)
     self.assertCountEqual(result, spec)
     self.assertCountEqual(result['transforms'], spec['transforms'])
 
