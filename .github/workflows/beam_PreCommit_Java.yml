@@ -146,8 +146,7 @@ jobs:
   beam_PreCommit_Java:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     timeout-minutes: 180
-    # runs-on: [self-hosted, ubuntu-20.04, main]
-    runs-on: [ubuntu-local]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
@@ -169,15 +168,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java 8
-        uses: actions/setup-java@v3.11.0
-        with:
-          distribution: 'temurin'
-          java-version: '8'
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :javaPreCommit --continue
+          gradle-command: :javaPreCommit --continue --rerun-tasks
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
