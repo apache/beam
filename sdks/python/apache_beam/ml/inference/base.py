@@ -428,7 +428,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     overview of this feature, see
     https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
 
-    
+
     To use this feature with a KeyedModelHandler that has many models per key,
     you can pass in a list of KeyModelPathMapping objects to define your new
     model paths. For example, passing in the side input of
@@ -438,16 +438,13 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
     will update the model represented corresponding to keys 'k1' and 'k2' with
     'update/path/1' and the model corresponding to 'k3' with 'update/path/2'.
-    In order to do a side input update with multiple models, the following
-    conditions must be met:
-
-    - All restrictions mentioned in
+    In order to do a side input update, (1) all restrictions mentioned in
     https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
-    - The set of keys originally defined cannot change. This means that if
+    (2) The set of keys originally defined cannot change. This means that if
     originally you have defined model handlers for 'key1', 'key2', and 'key3',
     all 3 of those keys must appear in your list of KeyModelPathMappings
-    exactly once. No additional keys can be added
-    - All update_paths must be non-empty, even if they are not being updated
+    exactly once. No additional keys can be added.
+    (3) All update_paths must be non-empty, even if they are not being updated
     from their original values.
 
     Args:

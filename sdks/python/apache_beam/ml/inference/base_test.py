@@ -152,7 +152,7 @@ class FakeModelHandlerReturnsPredictionResult(
           example=example,
           inference=model.predict(example))
       if self._state is not None:
-        model.increment_state(1)
+        model.increment_state(1)  # type: ignore[union-attr]
 
   def update_model_path(self, model_path: Optional[str] = None):
     self.model_id = model_path if model_path else self.model_id
