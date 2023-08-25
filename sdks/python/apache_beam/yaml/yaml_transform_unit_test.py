@@ -108,9 +108,6 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(expected, result)
 
-  def get_transform_by_type(self, result, type):
-    return ([t for t in result['transforms'] if t['type'] == type][0])
-
   def get_scope_by_spec(self, p, spec, inputs=None):
     if inputs is None:
       inputs = {}
@@ -244,7 +241,6 @@ class MainTest(unittest.TestCase):
         - type: PyMap
           config:
             fn: 'lambda x: x*x'
-        
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = chain_as_composite(spec)
@@ -264,7 +260,6 @@ class MainTest(unittest.TestCase):
         input: {spec['transforms'][0]['__uuid__']}
       output: {spec['transforms'][1]['__uuid__']}
     '''
-
     self.assertYaml(expected, result)
 
   def test_chain_as_composite_with_wrong_output_type(self):
@@ -279,7 +274,9 @@ class MainTest(unittest.TestCase):
           Create
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    with self.assertRaisesRegex(ValueError, r"Explicit output.*last transform"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Explicit output.*of the chain transform is "
+                                r"not an output of the last transform"):
       chain_as_composite(spec)
 
   def test_chain_as_composite_with_wrong_output_name(self):
@@ -295,7 +292,9 @@ class MainTest(unittest.TestCase):
           elements
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
-    with self.assertRaisesRegex(ValueError, r"Explicit output.*last transform"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Explicit output.*of the chain transform is "
+                                r"not an output of the last transform"):
       chain_as_composite(spec)
 
   def test_chain_as_composite_with_outputs_override(self):
@@ -357,7 +356,6 @@ class MainTest(unittest.TestCase):
         config:
           fn: "lambda x: x + 41"
     '''
-
     self.assertYaml(expected, result)
 
   def test_normalize_source_sink_only_source(self):
@@ -384,7 +382,6 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
     '''
-
     self.assertYaml(expected, result)
 
   def test_normalize_source_sink_only_sink(self):
@@ -409,7 +406,6 @@ class MainTest(unittest.TestCase):
         config:
           fn: "lambda x: x + 41"
     '''
-
     self.assertYaml(expected, result)
 
   def test_normalize_source_sink_no_source_no_sink(self):
@@ -428,7 +424,6 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_source_sink_composite(self):
@@ -456,7 +451,6 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_source_sink_chain(self):
@@ -484,7 +478,6 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_source_sink_other(self):
@@ -513,7 +506,6 @@ class MainTest(unittest.TestCase):
       output: 
         output: Squared
     '''
-
     self.assertYaml(expected, result)
 
   def test_normalize_inputs_outputs_dict(self):
@@ -537,7 +529,6 @@ class MainTest(unittest.TestCase):
         out1: Squared1
         out2: Squared2
     '''
-
     self.assertYaml(expected, result)
 
   def test_identify_object_with_name(self):
@@ -635,7 +626,6 @@ class MainTest(unittest.TestCase):
       input: {}
       output: {}
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_windowing_custom_type(self):
@@ -668,7 +658,6 @@ class MainTest(unittest.TestCase):
           input: input
       output: {result['transforms'][0]['__uuid__']}
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_windowing_composite_with_windowing_outer(self):
@@ -714,7 +703,6 @@ class MainTest(unittest.TestCase):
       output: 
         output: SumGlobally
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_windowing_composite_with_windowing_on_input(self):
@@ -758,7 +746,6 @@ class MainTest(unittest.TestCase):
       output: 
         output: SumGlobally
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_windowing_other_type_with_no_inputs(self):
@@ -824,7 +811,6 @@ class MainTest(unittest.TestCase):
           output: {{}}
       output: CreateTimestamped
     '''
-
     self.assertYaml(expected, result)
 
   def test_preprocess_flattened_inputs_explicit_flatten(self):
@@ -859,7 +845,6 @@ class MainTest(unittest.TestCase):
           output: {}
       output: CreateTimestamped
     '''
-
     self.assertYaml(expected, result)
 
   def test_ensure_transforms_have_types(self):
