@@ -1423,8 +1423,8 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
-    return_none_warning = "No iterator is returned by " \
-                          "the process method in DoFn."
+    return_none_warning = (
+        "No iterator is returned by the process method in %s.", fn.__class__)
 
     for line in source_code.split("\n"):
       lstripped_line = line.lstrip()
