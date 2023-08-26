@@ -1424,7 +1424,8 @@ def _check_fn_use_yield_and_return(fn):
     has_yield = False
     has_return = False
     return_none_warning = (
-        "No iterator is returned by the process method in %s.", fn.__self__.__class__)
+        "No iterator is returned by the process method in %s.",
+        fn.__self__.__class__)
 
     for line in source_code.split("\n"):
       lstripped_line = line.lstrip()
