@@ -131,16 +131,19 @@ class CreateTest(unittest.TestCase):
     with self._caplog.at_level(logging.WARNING):
       beam.ParDo(TestDoFn9())
       assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
+      assert str(TestDoFn9) in self._caplog.text
 
   def test_dofn_with_implicit_return_none_missing_return_and_yield(self):
     with self._caplog.at_level(logging.WARNING):
       beam.ParDo(TestDoFn10())
       assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
+      assert str(TestDoFn10) in self._caplog.text
 
   def test_dofn_with_implicit_return_none_return_without_value(self):
     with self._caplog.at_level(logging.WARNING):
       beam.ParDo(TestDoFn11())
       assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
+      assert str(TestDoFn11) in self._caplog.text
 
 
 if __name__ == '__main__':
