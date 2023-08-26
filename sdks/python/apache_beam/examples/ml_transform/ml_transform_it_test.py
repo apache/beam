@@ -95,7 +95,7 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
     with FileSystems.open(expected_artifact_filepath, 'r') as f:
       expected_vocab_list = f.readlines()
 
-    expected_vocab_list = [s.rstrip('\n') for s in expected_vocab_list]
+    expected_vocab_list = [str(s).rstrip('\n') for s in expected_vocab_list]
     self.assertListEqual(actual_vocab_list, expected_vocab_list)
 
 
