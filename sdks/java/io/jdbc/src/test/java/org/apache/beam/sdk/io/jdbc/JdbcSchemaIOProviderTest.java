@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.junit.Assert.assertEquals;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -37,9 +39,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class JdbcSchemaIOProviderTest {
@@ -115,8 +114,10 @@ public class JdbcSchemaIOProviderTest {
     throw new Exception("Did not throw an exception");
   }
 
-  // This test verifies we can read back existing data source configuration. It also serves as sanity check that the
-  // getDataSourceConfiguration should keep in sync with JdbcSchemaIOProvider.configurationSchema. Otherwise the test
+  // This test verifies we can read back existing data source configuration. It also serves as
+  // sanity check that the
+  // getDataSourceConfiguration should keep in sync with JdbcSchemaIOProvider.configurationSchema.
+  // Otherwise the test
   // would throw an exception.
   @Test
   public void testAbleToReadDataSourceConfiguration() {
@@ -140,8 +141,11 @@ public class JdbcSchemaIOProviderTest {
     assertEquals("url", Objects.requireNonNull(dataSourceConf.getUrl()).get());
     assertEquals("user", Objects.requireNonNull(dataSourceConf.getUsername()).get());
     assertEquals("passwd", Objects.requireNonNull(dataSourceConf.getPassword()).get());
-    assertEquals("connectionProp", Objects.requireNonNull(dataSourceConf.getConnectionProperties()).get());
-    assertEquals(new ArrayList<>(Collections.singleton("initSql")), Objects.requireNonNull(dataSourceConf.getConnectionInitSqls()).get());
+    assertEquals(
+        "connectionProp", Objects.requireNonNull(dataSourceConf.getConnectionProperties()).get());
+    assertEquals(
+        new ArrayList<>(Collections.singleton("initSql")),
+        Objects.requireNonNull(dataSourceConf.getConnectionInitSqls()).get());
     assertEquals(3, (int) dataSourceConf.getMaxConnections().get());
     assertEquals("test.jar", Objects.requireNonNull(dataSourceConf.getDriverJars()).get());
   }
