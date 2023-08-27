@@ -43,14 +43,20 @@ public class BoundedQueueExecutor {
   private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
-          int maximumPoolSize,
-          long keepAliveTime,
-          TimeUnit unit,
-          int maximumElementsOutstanding,
-          long maximumBytesOutstanding,
-          ThreadFactory threadFactory) {
-    this(maximumPoolSize, keepAliveTime, unit, maximumElementsOutstanding, maximumBytesOutstanding,
-            threadFactory, Clock.systemUTC());
+      int maximumPoolSize,
+      long keepAliveTime,
+      TimeUnit unit,
+      int maximumElementsOutstanding,
+      long maximumBytesOutstanding,
+      ThreadFactory threadFactory) {
+    this(
+        maximumPoolSize,
+        keepAliveTime,
+        unit,
+        maximumElementsOutstanding,
+        maximumBytesOutstanding,
+        threadFactory,
+        Clock.systemUTC());
   }
 
   public BoundedQueueExecutor(
@@ -84,8 +90,7 @@ public class BoundedQueueExecutor {
             super.afterExecute(r, t);
             synchronized (this) {
               if (activeCount.getAndDecrement() == maximumPoolSize) {
-                totalTimeMaxActiveThreadsUsed +=
-                    (clock.millis() - startTimeMaxActiveThreadsUsed);
+                totalTimeMaxActiveThreadsUsed += (clock.millis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
               }
             }

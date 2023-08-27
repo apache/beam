@@ -167,7 +167,6 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -2858,14 +2857,17 @@ public class StreamingDataflowWorkerTest {
 
     Clock mockClock = Mockito.mock(Clock.class);
     CountDownLatch latch = new CountDownLatch(2);
-    doAnswer(invocation -> {
-      latch.countDown();
-      // Return 0 until we are called once (reach max thread count).
-      if (latch.getCount() == 1) {
-        return 0L;
-      }
-      return 1000L;
-    }).when(mockClock).millis();
+    doAnswer(
+            invocation -> {
+              latch.countDown();
+              // Return 0 until we are called once (reach max thread count).
+              if (latch.getCount() == 1) {
+                return 0L;
+              }
+              return 1000L;
+            })
+        .when(mockClock)
+        .millis();
 
     // setting up actual implementation of executor instead of mocking to keep track of
     // active thread count.
@@ -2897,7 +2899,8 @@ public class StreamingDataflowWorkerTest {
           @Override
           public void run() {
             try {
-              // Make sure we don't finish before both MockWork are executed, thus afterExecute must be called after
+              // Make sure we don't finish before both MockWork are executed, thus afterExecute must
+              // be called after
               // beforeExecute.
               while (latch.getCount() > 1) {
                 Thread.sleep(50);
