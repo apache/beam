@@ -773,6 +773,15 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     # allow us to effectively disambiguate in multi-model settings.
     self._model_tag = uuid.uuid4().hex
 
+  def annotations(self):
+    return {
+        'model_handler': str(model_handler),
+        'model_handler_type': (
+            f'{model_handler.__class__.__module__}'
+            f'.{model_handler.__class__.__qualname__}'),
+        **super(self).annotations()
+    }
+
   def _get_model_metadata_pcoll(self, pipeline):
     # avoid circular imports.
     # pylint: disable=wrong-import-position
