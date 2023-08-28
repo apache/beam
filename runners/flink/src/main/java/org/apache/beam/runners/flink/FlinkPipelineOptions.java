@@ -313,11 +313,12 @@ public interface FlinkPipelineOptions
 
   void setFlinkConfDir(String confDir);
 
-  @Description("Set the maximum size of input split when data is read from a filesystem. -1 implies no max size.")
-  @Default.Long(-1)
+  @Description(
+      "Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.")
+  @Default.Long(0)
   Long getFileInputSplitMaxSizeMB();
 
-  void setFileInputSplitMaxSizeMB(Long inputSplitMaxSizeMB);
+  void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
 
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
