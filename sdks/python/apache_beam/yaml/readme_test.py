@@ -249,6 +249,10 @@ def createTestSuite(name, path):
 ReadMeTest = createTestSuite(
     'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
 
+ErrorHandlingTest = createTestSuite(
+    'ErrorHandlingTest',
+    os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--render_dir', default=None)
