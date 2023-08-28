@@ -113,12 +113,12 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   private long getDesiredSizeBytes(int numSplits) throws Exception {
     long totalSize = initialSource.getEstimatedSizeBytes(options);
     long defaultSplitSize = totalSize / numSplits;
-    if (initialSource instanceof FileBasedSource) {
-      long maxSplitSize = options.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeBytes();
+    long maxSplitSize = options.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeMB();
+    if (initialSource instanceof FileBasedSource && maxSplitSize > 0) {
       // Most of the time parallelism is < number of files in source.
       // Each file becomes a unique split which commonly create skew.
-      // This limits the size of splits to 128Mb to reduce skew.
-      return Math.min(defaultSplitSize, maxSplitSize);
+      // This limits the size of splits to reduce skew.
+      return Math.min(defaultSplitSize, maxSplitSize * 1024 * 1024);
     } else {
       return defaultSplitSize;
     }
