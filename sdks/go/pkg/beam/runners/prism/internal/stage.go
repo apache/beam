@@ -33,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -290,9 +291,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for _, o := range stg.outputs {
-		wOutCid := makeWindowedValueCoder(o.global, comps, coders)
-		sinkID := o.transform + "_" + o.local
 		col := comps.GetPcollections()[o.global]
+		wOutCid, err := makeWindowedValueCoder(o.global, comps, coders)
+		if err != nil {
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w", stg.ID, o, o.global, prototext.Format(col), err)
+		}
+		sinkID := o.transform + "_" + o.local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.global
@@ -311,7 +315,10 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	for _, si := range stg.sideInputs {
 		col := comps.GetPcollections()[si.global]
 		oCID := col.GetCoderId()
-		nCID := lpUnknownCoders(oCID, coders, comps.GetCoders())
+		nCID, err := lpUnknownCoders(oCID, coders, comps.GetCoders())
+		if err != nil {
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for side input %+v, pcol %q %v:\n%w", stg.ID, si, si.global, prototext.Format(col), err)
+		}
 
 		sides = append(sides, si.global)
 		if oCID != nCID {
@@ -339,9 +346,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	// This id is directly used for the source, but this also copies
 	// coders used by side inputs to the coders map for the bundle, so
 	// needs to be run for every ID.
-	wInCid := makeWindowedValueCoder(stg.primaryInput, comps, coders)
 
 	col := comps.GetPcollections()[stg.primaryInput]
+	wInCid, err := makeWindowedValueCoder(stg.primaryInput, comps, coders)
+	if err != nil {
+		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w", stg.ID, stg.primaryInput, prototext.Format(col), err)
+	}
+
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 	wDec, wEnc := getWindowValueCoders(comps, col, coders)
 	inputInfo := engine.PColInfo{

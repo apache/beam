@@ -441,10 +441,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =
           () -> {
+            DestinationT dest = element.getKey().getKey();
             CreateTableHelpers.possiblyCreateTable(
                 c.getPipelineOptions().as(BigQueryOptions.class),
                 tableDestination,
-                () -> dynamicDestinations.getSchema(element.getKey().getKey()),
+                () -> dynamicDestinations.getSchema(dest),
+                () -> dynamicDestinations.getTableConstraints(dest),
                 createDisposition,
                 destinationCoder,
                 kmsKey,

@@ -100,6 +100,7 @@ def _load_model(
       model = model_class(**model_params)  # type: ignore[arg-type,misc]
       state_dict = torch.load(file, map_location=device, **load_model_args)
       model.load_state_dict(state_dict)
+      model.requires_grad_(False)
     else:
       file = FileSystems.open(torch_script_model_path, 'rb')
       model = torch.jit.load(file, map_location=device, **load_model_args)

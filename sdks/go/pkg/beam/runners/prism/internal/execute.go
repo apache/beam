@@ -263,7 +263,9 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			wk.Descriptors[stage.ID] = stage.desc
 		case wk.ID:
 			// Great! this is for this environment. // Broken abstraction.
-			buildDescriptor(stage, comps, wk)
+			if err := buildDescriptor(stage, comps, wk); err != nil {
+				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
+			}
 			stages[stage.ID] = stage
 			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
@@ -297,13 +299,19 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 }
 
 func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comps *pipepb.Components) func(io.Reader) []byte {
-	cID := lpUnknownCoders(coldCId, coders, comps.GetCoders())
+	cID, err := lpUnknownCoders(coldCId, coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
 	return pullDecoder(coders[cID], coders)
 }
 
 func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
 	ws := comps.GetWindowingStrategies()[col.GetWindowingStrategyId()]
-	wcID := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+	wcID, err := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
 	return makeWindowCoders(coders[wcID])
 }
 
