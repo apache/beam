@@ -477,11 +477,19 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return predictions
 
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
+    keys, unkeyed_batch = zip(*batch)
+    batch_bytes = len(pickle.dumps(keys))
     if self._single_model:
-      keys, unkeyed_batch = zip(*batch)
-      return len(
-          pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
-    return len(pickle.dumps(batch))
+      return batch_bytes + self._unkeyed.get_num_bytes(unkeyed_batch)
+
+    batch_by_key = defaultdict(list)
+    for key, examples in batch:
+      batch_by_key[key].append(examples)
+
+    for key, examples in batch_by_key.items():
+      mh_id = self._key_to_id_map[key]
+      batch_bytes += self._id_to_mh_map[mh_id].get_num_bytes(examples)
+    return batch_bytes
 
   def get_metrics_namespace(self) -> str:
     if self._single_model:

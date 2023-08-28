@@ -70,6 +70,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       max_batch_size=9999,
       multi_process_shared=False,
       state=None,
+      num_bytes_per_element=None,
       **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
@@ -77,6 +78,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._env_vars = kwargs.get('env_vars', {})
     self._multi_process_shared = multi_process_shared
     self._state = state
+    self._num_bytes_per_element = num_bytes_per_element
 
   def load_model(self):
     if self._fake_clock:
@@ -112,6 +114,11 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def share_model_across_processes(self):
     return self._multi_process_shared
+
+  def get_num_bytes(self, batch: Sequence[int]) -> int:
+    if self._num_bytes_per_element:
+      return self._num_bytes_per_element * len(batch)
+    return super().get_num_bytes(batch)
 
 
 class FakeModelHandlerReturnsPredictionResult(
@@ -318,6 +325,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
+
+  def test_keyed_model_handler_get_num_bytes(self):
+    mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
+    batch = [('key1', 1), ('key2', 2), ('key1', 3)]
+    expected = len(pickle.dumps(('key1', 'key2', 'key1'))) + 30
+    actual = mh.get_num_bytes(batch)
+    self.assertEqual(expected, actual)
+
+  def test_keyed_model_handler_multiple_models_get_num_bytes(self):
+    mhs = [
+        base.KeyMhMapping(['key1'], FakeModelHandler(num_bytes_per_element=10)),
+        base.KeyMhMapping(['key2'], FakeModelHandler(num_bytes_per_element=20))
+    ]
+    mh = base.KeyedModelHandler(mhs)
+    batch = [('key1', 1), ('key2', 2), ('key1', 3)]
+    expected = len(pickle.dumps(('key1', 'key2', 'key1'))) + 40
+    actual = mh.get_num_bytes(batch)
+    self.assertEqual(expected, actual)
 
   def test_run_inference_impl_with_maybe_keyed_examples(self):
     with TestPipeline() as pipeline:
