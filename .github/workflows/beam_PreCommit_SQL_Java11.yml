@@ -38,7 +38,7 @@ concurrency:
 permissions:
     actions: write
     pull-requests: read
-    checks: read
+    checks: write
     contents: read
     deployments: read
     id-token: none
@@ -110,4 +110,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: SpotBugs Results
+          path: '**/build/reports/spotbugs/*.html'
+      - name: Publish SpotBugs Results
+        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+        if: always()
+        with:
+          name: SpotBugs
           path: '**/build/reports/spotbugs/*.html'
