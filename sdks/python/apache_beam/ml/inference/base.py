@@ -483,8 +483,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return batch_bytes + self._unkeyed.get_num_bytes(unkeyed_batch)
 
     batch_by_key = defaultdict(list)
-    for pair in batch:
-      batch_by_key[pair[0]].append(pair[1])
+    for key, examples in batch:
+      batch_by_key[key].append(examples)
 
     for key, examples in batch_by_key.items():
       mh_id = self._key_to_id_map[key]
