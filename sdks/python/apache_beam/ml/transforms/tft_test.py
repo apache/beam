@@ -633,8 +633,8 @@ class BagOfWordsTest(unittest.TestCase):
       result = result | beam.Map(lambda x: x.x)
 
       expected_data = [
-          np.array(['I', 'like', 'pie'], dtype=object),
-          np.array(['yum', 'pie'], dtype=object)
+          np.array([b'I', b'like', b'pie'], dtype=object),
+          np.array([b'yum', b'pie'], dtype=object)
       ]
       assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
 
