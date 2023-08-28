@@ -152,8 +152,8 @@ func (b *B) Cleanup(wk *W) {
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
-func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
-	resp := wk.sendInstruction(&fnpb.InstructionRequest{
+func (b *B) Progress(ctx context.Context, wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
 			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
 				InstructionId: b.InstID,
@@ -167,8 +167,8 @@ func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
 }
 
 // Split sends a split request for the given bundle to the passed in worker, blocking on the response.
-func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
-	resp := wk.sendInstruction(&fnpb.InstructionRequest{
+func (b *B) Split(ctx context.Context, wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
 			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
 				InstructionId: b.InstID,

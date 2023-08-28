@@ -105,7 +105,7 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 			slog.Error("unmarshing environment payload", err, slog.String("envID", wk.ID))
 		}
 		externalEnvironment(ctx, ep, wk)
-		slog.Info("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
+		slog.Debug("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
 	default:
 		panic(fmt.Sprintf("environment %v with urn %v unimplemented", env, e.GetUrn()))
 	}
@@ -304,7 +304,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			s.Execute(ctx, j, wk, comps, em, rb)
 		}(rb)
 	}
-	slog.Info("pipeline done!", slog.String("job", j.String()))
+	slog.Debug("pipeline done!", slog.String("job", j.String()))
 	return nil
 }
 

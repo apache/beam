@@ -255,27 +255,26 @@ func (wk *W) Connected() bool {
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	wk.connected.Store(true)
-	done := make(chan struct{})
+	done := make(chan error)
 	go func() {
 		for {
 			resp, err := ctrl.Recv()
 			if err == io.EOF {
 				slog.Debug("ctrl.Recv finished; marking done", "worker", wk)
-				done <- struct{}{} // means stream is finished
+				done <- nil // means stream is finished
 				return
 			}
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					done <- struct{}{} // means stream is finished
+					done <- err // means stream is finished
 					return
 				default:
-					slog.Error("ctrl.Recv failed", err, "worker", wk)
+					slog.Error("ctrl.Recv failed", "error", err, "worker", wk)
 					panic(err)
 				}
 			}
 
-			// TODO: Do more than assume these are ProcessBundleResponses.
 			wk.mu.Lock()
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
 				b.Respond(resp)
@@ -288,19 +287,34 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 
 	for {
 		select {
-		case req := <-wk.InstReqs:
-			err := ctrl.Send(req)
-			if err != nil {
-				go func() { <-done }()
+		case req, ok := <-wk.InstReqs:
+			if !ok {
+				slog.Debug("Worker shutting down.", "worker", wk)
+				return nil
+			}
+			if err := ctrl.Send(req); err != nil {
 				return err
 			}
 		case <-ctrl.Context().Done():
-			slog.Debug("Control context canceled")
 			go func() { <-done }()
+			wk.mu.Lock()
+			// Fail extant instructions
+			slog.Debug("SDK Disconnected", "worker", wk, "ctx_error", ctrl.Context().Err(), "outstanding_instructions", len(wk.activeInstructions))
+			for instID, b := range wk.activeInstructions {
+				b.Respond(&fnpb.InstructionResponse{
+					InstructionId: instID,
+					Error:         "SDK Disconnected",
+				})
+			}
+			wk.mu.Unlock()
 			return ctrl.Context().Err()
-		case <-done:
-			slog.Debug("Control done")
-			return nil
+		case err := <-done:
+			if err != nil {
+				slog.Warn("Control done", "error", err, "worker", wk)
+			} else {
+				slog.Debug("Control done", "worker", wk)
+			}
+			return err
 		}
 	}
 }
@@ -490,7 +504,7 @@ func (cr *chanResponder) Respond(resp *fnpb.InstructionResponse) {
 
 // sendInstruction is a helper for creating and sending worker single RPCs, blocking
 // until the response returns.
-func (wk *W) sendInstruction(req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
+func (wk *W) sendInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	cr := chanResponderPool.Get().(*chanResponder)
 	progInst := wk.NextInst()
 	wk.mu.Lock()
@@ -506,15 +520,31 @@ func (wk *W) sendInstruction(req *fnpb.InstructionRequest) *fnpb.InstructionResp
 
 	req.InstructionId = progInst
 
-	// Tell the SDK to start processing the bundle.
-	wk.InstReqs <- req
-	// Protos are safe as nil, so just return directly.
-	return <-cr.Resp
+	select {
+	case <-ctx.Done():
+		return &fnpb.InstructionResponse{
+			InstructionId: progInst,
+			Error:         "context canceled before send",
+		}
+	case wk.InstReqs <- req:
+		// Tell the SDK to start processing the Instruction.
+	}
+
+	select {
+	case <-ctx.Done():
+		return &fnpb.InstructionResponse{
+			InstructionId: progInst,
+			Error:         "context canceled before receive",
+		}
+	case resp := <-cr.Resp:
+		// Protos are safe as nil, so just return directly.
+		return resp
+	}
 }
 
 // MonitoringMetadata is a convenience method to request the metadata for monitoring shortIDs.
-func (wk *W) MonitoringMetadata(unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+func (wk *W) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
+	return wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_MonitoringInfos{
 			MonitoringInfos: &fnpb.MonitoringInfosMetadataRequest{
 				MonitoringInfoId: unknownIDs,

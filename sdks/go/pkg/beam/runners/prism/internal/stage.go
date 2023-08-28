@@ -123,7 +123,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		slog.Debug("Execute: processing", "bundle", rb)
 		defer b.Cleanup(wk)
 		b.Fail = func(errMsg string) {
-			slog.Error("job failed", "bundle", rb, "job", j)
+			slog.Debug("job failed", "bundle", rb, "job", j)
 			err := fmt.Errorf("%v", errMsg)
 			j.Failed(err)
 		}
@@ -145,20 +145,20 @@ progress:
 			progTick.Stop()
 			break progress // exit progress loop on close.
 		case <-progTick.C:
-			resp, err := b.Progress(wk)
+			resp, err := b.Progress(ctx, wk)
 			if err != nil {
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
 				break progress
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
-				md := wk.MonitoringMetadata(unknownIDs)
+				md := wk.MonitoringMetadata(ctx, unknownIDs)
 				j.AddMetricShortIDs(md)
 			}
 			slog.Debug("progress report", "bundle", rb, "index", index)
 			// Progress for the bundle hasn't advanced. Try splitting.
 			if previousIndex == index && !splitsDone {
-				sr, err := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
+				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
 					break progress
@@ -202,6 +202,7 @@ progress:
 	case resp = <-b.Resp:
 	case <-ctx.Done():
 		// Ensures we clean up on failure, if the response is blocked.
+		em.FailBundle(rb) // Note: This should change if retries are added.
 		return
 	}
 
@@ -209,7 +210,7 @@ progress:
 	// pipeline termination.
 	unknownIDs := j.ContributeFinalMetrics(resp)
 	if len(unknownIDs) > 0 {
-		md := wk.MonitoringMetadata(unknownIDs)
+		md := wk.MonitoringMetadata(ctx, unknownIDs)
 		j.AddMetricShortIDs(md)
 	}
 	// TODO handle side input data properly.
