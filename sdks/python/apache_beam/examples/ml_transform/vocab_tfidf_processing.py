@@ -130,7 +130,7 @@ def preprocess_data(
   data_pcoll = (
       data_pcoll | beam.ParDo(MapTFIDFScoreToVocab(artifact_location)))
 
-  #   _ = (data_pcoll | beam.io.WriteToText(output_dir))
+  _ = (data_pcoll | beam.io.WriteToText(output_dir))
 
   _ = data_pcoll | beam.Map(logging.info)
 
