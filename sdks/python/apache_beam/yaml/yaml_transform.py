@@ -397,6 +397,12 @@ def expand_chain_transform(spec, scope):
 
 
 def chain_as_composite(spec):
+  def is_not_output_of_last_transform(new_transforms, value):
+    return (
+        ('name' in new_transforms[-1] and
+         value != new_transforms[-1]['name']) or
+        ('type' in new_transforms[-1] and value != new_transforms[-1]['type']))
+
   # A chain is simply a composite transform where all inputs and outputs
   # are implicit.
   spec = normalize_source_sink(spec)
@@ -420,6 +426,12 @@ def chain_as_composite(spec):
 
   last_transform = new_transforms[-1]['__uuid__']
   if has_explicit_outputs:
+    for (key, value) in composite_spec['output'].items():
+      if is_not_output_of_last_transform(new_transforms, value):
+        raise ValueError(
+            f"Explicit output {identify_object(value)} of the chain transform"
+            f" is not an output of the last transform.")
+
     composite_spec['output'] = {
         key: f'{last_transform}.{value}'
         for (key, value) in composite_spec['output'].items()
@@ -547,7 +559,7 @@ def preprocess_windowing(spec):
 
   windowing = spec.pop('windowing')
   if spec['input']:
-    # Apply the windowing to all inputs by wrapping it in a trasnform that
+    # Apply the windowing to all inputs by wrapping it in a transform that
     # first applies windowing and then applies the original transform.
     original_inputs = spec['input']
     windowing_transforms = [{
