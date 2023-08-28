@@ -8,6 +8,4 @@ public struct DuckDB {
     }
     
     var tables: [ExternalTable]
-    
-    
 }

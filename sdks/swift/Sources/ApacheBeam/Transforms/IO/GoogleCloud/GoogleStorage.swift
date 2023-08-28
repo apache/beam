@@ -36,7 +36,7 @@ struct ListFilesResponse: Codable {
 
 public struct GoogleStorage : FileIOSource {
     public static func readFiles(matching: PCollection<KV<String,String>>) -> PCollection<Data> {
-        matching.pstream { matching,output in
+        matching.pstream(type:.bounded) { matching,output in
             guard let tokenProvider = DefaultTokenProvider(scopes: ["storage.objects.get"]) else {
                 throw ApacheBeamError.runtimeError("Unable to get OAuth2 token.")
             }
@@ -70,7 +70,7 @@ public struct GoogleStorage : FileIOSource {
     }
     
     public static func listFiles(matching: PCollection<KV<String,String>>) -> PCollection<KV<String,String>> {
-        matching.pstream { matching,output in
+        matching.pstream(type:.bounded) { matching,output in
             
             guard let tokenProvider = DefaultTokenProvider(scopes: ["storage.objects.list"]) else {
                 throw ApacheBeamError.runtimeError("Unable to get OAuth2 token.")

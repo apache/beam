@@ -62,9 +62,9 @@ extension PipelineProto {
         return .transform(name,proto)
     }
     
-    mutating func collection(_ mapper: @escaping (String) -> PCollectionProto) -> PipelineComponent {
+    mutating func collection(_ mapper: @escaping (String) throws -> PCollectionProto) throws -> PipelineComponent {
         let name  = "ref_PCollection_\(self.components.pcollections.count+1)"
-        let proto = mapper(name)
+        let proto = try mapper(name)
         self.components.pcollections[name] = proto
         return .collection(name, proto)
     }

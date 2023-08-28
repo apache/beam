@@ -77,7 +77,7 @@ final class FileIOTests: XCTestCase {
             
             normalizedCounts.log(prefix:"COUNT OUTPUT")
             
-        }.run(PortableRunner(port:8099,loopback:true))
+        }.run(PortableRunner(loopback:true))
     }
     
 

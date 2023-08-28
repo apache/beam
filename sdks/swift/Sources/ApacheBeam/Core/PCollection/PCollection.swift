@@ -16,6 +16,12 @@
  * limitations under the License.
  */
 
+public enum StreamType {
+    case bounded
+    case unbounded
+    case unspecified
+}
+
 public protocol PCollectionProtocol {
     associatedtype Of
     
@@ -25,21 +31,24 @@ public protocol PCollectionProtocol {
     var consumers: [PipelineTransform] { get }
     var coder: Coder { get }
     var stream: Stream { get }
+    var streamType: StreamType { get }
     
     @discardableResult
     func apply(_ transform: PipelineTransform) -> PipelineTransform
 }
 
-
 public final class PCollection<Of> : PCollectionProtocol {
 
     public let coder: Coder
+    public let streamType: StreamType
     public var consumers: [PipelineTransform]
     public private(set) var parent: PipelineTransform?
+
 
     private let staticStream : PCollectionStream<Of>?
     
     public init(coder: Coder = .of(type: Of.self)!,
+                type: StreamType = .unspecified,
                 parent: PipelineTransform? = nil,
                 consumers:[PipelineTransform] = [],
                 stream:PCollectionStream<Of>? = nil
@@ -48,6 +57,7 @@ public final class PCollection<Of> : PCollectionProtocol {
         self.consumers = consumers
         self.parent = parent
         self.staticStream = stream
+        self.streamType = type
     }
 
     public var stream: PCollectionStream<Of> {

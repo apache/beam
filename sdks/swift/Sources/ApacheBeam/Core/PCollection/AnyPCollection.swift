@@ -30,6 +30,7 @@ public struct AnyPCollection : PCollectionProtocol,PipelineMember {
     let coderClosure: (Any) -> Coder
     let streamClosure: (Any) -> AnyPCollectionStream
     let rootsClosure: (Any) -> [PCollection<Never>]
+    let streamTypeClosure: (Any) -> StreamType
     
     public init<C>(_ collection: C) where C : PCollectionProtocol {
         if let anyCollection = collection as? AnyPCollection {
@@ -45,6 +46,7 @@ public struct AnyPCollection : PCollectionProtocol,PipelineMember {
             self.streamClosure = { AnyPCollectionStream(($0 as! C).stream) }
             self.parentClosure = { ($0 as! C).parent }
             self.rootsClosure = { ($0 as! PipelineMember).roots }
+            self.streamTypeClosure = { ($0 as! C).streamType }
         }
     }
     
@@ -69,6 +71,10 @@ public struct AnyPCollection : PCollectionProtocol,PipelineMember {
 
     public var stream: PCollectionStream<Never> {
         fatalError("Do not use `stream` on AnyPCollection. Use `anyStream` instead.")
+    }
+    
+    public var streamType: StreamType {
+        streamTypeClosure(collection)
     }
     
     

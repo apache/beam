@@ -23,6 +23,21 @@ protocol PipelineMember {
     var roots: [PCollection<Never>] { get }
 }
 
+extension StreamType {
+    var isBounded : Org_Apache_Beam_Model_Pipeline_V1_IsBounded.Enum {
+        get throws {
+            switch self {
+            case .bounded:
+                return .bounded
+            case .unbounded:
+                return .unbounded
+            case .unspecified:
+                throw ApacheBeamError.runtimeError("isBounded must be specified at pipeline construction time.")
+            }
+        }
+    }
+}
+
 public final class Pipeline {
     let content: (inout PCollection<Never>) -> Void
     let log: Logging.Logger
@@ -55,7 +70,7 @@ public final class Pipeline {
     var context: PipelineContext {
         get throws {
             // Grab the pipeline content using an new root
-            var root = PCollection<Never>(coder:.unknown(.coderUrn("never")))
+            var root = PCollection<Never>(coder:.unknown(.coderUrn("never")),type:.bounded)
             _ = content(&root)
             
             // These get passed to the pipeline context
@@ -141,18 +156,18 @@ public final class Pipeline {
                 }
                 
                 
-                /// As above we define this within the "with" to prevent concurrent access errors.
-                func collection(from collection:AnyPCollection) -> PipelineComponent {
+                // As above we define this within the "with" to prevent concurrent access errors.
+                func collection(from collection:AnyPCollection) throws -> PipelineComponent {
                     if let cached = collectionCache[collection] {
                         return cached
                     }
                     let coder = coder(from:collection.coder)
-                    let output = proto.collection { _ in
-                            .with {
+                    let output = try proto.collection { _ in
+                            try .with {
                                 $0.uniqueName = uniqueName("c")
                                 $0.coderID = coder.name
                                 $0.windowingStrategyID = defaultStrategy.name
-                                $0.isBounded = .bounded //TODO: Get this from the coder
+                                $0.isBounded = try collection.streamType.isBounded
                             }
                     }
                     collectionCache[collection] = output
@@ -176,8 +191,8 @@ public final class Pipeline {
                         switch pipelineTransform {
                             
                         case let .pardo(_, n, fn, o):
-                            let outputs = o.enumerated().map {
-                                ("\($0)",collection(from: $1).name)
+                            let outputs = try o.enumerated().map {
+                                ("\($0)",try collection(from: $1).name)
                             }.dict()
                             let p = try transform(name:n) { _,name in
                                     try .with {
@@ -201,8 +216,8 @@ public final class Pipeline {
                             fns[p.transform!.uniqueName] = fn
                             toVisit.append(contentsOf: o.map { .collection($0) })
                         case .impulse(_, let o):
-                            let outputs = [o].enumerated().map {
-                                ("\($0)",collection(from: $1).name)
+                            let outputs = try [o].enumerated().map {
+                                ("\($0)",try collection(from: $1).name)
                             }.dict()
                             let p = try transform { _,name in
                                     .with {
@@ -220,8 +235,8 @@ public final class Pipeline {
                         case .external:
                             throw ApacheBeamError.runtimeError("External Transforms not implemented yet")
                         case .groupByKey(_,let o):
-                            let outputs = [o].enumerated().map {
-                                ("\($0)",collection(from: $1).name)
+                            let outputs = try [o].enumerated().map {
+                                ("\($0)",try collection(from: $1).name)
                             }.dict()
                             let p = try transform { _,name in
                                     .with {
@@ -236,8 +251,8 @@ public final class Pipeline {
                             rootIds.append(p.name)
                             toVisit.append(.collection(o))
                         case let .custom(_,urn,payload,env,o):
-                            let outputs = o.enumerated().map {
-                                ("\($0)",collection(from: $1).name)
+                            let outputs = try o.enumerated().map {
+                                ("\($0)",try collection(from: $1).name)
                             }.dict()
                             let environment = if let e = env {
                                 try proto.environment(from: e)
@@ -268,7 +283,7 @@ public final class Pipeline {
                         visited.insert(anyPCollection)
                         //TODO: Remove this to see if we can recreate the error I was seeing earlier for robertwb
                         if anyPCollection.consumers.count > 0 {
-                            let me = collection(from:anyPCollection)
+                            let me = try collection(from:anyPCollection)
                             toVisit.append(contentsOf: anyPCollection.consumers.map({ .transform([me], $0)}))
                         }
                     }

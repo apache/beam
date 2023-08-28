@@ -21,7 +21,7 @@ public extension PCollection {
 
     /// Each time the input fires output all of the values in this list.
     func create<Value:Codable>(_ values: [Value],name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
-        return pstream(name:name ?? "\(_file):\(_line)",values) { values,input,output in
+        return pstream(name:name ?? "\(_file):\(_line)",type:.bounded,values) { values,input,output in
             for try await (_,ts,w) in input {
                 for v in values {
                     output.emit(v,timestamp:ts,window:w)
@@ -95,6 +95,6 @@ public extension PCollection<Never> {
 }
 
 public func create<Value:Codable>(_ values: [Value],name:String? = nil,_file:String=#fileID,_line:Int=#line) -> PCollection<Value> {
-    let root = PCollection<Never>()
+    let root = PCollection<Never>(type:.bounded)
     return root.create(values,name:name,_file:_file,_line:_line)
 }

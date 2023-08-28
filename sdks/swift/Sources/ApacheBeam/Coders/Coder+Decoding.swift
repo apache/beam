@@ -28,9 +28,9 @@ public extension Coder {
         // TODO: Endian and other encoding checks
             
         case .bytes:
-            return .bytes(data.count == 0 ? nil : try data.subdata())
+            return .bytes(data.count == 0 ? Data() : try data.subdata())
         case .string:
-            return .string(data.count == 0 ? nil : String(data: try data.subdata(), encoding: .utf8))
+            return .string(data.count == 0 ? "" : String(data: try data.subdata(), encoding: .utf8))
         case .varint:
             return .integer(data.count == 0 ? nil : try data.varint())
         case .fixedint:

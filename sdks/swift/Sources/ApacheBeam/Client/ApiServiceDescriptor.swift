@@ -82,7 +82,9 @@ public extension GRPCChannelPool {
                 let port = Int(url.suffix(from:url.index(lastNdx,offsetBy:1)))!
                 return try GRPCChannelPool.with(target: .host(host, port: port),
                                                 transportSecurity: .plaintext,
-                                                eventLoopGroup: eventLoopGroup)
+                                                eventLoopGroup: eventLoopGroup) {
+                    $0.maximumReceiveMessageLength = .max
+                }
             } else {
                 throw ApacheBeamError.runtimeError("Service URL must be of the form host:port")
             }

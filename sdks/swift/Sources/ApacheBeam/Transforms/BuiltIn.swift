@@ -22,9 +22,18 @@ public extension PCollection where Of == Never {
     /// Impulse the most basic transform. It can only be attached to PCollections of type Never,
     /// which is the root transform used by Pipelines.
     func impulse() -> PCollection<Data> {
-        let output = PCollection<Data>()
+        let output = PCollection<Data>(type:.bounded)
         self.apply(.impulse(AnyPCollection(self),AnyPCollection(output)))
         return output
+    }
+}
+
+internal func _resolve<C:PCollectionProtocol>(_ parent: C,_ type:StreamType) -> StreamType {
+    switch type {
+    case .unspecified:
+        return parent.streamType
+    default:
+        return type
     }
 }
 
@@ -60,13 +69,14 @@ public extension PCollection {
                                     _ o0:PCollection<O0>) {
         self.apply(.pardo(AnyPCollection(self),name, fn, [AnyPCollection(o0)]))
     }
-    func pstream<O0>(name:String,_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
-        let output = PCollection<O0>()
+    func pstream<O0>(name:String,type:StreamType = .unspecified,
+                     _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
+        let output = PCollection<O0>(type:_resolve(self,type))
         self.apply(.pardo(AnyPCollection(self),name,ClosureFn(fn),[AnyPCollection(output)]))
         return output
     }
-    func pstream<Param:Codable,O0>(name:String,_ param: Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
-        let output = PCollection<O0>()
+    func pstream<Param:Codable,O0>(name:String,type:StreamType = .unspecified,_ param: Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
+        let output = PCollection<O0>(type:_resolve(self,type))
         self.apply(.pardo(AnyPCollection(self),name,ParameterizedClosureFn(param,fn),[AnyPCollection(output)]))
         return output
     }
@@ -76,11 +86,12 @@ public extension PCollection {
                                     _ o0:PCollection<O0>) {
         pstream(name:"\(_file):\(_line)",fn,o0)
     }
-    func pstream<O0>(_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
-        pstream(name:"\(_file):\(_line)",fn)
+    func pstream<O0>(type:StreamType = .unspecified,_file:String=#fileID,_line:Int=#line,
+                     _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
+        pstream(name:"\(_file):\(_line)",type:type,fn)
     }
-    func pstream<Param:Codable,O0>(_file:String=#fileID,_line:Int=#line,_ param: Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
-        pstream(name:"\(_file):\(_line)",param,fn)
+    func pstream<Param:Codable,O0>(type:StreamType = .unspecified,_file:String=#fileID,_line:Int=#line,_ param: Param,_ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream) async throws -> Void) -> (PCollection<O0>) {
+        pstream(name:"\(_file):\(_line)",type:type,param,fn)
     }
 
     
@@ -90,17 +101,17 @@ public extension PCollection {
                                     _ o0:PCollection<O0>,_ o1:PCollection<O1>) {
         self.apply(.pardo(AnyPCollection(self),name, fn, [AnyPCollection(o0),AnyPCollection(o1)]))
     }
-    func pstream<O0,O1>(name:String,
+    func pstream<O0,O1>(name:String,type:(StreamType,StreamType) = (.unspecified,.unspecified),
                       _ fn: @Sendable @escaping (PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
-        let output = (PCollection<O0>(),PCollection<O1>())
+        let output = (PCollection<O0>(type:_resolve(self,type.0)),PCollection<O1>(type:_resolve(self,type.1)))
         let parent = self.apply(.pardo(AnyPCollection(self),name,ClosureFn(fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
         output.0.parent(parent)
         output.1.parent(parent)
         return output
     }
-    func pstream<Param:Codable,O0,O1>(name:String,_ param: Param,
+    func pstream<Param:Codable,O0,O1>(name:String,type:(StreamType,StreamType) = (.unspecified,.unspecified),_ param: Param,
                                     _ fn: @Sendable @escaping (Param,PCollection<Of>.Stream,PCollection<O0>.Stream,PCollection<O1>.Stream) async throws -> Void) -> (PCollection<O0>,PCollection<O1>) {
-        let output = (PCollection<O0>(),PCollection<O1>())
+        let output = (PCollection<O0>(type:_resolve(self,type.0)),PCollection<O1>(type:_resolve(self,type.1)))
         let parent = self.apply(.pardo(AnyPCollection(self),name,ParameterizedClosureFn(param,fn),[AnyPCollection(output.0),AnyPCollection(output.1)]))
         output.0.parent(parent)
         output.1.parent(parent)
@@ -169,7 +180,7 @@ public extension PCollection {
     /// Core GroupByKey transform. Requires a pair input
     func groupByKey<K,V>() -> PCollection<KV<K,V>> where Of == KV<K,V> {
         // Adjust the coder for the pcollection to reflect GBK semantcs
-        let output = PCollection<KV<K,V>>(coder:.keyvalue(.of(type: K.self)!, .of(type: Array<V>.self)!))
+        let output = PCollection<KV<K,V>>(coder:.keyvalue(.of(type: K.self)!, .of(type: Array<V>.self)!),type:streamType)
         self.apply(.groupByKey(AnyPCollection(self),AnyPCollection(output)))
         return output
     }
