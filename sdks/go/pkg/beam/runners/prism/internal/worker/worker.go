@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -84,7 +85,9 @@ func New(id string) *W {
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
-	var opts []grpc.ServerOption
+	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+	}
 	wk := &W{
 		ID:     id,
 		lis:    lis,
