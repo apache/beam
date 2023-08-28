@@ -499,6 +499,26 @@ class NGramsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
+  def test_ngrams_on_list_separated_words_default_args(self):
+    data = [{
+        'x': ['I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[tft.NGrams(columns=['x'])]))
+      result = result | beam.Map(lambda x: x.x)
+      expected_data = [
+          np.array([b'I', b'like', b'pie'], dtype=object),
+          np.array([b'yum', b'yum', b'pie'], dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
   def test_ngrams_on_list_separated_words(self):
     data = [{
         'x': ['I', 'like', 'pie'],
