@@ -65,6 +65,11 @@ permissions:
   security-events: read
   statuses: read
 
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
 jobs:
   beam_PreCommit_Kotlin_Examples:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
