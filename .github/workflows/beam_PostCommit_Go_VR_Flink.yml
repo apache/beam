@@ -42,7 +42,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}'
   cancel-in-progress: true
 
 jobs:
@@ -50,7 +50,6 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go Flink ValidatesRunner'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
