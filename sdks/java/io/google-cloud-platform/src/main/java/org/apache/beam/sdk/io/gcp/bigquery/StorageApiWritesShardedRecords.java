@@ -818,7 +818,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
               APPEND_CLIENTS.invalidate(element.getKey());
               APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
-              LOG.debug("Updated schema for table {}: {}", tableId, updatedSchemaReturned);
+              LOG.debug("Fetched updated schema for table {}: {}", tableId, updatedSchemaReturned);
               updatedSchema.write(newSchema.get());
             }
           }
