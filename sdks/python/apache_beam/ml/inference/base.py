@@ -1313,14 +1313,14 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     elif isinstance(si_model_metadata, List) and hasattr(si_model_metadata[0],
                                                          'keys'):
       # TODO(https://github.com/apache/beam/issues/27628): Update metrics here
-      with threading.Lock():
-        self.update_model(si_model_metadata)
+      self.update_model(si_model_metadata)
     elif self._side_input_path != si_model_metadata.model_id:
       self._side_input_path = si_model_metadata.model_id
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
       with threading.Lock():
         self.update_model(si_model_metadata.model_id)
+        return self._run_inference(batch, inference_args)
 
     return self._run_inference(batch, inference_args)
 
