@@ -947,12 +947,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     interval = 7
 
     sample_main_input_elements = ([
-        (first_ts - 2, 'key1'),
-        (first_ts + 1, 'key2'),
-        (first_ts + 8, 'key2'),
-        (first_ts + 15, 'key1'),
-        (first_ts + 22, 'key2'),
-        (first_ts + 29, 'key1'),
+        ('key1', first_ts - 2),
+        ('key2', first_ts + 1),
+        ('key2', first_ts + 8),
+        ('key1', first_ts + 15),
+        ('key2', first_ts + 22),
+        ('key1', first_ts + 29),
     ])
 
     sample_side_input_elements = [
@@ -1015,9 +1015,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       result_pcoll = (
           pipeline
           | beam.Create(sample_main_input_elements)
-          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[0]))
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[1]))
           | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
-          | beam.Map(lambda x: (x[1], x[0]))
           | "RunInference" >> base.RunInference(
               model_handler, model_metadata_pcoll=side_input)
           | beam.Map(lambda x: x[1]))
@@ -1042,7 +1041,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       expected_result = [
           base.PredictionResult(
-              example=sample_main_input_elements[i][0],
+              example=sample_main_input_elements[i][1],
               inference=expected_inferences[i],
               model_id=expected_model_id_order[i])
           for i in range(len(expected_inferences))
@@ -1055,11 +1054,11 @@ class RunInferenceBaseTest(unittest.TestCase):
     interval = 7
 
     sample_main_input_elements = ([
-        (first_ts - 2, 'key1'),
-        (first_ts + 1, 'key2'),
-        (first_ts + 8, 'key1'),
-        (first_ts + 15, 'key2'),
-        (first_ts + 22, 'key1'),
+        ('key1', first_ts - 2),
+        ('key2', first_ts + 1),
+        ('key1', first_ts + 8),
+        ('key2', first_ts + 15),
+        ('key1', first_ts + 22),
     ])
 
     sample_side_input_elements = [
@@ -1117,9 +1116,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       result_pcoll = (
           pipeline
           | beam.Create(sample_main_input_elements)
-          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[0]))
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[1]))
           | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
-          | beam.Map(lambda x: (x[1], x[0]))
           | "RunInference" >> base.RunInference(
               model_handler, model_metadata_pcoll=side_input)
           | beam.Map(lambda x: x[1]))
@@ -1133,8 +1131,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       ]
       expected_result = [
           base.PredictionResult(
-              example=sample_main_input_elements[i][0],
-              inference=sample_main_input_elements[i][0] + 1,
+              example=sample_main_input_elements[i][1],
+              inference=sample_main_input_elements[i][1] + 1,
               model_id=expected_model_id_order[i]) for i in range(5)
       ]
 

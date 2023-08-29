@@ -366,7 +366,7 @@ class _ModelManager:
           " models mode).")
     self._max_models += increment
 
-  def update_model_handler(self, key, model_path, previous_key):
+  def update_model_handler(self, key: str, model_path: str, previous_key: str):
     """
     Updates the model path of this model handler and removes it from memory so
     that it can be reloaded with the updated path. No-ops if no model update
@@ -642,7 +642,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         if key in seen_keys:
           raise ValueError(
               f'Invalid model update: {key} appears in multiple '
-              'update lists.')
+              'update lists. A single model update must provide exactly one '
+              'updated path per key.')
         seen_keys.add(key)
         if key not in self._key_to_id_map:
           raise ValueError(
