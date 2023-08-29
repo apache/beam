@@ -277,11 +277,11 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected[0] = (0, 200)
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       mhs = [
-          base.KeyMhMapping([0],
-                            FakeModelHandler(
-                                state=200, multi_process_shared=True)),
-          base.KeyMhMapping([1, 2, 3],
-                            FakeModelHandler(multi_process_shared=True))
+          base.KeyModelMapping([0],
+                               FakeModelHandler(
+                                   state=200, multi_process_shared=True)),
+          base.KeyModelMapping([1, 2, 3],
+                               FakeModelHandler(multi_process_shared=True))
       ]
       actual = pcoll | base.RunInference(base.KeyedModelHandler(mhs))
       assert_that(actual, equal_to(expected), label='assert:inferences')
@@ -291,45 +291,45 @@ class RunInferenceBaseTest(unittest.TestCase):
       return int(example) * 2
 
     mhs = [
-        base.KeyMhMapping(
+        base.KeyModelMapping(
             [0],
             FakeModelHandler(
                 state=200,
                 multi_process_shared=True).with_preprocess_fn(mult_two)),
-        base.KeyMhMapping([1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
     mhs = [
-        base.KeyMhMapping(
+        base.KeyModelMapping(
             [0],
             FakeModelHandler(
                 state=200,
                 multi_process_shared=True).with_postprocess_fn(mult_two)),
-        base.KeyMhMapping([1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
     mhs = [
-        base.KeyMhMapping([0],
-                          FakeModelHandler(
-                              state=200, multi_process_shared=True)),
-        base.KeyMhMapping([0, 1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([0, 1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
     mhs = [
-        base.KeyMhMapping([],
-                          FakeModelHandler(
-                              state=200, multi_process_shared=True)),
-        base.KeyMhMapping([0, 1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([0, 1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
@@ -343,8 +343,10 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_keyed_model_handler_multiple_models_get_num_bytes(self):
     mhs = [
-        base.KeyMhMapping(['key1'], FakeModelHandler(num_bytes_per_element=10)),
-        base.KeyMhMapping(['key2'], FakeModelHandler(num_bytes_per_element=20))
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandler(num_bytes_per_element=10)),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandler(num_bytes_per_element=20))
     ]
     mh = base.KeyedModelHandler(mhs)
     batch = [('key1', 1), ('key2', 2), ('key1', 3)]
@@ -1010,12 +1012,12 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
 
     model_handler = base.KeyedModelHandler([
-        base.KeyMhMapping(['key1'],
-                          FakeModelHandlerReturnsPredictionResult(
-                              multi_process_shared=True, state=True)),
-        base.KeyMhMapping(['key2'],
-                          FakeModelHandlerReturnsPredictionResult(
-                              multi_process_shared=True, state=True))
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandlerReturnsPredictionResult(
+                                 multi_process_shared=True, state=True)),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandlerReturnsPredictionResult(
+                                 multi_process_shared=True, state=True))
     ])
 
     class _EmitElement(beam.DoFn):
@@ -1114,7 +1116,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
 
     model_handler = base.KeyedModelHandler([
-        base.KeyMhMapping(
+        base.KeyModelMapping(
             ['key1', 'key2'],
             FakeModelHandlerReturnsPredictionResult(multi_process_shared=True))
     ])
