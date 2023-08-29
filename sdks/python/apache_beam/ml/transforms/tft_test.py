@@ -763,8 +763,6 @@ class BagOfWordsTest(unittest.TestCase):
       }] * 3  # since there are 3 elements in input.
       assert_that(result, equal_to(expected_data))
 
-      # result | beam.Map(print)
-
 
 if __name__ == '__main__':
   unittest.main()

@@ -605,8 +605,7 @@ class BagOfWords(TFTOperation):
     self.ngrams_separator = ngrams_separator
     self.name = name
     self.split_string_by_delimiter = split_string_by_delimiter
-    self.compute_word_count = compute_word_count
-    if self.compute_word_count:
+    if compute_word_count:
       self.compute_word_count_fn = count_unqiue_words
     else:
       self.compute_word_count_fn = lambda *args, **kwargs: {}
