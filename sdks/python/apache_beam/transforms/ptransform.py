@@ -1129,7 +1129,8 @@ def annotate_yaml(constructor):
           'kwargs': kwargs,
       })
     except TypeError as exn:
-      warnings.warn(f'Cannot serialize arguments for {constructor} as json.')
+      warnings.warn(
+          f'Cannot serialize arguments for {constructor} as json: {exn}')
       return transform
 
     original_annotations = transform.annotations
