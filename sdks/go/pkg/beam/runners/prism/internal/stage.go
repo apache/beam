@@ -103,7 +103,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		closed := make(chan struct{})
 		close(closed)
 		dataReady = closed
-	case wk.ID:
+	case wk.Env:
 		b = &worker.B{
 			PBDID:  s.ID,
 			InstID: rb.BundleID,

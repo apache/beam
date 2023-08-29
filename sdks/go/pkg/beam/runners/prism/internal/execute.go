@@ -54,7 +54,7 @@ func RunPipeline(j *jobservices.Job) {
 		return
 	}
 	env, _ := getOnlyPair(envs)
-	wk := worker.New(env) // Cheating by having the worker id match the environment id.
+	wk := worker.New(j.String()+"_"+env, env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
 	timeout := time.Minute
 	time.AfterFunc(timeout, func() {
@@ -102,7 +102,7 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	case urns.EnvExternal:
 		ep := &pipepb.ExternalPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ep); err != nil {
-			slog.Error("unmarshing environment payload", err, slog.String("envID", wk.ID))
+			slog.Error("unmarshing environment payload", err, slog.String("envID", wk.Env))
 		}
 		externalEnvironment(ctx, ep, wk)
 		slog.Debug("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
@@ -271,7 +271,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			}
 			stages[stage.ID] = stage
 			wk.Descriptors[stage.ID] = stage.desc
-		case wk.ID:
+		case wk.Env:
 			// Great! this is for this environment. // Broken abstraction.
 			if err := buildDescriptor(stage, comps, wk); err != nil {
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)

@@ -52,14 +52,12 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	// TODO move response channel to an atomic and an additional
-	// block on the DataWait channel, to allow progress & splits for
-	// no output DoFns.
 	Resp chan *fnpb.ProcessBundleResponse
 
 	SinkToPCollection map[string]string
 
 	Fail func(err string) // Called if bundle returns an error.
+	responded bool
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -90,6 +88,11 @@ func (b *B) LogValue() slog.Value {
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	if b.responded {
+		slog.Warn("second bundle response", "bundle", b, "resp", resp)
+		return
+	}
+	b.responded = true
 	if resp.GetError() != "" {
 		b.Fail(resp.GetError())
 		close(b.Resp)

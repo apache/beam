@@ -55,15 +55,15 @@ type W struct {
 	fnpb.UnimplementedBeamFnLoggingServer
 	fnpb.UnimplementedProvisionServiceServer
 
-	ID string
+	ID, Env string
 
 	// Server management
 	lis    net.Listener
 	server *grpc.Server
 
 	// These are the ID sources
-	inst, bund uint64
-	connected  atomic.Bool
+	inst, bund         uint64
+	connected, stopped atomic.Bool
 
 	InstReqs chan *fnpb.InstructionRequest
 	DataReqs chan *fnpb.Elements
@@ -80,7 +80,7 @@ type controlResponder interface {
 }
 
 // New starts the worker server components of FnAPI Execution.
-func New(id string) *W {
+func New(id, env string) *W {
 	lis, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
@@ -90,6 +90,7 @@ func New(id string) *W {
 	}
 	wk := &W{
 		ID:     id,
+		Env:    env,
 		lis:    lis,
 		server: grpc.NewServer(opts...),
 
@@ -133,6 +134,7 @@ func (wk *W) LogValue() slog.Value {
 // Stop the GRPC server.
 func (wk *W) Stop() {
 	slog.Debug("stopping", "worker", wk)
+	wk.stopped.Store(true)
 	close(wk.InstReqs)
 	close(wk.DataReqs)
 	wk.server.Stop()
@@ -255,7 +257,7 @@ func (wk *W) Connected() bool {
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	wk.connected.Store(true)
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		for {
 			resp, err := ctrl.Recv()
@@ -296,7 +298,6 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 				return err
 			}
 		case <-ctrl.Context().Done():
-			go func() { <-done }()
 			wk.mu.Lock()
 			// Fail extant instructions
 			slog.Debug("SDK Disconnected", "worker", wk, "ctx_error", ctrl.Context().Err(), "outstanding_instructions", len(wk.activeInstructions))
@@ -408,8 +409,12 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 
 				// State requests are always for an active ProcessBundle instruction
 				wk.mu.Lock()
-				b := wk.activeInstructions[req.GetInstructionId()].(*B)
+				b, ok := wk.activeInstructions[req.GetInstructionId()].(*B)
 				wk.mu.Unlock()
+				if !ok {
+					slog.Warn("state request after bundle inactive", "instruction", req.GetInstructionId(), "worker", wk)
+					continue
+				}
 				key := req.GetStateKey()
 				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
 
@@ -520,15 +525,10 @@ func (wk *W) sendInstruction(ctx context.Context, req *fnpb.InstructionRequest) 
 
 	req.InstructionId = progInst
 
-	select {
-	case <-ctx.Done():
-		return &fnpb.InstructionResponse{
-			InstructionId: progInst,
-			Error:         "context canceled before send",
-		}
-	case wk.InstReqs <- req:
-		// Tell the SDK to start processing the Instruction.
+	if wk.stopped.Load() {
+		return nil
 	}
+	wk.InstReqs <- req
 
 	select {
 	case <-ctx.Done():
