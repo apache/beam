@@ -216,7 +216,7 @@ class WriteTables<DestinationT extends @NonNull Object>
             firstPaneCreateDisposition,
             dynamicDestinations,
             destination);
-        LOG.debug("Fetched TableSchema for table {}: {}", destination, tableSchema);
+        LOG.debug("Fetched TableSchema for table {}:\n\t{}", destination, tableSchema);
         jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 

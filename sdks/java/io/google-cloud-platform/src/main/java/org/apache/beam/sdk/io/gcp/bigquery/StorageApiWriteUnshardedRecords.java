@@ -433,7 +433,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   TableSchema updatedFromStream = writeStream.getTableSchema();
                   currentSchema.set(updatedFromStream);
                   updated.set(true);
-                  LOG.debug("Fetched updated schema for table {}: {}", tableUrn, updatedFromStream);
+                  LOG.debug(
+                      "Fetched updated schema for table {}:\n\t{}", tableUrn, updatedFromStream);
                 }
               }
               return null;
