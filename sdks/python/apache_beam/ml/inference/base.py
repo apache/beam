@@ -775,10 +775,10 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
   def annotations(self):
     return {
-        'model_handler': str(model_handler),
+        'model_handler': str(self._model_handler),
         'model_handler_type': (
-            f'{model_handler.__class__.__module__}'
-            f'.{model_handler.__class__.__qualname__}'),
+            f'{self._model_handler.__class__.__module__}'
+            f'.{self._model_handler.__class__.__qualname__}'),
         **super(self).annotations()
     }
 
