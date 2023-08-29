@@ -20,7 +20,7 @@ func TestToString(t *testing.T) {
 		toString := &ToString{UID: 2, Out: out}
 		a := &FixedRoot{UID: 3, Elements: makeKVInput("key", testCase.Input...), Out: toString}
 
-		p, err := NewPlan("a", []Unit{a, toString, out}) // order matters in this test
+		p, err := NewPlan("a", []Unit{a, toString, out})
 		if err != nil {
 			t.Fatalf("failed to construct plan: %v", err)
 		}
