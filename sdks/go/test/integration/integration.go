@@ -42,6 +42,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"os"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -289,6 +290,13 @@ var dataflowFilters = []string{
 	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
+}
+
+var user = os.Getenv("USER")
+
+// TODO: github-actions service account doesn't have permission to healthcare.fhirStores.create.
+if USER == "github-actions" {
+	dataflowFilters.append("TestFhirIO.*")
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
