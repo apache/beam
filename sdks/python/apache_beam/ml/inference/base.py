@@ -308,7 +308,7 @@ class _ModelManager:
     self._max_models = max_models
     # Map keys to model handlers
     self._mh_map: Dict[str, ModelHandler] = mh_map
-    # Map keys to the last model update for that key
+    # Map keys to the last updated model path for that key
     self._key_to_last_update: Dict[str, str] = defaultdict(str)
     # Map key for a model to a unique tag that will persist for the life of
     # that model in memory. A new tag will be generated if a model is swapped
@@ -609,7 +609,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self,
       model: Union[ModelT, _ModelManager],
       model_paths: List[KeyModelPathMapping[KeyT]] = None):
-    # When there are many models, the model handler is responsible for
+    # When there are many models, the keyed model handler is responsible for
     # reorganizing the model handlers into cohorts and telling the model
     # manager to update every cohort's associated model handler. The model
     # manager is responsible for performing the updates and tracking which
