@@ -68,6 +68,15 @@ _EXPECTED_TYPES: Dict[str, Union[int, str, float]] = {}
 _LOGGER = logging.getLogger(__name__)
 
 
+def warn_about_consistent_artifact_output(
+    cls_name: str, artifacts_name: List[str]):
+  _LOGGER.warning(
+      "The outputs of the get_artifacts method of class %s" % cls_name +
+      " are computed over the "
+      "entire dataset. For each transformed element, the corresponding "
+      "artifacts %s will be the same." % artifacts_name)
+
+
 def register_input_dtype(type):
   def wrapper(fn):
     _EXPECTED_TYPES[fn.__name__] = type
@@ -243,9 +252,14 @@ class ScaleToZScore(TFTOperation):
                     col_name: str) -> Dict[str, common_types.TensorType]:
     mean_var = tft.analyzers._mean_and_var(data)
     shape = [tf.shape(data)[0], 1]
+
+    mean_col_name = col_name + '_mean'
+    var_col_name = col_name + '_var'
+    warn_about_consistent_artifact_output(
+        self.__class__.__name__, [mean_col_name, var_col_name])
     return {
-        col_name + '_mean': tf.broadcast_to(mean_var[0], shape),
-        col_name + '_var': tf.broadcast_to(mean_var[1], shape),
+        mean_col_name: tf.broadcast_to(mean_var[0], shape),
+        var_col_name: tf.broadcast_to(mean_var[1], shape),
     }
 
 
@@ -282,9 +296,13 @@ class ScaleTo01(TFTOperation):
   def get_artifacts(self, data: common_types.TensorType,
                     col_name: str) -> Dict[str, common_types.TensorType]:
     shape = [tf.shape(data)[0], 1]
+    min_col_name = col_name + '_min'
+    max_col_name = col_name + '_max'
+    warn_about_consistent_artifact_output(
+        self.__class__.__name__, [min_col_name, max_col_name])
     return {
-        col_name + '_min': tf.broadcast_to(tft.min(data), shape),
-        col_name + '_max': tf.broadcast_to(tft.max(data), shape)
+        min_col_name: tf.broadcast_to(tft.min(data), shape),
+        max_col_name: tf.broadcast_to(tft.max(data), shape)
     }
 
   def apply_transform(
@@ -391,9 +409,12 @@ class Bucketize(TFTOperation):
     shape = [
         tf.shape(data)[0], num_buckets - 1 if num_buckets > 1 else num_buckets
     ]
+    quantiles_col_name = col_name + '_quantiles'
+    warn_about_consistent_artifact_output(
+        self.__class__.__name__, [quantiles_col_name])
     # These quantiles are used as the bucket boundaries in the later stages.
     # Should we change the prefix _quantiles to _bucket_boundaries?
-    return {col_name + '_quantiles': tf.broadcast_to(quantiles, shape)}
+    return {quantiles_col_name: tf.broadcast_to(quantiles, shape)}
 
   def apply_transform(
       self, data: common_types.TensorType,
@@ -472,7 +493,6 @@ class TFIDF(TFTOperation):
       self.smooth,
       self.name
     )
-
     output = {
         output_column_name + '_vocab_index': vocab_index,
         output_column_name + '_tfidf_weight': tfidf_weight
