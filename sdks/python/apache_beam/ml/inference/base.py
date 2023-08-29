@@ -779,7 +779,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
-        **super(self).annotations()
+        **super().annotations()
     }
 
   def _get_model_metadata_pcoll(self, pipeline):
