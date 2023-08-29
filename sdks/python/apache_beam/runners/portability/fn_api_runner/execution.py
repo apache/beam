@@ -46,11 +46,9 @@ from typing import Union
 from typing_extensions import Protocol
 
 from apache_beam import coders
-from apache_beam.coders import BytesCoder
 from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
-from apache_beam.coders.coders import GlobalWindowCoder
 from apache_beam.coders.coders import WindowedValueCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns

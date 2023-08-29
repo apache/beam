@@ -47,21 +47,23 @@ class TrivialRunnerTest(unittest.TestCase):
 
   def test_flatten(self):
     with beam.Pipeline(runner=TrivialRunner()) as p:
-      ab = p | 'AB' >> beam.Create(['a', 'b'])
-      c = p | 'C' >> beam.Create(['c'])
+      # Disabling reshuffle here (and elsewhere) just to give a simpler graph
+      # for debugging.
+      ab = p | 'AB' >> beam.Create(['a', 'b'], reshuffle=False)
+      c = p | 'C' >> beam.Create(['c'], reshuffle=False)
       assert_that((ab, c, c) | beam.Flatten(), equal_to(['a', 'b', 'c', 'c']))
 
   def test_map(self):
     with beam.Pipeline(runner=TrivialRunner()) as p:
       assert_that(
-          p | beam.Create(['a', 'b']) | beam.Map(str.upper),
+          p | beam.Create(['a', 'b'], reshuffle=False) | beam.Map(str.upper),
           equal_to(['A', 'B']))
 
   def test_gbk(self):
     with beam.Pipeline(runner=TrivialRunner()) as p:
       result = (
           p
-          | beam.Create([('a', 1), ('b', 2), ('b', 3)])
+          | beam.Create([('a', 1), ('b', 2), ('b', 3)], reshuffle=False)
           | beam.GroupByKey()
           | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
       assert_that(result, equal_to([('a', [1]), ('b', [2, 3])]))

@@ -47,7 +47,6 @@ from google.protobuf import message
 from apache_beam import coders
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2

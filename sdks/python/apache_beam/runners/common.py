@@ -75,7 +75,6 @@ if TYPE_CHECKING:
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
 
-
 IMPULSE_VALUE_CODER_IMPL = coders.WindowedValueCoder(
     coders.BytesCoder(), coders.GlobalWindowCoder()).get_impl()
 

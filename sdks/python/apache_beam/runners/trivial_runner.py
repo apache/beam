@@ -324,7 +324,7 @@ class ExecutionState:
   """A helper class holding various values and context during execution."""
   def __init__(self, optimized_pipeline):
     self.optimized_pipeline = optimized_pipeline
-    self._pcollections_to_encoded_elements = {}
+    self._pcollections_to_encoded_chunks = {}
     self._counter = 0
     self._process_bundle_descriptors = {}
     # This emulates a connection to an SDK worker (e.g. its data, control,
@@ -348,10 +348,10 @@ class ExecutionState:
         process_bundle_descriptor.id] = process_bundle_descriptor
 
   def get_pcollection_contents(self, pcoll_id: str) -> List[bytes]:
-    return self._pcollections_to_encoded_elements[pcoll_id]
+    return self._pcollections_to_encoded_chunks[pcoll_id]
 
   def set_pcollection_contents(self, pcoll_id: str, chunks: List[bytes]):
-    self._pcollections_to_encoded_elements[pcoll_id] = chunks
+    self._pcollections_to_encoded_chunks[pcoll_id] = chunks
 
   def new_id(self, prefix='') -> str:
     self._counter += 1
@@ -386,6 +386,7 @@ class ExecutionState:
 
 
 def is_primitive_transform(transform: beam_runner_api_pb2.PTransform) -> bool:
+  # pylint: disable=consider-using-ternary
   return (
       # Only non-primitive (aka composite) transforms have subtransforms.
       not transform.subtransforms

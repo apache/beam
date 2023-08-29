@@ -603,7 +603,8 @@ def pipeline_from_stages(
   components.transforms.clear()
   components.pcollections.clear()
 
-  roots = {}  # order preserving but still has fast contains checking
+  # order preserving but still has fast contains checking
+  roots = {}  # type: Dict[str, Any]
   parents = {
       child: parent
       for parent,

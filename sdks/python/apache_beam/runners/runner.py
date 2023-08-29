@@ -281,7 +281,7 @@ class PipelineResult(object):
     """Return the current state of the pipeline execution."""
     return self._state
 
-  def wait_until_finish(self, duration=None):
+  def wait_until_finish(self, duration=None):  # pylint: disable=unused-argument
     """Waits until the pipeline finishes and returns the final status.
 
     Args:
@@ -299,7 +299,7 @@ class PipelineResult(object):
       The final state of the pipeline, or :data:`None` on timeout.
     """
     if not PipelineState.is_terminal(self._state):
-      raise NotImplementedError
+      raise NotImplementedError()
 
   def cancel(self):
     """Cancels the pipeline execution.
@@ -313,7 +313,7 @@ class PipelineResult(object):
     Returns:
       The final state of the pipeline.
     """
-    raise NotImplementedError
+    raise NotImplementedError()
 
   def metrics(self):
     """Returns :class:`~apache_beam.metrics.metric.MetricResults` object to
@@ -323,7 +323,7 @@ class PipelineResult(object):
       NotImplementedError: If the runner does not support this
         operation.
     """
-    raise NotImplementedError
+    raise NotImplementedError()
 
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):
