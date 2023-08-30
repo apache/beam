@@ -730,6 +730,39 @@ class BagOfWordsTest(unittest.TestCase):
       ], [b'yum', b'yum yum', b'yum yum pie', b'yum pie', b'pie']]
       assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
 
+  def test_count_per_key_on_list(self):
+    def map_element_to_count(elements, counts):
+      d = {elements[i]: counts[i] for i in range(len(elements))}
+      return d
+
+    data = [{
+        'x': ['I', 'like', 'pie', 'pie', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }, {
+        'x': ['Banana', 'Banana', 'Apple', 'Apple', 'Apple', 'Apple']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[
+                  tft.BagOfWords(columns=['x'], compute_word_count=True)
+              ]))
+
+      # the unique elements and counts are artifacts and will be
+      # stored in the result and same for all the elements in the
+      # PCollection.
+      result = result | beam.Map(
+          lambda x: map_element_to_count(x.x_unique_elements, x.x_counts))
+
+      expected_data = [{
+          b'Apple': 4, b'Banana': 2, b'I': 1, b'like': 1, b'pie': 4, b'yum': 2
+      }] * 3  # since there are 3 elements in input.
+      assert_that(result, equal_to(expected_data))
+
 
 if __name__ == '__main__':
   unittest.main()
