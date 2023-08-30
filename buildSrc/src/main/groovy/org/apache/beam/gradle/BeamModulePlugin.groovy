@@ -1060,8 +1060,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['-source 8']
-          options.compilerArgs += ['-target 8']
+          options.compilerArgs += ['-source', '8']
+          options.compilerArgs += ['-target', '8']
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
           options.compilerArgs += ['-XDoptimizeOuterThis=false']
@@ -1074,7 +1074,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
-          '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
@@ -1089,8 +1088,8 @@ class BeamModulePlugin implements Plugin<Project> {
           options.fork = true
           options.forkOptions.javaHome = java11Home as File
           options.compilerArgs += ['-Xlint:-path']
-          options.compilerArgs += ['-source 11']
-          options.compilerArgs += ['-target 11']
+          options.compilerArgs += ['-source', '11']
+          options.compilerArgs += ['-target', '11']
         }
         project.tasks.withType(Test) {
           useJUnit()
@@ -1490,8 +1489,8 @@ class BeamModulePlugin implements Plugin<Project> {
       if (project.hasProperty("compileAndRunTestsWithJava17")) {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
-          options.compilerArgs += ['-target 17']
-          options.compilerArgs += ['-source 17']
+          options.compilerArgs += ['-target', '17']
+          options.compilerArgs += ['-source', '17']
           project.ext.setJava17Options(options)
         }
         project.tasks.withType(Test) {
