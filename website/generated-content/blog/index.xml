@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Sun, 20 Aug 2023 09:00:00 -0400</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.50.0</title><link>/blog/beam-2.50.0/</link><pubDate>Sun, 20 Aug 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.50.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 30 Aug 2023 09:00:00 -0400</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.50.0</title><link>/blog/beam-2.50.0/</link><pubDate>Wed, 30 Aug 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.50.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,9 +12,8 @@ limitations under the License.
 -->
 &lt;p>We are happy to present the new 2.50.0 release of Beam.
 This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2500-2023-08-20">download page&lt;/a> for this release.&lt;/p>
+See the &lt;a href="/get-started/downloads/#2500-2023-08-30">download page&lt;/a> for this release.&lt;/p>
 &lt;p>For more information on changes in 2.50.0, check out the &lt;a href="https://github.com/apache/beam/milestone/14">detailed release notes&lt;/a>.&lt;/p>
-&lt;h1 id="2500---unreleased">[2.50.0] - Unreleased&lt;/h1>
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Spark 3.2.2 is used as default version for Spark runner (&lt;a href="https://github.com/apache/beam/issues/23804">#23804&lt;/a>).&lt;/li>
@@ -80,7 +79,7 @@ See the &lt;a href="/get-started/downloads/#2500-2023-08-20">download page&lt;/a
 &lt;li>TBD&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.40.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>According to git shortlog, the following people contributed to the 2.50.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Abacn&lt;/p>
 &lt;p>acejune&lt;/p>
 &lt;p>AdalbertMemSQL&lt;/p>
