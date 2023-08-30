@@ -96,7 +96,7 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-### 2.50.0 (2023-08-20)
+### 2.50.0 (2023-08-30)
 Official [source code download](https://downloads.apache.org/beam/2.50.0/apache-beam-2.50.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.50.0/apache-beam-2.50.0-source-release.zip.sha512).
 [signature](https://downloads.apache.org/beam/2.50.0/apache-beam-2.50.0-source-release.zip.asc).
@@ -105,9 +105,9 @@ Official [source code download](https://downloads.apache.org/beam/2.50.0/apache-
 [Blog post](/blog/beam-2.50.0).
 
 ### 2.49.0 (2023-07-17)
-Official [source code download](https://archive.apache.org/beam/2.49.0/apache-beam-2.49.0-source-release.zip).
-[SHA-512](https://archive.apache.org/beam/2.49.0/apache-beam-2.49.0-source-release.zip.sha512).
-[signature](https://archive.apache.org/beam/2.49.0/apache-beam-2.49.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.49.0/apache-beam-2.49.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.49.0/apache-beam-2.49.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.49.0/apache-beam-2.49.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.49.0)
 [Blog post](/blog/beam-2.49.0).
