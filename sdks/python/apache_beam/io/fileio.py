@@ -306,7 +306,7 @@ class MatchContinuously(beam.PTransform):
     self.match_upd = match_updated_files
     self.apply_windowing = apply_windowing
     self.empty_match_treatment = empty_match_treatment
-    _LOGGER.warn('Matching Continuously is stateful, and can scale poorly. '
+    _LOGGER.warning('Matching Continuously is stateful, and can scale poorly. '
                  'Consider using Pub/Sub Notifications '
                  '(https://cloud.google.com/storage/docs/pubsub-notifications) '
                  'if possible')

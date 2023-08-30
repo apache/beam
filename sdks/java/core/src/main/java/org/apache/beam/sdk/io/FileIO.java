@@ -509,22 +509,21 @@ public class FileIO {
      * condition is reached, where the input to the condition is the filepattern.
      *
      * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change, with
-     * the watching frequency given by the {@code interval}. The pipeline will throw a
-     * {@code RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
+     * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
+     * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
      * timestamp metadata is not available with the IO connector.
      *
-     * <p>
-     * Matching continuously scales poorly, as it is stateful, and requires storing file ids in
+     * <p>Matching continuously scales poorly, as it is stateful, and requires storing file ids in
      * memory. In addition, because it is memory-only, if a pipeline is restarted, already processed
-     * files will be reprocessed. Consider an alternate technique, such as
-     * <a href="https://cloud.google.com/storage/docs/pubsub-notifications">Pub/Sub Notifications</a>
+     * files will be reprocessed. Consider an alternate technique, such as <a
+     * href="https://cloud.google.com/storage/docs/pubsub-notifications">Pub/Sub Notifications</a>
      * when using GCS if possible.
-     * </p>
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
-      LOG.warn("Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
-          + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
+      LOG.warn(
+          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
+              + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
       return toBuilder()
           .setWatchInterval(interval)
           .setWatchTerminationCondition(condition)
