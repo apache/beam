@@ -292,13 +292,6 @@ var dataflowFilters = []string{
 	"TestDrain",
 }
 
-var user = os.Getenv("USER")
-
-// TODO: github-actions service account doesn't have permission to healthcare.fhirStores.create.
-if USER == "github-actions" {
-	dataflowFilters.append("TestFhirIO.*")
-}
-
 // CheckFilters checks if an integration test is filtered to be skipped, either
 // because the intended runner does not support it, or the test is sickbayed.
 // This method should be called at the beginning of any integration test. If
@@ -307,6 +300,12 @@ if USER == "github-actions" {
 func CheckFilters(t *testing.T) {
 	if !ptest.MainCalled() {
 		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
+	}
+
+	var user = os.Getenv("USER")
+	// TODO: github-actions service account doesn't have permission to healthcare.fhirStores.create.
+	if user == "github-actions" {
+		dataflowFilters.append("TestFhirIO.*")
 	}
 
 	// Check for sickbaying first.
@@ -326,7 +325,7 @@ func CheckFilters(t *testing.T) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
-
+	
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner
