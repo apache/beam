@@ -69,7 +69,7 @@ task removeKubeConfig(type: Exec) {
 
 
 task validateK8sConfiguration(type: Exec) {
-  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+  commandLine 'sh', '-c', 'kubectl --namespace default apply --dry-run=client -Rf kubernetes'
 }
 
 task validateConfiguration {
@@ -102,7 +102,7 @@ task deploy {
     def stdout = new ByteArrayOutputStream()
     exec {
       executable 'sh'
-      args '-c', 'kubectl get deployment beamgrafana -o jsonpath="{..image}"'
+      args '-c', 'kubectl --namespace default get deployment beamgrafana -o jsonpath="{..image}"'
       standardOutput = stdout
     }
 
@@ -122,7 +122,7 @@ task deploy {
 
       exec {
         executable 'sh'
-        args '-c', "kubectl set image deployment/beamgrafana \
+        args '-c', "kubectl --namespace default set image deployment/beamgrafana \
           beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
           beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
           beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
