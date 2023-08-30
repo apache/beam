@@ -396,10 +396,10 @@ class _ModelManager:
 # Use a dataclass instead of named tuple because NamedTuples and generics don't
 # mix well across the board for all versions:
 # https://github.com/python/typing/issues/653
-class KeyMhMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
+class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
   """
-  Dataclass for mapping 1 or more keys to 1 model handler.
-  Given `KeyMhMapping(['key1', 'key2'], myMh)`, all examples with keys `key1`
+  Dataclass for mapping 1 or more keys to 1 model handler. Given
+  `KeyModelMapping(['key1', 'key2'], myMh)`, all examples with keys `key1`
   or `key2` will be run against the model defined by the `myMh` ModelHandler.
   """
   def __init__(
@@ -415,7 +415,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def __init__(
       self,
       unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
-                     List[KeyMhMapping[KeyT, ExampleT, PredictionT, ModelT]]]):
+                     List[KeyModelMapping[KeyT, ExampleT, PredictionT,
+                                          ModelT]]]):
     """A ModelHandler that takes keyed examples and returns keyed predictions.
 
     For example, if the original model is used with RunInference to take a
@@ -429,7 +430,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
         k1 = ['k1', 'k2', 'k3']
         k2 = ['k4', 'k5']
-        KeyedModelHandler([KeyMhMapping(k1, mh1), KeyMhMapping(k2, mh2)])
+        KeyedModelHandler([KeyModelMapping(k1, mh1), KeyModelMapping(k2, mh2)])
 
     Note that a single copy of each of these models may all be held in memory
     at the same time; be careful not to load too many large models or your
@@ -462,7 +463,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
     Args:
       unkeyed: Either (a) an implementation of ModelHandler that does not
-        require keys or (b) a list of KeyMhMappings mapping lists of keys to
+        require keys or (b) a list of KeyModelMappings mapping lists of keys to
         unkeyed ModelHandlers.
     """
     self._single_model = not isinstance(unkeyed, list)
@@ -479,8 +480,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return
 
     # To maintain an efficient representation, we will map all keys in a given
-    # KeyMhMapping to a single id (the first key in the KeyMhMapping list).
-    # We will then map that key to a ModelHandler. This will allow us to
+    # KeyModelMapping to a single id (the first key in the KeyModelMapping
+    # list). We will then map that key to a ModelHandler. This will allow us to
     # quickly look up the appropriate ModelHandler for any given key.
     self._id_to_mh_map: Dict[str, ModelHandler[ExampleT, PredictionT,
                                                ModelT]] = {}

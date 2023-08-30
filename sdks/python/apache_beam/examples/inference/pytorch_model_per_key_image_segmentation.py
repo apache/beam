@@ -33,7 +33,7 @@ import apache_beam as beam
 import torch
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.base import KeyMhMapping
+from apache_beam.ml.inference.base import KeyModelMapping
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
@@ -257,7 +257,7 @@ def run(
   # Note that multiple keys can also point to a single model handler,
   # unlike this example.
   model_handler = KeyedModelHandler(
-      [KeyMhMapping(['v1'], mh1), KeyMhMapping(['v2'], mh2)])
+      [KeyModelMapping(['v1'], mh1), KeyModelMapping(['v2'], mh2)])
 
   pipeline = test_pipeline
   if not test_pipeline:
