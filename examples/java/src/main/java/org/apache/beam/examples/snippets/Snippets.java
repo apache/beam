@@ -1367,7 +1367,7 @@ public class Snippets {
       // [START SDF_UserInitiatedCheckpoint]
       @ProcessElement
       public ProcessContinuation processElement(
-          RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<Record> outputReceiver) {
+          RestrictionTracker<OffsetRange, Long> tracker, OutputReceiver<RecordPosition> outputReceiver) {
         long currentPosition = tracker.currentRestriction().getFrom();
         Service service = initializeService();
         try {
