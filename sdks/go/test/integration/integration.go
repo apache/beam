@@ -42,6 +42,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"os"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -301,6 +302,12 @@ func CheckFilters(t *testing.T) {
 		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
 	}
 
+	var user = os.Getenv("USER")
+	// TODO: github-actions service account doesn't have permission to healthcare.fhirStores.create.
+	if user == "github-actions" {
+		dataflowFilters = append(dataflowFilters, "TestFhirIO.*")
+	}
+
 	// Check for sickbaying first.
 	n := t.Name()
 	for _, f := range sickbay {
@@ -318,7 +325,7 @@ func CheckFilters(t *testing.T) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
-
+	
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner
