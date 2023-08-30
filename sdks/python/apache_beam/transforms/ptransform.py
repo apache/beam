@@ -372,7 +372,8 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
 
   def annotations(self) -> Dict[str, Union[bytes, str, message.Message]]:
     return {
-        'python_type': f'{self.__class__.__module__}.{self.__class__.__qualname__}'
+        'python_type':  #
+        f'{self.__class__.__module__}.{self.__class__.__qualname__}'
     }
 
   def default_type_hints(self):
