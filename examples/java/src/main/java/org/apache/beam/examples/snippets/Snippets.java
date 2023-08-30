@@ -1357,10 +1357,10 @@ public class Snippets {
       }
 
       public interface Service {
-        List<Record> readNextRecords(long position) throws ThrottlingException;
+        List<RecordPosition> readNextRecords(long position) throws ThrottlingException;
       }
 
-      public interface Record {
+      public interface RecordPosition {
         long getPosition();
       }
 
@@ -1372,12 +1372,12 @@ public class Snippets {
         Service service = initializeService();
         try {
           while (true) {
-            List<Record> records = service.readNextRecords(currentPosition);
+            List<RecordPosition> records = service.readNextRecords(currentPosition);
             if (records.isEmpty()) {
               // Return a short delay if there is no data to process at the moment.
               return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(10));
             }
-            for (Record record : records) {
+            for (RecordPosition record : records) {
               if (!tracker.tryClaim(record.getPosition())) {
                 return ProcessContinuation.stop();
               }
