@@ -1053,14 +1053,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
-        // Use --release 8 when targeting Java 8 and running on JDK > 8
+        // Use -source 8 -target 8 when targeting Java 8 and running on JDK > 8
         //
-        // Consider migrating compilation and testing to use JDK 9+ and setting '--release=8' as
+        // Consider migrating compilation and testing to use JDK 9+ and setting '-source 8 -target 8' as
         // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['--release', '8']
+          options.compilerArgs += ['-source', '8']
+          options.compilerArgs += ['-target', '8']
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
           options.compilerArgs += ['-XDoptimizeOuterThis=false']
@@ -1087,7 +1088,8 @@ class BeamModulePlugin implements Plugin<Project> {
           options.fork = true
           options.forkOptions.javaHome = java11Home as File
           options.compilerArgs += ['-Xlint:-path']
-          options.compilerArgs.addAll(['--release', '11'])
+          options.compilerArgs += ['-source', '11']
+          options.compilerArgs += ['-target', '11']
         }
         project.tasks.withType(Test) {
           useJUnit()
