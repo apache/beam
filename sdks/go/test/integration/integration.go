@@ -305,7 +305,7 @@ func CheckFilters(t *testing.T) {
 	var user = os.Getenv("USER")
 	// TODO: github-actions service account doesn't have permission to healthcare.fhirStores.create.
 	if user == "github-actions" {
-		dataflowFilters.append("TestFhirIO.*")
+		dataflowFilters = append(dataflowFilters, "TestFhirIO.*")
 	}
 
 	// Check for sickbaying first.
