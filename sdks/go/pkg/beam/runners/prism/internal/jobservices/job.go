@@ -160,6 +160,7 @@ func (j *Job) Done() {
 
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
+	slog.Error("job failed", slog.Any("job", j), slog.Any("error", err))
 	j.failureErr = err
 	j.sendState(jobpb.JobState_FAILED)
 	j.CancelFn(err)

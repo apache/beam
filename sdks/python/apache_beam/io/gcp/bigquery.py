@@ -2233,12 +2233,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       # SchemaTransform expects Beam Rows, so map to Rows first
       output_beam_rows = (
           pcoll
-          |
+          | "Convert dict to Beam Row" >>
           beam.Map(lambda row: bigquery_tools.beam_row_from_dict(row, schema)).
           with_output_types(
               RowTypeConstraint.from_fields(
                   bigquery_tools.get_beam_typehints_from_tableschema(schema)))
-          | StorageWriteToBigQuery(
+          | "StorageWriteToBigQuery" >> StorageWriteToBigQuery(
               table=table,
               create_disposition=self.create_disposition,
               write_disposition=self.write_disposition,
@@ -2731,12 +2731,12 @@ class ReadFromBigQuery(PTransform):
         raise TypeError(
             '%s: table must be of type string'
             '; got a callable instead' % self.__class__.__name__)
-      return output_pcollection | bigquery_schema_tools.\
-            convert_to_usertype(
-            bigquery_tools.BigQueryWrapper().get_table(
-                project_id=table_details.projectId,
-                dataset_id=table_details.datasetId,
-                table_id=table_details.tableId).schema)
+      return output_pcollection | bigquery_schema_tools.convert_to_usertype(
+          bigquery_tools.BigQueryWrapper().get_table(
+              project_id=table_details.projectId,
+              dataset_id=table_details.datasetId,
+              table_id=table_details.tableId).schema,
+          self._kwargs.get('selected_fields', None))
     else:
       raise ValueError(
           'The output type from BigQuery must be either PYTHON_DICT '

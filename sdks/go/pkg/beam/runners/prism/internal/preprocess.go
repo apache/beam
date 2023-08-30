@@ -139,7 +139,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components) []*stage {
 	keptLeaves := maps.Keys(leaves)
 	sort.Strings(keptLeaves)
 	topological := pipelinex.TopologicalSort(ts, keptLeaves)
-	slog.Debug("topological transform ordering", topological)
+	slog.Debug("topological transform ordering", slog.Any("topological", topological))
 
 	// Basic Fusion Behavior
 	//

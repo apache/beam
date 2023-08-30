@@ -150,7 +150,7 @@ To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipe
 By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
 Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by
 setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers (if using `DataflowRunner`).
-For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
+For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#name-error) to set the main session on the `DataflowRunner`.
 
 Managing the main session in Python SDK is only necessary when using `dill` pickler on any remote runner. Therefore, this issue will
 not occur in `DirectRunner`.

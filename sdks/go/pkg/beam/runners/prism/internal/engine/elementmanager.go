@@ -287,8 +287,12 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 			if err == io.EOF {
 				break
 			}
-			slog.Error("reElementResiduals: error decoding residual header", err, "bundle", rb)
-			panic("error decoding residual header")
+			slog.Error("reElementResiduals: error decoding residual header", "error", err, "bundle", rb)
+			panic("error decoding residual header:" + err.Error())
+		}
+		if len(ws) == 0 {
+			slog.Error("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
+			panic("error decoding residual header: sdk provided a windowed value header 0 windows")
 		}
 
 		for _, w := range ws {
@@ -332,8 +336,12 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 					if err == io.EOF {
 						break
 					}
-					slog.Error("PersistBundle: error decoding watermarks", err, "bundle", rb, slog.String("output", output))
+					slog.Error("PersistBundle: error decoding watermarks", "error", err, "bundle", rb, slog.String("output", output))
 					panic("error decoding watermarks")
+				}
+				if len(ws) == 0 {
+					slog.Error("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
+					panic("error decoding residual header: sdk provided a windowed value header 0 windows")
 				}
 				// TODO: Optimize unnecessary copies. This is doubleteeing.
 				elmBytes := info.EDec(tee)
