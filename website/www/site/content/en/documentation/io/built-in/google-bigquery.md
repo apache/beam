@@ -877,6 +877,8 @@ explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releas
 
 ***Note:*** `STORAGE_WRITE_API` will default to dynamic sharding when
 `numStorageWriteApiStreams` is set to 0 or is unspecified.
+
+***Note:*** Auto sharding with `STORAGE_WRITE_API` is supported on Dataflow's legacy runner, but **not** on Runner V2
 {{< /paragraph >}}
 
 When using `STORAGE_WRITE_API`, the PCollection returned by
