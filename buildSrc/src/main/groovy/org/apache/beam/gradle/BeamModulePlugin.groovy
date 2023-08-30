@@ -1087,7 +1087,7 @@ class BeamModulePlugin implements Plugin<Project> {
           options.fork = true
           options.forkOptions.javaHome = java11Home as File
           options.compilerArgs += ['-Xlint:-path']
-          options.compilerArgs += ['--release', '11']
+          options.compilerArgs.addAll(['--release', '11'])
         }
         project.tasks.withType(Test) {
           useJUnit()
