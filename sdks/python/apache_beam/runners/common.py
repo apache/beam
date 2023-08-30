@@ -37,8 +37,8 @@ from typing import Mapping
 from typing import Optional
 from typing import Tuple
 
-from apache_beam.coders import coders
 from apache_beam.coders import TupleCoder
+from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns

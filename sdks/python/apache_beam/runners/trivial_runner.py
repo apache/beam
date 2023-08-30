@@ -32,9 +32,9 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
-from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
+from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import core
 from apache_beam.transforms import trigger
 from apache_beam.utils import windowed_value

@@ -22,8 +22,8 @@
 import importlib
 import logging
 from typing import TYPE_CHECKING
-from typing import Optional
 from typing import Iterable
+from typing import Optional
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
