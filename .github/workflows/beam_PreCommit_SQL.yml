@@ -86,6 +86,8 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
+      - name: Generate JaCoCo XML Report
+        run: ./gradlew jacocoTestReport
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         with:
