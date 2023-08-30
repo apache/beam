@@ -83,6 +83,7 @@ jobs:
         env:
           USER: github-actions
         with:
-          gradle-command: :goPostCommit --no-parallel
+          gradle-command: :goPostCommit
           arguments: |
+            --no-parallel \
             -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions
