@@ -27,8 +27,6 @@ See the [download page](/get-started/downloads/#2500-2023-08-30) for this releas
 
 For more information on changes in 2.50.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/14).
 
-# [2.50.0] - Unreleased
-
 ## Highlights
 
 * Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
