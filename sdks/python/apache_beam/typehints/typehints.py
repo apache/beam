@@ -609,7 +609,7 @@ class UnionHint(CompositeTypeHint):
       from apache_beam.typehints import schemas
       try:
         return schemas.union_schema_type(params)
-      except TypeError:
+      except (TypeError, KeyError):
         # Not a union of compatible schema types.
         pass
 
