@@ -215,6 +215,26 @@ with pipeline as p:
 
 If you are unsure if your data is keyed, you can also use `MaybeKeyedModelHandler`.
 
+You can also use a `KeyedModelHandler` to load several different models based on their associated key:
+
+```
+from apache_beam.ml.inference.base import KeyedModelHandler
+keyed_model_handler = KeyedModelHandler([
+  KeyModelMapping(['key1'], PytorchModelHandlerTensor(<config1>)),
+  KeyModelMapping(['key2', 'key3'], PytorchModelHandlerTensor(<config2>))
+])
+with pipeline as p:
+   data = p | beam.Create([
+      ('key1', torch.tensor([[1,2,3],[4,5,6],...])),
+      ('key2', torch.tensor([[1,2,3],[4,5,6],...])),
+      ('key3', torch.tensor([[1,2,3],[4,5,6],...])),
+   ])
+   predictions = data | RunInference(keyed_model_handler)
+```
+
+The previous example will load a model using `config1` and use that for inference for all examples associated
+with `key1`, and will load a model using `config2` and use that for all examples associated with `key2` and `key3`.
+
 For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
 
 ### Use the `PredictionResult` object
