@@ -88,7 +88,9 @@ disable =
   bad-builtin,
   broad-except,
   broad-exception-raised,
+  c-extension-no-member,
   comparison-with-callable,
+  consider-iterating-dictionary,
   consider-using-dict-items,
   consider-using-enumerate,
   consider-using-f-string,
@@ -100,6 +102,7 @@ disable =
   design,
   fixme,
   global-statement,
+  global-variable-undefined,
   import-error,
   import-outside-toplevel,
   import-self,
@@ -111,8 +114,9 @@ disable =
   locally-disabled,
   logging-not-lazy,
   missing-docstring,
+  modified-iterating-list, 
   multiple-statements,
-  missing-timeout, #TODO() Enable and fix warnings
+  missing-timeout, #TODO(https://github.com/apache/beam/issues/28240) Enable and fix warnings
   no-self-use,
   no-else-break,
   no-else-continue,
@@ -136,7 +140,7 @@ disable =
   stop-iteration-return,
   super-init-not-called,
   superfluous-parens,
-  typevar-name-mismatch, #TODO() Enable and fix warnings
+  typevar-name-mismatch, #TODO(https://github.com/apache/beam/issues/28241) Enable and fix warnings
   try-except-raise,
   undefined-variable,
   unexpected-keyword-arg,
@@ -148,6 +152,7 @@ disable =
   unnecessary-lambda-assignment,
   unnecessary-pass,
   unneeded-not,
+  use-implicit-booleaness-not-comparison, #TODO(https://github.com/apache/beam/issues/28244) Enable and fix warnings
   used-before-assignment,
   unsubscriptable-object,
   unsupported-binary-operation,
@@ -156,6 +161,7 @@ disable =
   use-dict-literal,
   unused-wildcard-import,
   useless-object-inheritance,
+  useless-with-lock, #TODO(https://github.com/apache/beam/issues/28242) Enable and fix warnings
   wildcard-import,
   wrong-import-order,
 
