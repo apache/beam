@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -55,6 +56,15 @@ func RunPipeline(j *jobservices.Job) {
 	env, _ := getOnlyPair(envs)
 	wk := worker.New(env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
+	timeout := time.Minute
+	time.AfterFunc(timeout, func() {
+		if wk.Connected() {
+			return
+		}
+		err := fmt.Errorf("prism %v didn't get control connection after %v", wk, timeout)
+		j.Failed(err)
+		j.CancelFn(err)
+	})
 
 	// When this function exits, we cancel the context to clear
 	// any related job resources.

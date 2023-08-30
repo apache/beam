@@ -88,13 +88,13 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-
-# [2.50.0] - Unreleased
+# [2.50.0] - 2023-08-20
 
 ## Highlights
 
 * Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
 * The Go SDK has a new default local runner, called Prism ([#24789](https://github.com/apache/beam/issues/24789)).
+* All Beam released container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image) that support both x86 and ARM CPU architectures.
 
 ## I/Os
 
@@ -126,7 +126,7 @@
 ## Breaking Changes
 
 * Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
-* [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
+* Python SDK: Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Deprecations
 

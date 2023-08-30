@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -62,6 +63,7 @@ type W struct {
 
 	// These are the ID sources
 	inst, bund uint64
+	connected  atomic.Bool
 
 	InstReqs chan *fnpb.InstructionRequest
 	DataReqs chan *fnpb.Elements
@@ -83,7 +85,9 @@ func New(id string) *W {
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
-	var opts []grpc.ServerOption
+	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+	}
 	wk := &W{
 		ID:     id,
 		lis:    lis,
@@ -106,7 +110,8 @@ func New(id string) *W {
 }
 
 func (wk *W) Endpoint() string {
-	return wk.lis.Addr().String()
+	_, port, _ := net.SplitHostPort(wk.lis.Addr().String())
+	return fmt.Sprintf("localhost:%v", port)
 }
 
 // Serve serves on the started listener. Blocks.
@@ -200,7 +205,7 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 					file = file[:i]
 				}
 
-				slog.LogAttrs(context.TODO(), toSlogSev(l.GetSeverity()), l.GetMessage(),
+				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), l.GetMessage(),
 					slog.Any(slog.SourceKey, &slog.Source{
 						File: file,
 						Line: line,
@@ -241,10 +246,15 @@ func (wk *W) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProces
 	return desc, nil
 }
 
+func (wk *W) Connected() bool {
+	return wk.connected.Load()
+}
+
 // Control relays instructions to SDKs and back again, coordinated via unique instructionIDs.
 //
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
+	wk.connected.Store(true)
 	done := make(chan struct{})
 	go func() {
 		for {
@@ -281,10 +291,12 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		case req := <-wk.InstReqs:
 			err := ctrl.Send(req)
 			if err != nil {
+				go func() { <-done }()
 				return err
 			}
 		case <-ctrl.Context().Done():
 			slog.Debug("Control context canceled")
+			go func() { <-done }()
 			return ctrl.Context().Err()
 		case <-done:
 			slog.Debug("Control done")

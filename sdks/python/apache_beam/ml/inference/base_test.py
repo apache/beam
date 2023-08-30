@@ -24,9 +24,11 @@ import unittest
 from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import pytest
 
@@ -70,6 +72,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       max_batch_size=9999,
       multi_process_shared=False,
       state=None,
+      num_bytes_per_element=None,
       **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
@@ -77,6 +80,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._env_vars = kwargs.get('env_vars', {})
     self._multi_process_shared = multi_process_shared
     self._state = state
+    self._num_bytes_per_element = num_bytes_per_element
 
   def load_model(self):
     if self._fake_clock:
@@ -113,6 +117,11 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def share_model_across_processes(self):
     return self._multi_process_shared
 
+  def get_num_bytes(self, batch: Sequence[int]) -> int:
+    if self._num_bytes_per_element:
+      return self._num_bytes_per_element * len(batch)
+    return super().get_num_bytes(batch)
+
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
@@ -120,19 +129,23 @@ class FakeModelHandlerReturnsPredictionResult(
       self,
       clock=None,
       model_id='fake_model_id_default',
-      multi_process_shared=False):
+      multi_process_shared=False,
+      state=None):
     self.model_id = model_id
     self._fake_clock = clock
     self._env_vars = {}
     self._multi_process_shared = multi_process_shared
+    self._state = state
 
   def load_model(self):
+    if self._state is not None:
+      return FakeStatefulModel(0)
     return FakeModel()
 
   def run_inference(
       self,
       batch: Sequence[int],
-      model: FakeModel,
+      model: Union[FakeModel, FakeStatefulModel],
       inference_args=None) -> Iterable[base.PredictionResult]:
     multi_process_shared_loaded = "multi_process_shared" in str(type(model))
     if self._multi_process_shared != multi_process_shared_loaded:
@@ -145,6 +158,8 @@ class FakeModelHandlerReturnsPredictionResult(
           model_id=self.model_id,
           example=example,
           inference=model.predict(example))
+      if self._state is not None:
+        model.increment_state(1)  # type: ignore[union-attr]
 
   def update_model_path(self, model_path: Optional[str] = None):
     self.model_id = model_path if model_path else self.model_id
@@ -262,11 +277,11 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected[0] = (0, 200)
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       mhs = [
-          base.KeyMhMapping([0],
-                            FakeModelHandler(
-                                state=200, multi_process_shared=True)),
-          base.KeyMhMapping([1, 2, 3],
-                            FakeModelHandler(multi_process_shared=True))
+          base.KeyModelMapping([0],
+                               FakeModelHandler(
+                                   state=200, multi_process_shared=True)),
+          base.KeyModelMapping([1, 2, 3],
+                               FakeModelHandler(multi_process_shared=True))
       ]
       actual = pcoll | base.RunInference(base.KeyedModelHandler(mhs))
       assert_that(actual, equal_to(expected), label='assert:inferences')
@@ -276,48 +291,68 @@ class RunInferenceBaseTest(unittest.TestCase):
       return int(example) * 2
 
     mhs = [
-        base.KeyMhMapping(
+        base.KeyModelMapping(
             [0],
             FakeModelHandler(
                 state=200,
                 multi_process_shared=True).with_preprocess_fn(mult_two)),
-        base.KeyMhMapping([1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
     mhs = [
-        base.KeyMhMapping(
+        base.KeyModelMapping(
             [0],
             FakeModelHandler(
                 state=200,
                 multi_process_shared=True).with_postprocess_fn(mult_two)),
-        base.KeyMhMapping([1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
     mhs = [
-        base.KeyMhMapping([0],
-                          FakeModelHandler(
-                              state=200, multi_process_shared=True)),
-        base.KeyMhMapping([0, 1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([0, 1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
     mhs = [
-        base.KeyMhMapping([],
-                          FakeModelHandler(
-                              state=200, multi_process_shared=True)),
-        base.KeyMhMapping([0, 1, 2, 3],
-                          FakeModelHandler(multi_process_shared=True))
+        base.KeyModelMapping([],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([0, 1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
+
+  def test_keyed_model_handler_get_num_bytes(self):
+    mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
+    batch = [('key1', 1), ('key2', 2), ('key1', 3)]
+    expected = len(pickle.dumps(('key1', 'key2', 'key1'))) + 30
+    actual = mh.get_num_bytes(batch)
+    self.assertEqual(expected, actual)
+
+  def test_keyed_model_handler_multiple_models_get_num_bytes(self):
+    mhs = [
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandler(num_bytes_per_element=10)),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandler(num_bytes_per_element=20))
+    ]
+    mh = base.KeyedModelHandler(mhs)
+    batch = [('key1', 1), ('key2', 2), ('key1', 3)]
+    expected = len(pickle.dumps(('key1', 'key2', 'key1'))) + 40
+    actual = mh.get_num_bytes(batch)
+    self.assertEqual(expected, actual)
 
   def test_run_inference_impl_with_maybe_keyed_examples(self):
     with TestPipeline() as pipeline:
@@ -934,6 +969,202 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected_result))
 
+  def test_run_inference_side_input_in_batch_per_key_models(self):
+    first_ts = math.floor(time.time()) - 30
+    interval = 7
+
+    sample_main_input_elements = ([
+        ('key1', first_ts - 2),
+        ('key2', first_ts + 1),
+        ('key2', first_ts + 8),
+        ('key1', first_ts + 15),
+        ('key2', first_ts + 22),
+        ('key1', first_ts + 29),
+    ])
+
+    sample_side_input_elements = [
+        (
+            first_ts + 1,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_default'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_default')
+            ]),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_default')
+            ]),
+        (
+            first_ts + 15,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_2')
+            ]),
+    ]
+
+    model_handler = base.KeyedModelHandler([
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandlerReturnsPredictionResult(
+                                 multi_process_shared=True, state=True)),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandlerReturnsPredictionResult(
+                                 multi_process_shared=True, state=True))
+    ])
+
+    class _EmitElement(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.Map(lambda x: ('key', x))
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
+
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[1]))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input)
+          | beam.Map(lambda x: x[1]))
+
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_1',
+      ]
+
+      expected_inferences = [
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+      ]
+
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i][1],
+              inference=expected_inferences[i],
+              model_id=expected_model_id_order[i])
+          for i in range(len(expected_inferences))
+      ]
+
+      assert_that(result_pcoll, equal_to(expected_result))
+
+  def test_run_inference_side_input_in_batch_per_key_models_split_cohort(self):
+    first_ts = math.floor(time.time()) - 30
+    interval = 7
+
+    sample_main_input_elements = ([
+        ('key1', first_ts - 2),
+        ('key2', first_ts + 1),
+        ('key1', first_ts + 8),
+        ('key2', first_ts + 15),
+        ('key1', first_ts + 22),
+    ])
+
+    sample_side_input_elements = [
+        (
+            first_ts + 1,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1', 'key2'], update_path='fake_model_id_default')
+            ]),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_default')
+            ]),
+        (
+            first_ts + 15,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_2')
+            ]),
+    ]
+
+    model_handler = base.KeyedModelHandler([
+        base.KeyModelMapping(
+            ['key1', 'key2'],
+            FakeModelHandlerReturnsPredictionResult(multi_process_shared=True))
+    ])
+
+    class _EmitElement(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.Map(lambda x: ('key', x))
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
+
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[1]))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input)
+          | beam.Map(lambda x: x[1]))
+
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_1'
+      ]
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i][1],
+              inference=sample_main_input_elements[i][1] + 1,
+              model_id=expected_model_id_order[i]) for i in range(5)
+      ]
+
+      assert_that(result_pcoll, equal_to(expected_result))
+
   def test_run_inference_side_input_in_batch_multi_process_shared(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
@@ -1113,6 +1344,36 @@ class RunInferenceBaseTest(unittest.TestCase):
     model3 = multi_process_shared.MultiProcessShared(
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
+
+  def test_model_manager_evicts_models_after_update(self):
+    mh1 = FakeModelHandler(state=1)
+    mhs = {'key1': mh1}
+    mm = base._ModelManager(mh_map=mhs)
+    tag1 = mm.load('key1')
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+    self.assertEqual(6, model1.predict(10))
+    mm.update_model_handler('key1', 'fake/path', 'key1')
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    tag1 = mm.load('key1')
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    # Shouldn't evict if path is the same as last update
+    mm.update_model_handler('key1', 'fake/path', 'key1')
+    tag1 = mm.load('key1')
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
 
   def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
       self):
