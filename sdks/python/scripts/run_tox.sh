@@ -53,14 +53,9 @@ if [[ "$JENKINS_HOME" != "" ]]; then
   export PY_COLORS=1
 fi
 
-# if [[ ! -z $2 ]]; then
 SDK_LOCATION="$1"
 shift;
-#   tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
-# else
 tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
-# fi
-
 exit_code=$?
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
