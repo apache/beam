@@ -1307,7 +1307,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs, max_models=2)
+    mm = base._ModelManager(mh_map=mhs)
+    mm.increment_max_models(2)
     tag1 = mm.load('key1')
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
@@ -1381,7 +1382,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs, max_models=1)
+    mm = base._ModelManager(mh_map=mhs)
+    mm.increment_max_models(1)
     mm.increment_max_models(1)
     tag1 = mm.load('key1')
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
@@ -1416,11 +1418,6 @@ class RunInferenceBaseTest(unittest.TestCase):
     model3 = multi_process_shared.MultiProcessShared(
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
-
-  def test_model_manager_fails_if_no_default_initially(self):
-    mm = base._ModelManager(mh_map={})
-    with self.assertRaisesRegex(ValueError, r'self._max_models is None'):
-      mm.increment_max_models(5)
 
 
 if __name__ == '__main__':
