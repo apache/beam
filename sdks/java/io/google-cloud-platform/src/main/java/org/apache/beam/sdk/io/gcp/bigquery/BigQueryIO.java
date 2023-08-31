@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -721,15 +722,16 @@ public class BigQueryIO {
         .setDatumReaderFactory(
             (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>)
                 input -> {
+                  TableSchema safeInput = checkStateNotNull(input);
                   try {
-                    String jsonTableSchema = BigQueryIO.JSON_FACTORY.toString(input);
+                    String jsonTableSchema = BigQueryIO.JSON_FACTORY.toString(safeInput);
                     return (AvroSource.DatumReaderFactory<T>)
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
                   } catch (IOException e) {
-                    LOG.warn(
-                        String.format("Error while converting table schema %s to JSON!", input), e);
-                    return null;
+                    throw new IllegalStateException(
+                        String.format(
+                            "error converting TableSchema to JSON: %s, error: %s", safeInput, e));
                   }
                 })
         // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is fixed.
@@ -3386,9 +3388,7 @@ public class BigQueryIO {
             @SuppressWarnings({"unchecked", "nullness"})
             Descriptors.Descriptor descriptor =
                 (Descriptors.Descriptor)
-                    org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-                            writeProtoClass.getMethod("getDescriptor"))
-                        .invoke(null);
+                    checkStateNotNull(writeProtoClass.getMethod("getDescriptor")).invoke(null);
             TableSchema tableSchema =
                 TableRowToStorageApiProto.protoSchemaToTableSchema(
                     TableRowToStorageApiProto.tableSchemaFromDescriptor(descriptor));
