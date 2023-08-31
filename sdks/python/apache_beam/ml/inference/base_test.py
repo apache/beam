@@ -286,6 +286,66 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(base.KeyedModelHandler(mhs))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_impl_with_keyed_examples_many_model_handlers_metrics(
+      self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    metrics_namespace = 'test_namespace'
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    _ = pcoll | base.RunInference(
+        base.KeyedModelHandler(mhs), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_name('0-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    num_inferences_counter_key_0 = metrics['counters'][0]
+    self.assertEqual(num_inferences_counter_key_0.committed, 1)
+
+    metrics_filter = MetricsFilter().with_name('1-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    num_inferences_counter_key_1 = metrics['counters'][0]
+    self.assertEqual(num_inferences_counter_key_1.committed, 3)
+
+    metrics_filter = MetricsFilter().with_name('num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    num_inferences_counter_aggregate = metrics['counters'][0]
+    self.assertEqual(num_inferences_counter_aggregate.committed, 4)
+
+    metrics_filter = MetricsFilter().with_name('0-_failed_batches_counter')
+    metrics = result.metrics().query(metrics_filter)
+    failed_batches_counter_key_0 = metrics['counters']
+    self.assertEqual(len(failed_batches_counter_key_0), 0)
+
+    metrics_filter = MetricsFilter().with_name('failed_batches_counter')
+    metrics = result.metrics().query(metrics_filter)
+    failed_batches_counter_aggregate = metrics['counters']
+    self.assertEqual(len(failed_batches_counter_aggregate), 0)
+
+    metrics_filter = MetricsFilter().with_name(
+        '0-_load_model_latency_milli_secs')
+    metrics = result.metrics().query(metrics_filter)
+    load_latency_dist_key_0 = metrics['distributions'][0]
+    self.assertEqual(load_latency_dist_key_0.committed.count, 1)
+
+    metrics_filter = MetricsFilter().with_name('load_model_latency_milli_secs')
+    metrics = result.metrics().query(metrics_filter)
+    load_latency_dist_aggregate = metrics['distributions'][0]
+    self.assertEqual(load_latency_dist_aggregate.committed.count, 2)
+
   def test_keyed_many_model_handlers_validation(self):
     def mult_two(example: str) -> int:
       return int(example) * 2
@@ -1285,7 +1345,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         'key3': FakeModelHandler(state=3)
     }
     mm = base._ModelManager(mh_map=mhs)
-    tag1 = mm.load('key1')
+    tag1 = mm.load('key1').model_tag
     # Use bad_mh's load function to make sure we're actually loading the
     # version already stored
     bad_mh = FakeModelHandler(state=100)
@@ -1293,8 +1353,8 @@ class RunInferenceBaseTest(unittest.TestCase):
         bad_mh.load_model, tag=tag1).acquire()
     self.assertEqual(1, model1.predict(10))
 
-    tag2 = mm.load('key2')
-    tag3 = mm.load('key3')
+    tag2 = mm.load('key2').model_tag
+    tag3 = mm.load('key3').model_tag
     model2 = multi_process_shared.MultiProcessShared(
         bad_mh.load_model, tag=tag2).acquire()
     model3 = multi_process_shared.MultiProcessShared(
@@ -1309,14 +1369,14 @@ class RunInferenceBaseTest(unittest.TestCase):
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
     mm = base._ModelManager(mh_map=mhs)
     mm.increment_max_models(2)
-    tag1 = mm.load('key1')
+    tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
     self.assertEqual(1, model1.predict(10))
     model1.increment_state(5)
 
-    tag2 = mm.load('key2')
-    tag3 = mm.load('key3')
+    tag2 = mm.load('key2').model_tag
+    tag3 = mm.load('key3').model_tag
     sh2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2)
     model2 = sh2.acquire()
     sh3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3)
@@ -1350,7 +1410,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh1 = FakeModelHandler(state=1)
     mhs = {'key1': mh1}
     mm = base._ModelManager(mh_map=mhs)
-    tag1 = mm.load('key1')
+    tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
     self.assertEqual(1, model1.predict(10))
@@ -1360,7 +1420,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(6, model1.predict(10))
     sh1.release(model1)
 
-    tag1 = mm.load('key1')
+    tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
     self.assertEqual(1, model1.predict(10))
@@ -1370,7 +1430,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     # Shouldn't evict if path is the same as last update
     mm.update_model_handler('key1', 'fake/path', 'key1')
-    tag1 = mm.load('key1')
+    tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
     self.assertEqual(6, model1.predict(10))
@@ -1385,7 +1445,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     mm = base._ModelManager(mh_map=mhs)
     mm.increment_max_models(1)
     mm.increment_max_models(1)
-    tag1 = mm.load('key1')
+    tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
     self.assertEqual(1, model1.predict(10))
@@ -1393,8 +1453,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(6, model1.predict(10))
     sh1.release(model1)
 
-    tag2 = mm.load('key2')
-    tag3 = mm.load('key3')
+    tag2 = mm.load('key2').model_tag
+    tag3 = mm.load('key3').model_tag
     sh2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2)
     model2 = sh2.acquire()
     sh3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3)
