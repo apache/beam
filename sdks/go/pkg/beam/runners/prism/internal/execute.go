@@ -69,7 +69,7 @@ func RunPipeline(j *jobservices.Job) {
 	// When this function exits, we cancel the context to clear
 	// any related job resources.
 	defer func() {
-		j.CancelFn(nil)
+		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
 	}()
 	go runEnvironment(j.RootCtx, j, env, wk)
 
@@ -296,16 +296,31 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 	// Use a channel to limit max parallelism for the pipeline.
 	maxParallelism := make(chan struct{}, 8)
 	// Execute stages here
-	for rb := range em.Bundles(ctx, wk.NextInst) {
-		maxParallelism <- struct{}{}
-		go func(rb engine.RunBundle) {
-			defer func() { <-maxParallelism }()
-			s := stages[rb.StageID]
-			s.Execute(ctx, j, wk, comps, em, rb)
-		}(rb)
+	bundleFailed := make(chan error)
+	bundles := em.Bundles(ctx, wk.NextInst)
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case rb, ok := <-bundles:
+			if !ok {
+				slog.Debug("pipeline done!", slog.String("job", j.String()))
+				return nil
+			}
+			maxParallelism <- struct{}{}
+			go func(rb engine.RunBundle) {
+				defer func() { <-maxParallelism }()
+				s := stages[rb.StageID]
+				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
+					// Ensure we clean up on bundle failure
+					em.FailBundle(rb)
+					bundleFailed <- err
+				}
+			}(rb)
+		case err := <-bundleFailed:
+			return err
+		}
 	}
-	slog.Debug("pipeline done!", slog.String("job", j.String()))
-	return nil
 }
 
 func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comps *pipepb.Components) func(io.Reader) []byte {

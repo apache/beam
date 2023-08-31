@@ -209,11 +209,11 @@ func (rb RunBundle) LogValue() slog.Value {
 // remaining.
 func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string) <-chan RunBundle {
 	runStageCh := make(chan RunBundle)
-	ctx, cancelFn := context.WithCancel(ctx)
+	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
 		em.pendingElements.Wait()
 		slog.Debug("no more pending elements: terminating pipeline")
-		cancelFn()
+		cancelFn(fmt.Errorf("elementManager out of elements, cleaning up"))
 		// Ensure the watermark evaluation goroutine exits.
 		em.refreshCond.Broadcast()
 	}()

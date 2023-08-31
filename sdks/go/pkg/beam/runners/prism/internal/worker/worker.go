@@ -248,6 +248,7 @@ func (wk *W) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProces
 	return desc, nil
 }
 
+// Connected indicates whether the worker has connected to the control RPC.
 func (wk *W) Connected() bool {
 	return wk.connected.Load()
 }
@@ -308,7 +309,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 				})
 			}
 			wk.mu.Unlock()
-			return ctrl.Context().Err()
+			return context.Cause(ctrl.Context())
 		case err := <-done:
 			if err != nil {
 				slog.Warn("Control done", "error", err, "worker", wk)
@@ -374,7 +375,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			}
 		case <-data.Context().Done():
 			slog.Debug("Data context canceled")
-			return data.Context().Err()
+			return context.Cause(data.Context())
 		}
 	}
 }

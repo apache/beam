@@ -75,12 +75,7 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 }
 
-func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) {
-	select {
-	case <-ctx.Done():
-		return
-	default:
-	}
+func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) error {
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
@@ -124,7 +119,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		defer b.Cleanup(wk)
 		b.Fail = func(errMsg string) {
 			slog.Debug("job failed", "bundle", rb, "job", j)
-			err := fmt.Errorf("%v", errMsg)
+			err := fmt.Errorf("stage exec %v", errMsg)
 			j.Failed(err)
 		}
 		dataReady = b.ProcessOn(ctx, wk)
@@ -201,9 +196,7 @@ progress:
 	select {
 	case resp = <-b.Resp:
 	case <-ctx.Done():
-		// Ensures we clean up on failure, if the response is blocked.
-		em.FailBundle(rb) // Note: This should change if retries are added.
-		return
+		return context.Cause(ctx)
 	}
 
 	// Tally metrics immeadiately so they're available before
@@ -240,6 +233,7 @@ progress:
 	}
 	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residualData, minOutputWatermark)
 	b.OutputData = engine.TentativeData{} // Clear the data.
+	return nil
 }
 
 func getSideInputs(t *pipepb.PTransform) (map[string]*pipepb.SideInput, error) {
