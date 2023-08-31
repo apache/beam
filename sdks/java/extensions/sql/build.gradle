@@ -21,7 +21,7 @@ import java.util.stream.Collectors
 
 plugins {
   id 'org.apache.beam.module'
-  id 'ca.coglinc.javacc'
+  id 'org.javacc.javacc'
 }
 applyJavaNature(
   generatedClassPatterns: [
@@ -84,7 +84,6 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.vendored_calcite_1_28_0
-  implementation "com.alibaba:fastjson:1.2.69"
   implementation "org.codehaus.janino:janino:3.0.11"
   implementation "org.codehaus.janino:commons-compiler:3.0.11"
   implementation library.java.jackson_core

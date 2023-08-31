@@ -110,8 +110,8 @@ public class KMSResourceManager implements ResourceManager {
   }
 
   /**
-   * Retrieves a KMS crypto key from GCS, creating it if it does not exist. If the given keyring
-   * also does not already exist, it will be created.
+   * Retrieves a KMS crypto key, creating it if it does not exist. If the given keyring also does
+   * not already exist, it will be created.
    *
    * @param keyRingId The name of the keyring to insert the key to.
    * @param keyName The name of the KMS crypto key to retrieve.

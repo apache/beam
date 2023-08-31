@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
@@ -58,6 +59,10 @@ func main() {
 }
 
 func launchExpansionServiceProcess() error {
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return err
+	}
 	log.Printf("Starting Python expansion service ...")
 
 	dir := filepath.Join("/opt/apache/beam", venvDirectory)
@@ -65,8 +70,8 @@ func launchExpansionServiceProcess() error {
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
-	if err := execx.Execute("python", args...); err != nil {
-		return fmt.Errorf("Could not start the expansion service: %s", err)
+	if err := execx.Execute(pythonVersion, args...); err != nil {
+		return fmt.Errorf("could not start the expansion service: %s", err)
 	}
 
 	return nil

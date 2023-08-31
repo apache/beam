@@ -40,6 +40,11 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -55,9 +60,6 @@ permissions:
   repository-projects: read
   security-events: read
   statuses: read
-
-env:
-  TAG: $(date +'%Y%m%d-%H%M%S%N')
 
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
@@ -111,6 +113,9 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io
+      - name: Generate TAG unique variable based on timestamp
+        id: set_tag
+        run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
       - name: run javaExamplesDataflowARMPostCommit script for Java${{ matrix.java_version }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -121,12 +126,15 @@ jobs:
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
-                -Pdocker-tag=${{env.TAG}} \
+                -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
                 -PdisableSpotlessCheck=true \
                 -PdisableCheckStyle=true \
                 -PskipCheckerFramework \
       - name: Upload test report
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
+          path: |
+              "**/build/test-results/**/*.xml"
+              "**/build/reports/tests/**/*.*"

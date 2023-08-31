@@ -109,11 +109,9 @@ public final class BigQueryIOLT extends IOLoadTestBase {
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void beforeClass() throws IOException {
+  public static void beforeClass() {
     resourceManager =
-        BigQueryResourceManager.builder("io-bigquery-lt", project, CREDENTIALS)
-            .setCredentials(CREDENTIALS)
-            .build();
+        BigQueryResourceManager.builder("io-bigquery-lt", project, CREDENTIALS).build();
     resourceManager.createDataset(region);
   }
 

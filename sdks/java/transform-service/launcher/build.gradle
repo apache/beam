@@ -43,6 +43,8 @@ dependencies {
     shadow library.java.vendored_guava_32_1_2_jre
     shadow library.java.slf4j_api
     shadow library.java.args4j
+    shadow library.java.error_prone_annotations
+    permitUnusedDeclared(library.java.error_prone_annotations)
 }
 
 sourceSets {

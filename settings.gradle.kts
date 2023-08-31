@@ -17,6 +17,12 @@
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
+pluginManagement {
+  plugins {
+     id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
+  }
+}
+
 plugins {
   id("com.gradle.enterprise") version "3.13.2"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
