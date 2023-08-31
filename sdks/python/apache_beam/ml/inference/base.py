@@ -304,9 +304,7 @@ class _ModelManager:
   """
   A class for efficiently managing copies of multiple models. Will load a
   single copy of each model into a multi_process_shared object and then
-  return a lookup key for that object. Optionally takes in a max_models
-  parameter, if that is set it will only hold that many models in memory at
-  once before evicting one (using LRU logic).
+  return a lookup key for that object.
   """
   def __init__(self, mh_map: Dict[str, ModelHandler]):
     """
@@ -372,7 +370,7 @@ class _ModelManager:
   def increment_max_models(self, increment: int):
     """
     Increments the number of models that this instance of a _ModelManager is
-    able to hold.
+    able to hold. If it is never called, no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
     """
