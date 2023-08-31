@@ -117,15 +117,10 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		slog.Debug("Execute: processing", "bundle", rb)
 		defer b.Cleanup(wk)
-		b.Fail = func(errMsg string) {
-			slog.Debug("job failed", "bundle", rb, "job", j)
-			err := fmt.Errorf("stage exec %v", errMsg)
-			j.Failed(err)
-		}
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
 		err := fmt.Errorf("unknown environment[%v]", s.envID)
-		slog.Error("Execute", err)
+		slog.Error("Execute", "error", err)
 		panic(err)
 	}
 
@@ -195,6 +190,9 @@ progress:
 	var resp *fnpb.ProcessBundleResponse
 	select {
 	case resp = <-b.Resp:
+		if b.BundleErr != nil {
+			return b.BundleErr
+		}
 	case <-ctx.Done():
 		return context.Cause(ctx)
 	}

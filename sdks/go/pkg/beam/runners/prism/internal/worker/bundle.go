@@ -52,12 +52,11 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	Resp chan *fnpb.ProcessBundleResponse
+	Resp      chan *fnpb.ProcessBundleResponse
+	BundleErr error
+	responded bool
 
 	SinkToPCollection map[string]string
-
-	Fail func(err string) // Called if bundle returns an error.
-	responded bool
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -89,12 +88,12 @@ func (b *B) LogValue() slog.Value {
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	if b.responded {
-		slog.Warn("second bundle response", "bundle", b, "resp", resp)
+		slog.Warn("additional bundle response", "bundle", b, "resp", resp)
 		return
 	}
 	b.responded = true
 	if resp.GetError() != "" {
-		b.Fail(resp.GetError())
+		b.BundleErr = fmt.Errorf("bundle %v failed:%v", resp.GetInstructionId(), resp.GetError())
 		close(b.Resp)
 		return
 	}
