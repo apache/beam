@@ -67,6 +67,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_IO_GCS_Performance_Tests"]
         job_phrase: ["Run Java PostCommit IO GCS Performance Tests"]
     steps:
+    - uses: actions/checkout@v3
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
