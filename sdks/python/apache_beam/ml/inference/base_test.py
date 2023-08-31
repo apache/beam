@@ -346,6 +346,41 @@ class RunInferenceBaseTest(unittest.TestCase):
     load_latency_dist_aggregate = metrics['distributions'][0]
     self.assertEqual(load_latency_dist_aggregate.committed.count, 2)
 
+  def test_run_inference_impl_with_keyed_examples_many_mhs_max_models_hint(
+      self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10, 2, 4, 6, 8, 9, 7, 1, 5, 3, 10, 2, 4, 6, 8, 9, 7]
+    metrics_namespace = 'test_namespace'
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+    mhs = [
+        base.KeyModelMapping([0, 2, 4, 6, 8],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping(
+            [1, 3, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+            FakeModelHandler(multi_process_shared=True))
+    ]
+    _ = pcoll | base.RunInference(
+        base.KeyedModelHandler(mhs, max_models_per_worker_hint=1),
+        metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_name('load_model_latency_milli_secs')
+    metrics = result.metrics().query(metrics_filter)
+    load_latency_dist_aggregate = metrics['distributions'][0]
+    # We should flip back and forth between models a bit since
+    # max_models_per_worker_hint=1, but we shouldn't thrash forever
+    # since most examples belong to the second ModelMapping
+    self.assertGreater(load_latency_dist_aggregate.committed.count, 2)
+    self.assertLess(load_latency_dist_aggregate.committed.count, 12)
+
   def test_keyed_many_model_handlers_validation(self):
     def mult_two(example: str) -> int:
       return int(example) * 2

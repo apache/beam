@@ -308,8 +308,7 @@ class _ModelManager:
   parameter, if that is set it will only hold that many models in memory at
   once before evicting one (using LRU logic).
   """
-  def __init__(
-      self, mh_map: Dict[str, ModelHandler]):
+  def __init__(self, mh_map: Dict[str, ModelHandler]):
     """
     Args:
       mh_map: A map from keys to model handlers which can be used to load a
@@ -588,7 +587,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return zip(
           keys,
           self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
-    
+
     # The first time a MultiProcessShared ModelManager is used for inference
     # from this process, we should increment its max model count
     if self._max_models_per_worker_hint is not None:
