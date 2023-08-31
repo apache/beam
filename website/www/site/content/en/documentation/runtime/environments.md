@@ -298,6 +298,11 @@ python -m apache_beam.examples.wordcount \
 
 {{< /runner >}}
 
+You should always specify a versioned container sha or tag, not `latest` or
+another mutable tag. This will ensure that pipelines can be easily reproduced. For
+distributed runners that spin up workers during pipeline execution, this will also
+ensure that pipelines do not switch container images in the middle of execution.
+
 
 ### Troubleshooting
 
