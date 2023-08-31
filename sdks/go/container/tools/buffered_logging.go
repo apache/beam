@@ -28,13 +28,8 @@ const INITIAL_LOG_SIZE int = 255
 // Beam end users.
 type BufferedLogger struct {
 	logger  *Logger
-	builder *strings.Builder
+	builder strings.Builder
 	logs    []string
-}
-
-// NewBufferedLogger returns a new BufferedLogger type by reference.
-func NewBufferedLogger(logger *Logger) *BufferedLogger {
-	return &BufferedLogger{logger: logger, builder: &strings.Builder{}}
 }
 
 // Write implements the io.Writer interface, converting input to a string
