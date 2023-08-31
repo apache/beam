@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -28,6 +30,16 @@ import org.apache.beam.sdk.values.Row;
 public interface BeamSqlSeekableTable extends Serializable {
   /** prepare the instance. */
   default void setUp() {};
+
+  default void startBundle(
+      DoFn.StartBundleContext context,
+      PipelineOptions pipelineOptions,
+      DoFn.BundleFinalizer bundleFinalizer) {};
+
+  default void finishBundle(
+      DoFn.StartBundleContext context,
+      PipelineOptions pipelineOptions,
+      DoFn.BundleFinalizer bundleFinalizer) {};
 
   /** return a list of {@code Row} with given key set. */
   List<Row> seekRow(Row lookupSubRow);
