@@ -41,6 +41,6 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
       if (pythonVersionSuffix.equals('38')) {
           dependsOn = ["testPy38Cython", ":sdks:python:build_py${pythonVersionSuffix}_wheel_using_build_module"]
       } else {
-          dependsOn = [":sdks:python:build_py${pythonVersionSuffix}wheel_using_build_module", "testPy${pythonVersionSuffix}Cloud"]
+          dependsOn = [":sdks:python:build_py${pythonVersionSuffix}_wheel_using_build_module", "testPy${pythonVersionSuffix}Cloud"]
         }
 }
