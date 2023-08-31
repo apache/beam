@@ -456,7 +456,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 
 ## 8. Build a release candidate
 
-### Checklist before proceeding
+#### Checklist before proceeding
 
 * Release Manager’s GPG key is published to `dist.apache.org`;
 * Release Manager’s GPG key is configured in `git` configuration;
@@ -520,6 +520,8 @@ You don't need to wait for the action to complete to start running the script.
   1. Clone the repo at the selected RC tag.
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+  1. Build javadoc, pydoc, typedocs for a PR to update beam-site.
+     * **NOTE**: Do not merge this PR until after an RC has been approved (see "Finalize the Release").
 
 #### Tasks you need to do manually
 
@@ -556,6 +558,7 @@ help with this step. Please email `dev@` and ask a member of the `beam` DockerHu
      * Copy python doc into beam-site
      * Copy java doc into beam-site
      * **NOTE**: Do not merge this PR until after an RC has been approved (see "Finalize the Release").
+Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
 
 #### Tasks you need to do manually
   1. Verify the script worked.

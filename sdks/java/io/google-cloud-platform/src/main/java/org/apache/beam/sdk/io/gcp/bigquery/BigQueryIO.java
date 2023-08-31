@@ -30,6 +30,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -510,7 +511,8 @@ import org.slf4j.LoggerFactory;
  *    .apply(BigQueryIO.applyRowMutations()
  *           .to(my_project:my_dataset.my_table)
  *           .withSchema(schema)
- *           .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
+ *           .withPrimaryKey(ImmutableList.of("field1", "field2"))
+ *           .withCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED));
  * }</pre>
  *
  * <p>If writing a type other than TableRow (e.g. using {@link BigQueryIO#writeGenericRecords} or
@@ -523,12 +525,17 @@ import org.slf4j.LoggerFactory;
  * cdcEvent.apply(BigQueryIO.write()
  *          .to("my-project:my_dataset.my_table")
  *          .withSchema(schema)
+ *          .withPrimaryKey(ImmutableList.of("field1", "field2"))
  *          .withFormatFunction(CdcEvent::getTableRow)
  *          .withRowMutationInformationFn(cdc -> RowMutationInformation.of(cdc.getChangeType(),
  *                                                                         cdc.getSequenceNumber()))
  *          .withMethod(Write.Method.STORAGE_API_AT_LEAST_ONCE)
- *          .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
+ *          .withCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED));
  * }</pre>
+ *
+ * <p>Note that in order to use inserts or deletes, the table must bet set up with a primary key. If
+ * the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be
+ * specified.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20506)
@@ -2318,6 +2325,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
+    abstract @Nullable List<String> getPrimaryKey();
+
     abstract Boolean getOptimizeWrites();
 
     abstract Boolean getUseBeamSchema();
@@ -2416,7 +2425,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setIgnoreInsertIds(Boolean ignoreInsertIds);
 
-      abstract Builder<T> setKmsKey(String kmsKey);
+      abstract Builder<T> setKmsKey(@Nullable String kmsKey);
+
+      abstract Builder<T> setPrimaryKey(@Nullable List<String> primaryKey);
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
@@ -2947,6 +2958,10 @@ public class BigQueryIO {
       return toBuilder().setKmsKey(kmsKey).build();
     }
 
+    public Write<T> withPrimaryKey(List<String> primaryKey) {
+      return toBuilder().setPrimaryKey(primaryKey).build();
+    }
+
     /**
      * If true, enables new codepaths that are expected to use less resources while writing to
      * BigQuery. Not enabled by default in order to maintain backwards compatibility.
@@ -3241,6 +3256,7 @@ public class BigQueryIO {
           LOG.warn("Setting the number of Storage API streams" + error);
         }
       }
+
       if (method == Method.STORAGE_API_AT_LEAST_ONCE && getStorageApiNumStreams(bqOptions) != 0) {
         LOG.warn(
             "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
@@ -3254,9 +3270,12 @@ public class BigQueryIO {
       if (getRowMutationInformationFn() != null) {
         checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
         checkArgument(
-            getCreateDisposition() == CreateDisposition.CREATE_NEVER,
-            "CREATE_IF_NEEDED is not supported when applying row updates. Tables must be precreated "
-                + "with a primary key specified.");
+            getCreateDisposition() == CreateDisposition.CREATE_NEVER || getPrimaryKey() != null,
+            "If specifying CREATE_IF_NEEDED along with row updates, a primary key needs to be specified");
+      }
+      if (getPrimaryKey() != null) {
+        checkArgument(
+            getMethod() != Method.FILE_LOADS, "Primary key not supported when using FILE_LOADS");
       }
 
       if (getAutoSchemaUpdate()) {
@@ -3310,6 +3329,14 @@ public class BigQueryIO {
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
                   StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+        }
+        if (getPrimaryKey() != null) {
+          dynamicDestinations =
+              new DynamicDestinationsHelpers.ConstantTableConstraintsDestinations<>(
+                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
+                  new TableConstraints()
+                      .setPrimaryKey(
+                          new TableConstraints.PrimaryKey().setColumns(getPrimaryKey())));
         }
       }
       return expandTyped(input, dynamicDestinations);

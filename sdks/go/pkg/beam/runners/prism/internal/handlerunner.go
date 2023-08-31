@@ -162,9 +162,18 @@ func (h *runner) ExecuteTransform(stageID, tid string, t *pipepb.PTransform, com
 		coders := map[string]*pipepb.Coder{}
 
 		// TODO assert this is a KV. It's probably fine, but we should fail anyway.
-		wcID := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
-		kcID := lpUnknownCoders(kvc.GetComponentCoderIds()[0], coders, comps.GetCoders())
-		ecID := lpUnknownCoders(kvc.GetComponentCoderIds()[1], coders, comps.GetCoders())
+		wcID, err := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+		if err != nil {
+			panic(fmt.Errorf("ExecuteTransform[GBK] stage %v, transform %q %v: couldn't process window coder:\n%w", stageID, tid, prototext.Format(t), err))
+		}
+		kcID, err := lpUnknownCoders(kvc.GetComponentCoderIds()[0], coders, comps.GetCoders())
+		if err != nil {
+			panic(fmt.Errorf("ExecuteTransform[GBK] stage %v, transform %q %v: couldn't process key coder:\n%w", stageID, tid, prototext.Format(t), err))
+		}
+		ecID, err := lpUnknownCoders(kvc.GetComponentCoderIds()[1], coders, comps.GetCoders())
+		if err != nil {
+			panic(fmt.Errorf("ExecuteTransform[GBK] stage %v, transform %q %v: couldn't process value coder:\n%w", stageID, tid, prototext.Format(t), err))
+		}
 		reconcileCoders(coders, comps.GetCoders())
 
 		wc := coders[wcID]
