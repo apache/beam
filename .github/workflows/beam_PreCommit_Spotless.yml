@@ -50,7 +50,7 @@ concurrency:
 permissions:
   actions: write
   pull-requests: read
-  checks: read
+  checks: write
   contents: read
   deployments: read
   id-token: none
@@ -95,3 +95,8 @@ jobs:
         with:
           name: java-code-coverage-report
           path: "**/build/reports/checkstyle/*.xml"
+      - name: Publish checkstyle check
+        uses: jwgmeligmeyling/checkstyle-github-action@master
+        if: always()
+        with:
+          path: '**/build/reports/checkstyle/*.xml'
