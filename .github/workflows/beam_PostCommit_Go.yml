@@ -16,12 +16,10 @@
 name: PostCommit Go
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ['.github/workflows/beam_PostCommit_Go.yml']
   issue_comment:
     types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -42,14 +40,14 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
 
 jobs:
   beam_PostCommit_Go:
     if: |
-      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Go PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 300
