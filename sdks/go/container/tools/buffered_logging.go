@@ -32,6 +32,11 @@ type BufferedLogger struct {
 	logs    []string
 }
 
+// NewBufferedLogger returns a new BufferedLogger type by reference.
+func NewBufferedLogger(logger *Logger) *BufferedLogger {
+	return &BufferedLogger{logger: logger}
+}
+
 // Write implements the io.Writer interface, converting input to a string
 // and storing it in the BufferedLogger's buffer. If a logger is not provided,
 // the output is sent directly to os.Stderr.

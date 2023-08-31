@@ -28,7 +28,7 @@ func TestBufferedLogger(t *testing.T) {
 	t.Run("write", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}
-		bl := &BufferedLogger{logger: l}
+		bl := NewBufferedLogger(l)
 
 		message := []byte("test message")
 		n, err := bl.Write(message)
@@ -46,7 +46,7 @@ func TestBufferedLogger(t *testing.T) {
 	t.Run("flush single message", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}
-		bl := &BufferedLogger{logger: l}
+		bl := NewBufferedLogger(l)
 
 		message := []byte("test message")
 		n, err := bl.Write(message)
@@ -74,7 +74,7 @@ func TestBufferedLogger(t *testing.T) {
 	t.Run("flush multiple messages", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}
-		bl := &BufferedLogger{logger: l}
+		bl := NewBufferedLogger(l)
 
 		messages := []string{"foo", "bar", "baz"}
 
@@ -108,7 +108,7 @@ func TestBufferedLogger(t *testing.T) {
 	t.Run("flush single message at error", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}
-		bl := &BufferedLogger{logger: l}
+		bl := NewBufferedLogger(l)
 
 		message := []byte("test error")
 		n, err := bl.Write(message)
@@ -136,7 +136,7 @@ func TestBufferedLogger(t *testing.T) {
 	t.Run("flush multiple messages at error", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}
-		bl := &BufferedLogger{logger: l}
+		bl := NewBufferedLogger(l)
 
 		messages := []string{"foo", "bar", "baz"}
 
