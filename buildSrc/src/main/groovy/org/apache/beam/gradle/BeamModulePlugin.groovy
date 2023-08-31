@@ -3044,7 +3044,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             def collection = project.fileTree(project.project(':sdks:python').buildDir){
               // include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
-              include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+              include "**/apache_beam-*cp${project.ext.pythonVersion.replace('.', '')}*manylinux*.whl"
             }
             // sdkLocation ext is set at execution time
             String packageFilename = collection.singleFile.toString()
