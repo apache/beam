@@ -63,6 +63,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -725,6 +726,22 @@ public class TextIOWriteTest {
                 .<Void>withOutputFilenames())
         .getPerDestinationOutputFilenames()
         .apply(Values.create());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWindowedWritesWithStreamingRunnerDeterminedSharding() throws Throwable {
+    PCollection<String> data =
+        p.apply(
+                TestStream.create(StringUtf8Coder.of())
+                    .addElements("0", "1", "2")
+                    .advanceWatermarkToInfinity())
+            .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    data.apply(
+        TextIO.write()
+            .to(new File(tempFolder.getRoot(), "windowed-writes-noshards").getAbsolutePath())
+            .withWindowedWrites());
+    p.run().waitUntilFinish();
   }
 
   @Test
