@@ -112,7 +112,7 @@ platform_identifiers_map.each { platform, idsuffix ->
 getVersionsAsList('python_versions').each { it ->
   def pyversion = it.replace('.', '')
 
-  def build_wheel_using_build_module = tasks.register("build_${pyversion}wheel_using_build_module") {
+  def build_wheel_using_build_module = tasks.register("build_py${pyversion}_wheel_using_build_module") {
     description "Build a Python wheel distribution using build module"
     dependsOn setupVirtualenv
     // need sdist task to generate protos
