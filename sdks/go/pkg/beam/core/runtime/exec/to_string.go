@@ -35,13 +35,11 @@ func (m *ToString) Up(ctx context.Context) error {
 	return nil
 }
 
-func (m *ToString) StartBundle(ctx context.Context, id string,
-	data DataContext) error {
+func (m *ToString) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return m.Out.StartBundle(ctx, id, data)
 }
 
-func (m *ToString) ProcessElement(ctx context.Context, elm *FullValue,
-	values ...ReStream) error {
+func (m *ToString) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	ret := FullValue{
 		Windows:   elm.Windows,
 		Elm:       elm.Elm,
