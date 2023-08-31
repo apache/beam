@@ -118,5 +118,7 @@ jobs:
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
         gradle-command: :it:google-cloud-platform:GCSPerformanceTest
+        exportDataset: performance_tests
+        exportTable: io_performance_metrics
       env:
         USER: github-actions
