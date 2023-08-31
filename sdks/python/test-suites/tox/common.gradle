@@ -39,7 +39,7 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
       // Since codecoverage reports will always be generated for py38,
       // all tests will be exercised.
       if (pythonVersionSuffix.equals('38')) {
-          dependsOn = ["testPy38Cython", ":sdks:python:build_Py38_wheel_using_build_module"]
+          dependsOn = ["testPy38Cython", ":sdks:python:build_${pyversion}_wheel_using_build_module"]
       } else {
           dependsOn = [":sdks:python:build_${pyversion}wheel_using_build_module", "testPy${pythonVersionSuffix}Cloud"]
         }
