@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
+import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFnWithCoding;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -31,12 +32,18 @@ import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.DoubleDeltaCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
+import org.apache.beam.sdk.transforms.Top.Natural;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -123,18 +130,57 @@ public class ApproximateQuantilesTest {
 
     @Test
     public void testSingleton() {
-      testCombineFn(
-          ApproximateQuantilesCombineFn.create(5),
+      ApproximateQuantilesCombineFn<Integer, Natural<Integer>> fn =
+          ApproximateQuantilesCombineFn.<Integer>create(5);
+      testCombineFn(fn, Arrays.asList(389), Arrays.asList(389, 389, 389, 389, 389));
+      testCombineFnWithCoding(
+          fn,
           Arrays.asList(389),
-          Arrays.asList(389, 389, 389, 389, 389));
+          Arrays.asList(389, 389, 389, 389, 389),
+          fn.getAccumulatorCoder(
+              CoderRegistry.createDefault(), NullableCoder.of(BigEndianIntegerCoder.of())));
     }
 
     @Test
     public void testSimpleQuantiles() {
-      testCombineFn(
-          ApproximateQuantilesCombineFn.create(5),
+      ApproximateQuantilesCombineFn<Integer, Natural<Integer>> fn =
+          ApproximateQuantilesCombineFn.<Integer>create(5);
+
+      testCombineFn(fn, intRange(101), Arrays.asList(0, 25, 50, 75, 100));
+      testCombineFnWithCoding(
+          fn,
           intRange(101),
-          Arrays.asList(0, 25, 50, 75, 100));
+          Arrays.asList(0, 25, 50, 75, 100),
+          fn.getAccumulatorCoder(
+              CoderRegistry.createDefault(), NullableCoder.of(BigEndianIntegerCoder.of())));
+    }
+
+    @Test
+    public void testSimpleQuantilesWithCompressed() {
+      ApproximateQuantilesCombineFn<Integer, Natural<Integer>> fn =
+          ApproximateQuantilesCombineFn.<Integer>create(5).withCompressedBuffers(true);
+      testCombineFn(fn, intRange(101), Arrays.asList(0, 25, 50, 75, 100));
+      testCombineFnWithCoding(
+          fn,
+          intRange(101),
+          Arrays.asList(0, 25, 50, 75, 100),
+          fn.getAccumulatorCoder(
+              CoderRegistry.createDefault(), NullableCoder.of(BigEndianIntegerCoder.of())));
+    }
+
+    @Test
+    public void testSimpleQuantilesWithDoubleCompressed() {
+      ApproximateQuantilesCombineFn<Double, Natural<Double>> fn =
+          ApproximateQuantilesCombineFn.<Double>create(5)
+              .withCompressedBuffers(true)
+              .withListCoders(ListCoder.of(DoubleCoder.of()), DoubleDeltaCoder.of());
+      testCombineFn(fn, doubleRange(101), Arrays.asList(0.0, 25.0, 50.0, 75.0, 100.0));
+      testCombineFnWithCoding(
+          fn,
+          doubleRange(101),
+          Arrays.asList(0.0, 25.0, 50.0, 75.0, 100.0),
+          fn.getAccumulatorCoder(
+              CoderRegistry.createDefault(), NullableCoder.of(DoubleCoder.of())));
     }
 
     @Test
@@ -147,10 +193,42 @@ public class ApproximateQuantilesTest {
 
     @Test
     public void testLargerQuantiles() {
-      testCombineFn(
-          ApproximateQuantilesCombineFn.create(50),
+      ApproximateQuantilesCombineFn<Integer, Natural<Integer>> fn =
+          ApproximateQuantilesCombineFn.<Integer>create(50);
+      testCombineFn(fn, intRange(10001), quantileMatcher(10001, 50, 20 /* tolerance */));
+      testCombineFnWithCoding(
+          fn,
           intRange(10001),
-          quantileMatcher(10001, 50, 20 /* tolerance */));
+          quantileMatcher(10001, 50, 20 /* tolerance */),
+          fn.getAccumulatorCoder(CoderRegistry.createDefault(), BigEndianIntegerCoder.of()));
+    }
+
+    @Test
+    public void testLargerQuantilesWithCompressedBuffers() {
+      ApproximateQuantilesCombineFn<Integer, Natural<Integer>> fn =
+          ApproximateQuantilesCombineFn.<Integer>create(50).withCompressedBuffers(true);
+      testCombineFn(fn, intRange(10001), quantileMatcher(10001, 50, 20 /* tolerance */));
+      testCombineFnWithCoding(
+          fn,
+          intRange(10001),
+          quantileMatcher(10001, 50, 20 /* tolerance */),
+          fn.getAccumulatorCoder(
+              CoderRegistry.createDefault(), NullableCoder.of(BigEndianIntegerCoder.of())));
+    }
+
+    @Test
+    public void testLargerQuantilesWithCompressedBuffersWithDoubleDeltaCoder() {
+      ApproximateQuantilesCombineFn<Double, Natural<Double>> fn =
+          ApproximateQuantilesCombineFn.<Double>create(50)
+              .withCompressedBuffers(true)
+              .withListCoders(ListCoder.of(DoubleCoder.of()), DoubleDeltaCoder.of());
+      testCombineFn(fn, doubleRange(10001), quantileDoubleMatcher(10001, 50, 20 /* tolerance */));
+      testCombineFnWithCoding(
+          fn,
+          doubleRange(10001),
+          quantileDoubleMatcher(10001, 50, 20 /* tolerance */),
+          fn.getAccumulatorCoder(
+              CoderRegistry.createDefault(), NullableCoder.of(DoubleCoder.of())));
     }
 
     @Test
@@ -236,6 +314,18 @@ public class ApproximateQuantilesTest {
       return contains(quantiles);
     }
 
+    private Matcher<Iterable<? extends Double>> quantileDoubleMatcher(
+        int size, int numQuantiles, int absoluteError) {
+      List<Matcher<? super Double>> quantiles = new ArrayList<>();
+      quantiles.add(CoreMatchers.is(0.0));
+      for (int k = 1; k < numQuantiles - 1; k++) {
+        double expected = (((double) (size - 1)) * k / (numQuantiles - 1));
+        quantiles.add(new Between<>(expected - absoluteError, expected + absoluteError));
+      }
+      quantiles.add(CoreMatchers.is(size - 1.0));
+      return contains(quantiles);
+    }
+
     private static class Between<T extends Comparable<T>> extends TypeSafeDiagnosingMatcher<T> {
       private final T min;
       private final T max;
@@ -282,6 +372,14 @@ public class ApproximateQuantilesTest {
       List<Integer> all = new ArrayList<>(size);
       for (int i = 0; i < size; i++) {
         all.add(i);
+      }
+      return all;
+    }
+
+    private List<Double> doubleRange(int size) {
+      List<Double> all = new ArrayList<>(size);
+      for (int i = 0; i < size; i++) {
+        all.add(1.0 * i);
       }
       return all;
     }

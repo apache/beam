@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,11 +32,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.ZstdCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -49,6 +51,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.UnmodifiableIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -220,12 +224,21 @@ public class ApproximateQuantiles {
 
     private final long maxNumElements;
 
+    private final boolean compressBuffers;
+
+    private final Coder<List<T>> listCoder;
+
+    private final Coder<List<T>> sortedListCoder;
+
     private ApproximateQuantilesCombineFn(
         int numQuantiles,
         ComparatorT compareFn,
         int bufferSize,
         int numBuffers,
-        long maxNumElements) {
+        long maxNumElements,
+        boolean compressBuffers,
+        @Nullable Coder<List<T>> listCoder,
+        @Nullable Coder<List<T>> sortedListCoder) {
       checkArgument(numQuantiles >= 2);
       checkArgument(bufferSize >= 2);
       checkArgument(numBuffers >= 2);
@@ -234,6 +247,9 @@ public class ApproximateQuantiles {
       this.bufferSize = bufferSize;
       this.numBuffers = numBuffers;
       this.maxNumElements = maxNumElements;
+      this.compressBuffers = compressBuffers;
+      this.listCoder = listCoder;
+      this.sortedListCoder = sortedListCoder;
     }
 
     /**
@@ -281,6 +297,44 @@ public class ApproximateQuantiles {
     }
 
     /**
+     * Returns an {@code ApproximateQuantilesCombineFn} that's like this one except that it uses the
+     * specified {@code compression} value. Does not modify this combiner.
+     *
+     * <p>If true, completed buffers will be compressed when encoding. Buffers will only be
+     * decompressed if necessary to combine.
+     */
+    public ApproximateQuantilesCombineFn<T, ComparatorT> withCompressedBuffers(
+        boolean compression) {
+      return new ApproximateQuantilesCombineFn<>(
+          numQuantiles,
+          compareFn,
+          bufferSize,
+          numBuffers,
+          maxNumElements,
+          compression,
+          listCoder,
+          sortedListCoder);
+    }
+
+    /**
+     * Returns an {@code ApproximateQuantilesCombineFn} that's like this one except that it uses the
+     * specified {@code listCoder} for unsorted list encoding and {@code sortedListCoder} for sorted
+     * list encoding. Does not modify this combiner.
+     */
+    public ApproximateQuantilesCombineFn<T, ComparatorT> withListCoders(
+        Coder<List<T>> listCoder, Coder<List<T>> sortedListCoder) {
+      return new ApproximateQuantilesCombineFn<>(
+          numQuantiles,
+          compareFn,
+          bufferSize,
+          numBuffers,
+          maxNumElements,
+          compressBuffers,
+          listCoder,
+          sortedListCoder);
+    }
+
+    /**
      * Creates an approximate quantiles combiner with the given {@code compareFn} and desired number
      * of quantiles. A total of {@code numQuantiles} elements will appear in the output list,
      * including the minimum and maximum.
@@ -303,7 +357,8 @@ public class ApproximateQuantiles {
       }
       b--;
       int k = Math.max(2, (int) Math.ceil(maxNumElements / (float) (1 << (b - 1))));
-      return new ApproximateQuantilesCombineFn<>(numQuantiles, compareFn, k, b, maxNumElements);
+      return new ApproximateQuantilesCombineFn<>(
+          numQuantiles, compareFn, k, b, maxNumElements, false, null, null);
     }
 
     @Override
@@ -314,7 +369,13 @@ public class ApproximateQuantiles {
     @Override
     public Coder<QuantileState<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> elementCoder) {
-      return new QuantileStateCoder<>(compareFn, elementCoder);
+      ListCoder<T> defaultListCoder = ListCoder.of(elementCoder);
+      return new QuantileStateCoder<>(
+          compareFn,
+          elementCoder,
+          listCoder == null ? defaultListCoder : listCoder,
+          sortedListCoder == null ? defaultListCoder : sortedListCoder,
+          compressBuffers);
     }
 
     @Override
@@ -566,7 +627,13 @@ public class ApproximateQuantiles {
   private static class QuantileBuffer<T> {
     private int level;
     private long weight;
-    private List<T> elements;
+    // The buffer is either uncompressed or compressed. When uncompressed,
+    // elements is non-null and compressedElements and compressedListCoder are null.
+    // When compressed, both compressedElements and compressedListCoder are non-null and elements
+    // is null.
+    private @Nullable List<T> elements;
+    private byte @Nullable [] compressedElements;
+    private @Nullable Coder<List<T>> compressedListCoder;
 
     public QuantileBuffer(List<T> elements) {
       this(0, 1, elements);
@@ -576,21 +643,34 @@ public class ApproximateQuantiles {
       this.level = level;
       this.weight = weight;
       this.elements = elements;
+      this.compressedElements = null;
+      this.compressedListCoder = null;
+    }
+
+    public QuantileBuffer(
+        int level, long weight, byte[] compressedElements, Coder<List<T>> compressedListCoder) {
+      this.level = level;
+      this.weight = weight;
+      this.elements = null;
+      this.compressedElements = compressedElements;
+      this.compressedListCoder = compressedListCoder;
     }
 
     @Override
     public String toString() {
-      return "QuantileBuffer["
-          + "level="
-          + level
-          + ", weight="
-          + weight
-          + ", elements="
-          + elements
-          + "]";
+      StringBuilder result = new StringBuilder();
+      result.append("QuantileBuffer[level=").append(level).append(", weight=").append(weight);
+      if (elements != null) {
+        result.append(", elements=").append(elements);
+      } else {
+        result.append(", compressed_elements length=").append(compressedElements.length);
+      }
+      result.append("]");
+      return result.toString();
     }
 
     public Iterator<WeightedValue<T>> sizedIterator() {
+      uncompressIfNecessary();
       return new UnmodifiableIterator<WeightedValue<T>>() {
         Iterator<T> iter = elements.iterator();
 
@@ -605,48 +685,93 @@ public class ApproximateQuantiles {
         }
       };
     }
+
+    private void uncompressIfNecessary() {
+      if (elements == null) {
+        try {
+          elements = compressedListCoder.decode(ByteSource.wrap(compressedElements).openStream());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        compressedElements = null;
+        compressedListCoder = null;
+      }
+    }
   }
 
   /** Coder for QuantileState. */
   private static class QuantileStateCoder<T, ComparatorT extends Comparator<T> & Serializable>
       extends CustomCoder<QuantileState<T, ComparatorT>> {
     private final ComparatorT compareFn;
+    // Used for min and max.
     private final Coder<T> elementCoder;
+    // Used for the unfinished buffer.
     private final Coder<List<T>> elementListCoder;
-    private final Coder<Integer> intCoder = BigEndianIntegerCoder.of();
 
-    public QuantileStateCoder(ComparatorT compareFn, Coder<T> elementCoder) {
+    // Used for sorted buffers.
+    private final Coder<List<T>> sortedElementListCoder;
+
+    private final Coder<List<T>> compressedElementListCoder;
+
+    private final boolean compressBuffers;
+
+    public QuantileStateCoder(
+        ComparatorT compareFn,
+        Coder<T> elementCoder,
+        Coder<List<T>> elementListCoder,
+        Coder<List<T>> sortedElementListCoder,
+        boolean compressBuffers) {
       this.compareFn = compareFn;
       this.elementCoder = elementCoder;
-      this.elementListCoder = ListCoder.of(elementCoder);
+      this.elementListCoder = elementListCoder;
+      this.sortedElementListCoder = sortedElementListCoder;
+      this.compressedElementListCoder = ZstdCoder.of(sortedElementListCoder);
+      this.compressBuffers = compressBuffers;
     }
 
     @Override
     public void encode(QuantileState<T, ComparatorT> state, OutputStream outStream)
         throws CoderException, IOException {
-      intCoder.encode(state.numQuantiles, outStream);
-      intCoder.encode(state.bufferSize, outStream);
+      BigEndianIntegerCoder.of().encode(state.numQuantiles, outStream);
+      BigEndianIntegerCoder.of().encode(state.bufferSize, outStream);
       elementCoder.encode(state.min, outStream);
       elementCoder.encode(state.max, outStream);
       elementListCoder.encode(state.unbufferedElements, outStream);
-      BigEndianIntegerCoder.of().encode(state.buffers.size(), outStream);
-      for (QuantileBuffer<T> buffer : state.buffers) {
-        encodeBuffer(buffer, outStream);
+      if (compressBuffers) {
+        // We encode a negative size to indicate that buffers are compressed.
+        BigEndianIntegerCoder.of().encode(-state.buffers.size(), outStream);
+        for (QuantileBuffer<T> buffer : state.buffers) {
+          encodeCompressedBuffer(buffer, outStream);
+        }
+      } else {
+        BigEndianIntegerCoder.of().encode(state.buffers.size(), outStream);
+        for (QuantileBuffer<T> buffer : state.buffers) {
+          encodeBuffer(buffer, outStream);
+        }
       }
     }
 
     @Override
     public QuantileState<T, ComparatorT> decode(InputStream inStream)
         throws CoderException, IOException {
-      int numQuantiles = intCoder.decode(inStream);
-      int bufferSize = intCoder.decode(inStream);
+      int numQuantiles = BigEndianIntegerCoder.of().decode(inStream);
+      int bufferSize = BigEndianIntegerCoder.of().decode(inStream);
       T min = elementCoder.decode(inStream);
       T max = elementCoder.decode(inStream);
       List<T> unbufferedElements = elementListCoder.decode(inStream);
       int numBuffers = BigEndianIntegerCoder.of().decode(inStream);
+      // Regardless of whether this coder will compress or not when encoding,
+      // we allow decoding both uncompressed and compressed buffers for
+      // upgrade compatibility.
+      final boolean decodeCompressed = numBuffers <= 0;
+      if (decodeCompressed) {
+        numBuffers = -numBuffers;
+      }
       List<QuantileBuffer<T>> buffers = new ArrayList<>(numBuffers);
       for (int i = 0; i < numBuffers; i++) {
-        buffers.add(decodeBuffer(inStream));
+        QuantileBuffer<T> buffer =
+            decodeCompressed ? lazyDecodeCompressedBuffer(inStream) : decodeBuffer(inStream);
+        buffers.add(buffer);
       }
       return new QuantileState<>(
           compareFn, numQuantiles, min, max, numBuffers, bufferSize, unbufferedElements, buffers);
@@ -654,17 +779,39 @@ public class ApproximateQuantiles {
 
     private void encodeBuffer(QuantileBuffer<T> buffer, OutputStream outStream)
         throws CoderException, IOException {
-      DataOutputStream outData = new DataOutputStream(outStream);
-      outData.writeInt(buffer.level);
-      outData.writeLong(buffer.weight);
-      elementListCoder.encode(buffer.elements, outStream);
+      BigEndianIntegerCoder.of().encode(buffer.level, outStream);
+      BigEndianLongCoder.of().encode(buffer.weight, outStream);
+      sortedElementListCoder.encode(buffer.elements, outStream);
+    }
+
+    private void encodeCompressedBuffer(QuantileBuffer<T> buffer, OutputStream outStream)
+        throws CoderException, IOException {
+      BigEndianIntegerCoder.of().encode(buffer.level, outStream);
+      BigEndianLongCoder.of().encode(buffer.weight, outStream);
+      if (buffer.elements != null) {
+        LengthPrefixCoder.of(compressedElementListCoder).encode(buffer.elements, outStream);
+      } else {
+        VarIntCoder.of().encode(buffer.compressedElements.length, outStream);
+        outStream.write(buffer.compressedElements);
+      }
     }
 
     private QuantileBuffer<T> decodeBuffer(InputStream inStream)
         throws IOException, CoderException {
-      DataInputStream inData = new DataInputStream(inStream);
       return new QuantileBuffer<>(
-          inData.readInt(), inData.readLong(), elementListCoder.decode(inStream));
+          BigEndianIntegerCoder.of().decode(inStream),
+          BigEndianLongCoder.of().decode(inStream),
+          sortedElementListCoder.decode(inStream));
+    }
+
+    private QuantileBuffer<T> lazyDecodeCompressedBuffer(InputStream inStream)
+        throws IOException, CoderException {
+      int level = BigEndianIntegerCoder.of().decode(inStream);
+      long weight = BigEndianLongCoder.of().decode(inStream);
+      int compressedLength = VarIntCoder.of().decode(inStream);
+      byte[] compressedElements = new byte[compressedLength];
+      ByteStreams.readFully(inStream, compressedElements);
+      return new QuantileBuffer<>(level, weight, compressedElements, compressedElementListCoder);
     }
 
     /**
@@ -677,10 +824,20 @@ public class ApproximateQuantiles {
       elementCoder.registerByteSizeObserver(state.max, observer);
       elementListCoder.registerByteSizeObserver(state.unbufferedElements, observer);
 
-      BigEndianIntegerCoder.of().registerByteSizeObserver(state.buffers.size(), observer);
+      int numBuffers = state.buffers.size();
+      if (compressBuffers) {
+        numBuffers = -numBuffers;
+      }
+
+      BigEndianIntegerCoder.of().registerByteSizeObserver(numBuffers, observer);
       for (QuantileBuffer<T> buffer : state.buffers) {
-        observer.update(4L + 8);
-        elementListCoder.registerByteSizeObserver(buffer.elements, observer);
+        observer.update(4L + 8); // big-endian int level and long weight
+        if (compressBuffers) {
+          observer.update(4L); // big-endian compressed size
+          compressedElementListCoder.registerByteSizeObserver(buffer.elements, observer);
+        } else {
+          sortedElementListCoder.registerByteSizeObserver(buffer.elements, observer);
+        }
       }
     }
 
@@ -694,12 +851,16 @@ public class ApproximateQuantiles {
       }
       QuantileStateCoder<?, ?> that = (QuantileStateCoder<?, ?>) other;
       return Objects.equals(this.elementCoder, that.elementCoder)
-          && Objects.equals(this.compareFn, that.compareFn);
+          && Objects.equals(this.elementListCoder, that.elementListCoder)
+          && Objects.equals(this.sortedElementListCoder, that.sortedElementListCoder)
+          && Objects.equals(this.compareFn, that.compareFn)
+          && this.compressBuffers == that.compressBuffers;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(elementCoder, compareFn);
+      return Objects.hash(
+          elementCoder, elementListCoder, sortedElementListCoder, compareFn, compressBuffers);
     }
 
     @Override
@@ -707,6 +868,16 @@ public class ApproximateQuantiles {
       verifyDeterministic(this, "QuantileState.ElementCoder must be deterministic", elementCoder);
       verifyDeterministic(
           this, "QuantileState.ElementListCoder must be deterministic", elementListCoder);
+      verifyDeterministic(
+          this,
+          "QuantileState.SortedElementListCoder must be deterministic",
+          sortedElementListCoder);
+      if (compressBuffers) {
+        verifyDeterministic(
+            this,
+            "QuantileState.CompressedSortedElementListCoder must be deterministic",
+            compressedElementListCoder);
+      }
     }
   }
 }

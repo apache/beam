@@ -20,11 +20,15 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 
 /**
@@ -41,44 +45,81 @@ public class CombineFnTester {
    */
   public static <InputT, AccumT, OutputT> void testCombineFn(
       CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, final OutputT expected) {
-    testCombineFn(fn, input, is(expected));
+    testCombineFnHelper(fn, input, is(expected), null);
     Collections.shuffle(input);
-    testCombineFn(fn, input, is(expected));
+    testCombineFnHelper(fn, input, is(expected), null);
   }
 
   public static <InputT, AccumT, OutputT> void testCombineFn(
       CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, Matcher<? super OutputT> matcher) {
+    testCombineFnHelper(fn, input, matcher, null);
+  }
+
+  /**
+   * Tests that the {@link CombineFn}, when applied to the provided input, produces the provided
+   * output with intermediate encoding/decoding. Tests a variety of permutations of the input.
+   */
+  public static <InputT, AccumT, OutputT> void testCombineFnWithCoding(
+      CombineFn<InputT, AccumT, OutputT> fn,
+      List<InputT> input,
+      final OutputT expected,
+      final Coder<AccumT> accumulatorCoder) {
+    testCombineFnHelper(fn, input, is(expected), accumulatorCoder);
+    Collections.shuffle(input);
+    testCombineFnHelper(fn, input, is(expected), accumulatorCoder);
+  }
+
+  public static <InputT, AccumT, OutputT> void testCombineFnWithCoding(
+      CombineFn<InputT, AccumT, OutputT> fn,
+      List<InputT> input,
+      Matcher<? super OutputT> matcher,
+      final Coder<AccumT> accumulatorCoder) {
+    testCombineFnHelper(fn, input, matcher, accumulatorCoder);
+  }
+
+  private static <InputT, AccumT, OutputT> void testCombineFnHelper(
+      CombineFn<InputT, AccumT, OutputT> fn,
+      List<InputT> input,
+      Matcher<? super OutputT> matcher,
+      @Nullable Coder<AccumT> accumulatorCoder) {
     int size = input.size();
-    checkCombineFnShardsMultipleOrders(fn, Collections.singletonList(input), matcher);
-    checkCombineFnShardsMultipleOrders(fn, shardEvenly(input, 2), matcher);
+    checkCombineFnShardsMultipleOrders(
+        fn, Collections.singletonList(input), matcher, accumulatorCoder);
+    checkCombineFnShardsMultipleOrders(fn, shardEvenly(input, 2), matcher, accumulatorCoder);
     if (size > 4) {
-      checkCombineFnShardsMultipleOrders(fn, shardEvenly(input, size / 2), matcher);
       checkCombineFnShardsMultipleOrders(
-          fn, shardEvenly(input, (int) (size / Math.sqrt(size))), matcher);
+          fn, shardEvenly(input, size / 2), matcher, accumulatorCoder);
+      checkCombineFnShardsMultipleOrders(
+          fn, shardEvenly(input, (int) (size / Math.sqrt(size))), matcher, accumulatorCoder);
     }
-    checkCombineFnShardsMultipleOrders(fn, shardExponentially(input, 1.4), matcher);
-    checkCombineFnShardsMultipleOrders(fn, shardExponentially(input, 2), matcher);
-    checkCombineFnShardsMultipleOrders(fn, shardExponentially(input, Math.E), matcher);
+    checkCombineFnShardsMultipleOrders(
+        fn, shardExponentially(input, 1.4), matcher, accumulatorCoder);
+    checkCombineFnShardsMultipleOrders(fn, shardExponentially(input, 2), matcher, accumulatorCoder);
+    checkCombineFnShardsMultipleOrders(
+        fn, shardExponentially(input, Math.E), matcher, accumulatorCoder);
   }
 
   private static <InputT, AccumT, OutputT> void checkCombineFnShardsMultipleOrders(
       CombineFn<InputT, AccumT, OutputT> fn,
       List<? extends Iterable<InputT>> shards,
-      Matcher<? super OutputT> matcher) {
-    checkCombineFnShardsSingleMerge(fn, shards, matcher);
-    checkCombineFnShardsWithEmptyAccumulators(fn, shards, matcher);
-    checkCombineFnShardsIncrementalMerging(fn, shards, matcher);
+      Matcher<? super OutputT> matcher,
+      @Nullable Coder<AccumT> accumulatorCoder) {
+    checkCombineFnShardsSingleMerge(fn, shards, matcher, accumulatorCoder);
+    checkCombineFnShardsWithEmptyAccumulators(fn, shards, matcher, accumulatorCoder);
+    checkCombineFnShardsIncrementalMerging(fn, shards, matcher, accumulatorCoder);
     Collections.shuffle(shards);
-    checkCombineFnShardsSingleMerge(fn, shards, matcher);
-    checkCombineFnShardsWithEmptyAccumulators(fn, shards, matcher);
-    checkCombineFnShardsIncrementalMerging(fn, shards, matcher);
+    checkCombineFnShardsSingleMerge(fn, shards, matcher, accumulatorCoder);
+    checkCombineFnShardsWithEmptyAccumulators(fn, shards, matcher, accumulatorCoder);
+    checkCombineFnShardsIncrementalMerging(fn, shards, matcher, accumulatorCoder);
   }
 
   private static <InputT, AccumT, OutputT> void checkCombineFnShardsSingleMerge(
       CombineFn<InputT, AccumT, OutputT> fn,
       Iterable<? extends Iterable<InputT>> shards,
-      Matcher<? super OutputT> matcher) {
-    List<AccumT> accumulators = combineInputs(fn, shards);
+      Matcher<? super OutputT> matcher,
+      @Nullable Coder<AccumT> accumulatorCoder) {
+    List<AccumT> accumulators = combineInputs(fn, shards, accumulatorCoder);
+
     AccumT merged = fn.mergeAccumulators(accumulators);
     assertThat(fn.extractOutput(merged), matcher);
   }
@@ -86,20 +127,22 @@ public class CombineFnTester {
   private static <InputT, AccumT, OutputT> void checkCombineFnShardsWithEmptyAccumulators(
       CombineFn<InputT, AccumT, OutputT> fn,
       Iterable<? extends Iterable<InputT>> shards,
-      Matcher<? super OutputT> matcher) {
-    List<AccumT> accumulators = combineInputs(fn, shards);
+      Matcher<? super OutputT> matcher,
+      @Nullable Coder<AccumT> accumulatorCoder) {
+    List<AccumT> accumulators = combineInputs(fn, shards, accumulatorCoder);
     accumulators.add(0, fn.createAccumulator());
     accumulators.add(fn.createAccumulator());
-    AccumT merged = fn.mergeAccumulators(accumulators);
+    AccumT merged = encodeDecode(fn.mergeAccumulators(accumulators), accumulatorCoder);
     assertThat(fn.extractOutput(merged), matcher);
   }
 
   private static <InputT, AccumT, OutputT> void checkCombineFnShardsIncrementalMerging(
       CombineFn<InputT, AccumT, OutputT> fn,
       List<? extends Iterable<InputT>> shards,
-      Matcher<? super OutputT> matcher) {
+      Matcher<? super OutputT> matcher,
+      @Nullable Coder<AccumT> accumulatorCoder) {
     AccumT accumulator = shards.isEmpty() ? fn.createAccumulator() : null;
-    for (AccumT inputAccum : combineInputs(fn, shards)) {
+    for (AccumT inputAccum : combineInputs(fn, shards, accumulatorCoder)) {
       if (accumulator == null) {
         accumulator = inputAccum;
       } else {
@@ -107,11 +150,13 @@ public class CombineFnTester {
       }
       fn.extractOutput(accumulator); // Extract output to simulate multiple firings
     }
-    assertThat(fn.extractOutput(accumulator), matcher);
+    assertThat(fn.extractOutput(encodeDecode(accumulator, accumulatorCoder)), matcher);
   }
 
   private static <InputT, AccumT, OutputT> List<AccumT> combineInputs(
-      CombineFn<InputT, AccumT, OutputT> fn, Iterable<? extends Iterable<InputT>> shards) {
+      CombineFn<InputT, AccumT, OutputT> fn,
+      Iterable<? extends Iterable<InputT>> shards,
+      @Nullable Coder<AccumT> accumulatorCoder) {
     List<AccumT> accumulators = new ArrayList<>();
     int maybeCompact = 0;
     for (Iterable<InputT> shard : shards) {
@@ -120,11 +165,24 @@ public class CombineFnTester {
         accumulator = fn.addInput(accumulator, elem);
       }
       if (maybeCompact++ % 2 == 0) {
-        accumulator = fn.compact(accumulator);
+        accumulator = fn.compact(encodeDecode(accumulator, accumulatorCoder));
       }
       accumulators.add(accumulator);
     }
     return accumulators;
+  }
+
+  private static <AccumT> AccumT encodeDecode(AccumT accumulator, @Nullable Coder<AccumT> coder) {
+    if (coder == null) {
+      return accumulator;
+    }
+    ByteStringOutputStream outStream = new ByteStringOutputStream();
+    try {
+      coder.encode(accumulator, outStream);
+      return coder.decode(outStream.toByteString().newInput());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static <T> List<List<T>> shardEvenly(List<T> input, int numShards) {
