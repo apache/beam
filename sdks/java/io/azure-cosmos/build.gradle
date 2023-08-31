@@ -36,7 +36,7 @@ dependencies {
   permitUnusedDeclared library.java.commons_io // BEAM-11761
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation "io.projectreactor:reactor-core:3.4.29"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:io:azure")

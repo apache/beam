@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -47,13 +48,28 @@ func RunPipeline(j *jobservices.Job) {
 	// environments, and start up docker containers, but
 	// here, we only want and need the go one, operating
 	// in loopback mode.
-	env := "go"
+	envs := j.Pipeline.GetComponents().GetEnvironments()
+	if len(envs) != 1 {
+		j.Failed(fmt.Errorf("unable to execute multi-environment pipelines;\npipeline has environments: %+v", envs))
+		return
+	}
+	env, _ := getOnlyPair(envs)
 	wk := worker.New(env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
+	timeout := time.Minute
+	time.AfterFunc(timeout, func() {
+		if wk.Connected() {
+			return
+		}
+		err := fmt.Errorf("prism %v didn't get control connection after %v", wk, timeout)
+		j.Failed(err)
+		j.CancelFn(err)
+	})
 
-	// When this function exits, we
+	// When this function exits, we cancel the context to clear
+	// any related job resources.
 	defer func() {
-		j.CancelFn()
+		j.CancelFn(nil)
 	}()
 	go runEnvironment(j.RootCtx, j, env, wk)
 
@@ -257,7 +273,9 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			wk.Descriptors[stage.ID] = stage.desc
 		case wk.ID:
 			// Great! this is for this environment. // Broken abstraction.
-			buildDescriptor(stage, comps, wk)
+			if err := buildDescriptor(stage, comps, wk); err != nil {
+				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
+			}
 			stages[stage.ID] = stage
 			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
@@ -283,7 +301,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 		go func(rb engine.RunBundle) {
 			defer func() { <-maxParallelism }()
 			s := stages[rb.StageID]
-			s.Execute(j, wk, comps, em, rb)
+			s.Execute(ctx, j, wk, comps, em, rb)
 		}(rb)
 	}
 	slog.Info("pipeline done!", slog.String("job", j.String()))
@@ -291,22 +309,33 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 }
 
 func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comps *pipepb.Components) func(io.Reader) []byte {
-	cID := lpUnknownCoders(coldCId, coders, comps.GetCoders())
+	cID, err := lpUnknownCoders(coldCId, coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
 	return pullDecoder(coders[cID], coders)
 }
 
 func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
 	ws := comps.GetWindowingStrategies()[col.GetWindowingStrategyId()]
-	wcID := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+	wcID, err := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
 	return makeWindowCoders(coders[wcID])
 }
 
-func getOnlyValue[K comparable, V any](in map[K]V) V {
+func getOnlyPair[K comparable, V any](in map[K]V) (K, V) {
 	if len(in) != 1 {
 		panic(fmt.Sprintf("expected single value map, had %v - %v", len(in), in))
 	}
-	for _, v := range in {
-		return v
+	for k, v := range in {
+		return k, v
 	}
 	panic("unreachable")
+}
+
+func getOnlyValue[K comparable, V any](in map[K]V) V {
+	_, v := getOnlyPair(in)
+	return v
 }

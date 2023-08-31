@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

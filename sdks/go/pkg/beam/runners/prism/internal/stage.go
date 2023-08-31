@@ -33,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -74,7 +75,12 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 }
 
-func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) {
+func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
@@ -116,7 +122,12 @@ func (s *stage) Execute(j *jobservices.Job, wk *worker.W, comps *pipepb.Componen
 
 		slog.Debug("Execute: processing", "bundle", rb)
 		defer b.Cleanup(wk)
-		dataReady = b.ProcessOn(wk)
+		b.Fail = func(errMsg string) {
+			slog.Error("job failed", "bundle", rb, "job", j)
+			err := fmt.Errorf("%v", errMsg)
+			j.Failed(err)
+		}
+		dataReady = b.ProcessOn(ctx, wk)
 	default:
 		err := fmt.Errorf("unknown environment[%v]", s.envID)
 		slog.Error("Execute", err)
@@ -186,12 +197,11 @@ progress:
 	// Tentative Data is ready, commit it to the main datastore.
 	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
-	resp, ok := <-b.Resp
-	// Bundle has failed, fail the job.
-	// TODO add retries & clean up this logic. Channels are closed by the "runner" transforms.
-	if !ok && b.Error != "" {
-		slog.Error("job failed", "bundle", rb, "job", j)
-		j.Failed(fmt.Errorf("%v", b.Error))
+	var resp *fnpb.ProcessBundleResponse
+	select {
+	case resp = <-b.Resp:
+	case <-ctx.Done():
+		// Ensures we clean up on failure, if the response is blocked.
 		return
 	}
 
@@ -281,9 +291,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for _, o := range stg.outputs {
-		wOutCid := makeWindowedValueCoder(o.global, comps, coders)
-		sinkID := o.transform + "_" + o.local
 		col := comps.GetPcollections()[o.global]
+		wOutCid, err := makeWindowedValueCoder(o.global, comps, coders)
+		if err != nil {
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w", stg.ID, o, o.global, prototext.Format(col), err)
+		}
+		sinkID := o.transform + "_" + o.local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.global
@@ -302,7 +315,10 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	for _, si := range stg.sideInputs {
 		col := comps.GetPcollections()[si.global]
 		oCID := col.GetCoderId()
-		nCID := lpUnknownCoders(oCID, coders, comps.GetCoders())
+		nCID, err := lpUnknownCoders(oCID, coders, comps.GetCoders())
+		if err != nil {
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for side input %+v, pcol %q %v:\n%w", stg.ID, si, si.global, prototext.Format(col), err)
+		}
 
 		sides = append(sides, si.global)
 		if oCID != nCID {
@@ -330,9 +346,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	// This id is directly used for the source, but this also copies
 	// coders used by side inputs to the coders map for the bundle, so
 	// needs to be run for every ID.
-	wInCid := makeWindowedValueCoder(stg.primaryInput, comps, coders)
 
 	col := comps.GetPcollections()[stg.primaryInput]
+	wInCid, err := makeWindowedValueCoder(stg.primaryInput, comps, coders)
+	if err != nil {
+		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w", stg.ID, stg.primaryInput, prototext.Format(col), err)
+	}
+
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 	wDec, wEnc := getWindowValueCoders(comps, col, coders)
 	inputInfo := engine.PColInfo{

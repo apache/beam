@@ -18,8 +18,8 @@
 package org.apache.beam.fn.harness.logging;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,8 +59,8 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -375,7 +375,9 @@ public class BeamFnLoggingClient implements AutoCloseable {
     bufferedLogEntries.drainTo(finalLogEntries);
     for (BeamFnApi.LogEntry logEntry : finalLogEntries) {
       LogRecord logRecord =
-          new LogRecord(REVERSE_LOG_LEVEL_MAP.get(logEntry.getSeverity()), logEntry.getMessage());
+          new LogRecord(
+              checkNotNull(REVERSE_LOG_LEVEL_MAP.get(logEntry.getSeverity())),
+              logEntry.getMessage());
       logRecord.setLoggerName(logEntry.getLogLocation());
       logRecord.setMillis(
           logEntry.getTimestamp().getSeconds() * 1000

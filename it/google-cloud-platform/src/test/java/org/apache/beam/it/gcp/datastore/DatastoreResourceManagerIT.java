@@ -20,21 +20,21 @@ package org.apache.beam.it.gcp.datastore;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.datastore.Entity;
-import java.io.IOException;
 import java.util.List;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 /** Integration tests for {@link DatastoreResourceManager}. */
 public class DatastoreResourceManagerIT {
 
   @Test
-  public void testInsert() throws IOException {
+  public void testInsert() {
     DatastoreResourceManager resourceManager =
         DatastoreResourceManager.builder(
-                TestProperties.project(), DatastoreUtils.createTestId("testInsert"))
-            .credentials(TestProperties.credentials())
+                TestProperties.project(),
+                DatastoreUtils.createTestId("testInsert"),
+                TestProperties.credentials())
             .build();
     List<Entity> entities =
         resourceManager.insert(
@@ -50,11 +50,12 @@ public class DatastoreResourceManagerIT {
   }
 
   @Test
-  public void testInsertQuery() throws IOException {
+  public void testInsertQuery() {
     DatastoreResourceManager resourceManager =
         DatastoreResourceManager.builder(
-                TestProperties.project(), DatastoreUtils.createTestId("testInsertQuery"))
-            .credentials(TestProperties.buildCredentialsFromEnv())
+                TestProperties.project(),
+                DatastoreUtils.createTestId("testInsertQuery"),
+                TestProperties.buildCredentialsFromEnv())
             .build();
 
     List<Entity> entities =
@@ -73,11 +74,12 @@ public class DatastoreResourceManagerIT {
   }
 
   @Test
-  public void testInsertCleanUp() throws IOException {
+  public void testInsertCleanUp() {
     DatastoreResourceManager resourceManager =
         DatastoreResourceManager.builder(
-                TestProperties.project(), DatastoreUtils.createTestId("testInsertCleanUp"))
-            .credentials(TestProperties.buildCredentialsFromEnv())
+                TestProperties.project(),
+                DatastoreUtils.createTestId("testInsertCleanUp"),
+                TestProperties.buildCredentialsFromEnv())
             .build();
     resourceManager.insert(
         "person", ImmutableMap.of(1L, Entity.newBuilder().set("name", "John Doe").build()));

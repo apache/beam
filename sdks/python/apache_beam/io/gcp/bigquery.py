@@ -2233,12 +2233,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       # SchemaTransform expects Beam Rows, so map to Rows first
       output_beam_rows = (
           pcoll
-          |
+          | "Convert dict to Beam Row" >>
           beam.Map(lambda row: bigquery_tools.beam_row_from_dict(row, schema)).
           with_output_types(
               RowTypeConstraint.from_fields(
                   bigquery_tools.get_beam_typehints_from_tableschema(schema)))
-          | StorageWriteToBigQuery(
+          | "StorageWriteToBigQuery" >> StorageWriteToBigQuery(
               table=table,
               create_disposition=self.create_disposition,
               write_disposition=self.write_disposition,
@@ -2676,14 +2676,14 @@ class ReadFromBigQuery(PTransform):
     self._args = args
     self._kwargs = kwargs
 
-    if self.method is ReadFromBigQuery.Method.EXPORT \
+    if self.method == ReadFromBigQuery.Method.EXPORT \
         and self.use_native_datetime is True:
       raise TypeError(
           'The "use_native_datetime" parameter cannot be True for EXPORT.'
           ' Please set the "use_native_datetime" parameter to False *OR*'
           ' set the "method" parameter to ReadFromBigQuery.Method.DIRECT_READ.')
 
-    if gcs_location and self.method is ReadFromBigQuery.Method.EXPORT:
+    if gcs_location and self.method == ReadFromBigQuery.Method.EXPORT:
       if not isinstance(gcs_location, (str, ValueProvider)):
         raise TypeError(
             '%s: gcs_location must be of type string'
@@ -2704,14 +2704,14 @@ class ReadFromBigQuery(PTransform):
     }
 
   def expand(self, pcoll):
-    if self.method is ReadFromBigQuery.Method.EXPORT:
+    if self.method == ReadFromBigQuery.Method.EXPORT:
       output_pcollection = self._expand_export(pcoll)
-    elif self.method is ReadFromBigQuery.Method.DIRECT_READ:
+    elif self.method == ReadFromBigQuery.Method.DIRECT_READ:
       output_pcollection = self._expand_direct_read(pcoll)
 
     else:
       raise ValueError(
-          'The method to read from BigQuery must be either EXPORT'
+          'The method to read from BigQuery must be either EXPORT '
           'or DIRECT_READ.')
     return self._expand_output_type(output_pcollection)
 
@@ -2731,12 +2731,16 @@ class ReadFromBigQuery(PTransform):
         raise TypeError(
             '%s: table must be of type string'
             '; got a callable instead' % self.__class__.__name__)
-      return output_pcollection | bigquery_schema_tools.\
-            convert_to_usertype(
-            bigquery_tools.BigQueryWrapper().get_table(
-                project_id=table_details.projectId,
-                dataset_id=table_details.datasetId,
-                table_id=table_details.tableId).schema)
+      return output_pcollection | bigquery_schema_tools.convert_to_usertype(
+          bigquery_tools.BigQueryWrapper().get_table(
+              project_id=table_details.projectId,
+              dataset_id=table_details.datasetId,
+              table_id=table_details.tableId).schema,
+          self._kwargs.get('selected_fields', None))
+    else:
+      raise ValueError(
+          'The output type from BigQuery must be either PYTHON_DICT '
+          'or BEAM_ROW.')
 
   def _expand_export(self, pcoll):
     # TODO(https://github.com/apache/beam/issues/20683): Make ReadFromBQ rely

@@ -28,7 +28,7 @@ import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.spark.serializer.KryoRegistrator;
 import scala.collection.mutable.WrappedArray;
 
@@ -68,7 +68,7 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
           Class.forName("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow"));
       kryo.register(
           Class.forName(
-              "org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable$Factory"));
+              "org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable$Factory"));
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("Unable to register classes with kryo.", e);
     }

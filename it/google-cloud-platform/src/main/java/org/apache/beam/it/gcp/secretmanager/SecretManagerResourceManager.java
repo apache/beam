@@ -20,8 +20,6 @@ package org.apache.beam.it.gcp.secretmanager;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.secretmanager.v1.Replication;
@@ -69,9 +67,9 @@ public class SecretManagerResourceManager implements ResourceManager {
     this.createdSecretIds = Collections.synchronizedSet(new HashSet<>());
   }
 
-  public static Builder builder(String projectId) throws IOException {
+  public static Builder builder(String projectId, CredentialsProvider credentialsProvider) {
     checkArgument(!projectId.isEmpty(), "projectId can not be empty");
-    return new Builder(projectId);
+    return new Builder(projectId, credentialsProvider);
   }
 
   /**
@@ -274,10 +272,9 @@ public class SecretManagerResourceManager implements ResourceManager {
 
     private CredentialsProvider credentialsProvider;
 
-    private Builder(String projectId) throws IOException {
+    private Builder(String projectId, CredentialsProvider credentialsProvider) {
       this.projectId = projectId;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
     }
 
     public Builder credentialsProvider(CredentialsProvider credentialsProvider) {

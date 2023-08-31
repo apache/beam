@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,7 +31,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.bson.Document;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,6 +66,7 @@ public class MongoDBResourceManagerTest {
 
   @Before
   public void setUp() {
+    doReturn(container).when(container).withLogConsumer(any());
     testManager =
         new MongoDBResourceManager(mongoClient, container, MongoDBResourceManager.builder(TEST_ID));
   }

@@ -19,6 +19,7 @@
 # mypy: check-untyped-defs
 
 import atexit
+import copy
 import functools
 import itertools
 import logging
@@ -36,16 +37,16 @@ import grpc
 from apache_beam.metrics import metric
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
-from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
@@ -57,9 +58,7 @@ from apache_beam.transforms import environments
 
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
-  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.pipeline import Pipeline
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = ['PortableRunner']
 
@@ -78,8 +77,6 @@ TERMINAL_STATES = [
     beam_job_api_pb2.JobState.FAILED,
     beam_job_api_pb2.JobState.CANCELLED,
 ]
-
-ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -268,29 +265,8 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def _create_environment(options):
     # type: (PipelineOptions) -> environments.Environment
-    portable_options = options.view_as(PortableOptions)
-    # Do not set a Runner. Otherwise this can cause problems in Java's
-    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
-    # does not exist in the Java SDK. In portability, the entry point is clearly
-    # defined via the JobService.
-    portable_options.view_as(StandardOptions).runner = None
-    environment_type = portable_options.environment_type
-    if not environment_type:
-      environment_urn = common_urns.environments.DOCKER.urn
-    elif environment_type.startswith('beam:env:'):
-      environment_urn = environment_type
-    else:
-      # e.g. handle LOOPBACK -> EXTERNAL
-      environment_type = ENV_TYPE_ALIASES.get(
-          environment_type, environment_type)
-      try:
-        environment_urn = getattr(
-            common_urns.environments, environment_type).urn
-      except AttributeError:
-        raise ValueError('Unknown environment type: %s' % environment_type)
-
-    env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
-    return env_class.from_options(portable_options)
+    return environments.Environment.from_options(
+        options.view_as(PortableOptions))
 
   def default_job_server(self, options):
     raise NotImplementedError(
@@ -322,12 +298,16 @@ class PortableRunner(runner.PipelineRunner):
   @staticmethod
   def get_proto_pipeline(pipeline, options):
     # type: (Pipeline, PipelineOptions) -> beam_runner_api_pb2.Pipeline
-    portable_options = options.view_as(PortableOptions)
-
     proto_pipeline = pipeline.to_runner_api(
-        default_environment=PortableRunner._create_environment(
-            portable_options))
+        default_environment=environments.Environment.from_options(
+            options.view_as(PortableOptions)))
 
+    return PortableRunner._optimize_pipeline(proto_pipeline, options)
+
+  @staticmethod
+  def _optimize_pipeline(
+      proto_pipeline: beam_runner_api_pb2.Pipeline,
+      options: PipelineOptions) -> beam_runner_api_pb2.Pipeline:
     # TODO: https://github.com/apache/beam/issues/19493
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
@@ -410,42 +390,24 @@ class PortableRunner(runner.PipelineRunner):
 
     return proto_pipeline
 
-  def run_pipeline(self, pipeline, options):
-    # type: (Pipeline, PipelineOptions) -> PipelineResult
+  def run_portable_pipeline(
+      self, pipeline: beam_runner_api_pb2.Pipeline,
+      options: PipelineOptions) -> runner.PipelineResult:
     portable_options = options.view_as(PortableOptions)
 
-    # TODO: https://github.com/apache/beam/issues/19168
-    # portable runner specific default
-    if options.view_as(SetupOptions).sdk_location == 'default':
-      options.view_as(SetupOptions).sdk_location = 'container'
+    # Do not set a Runner. Otherwise this can cause problems in Java's
+    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
+    # does not exist in the Java SDK. In portability, the entry point is clearly
+    # defined via the JobService.
+    portable_options.view_as(StandardOptions).runner = None
 
-    experiments = options.view_as(DebugOptions).experiments or []
+    cleanup_callbacks = self.start_and_replace_loopback_environments(
+        pipeline, options)
 
-    # This is needed as we start a worker server if one is requested
-    # but none is provided.
-    if portable_options.environment_type == 'LOOPBACK':
-      use_loopback_process_worker = options.view_as(
-          DebugOptions).lookup_experiment('use_loopback_process_worker', False)
-      portable_options.environment_config, server = (
-          worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-              state_cache_size=
-              sdk_worker_main._get_state_cache_size(experiments),
-              data_buffer_time_limit_ms=
-              sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
-              use_process=use_loopback_process_worker))
-      cleanup_callbacks = [functools.partial(server.stop, 1)]
-    else:
-      cleanup_callbacks = []
-
-    pipeline.visit(
-        group_by_key_input_visitor(
-            not options.view_as(TypeOptions).allow_non_deterministic_key_coders)
-    )
-
-    proto_pipeline = self.get_proto_pipeline(pipeline, options)
+    optimized_pipeline = self._optimize_pipeline(pipeline, options)
     job_service_handle = self.create_job_service(options)
-    job_id, message_stream, state_stream = \
-      job_service_handle.submit(proto_pipeline)
+    job_id, message_stream, state_stream = job_service_handle.submit(
+        optimized_pipeline)
 
     result = PipelineResult(
         job_service_handle.job_service,
@@ -464,6 +426,32 @@ class PortableRunner(runner.PipelineRunner):
           'This ensures that the pipeline finishes before this program exits.',
           portable_options.environment_type)
     return result
+
+  @staticmethod
+  def start_and_replace_loopback_environments(pipeline, options):
+    portable_options = copy.deepcopy(options.view_as(PortableOptions))
+    experiments = options.view_as(DebugOptions).experiments or []
+    cleanup_callbacks = []
+    for env in pipeline.components.environments.values():
+      if env.urn == python_urns.EMBEDDED_PYTHON_LOOPBACK:
+        # Start a worker and change the environment to point to that worker.
+        use_loopback_process_worker = options.view_as(
+            DebugOptions).lookup_experiment(
+                'use_loopback_process_worker', False)
+        portable_options.environment_type = 'EXTERNAL'
+        portable_options.environment_config, server = (
+            worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
+                state_cache_size=
+                sdk_worker_main._get_state_cache_size(experiments),
+                data_buffer_time_limit_ms=
+                sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
+                use_process=use_loopback_process_worker))
+        external_env = environments.ExternalEnvironment.from_options(
+            portable_options).to_runner_api(None)  # type: ignore
+        env.urn = external_env.urn
+        env.payload = external_env.payload
+        cleanup_callbacks.append(functools.partial(server.stop, 1))
+    return cleanup_callbacks
 
 
 class PortableMetrics(metric.MetricResults):

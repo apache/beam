@@ -42,6 +42,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"os"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -68,6 +69,7 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
@@ -114,6 +116,7 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -173,6 +176,7 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
@@ -202,6 +206,7 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -240,6 +245,7 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -296,6 +302,12 @@ func CheckFilters(t *testing.T) {
 		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
 	}
 
+	// TODO(https://github.com/apache/beam/issues/28227): Grant github-actions service account permission to healthcare.fhirStores.create.
+	var user = os.Getenv("USER")
+	if user == "github-actions" {
+		dataflowFilters = append(dataflowFilters, "TestFhirIO.*")
+	}
+
 	// Check for sickbaying first.
 	n := t.Name()
 	for _, f := range sickbay {
@@ -313,7 +325,6 @@ func CheckFilters(t *testing.T) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
-
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner

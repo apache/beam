@@ -119,8 +119,17 @@ func TestWorker_Logging(t *testing.T) {
 
 	logStream.Send(&fnpb.LogEntry_List{
 		LogEntries: []*fnpb.LogEntry{{
-			Severity: fnpb.LogEntry_Severity_INFO,
-			Message:  "squeamish ossiphrage",
+			Severity:    fnpb.LogEntry_Severity_INFO,
+			Message:     "squeamish ossiphrage",
+			LogLocation: "intentionally.go:124",
+		}},
+	})
+
+	logStream.Send(&fnpb.LogEntry_List{
+		LogEntries: []*fnpb.LogEntry{{
+			Severity:    fnpb.LogEntry_Severity_INFO,
+			Message:     "squeamish ossiphrage the second",
+			LogLocation: "intentionally bad log location",
 		}},
 	})
 
@@ -146,7 +155,7 @@ func TestWorker_Control_HappyPath(t *testing.T) {
 	b := &B{}
 	b.Init()
 	wk.activeInstructions[instID] = b
-	b.ProcessOn(wk)
+	b.ProcessOn(ctx, wk)
 
 	ctrlStream.Send(&fnpb.InstructionResponse{
 		InstructionId: instID,
@@ -193,7 +202,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		b.ProcessOn(wk)
+		b.ProcessOn(ctx, wk)
 	}()
 
 	wk.InstReqs <- &fnpb.InstructionRequest{

@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,7 +34,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import org.apache.beam.sdk.io.splunk.SplunkEvent;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -79,6 +80,7 @@ public class SplunkResourceManagerTest {
     when(container.withPassword(anyString())).thenReturn(container);
     when(container.getMappedPort(DEFAULT_SPLUNKD_INTERNAL_PORT))
         .thenReturn(MAPPED_SPLUNKD_INTERNAL_PORT);
+    doReturn(container).when(container).withLogConsumer(any());
 
     testManager =
         new SplunkResourceManager(clientFactory, container, SplunkResourceManager.builder(TEST_ID));

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.it.common;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -26,7 +26,7 @@ import java.time.Instant;
 import java.util.function.Supplier;
 import org.apache.beam.it.common.PipelineLauncher.JobState;
 import org.apache.beam.sdk.function.ThrowingConsumer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

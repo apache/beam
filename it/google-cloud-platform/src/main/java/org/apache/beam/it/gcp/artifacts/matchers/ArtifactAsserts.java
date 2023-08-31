@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.it.gcp.artifacts.Artifact;
 import org.apache.beam.it.truthmatchers.RecordsSubject;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class ArtifactAsserts {
 

@@ -661,10 +661,8 @@ type SplittableUnit interface {
 // the singleWindowSplit and multiWindowSplit methods.
 func (n *ProcessSizedElementsAndRestrictions) Split(ctx context.Context, f float64) ([]*FullValue, []*FullValue, error) {
 	// Get the watermark state immediately so that we don't overestimate our current watermark.
-	var pWeState any
-	var rWeState any
-	rWeState = n.wesInv.Invoke(n.PDo.we)
-	pWeState = rWeState
+	rWeState := n.wesInv.Invoke(n.PDo.we)
+	pWeState := rWeState
 	// If we've processed elements, the initial watermark estimator state will be set.
 	// In that case we should hold the output watermark at that initial state so that we don't
 	// Advance past where the current elements are holding the watermark

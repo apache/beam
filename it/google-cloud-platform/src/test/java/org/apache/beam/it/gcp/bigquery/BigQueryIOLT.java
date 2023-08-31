@@ -58,8 +58,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -109,11 +109,9 @@ public final class BigQueryIOLT extends IOLoadTestBase {
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void beforeClass() throws IOException {
+  public static void beforeClass() {
     resourceManager =
-        BigQueryResourceManager.builder("io-bigquery-lt", project)
-            .setCredentials(CREDENTIALS)
-            .build();
+        BigQueryResourceManager.builder("io-bigquery-lt", project, CREDENTIALS).build();
     resourceManager.createDataset(region);
   }
 

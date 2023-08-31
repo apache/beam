@@ -67,7 +67,7 @@ public final class SecretManagerResourceManagerTest {
 
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> SecretManagerResourceManager.builder(""));
+            IllegalArgumentException.class, () -> SecretManagerResourceManager.builder("", null));
     assertThat(exception).hasMessageThat().contains("projectId can not be empty");
   }
 

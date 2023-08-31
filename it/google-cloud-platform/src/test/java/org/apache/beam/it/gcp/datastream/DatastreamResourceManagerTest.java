@@ -36,7 +36,6 @@ import com.google.cloud.datastream.v1.SourceConfig;
 import com.google.cloud.datastream.v1.Stream;
 import com.google.cloud.datastream.v1.Stream.State;
 import com.google.cloud.datastream.v1.UpdateStreamRequest;
-import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import org.junit.Before;
 import org.junit.Rule;
@@ -66,17 +65,18 @@ public class DatastreamResourceManagerTest {
   private DatastreamResourceManager testManager;
 
   @Before
-  public void setup() throws IOException {
+  public void setup() {
     testManager =
         new DatastreamResourceManager(
-            datastreamClient, DatastreamResourceManager.builder(PROJECT_ID, LOCATION));
+            datastreamClient, DatastreamResourceManager.builder(PROJECT_ID, LOCATION, null));
   }
 
   @Test
   public void testBuilderWithInvalidProjectShouldFail() {
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> DatastreamResourceManager.builder("", LOCATION));
+            IllegalArgumentException.class,
+            () -> DatastreamResourceManager.builder("", LOCATION, null));
     assertThat(exception).hasMessageThat().contains("projectID can not be null or empty");
   }
 
@@ -85,7 +85,7 @@ public class DatastreamResourceManagerTest {
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> DatastreamResourceManager.builder(PROJECT_ID, ""));
+            () -> DatastreamResourceManager.builder(PROJECT_ID, "", null));
     assertThat(exception).hasMessageThat().contains("location can not be null or empty");
   }
 

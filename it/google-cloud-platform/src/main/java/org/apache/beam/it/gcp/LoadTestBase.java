@@ -46,7 +46,7 @@ import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.gcp.bigquery.BigQueryResourceManager;
 import org.apache.beam.it.gcp.monitoring.MonitoringClient;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -112,8 +112,7 @@ public abstract class LoadTestBase {
   public void setUp() throws IOException {
     project = TestProperties.project();
     region = TestProperties.region();
-    monitoringClient =
-        MonitoringClient.builder().setCredentialsProvider(CREDENTIALS_PROVIDER).build();
+    monitoringClient = MonitoringClient.builder(CREDENTIALS_PROVIDER).build();
     pipelineLauncher = launcher();
     pipelineOperator = new PipelineOperator(pipelineLauncher);
   }
@@ -124,7 +123,7 @@ public abstract class LoadTestBase {
     monitoringClient.cleanupAll();
   }
 
-  abstract PipelineLauncher launcher() throws IOException;
+  abstract PipelineLauncher launcher();
 
   /**
    * Exports the metrics of given dataflow job to BigQuery.
@@ -132,16 +131,14 @@ public abstract class LoadTestBase {
    * @param launchInfo Job info of the job
    * @param metrics metrics to export
    */
-  protected void exportMetricsToBigQuery(LaunchInfo launchInfo, Map<String, Double> metrics)
-      throws IOException {
+  protected void exportMetricsToBigQuery(LaunchInfo launchInfo, Map<String, Double> metrics) {
     LOG.info("Exporting metrics:\n{}", formatForLogging(metrics));
     try {
       // either use the user specified project for exporting, or the same project
       String exportProject = MoreObjects.firstNonNull(TestProperties.exportProject(), project);
       BigQueryResourceManager bigQueryResourceManager =
-          BigQueryResourceManager.builder(testName, exportProject)
+          BigQueryResourceManager.builder(testName, exportProject, CREDENTIALS)
               .setDatasetId(TestProperties.exportDataset())
-              .setCredentials(CREDENTIALS)
               .build();
       // exporting metrics to bigQuery table
       Map<String, Object> rowContent = new HashMap<>();

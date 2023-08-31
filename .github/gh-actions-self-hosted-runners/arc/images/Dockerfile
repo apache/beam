@@ -31,7 +31,7 @@ RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && 
     mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.20.5
+ARG go_version=1.21.0
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
@@ -60,7 +60,8 @@ RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-c
     mv google-cloud-sdk /usr/local/google-cloud-sdk && \
     /usr/local/google-cloud-sdk/install.sh --quiet && \
     /usr/local/google-cloud-sdk/bin/gcloud components install kubectl && \
-    chown -R runner:runner /home/runner/.config/gcloud
+    #revert permission
+    chown -R runner:runner /home/runner/.config
 ENV PATH="${PATH}:/usr/local/google-cloud-sdk/bin"
 
 # Needed to transfer path addtitions to runner environment

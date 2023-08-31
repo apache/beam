@@ -48,7 +48,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTyp
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.BitString;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimestampString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({

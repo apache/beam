@@ -19,38 +19,52 @@
 
 # Overview
 
-This module provisions a private Google Kubernetes Engine cluster.
+This module provisions a private Google Kubernetes Engine cluster in the
+Google Cloud Platform (GCP).
 
 # Requirements and Usage
 
 See [Google Cloud Platform requirements](../../google-cloud-platform/README.md)
-for details on requirements
-and usage.
+for details on requirements and usage.
 
-## 1. Create vars.tfvars
+# Prerequisites
+
+This module assumes the following pre-existing resources:
+
+- [Cloud Resource Manager API Enabled](https://console.cloud.google.com/apis/library/cloudresourcemanager.googleapis.com)
+- [Virtual Private Cloud (VPC) network and subnetwork](https://cloud.google.com/vpc/docs/create-modify-vpc-networks)
+- [GCP Service Account](https://cloud.google.com/iam/docs/service-accounts-create)
+
+# Step 1. Create vars.tfvars
+
+## If you are provisioning in `apache-beam-testing`:
+
+You can skip this step and follow the next instruction. For security reasons,
+the `service_account_id` was omitted.
+
+## If you are provisioning in a custom GCP project:
 
 Create a `vars.tfvars` file
 in [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine](.).
 Edit with your IDE terraform plugin installed and it will autocomplete the
 variable names.
 
-## 2. Initialize and apply the terraform module.
+# Step 2. Initialize and apply the terraform module.
+
+## If you are provisioning in `apache-beam-testing`:
 
 ```
 terraform init
-terraform plan -var-file=vars.tfvars
+terraform apply -var-file=apache-beam-testing.tfvars
+```
+
+You will be prompted for any remaining variables.
+
+## If you are provisioning in a custom GCP project:
+
+```
+terraform init
 terraform apply -var-file=vars.tfvars
 ```
 
-# Special Instructions
-
-This module also provisions a bastion host needed to connect to the private
-cluster. To connect to the kubernetes
-cluster, do so through the bastion host by following directions starting at
-[Connect to your cluster from the remote client](https://cloud.google.com/kubernetes-engine/docs/tutorials/private-cluster-bastion#connect).
-
-To find the bastion host, run:
-
-```
-gcloud compute instances list --filter=name:bastion
-```
+You will be prompted for any remaining variables.

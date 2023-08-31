@@ -63,7 +63,7 @@ import org.apache.beam.testinfra.pipelines.dataflow.DataflowRequests;
 import org.apache.beam.testinfra.pipelines.dataflow.JobMetricsWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.dataflow.StageSummaryWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.pubsub.PubsubReadOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**

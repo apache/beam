@@ -30,7 +30,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlJoin;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSelect;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSetOperator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

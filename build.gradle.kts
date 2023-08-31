@@ -335,6 +335,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
+  dependsOn(":sdks:java:io:google-ads:build")
   dependsOn(":sdks:java:io:hbase:build")
   dependsOn(":sdks:java:io:hcatalog:build")
   dependsOn(":sdks:java:io:influxdb:build")
@@ -447,18 +448,7 @@ tasks.register("goPostCommitDataflowARM") {
 }
 
 tasks.register("goPostCommit") {
-  dependsOn(":goIntegrationTests")
-}
-
-tasks.register("goIntegrationTests") {
-  doLast {
-    exec {
-      executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
-    }
-  }
-  dependsOn(":sdks:go:test:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+  dependsOn(":sdks:go:test:dataflowValidatesRunner")
 }
 
 tasks.register("playgroundPreCommit") {
@@ -579,9 +569,9 @@ tasks.register("typescriptPreCommit") {
 }
 
 tasks.register("pushAllRunnersDockerImages") {
-  dependsOn(":runners:spark:3:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:docker")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
-    dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+    dependsOn(":runners:flink:${version}:job-server-container:docker")
   }
 
   doLast {
@@ -619,9 +609,9 @@ tasks.register("pushAllXlangDockerImages") {
   // This will ensure we don't use up too much space (especially in CI environments)
   mustRunAfter(":pushAllSdkDockerImages")
 
-  dependsOn(":sdks:java:expansion-service:container:dockerPush")
-  dependsOn(":sdks:java:transform-service:controller-container:dockerPush")
-  dependsOn(":sdks:python:expansion-service-container:dockerPush")
+  dependsOn(":sdks:java:expansion-service:container:docker")
+  dependsOn(":sdks:java:transform-service:controller-container:docker")
+  dependsOn(":sdks:python:expansion-service-container:docker")
 
   doLast {
     if (project.hasProperty("prune-images")) {

@@ -19,7 +19,7 @@ package org.apache.beam.it.gcp.artifacts.matchers;
 
 import static org.apache.beam.it.gcp.artifacts.matchers.ArtifactAsserts.assertThatGenericRecords;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing.sha256;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing.sha256;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

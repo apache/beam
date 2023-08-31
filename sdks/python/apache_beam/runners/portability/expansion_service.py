@@ -26,7 +26,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.portability import portable_runner
+from apache_beam.transforms import environments
 from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
 
@@ -37,7 +37,7 @@ class ExpansionServiceServicer(
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
     self._default_environment = (
-        portable_runner.PortableRunner._create_environment(self._options))
+        environments.Environment.from_options(self._options))
 
   def Expand(self, request, context=None):
     try:

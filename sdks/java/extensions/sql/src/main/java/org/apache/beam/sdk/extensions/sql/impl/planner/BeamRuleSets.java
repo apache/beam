@@ -49,7 +49,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreR
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.PruneEmptyRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * {@link RuleSet} used in {@code BeamQueryPlanner}. It translates a standard Calcite {@link

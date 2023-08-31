@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
@@ -71,10 +71,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -202,6 +202,7 @@ class WriteTables<DestinationT extends @NonNull Object>
       if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
         tableSchema = null;
       } else if (jsonSchemas.containsKey(destination)) {
+        // tableSchema for the destination stored in cache (jsonSchemas)
         tableSchema =
             BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
@@ -215,6 +216,7 @@ class WriteTables<DestinationT extends @NonNull Object>
             firstPaneCreateDisposition,
             dynamicDestinations,
             destination);
+        LOG.debug("Fetched TableSchema for table {}:\n\t{}", destination, tableSchema);
         jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 

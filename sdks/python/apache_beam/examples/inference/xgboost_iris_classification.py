@@ -73,6 +73,13 @@ def parse_known_args(argv):
       dest='model_state',
       required=True,
       help='Path to the state of the XGBoost model loaded for Inference.')
+  parser.add_argument(
+      '--large_model',
+      action='store_true',
+      dest='large_model',
+      default=False,
+      help='Set to true if your model is large enough to run into memory '
+      'pressure if you load multiple copies.')
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument('--split', action='store_true', dest='split')
   group.add_argument('--no_split', action='store_false', dest='split')
@@ -125,7 +132,8 @@ def run(
   xgboost_model_handler = KeyedModelHandler(
       model_handler(
           model_class=xgboost.XGBClassifier,
-          model_state=known_args.model_state))
+          model_state=known_args.model_state,
+          large_model=known_args.large_model))
 
   input_data = load_sklearn_iris_test_data(
       data_type=input_data_type, split=known_args.split)

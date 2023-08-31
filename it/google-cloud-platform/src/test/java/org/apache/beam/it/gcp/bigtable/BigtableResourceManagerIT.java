@@ -29,7 +29,7 @@ import java.util.List;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.gcp.GCPBaseIT;
 import org.apache.beam.it.gcp.GoogleCloudIntegrationTest;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,7 +48,7 @@ public class BigtableResourceManagerIT extends GCPBaseIT {
   @Before
   public void setUp() throws IOException {
     bigtableResourceManager =
-        BigtableResourceManager.builder("dummy", PROJECT)
+        BigtableResourceManager.builder("dummy", PROJECT, null)
             .setCredentialsProvider(credentialsProvider)
             .build();
   }

@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.testcontainers.TestContainersIntegrationTest;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.bson.Document;
 import org.junit.After;
 import org.junit.Before;

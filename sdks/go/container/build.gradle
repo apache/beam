@@ -68,5 +68,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 }
 
 task pushAll {
-  dependsOn ":sdks:go:container:dockerPush"
+  dependsOn ":sdks:go:container:docker"
 }

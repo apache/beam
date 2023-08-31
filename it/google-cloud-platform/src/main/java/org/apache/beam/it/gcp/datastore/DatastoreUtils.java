@@ -20,7 +20,7 @@ package org.apache.beam.it.gcp.datastore;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 
 /** Utilities to make working with Datastore easier. */
 final class DatastoreUtils {

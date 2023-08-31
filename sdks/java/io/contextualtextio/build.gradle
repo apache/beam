@@ -29,7 +29,7 @@ dependencies {
     implementation library.java.protobuf_java
     permitUnusedDeclared library.java.protobuf_java // BEAM-11761
     implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.vendored_grpc_1_54_0
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

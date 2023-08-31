@@ -32,7 +32,7 @@ dependencies {
   provided library.java.joda_time
   provided library.java.slf4j_api
   provided library.java.vendored_grpc_1_54_0
-  provided library.java.vendored_guava_26_0_jre
+  provided library.java.vendored_guava_32_1_2_jre
 
   provided library.java.jamm
 }

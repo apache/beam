@@ -79,9 +79,9 @@ public final class ClassicTemplateClientTest {
   @Captor private ArgumentCaptor<CreateJobFromTemplateRequest> requestCaptor;
 
   @Test
-  public void testCreateWithCredentials() throws IOException {
+  public void testCreateWithCredentials() {
     Credentials credentials = mock(Credentials.class);
-    ClassicTemplateClient.builder().setCredentials(credentials).build();
+    ClassicTemplateClient.builder(credentials).build();
     // Lack of exception is all we really can test
   }
 

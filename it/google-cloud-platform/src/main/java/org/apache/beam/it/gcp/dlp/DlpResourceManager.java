@@ -18,8 +18,6 @@
 package org.apache.beam.it.gcp.dlp;
 
 import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.privacy.dlp.v2.DeidentifyTemplate;
@@ -115,8 +113,8 @@ public class DlpResourceManager implements ResourceManager {
    * @param project the GCP project ID
    * @return a new instance of Builder
    */
-  public static Builder builder(String project) throws IOException {
-    return new Builder(project);
+  public static Builder builder(String project, CredentialsProvider credentialsProvider) {
+    return new Builder(project, credentialsProvider);
   }
 
   /** A builder class for creating instances of {@link DlpResourceManager}. */
@@ -130,10 +128,9 @@ public class DlpResourceManager implements ResourceManager {
      *
      * @param project the GCP project ID
      */
-    public Builder(String project) throws IOException {
+    public Builder(String project, CredentialsProvider credentialsProvider) {
       this.project = project;
-      this.credentialsProvider =
-          FixedCredentialsProvider.create(GoogleCredentials.getApplicationDefault());
+      this.credentialsProvider = credentialsProvider;
     }
 
     /**

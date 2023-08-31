@@ -21,11 +21,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.client.RequestOptions;
@@ -66,6 +67,8 @@ public class ElasticsearchResourceManagerTest {
   @Before
   public void setUp() {
     when(container.getHttpHostAddress()).thenReturn(HOST + ":" + MAPPED_PORT);
+    doReturn(container).when(container).withLogConsumer(any());
+
     testManager =
         new ElasticsearchResourceManager(
             elasticsearchClient, container, ElasticsearchResourceManager.builder(TEST_ID));

@@ -37,7 +37,7 @@ test {
 def hbase_version = "2.5.5"
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:io:hadoop-common")
   implementation library.java.slf4j_api
