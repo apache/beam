@@ -157,8 +157,13 @@ class PipelineOptionsValidator(object):
 
     dataflow_endpoint = (
         self.options.view_as(GoogleCloudOptions).dataflow_endpoint)
-    is_service_endpoint = (dataflow_endpoint is not None)
-    return is_service_runner and is_service_endpoint
+    if dataflow_endpoint is None:
+      return False
+    else:
+      endpoint_parts = urlparse(dataflow_endpoint, allow_fragments=False)
+      if endpoint_parts.netloc.startswith("localhost"):
+        return False
+    return is_service_runner
 
   def is_full_string_match(self, pattern, string):
     """Returns True if the pattern matches the whole string."""
@@ -404,6 +409,7 @@ class PipelineOptionsValidator(object):
 
   # Minimally validates the endpoint url. This is not a strict application
   # of http://www.faqs.org/rfcs/rfc1738.html.
+  # If the url matches localhost, set
   def validate_endpoint_url(self, endpoint_url):
     url_parts = urlparse(endpoint_url, allow_fragments=False)
     if not url_parts.scheme or not url_parts.netloc:

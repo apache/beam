@@ -46,12 +46,16 @@ var indexTemplate string
 //go:embed jobdetails.html
 var jobTemplate string
 
+//go:embed debugz.html
+var debugzTemplate string
+
 //go:embed assets/*
 var assets embed.FS
 
 var (
-	indexPage = template.Must(template.New("index").Parse(indexTemplate))
-	jobPage   = template.Must(template.New("job").Parse(jobTemplate))
+	indexPage  = template.Must(template.New("index").Parse(indexTemplate))
+	jobPage    = template.Must(template.New("job").Parse(jobTemplate))
+	debugzPage = template.Must(template.New("debugz").Parse(debugzTemplate))
 )
 
 type pTransform struct {
@@ -284,6 +288,14 @@ func (h *jobsConsoleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	renderPage(indexPage, data, w)
 }
 
+type debugzHandler struct {
+}
+
+func (h *debugzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	data := dumpMetrics()
+	renderPage(debugzPage, &data, w)
+}
+
 // Initialize the web client to talk to the given Job Management Client.
 func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) error {
 	assetsFs := http.FileServer(http.FS(assets))
@@ -291,6 +303,7 @@ func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) er
 
 	mux.Handle("/assets/", assetsFs)
 	mux.Handle("/job/", &jobDetailsHandler{Jobcli: jobcli})
+	mux.Handle("/debugz", &debugzHandler{})
 	mux.Handle("/", &jobsConsoleHandler{Jobcli: jobcli})
 
 	endpoint := fmt.Sprintf("localhost:%d", port)

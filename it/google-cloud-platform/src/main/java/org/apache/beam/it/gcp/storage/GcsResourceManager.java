@@ -84,8 +84,7 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
   }
 
   /** Returns a new {@link Builder} for configuring a client. */
-  public static Builder builder(String bucket, String testClassName, Credentials credentials)
-      throws IOException {
+  public static Builder builder(String bucket, String testClassName, Credentials credentials) {
     checkArgument(!bucket.equals(""));
     checkArgument(!testClassName.equals(""));
 
@@ -95,6 +94,11 @@ public final class GcsResourceManager implements ArtifactClient, ResourceManager
   @Override
   public String runId() {
     return runId;
+  }
+
+  @Override
+  public String getPathForArtifact(String artifactName) {
+    return joinPathParts(testClassName, runId, artifactName);
   }
 
   @Override

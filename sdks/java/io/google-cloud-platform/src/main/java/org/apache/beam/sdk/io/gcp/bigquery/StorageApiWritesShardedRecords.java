@@ -457,10 +457,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =
           () -> {
+            DestinationT dest = element.getKey().getKey();
             CreateTableHelpers.possiblyCreateTable(
                 c.getPipelineOptions().as(BigQueryOptions.class),
                 tableDestination,
-                () -> dynamicDestinations.getSchema(element.getKey().getKey()),
+                () -> dynamicDestinations.getSchema(dest),
+                () -> dynamicDestinations.getTableConstraints(dest),
                 createDisposition,
                 destinationCoder,
                 kmsKey,
@@ -833,6 +835,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
               APPEND_CLIENTS.invalidate(element.getKey());
               APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+              LOG.debug(
+                  "Fetched updated schema for table {}:\n\t{}", tableId, updatedSchemaReturned);
               updatedSchema.write(newSchema.get());
             }
           }
