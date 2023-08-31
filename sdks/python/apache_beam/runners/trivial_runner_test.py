@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import logging
 import unittest
 
 import apache_beam as beam
@@ -66,3 +67,8 @@ class TrivialRunnerTest(unittest.TestCase):
           | beam.GroupByKey()
           | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
       assert_that(result, equal_to([('a', [1]), ('b', [2, 3])]))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
