@@ -3032,10 +3032,10 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         return argList.join(' ')
       }
-
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
+          dependsOn ':sdks:python:build_wheel_using_build_module'
           doLast {
             // Python source directory is also tox execution workspace, We want
             // to isolate them per tox suite to avoid conflict when running
@@ -3043,9 +3043,10 @@ class BeamModulePlugin implements Plugin<Project> {
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
 
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.ext.sdkLocation} '$posargs' "
             }
           }
           inputs.files project.pythonSdkDeps

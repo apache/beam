@@ -109,6 +109,30 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
 }
 
+def build_wheel_using_build_module = tasks.register("build_wheel_using_build_module") {
+  description "Build a Python wheel distribution using build module"
+  dependsOn setupVirtualenv
+  // need sdist task to generate protos
+  dependsOn ':sdks:python:sdist'
+
+  // generated installable Python SDK package
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && " +
+          "python -m build --wheel --outdir ${buildDir}"
+    }
+    def collection = project.fileTree(project.project(':sdks:python').buildDir){
+        // include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+        include '**/*.whl'
+        }
+        // sdkLocation ext is set at execution time
+        String packageFilename = collection.singleFile.toString()
+        project.ext.sdkLocation = packageFilename
+        logger.info('Use wheel {} for sdk_location.', packageFilename)
+        }
+  }
+
 /*************************************************************************************************/
 // Non-testing builds and analysis tasks
 
