@@ -69,5 +69,5 @@ jobs:
       - name: Run govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          cd sdks/go/pkg/beam
+          cd sdks
           $(go env GOPATH)/bin/govulncheck ./...
