@@ -42,7 +42,8 @@ ENV FOO=bar
 COPY /src/path/to/file /dest/path/to/file/
 </code></pre><p>This <code>Dockerfile</code> uses the prebuilt Python 3.7 SDK container image <a href=https://hub.docker.com/r/apache/beam_python3.7_sdk><code>beam_python3.7_sdk</code></a> tagged at (SDK version) <code>2.25.0</code>, and adds an additional environment variable and file to the image.</p><ol start=2><li><a href=https://docs.docker.com/engine/reference/commandline/build/>Build</a> and <a href=https://docs.docker.com/engine/reference/commandline/push/>push</a> the image using Docker.</li></ol><pre tabindex=0><code>export BASE_IMAGE=&#34;apache/beam_python3.7_sdk:2.25.0&#34;
 export IMAGE_NAME=&#34;myremoterepo/mybeamsdk&#34;
-export TAG=&#34;latest&#34;
+# Avoid using `latest` with custom containers to make reproducing failures easier.
+export TAG=&#34;mybeamsdk-versioned-tag&#34;
 
 # Optional - pull the base image into your local Docker daemon to ensure
 # you have the most up-to-date version of the base image locally.
@@ -175,7 +176,10 @@ python -m apache_beam.examples.wordcount \
   --region $REGION \
   --temp_location &#34;${GCS_PATH}/tmp/&#34; \
   --experiment=use_runner_v2 \
-  --sdk_container_image=$IMAGE_URL</code></pre></div></div><h3 id=troubleshooting>Troubleshooting</h3><p>The following section describes some common issues to consider
+  --sdk_container_image=$IMAGE_URL</code></pre></div></div><p>Avoid using the tag <code>:latest</code> with your custom images. Tag your builds with a date
+or a unique identifier. If something goes wrong, using this type of tag might make
+it possible to revert the pipeline execution to a previously known working
+configuration and allow for an inspection of changes.</p><h3 id=troubleshooting>Troubleshooting</h3><p>The following section describes some common issues to consider
 when you encounter unexpected errors running Beam pipelines with
 custom containers.</p><ul><li>Differences in language and SDK version between the container SDK and
 pipeline SDK may result in unexpected errors due to incompatibility. For best

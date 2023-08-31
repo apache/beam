@@ -14093,17 +14093,18 @@ resource utilization.&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="nd">@ProcessElement&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">public&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span> &lt;span class="nf">processElement&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">RestrictionTracker&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">OutputReceiver&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Record&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">RestrictionTracker&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OffsetRange&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">OutputReceiver&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">RecordPosition&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">outputReceiver&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">long&lt;/span> &lt;span class="n">currentPosition&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">currentRestriction&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getFrom&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">Service&lt;/span> &lt;span class="n">service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">initializeService&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">try&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">while&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Record&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">records&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readNextRecords&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">currentPosition&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">RecordPosition&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">records&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readNextRecords&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">currentPosition&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">records&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">isEmpty&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Return a short delay if there is no data to process at the moment.
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">resume&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">withResumeDelay&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardSeconds&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">10&lt;/span>&lt;span class="o">));&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">Record&lt;/span> &lt;span class="n">record&lt;/span> &lt;span class="o">:&lt;/span> &lt;span class="n">records&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">RecordPosition&lt;/span> &lt;span class="n">record&lt;/span> &lt;span class="o">:&lt;/span> &lt;span class="n">records&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">(!&lt;/span>&lt;span class="n">tracker&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">tryClaim&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">record&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getPosition&lt;/span>&lt;span class="o">()))&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">ProcessContinuation&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">stop&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
@@ -17076,7 +17077,8 @@ COPY /src/path/to/file /dest/path/to/file/
 &lt;/ol>
 &lt;pre tabindex="0">&lt;code>export BASE_IMAGE=&amp;#34;apache/beam_python3.7_sdk:2.25.0&amp;#34;
 export IMAGE_NAME=&amp;#34;myremoterepo/mybeamsdk&amp;#34;
-export TAG=&amp;#34;latest&amp;#34;
+# Avoid using `latest` with custom containers to make reproducing failures easier.
+export TAG=&amp;#34;mybeamsdk-versioned-tag&amp;#34;
 # Optional - pull the base image into your local Docker daemon to ensure
 # you have the most up-to-date version of the base image locally.
 docker pull &amp;#34;${BASE_IMAGE}&amp;#34;
@@ -17280,6 +17282,10 @@ python -m apache_beam.examples.wordcount \
 --sdk_container_image=$IMAGE_URL&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
+&lt;p>Avoid using the tag &lt;code>:latest&lt;/code> with your custom images. Tag your builds with a date
+or a unique identifier. If something goes wrong, using this type of tag might make
+it possible to revert the pipeline execution to a previously known working
+configuration and allow for an inspection of changes.&lt;/p>
 &lt;h3 id="troubleshooting">Troubleshooting&lt;/h3>
 &lt;p>The following section describes some common issues to consider
 when you encounter unexpected errors running Beam pipelines with
