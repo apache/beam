@@ -264,7 +264,6 @@
   Image [#26998](https://github.com/apache/beam/issues/26698). [Dataflow Docker images](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies) still preinstall this dependency.
 * Long-running Python pipelines might suffer from a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
-  
 # [2.46.0] - 2023-03-10
 
 ## Highlights
