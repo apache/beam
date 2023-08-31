@@ -3007,7 +3007,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
-          dependsOn ':sdks:python:build_wheel_using_build_module'
           doLast {
             // Python source directory is also tox execution workspace, We want
             // to isolate them per tox suite to avoid conflict when running
@@ -3017,7 +3016,7 @@ class BeamModulePlugin implements Plugin<Project> {
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             def collection = project.fileTree(project.project(':sdks:python').buildDir){
               // include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
-              include '**/*.whl'
+              include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
             }
             // sdkLocation ext is set at execution time
             String packageFilename = collection.singleFile.toString()

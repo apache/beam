@@ -44,3 +44,7 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
       }
 }
+
+testPy${pythonVersionSuffix}Cloud dependsOn ':sdks:python:"build_${pythonVersionSuffix}wheel_using_build_module"'
+testPy${pythonVersionSuffix}Cython dependsOn ':sdks:python:"build_${pythonVersionSuffix}wheel_using_build_module"'
+testPy38CloudCoverage dependsOn ':sdks:python:"build_${pythonVersionSuffix}wheel_using_build_module"'
