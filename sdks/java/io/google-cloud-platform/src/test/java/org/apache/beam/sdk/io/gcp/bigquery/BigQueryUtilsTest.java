@@ -980,19 +980,23 @@ public class BigQueryUtilsTest {
 
   @Test
   public void testToTableSpec() {
-    TableReference withProject = new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    TableReference withoutProject = new TableReference().setDatasetId("dataset").setTableId("table");
+    TableReference withProject =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    TableReference withoutProject =
+        new TableReference().setDatasetId("dataset").setTableId("table");
     TableReference withDatasetOnly = new TableReference().setDatasetId("dataset");
     TableReference withTableOnly = new TableReference().setTableId("table");
 
     assertEquals("project.dataset.table", toTableSpec(withProject));
     assertEquals("dataset.table", toTableSpec(withoutProject));
-    assertThrows("must include at least a dataset and a table",
-            IllegalArgumentException.class,
-            () -> toTableSpec(withDatasetOnly));
-    assertThrows("must include at least a dataset and a table",
-            IllegalArgumentException.class,
-            () -> toTableSpec(withTableOnly));
+    assertThrows(
+        "must include at least a dataset and a table",
+        IllegalArgumentException.class,
+        () -> toTableSpec(withDatasetOnly));
+    assertThrows(
+        "must include at least a dataset and a table",
+        IllegalArgumentException.class,
+        () -> toTableSpec(withTableOnly));
   }
 
   @Test
@@ -1046,7 +1050,9 @@ public class BigQueryUtilsTest {
     assertNull(BigQueryUtils.toTableReference(":invalidleadingcolon.mydataset.mytable"));
     assertNull(BigQueryUtils.toTableReference("invalidtrailingcolon.mydataset.mytable:"));
     assertNull(BigQueryUtils.toTableReference("projectendswithhyphen-.mydataset.mytable"));
-    assertNull(BigQueryUtils.toTableReference("projectnamegoesbeyondthe30characterlimit.mydataset.mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference(
+            "projectnamegoesbeyondthe30characterlimit.mydataset.mytable"));
 
     assertNull(
         BigQueryUtils.toTableReference("/projects/extraslash/datasets/mydataset/tables/mytable"));

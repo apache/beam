@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -163,6 +164,14 @@ public interface BigQueryOptions
   Long getStorageWriteApiMaxRequestSize();
 
   void setStorageWriteApiMaxRequestSize(Long value);
+
+  @Internal
+  @Description(
+      "Intended for testing purposes only. If set, the Storage API sink will periodically crash at this interval.")
+  @Default.Long(-1)
+  Long getCrashStorageApiWriteEverySeconds();
+
+  void setCrashStorageApiWriteEverySeconds(Long value);
 
   @Description(
       "If set, BigQueryIO.Read will use the StreamBundle based"

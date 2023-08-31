@@ -100,10 +100,10 @@ public class BigQueryUtils {
   // https://cloud.google.com/bigquery/docs/datasets#dataset-naming, and
   // https://cloud.google.com/bigquery/docs/tables#table_naming
   private static final Pattern SIMPLE_TABLE_PATTERN =
-        Pattern.compile(
-                "^(?<PROJECT>[a-z][a-z0-9.\\-:]{4,28}[a-z0-9])[\\:.]" +
-                "(?<DATASET>[a-zA-Z0-9_]{1,1024})[\\.]" +
-                "(?<TABLE>[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}$]{1,1024})$");
+      Pattern.compile(
+          "^(?<PROJECT>[a-z][a-z0-9.\\-:]{4,28}[a-z0-9])[\\:.]"
+              + "(?<DATASET>[a-zA-Z0-9_]{1,1024})[\\.]"
+              + "(?<TABLE>[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}$]{1,1024})$");
 
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
@@ -1006,14 +1006,17 @@ public class BigQueryUtils {
 
   /**
    * @param tableReference - a BigQueryTableIdentifier that may or may not include the project.
-   *
-   * @return a String representation of the table destination in the form: `myproject.mydataset.mytable`
+   * @return a String representation of the table destination in the form:
+   *     `myproject.mydataset.mytable`
    */
   public static @Nullable String toTableSpec(TableReference tableReference) {
     if (tableReference.getDatasetId() == null || tableReference.getTableId() == null) {
-      throw new IllegalArgumentException(String.format("Table reference [%s] must include at least a dataset and a table.", tableReference));
+      throw new IllegalArgumentException(
+          String.format(
+              "Table reference [%s] must include at least a dataset and a table.", tableReference));
     }
-    String tableSpec = String.format("%s.%s", tableReference.getDatasetId(), tableReference.getTableId());
+    String tableSpec =
+        String.format("%s.%s", tableReference.getDatasetId(), tableReference.getTableId());
     if (!Strings.isNullOrEmpty(tableReference.getProjectId())) {
       tableSpec = String.format("%s.%s", tableReference.getProjectId(), tableSpec);
     }

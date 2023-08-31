@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
@@ -23,6 +24,8 @@ applyJavaNature(
 
 description = "Apache Beam :: IT :: Google Cloud Platform"
 ext.summary = "Integration test utilities for Google Cloud Platform."
+
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
@@ -71,6 +74,32 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation library.java.mockito_inline
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
     testRuntimeOnly library.java.slf4j_simple
+}
+
+
+def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+task loadTestLegacyRunner(type: Test, dependsOn: processTestResources) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+    group = "Verification"
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--runner=DataflowRunner",
+            "--project=google.com:clouddfe",
+            "--tempLocation=gs://ahmedabualsaud-wordcount/tmp",
+            "--region=us-central1",
+            "--numWorkers=5",
+            "--maxNumWorkers=500",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+            "--workerHarnessContainerImage=",
+    ])
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+    include '**/*LT.class'
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 }
