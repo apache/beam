@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.50.0"
-date:   2023-08-20 09:00:00 -0400
+date:   2023-08-30 09:00:00 -0400
 categories:
   - blog
   - release
@@ -21,13 +21,11 @@ limitations under the License.
 
 We are happy to present the new 2.50.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2500-2023-08-20) for this release.
+See the [download page](/get-started/downloads/#2500-2023-08-30) for this release.
 
 <!--more-->
 
 For more information on changes in 2.50.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/14).
-
-# [2.50.0] - Unreleased
 
 ## Highlights
 
@@ -87,7 +85,7 @@ For more information on changes in 2.50.0, check out the [detailed release notes
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the 2.40.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.50.0 release. Thank you to all contributors!
 
 Abacn
 

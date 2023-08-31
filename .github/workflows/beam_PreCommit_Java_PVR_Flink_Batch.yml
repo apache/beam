@@ -15,31 +15,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PreCommit Typescript
+name: PreCommit Java PVR Flink Batch
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**', '.github/workflows/beam_PreCommit_Typescript.yml']
+    paths:
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
+      - '.github/workflows/beam_PreCommit_Java_PVR_Flink_Batch.yml'
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**']
+    paths:
+      - 'runners/flink/**'
+      - 'runners/java-fn-execution/**'
+      - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
   issue_comment:
     types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
-  
-  # This allows a subsequently queued workflow run to interrupt previous runs
+
+# This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
-
-env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -56,39 +58,38 @@ permissions:
   repository-projects: read
   security-events: read
   statuses: read
+
 jobs:
-  beam_PreCommit_Typescript:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
-    timeout-minutes: 120
-    runs-on: [self-hosted, ubuntu-20.04, main]
+  beam_PreCommit_Java_PVR_Flink_Batch:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: [beam_PreCommit_Typescript]
-        job_phrase: [Run Typescript PreCommit]
+        job_name: ["beam_PreCommit_Java_PVR_Flink_Batch"]
+        job_phrase: ["Run Java_PVR_Flink_Batch PreCommit"]
+    timeout-minutes: 240
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Typescript PreCommit'
+      github.event.comment.body == 'Run Java_PVR_Flink_Batch PreCommit'
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
-        with:
-          requires-py-39: false
-          requires-go: false
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
-      - name: run typescriptPreCommit script
+      - name: run validatesPortableRunnerBatch script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :typescriptPreCommit
+          gradle-command: :runners:flink:1.15:job-server:validatesPortableRunnerBatch
+        env:
+          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH }}
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: java-code-coverage-report
+          path: "**/build/test-results/**/*.xml"
