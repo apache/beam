@@ -51,3 +51,32 @@
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
     # Disable until https://github.com/apache/beam/issues/28162 is resolved.
     # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+
+# Declared as a renaming transform to avoid exposing all
+# (implementation-specific) pandas arguments and aligning with possible Java
+# implementation.
+# Invoking these directly as a PyTransform is still an option for anyone wanting
+# to use these power-features in a language-dependent manner.
+- type: renaming
+  transforms:
+    'ReadFromCsv': 'ReadFromCsv'
+    'WriteToCsv': 'WriteToCsv'
+    'ReadFromJson': 'ReadFromJson'
+    'WriteToJson': 'WriteToJson'
+  config:
+    mappings:
+      'ReadFromCsv':
+        path: 'path'
+      'WriteToCsv':
+        path: 'path'
+      'ReadFromJson':
+        path: 'path'
+      'WriteToJson':
+        path: 'path'
+    underlying_provider:
+      type: python
+      transforms:
+        'ReadFromCsv': 'apache_beam.io.ReadFromCsv',
+        'WriteToCsv': 'apache_beam.io.WriteToCsv',
+        'ReadFromJson': 'apache_beam.io.ReadFromJson',
+        'WriteToJson': 'apache_beam.io.WriteToJson',
