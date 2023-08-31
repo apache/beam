@@ -34,8 +34,8 @@ class IoPerformanceTestUtilities {
 
       include "**/${testClass}.class"
 
-      systemProperty 'exportDataset', System.getenv 'exportDataset'
-      systemProperty 'exportTable', System.getenv 'exportTable'
+      systemProperty 'exportDataset', System.getenv('exportDataset')
+      systemProperty 'exportTable', System.getenv('exportTable')
 
       for (entry in systemProperties){
         systemProperty entry.key, entry.value
