@@ -81,6 +81,10 @@ jobs:
       - name: set link
         run: | 
           ln -s ./ src
+      - name: run Cleanup script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:clean
       - name: run Snapshot script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
