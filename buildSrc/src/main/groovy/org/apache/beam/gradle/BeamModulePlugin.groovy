@@ -3015,10 +3015,17 @@ class BeamModulePlugin implements Plugin<Project> {
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
 
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+            def collection = project.fileTree(project.project(':sdks:python').buildDir){
+              // include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+              include '**/*.whl'
+            }
+            // sdkLocation ext is set at execution time
+            String packageFilename = collection.singleFile.toString()
+            // logger.info('Use wheel {} for sdk_location.', packageFilename)
 
             project.exec {
               executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${project.ext.sdkLocation} '$posargs' "
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
             }
           }
           inputs.files project.pythonSdkDeps
