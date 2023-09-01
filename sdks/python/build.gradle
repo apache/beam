@@ -109,25 +109,7 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
 }
 
-getVersionsAsList('python_versions').each { it ->
-  def pyversion = it.replace('.', '')
 
-  def build_wheel_using_build_module = tasks.register("build_py${pyversion}_wheel_using_build_module") {
-    description "Build a Python wheel distribution using build module"
-    dependsOn setupVirtualenv
-    // need sdist task to generate protos
-    dependsOn ':sdks:python:sdist'
-
-    // generated installable Python SDK package
-    doLast {
-      exec {
-        executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && " +
-            "python -m build --wheel --outdir ${buildDir}"
-      }
-    }
-  }
-}
 
 /*************************************************************************************************/
 // Non-testing builds and analysis tasks
