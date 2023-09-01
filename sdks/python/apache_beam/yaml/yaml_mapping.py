@@ -16,11 +16,10 @@
 #
 
 """This module defines the basic MapToFields operation."""
-import builtins
 import itertools
-import json
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_fields_from_element_type
@@ -28,16 +27,8 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 
 
-# TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
-def expand_mapping_func(
-    transform_name,
-    language,
-    original_fields,
-    expression=None,
-    callable=None,
-    path=None,
-    name=None):
-
+def _check_mapping_arguments(
+    transform_name, expression=None, callable=None, name=None, path=None):
   # Argument checking
   if not expression and not callable and not path and not name:
     raise ValueError(
@@ -45,7 +36,7 @@ def expand_mapping_func(
     )
   if expression and callable:
     raise ValueError(
-        f'{transform_name} cannot specify "expression" and "callable"')
+        f'{transform_name} cannot specify both "expression" and "callable"')
   if (expression or callable) and (path or name):
     raise ValueError(
         f'{transform_name} cannot specify "expression" or "callable" with "path" or "name"'
@@ -55,94 +46,75 @@ def expand_mapping_func(
   if name and not path:
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
-  def _get_udf_from_file():
-    # Local UDF file case
-    if not path.startswith("gs://"):
-      try:
-        with open(path, 'r') as local_udf_file:
-          return local_udf_file.read()
-      except Exception as e:
-        raise IOError(f'Error opening file "{path}": {e}')
 
-    # GCS UDF file case
-    from google.cloud import storage
+# TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
+def _expand_javascript_mapping_func(
+    original_fields, expression=None, callable=None, path=None, name=None):
+  try:
+    import js2py
+  except ImportError:
+    raise ImportError(
+        "js2py must be installed to run javascript UDF's for YAML mapping transforms."
+    )
 
-    # Parse GCS file location
-    gcs_file_parts = str(path[5:]).split('/')
-    gcs_bucket_name = gcs_file_parts[0]
-    gcs_folder = '/'.join(gcs_file_parts[1:])
+  # Javascript expression case
+  if expression:
+    parameters = [name for name in original_fields if name in expression]
+    args_from_row = ', '.join(f'__row__.{param}' for param in parameters)
+    args = ', '.join(parameters)
+    js_func = f'function fn({args}) {{return ({expression})}}'
 
-    # Instantiates a client and downloads file to string
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(gcs_bucket_name)
-    blob = bucket.blob(gcs_folder)
-    gcs_file = blob.download_as_string().decode('utf-8')
+    return lambda __row__: js2py.eval_js(js_func)(*eval(args_from_row))
 
-    return gcs_file
-
-  def _check_file_ext(ext):
-    if not path.endswith(ext):
-      raise ValueError(f'File "{path}" is not a valid {ext} file.')
-
-  def _js2py_import():
-    return (['  try:'] + ['    import js2py'] + ['  except ImportError:'] + [
-        '    raise ImportError("js2py must be installed to run javascript UDF\'s for YAML mapping transforms.")'
-    ])
-
-  # Javascript UDF case
-  if language == 'javascript':
-    # Javascript expression case
-    if expression:
-      parameters = [name for name in original_fields if name in expression]
-      js_func = 'function fn(' + ','.join(
-          [name for name in parameters]) + '){' + 'return (' + expression + ')}'
-      source = '\n'.join(['def fn(__row__):'] + _js2py_import() +
-                         [f'  {name} = __row__.{name}' for name in parameters] +
-                         [
-                             f'  return js2py.eval_js(\'\'\'{js_func}\'\'\')(' +
-                             ','.join([name for name in parameters]) + ')'
-                         ])
-    else:
-      # Javascript file UDF case
-      if not callable:
-        _check_file_ext('.js')
-        udf_code = _get_udf_from_file()
-      # Javascript inline UDF case
-      else:
-        udf_code = callable
-
-      source = '\n'.join(['def fn(__row__):'] + _js2py_import() + [
-          '  row_dict = {label: getattr(__row__, label) for label in __row__._fields}'
-      ] + ([f'  return js2py.eval_js(\'\'\'{udf_code}\'\'\')(row_dict)']
-           if callable else ['  js = js2py.EvalJs()'] +
-           [f'  js.eval(\'\'\'{udf_code}\'\'\')'] +
-           [f'  return getattr(js, "{name}")(row_dict)']))
-  # Python UDF case
+  # Javascript file UDF case
+  if not callable:
+    if not path.endswith('.js'):
+      raise ValueError(f'File "{path}" is not a valid .js file.')
+    udf_code = FileSystems.open(path).read().decode()
+  # Javascript inline UDF case
   else:
-    # Python expression case
-    if expression:
-      # TODO(robertwb): Consider constructing a single callable that takes
-      ## the row and returns the new row, rather than invoking (and unpacking)
-      ## for each field individually.
-      source = '\n'.join(['def fn(__row__):'] + [
-          f'  {name} = __row__.{name}'
-          for name in original_fields if name in expression
-      ] + ['  return (' + expression + ')'])
+    udf_code = callable
 
-    # Python file UDF case
-    elif path and name:
-      _check_file_ext('.py')
-      py_file = _get_udf_from_file()
+  def fn(__row__):
+    row_values = eval(
+        ', '.join(f'__row__.{param}' for param in original_fields))
+    row_dict = dict(zip(original_fields, row_values))
+    if callable:
+      return js2py.eval_js(udf_code)(row_dict)
+    js = js2py.EvalJs()
+    js.eval(udf_code)
+    return getattr(js, name)(row_dict)
 
-      # Parse file into python function using given method name
-      return python_callable.PythonCallableWithSource.load_from_script(
-          py_file, name)
+  return fn
 
-    # Python inline UDF case - already valid python code
-    else:
-      source = callable
 
-  # Return source UDF code as python callable
+def _expand_python_mapping_func(
+    original_fields, expression=None, callable=None, path=None, name=None):
+  # Python file UDF case
+  if path and name:
+    if not path.endswith('.py'):
+      raise ValueError(f'File "{path}" is not a valid .py file.')
+    py_file = FileSystems.open(path).read().decode()
+
+    # Parse file into python function using given method name
+    return python_callable.PythonCallableWithSource.load_from_script(
+        py_file, name)
+
+  # Python expression case
+  elif expression:
+    # TODO(robertwb): Consider constructing a single callable that takes
+    ## the row and returns the new row, rather than invoking (and unpacking)
+    ## for each field individually.
+    source = '\n'.join(['def fn(__row__):'] + [
+        f'  {name} = __row__.{name}'
+        for name in original_fields if name in expression
+    ] + ['  return (' + expression + ')'])
+
+  # Python inline UDF case - already valid python code
+  else:
+    source = callable
+
+  # Python inline UDF case - already valid python code
   return python_callable.PythonCallableWithSource(source)
 
 
@@ -161,7 +133,16 @@ def _as_callable(original_fields, expr, transform_name, language):
   elif len(expr) != 1 and ('path' not in expr or 'name' not in expr):
     raise ValueError(f"Ambiguous expression type: {list(expr.keys())}")
 
-  return expand_mapping_func(transform_name, language, original_fields, **expr)
+  _check_mapping_arguments(transform_name, **expr)
+
+  if language == "javascript":
+    return _expand_javascript_mapping_func(original_fields, **expr)
+  elif language == "python":
+    return _expand_python_mapping_func(original_fields, **expr)
+  else:
+    raise ValueError(
+        f'Unknown language for mapping transform: {language}. '
+        'Supported languages are "javascript" and "python."')
 
 
 # TODO(yaml): This should be available in all environments, in which case
@@ -197,13 +178,13 @@ class _Explode(beam.PTransform):
 
     return (
         beam.core._MaybePValueWithErrors(
-            pcoll, self._exception_handling_args)
+          pcoll, self._exception_handling_args)
         | beam.FlatMap(
-            lambda row: (
-                explode_cross_product if self._cross_product else explode_zip)(
-                    {name: getattr(row, name) for name in all_fields},  # yapf
-                    to_explode))
-        ).as_result()
+      lambda row: (
+        explode_cross_product if self._cross_product else explode_zip)(
+        {name: getattr(row, name) for name in all_fields},  # yapf
+        to_explode))
+    ).as_result()
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
@@ -253,8 +234,6 @@ def _PythonProjectionTransform(
   else:
     filtered = pcoll
 
-  # TODO(yaml) - Is there a better way to convert to pvalue.Row
-  # for Filter transform without calling beam.Select
   projected = filtered | beam.Select(
       **{
           name: _as_callable(original_fields, expr, transform_name, language)
@@ -288,7 +267,6 @@ def MapToFields(
     error_handling=None,
     transform_name="MapToFields",
     **language_keywords):
-
   if isinstance(explode, str):
     explode = [explode]
   if cross_product is None:

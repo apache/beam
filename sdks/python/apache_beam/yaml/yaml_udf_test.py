@@ -14,12 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import io
 import logging
+import os
+import shutil
+import tempfile
 import unittest
 from unittest import mock
 
 import apache_beam as beam
+from apache_beam.io import localfilesystem
+from apache_beam.io.filesystem import CompressedFile, CompressionTypes
+from apache_beam.io.gcp import gcsio, gcsfilesystem
 from apache_beam.options import pipeline_options
 from apache_beam.testing.util import equal_to, assert_that
 from apache_beam.yaml.yaml_transform import YamlTransform
@@ -35,7 +41,13 @@ class YamlUDFMappingTest(unittest.TestCase):
         beam.Row(label='37a', conductor=37, rank=1),
         beam.Row(label='389a', conductor=389, rank=2),
     ]
-    self.builtin_open = open  # save the unpatched version
+
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+    self.fs = localfilesystem.LocalFileSystem(pipeline_options)
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
 
   class MockBlob:
     def __init__(self, data):
@@ -57,18 +69,18 @@ class YamlUDFMappingTest(unittest.TestCase):
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
-        type: MapToFields
-        input: input
-        config:
-          language: javascript
-          fields:
-            label:
-              callable: "function label_map(x) {return x.label + 'x'}"
-            conductor:
-              callable: "function conductor_map(x) {return x.conductor + 1}"
-          keep:
-            callable: "function filter(x) {return x.rank > 0}"
-        ''')
+      type: MapToFields
+      input: input
+      config:
+        language: javascript
+        fields:
+          label:
+            callable: "function label_map(x) {return x.label + 'x'}"
+          conductor:
+            callable: "function conductor_map(x) {return x.conductor + 1}"
+        keep:
+          callable: "function filter(x) {return x.rank > 0}"
+      ''')
       assert_that(
           result,
           equal_to([
@@ -82,18 +94,18 @@ class YamlUDFMappingTest(unittest.TestCase):
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
-        type: MapToFields
-        input: input
-        config:
-          language: python
-          fields:
-            label:
-              callable: "lambda x: x.label + 'x'"
-            conductor:
-              callable: "lambda x: x.conductor + 1"
-          keep: 
-            callable: "lambda x: x.rank > 0"
-        ''')
+      type: MapToFields
+      input: input
+      config:
+        language: python
+        fields:
+          label:
+            callable: "lambda x: x.label + 'x'"
+          conductor:
+            callable: "lambda x: x.conductor + 1"
+        keep: 
+          callable: "lambda x: x.rank > 0"
+      ''')
       assert_that(
           result,
           equal_to([
@@ -107,13 +119,13 @@ class YamlUDFMappingTest(unittest.TestCase):
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
-        type: Filter
-        input: input
-        config:
-          language: javascript
-          keep: 
-            callable: "function filter(x) {return x.rank > 0}"
-        ''')
+      type: Filter
+      input: input
+      config:
+        language: javascript
+        keep: 
+          callable: "function filter(x) {return x.rank > 0}"
+      ''')
       assert_that(
           result,
           equal_to([
@@ -127,13 +139,13 @@ class YamlUDFMappingTest(unittest.TestCase):
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
-        type: Filter
-        input: input
-        config:
-          language: python
-          keep: 
-            callable: "lambda x: x.rank > 0"
-        ''')
+      type: Filter
+      input: input
+      config:
+        language: python
+        keep: 
+          callable: "lambda x: x.rank > 0"
+      ''')
       assert_that(
           result,
           equal_to([
@@ -147,13 +159,13 @@ class YamlUDFMappingTest(unittest.TestCase):
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
-        type: Filter
-        input: input
-        config:
-          language: javascript
-          keep: 
-            expression: "label.toUpperCase().indexOf('3') == -1"
-        ''')
+      type: Filter
+      input: input
+      config:
+        language: javascript
+        keep: 
+          expression: "label.toUpperCase().indexOf('3') == -1 && conductor"
+      ''')
       assert_that(
           result, equal_to([
               beam.Row(label='11a', conductor=11, rank=0),
@@ -165,92 +177,85 @@ class YamlUDFMappingTest(unittest.TestCase):
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
-        type: Filter
-        input: input
-        config:
-          language: python
-          keep: 
-            expression: "'3' not in label"
-        ''')
+      type: Filter
+      input: input
+      config:
+        language: python
+        keep: 
+          expression: "'3' not in label"
+      ''')
       assert_that(
           result, equal_to([
               beam.Row(label='11a', conductor=11, rank=0),
           ]))
 
   def test_filter_inline_js_file(self):
-    path = "/path/to/udf.js"
     data = '''
     function f(x) {
       return x.rank > 0
     }
-
+    
     function g(x) {
       return x.rank > 1
-    }'''
+    }
+    '''.replace('    ', '')
 
-    def mock_open(*args, **kwargs):
-      if args[0] == path:
-        return mock.mock_open(read_data=data)(*args, **kwargs)
-      return self.builtin_open(*args, **kwargs)
+    path = os.path.join(self.tmpdir, 'udf.js')
+    self.fs.create(path).write(data.encode('utf8'))
 
-    with mock.patch('builtins.open', mock_open):
-      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
-        elements = p | beam.Create(self.data)
-        result = elements | YamlTransform(
-            f'''
-          type: Filter
-          input: input
-          config:
-            language: javascript
-            keep: 
-              path: {path}
-              name: "f"
-          ''')
-        assert_that(
-            result,
-            equal_to([
-                beam.Row(label='37a', conductor=37, rank=1),
-                beam.Row(label='389a', conductor=389, rank=2),
-            ]))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(self.data)
+      result = elements | YamlTransform(
+          f'''
+        type: Filter
+        input: input
+        config:
+          language: javascript
+          keep: 
+            path: {path}
+            name: "f"
+        ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
 
   def test_filter_inline_py_file(self):
-    path = "/path/to/udf.py"
     data = '''
     def f(x):
       return x.rank > 0
 
     def g(x):
-      return x.rank > 1'''
+      return x.rank > 1
+    '''.replace('    ', '')
 
-    def mock_open(*args, **kwargs):
-      if args[0] == path:
-        return mock.mock_open(read_data=data)(*args, **kwargs)
-      return self.builtin_open(*args, **kwargs)
+    path = os.path.join(self.tmpdir, 'udf.py')
+    self.fs.create(path).write(data.encode('utf8'))
 
-    with mock.patch('builtins.open', mock_open):
-      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
-        elements = p | beam.Create(self.data)
-        result = elements | YamlTransform(
-            f'''
-          type: Filter
-          input: input
-          config:
-            language: python
-            keep: 
-              path: {path}
-              name: "f"
-          ''')
-        assert_that(
-            result,
-            equal_to([
-                beam.Row(label='37a', conductor=37, rank=1),
-                beam.Row(label='389a', conductor=389, rank=2),
-            ]))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(self.data)
+      result = elements | YamlTransform(
+          f'''
+        type: Filter
+        input: input
+        config:
+          language: python
+          keep: 
+            path: {path}
+            name: "f"
+        ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
 
   def test_filter_inline_js_gcs_file(self):
-    path = "gs://mock-bucket/path/to/udf.js"
     data = '''
     function f(x) {
       return x.rank > 0
@@ -258,13 +263,17 @@ class YamlUDFMappingTest(unittest.TestCase):
 
     function g(x) {
       return x.rank > 1
-    }'''
+    }'''.replace('    ', '')
 
-    class MockGCSClient:
-      def get_bucket(self, bucket_name):
-        return YamlUDFMappingTest.MockBucket(data)
+    with mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio', mock.MagicMock):
+      path = os.path.join(self.tmpdir, 'udf.js')
+      self.fs.create(os.path.join(self.tmpdir,
+                                  'udf.js')).write(data.encode('utf8'))
 
-    with mock.patch('google.cloud.storage.Client', MockGCSClient):
+      gcsio_mock = mock.MagicMock()
+      gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+      gcsio_mock.open.return_value = self.fs.open(path)
+
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create(self.data)
@@ -275,7 +284,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           config:
             language: javascript
             keep: 
-              path: {path}
+              path: gs://mock-bucket/path/to/udf.js
               name: "f"
           ''')
         assert_that(
@@ -286,19 +295,23 @@ class YamlUDFMappingTest(unittest.TestCase):
             ]))
 
   def test_filter_inline_py_gcs_file(self):
-    path = "gs://mock-bucket/path/to/udf.py"
     data = '''
     def f(x):
       return x.rank > 0
 
     def g(x):
-      return x.rank > 1'''
+      return x.rank > 1
+    '''.replace('    ', '')
 
-    class MockGCSClient:
-      def get_bucket(self, bucket_name):
-        return YamlUDFMappingTest.MockBucket(data)
+    with mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio', mock.MagicMock):
+      path = os.path.join(self.tmpdir, 'udf.py')
+      self.fs.create(os.path.join(self.tmpdir,
+                                  'udf.py')).write(data.encode('utf8'))
 
-    with mock.patch('google.cloud.storage.Client', MockGCSClient):
+      gcsio_mock = mock.MagicMock()
+      gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
+      gcsio_mock.open.return_value = self.fs.open(path)
+
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create(self.data)
@@ -309,7 +322,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           config:
             language: python
             keep: 
-              path: {path}
+              path: gs://mock-bucket/path/to/udf.py
               name: "f"
           ''')
         assert_that(

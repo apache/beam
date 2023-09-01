@@ -247,6 +247,7 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
+          'js2py>=0.74',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update build-requirements.txt as well.
@@ -330,9 +331,7 @@ if __name__ == '__main__':
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0',
-              # GCP Packages required by YAML
-              'google-cloud-storage>=2.0.0,<4'
+              'google-cloud-aiplatform>=1.26.0, < 2.0'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
