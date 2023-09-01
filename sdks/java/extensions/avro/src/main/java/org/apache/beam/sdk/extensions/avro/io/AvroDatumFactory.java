@@ -34,6 +34,9 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Create {@link DatumReader} and {@link DatumWriter} for given schemas. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class AvroDatumFactory<T>
     implements AvroSource.DatumReaderFactory<T>, AvroSink.DatumWriterFactory<T> {
 
