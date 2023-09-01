@@ -122,7 +122,7 @@ getVersionsAsList('python_versions').each { it ->
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && " +
+        args '-c', ". ${project.ext.envdir}/bin/activate && " +
             "python -m build --wheel --outdir ${buildDir}"
       }
     }
