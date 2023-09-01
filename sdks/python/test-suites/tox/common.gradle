@@ -44,3 +44,23 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud"]
         }
 }
+
+getVersionsAsList('python_versions').each { it ->
+  def pyversion = it.replace('.', '')
+
+  def build_wheel_using_build_module = tasks.register("build_py${pyversion}_wheel_using_build_module") {
+    description "Build a Python wheel distribution using build module"
+    dependsOn setupVirtualenv
+    // need sdist task to generate protos
+    dependsOn ':sdks:python:sdist'
+
+    // generated installable Python SDK package
+    doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && " + "cd ${rootDir}/sdks/python && " + "pip install build && " +
+            "python -m build --wheel --outdir ${buildDir}"
+      }
+    }
+  }
+}
