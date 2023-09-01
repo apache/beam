@@ -18,7 +18,8 @@
 
 /// Basic reducers
 public extension PCollection {
-    func reduce<Result:Codable,K,V>(name:String? = nil,_file:String=#fileID,_line:Int=#line,into:Result,_ accumulator: @Sendable @escaping (V,inout Result) -> Void) -> PCollection<KV<K,Result>> where Of == KV<K,V> {
+    func reduce<Result:Codable,K,V>(name:String? = nil,_file:String=#fileID,_line:Int=#line,
+                                    into:Result,_ accumulator: @Sendable @escaping (V,inout Result) -> Void) -> PCollection<KV<K,Result>> where Of == KV<K,V> {
         return pstream(name:name ?? "\(_file):\(_line)",into) { initialValue,input,output in
             for await (kv,ts,w) in input {
                 var result = initialValue

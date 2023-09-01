@@ -18,7 +18,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import CompilerPluginSupport
 import PackageDescription
 
 let dependencies: [Package.Dependency] = [
@@ -32,10 +32,12 @@ let dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/googleapis/google-auth-library-swift",from:"0.0.0"),
     .package(url: "https://github.com/duckdb/duckdb-swift", .upToNextMinor(from: .init(0, 8, 0))),
     .package(url: "https://github.com/pvieito/PythonKit.git", branch: "master"),
-    
+   
+    // Swift Macro Support
+    .package(url: "https://github.com/apple/swift-syntax.git", branch: "main"), 
 
     // Swift Package Manager Plugins
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
 ]
 
 let package = Package(
@@ -51,15 +53,28 @@ let package = Package(
         .library(
             name: "DuckDBIO",
             targets: ["DuckDBIO"]
-        )
+        ),
+        .executable(
+            name: "Wordcount",
+            targets: ["Wordcount"])
     ],
     dependencies: dependencies,
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
+        .macro(
+            name: "ApacheBeamPlugin",
+            dependencies: [
+              .product(name: "SwiftSyntax", package: "swift-syntax"),
+              .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+              .product(name: "SwiftOperators", package: "swift-syntax"),
+              .product(name: "SwiftParser", package: "swift-syntax"),
+              .product(name: "SwiftParserDiagnostics", package: "swift-syntax"),
+              .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+              ]
+        ),
         .target(
             name: "ApacheBeam",
             dependencies: [
+//                "ApacheBeamPlugin", // This is disabled until it is supported on Linux
                 .product(name: "GRPC",package:"grpc-swift"),
                 .product(name: "Logging",package:"swift-log"),
                 .product(name: "AWSS3",package:"aws-sdk-swift"),
@@ -74,9 +89,15 @@ let package = Package(
                 .product(name: "DuckDB",package:"duckdb-swift")
             ]
         ),
-        .target(name:"Wordcount",dependencies: ["ApacheBeam"],path:"Sources/Examples/Wordcount"),
+        .executableTarget(
+            name:"Wordcount",
+            dependencies: ["ApacheBeam",
+                           .product(name: "ArgumentParser", package:"swift-argument-parser")],
+            path:"Sources/Examples/Wordcount"), 
         .testTarget(
             name: "ApacheBeamTests",
-            dependencies: ["ApacheBeam"]),
+            dependencies: ["ApacheBeam"],
+            exclude:["Pipeline/Fixtures/file1.txt","Pipeline/Fixtures/file2.txt"]
+        ),
     ]
 )

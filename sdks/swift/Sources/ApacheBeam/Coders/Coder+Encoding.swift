@@ -93,9 +93,9 @@ public extension Coder {
                 data.instant(ts)
                 switch w {
                 case .global:
-                    data.next(Int32(1).bigEndian)
+                    data.next(Int32(1))
                 default:
-                    data.next(Int32(1).bigEndian)
+                    data.next(Int32(1))
                     try windowCoder.encode(w,data:&data)
                 }
                 // TODO: Real Panes

@@ -28,14 +28,25 @@ extension Data {
     }
     
     mutating func instant(_ value: Date) {
-        Swift.withUnsafeBytes(of:(Int64(value.millisecondsSince1970) &- Int64(-9223372036854775808)).bigEndian) {
+        let be = (Int64(value.millisecondsSince1970) &- Int64(-9223372036854775808)).bigEndian
+        Swift.withUnsafeBytes(of:be) {
+            self.append(contentsOf: $0)
+        }
+    }
+
+    // In Beam integers go on and off the wire in bigEndian format. This matches the original Java lineage.
+    mutating func next<T:FixedWidthInteger>(_ value: T) {
+        let be = value.bigEndian
+        Swift.withUnsafeBytes(of: be) {
             self.append(contentsOf: $0)
         }
     }
     
-    mutating func next<T>(_ value: T) {
-        Swift.withUnsafeBytes(of:value) {
+    mutating func next<T:FloatingPoint>(_ value: T) {
+        Swift.withUnsafeBytes(of: value) {
             self.append(contentsOf: $0)
         }
     }
+    
+    
 }

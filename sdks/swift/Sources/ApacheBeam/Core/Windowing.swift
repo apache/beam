@@ -18,6 +18,15 @@
 
 import Foundation
 
+public enum WindowFn {
+    case global
+    case fixed(Duration)
+    case sliding(Duration,Duration)
+    case session(Duration)
+}
+
+
+
 
 public enum Window {
     case global

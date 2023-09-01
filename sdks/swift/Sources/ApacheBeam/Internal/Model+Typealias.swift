@@ -27,3 +27,7 @@ typealias FunctionSpecProto = Org_Apache_Beam_Model_Pipeline_V1_FunctionSpec
 typealias WindowingStrategyProto = Org_Apache_Beam_Model_Pipeline_V1_WindowingStrategy
 
 typealias RemoteGrpcPort = Org_Apache_Beam_Model_FnExecution_V1_RemoteGrpcPort
+
+typealias SchemaProto = Org_Apache_Beam_Model_Pipeline_V1_Schema
+typealias FieldProto = Org_Apache_Beam_Model_Pipeline_V1_Field
+typealias FieldValueProto = Org_Apache_Beam_Model_Pipeline_V1_FieldValue

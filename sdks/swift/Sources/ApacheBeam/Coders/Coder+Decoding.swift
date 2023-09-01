@@ -25,8 +25,6 @@ public extension Coder {
         switch self {
         // Scalar values check for size 0 input data and return null if that's a problem
             
-        // TODO: Endian and other encoding checks
-            
         case .bytes:
             return .bytes(data.count == 0 ? Data() : try data.subdata())
         case .string:
@@ -49,13 +47,13 @@ public extension Coder {
         case let .keyvalue(keyCoder, valueCoder):
             return .kv(try keyCoder.decode(&data), try valueCoder.decode(&data))
         case let .iterable(coder):
-            let length = try data.next(Int32.self).byteSwapped
+            let length = try data.next(Int32.self)
             return .array(try (0..<length).map({ _ in try coder.decode(&data) }))
         case let .windowedvalue(valueCoder, windowCoder):
             // This will be big endian to match java
             let timestamp = try data.instant()
 
-            let windowCount = Int32(bigEndian: try data.next(Int32.self))
+            let windowCount = try data.next(Int32.self)
             if windowCount > 1 {
                 throw ApacheBeamError.runtimeError("Windowed values with > 1 window not yet supported")
             }

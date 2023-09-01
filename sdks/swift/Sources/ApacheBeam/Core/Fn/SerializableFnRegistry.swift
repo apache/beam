@@ -1,14 +1,8 @@
 import Foundation
 
-public final class SerializableFnRegistry {
-    private init() { }
-    private var registry: [String:SerializableFn] = [:]
-}
+#if canImport(ApacheBeamPlugin)
 
+@freestanding(expression)
+public macro fnregister<T>(_ value: T) -> (T,String) = #externalMacro(module: "ApacheBeamPlugin", type: "FnRegistrationMacro")
 
-extension SerializableFnRegistry {
-    func register<T:SerializableFn>(_ object: T, id: String = UUID().uuidString) -> String {
-        registry[id] = object
-        return id
-    }
-}
+#endif

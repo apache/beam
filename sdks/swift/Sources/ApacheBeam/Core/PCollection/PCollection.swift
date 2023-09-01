@@ -22,6 +22,11 @@ public enum StreamType {
     case unspecified
 }
 
+public enum WindowingStrategy {
+    
+    case unspecified
+}
+
 public protocol PCollectionProtocol {
     associatedtype Of
     

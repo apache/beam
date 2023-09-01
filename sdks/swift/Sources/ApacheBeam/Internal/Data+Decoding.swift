@@ -69,7 +69,7 @@ extension Data {
     }
     
     mutating func instant() throws -> Date {
-        let millis = Int64(bigEndian:try next(Int64.self)) &+ Int64(-9223372036854775808)
+        let millis = try next(Int64.self) &+ Int64(-9223372036854775808)
         return Date(millisecondsSince1970: millis)
     }
     
@@ -81,13 +81,21 @@ extension Data {
         return result
     }
     
-    /// Extract a fixed length value from the data
-    mutating func next<T>(_ type: T.Type) throws -> T {
+    /// Extracts a fixed width type. Coming off the wire this will always be bigendian 
+    mutating func next<T:FixedWidthInteger>(_ type: T.Type) throws -> T {
         let size = MemoryLayout<T>.size
-        let result = self.withUnsafeBytes {
+        let bigEndian = self.withUnsafeBytes {
             $0.load(as: T.self)
         }
         self = self.safeAdvance(by: size)
+        return T(bigEndian:bigEndian)
+    }
+    
+    mutating func next<T:FloatingPoint>(_ type: T.Type) throws -> T {
+        let result = self.withUnsafeBytes {
+            $0.load(as: T.self)
+        }
+        self = self.safeAdvance(by: MemoryLayout<T>.size)
         return result
     }
     

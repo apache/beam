@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import Foundation
+
 /// Creating Static Values
 public extension PCollection {
 
@@ -84,8 +86,21 @@ public extension PCollection {
             }
         }
     }
-
 }
+
+/// Modifying Timestamps
+public extension PCollection {
+    
+    func timestamp(name:String? = nil,_file:String=#fileID,_line:Int=#line,_ fn: @Sendable @escaping (Of) -> Date) -> PCollection<Of> {
+        return pstream(name:name ?? "\(_file):\(_line)") { input,output in
+            for try await (value,_,w) in input {
+                output.emit(value,timestamp:fn(value),window:w)
+            }
+        }
+    }
+}
+
+
 
 public extension PCollection<Never> {
     /// Convenience function to add an impulse when we are at the root of the pipeline

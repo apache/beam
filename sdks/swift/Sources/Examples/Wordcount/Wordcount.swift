@@ -1,15 +1,16 @@
 import ApacheBeam
 import ArgumentParser
 
-public struct Wordcount: PipelineCommand {
+@main
+public struct Wordcount : PipelineCommand {
 
     @Argument
-    var path: String
+    var path: String?
     
     public var pipeline : Pipeline {
         Pipeline { pipeline in
             let contents = pipeline
-                .create([path])
+                .create([path!])
                 .map({ value in
                     let parts = value.split(separator: "/",maxSplits: 1)
                     print("Got filename \(parts) from \(value)")

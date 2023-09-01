@@ -18,21 +18,24 @@
 
 import ArgumentParser
 
-public protocol _PipelineCommand {
+final class PipelineExecutor  : AsyncParsableCommand {
+    public init() { }
 }
 
-public protocol PipelineCommand : AsyncParsableCommand,_PipelineCommand {
-    var pipeline: Pipeline { get throws }
-}
-
-extension PipelineCommand {
-    public func run() async throws {
-        try await pipeline.run(PortableRunner())
-    }
+public protocol PipelineCommand : ParsableArguments {
+    var pipeline: Pipeline { get }
     
-    static public func main() async throws  {
-        try await Self().run()
-    }
+    
 }
 
+public extension PipelineCommand {
+    static func main() async {
+        do {
+            let options = try PipelineExecutor.parseAsRoot()
+            
+        } catch {
+            Self.exit(withError: error)
+        }
+    }
+}
 

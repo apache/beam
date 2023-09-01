@@ -27,7 +27,7 @@ public enum PipelineTransform {
     case groupByKey(AnyPCollection,AnyPCollection)
     case custom(AnyPCollection,String,Data,Environment?,[AnyPCollection])
     case composite(AnyPCollection,AnyPTransform)
-    case external(AnyPCollection,[AnyPCollection])
+    case external(AnyPCollection,String,FieldValue,[AnyPCollection])
 }
 
 extension PipelineTransform : PipelineMember {
@@ -46,7 +46,7 @@ extension PipelineTransform : PipelineMember {
             return p.roots
         case .composite(let p, _):
             return p.roots
-        case .external(let p, _):
+        case .external(let p, _, _, _):
             return p.roots
         }
     }

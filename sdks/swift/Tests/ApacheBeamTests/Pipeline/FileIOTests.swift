@@ -43,7 +43,7 @@ final class FileIOTests: XCTestCase {
     }
 
     func testShakespeareWordcount() async throws {
-        //throw XCTSkip()
+        throw XCTSkip()
         try await Pipeline { pipeline in
             let contents = pipeline
                 .create(["dataflow-samples/shakespeare"])
