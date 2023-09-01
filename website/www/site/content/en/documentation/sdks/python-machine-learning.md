@@ -235,6 +235,33 @@ with pipeline as p:
 The previous example will load a model using `config1` and use that for inference for all examples associated
 with `key1`, and will load a model using `config2` and use that for all examples associated with `key2` and `key3`.
 
+There are memory risks associated with loading multiple models at once. By default, `KeyedModelHandler` will not
+limit the number of models loaded into memory at once. This means that if not all models fit into memory at once,
+your pipeline will likely fail with an Out of Memory exception. To avoid this, you can provide a hint about the
+maximum number of models loaded at once.=:
+
+```
+mhs = [
+  KeyModelMapping(['key1'], PytorchModelHandlerTensor(<config1>)),
+  KeyModelMapping(['key2', 'key3'], PytorchModelHandlerTensor(<config2>)),
+  KeyModelMapping(['key4'], PytorchModelHandlerTensor(<config3>)),
+  KeyModelMapping(['key5', 'key6', 'key7'], PytorchModelHandlerTensor(<config4>)),
+]
+keyed_model_handler = KeyedModelHandler(mhs, max_models_per_worker_hint=2)
+```
+
+The previous example will load at most 2 models per worker at any given time, and will unload models that aren't
+currently being used as needed. Runners that have multiple workers on a given machine will load at most
+`max_models_per_worker_hint*<num workers>` models onto the machine. Make sure you leave enough space for the models
+and any additional memory needs from other transforms.
+
+**Note**: If you have many models but a small `max_models_per_worker_hint`, that can lead to _memory thrashing_ where
+a large amount of execution time is wasted swapping models in and out of memory. To reduce the likelihood and impact
+of memory thrashing, consider inserting a
+[GroupByKey](https://beam.apache.org/documentation/transforms/python/aggregation/groupbykey/) transform before your
+inference step if you are using a distributed runner. This will ensure that elements with the same key/model are 
+colocated on the same worker, reducing thrashing.
+
 For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
 
 ### Use the `PredictionResult` object
