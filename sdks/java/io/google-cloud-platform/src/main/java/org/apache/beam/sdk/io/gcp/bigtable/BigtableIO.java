@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -1121,14 +1122,13 @@ public class BigtableIO {
     private void validateTableExists(
         BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
       if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
-        String tableId = checkNotNull(writeOptions.getTableId().get());
+        ValueProvider<String> tableIdProvider = checkArgumentNotNull(writeOptions.getTableId());
+        String tableId = checkArgumentNotNull(tableIdProvider.get());
         try {
-          checkArgument(
-              factory.checkTableExists(config, options, writeOptions.getTableId().get()),
-              "Table %s does not exist",
-              tableId);
+          boolean exists = factory.checkTableExists(config, options, tableId);
+          checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+          throw new IllegalArgumentException(e);
         }
       }
     }
