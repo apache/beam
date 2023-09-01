@@ -76,7 +76,7 @@
     underlying_provider:
       type: python
       transforms:
-        'ReadFromCsv': 'apache_beam.io.ReadFromCsv',
-        'WriteToCsv': 'apache_beam.io.WriteToCsv',
-        'ReadFromJson': 'apache_beam.io.ReadFromJson',
-        'WriteToJson': 'apache_beam.io.WriteToJson',
+        'ReadFromCsv': 'apache_beam.io.ReadFromCsv'
+        'WriteToCsv': 'apache_beam.io.WriteToCsv'
+        'ReadFromJson': 'apache_beam.io.ReadFromJson'
+        'WriteToJson': 'apache_beam.io.WriteToJson'
