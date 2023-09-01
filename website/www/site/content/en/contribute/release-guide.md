@@ -120,8 +120,8 @@ This is your Apache committer user name and password. You selected these when yo
 
 #### Github ID, Password, and Personal Access Token
 
-For some scripts, you need a Personal Access Token with `repo` and `workflow` permissions. 
-They can be generated from this page: https://github.com/settings/tokens. 
+For some scripts, you need a Personal Access Token with `repo` and `workflow` permissions.
+They can be generated from this page: https://github.com/settings/tokens.
 See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens for details.
 
 #### Register to PyPI
@@ -363,7 +363,7 @@ then going to `https://ci-beam.apache.org/user/<your ID username>/configure` and
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
 
-> Dataflow tests will fail if the Dataflow worker container is not created and published by this time. 
+> Dataflow tests will fail if the Dataflow worker container is not created and published by this time.
 > Should be done by Google, in response to the creation of the release branch, and docker images are hosted.
 > This should not block creation of the first release candidate, but should block approval of the release.
 
@@ -476,7 +476,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 
 ### Build release artifacts
 
-Once the branch is verified, it's time to build 
+Once the branch is verified, it's time to build
 
 #### Checklist before proceeding
 
