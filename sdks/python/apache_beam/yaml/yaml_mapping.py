@@ -17,8 +17,11 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+<<<<<<< HEAD
 
 import js2py
+=======
+>>>>>>> 6c2b4498b3 (Address initial comments)
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -49,6 +52,7 @@ def _check_mapping_arguments(
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
+<<<<<<< HEAD
 # js2py's JsObjectWrapper object has a self-referencing __dict__ property
 # that cannot be pickled without implementing the __getstate__ and
 # __setstate__ methods.
@@ -109,6 +113,76 @@ def _expand_python_mapping_func(
   else:
     source = callable
 
+=======
+# TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
+def _expand_javascript_mapping_func(
+    original_fields, expression=None, callable=None, path=None, name=None):
+  try:
+    import js2py
+  except ImportError:
+    raise ImportError(
+        "js2py must be installed to run javascript UDF's for YAML mapping transforms."
+    )
+
+  # Javascript expression case
+  if expression:
+    parameters = [name for name in original_fields if name in expression]
+    args_from_row = ', '.join(f'__row__.{param}' for param in parameters)
+    args = ', '.join(parameters)
+    js_func = f'function fn({args}) {{return ({expression})}}'
+
+    return lambda __row__: js2py.eval_js(js_func)(*eval(args_from_row))
+
+  # Javascript file UDF case
+  if not callable:
+    if not path.endswith('.js'):
+      raise ValueError(f'File "{path}" is not a valid .js file.')
+    udf_code = FileSystems.open(path).read().decode()
+  # Javascript inline UDF case
+  else:
+    udf_code = callable
+
+  def fn(__row__):
+    row_values = eval(
+        ', '.join(f'__row__.{param}' for param in original_fields))
+    row_dict = dict(zip(original_fields, row_values))
+    if callable:
+      return js2py.eval_js(udf_code)(row_dict)
+    js = js2py.EvalJs()
+    js.eval(udf_code)
+    return getattr(js, name)(row_dict)
+
+  return fn
+
+
+def _expand_python_mapping_func(
+    original_fields, expression=None, callable=None, path=None, name=None):
+  # Python file UDF case
+  if path and name:
+    if not path.endswith('.py'):
+      raise ValueError(f'File "{path}" is not a valid .py file.')
+    py_file = FileSystems.open(path).read().decode()
+
+    # Parse file into python function using given method name
+    return python_callable.PythonCallableWithSource.load_from_script(
+        py_file, name)
+
+  # Python expression case
+  elif expression:
+    # TODO(robertwb): Consider constructing a single callable that takes
+    ## the row and returns the new row, rather than invoking (and unpacking)
+    ## for each field individually.
+    source = '\n'.join(['def fn(__row__):'] + [
+        f'  {name} = __row__.{name}'
+        for name in original_fields if name in expression
+    ] + ['  return (' + expression + ')'])
+
+  # Python inline UDF case - already valid python code
+  else:
+    source = callable
+
+  # Python inline UDF case - already valid python code
+>>>>>>> 6c2b4498b3 (Address initial comments)
   return python_callable.PythonCallableWithSource(source)
 
 
@@ -171,12 +245,23 @@ class _Explode(beam.PTransform):
         yield beam.Row(**copy)
 
     return (
+<<<<<<< HEAD
         beam.core._MaybePValueWithErrors(pcoll, self._exception_handling_args)
         | beam.FlatMap(
             lambda row:
             (explode_cross_product if self._cross_product else explode_zip)
             ({name: getattr(row, name)
               for name in all_fields}, to_explode))).as_result()
+=======
+        beam.core._MaybePValueWithErrors(
+          pcoll, self._exception_handling_args)
+        | beam.FlatMap(
+      lambda row: (
+        explode_cross_product if self._cross_product else explode_zip)(
+        {name: getattr(row, name) for name in all_fields},  # yapf
+        to_explode))
+    ).as_result()
+>>>>>>> 6c2b4498b3 (Address initial comments)
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
