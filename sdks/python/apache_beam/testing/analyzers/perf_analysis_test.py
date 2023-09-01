@@ -29,14 +29,17 @@ import pandas as pd
 # pylint: disable=ungrouped-imports
 try:
   import apache_beam.testing.analyzers.perf_analysis as analysis
+  from apache_beam.io.filesystems import FileSystems
   from apache_beam.testing.analyzers import constants
   from apache_beam.testing.analyzers import github_issues_utils
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
+  from apache_beam.testing.analyzers.perf_analysis_utils import filter_change_points_by_median_threshold
+  from apache_beam.testing.analyzers.perf_analysis_utils import find_change_points
   from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
-
+  from apache_beam.testing.load_tests import load_test_metrics_utils
 except ImportError as e:
   analysis = None  # type: ignore
 
@@ -221,6 +224,22 @@ class TestChangePointAnalysis(unittest.TestCase):
     pattern = (r'timestamp: .+ (\d{4}), metric_value: (\d+.\d+) <---- Anomaly')
     match = re.search(pattern, runs_info)
     self.assertTrue(match)
+
+  def test_change_point_on_noisy_data(self):
+    def read_csv(path):
+      with FileSystems.open(path) as fp:
+        return pd.read_csv(fp)
+
+    metric_data = read_csv(
+        'gs://apache-beam-ml/testing/inputs/test_data_with_noise.csv')
+    metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL].tolist()
+    change_points = find_change_points(metric_values)
+    self.assertEqual(change_points[0], 20)
+
+    # filter the noise.
+    valid_points = filter_change_points_by_median_threshold(
+        metric_values, change_points)
+    self.assertEqual(len(valid_points), 0)
 
 
 if __name__ == '__main__':

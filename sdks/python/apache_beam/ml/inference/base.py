@@ -304,21 +304,15 @@ class _ModelManager:
   """
   A class for efficiently managing copies of multiple models. Will load a
   single copy of each model into a multi_process_shared object and then
-  return a lookup key for that object. Optionally takes in a max_models
-  parameter, if that is set it will only hold that many models in memory at
-  once before evicting one (using LRU logic).
+  return a lookup key for that object.
   """
-  def __init__(
-      self, mh_map: Dict[str, ModelHandler], max_models: Optional[int] = None):
+  def __init__(self, mh_map: Dict[str, ModelHandler]):
     """
     Args:
       mh_map: A map from keys to model handlers which can be used to load a
         model.
-      max_models: The maximum number of models to load at any given time
-        before evicting 1 from memory (using LRU logic). Leave as None to
-        allow unlimited models.
     """
-    self._max_models = max_models
+    self._max_models = None
     # Map keys to model handlers
     self._mh_map: Dict[str, ModelHandler] = mh_map
     # Map keys to the last updated model path for that key
@@ -376,14 +370,12 @@ class _ModelManager:
   def increment_max_models(self, increment: int):
     """
     Increments the number of models that this instance of a _ModelManager is
-    able to hold.
+    able to hold. If it is never called, no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
     """
     if self._max_models is None:
-      raise ValueError(
-          "Cannot increment max_models if self._max_models is None (unlimited" +
-          " models mode).")
+      self._max_models = 0
     self._max_models += increment
 
   def update_model_handler(self, key: str, model_path: str, previous_key: str):
@@ -436,7 +428,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self,
       unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
                      List[KeyModelMapping[KeyT, ExampleT, PredictionT,
-                                          ModelT]]]):
+                                          ModelT]]],
+      max_models_per_worker_hint: Optional[int] = None):
     """A ModelHandler that takes keyed examples and returns keyed predictions.
 
     For example, if the original model is used with RunInference to take a
@@ -494,6 +487,11 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       unkeyed: Either (a) an implementation of ModelHandler that does not
         require keys or (b) a list of KeyModelMappings mapping lists of keys to
         unkeyed ModelHandlers.
+      max_models_per_worker_hint: A hint to the runner indicating how many
+        models can be held in memory at one time per worker process. For
+        example, if your worker has 8 GB of memory provisioned and your workers
+        take up 1 GB each, you should set this to 7 to allow all models to sit
+        in memory with some buffer.
     """
     self._metrics_collectors: Dict[str, _MetricsCollector] = {}
     self._default_metrics_collector: _MetricsCollector = None
@@ -511,6 +509,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       self._unkeyed = unkeyed
       return
 
+    self._max_models_per_worker_hint = max_models_per_worker_hint
     # To maintain an efficient representation, we will map all keys in a given
     # KeyModelMapping to a single id (the first key in the KeyModelMapping
     # list). We will then map that key to a ModelHandler. This will allow us to
@@ -586,6 +585,14 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return zip(
           keys,
           self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
+
+    # The first time a MultiProcessShared ModelManager is used for inference
+    # from this process, we should increment its max model count
+    if self._max_models_per_worker_hint is not None:
+      lock = threading.Lock()
+      if lock.acquire(blocking=False):
+        model.increment_max_models(self._max_models_per_worker_hint)
+      self._max_models_per_worker_hint = None
 
     batch_by_key = defaultdict(list)
     key_by_id = defaultdict(set)
