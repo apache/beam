@@ -415,17 +415,20 @@ class RenderRunner(runner.PipelineRunner):
       subprocess.run(['dotX', '-V'], capture_output=True, check=True)
     except FileNotFoundError as exn:
       # If dot is not available, we can at least output the raw .dot files.
-      dot_files = [output for output in render_options.render_output if output.endswith('.dot')]
+      dot_files = [
+          output for output in render_options.render_output
+          if output.endswith('.dot')
+      ]
       for output in dot_files:
         with open(output, 'w') as fout:
           fout.write(renderer.to_dot())
-          logging.info(f"Wrote pipeline as {output}")
+          logging.info("Wrote pipeline as %s", output)
 
       non_dot_files = set(render_options.render_output) - set(dot_files)
       if non_dot_files:
-          raise RuntimeError(
-              "Graphviz dot executable not available "
-              f"for rendering non-dot output files {non_dot_files}") from exn
+        raise RuntimeError(
+            "Graphviz dot executable not available "
+            f"for rendering non-dot output files {non_dot_files}") from exn
       elif render_options.render_port >= 0:
         raise RuntimeError(
             "Graphviz dot executable not available for serving") from exn
