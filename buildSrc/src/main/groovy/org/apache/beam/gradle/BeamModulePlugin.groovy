@@ -3007,7 +3007,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
-          dependsOn ":sdks:python:build_py${project.ext.pythonVersion.replace('.', '')}_wheel_using_build_module"
+          dependsOn ":sdks:python:tox:py${project.ext.pythonVersion.replace('.', '')}:build_py${project.ext.pythonVersion.replace('.', '')}_wheel_using_build_module"
           doLast {
             // Python source directory is also tox execution workspace, We want
             // to isolate them per tox suite to avoid conflict when running
