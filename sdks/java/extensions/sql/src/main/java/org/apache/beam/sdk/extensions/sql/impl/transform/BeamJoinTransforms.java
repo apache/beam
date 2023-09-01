@@ -158,18 +158,16 @@ public class BeamJoinTransforms {
 
                     @StartBundle
                     public void startBundle(
-                        DoFn.StartBundleContext context,
-                        PipelineOptions pipelineOptions,
-                        BundleFinalizer bundleFinalizer) {
-                      seekableTable.startBundle(context, pipelineOptions, bundleFinalizer);
+                        DoFn<Row, Row>.StartBundleContext context,
+                        PipelineOptions pipelineOptions) {
+                      seekableTable.startBundle(context, pipelineOptions);
                     }
 
                     @FinishBundle
                     public void finishBundle(
-                        DoFn.StartBundleContext context,
-                        PipelineOptions pipelineOptions,
-                        BundleFinalizer bundleFinalizer) {
-                      seekableTable.finishBundle(context, pipelineOptions, bundleFinalizer);
+                        DoFn<Row, Row>.FinishBundleContext context,
+                        PipelineOptions pipelineOptions) {
+                      seekableTable.finishBundle(context, pipelineOptions);
                     }
 
                     @ProcessElement

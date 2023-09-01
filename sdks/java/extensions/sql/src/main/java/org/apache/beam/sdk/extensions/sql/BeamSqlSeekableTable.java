@@ -32,14 +32,10 @@ public interface BeamSqlSeekableTable extends Serializable {
   default void setUp() {};
 
   default void startBundle(
-      DoFn.StartBundleContext context,
-      PipelineOptions pipelineOptions,
-      DoFn.BundleFinalizer bundleFinalizer) {};
+      DoFn<Row, Row>.StartBundleContext context, PipelineOptions pipelineOptions) {};
 
   default void finishBundle(
-      DoFn.StartBundleContext context,
-      PipelineOptions pipelineOptions,
-      DoFn.BundleFinalizer bundleFinalizer) {};
+      DoFn<Row, Row>.FinishBundleContext context, PipelineOptions pipelineOptions) {};
 
   /** return a list of {@code Row} with given key set. */
   List<Row> seekRow(Row lookupSubRow);
