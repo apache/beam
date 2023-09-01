@@ -110,7 +110,7 @@ jobs:
       with:
         gradle-command: :it:google-cloud-platform:GCSPerformanceTest
       env:
-        exportDataset: performance_tests
+        exportDataset: jjc_test
         exportTable: io_performance_metrics
         USER: github-actions
     - name: run triggered javaPostcommitIOGCSPerformanceTests script
@@ -119,6 +119,6 @@ jobs:
       with:
         gradle-command: :it:google-cloud-platform:GCSPerformanceTest
       env:
-        exportDataset: performance_tests
+        exportDataset: jjc_test
         exportTable: io_performance_metrics
         USER: github-actions
