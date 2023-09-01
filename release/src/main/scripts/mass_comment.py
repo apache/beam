@@ -128,8 +128,6 @@ def getRemainingComments(accessToken, pr, initialComments):
 def getGithubActionsTriggerCommands(dirname):
   '''
   Returns all trigger commands that will start PostCommit Dataflow ARM Github Actions test suites.
-  TODO: Should add all github-actions trigger commands to github_actions_jobs.txt
-  once this script can handle GitHub Actions triggers.
   '''
   gha_trigger_commands = []
   
@@ -137,7 +135,7 @@ def getGithubActionsTriggerCommands(dirname):
     comments = [line.strip() for line in file if len(line.strip()) > 0]
   
   for i in range(len(comments)):
-    gha_trigger_commands[i] = comments[i]
+    gha_trigger_commands.append(comments[i])
 
   return gha_trigger_commands
 
@@ -158,6 +156,9 @@ if __name__ == '__main__':
     parts = comments[i].split(',')
     comments[i] = (parts[0], parts[1])
   
+  gha_comments = getGithubActionsTriggerCommands(dirname)
+  comments.append(gha_comments)
+
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
     exit()
@@ -170,9 +171,6 @@ if __name__ == '__main__':
   subjectId = getSubjectId(accessToken, pr)
   
   remainingComments = getRemainingComments(accessToken, pr, comments)
-  gha_comments = getGithubActionsTriggerCommands(dirname)
-  remainingComments.append(gha_comments)
-
   if len(remainingComments) == 0:
     print('Jobs have been started for all comments. If you would like to retry all jobs, create a new commit before running this script.')
   while len(remainingComments) > 0:
