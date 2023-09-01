@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
@@ -57,31 +58,48 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Load test for the Storage Write API sink
+ *
+ * <p>This test is set up to first write rows using batch FILE_LOADS mode to a "source of truth"
+ * table. Afterwards, it will write the same rows in streaming mode with Storage API to a second
+ * table. Then it will query between these two tables to check that they are identical. There is
+ * also the option of providing an existing table with the expected data, in which case the test
+ * will skip the first step.
+ *
+ * <p>The throughput, length of test (in minutes), and data shape can be changed with the
+ * appropriate options. See the cases in `getOptions()` for examples.
+ *
+ * <p>This also includes testing the sink's retry resilience by setting the
+ * `crashStorageApiWriteEverySeconds` option. This intentionally fails the worker or work item
+ * periodically and expects the sink to recover appropriately.
+ */
 public class BigQueryStreamingLT {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStreamingLT.class);
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStreamingLT");
-  private static final String PROJECT = "google.com:clouddfe";
-  //            TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static final String PROJECT =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
-  private static final String BIG_QUERY_DATASET_ID = "ahmedabualsaud_test";
-  //            "storage_api_sink_load_test_" + System.nanoTime();
+  private static final String BIG_QUERY_DATASET_ID =
+      "storage_api_sink_load_test_" + System.nanoTime();
 
   @BeforeClass
   public static void setUp() throws IOException, InterruptedException {
     PipelineOptionsFactory.register(TestPipelineOptions.class);
-    //        BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
 
-  //    @AfterClass
-  //    public static void cleanup() {
-  //        BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
-  //    }
+  @AfterClass
+  public static void cleanup() {
+    BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
+  }
 
   public interface BigQueryStreamingLoadTestOptions extends TestPipelineOptions, BigQueryOptions {
     @Default.String("")
