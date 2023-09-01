@@ -109,16 +109,16 @@ jobs:
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
         gradle-command: :it:google-cloud-platform:GCSPerformanceTest
+      env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics
-      env:
         USER: github-actions
     - name: run triggered javaPostcommitIOGCSPerformanceTests script
       if: github.event_name != 'schedule'
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
         gradle-command: :it:google-cloud-platform:GCSPerformanceTest
+      env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics
-      env:
         USER: github-actions
