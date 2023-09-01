@@ -155,9 +155,11 @@ if __name__ == '__main__':
   for i in range(len(comments)):
     parts = comments[i].split(',')
     comments[i] = (parts[0], parts[1])
-  
+
+  print(len(comments))
   gha_comments = getGithubActionsTriggerCommands(dirname)
   comments.append(gha_comments)
+  print(len(comments))
 
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
