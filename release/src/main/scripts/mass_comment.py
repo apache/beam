@@ -133,7 +133,7 @@ def getGithubActionsTriggerCommands(dirname):
   
   with open(os.path.join(dirname, 'github_actions_jobs.txt')) as file:
     comments = [line.strip() for line in file if len(line.strip()) > 0]
-  
+
   for i in range(len(comments)):
     gha_trigger_commands.append(comments[i])
 
@@ -156,10 +156,8 @@ if __name__ == '__main__':
     parts = comments[i].split(',')
     comments[i] = (parts[0], parts[1])
 
-  print(len(comments))
   gha_comments = getGithubActionsTriggerCommands(dirname)
-  comments.append(gha_comments)
-  print(len(comments))
+  comments.extend(gha_comments)
 
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
