@@ -241,6 +241,13 @@ class TestChangePointAnalysis(unittest.TestCase):
         metric_values, change_points)
     self.assertEqual(len(valid_points), 0)
 
+  def test_change_point_occuring_on_the_last_metric_index(self):
+    data = [1] * 100 + [50]
+    change_points = find_change_points(data)
+    self.assertEqual(change_points[0], 100)
+    latest_change_point = find_latest_change_point_index(data)
+    self.assertEqual(latest_change_point, None)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

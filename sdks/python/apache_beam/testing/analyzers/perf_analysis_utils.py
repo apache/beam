@@ -170,6 +170,10 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
   if not change_points_indices:
     return None
   change_points_indices.sort()
+  # If the latest change point is the last index of the metric_values,
+  # then consider it as no change point since it might be a flake.
+  if len(metric_values) - 1 == change_points_indices[-1]:
+    return None
   return change_points_indices[-1]
 
 
