@@ -1089,8 +1089,9 @@ class BeamModulePlugin implements Plugin<Project> {
           options.fork = true
           options.forkOptions.javaHome = java11Home as File
           options.compilerArgs += ['-Xlint:-path']
-          options.compilerArgs += ['-source', '11']
-          options.compilerArgs += ['-target', '11']
+          // TODO(https://github.com/apache/beam/pull/28234) Investigate why different options need to be set in Java 11/17
+          // Java11: --release 11; Java17: -source 17 -target 17; (Java 8 both work)
+          options.compilerArgs.addAll(['--release', '11'])
         }
         project.tasks.withType(Test) {
           useJUnit()
