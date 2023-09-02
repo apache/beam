@@ -42,10 +42,10 @@ echo "posargs: $posargs"
 
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs "apache_beam" ${posargs}
 status1=$?
 pytest -o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs "apache_beam" ${posargs}
 status2=$?
 
 # Exit with error if no tests were run in either suite (status code 5).
