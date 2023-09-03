@@ -29,17 +29,17 @@ import org.apache.beam.sdk.values.Row;
  */
 public interface BeamSqlSeekableTable extends Serializable {
   /** prepare the instance. */
-  default void setUp() {};
+  default void setUp() {}
 
   default void startBundle(
-      DoFn<Row, Row>.StartBundleContext context, PipelineOptions pipelineOptions) {};
+      DoFn<Row, Row>.StartBundleContext context, PipelineOptions pipelineOptions) {}
 
   default void finishBundle(
-      DoFn<Row, Row>.FinishBundleContext context, PipelineOptions pipelineOptions) {};
+      DoFn<Row, Row>.FinishBundleContext context, PipelineOptions pipelineOptions) {}
 
   /** return a list of {@code Row} with given key set. */
   List<Row> seekRow(Row lookupSubRow);
 
   /** cleanup resources of the instance. */
-  default void tearDown() {};
+  default void tearDown() {}
 }
