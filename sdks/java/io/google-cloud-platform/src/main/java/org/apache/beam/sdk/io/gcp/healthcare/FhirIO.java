@@ -51,7 +51,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
-import org.apache.beam.sdk.io.gcp.healthcare.HealthcareUtils; 
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
@@ -1762,6 +1761,19 @@ public class FhirIO {
     /** A function that schedules a deidentify operation and monitors the status. */
     public static class DeidentifyFn extends DoFn<String, String> {
 
+      private static final Counter DEIDENTIFY_OPERATION_SUCCESS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_success_count");
+      private static final Counter DEIDENTIFY_OPERATION_ERRORS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_failure_count");
+      private static final Counter RESOURCES_DEIDENTIFIED_SUCCESS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_success_count");
+      private static final Counter RESOURCES_DEIDENTIFIED_ERRORS =
+          Metrics.counter(
+              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
+
       private HealthcareApiClient client;
       private final ValueProvider<String> destinationFhirStore;
       private static final Gson gson = new Gson();
@@ -1788,10 +1800,10 @@ public class FhirIO {
         operation = client.pollOperation(operation, 15000L);
         incrementLroCounters(
             operation,
-            HealthcareUtils.deidentifyLroCounters.DEIDENTIFY_OPERATION_SUCCESS,
-            HealthcareUtils.deidentifyLroCounters.DEIDENTIFY_OPERATION_ERRORS,
-            HealthcareUtils.deidentifyLroCounters.RESOURCES_DEIDENTIFIED_SUCCESS,
-            HealthcareUtils.deidentifyLroCounters.RESOURCES_DEIDENTIFIED_ERRORS);
+            DEIDENTIFY_OPERATION_SUCCESS,
+            DEIDENTIFY_OPERATION_ERRORS,
+            RESOURCES_DEIDENTIFIED_SUCCESS,
+            RESOURCES_DEIDENTIFIED_ERRORS);
         if (operation.getError() != null) {
           throw new IOException(
               String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
