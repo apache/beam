@@ -53,6 +53,21 @@ class TestBigQueryToSchema(unittest.TestCase):
             'count': typing.Optional[np.int64]
         })
 
+  def test_check_conversion_with_selected_fields(self):
+    fields = [
+        bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        the_table_schema=schema, selected_fields=['stn', 'count'])
+    self.assertEqual(
+        usertype.__annotations__, {
+            'stn': typing.Optional[str], 'count': typing.Optional[np.int64]
+        })
+
   def test_check_conversion_with_empty_schema(self):
     fields = []
     schema = bigquery.TableSchema(fields=fields)

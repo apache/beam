@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -59,38 +60,8 @@ public class StorageApiSinkRowUpdateIT {
     BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
 
-  private static String createTable(TableSchema tableSchema, List<String> primaryKey)
-      throws IOException, InterruptedException {
-    String table = "table" + System.nanoTime();
-
-    BQ_CLIENT.deleteTable(PROJECT, BIG_QUERY_DATASET_ID, table);
-
-    StringBuilder ddl =
-        new StringBuilder("CREATE TABLE ")
-            .append(PROJECT)
-            .append(".")
-            .append(BIG_QUERY_DATASET_ID)
-            .append(".")
-            .append(table)
-            .append("(");
-    for (TableFieldSchema tableFieldSchema : tableSchema.getFields()) {
-      ddl.append(tableFieldSchema.getName())
-          .append(" ")
-          .append(tableFieldSchema.getType())
-          .append(",");
-    }
-
-    String primaryKeyString = String.join(",", primaryKey);
-    ddl.append(" PRIMARY KEY ")
-        .append("(")
-        .append(primaryKeyString)
-        .append(")")
-        .append(" NOT ENFORCED) ");
-    ddl.append("CLUSTER BY ").append(primaryKeyString);
-
-    BQ_CLIENT.queryWithRetriesUsingStandardSql(ddl.toString(), PROJECT);
-
-    return PROJECT + "." + BIG_QUERY_DATASET_ID + "." + table;
+  private static String getTablespec() {
+    return PROJECT + "." + BIG_QUERY_DATASET_ID + "." + "table" + System.nanoTime();
   }
 
   @Test
@@ -130,7 +101,8 @@ public class StorageApiSinkRowUpdateIT {
                 new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
                 RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
 
-    String tableSpec = createTable(tableSchema, Lists.newArrayList("key1", "key2"));
+    List<String> primaryKey = Lists.newArrayList("key1", "key2");
+    String tableSpec = getTablespec();
     Pipeline p = Pipeline.create();
     p.apply("Create rows", Create.of(items))
         .apply(
@@ -138,8 +110,10 @@ public class StorageApiSinkRowUpdateIT {
             BigQueryIO.applyRowMutations()
                 .to(tableSpec)
                 .withSchema(tableSchema)
+                .withPrimaryKey(primaryKey)
+                .withClustering(new Clustering().setFields(primaryKey))
                 .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
 
     p.run();
 

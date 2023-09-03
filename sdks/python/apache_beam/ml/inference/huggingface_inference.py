@@ -289,6 +289,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     if self._framework == 'pt':
       if self._device == "GPU" and is_gpu_available_torch:
         model.to(torch.device("cuda"))
+      if callable(getattr(model, 'requires_grad_', None)):
+        model.requires_grad_(False)
     return model
 
   def run_inference(
@@ -465,6 +467,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     """Loads and initializes the model for processing."""
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
+    if callable(getattr(model, 'requires_grad_', None)):
+      model.requires_grad_(False)
     return model
 
   def run_inference(

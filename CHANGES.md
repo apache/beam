@@ -88,13 +88,13 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-
-# [2.50.0] - Unreleased
+# [2.50.0] - 2023-08-30
 
 ## Highlights
 
 * Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
 * The Go SDK has a new default local runner, called Prism ([#24789](https://github.com/apache/beam/issues/24789)).
+* All Beam released container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image) that support both x86 and ARM CPU architectures.
 
 ## I/Os
 
@@ -126,7 +126,7 @@
 ## Breaking Changes
 
 * Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
-* [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
+* Python SDK: Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Deprecations
 
@@ -143,7 +143,7 @@
 
 ## Known Issues
 
-* TBD
+* Long-running Python pipelines might suffer from a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
 
 # [2.49.0] - 2023-07-17
@@ -162,13 +162,15 @@
 
 ## Deprecations
 
-* Remove Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
+* Removed Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
 
 ## Bugfixes
 
 * Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
+
+* Long-running Python pipelines might suffer from a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
 
 # [2.48.0] - 2023-05-31
@@ -215,6 +217,8 @@
 ## Known Issues
 
 * PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
+* Long-running Python pipelines might suffer from a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+
 
 # [2.47.0] - 2023-05-10
 
@@ -258,6 +262,7 @@
 
 * The google-cloud-profiler dependency was accidentally removed from Beam's Python Docker
   Image [#26998](https://github.com/apache/beam/issues/26698). [Dataflow Docker images](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies) still preinstall this dependency.
+* Long-running Python pipelines might suffer from a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
 # [2.46.0] - 2023-03-10
 

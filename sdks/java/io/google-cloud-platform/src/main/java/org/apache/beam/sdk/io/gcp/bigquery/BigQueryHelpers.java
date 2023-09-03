@@ -126,7 +126,7 @@ public class BigQueryHelpers {
     }
 
     void waitForDone() throws Exception {
-      LOG.info("Waiting for jobs to complete.");
+      LOG.debug("Waiting for BigQuery jobs to complete.");
       Sleeper sleeper = Sleeper.DEFAULT;
       while (!pendingJobs.isEmpty()) {
         List<JobInfo> retryJobs = Lists.newArrayList();

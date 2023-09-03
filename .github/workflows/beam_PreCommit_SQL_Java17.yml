@@ -32,12 +32,12 @@ on:
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -49,6 +49,11 @@ permissions:
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
   cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   beam_PreCommit_SQL_Java17:
@@ -109,3 +114,8 @@ jobs:
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/build/test-results/**/*.xml'
