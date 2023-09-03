@@ -72,6 +72,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -250,9 +251,7 @@ import org.slf4j.LoggerFactory;
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
  * here</a>.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
+
 public class FhirIO {
 
   static final String BASE_METRIC_PREFIX = "fhirio/";
@@ -1783,6 +1782,7 @@ public class FhirIO {
           ValueProvider<String> destinationFhirStore, ValueProvider<DeidentifyConfig> deidConfig) {
         this.destinationFhirStore = destinationFhirStore;
         this.deidConfigJson = gson.toJson(deidConfig.get());
+        Preconditions.checkArgumentNotNull(fhirStore);
       }
 
       @Setup
