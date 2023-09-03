@@ -359,9 +359,7 @@ public class DicomIO {
               ParDo.of(new DeidentifyFn(destinationDicomStore, deidConfig)));
     }
 
-    /** A function that schedules a deidentify operation and monitors the status. */
-    public static class DeidentifyFn extends DoFn<String, String> {
-
+    public static class LroCounters {
       private static final Counter DEIDENTIFY_OPERATION_SUCCESS =
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_success_count");
@@ -374,6 +372,10 @@ public class DicomIO {
       private static final Counter RESOURCES_DEIDENTIFIED_ERRORS =
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
+    }
+
+    /** A function that schedules a deidentify operation and monitors the status. */
+    public static class DeidentifyFn extends DoFn<String, String> {
 
       private HealthcareApiClient dicomStore;
       private final ValueProvider<String> destinationDicomStore;
@@ -403,10 +405,10 @@ public class DicomIO {
         operation = dicomStore.pollOperation(operation, 15000L);
         incrementLroCounters(
             operation,
-            DEIDENTIFY_OPERATION_SUCCESS,
-            DEIDENTIFY_OPERATION_ERRORS,
-            RESOURCES_DEIDENTIFIED_SUCCESS,
-            RESOURCES_DEIDENTIFIED_ERRORS);
+            LroCounters.DEIDENTIFY_OPERATION_SUCCESS,
+            LroCounters.DEIDENTIFY_OPERATION_ERRORS,
+            LroCounters.RESOURCES_DEIDENTIFIED_SUCCESS,
+            LroCounters.RESOURCES_DEIDENTIFIED_ERRORS);
         if (operation.getError() != null) {
           throw new IOException(
               String.format("DeidentifyDicomStore operation (%s) failed.", operation.getName()));
