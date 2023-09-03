@@ -680,8 +680,7 @@ func (w *timerWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.timerWriters[w.id.instID], timerKey{w.id.ptransformID, w.timerFamilyID})
-	var msg *fnpb.Elements
-	msg = &fnpb.Elements{
+	msg := &fnpb.Elements{
 		Timers: []*fnpb.Elements_Timers{
 			{
 				InstructionId: string(w.id.instID),

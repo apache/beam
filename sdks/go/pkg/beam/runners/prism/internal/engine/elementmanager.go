@@ -209,11 +209,11 @@ func (rb RunBundle) LogValue() slog.Value {
 // remaining.
 func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string) <-chan RunBundle {
 	runStageCh := make(chan RunBundle)
-	ctx, cancelFn := context.WithCancel(ctx)
+	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
 		em.pendingElements.Wait()
-		slog.Info("no more pending elements: terminating pipeline")
-		cancelFn()
+		slog.Debug("no more pending elements: terminating pipeline")
+		cancelFn(fmt.Errorf("elementManager out of elements, cleaning up"))
 		// Ensure the watermark evaluation goroutine exits.
 		em.refreshCond.Broadcast()
 	}()
@@ -287,8 +287,12 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 			if err == io.EOF {
 				break
 			}
-			slog.Error("reElementResiduals: error decoding residual header", err, "bundle", rb)
-			panic("error decoding residual header")
+			slog.Error("reElementResiduals: error decoding residual header", "error", err, "bundle", rb)
+			panic("error decoding residual header:" + err.Error())
+		}
+		if len(ws) == 0 {
+			slog.Error("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
+			panic("error decoding residual header: sdk provided a windowed value header 0 windows")
 		}
 
 		for _, w := range ws {
@@ -332,8 +336,12 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 					if err == io.EOF {
 						break
 					}
-					slog.Error("PersistBundle: error decoding watermarks", err, "bundle", rb, slog.String("output", output))
+					slog.Error("PersistBundle: error decoding watermarks", "error", err, "bundle", rb, slog.String("output", output))
 					panic("error decoding watermarks")
+				}
+				if len(ws) == 0 {
+					slog.Error("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
+					panic("error decoding residual header: sdk provided a windowed value header 0 windows")
 				}
 				// TODO: Optimize unnecessary copies. This is doubleteeing.
 				elmBytes := info.EDec(tee)
@@ -384,6 +392,17 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 
 	// TODO support state/timer watermark holds.
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
+}
+
+// FailBundle clears the extant data allowing the execution to shut down.
+func (em *ElementManager) FailBundle(rb RunBundle) {
+	stage := em.stages[rb.StageID]
+	stage.mu.Lock()
+	completed := stage.inprogress[rb.BundleID]
+	em.pendingElements.Add(-len(completed.es))
+	delete(stage.inprogress, rb.BundleID)
+	stage.mu.Unlock()
+	em.addRefreshAndClearBundle(rb.StageID, rb.BundleID)
 }
 
 // ReturnResiduals is called after a successful split, so the remaining work

@@ -33,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -74,12 +75,7 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 }
 
-func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) {
-	select {
-	case <-ctx.Done():
-		return
-	default:
-	}
+func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) error {
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
@@ -102,7 +98,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		closed := make(chan struct{})
 		close(closed)
 		dataReady = closed
-	case wk.ID:
+	case wk.Env:
 		b = &worker.B{
 			PBDID:  s.ID,
 			InstID: rb.BundleID,
@@ -121,15 +117,10 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		slog.Debug("Execute: processing", "bundle", rb)
 		defer b.Cleanup(wk)
-		b.Fail = func(errMsg string) {
-			slog.Error("job failed", "bundle", rb, "job", j)
-			err := fmt.Errorf("%v", errMsg)
-			j.Failed(err)
-		}
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
 		err := fmt.Errorf("unknown environment[%v]", s.envID)
-		slog.Error("Execute", err)
+		slog.Error("Execute", "error", err)
 		panic(err)
 	}
 
@@ -144,20 +135,20 @@ progress:
 			progTick.Stop()
 			break progress // exit progress loop on close.
 		case <-progTick.C:
-			resp, err := b.Progress(wk)
+			resp, err := b.Progress(ctx, wk)
 			if err != nil {
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
 				break progress
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
-				md := wk.MonitoringMetadata(unknownIDs)
+				md := wk.MonitoringMetadata(ctx, unknownIDs)
 				j.AddMetricShortIDs(md)
 			}
 			slog.Debug("progress report", "bundle", rb, "index", index)
 			// Progress for the bundle hasn't advanced. Try splitting.
 			if previousIndex == index && !splitsDone {
-				sr, err := b.Split(wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
+				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
 					break progress
@@ -199,16 +190,18 @@ progress:
 	var resp *fnpb.ProcessBundleResponse
 	select {
 	case resp = <-b.Resp:
+		if b.BundleErr != nil {
+			return b.BundleErr
+		}
 	case <-ctx.Done():
-		// Ensures we clean up on failure, if the response is blocked.
-		return
+		return context.Cause(ctx)
 	}
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
 	unknownIDs := j.ContributeFinalMetrics(resp)
 	if len(unknownIDs) > 0 {
-		md := wk.MonitoringMetadata(unknownIDs)
+		md := wk.MonitoringMetadata(ctx, unknownIDs)
 		j.AddMetricShortIDs(md)
 	}
 	// TODO handle side input data properly.
@@ -238,6 +231,7 @@ progress:
 	}
 	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residualData, minOutputWatermark)
 	b.OutputData = engine.TentativeData{} // Clear the data.
+	return nil
 }
 
 func getSideInputs(t *pipepb.PTransform) (map[string]*pipepb.SideInput, error) {
@@ -290,9 +284,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for _, o := range stg.outputs {
-		wOutCid := makeWindowedValueCoder(o.global, comps, coders)
-		sinkID := o.transform + "_" + o.local
 		col := comps.GetPcollections()[o.global]
+		wOutCid, err := makeWindowedValueCoder(o.global, comps, coders)
+		if err != nil {
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w", stg.ID, o, o.global, prototext.Format(col), err)
+		}
+		sinkID := o.transform + "_" + o.local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.global
@@ -311,7 +308,10 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	for _, si := range stg.sideInputs {
 		col := comps.GetPcollections()[si.global]
 		oCID := col.GetCoderId()
-		nCID := lpUnknownCoders(oCID, coders, comps.GetCoders())
+		nCID, err := lpUnknownCoders(oCID, coders, comps.GetCoders())
+		if err != nil {
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for side input %+v, pcol %q %v:\n%w", stg.ID, si, si.global, prototext.Format(col), err)
+		}
 
 		sides = append(sides, si.global)
 		if oCID != nCID {
@@ -339,9 +339,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W) error {
 	// This id is directly used for the source, but this also copies
 	// coders used by side inputs to the coders map for the bundle, so
 	// needs to be run for every ID.
-	wInCid := makeWindowedValueCoder(stg.primaryInput, comps, coders)
 
 	col := comps.GetPcollections()[stg.primaryInput]
+	wInCid, err := makeWindowedValueCoder(stg.primaryInput, comps, coders)
+	if err != nil {
+		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w", stg.ID, stg.primaryInput, prototext.Format(col), err)
+	}
+
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 	wDec, wEnc := getWindowValueCoders(comps, col, coders)
 	inputInfo := engine.PColInfo{

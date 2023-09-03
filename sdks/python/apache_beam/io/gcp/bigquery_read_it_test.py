@@ -524,6 +524,19 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
   @pytest.mark.it_postcommit
+  def test_iobase_source_with_column_selection_and_row_restriction_rows(self):
+    with beam.Pipeline(argv=self.args) as p:
+      result = (
+          p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
+              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
+              table=self.temp_table_reference,
+              row_restriction='number > 2',
+              selected_fields=['string'],
+              output_type='BEAM_ROW'))
+      assert_that(
+          result | beam.Map(lambda row: row.string), equal_to(['привет']))
+
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_very_selective_filters(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (

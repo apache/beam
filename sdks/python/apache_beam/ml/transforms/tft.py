@@ -59,6 +59,7 @@ __all__ = [
     'TFTOperation',
     'ScaleByMinMax',
     'NGrams',
+    'BagOfWords',
 ]
 
 # Register the expected input types for each operation
@@ -523,8 +524,8 @@ class NGrams(TFTOperation):
       columns: List[str],
       split_string_by_delimiter: Optional[str] = None,
       *,
-      ngram_range: Tuple[int, int],
-      ngrams_separator: str,
+      ngram_range: Tuple[int, int] = (1, 1),
+      ngrams_separator: Optional[str] = None,
       name: Optional[str] = None):
     """
     An n-gram is a contiguous sequence of n items from a given sample of text
@@ -547,6 +548,10 @@ class NGrams(TFTOperation):
     self.name = name
     self.split_string_by_delimiter = split_string_by_delimiter
 
+    if ngram_range != (1, 1) and not ngrams_separator:
+      raise ValueError(
+          'ngrams_separator must be specified when ngram_range is not (1, 1)')
+
   def apply_transform(
       self, data: common_types.TensorType,
       output_column_name: str) -> Dict[str, common_types.TensorType]:
@@ -555,3 +560,78 @@ class NGrams(TFTOperation):
           data, self.split_string_by_delimiter)
     output = tft.ngrams(data, self.ngram_range, self.ngrams_separator)
     return {output_column_name: output}
+
+
+@register_input_dtype(str)
+class BagOfWords(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      split_string_by_delimiter: Optional[str] = None,
+      *,
+      ngram_range: Tuple[int, int] = (1, 1),
+      ngrams_separator: Optional[str] = None,
+      compute_word_count: bool = False,
+      name: Optional[str] = None,
+  ):
+    """
+    Bag of words contains the unique words present in the input text.
+    This operation applies a bag of words transformation to specified
+    columns of incoming data. Also, the transformation accepts a Tuple of
+    integers specifying the range of n-gram sizes. The transformation
+    splits the input data into a set of consecutive n-grams if ngram_range
+    is specified. The n-grams are then converted to a bag of words.
+    Also, you can specify a seperator string that will be inserted between
+    each ngram.
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      split_string_by_delimiter: (Optional) A string that specifies the
+        delimiter to split the input strings before computing ngrams.
+      ngram_range: A tuple of integers(inclusive) specifying the range of
+        n-gram sizes.
+      seperator: A string that will be inserted between each ngram.
+      compute_word_count: A boolean that specifies whether to compute
+        the unique word count and add it as an artifact to the output.
+        Note that the count will be computed over the entire dataset so
+        it will be the same value for all inputs.
+      name: A name for the operation (optional).
+
+    Note that original order of the input may not be preserved.
+    """
+
+    self.columns = columns
+    self.ngram_range = ngram_range
+    self.ngrams_separator = ngrams_separator
+    self.name = name
+    self.split_string_by_delimiter = split_string_by_delimiter
+    if compute_word_count:
+      self.compute_word_count_fn = count_unqiue_words
+    else:
+      self.compute_word_count_fn = lambda *args, **kwargs: {}
+
+    if ngram_range != (1, 1) and not ngrams_separator:
+      raise ValueError(
+          'ngrams_separator must be specified when ngram_range is not (1, 1)')
+
+  def get_artifacts(self, data: tf.SparseTensor,
+                    col_name: str) -> Dict[str, tf.Tensor]:
+    return self.compute_word_count_fn(data, col_name)
+
+  def apply_transform(self, data: tf.SparseTensor, output_col_name: str):
+    if self.split_string_by_delimiter:
+      data = self._split_string_with_delimiter(
+          data, self.split_string_by_delimiter)
+    output = tft.bag_of_words(
+        data, self.ngram_range, self.ngrams_separator, self.name)
+    return {output_col_name: output}
+
+
+def count_unqiue_words(data: tf.SparseTensor,
+                       output_col_name: str) -> Dict[str, tf.Tensor]:
+  keys, count = tft.count_per_key(data)
+  shape = [tf.shape(data)[0], tf.shape(keys)[0]]
+  return {
+      output_col_name + '_unique_elements': tf.broadcast_to(keys, shape),
+      output_col_name + '_counts': tf.broadcast_to(count, shape)
+  }
