@@ -1782,7 +1782,6 @@ public class FhirIO {
           ValueProvider<String> destinationFhirStore, ValueProvider<DeidentifyConfig> deidConfig) {
         this.destinationFhirStore = destinationFhirStore;
         this.deidConfigJson = gson.toJson(deidConfig.get());
-        Preconditions.checkArgumentNotNull(fhirStore);
       }
 
       @Setup
