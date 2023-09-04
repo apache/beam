@@ -165,9 +165,9 @@ def generate_protos_first():
     ])
     if p != 0:
       raise RuntimeError()
-
   except RuntimeError:
-    RuntimeError("Could not import gen_protos, skipping proto generation.")
+    raise RuntimeError(
+      "Could not import gen_protos, skipping proto generation.")
 
 
 def get_portability_package_data():

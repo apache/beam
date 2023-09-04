@@ -530,7 +530,7 @@ def generate_proto_files(force=False):
       generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
 
       generate_init_files_full(PYTHON_OUTPUT_PATH)
-  except ImportError as e:
+  except ImportError:
     # this means the required _pb2 files are already generated.
     pass
 
