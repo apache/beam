@@ -591,7 +591,8 @@ public class FhirIO {
         public void instantiateHealthcareClient() throws IOException {
           this.client = new HttpHealthcareApiClient();
           this.mapper = new ObjectMapper();
-          Preconditions.checkArgumentNotNull(this.client, this.mapper);
+          Preconditions.checkArgumentNotNull(this.client);
+          Preconditions.checkArgumentNotNull(this.mapper);
         }
 
         /**
