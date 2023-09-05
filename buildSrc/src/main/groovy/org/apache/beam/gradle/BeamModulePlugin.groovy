@@ -3035,23 +3035,24 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
-          // dependsOn ":sdks:python:test-suites:tox:py${project.ext.pythonVersion.replace('.', '')}:build_py${project.ext.pythonVersion.replace('.', '')}_wheel_using_build_module"
-          dependsOn ":sdks:python:bdistPy${project.ext.pythonVersion.replace('.', '')}linux"
-
-          doLast {
-            // Python source directory is also tox execution workspace, We want
-            // to isolate them per tox suite to avoid conflict when running
-            // multiple tox suites in parallel.
+          if (project.hasProperty('useWheelDistribution')) {
+            dependsOn ":sdks:python:bdistPy${project.ext.pythonVersion.replace('.', '')}linux"
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
 
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             def collection = project.fileTree(project.project(':sdks:python').buildDir){
               include "**/apache_beam-*cp${project.ext.pythonVersion.replace('.', '')}*manylinux*.whl"
-              // include "**/apache_beam-*cp${project.ext.pythonVersion.replace('.', '')}*linux*.whl"
             }
-            // sdkLocation ext is set at execution time
             String packageFilename = collection.singleFile.toString()
-            // logger.info('Use wheel {} for sdk_location.', packageFilename)
+          } else {
+              dependsOn ':sdks:python:sdist'
+              String packageFilename = files(configurations.distTarBall.files).singleFile
+          }
+
+          doLast {
+            // Python source directory is also tox execution workspace, We want
+            // to isolate them per tox suite to avoid conflict when running
+            // multiple tox suites in parallel.
 
             project.exec {
               executable 'sh'
