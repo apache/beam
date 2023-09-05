@@ -1108,30 +1108,6 @@ class BeamModulePlugin implements Plugin<Project> {
         preserveFileTimestamps(false)
       }
 
-      if (project.hasProperty("compileAndRunTestsWithJava11")) {
-        def java11Home = project.findProperty("java11Home")
-        project.tasks.compileTestJava {
-          options.fork = true
-          options.forkOptions.javaHome = java11Home as File
-          options.compilerArgs += ['-Xlint:-path']
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '11')
-        }
-        project.tasks.withType(Test) {
-          useJUnit()
-          executable = "${java11Home}/bin/java"
-        }
-      } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
-        def java17Home = project.findProperty("java17Home")
-        project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
-          project.ext.setJava17Options(options)
-        }
-        project.tasks.withType(Test) {
-          useJUnit()
-          executable = "${java17Home}/bin/java"
-        }
-      }
-
       // Configure the default test tasks set of tests executed
       // to match the equivalent set that is executed by the maven-surefire-plugin.
       // See http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
@@ -1517,6 +1493,30 @@ class BeamModulePlugin implements Plugin<Project> {
         // currently used in beam. See docs:
         // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
+      }
+
+      if (project.hasProperty("compileAndRunTestsWithJava11")) {
+        def java11Home = project.findProperty("java11Home")
+        project.tasks.compileTestJava {
+          options.fork = true
+          options.forkOptions.javaHome = java11Home as File
+          options.compilerArgs += ['-Xlint:-path']
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '11')
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java11Home}/bin/java"
+        }
+      } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+        def java17Home = project.findProperty("java17Home")
+        project.tasks.compileTestJava {
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
+          project.ext.setJava17Options(options)
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java17Home}/bin/java"
+        }
       }
 
       if (configuration.shadowClosure) {
