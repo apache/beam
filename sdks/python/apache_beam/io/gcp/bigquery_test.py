@@ -18,6 +18,16 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
+  from google.api_core import exceptions
+except (ImportError, ModuleNotFoundError):
+  raise unittest.SkipTest('GCP dependencies are not installed')
+# pylint: enable=wrong-import-order, wrong-import-position
+
 import datetime
 import decimal
 import gc
@@ -77,19 +87,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils import retry
-
-# Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-
-try:
-  from apitools.base.py.exceptions import HttpError
-  from google.cloud import bigquery as gcp_bigquery
-  from google.api_core import exceptions
-except ImportError:
-  gcp_bigquery = None
-  HttpError = None
-  exceptions = None
-# pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
 

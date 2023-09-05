@@ -29,8 +29,8 @@ from apache_beam.options import value_provider
 
 try:
   from apitools.base.py.exceptions import HttpError
-except ImportError:
-  HttpError = None
+except (ImportError, ModuleNotFoundError):
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
