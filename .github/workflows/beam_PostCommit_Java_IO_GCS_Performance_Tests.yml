@@ -121,4 +121,5 @@ jobs:
         exportDataset: jjc_test
         exportTable: io_performance_metrics
     - name: view failed test
-      run: cat file:///home/runner/work/beam/beam/it/google-cloud-platform/build/reports/tests/GCSPerformanceTest/index.html
+      if: ${{ failure() }}
+      run: cat /home/runner/work/beam/beam/it/google-cloud-platform/build/reports/tests/GCSPerformanceTest/classes/org.apache.beam.it.gcp.storage.FileBasedIOLT.html
