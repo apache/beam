@@ -1,4 +1,5 @@
 extension FieldValue {
+
     static func from(_ proto: FieldValueProto) throws -> FieldValue {
         switch proto.fieldValue {
         case .atomicValue(let value):
