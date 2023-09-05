@@ -135,6 +135,12 @@ class LightweightScope(object):
         self._uuid_by_name[spec['name']].add(spec['__uuid__'])
       if 'type' in spec:
         self._uuid_by_name[spec['type']].add(spec['__uuid__'])
+    self._all_followers = collections.defaultdict(list)
+    # TODO(yaml): Also trace through outputs and composites.
+    for transform in self._transforms:
+      for input in transform.get('input').values():
+        transform_id, _ = self.get_transform_id_and_output_name(input)
+        self._all_followers[transform_id].append(transform['__uuid__'])
 
   def get_transform_id_and_output_name(self, name):
     if '.' in name:
@@ -158,6 +164,9 @@ class LightweightScope(object):
             f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
       else:
         return only_element(candidates)
+
+  def followers(self, transform_name):
+    return self._all_followers[self.get_transform_id(transform_name)]
 
 
 class Scope(LightweightScope):
@@ -208,6 +217,54 @@ class Scope(LightweightScope):
   def compute_outputs(self, transform_id):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
+  def best_provider(self, t, input_providers):
+    if isinstance(t, dict):
+      spec = t
+    else:
+      spec = self._transforms_by_uuid[self.get_transform_id(t)]
+    possible_providers = [
+        p for p in self.providers[spec['type']] if p.available()
+    ]
+    if not possible_providers:
+      raise ValueError(
+          'No available provider for type %r at %s' %
+          (spec['type'], identify_object(spec)))
+
+    # Only one choice, no need to rank further.
+    if len(possible_providers) == 1:
+      return possible_providers[0]
+
+    def best_matches(
+        possible_providers: Iterable[yaml_provider.Provider],
+        adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
+    ) -> Iterable[yaml_provider.Provider]:
+      providers_by_score = collections.defaultdict(list)
+      for p in possible_providers:
+        providers_by_score[sum(
+            max(p.affinity(ap) for ap in apo)
+            for apo in adjacent_provider_options)].append(p)
+      return providers_by_score[max(providers_by_score.keys())]
+
+    # If there are any inputs, prefer to match them.
+    if input_providers:
+      possible_providers = best_matches(
+          possible_providers, [[p] for p in input_providers])
+
+    # Try to match downstream operations, continuing until there is no tie.
+    adjacent_transforms = [spec['__uuid__']]
+    while adjacent_transforms and len(possible_providers) > 1:
+      # Go downstream one step. (This is why we start with spec itself.)
+      adjacent_transforms = sum(
+          [list(self.followers(t)) for t in adjacent_transforms], [])
+      adjacent_provider_options = [[
+          p for p in self.providers[self._transforms_by_uuid[t]['type']]
+          if p.available()
+      ] for t in adjacent_transforms]
+      possible_providers = best_matches(
+          possible_providers, adjacent_provider_options)
+
+    return possible_providers[0]
+
   # A method on scope as providers may be scoped...
   def create_ptransform(self, spec, input_pcolls):
     if 'type' not in spec:
@@ -225,19 +282,7 @@ class Scope(LightweightScope):
         providers_by_input[pcoll] for pcoll in input_pcolls
         if pcoll in providers_by_input
     ]
-
-    def provider_score(p):
-      return sum(p.affinity(o) for o in input_providers)
-
-    for provider in sorted(self.providers.get(spec['type']),
-                           key=provider_score,
-                           reverse=True):
-      if provider.available():
-        break
-    else:
-      raise ValueError(
-          'No available provider for type %r at %s' %
-          (spec['type'], identify_object(spec)))
+    provider = self.best_provider(spec, input_providers)
 
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     if not isinstance(config, dict):
@@ -506,14 +551,19 @@ def identify_object(spec):
 
 
 def extract_name(spec):
-  if 'name' in spec:
-    return spec['name']
-  elif 'id' in spec:
-    return spec['id']
-  elif 'type' in spec:
-    return spec['type']
-  elif len(spec) == 1:
-    return extract_name(next(iter(spec.values())))
+  if isinstance(spec, dict):
+    if 'name' in spec:
+      return spec['name']
+    elif 'id' in spec:
+      return spec['id']
+    elif 'type' in spec:
+      return spec['type']
+    elif len(spec) == 1:
+      return extract_name(next(iter(spec.values())))
+    else:
+      return ''
+  elif isinstance(spec, str):
+    return spec
   else:
     return ''
 
