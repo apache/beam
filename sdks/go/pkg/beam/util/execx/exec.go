@@ -17,6 +17,7 @@
 package execx
 
 import (
+	"io"
 	"os"
 	"os/exec"
 )
@@ -34,6 +35,23 @@ func ExecuteEnv(env map[string]string, prog string, args ...string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if env != nil {
+		cmd.Env = os.Environ()
+		for k, v := range env {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+	}
+
+	return cmd.Run()
+}
+
+// ExecuteEnvWithIO runs the program with the given arguments with additional environment
+// variables. It attaches custom IO to the child process.
+func ExecuteEnvWithIO(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, prog string, args ...string) error {
+	cmd := exec.Command(prog, args...)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	if env != nil {
 		cmd.Env = os.Environ()
 		for k, v := range env {

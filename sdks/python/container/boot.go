@@ -205,7 +205,7 @@ func launchSDKProcess() error {
 		}
 	}
 
-	if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
+	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
 		logger.Errorf(ctx, fmtErr.Error())
@@ -379,7 +379,7 @@ func setupAcceptableWheelSpecs() error {
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(files []string, workDir string, requirementsFiles []string) error {
+func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	log.Printf("Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
@@ -389,25 +389,25 @@ func installSetupPackages(files []string, workDir string, requirementsFiles []st
 	pkgName := "apache-beam"
 	isSdkInstalled := isPackageInstalled(pkgName)
 	if !isSdkInstalled {
-		return fmt.Errorf("Apache Beam is not installed in the runtime environment. If you use a custom container image, you must install apache-beam package in the custom image using same version of Beam as in the pipeline submission environment. For more information, see: the https://beam.apache.org/documentation/runtime/environments/.")
+		return fmt.Errorf("Apache Beam is not installed in the runtime environment. If you use a custom container image, you must install apache-beam package in the custom image using same version of Beam as in the pipeline submission environment. For more information, see: the https://beam.apache.org/documentation/runtime/environments/")
 	}
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
-	if err := installSdk(files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
+	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	// The staged files will not disappear due to restarts because workDir is a
 	// folder that is mapped to the host (and therefore survives restarts).
 	for _, f := range requirementsFiles {
-		if err := pipInstallRequirements(files, workDir, f); err != nil {
+		if err := pipInstallRequirements(ctx, logger, files, workDir, f); err != nil {
 			return fmt.Errorf("failed to install requirements: %v", err)
 		}
 	}
-	if err := installExtraPackages(files, extraPackagesFile, workDir); err != nil {
+	if err := installExtraPackages(ctx, logger, files, extraPackagesFile, workDir); err != nil {
 		return fmt.Errorf("failed to install extra packages: %v", err)
 	}
-	if err := pipInstallPackage(files, workDir, workflowFile, false, true, nil); err != nil {
+	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
 
@@ -450,7 +450,7 @@ func processArtifactsInSetupOnlyMode() {
 		}
 		files[i] = filePayload.GetPath()
 	}
-	if setupErr := installSetupPackages(files, workDir, []string{requirementsFile}); setupErr != nil {
+	if setupErr := installSetupPackages(context.Background(), nil, files, workDir, []string{requirementsFile}); setupErr != nil {
 		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
 }
