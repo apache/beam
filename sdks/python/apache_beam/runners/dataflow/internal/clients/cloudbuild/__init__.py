@@ -29,5 +29,3 @@ try:
   from apache_beam.runners.dataflow.internal.clients.cloudbuild.cloudbuild_v1_messages import *
 except ImportError:
   pass
-
-__path__ = pkgutil.extend_path(__path__, __name__)
