@@ -61,13 +61,8 @@ try:
   from google.api_core.exceptions import ClientError, DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
   import google.cloud
-except ImportError:
-  ClientError = None
-  DeadlineExceeded = None
-  HttpError = None
-  HttpForbiddenError = None
-  InternalServerError = None
-  google = None
+except (ImportError, ModuleNotFoundError):
+  raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
