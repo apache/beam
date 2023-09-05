@@ -69,6 +69,7 @@ var (
 	network                = flag.String("network", "", "GCP network (optional)")
 	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
+	usePublicIPs           = flag.Bool("use_public_ips", true, "Workers must use public IP addresses (optional)")
 	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
 	workerMachineType      = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	machineType            = flag.String("machine_type", "", "alias of worker_machine_type (optional)")
@@ -245,6 +246,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	return dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, *jobopts.Async)
 }
 
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
 func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions, error) {
 	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
 	if project == "" {
@@ -292,6 +303,17 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if *transformMapping != "" {
 		if err := json.Unmarshal([]byte(*transformMapping), &updateTransformMapping); err != nil {
 			return nil, errors.Wrapf(err, "error reading --transform_name_mapping flag as JSON")
+		}
+	}
+	if *usePublicIPs == *noUsePublicIPs {
+		useSet := isFlagPassed("use_public_ips")
+		noUseSet := isFlagPassed("no_use_public_ips")
+		// If use_public_ips was explicitly set but no_use_public_ips was not, use that value
+		// We take the explicit value of no_use_public_ips if it was set but use_public_ips was not.
+		if useSet && !noUseSet {
+			*noUsePublicIPs = !*usePublicIPs
+		} else if useSet && noUseSet {
+			return nil, errors.New("exactly one of usePublicIPs and noUsePublicIPs must be true, please check that only one is true")
 		}
 	}
 
