@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.randomUUIDString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BIGQUERY_JOB_TEMPLATE;
 
 import com.google.api.services.bigquery.model.TableReference;
@@ -47,20 +48,21 @@ class BigQueryResourceNaming {
    * @param prefix A prefix generated in {@link BigQueryResourceNaming::createJobIdPrefix}.
    * @param tableDestination A descriptor of the destination table.
    * @param partition A partition number in the destination table.
-   * @param index
-   * @return
+   * @return a generated jobId.
    */
   static String createJobIdWithDestination(
-      String prefix, TableDestination tableDestination, int partition, long index) {
+      String prefix, TableDestination tableDestination, int partition) {
     // Job ID must be different for each partition of each table.
     String destinationHash =
-        Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
-    String jobId = String.format("%s_%s", prefix, destinationHash);
+        Hashing.murmur3_128()
+            .hashUnencodedChars(tableDestination.toString())
+            .toString()
+            .substring(0, 16);
+    // add randomness to jobId to avoid conflict
+    String jobId =
+        String.format("%s_%s_%s", prefix, destinationHash, randomUUIDString().substring(0, 16));
     if (partition >= 0) {
       jobId += String.format("_%05d", partition);
-    }
-    if (index >= 0) {
-      jobId += String.format("_%05d", index);
     }
     return jobId;
   }

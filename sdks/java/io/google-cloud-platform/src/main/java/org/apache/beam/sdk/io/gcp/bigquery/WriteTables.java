@@ -251,7 +251,7 @@ class WriteTables<DestinationT extends @NonNull Object>
       List<String> partitionFiles = Lists.newArrayList(element.getValue().getFilenames());
       String jobIdPrefix =
           BigQueryResourceNaming.createJobIdWithDestination(
-              c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
+              c.sideInput(loadJobIdPrefixView), tableDestination, partition);
 
       if (tempTable) {
         if (tempDataset != null) {
