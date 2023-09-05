@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Java IO GCS Performance Tests
+name: PostCommit Java IO Performance Tests
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['it/google-cloud-platform/**','.github/workflows/beam_PostCommit_Java_IO_GCS_Performance_Tests.yml']
+    paths: ['it/google-cloud-platform/**','.github/workflows/beam_PostCommit_Java_IO_Performance_Tests.yml']
   issue_comment:
     types: [created]
   schedule:
@@ -53,36 +53,34 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Java_IO_GCS_Performance_Tests:
+  beam_PostCommit_Java_IO_Performance_Tests:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java PostCommit IO GCS Performance Tests'
+      github.event.comment.body == 'Run Java PostCommit IO Performance Tests'
 #    runs-on: [self-hosted, ubuntu-20.04, main]
     runs-on: ubuntu-20.04
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PostCommit_Java_IO_GCS_Performance_Tests"]
-        job_phrase: ["Run Java PostCommit IO GCS Performance Tests"]
+        job_name: ["beam_PostCommit_Java_IO_Performance_Tests"]
+        job_phrase: ["Run Java PostCommit IO Performance Tests"]
+        test_case: ["GCSPerformanceTest", "BigTablePerformanceTest"]
     steps:
     - uses: actions/checkout@v3
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
-        comment_phrase: ${{ matrix.job_phrase }}
+        comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_case }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+        github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
     - name: Checkout release branch
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
       uses: actions/checkout@v3
       with:
         ref: v2.50.0 #TODO automate updating this
         repository: apache/beam
-    - name: Checkout non-release branch
-      if: github.event_name != 'schedule' #This has triggered runs checkout the triggering branch
-      uses: actions/checkout@v3
     - name: Install Java
       uses: actions/setup-java@v3.8.0
       with:
@@ -101,22 +99,19 @@ jobs:
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         export_default_credentials: true
-    - name: GCloud Docker credential helper
-      run: |
-        gcloud auth configure-docker us.gcr.io
-    - name: run scheduled javaPostcommitIOGCSPerformanceTests script
+    - name: run scheduled javaPostcommitIOPerformanceTests script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :it:google-cloud-platform:GCSPerformanceTest
+        gradle-command: :it:${{ matrix.test_case }}
       env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics
-    - name: run triggered javaPostcommitIOGCSPerformanceTests script
+    - name: run triggered javaPostcommitIOPerformanceTests script
       if: github.event_name != 'schedule'
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :it:google-cloud-platform:GCSPerformanceTest
+        gradle-command: :it:${{ matrix.test_case }}
       env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
