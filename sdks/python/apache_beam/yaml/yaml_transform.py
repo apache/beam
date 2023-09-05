@@ -718,7 +718,7 @@ def ensure_config(spec):
   return spec
 
 
-def preprocess(spec, verbose=False):
+def preprocess(spec, verbose=False, known_transforms=None):
   if verbose:
     pprint.pprint(spec)
 
@@ -729,8 +729,19 @@ def preprocess(spec, verbose=False):
           spec, transforms=[apply(phase, t) for t in spec['transforms']])
     return spec
 
+  if known_transforms:
+    known_transforms = set(known_transforms).union(['chain', 'composite'])
+
+  def ensure_transforms_have_providers(spec):
+    if known_transforms:
+      if spec['type'] not in known_transforms:
+        raise ValueError(
+            f'Unknown type or missing provider for {identify_object(spec)}')
+    return spec
+
   for phase in [
       ensure_transforms_have_types,
+      ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
       normalize_inputs_outputs,
@@ -753,13 +764,13 @@ class YamlTransform(beam.PTransform):
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
     # TODO(BEAM-26941): Validate as a transform.
-    self._spec = preprocess(spec)
     self._providers = yaml_provider.merge_providers(
         {
             key: yaml_provider.as_provider_list(key, value)
             for (key, value) in providers.items()
         },
         yaml_provider.standard_providers())
+    self._spec = preprocess(spec, known_transforms=self._providers.keys())
 
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
