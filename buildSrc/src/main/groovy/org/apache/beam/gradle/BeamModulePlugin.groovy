@@ -457,12 +457,12 @@ class BeamModulePlugin implements Plugin<Project> {
    * If there is already `-source X` and `-target X` option, replace X with desired version number.
    * Otherwise, append them.
    */
-  def setCompileAndRuntimeJavaVersion(List<String> compileArgs, String ver) {
+  def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
     boolean foundS = false, foundT = false
-    for (int i = 0; i < compileArgs.size()-1; ++i) {
-      if (compileArgs.get(i) == '-source' || compileArgs.get(i) == '-target')  {
+    for (int i = 0; i < compilerArgs.size()-1; ++i) {
+      if (compilerArgs.get(i) == '-source' || compilerArgs.get(i) == '-target')  {
         found = true
-        compileArgs.set(i+1, ver)
+        compilerArgs.set(i+1, ver)
       }
     }
     if (!foundS) {
