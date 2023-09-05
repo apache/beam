@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -82,8 +83,8 @@ public class FileLoadsStreamingIT {
   @Rule public TestName testName = new TestName();
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("FileLoadsStreamingIT");
-  private static final String PROJECT = "google.com:clouddfe";
-  //            TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static final String PROJECT =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID = "file_loads_streaming_it_" + System.nanoTime();
 
   private static final String[] FIELDS = {
