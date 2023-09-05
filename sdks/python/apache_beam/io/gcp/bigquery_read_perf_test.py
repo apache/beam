@@ -73,7 +73,7 @@ from apache_beam.transforms.combiners import Count
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError
-except ModuleNotFoundError:
+except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 

@@ -29,7 +29,7 @@ from apache_beam.options import value_provider
 
 try:
   from apitools.base.py.exceptions import HttpError
-except ModuleNotFoundError:
+except ImportError:
   HttpError = None
 
 

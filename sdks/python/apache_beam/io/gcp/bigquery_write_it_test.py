@@ -50,7 +50,7 @@ from apache_beam.testing.util import equal_to
 
 try:
   from apitools.base.py.exceptions import HttpError
-except ModuleNotFoundError:
+except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
