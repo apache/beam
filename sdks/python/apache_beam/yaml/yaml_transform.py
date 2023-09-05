@@ -135,12 +135,6 @@ class LightweightScope(object):
         self._uuid_by_name[spec['name']].add(spec['__uuid__'])
       if 'type' in spec:
         self._uuid_by_name[spec['type']].add(spec['__uuid__'])
-    self._all_followers = collections.defaultdict(list)
-    # TODO(yaml): Also trace through outputs and composites.
-    for transform in self._transforms:
-      for input in transform.get('input').values():
-        transform_id, _ = self.get_transform_id_and_output_name(input)
-        self._all_followers[transform_id].append(transform['__uuid__'])
 
   def get_transform_id_and_output_name(self, name):
     if '.' in name:
@@ -165,9 +159,6 @@ class LightweightScope(object):
       else:
         return only_element(candidates)
 
-  def followers(self, transform_name):
-    return self._all_followers[self.get_transform_id(transform_name)]
-
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
@@ -178,6 +169,18 @@ class Scope(LightweightScope):
     self.providers = providers
     self._seen_names = set()
     self.input_providers = input_providers
+    self._all_followers = None
+
+  def followers(self, transform_name):
+    if self._all_followers is None:
+      self._all_followers = collections.defaultdict(list)
+      # TODO(yaml): Also trace through outputs and composites.
+      for transform in self._transforms:
+        if transform['type'] != 'composite':
+          for input in transform.get('input').values():
+            transform_id, _ = self.get_transform_id_and_output_name(input)
+            self._all_followers[transform_id].append(transform['__uuid__'])
+    return self._all_followers[self.get_transform_id(transform_name)]
 
   def compute_all(self):
     for transform_id in self._transforms_by_uuid.keys():
@@ -252,10 +255,12 @@ class Scope(LightweightScope):
 
     # Try to match downstream operations, continuing until there is no tie.
     adjacent_transforms = [spec['__uuid__']]
-    while adjacent_transforms and len(possible_providers) > 1:
+    while len(possible_providers) > 1:
       # Go downstream one step. (This is why we start with spec itself.)
       adjacent_transforms = sum(
           [list(self.followers(t)) for t in adjacent_transforms], [])
+      if not adjacent_transforms:
+        break
       adjacent_provider_options = [[
           p for p in self.providers[self._transforms_by_uuid[t]['type']]
           if p.available()
@@ -648,7 +653,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{out}]',
         'windowing': windowing,
-        'input': modified_spec['__uuid__'] + ('.' + out if out else ''),
+        'input': {
+            'input': modified_spec['__uuid__'] + ('.' + out if out else '')
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for out in consumed_outputs]
