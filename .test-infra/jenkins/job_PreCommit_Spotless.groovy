@@ -29,7 +29,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/java/.*$',
       '^examples/kotlin/.*$',
       '^.test-infra/jenkins/.*$',
-    ]
+    ],
+    commitTriggering: false
     )
 builder.build {
   publishers {

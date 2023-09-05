@@ -26,6 +26,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '.*\\.md$',
       '.*build\\.gradle$',
       '.*build\\.gradle.kts$',
-    ]
+    ],
+    commitTriggering: false
     )
 builder.build()

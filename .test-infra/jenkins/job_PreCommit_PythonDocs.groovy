@@ -26,7 +26,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     timeoutMins: 30,
     triggerPathPatterns: [
       '^sdks/python/.*$',
-    ]
+    ],
+    commitTriggering: false
     )
 builder.build {
   publishers {}

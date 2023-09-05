@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     triggerPathPatterns: [
       '^sdks/python/.*$',
       '^release/.*$',
-    ]
+    ],
+    commitTriggering: false
     )
 builder.build()
