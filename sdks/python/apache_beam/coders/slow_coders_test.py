@@ -32,9 +32,9 @@ class SlowCoders(unittest.TestCase):
       # pylint: disable=unused-import
       from Cython.Build import cythonize
       self.skipTest('Found cython, cannot test non-compiled implementation.')
-    except ImportError:
+    except ModuleNotFoundError:
       # Assert that we are not using the compiled implementation.
-      with self.assertRaises(ImportError):
+      with self.assertRaises(ModuleNotFoundError):
         # pylint: disable=wrong-import-order, wrong-import-position
         # pylint: disable=unused-import
         import apache_beam.coders.stream

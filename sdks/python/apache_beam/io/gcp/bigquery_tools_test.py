@@ -61,7 +61,7 @@ try:
   from google.api_core.exceptions import ClientError, DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
   import google.cloud
-except ImportError:
+except ModuleNotFoundError:
   ClientError = None
   DeadlineExceeded = None
   HttpError = None

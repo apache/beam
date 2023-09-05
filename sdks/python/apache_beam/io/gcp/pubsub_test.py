@@ -62,7 +62,7 @@ from apache_beam.utils import timestamp
 # Protect against environments where the PubSub library is not available.
 try:
   from google.cloud import pubsub
-except ImportError:
+except ModuleNotFoundError:
   pubsub = None
 
 
