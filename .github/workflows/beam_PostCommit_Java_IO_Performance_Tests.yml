@@ -116,4 +116,5 @@ jobs:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
     - name: read failure results
+      if: ${{ failure() }}
       run: cat /home/runner/work/beam/beam/it/google-cloud-platform/build/reports/tests/BigTablePerformanceTest/classes/org.apache.beam.it.gcp.storage.BigTableIOLT.html
