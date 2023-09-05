@@ -41,7 +41,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
   fs_not_available = False
-except ImportError:
+except ModuleNotFoundError:
   fs_not_available = True  # type: ignore
 
 

@@ -64,7 +64,7 @@ from apache_beam.transforms import window
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud import pubsub
-except ImportError:
+except ModuleNotFoundError:
   pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
