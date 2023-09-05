@@ -3010,22 +3010,31 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
+          def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
           if (project.hasProperty('useWheelDistribution')) {
-            dependsOn ":sdks:python:bdistPy${project.ext.pythonVersion.replace('.', '')}linux"
-            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-            def collection = project.fileTree(project.project(':sdks:python').buildDir){
-              include "**/apache_beam-*cp${project.ext.pythonVersion.replace('.', '')}*manylinux*.whl"
+            dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
+            doLast {
+              def collection = project.fileTree(project.project(':sdks:python').buildDir){
+                include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+              }
+              String packageFilename = collection.singleFile.toString()
+              project.ext.sdkLocation = packageFilename
+              logger.info('Use wheel {} for sdk_location.', packageFilename)
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+              }
             }
-            String packageFilename = collection.singleFile.toString()
           } else {
-            dependsOn ":sdks:python:sdist"
-            String packageFilename = files(configurations.distTarBall.files).singleFile
-          }
-          doLast {
-            project.exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+            dependsOn ':sdks:python:sdist'
+            String packageFilename = "${pythonRootDir}/build/apache-beam.tar.gz"
+            project.ext.sdkLocation = packageFilename
+            logger.info('Use tarball {} for sdk_location.', packageFilename)
+            doLast{
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+              }
             }
           }
           inputs.files project.pythonSdkDeps
