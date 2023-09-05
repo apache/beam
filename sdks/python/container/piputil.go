@@ -107,7 +107,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				// installed version will match the package specified, the package itself
 				// will not be reinstalled, but its dependencies will now be resolved and
 				// installed if necessary.  This achieves our goal outlined above.
-				args := []string{"-m", "pip", "install", "-q", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
+				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
 				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
@@ -116,7 +116,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				} else {
 					bufLogger.FlushAtDebug(ctx)
 				}
-				args = []string{"-m", "pip", "install", "-q", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
 				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
@@ -127,7 +127,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 			}
 
 			// Case when we do not perform a forced reinstall.
-			args := []string{"-m", "pip", "install", "-q", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 			if err != nil {
 				bufLogger.FlushAtError(ctx)
