@@ -60,7 +60,7 @@ class NaturalLanguageMlTest(unittest.TestCase):
     self.assertFalse('content' in dict_)
     self.assertTrue('gcs_content_uri' in dict_)
 
-  @unittest.SkipTest(
+  @unittest.skip(
       'TypeError: Expected bytes, got MagicMock.'
       'Please look at https://github.com/apache/beam/issues/26266.')
   def test_annotate_test_called(self):
