@@ -451,6 +451,28 @@ class BeamModulePlugin implements Plugin<Project> {
     return 'beam' + p.path.replace(':', '-')
   }
 
+  /*
+   * Set compile args for compiling and running in different java version by modifying the compiler args in place.
+   *
+   * If there is already `-source X` and `-target X` option, replace X with desired version number.
+   * Otherwise, append them.
+   */
+  def setCompileAndRuntimeJavaVersion(List<String> compileArgs, String ver) {
+    boolean foundS = false, foundT = false
+    for (int i = 0; i < compileArgs.size()-1; ++i) {
+      if (compileArgs.get(i) == '-source' || compileArgs.get(i) == '-target')  {
+        found = true
+        compileArgs.set(i+1, ver)
+      }
+    }
+    if (!foundS) {
+      compilerArgs += ['-source', ver]
+    }
+    if (!foundT) {
+      compilerArgs += ['-target', ver]
+    }
+  }
+
   void apply(Project project) {
 
     /** ***********************************************************************************************/
@@ -1060,8 +1082,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['-source', '8']
-          options.compilerArgs += ['-target', '8']
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '8')
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
           options.compilerArgs += ['-XDoptimizeOuterThis=false']
@@ -1089,9 +1110,7 @@ class BeamModulePlugin implements Plugin<Project> {
           options.fork = true
           options.forkOptions.javaHome = java11Home as File
           options.compilerArgs += ['-Xlint:-path']
-          // TODO(https://github.com/apache/beam/pull/28234) Investigate why different options need to be set in Java 11/17
-          // Java11: --release 11; Java17: -source 17 -target 17; (Java 8 both work)
-          options.compilerArgs.addAll(['--release', '11'])
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '11')
         }
         project.tasks.withType(Test) {
           useJUnit()
@@ -1491,8 +1510,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (project.hasProperty("compileAndRunTestsWithJava17")) {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
-          options.compilerArgs += ['-target', '17']
-          options.compilerArgs += ['-source', '17']
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
           project.ext.setJava17Options(options)
         }
         project.tasks.withType(Test) {
