@@ -33,7 +33,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 @SuppressWarnings({"nullness", "uninitialized"})
-public class DicomIOReadIT {
+public class DicomIOIT {
   private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
   private static final String TEST_FILE_STUDY_ID = "study_000000000";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -41,19 +41,31 @@ public class DicomIOReadIT {
   private String healthcareDataset;
   private String project;
   private HealthcareApiClient client;
-  private String storeName = "foo";
+  private final String dicomStoreId;
+  private final String dicomStoreName;
+  private final String deidDicomStoreId;
+  private final String deidDicomStoreName;
 
-  @Before
-  public void setup() throws IOException, URISyntaxException {
-    project =
+  public DicomIOIT() throws IOException {
+    this.client = new HttpHealthcareApiClient();
+    this.dicomStoreId =
+        "DICOM_store_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+    this.deidDicomStoreId = dicomStoreId + "_deid";
+    this.project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
             .getStoreProjectId();
-    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
-    client = new HttpHealthcareApiClient();
+    this.healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
+    final String dicomStorePrefix = healthcareDataset + "/dicomStores/";
+    this.dicomStoreName = dicomStorePrefix + dicomStoreId;
+    this.deidDicomStoreName = dicomStorePrefix + deidDicomStoreId;
+  }
 
-    client.createDicomStore(healthcareDataset, storeName);
-    client.uploadToDicomStore(healthcareDataset + "/dicomStores/" + storeName, TEST_FILE_PATH);
+  @Before
+  public void setup() throws IOException, URISyntaxException {
+    client.createDicomStore(healthcareDataset, dicomStoreName);
+    client.uploadToDicomStore(healthcareDataset + "/dicomStores/" + dicomStoreName, TEST_FILE_PATH);
+    client.createDicomStore(healthcareDataset, deidDicomStoreId);
   }
 
   @After
@@ -89,5 +101,11 @@ public class DicomIOReadIT {
     } catch (UnsupportedOperationException exc) {
       // noop - if runner does not support job.cancel()
     }
+  }
+  @Test
+  public void test_DicomIO_deidentify() throws IOException {
+    DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
+    pipeline.apply(DicomIO.deidentify(dicomStoreName, deiddicomStoreName, deidConfig));
+    pipeline.run();
   }
 }
