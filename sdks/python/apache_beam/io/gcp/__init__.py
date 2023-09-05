@@ -30,6 +30,6 @@ try:
         self.write(lines)
 
   transfer.email_generator = _WrapperNamespace
-except ModuleNotFoundError:
+except ImportError:
   # We may not have the GCP dependencies installed, so we pass in this case.
   pass

@@ -50,7 +50,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from apache_beam.io.gcp import gcsio
-except ModuleNotFoundError:
+except ImportError:
   gcsio = None  # type: ignore
 
 

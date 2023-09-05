@@ -44,7 +44,7 @@ try:
   from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
   from google.cloud.bigtable.table import Table
   from google.cloud.bigtable_admin_v2.types import instance
-except ModuleNotFoundError as e:
+except ImportError as e:
   client = None
   HttpError = None
 
