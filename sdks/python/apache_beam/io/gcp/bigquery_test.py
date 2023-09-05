@@ -18,16 +18,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-# Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from apitools.base.py.exceptions import HttpError
-  from google.cloud import bigquery as gcp_bigquery
-  from google.api_core import exceptions
-except (ImportError, ModuleNotFoundError):
-  raise unittest.SkipTest('GCP dependencies are not installed')
-# pylint: enable=wrong-import-order, wrong-import-position
-
 import datetime
 import decimal
 import gc
@@ -40,6 +30,16 @@ import secrets
 import time
 import unittest
 import uuid
+
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
+  from google.api_core import exceptions
+except (ImportError, ModuleNotFoundError):
+  raise unittest.SkipTest('GCP dependencies are not installed')
+# pylint: enable=wrong-import-order, wrong-import-position
 
 import hamcrest as hc
 import mock
