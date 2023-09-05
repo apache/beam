@@ -3020,8 +3020,8 @@ class BeamModulePlugin implements Plugin<Project> {
             }
             String packageFilename = collection.singleFile.toString()
           } else {
-              dependsOn ':sdks:python:sdist'
-              String packageFilename = files(configurations.distTarBall.files).singleFile
+            dependsOn ':sdks:python:sdist'
+            String packageFilename = files(configurations.distTarBall.files).singleFile
           }
 
           doLast {
