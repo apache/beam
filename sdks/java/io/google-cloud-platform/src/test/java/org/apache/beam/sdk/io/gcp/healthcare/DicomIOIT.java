@@ -19,12 +19,14 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
+import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import java.security.SecureRandom;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -70,7 +72,7 @@ public class DicomIOIT {
 
   @After
   public void deleteDicomStore() throws IOException {
-    client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
+    client.deleteDicomStore(healthcareDataset + "/dicomStores/" + dicomStoreName);
   }
 
   @Ignore("https://github.com/apache/beam/issues/28099")
@@ -79,7 +81,7 @@ public class DicomIOIT {
     String webPath =
         String.format(
             "%s/dicomStores/%s/dicomWeb/studies/%s",
-            healthcareDataset, storeName, TEST_FILE_STUDY_ID);
+            healthcareDataset, dicomStoreName, TEST_FILE_STUDY_ID);
 
     DicomIO.ReadStudyMetadata.Result result =
         pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
@@ -105,7 +107,7 @@ public class DicomIOIT {
   @Test
   public void test_DicomIO_deidentify() throws IOException {
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
-    pipeline.apply(DicomIO.deidentify(dicomStoreName, deiddicomStoreName, deidConfig));
+    pipeline.apply(DicomIO.deidentify(dicomStoreName, deidDicomStoreName, deidConfig));
     pipeline.run();
   }
 }
