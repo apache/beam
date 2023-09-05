@@ -46,8 +46,9 @@ on:
       - "sdks/java/io/google-cloud-platform/**"
   issue_comment:
     types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
-# disable cron run because the tasks are covered by the single IO precommits below
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
