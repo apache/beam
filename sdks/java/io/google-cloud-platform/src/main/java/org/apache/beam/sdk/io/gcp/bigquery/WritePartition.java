@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -48,25 +49,31 @@ class WritePartition<DestinationT>
   @AutoValue
   abstract static class Result {
     public abstract List<String> getFilenames();
-
+    // Downstream operations may rely on pane info which will get lost after a ReShuffle
     abstract Boolean isFirstPane();
+
+    abstract Long getPaneIndex();
   }
 
   static class ResultCoder extends AtomicCoder<Result> {
     private static final Coder<List<String>> FILENAMES_CODER = ListCoder.of(StringUtf8Coder.of());
     private static final Coder<Boolean> FIRST_PANE_CODER = BooleanCoder.of();
+    private static final Coder<Long> PANE_INDEX_CODER = VarLongCoder.of();
     static final ResultCoder INSTANCE = new ResultCoder();
 
     @Override
     public void encode(Result value, OutputStream outStream) throws IOException {
       FILENAMES_CODER.encode(value.getFilenames(), outStream);
       FIRST_PANE_CODER.encode(value.isFirstPane(), outStream);
+      PANE_INDEX_CODER.encode(value.getPaneIndex(), outStream);
     }
 
     @Override
     public Result decode(InputStream inStream) throws IOException {
       return new AutoValue_WritePartition_Result(
-          FILENAMES_CODER.decode(inStream), FIRST_PANE_CODER.decode(inStream));
+          FILENAMES_CODER.decode(inStream),
+          FIRST_PANE_CODER.decode(inStream),
+          PANE_INDEX_CODER.decode(inStream));
     }
   }
 
@@ -234,7 +241,7 @@ class WritePartition<DestinationT>
             KV.of(
                 ShardedKey.of(destination, i + 1),
                 new AutoValue_WritePartition_Result(
-                    partitionData.getFilenames(), c.pane().isFirst())));
+                    partitionData.getFilenames(), c.pane().isFirst(), c.pane().getIndex())));
       }
     }
   }

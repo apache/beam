@@ -36,9 +36,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -75,10 +75,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,27 +99,28 @@ class WriteTables<DestinationT extends @NonNull Object>
   @AutoValue
   abstract static class Result {
     abstract String getTableName();
-
+    // Downstream operations may rely on pane info which will get lost after a ReShuffle
     abstract Boolean isFirstPane();
+
+    abstract Long getPaneIndex();
   }
 
   static class ResultCoder extends AtomicCoder<WriteTables.Result> {
     static final ResultCoder INSTANCE = new ResultCoder();
 
     @Override
-    public void encode(Result value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+    public void encode(Result value, OutputStream outStream) throws IOException {
       StringUtf8Coder.of().encode(value.getTableName(), outStream);
       BooleanCoder.of().encode(value.isFirstPane(), outStream);
+      VarLongCoder.of().encode(value.getPaneIndex(), outStream);
     }
 
     @Override
-    public Result decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+    public Result decode(InputStream inStream) throws IOException {
       return new AutoValue_WriteTables_Result(
-          StringUtf8Coder.of().decode(inStream), BooleanCoder.of().decode(inStream));
+          StringUtf8Coder.of().decode(inStream),
+          BooleanCoder.of().decode(inStream),
+          VarLongCoder.of().decode(inStream));
     }
   }
 
@@ -156,27 +155,36 @@ class WriteTables<DestinationT extends @NonNull Object>
     private class PendingJobData {
       final BoundedWindow window;
       final BigQueryHelpers.PendingJob retryJob;
-      final List<String> partitionFiles;
+      final WritePartition.Result partitionResult;
       final TableDestination tableDestination;
       final TableReference tableReference;
       final DestinationT destinationT;
-      final boolean isFirstPane;
 
       public PendingJobData(
           BoundedWindow window,
           BigQueryHelpers.PendingJob retryJob,
-          List<String> partitionFiles,
+          WritePartition.Result partitionResult,
           TableDestination tableDestination,
           TableReference tableReference,
-          DestinationT destinationT,
-          boolean isFirstPane) {
+          DestinationT destinationT) {
         this.window = window;
         this.retryJob = retryJob;
-        this.partitionFiles = partitionFiles;
+        this.partitionResult = partitionResult;
         this.tableDestination = tableDestination;
         this.tableReference = tableReference;
         this.destinationT = destinationT;
-        this.isFirstPane = isFirstPane;
+      }
+
+      public List<String> paritionFiles() {
+        return partitionResult.getFilenames();
+      }
+
+      public boolean isFirstPane() {
+        return partitionResult.isFirstPane();
+      }
+
+      public long paneIndex() {
+        return partitionResult.getPaneIndex();
       }
     }
     // All pending load jobs.
@@ -251,7 +259,10 @@ class WriteTables<DestinationT extends @NonNull Object>
       List<String> partitionFiles = Lists.newArrayList(element.getValue().getFilenames());
       String jobIdPrefix =
           BigQueryResourceNaming.createJobIdWithDestination(
-              c.sideInput(loadJobIdPrefixView), tableDestination, partition);
+              c.sideInput(loadJobIdPrefixView),
+              tableDestination,
+              partition,
+              element.getValue().getPaneIndex());
 
       if (tempTable) {
         if (tempDataset != null) {
@@ -291,13 +302,7 @@ class WriteTables<DestinationT extends @NonNull Object>
 
       pendingJobs.add(
           new PendingJobData(
-              window,
-              retryJob,
-              partitionFiles,
-              tableDestination,
-              tableReference,
-              destination,
-              element.getValue().isFirstPane()));
+              window, retryJob, element.getValue(), tableDestination, tableReference, destination));
     }
 
     @Teardown
@@ -361,13 +366,14 @@ class WriteTables<DestinationT extends @NonNull Object>
                     Result result =
                         new AutoValue_WriteTables_Result(
                             BigQueryHelpers.toJsonString(pendingJob.tableReference),
-                            pendingJob.isFirstPane);
+                            pendingJob.isFirstPane(),
+                            pendingJob.paneIndex());
                     c.output(
                         mainOutputTag,
                         KV.of(pendingJob.destinationT, result),
                         pendingJob.window.maxTimestamp(),
                         pendingJob.window);
-                    for (String file : pendingJob.partitionFiles) {
+                    for (String file : pendingJob.paritionFiles()) {
                       c.output(
                           temporaryFilesTag,
                           file,

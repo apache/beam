@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -83,6 +84,7 @@ public class PeriodicImpulse extends PTransform<PBegin, PCollection<Instant>> {
    * {@link #startAt} and {@link #stopAt}, as the first timestamp is determined at run time
    * (pipeline starts processing).
    */
+  @Internal
   public PeriodicImpulse stopAfter(Duration duration) {
     this.stopDuration = duration;
     return this;
@@ -105,6 +107,7 @@ public class PeriodicImpulse extends PTransform<PBegin, PCollection<Instant>> {
    * starts firing at the specified interval. If this is set to false, the PeriodicImpulse will
    * perform the interval wait before firing each instant.
    */
+  @Internal
   public PeriodicImpulse catchUpToNow(boolean catchUpToNow) {
     this.catchUpToNow = catchUpToNow;
     return this;

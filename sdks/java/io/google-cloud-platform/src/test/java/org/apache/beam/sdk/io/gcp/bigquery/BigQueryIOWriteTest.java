@@ -2444,8 +2444,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteTables() throws Exception {
-    assumeTrue(!useStorageApi); // test in FILE_LOAD mode
-
+    assumeTrue(!useStorageApi);
     long numTables = 3;
     long numPartitions = 3;
     long numFilesPerPartition = 10;
@@ -2458,7 +2457,7 @@ public class BigQueryIOWriteTest implements Serializable {
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
         String tempTableId =
-            BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j);
+            BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
         List<String> filesPerPartition = Lists.newArrayList();
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename =
@@ -2477,7 +2476,7 @@ public class BigQueryIOWriteTest implements Serializable {
         partitions.add(
             KV.of(
                 ShardedKey.of(tableDestination.getTableSpec(), j),
-                new AutoValue_WritePartition_Result(filesPerPartition, true)));
+                new AutoValue_WritePartition_Result(filesPerPartition, true, 0L)));
 
         String json =
             String.format(
@@ -2543,12 +2542,10 @@ public class BigQueryIOWriteTest implements Serializable {
                 Iterable<String> tableNames =
                     StreamSupport.stream(entry.getValue().spliterator(), false)
                         .map(Result::getTableName)
-                        .map(BigQueryIOWriteTest::removeUuidInJobIdNaming)
                         .collect(Collectors.toList());
+                @SuppressWarnings("unchecked")
                 String[] expectedValues =
-                    expectedTempTables.get(entry.getKey()).stream()
-                        .map(BigQueryIOWriteTest::removeUuidInJobIdNaming)
-                        .toArray(String[]::new);
+                    Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
                 assertThat(tableNames, containsInAnyOrder(expectedValues));
               }
               return null;
@@ -2556,20 +2553,9 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
-  private static String removeUuidInJobIdNaming(String jobId) {
-    final int uuidLength = 16;
-
-    int splitIdx = jobId.lastIndexOf("_");
-    if (splitIdx > jobId.length() - (uuidLength + 1)) { // has partition index
-      return jobId.substring(0, jobId.lastIndexOf("_", splitIdx - 1))
-          + jobId.substring(splitIdx + 1);
-    } else {
-      return jobId.substring(0, jobId.length() - (uuidLength + 1));
-    }
-  }
-
   @Test
   public void testRemoveTemporaryFiles() throws Exception {
+    assumeTrue(!useStorageApi);
     int numFiles = 10;
     List<String> fileNames = Lists.newArrayList();
     String tempFilePrefix = options.getTempLocation() + "/";
@@ -2589,6 +2575,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteRename() throws Exception {
+    assumeTrue(!useStorageApi);
     p.enableAbandonedNodeEnforcement(false);
 
     final int numFinalTables = 3;
@@ -2619,7 +2606,7 @@ public class BigQueryIOWriteTest implements Serializable {
         String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
         tempTablesElement.add(
-            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true)));
+            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true, 0L)));
       }
     }
 
@@ -2668,6 +2655,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testRemoveTemporaryTables() throws Exception {
+    assumeTrue(!useStorageApi);
     FakeDatasetService datasetService = new FakeDatasetService();
     String projectId = "project";
     String datasetId = "dataset";

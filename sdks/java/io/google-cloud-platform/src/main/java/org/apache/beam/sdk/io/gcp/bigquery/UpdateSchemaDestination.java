@@ -161,7 +161,10 @@ public class UpdateSchemaDestination<DestinationT>
       TableReference tableReference = tableDestination.getTableReference();
       String jobIdPrefix =
           BigQueryResourceNaming.createJobIdWithDestination(
-              context.sideInput(zeroLoadJobIdPrefixView), tableDestination, 1);
+              context.sideInput(zeroLoadJobIdPrefixView),
+              tableDestination,
+              1,
+              context.pane().getIndex());
       BigQueryHelpers.PendingJob updateSchemaDestinationJob =
           startZeroLoadJob(
               getJobService(context.getPipelineOptions().as(BigQueryOptions.class)),
