@@ -259,7 +259,7 @@ and any additional memory needs from other transforms.
 a large amount of execution time is wasted swapping models in and out of memory. To reduce the likelihood and impact
 of memory thrashing, consider inserting a
 [GroupByKey](https://beam.apache.org/documentation/transforms/python/aggregation/groupbykey/) transform before your
-inference step if you are using a distributed runner. This will ensure that elements with the same key/model are 
+inference step if you are using a distributed runner. This will ensure that elements with the same key/model are
 colocated on the same worker, reducing thrashing.
 
 For more information, see [`KeyedModelHander`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler).
