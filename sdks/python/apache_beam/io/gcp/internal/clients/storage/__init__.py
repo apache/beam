@@ -28,6 +28,3 @@ try:
   from apache_beam.io.gcp.internal.clients.storage.storage_v1_messages import *
 except ImportError:
   pass
-# pylint: enable=wrong-import-order, wrong-import-position
-
-__path__ = pkgutil.extend_path(__path__, __name__)  # type: ignore
