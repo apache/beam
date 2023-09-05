@@ -18,23 +18,24 @@
 
 package org.apache.beam.gradle
 
+import static java.util.UUID.randomUUID
+
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.net.ServerSocket
+import java.util.logging.Logger
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
-import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Copy
-import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
@@ -43,13 +44,10 @@ import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
-import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
-import java.net.ServerSocket
 
-import static java.util.UUID.randomUUID
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -66,6 +64,8 @@ import static java.util.UUID.randomUUID
  * <p>For example, see applyJavaNature.
  */
 class BeamModulePlugin implements Plugin<Project> {
+
+  static final Logger logger = Logger.getLogger(BeamModulePlugin.class.getName())
 
   /** Licence header enforced by spotless */
   static final String javaLicenseHeader = """/*
@@ -457,19 +457,23 @@ class BeamModulePlugin implements Plugin<Project> {
    * If there is already `-source X` and `-target X` option, replace X with desired version number.
    * Otherwise, append them.
    */
-  def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
+  static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
     boolean foundS = false, foundT = false
+    logger.fine("set java ver ${ver} to compiler args")
     for (int i = 0; i < compilerArgs.size()-1; ++i) {
-      if (compilerArgs.get(i) == '-source' || compilerArgs.get(i) == '-target')  {
-        found = true
+      if (compilerArgs.get(i) == '-source') {
+        foundS = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '-target')  {
+        foundT = true
         compilerArgs.set(i+1, ver)
       }
     }
     if (!foundS) {
-      compilerArgs += ['-source', ver]
+      compilerArgs.addAll('-source', ver)
     }
     if (!foundT) {
-      compilerArgs += ['-target', ver]
+      compilerArgs.addAll('-target', ver)
     }
   }
 
@@ -1116,6 +1120,16 @@ class BeamModulePlugin implements Plugin<Project> {
           useJUnit()
           executable = "${java11Home}/bin/java"
         }
+      } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+        def java17Home = project.findProperty("java17Home")
+        project.tasks.compileTestJava {
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
+          project.ext.setJava17Options(options)
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java17Home}/bin/java"
+        }
       }
 
       // Configure the default test tasks set of tests executed
@@ -1253,8 +1267,6 @@ class BeamModulePlugin implements Plugin<Project> {
               )
         }
       }
-
-
 
       if (configuration.shadowClosure) {
         // Ensure that tests are packaged and part of the artifact set.
@@ -1507,17 +1519,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
-      if (project.hasProperty("compileAndRunTestsWithJava17")) {
-        def java17Home = project.findProperty("java17Home")
-        project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
-          project.ext.setJava17Options(options)
-        }
-        project.tasks.withType(Test) {
-          useJUnit()
-          executable = "${java17Home}/bin/java"
-        }
-      }
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
         // above about dependency management for Java projects and how the shadow plugin
