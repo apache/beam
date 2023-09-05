@@ -59,8 +59,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Java PostCommit IO Performance Tests'
-#    runs-on: [self-hosted, ubuntu-20.04, main]
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, ubuntu-20.04, main]
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
     strategy:
       matrix:
@@ -115,6 +114,3 @@ jobs:
       env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
-    - name: read failure results
-      if: ${{ failure() }}
-      run: cat /home/runner/work/beam/beam/it/google-cloud-platform/build/reports/tests/BigTablePerformanceTest/classes/org.apache.beam.it.gcp.storage.BigTableIOLT.html
