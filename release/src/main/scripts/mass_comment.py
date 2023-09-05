@@ -125,6 +125,19 @@ def getRemainingComments(accessToken, pr, initialComments):
       remainingComments.append(comment)
   return remainingComments
 
+def getGithubActionsTriggerCommands(dirname):
+  '''
+  Returns all trigger commands that will start PostCommit Dataflow ARM Github Actions test suites.
+  '''
+  gha_trigger_commands = []
+  
+  with open(os.path.join(dirname, 'github_actions_jobs.txt')) as file:
+    comments = [line.strip() for line in file if len(line.strip()) > 0]
+
+  for i in range(len(comments)):
+    gha_trigger_commands.append(comments[i])
+
+  return gha_trigger_commands
 
 ################################################################################
 if __name__ == '__main__':
@@ -142,7 +155,10 @@ if __name__ == '__main__':
   for i in range(len(comments)):
     parts = comments[i].split(',')
     comments[i] = (parts[0], parts[1])
-  
+
+  gha_comments = getGithubActionsTriggerCommands(dirname)
+  comments.extend(gha_comments)
+
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
     exit()

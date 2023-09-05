@@ -17,6 +17,7 @@
 import logging
 from dataclasses import asdict
 from dataclasses import dataclass
+from statistics import median
 from typing import Any
 from typing import Dict
 from typing import List
@@ -36,7 +37,7 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetri
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 
-@dataclass
+@dataclass(frozen=True)
 class GitHubIssueMetaData:
   """
   This class holds metadata that needs to be published to the
@@ -149,6 +150,10 @@ def fetch_metric_data(
       metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist())
 
 
+def find_change_points(metric_values: List[Union[float, int]]):
+  return e_divisive(metric_values)
+
+
 def find_latest_change_point_index(metric_values: List[Union[float, int]]):
   """
   Args:
@@ -156,12 +161,16 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
   Returns:
    int: Right most change point index observed on metric_values.
   """
-  change_points_idx = e_divisive(metric_values)
-  if not change_points_idx:
-    return None
+  change_points_indices = find_change_points(metric_values)
+  # reduce noise in the change point analysis by filtering out
+  # the change points that are not significant enough.
+  change_points_indices = filter_change_points_by_median_threshold(
+      metric_values, change_points_indices)
   # Consider the latest change point.
-  change_points_idx.sort()
-  return change_points_idx[-1]
+  if not change_points_indices:
+    return None
+  change_points_indices.sort()
+  return change_points_indices[-1]
 
 
 def publish_issue_metadata_to_big_query(issue_metadata, table_name):
@@ -214,3 +223,33 @@ def create_performance_alert(
       'Performance regression/improvement is alerted on issue #%s. Link '
       ': %s' % (issue_number, issue_url))
   return issue_number, issue_url
+
+
+def filter_change_points_by_median_threshold(
+    data: List[Union[int, float]],
+    change_points: List[int],
+    threshold: float = 0.05,
+):
+  """
+  Reduces the number of change points by filtering out the ones that are
+  not significant enough based on the relative median threshold. Default
+  value of threshold is 0.05.
+  """
+  valid_change_points = []
+  epsilon = 1e-10  # needed to avoid division by zero.
+
+  for idx in change_points:
+    if idx == 0 or idx == len(data):
+      continue
+
+    left_segment = data[:idx]
+    right_segment = data[idx:]
+
+    left_value = median(left_segment)
+    right_value = median(right_segment)
+
+    relative_change = abs(right_value - left_value) / (left_value + epsilon)
+
+    if relative_change > threshold:
+      valid_change_points.append(idx)
+  return valid_change_points
