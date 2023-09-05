@@ -56,7 +56,7 @@ from apache_beam.utils import timestamp
 
 try:
   from apitools.base.py.exceptions import HttpError
-except ImportError:
+except ModuleNotFoundError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
