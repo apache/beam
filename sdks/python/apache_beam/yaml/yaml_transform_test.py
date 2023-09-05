@@ -232,10 +232,9 @@ class YamlTransformE2ETest(unittest.TestCase):
   def test_empty_inputs_throws_error(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
-      with self.assertRaisesRegex(
-          ValueError,
-          r'Missing inputs for transform at "EmptyInputOkButYamlDoesntKnow" at line .*'
-      ):
+      with self.assertRaisesRegex(ValueError,
+                                  'Missing inputs for transform at '
+                                  '"EmptyInputOkButYamlDoesntKnow" at line .*'):
         _ = p | YamlTransform(
             '''
             type: composite
