@@ -78,7 +78,7 @@ jobs:
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
       uses: actions/checkout@v3
       with:
-        ref: release-2.50.0 #TODO automate updating this
+        ref: v2.50.0 #TODO automate updating this
         repository: apache/beam
     - name: Checkout non-release branch
       if: github.event_name != 'schedule' #This has triggered runs checkout the triggering branch
@@ -120,3 +120,5 @@ jobs:
       env:
         exportDataset: jjc_test
         exportTable: io_performance_metrics
+    - name: view failed test
+      run: cat file:///home/runner/work/beam/beam/it/google-cloud-platform/build/reports/tests/GCSPerformanceTest/index.html
