@@ -3013,6 +3013,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
           def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
           if (project.hasProperty('useWheelDistribution')) {
+            def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
             doLast {
               def collection = project.fileTree(project.project(':sdks:python').buildDir){
