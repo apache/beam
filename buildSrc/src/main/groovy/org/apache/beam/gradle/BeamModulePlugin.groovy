@@ -3035,6 +3035,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
+          project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
           def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
           if (project.hasProperty('useWheelDistribution')) {
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
