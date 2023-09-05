@@ -49,7 +49,6 @@ from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
-from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
@@ -93,6 +92,55 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
+
+_DESTINATION_ELEMENT_PAIRS = [
+    # DESTINATION 1
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'go'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'scala'
+    }),
+
+    # DESTINATION 3
+    ('project1:dataset1.table3', {
+        'name': 'spark', 'language': 'scala'
+    }),
+
+    # DESTINATION 1
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'scala'
+    }),
+
+    # DESTINATION 2
+    ('project1:dataset1.table2', {
+        'name': 'beam', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'flink', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'spark', 'foundation': 'apache'
+    }),
+]
+
+# test modules are not importable by each other. So we need to define the
+# constants here instead of importing the same constants from
+# different test files.
+# https://docs.pytest.org/en/7.1.x/explanation/pythonpath.html
+_ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
 
 def _load_or_default(filename):
