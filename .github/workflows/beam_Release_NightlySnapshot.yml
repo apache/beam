@@ -70,6 +70,18 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
+      - name: Auth on snapshot repository
+        run: |
+          mkdir -p ${HOME}/.m2
+          echo "<settings>
+            <servers>
+              <server>
+                <id>apache.snapshots.https</id>
+                <username>${{ secrets.NEXUS_USER }}</username>
+                <password>${{ secrets.NEXUS_PW }}</password>
+              </server>
+            </servers>
+          </settings>" > ${HOME}/.m2/settings.xml
       - name: run Publish script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
