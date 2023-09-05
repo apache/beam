@@ -266,13 +266,13 @@ public class BigQueryStreamingLT {
                     .startAt(start)
                     .stopAt(start.plus(Duration.millis(millis - 1)))
                     .withInterval(Duration.millis(fireInterval)))
-            .apply(
+            .apply("Extract row IDs",
                 MapElements.into(TypeDescriptors.longs())
                     .via(instant -> instant.getMillis() % totalRows));
     if (multiplier > 1) {
       source =
           source
-              .apply(ParDo.of(new MultiplierDoFn(multiplier)))
+              .apply(String.format("One input to %s outputs", multiplier), ParDo.of(new MultiplierDoFn(multiplier)))
               .apply("Reshuffle fanout", Reshuffle.viaRandomKey());
     }
     BigQueryIO.Write.Method method =
