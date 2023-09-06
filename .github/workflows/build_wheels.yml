@@ -120,7 +120,7 @@ jobs:
           sha512sum $file > ${file}.sha512
       - name: Unzip source
         working-directory: ./sdks/python
-        run: unzip dist/$(ls dist | grep .tar.gz | head -n 1)
+        run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
       - name: Rename source directory
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source
@@ -160,7 +160,7 @@ jobs:
       - name: Unzip RC source
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
-        run: unzip dist/$(ls dist | grep .tar.gz | head -n 1)
+        run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
       - name: Rename RC source directory
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
