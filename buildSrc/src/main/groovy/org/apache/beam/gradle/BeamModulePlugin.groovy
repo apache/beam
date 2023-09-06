@@ -3046,7 +3046,6 @@ class BeamModulePlugin implements Plugin<Project> {
                 include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
               }
               String packageFilename = collection.singleFile.toString()
-              project.ext.sdkLocation = packageFilename
               logger.info('Use wheel {} for sdk_location.', packageFilename)
               project.exec {
                 executable 'sh'
@@ -3057,7 +3056,6 @@ class BeamModulePlugin implements Plugin<Project> {
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             String packageFilename = "${pythonRootDir}/build/apache-beam.tar.gz"
-            project.ext.sdkLocation = packageFilename
             logger.info('Use tarball {} for sdk_location.', packageFilename)
             doLast{
               project.exec {
