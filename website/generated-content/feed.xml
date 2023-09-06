@@ -76,7 +76,8 @@ See the &lt;a href="/get-started/downloads/#2500-2023-08-30">download page&lt;/a
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
-&lt;li>TBD&lt;/li>
+&lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
+&lt;li>Python Pipelines using BigQuery IO or &lt;code>orjson&lt;/code> dependency might experience segmentation faults or get stuck: &lt;a href="https://github.com/apache/beam/issues/28318">#28318&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.50.0 release. Thank you to all contributors!&lt;/p>
@@ -193,6 +194,9 @@ See the &lt;a href="/get-started/downloads/#2490-2023-07-17">download page&lt;/a
 &lt;li>Fixed KinesisIO &lt;code>NullPointerException&lt;/code> when a progress check is made before the reader is started (IO) (&lt;a href="https://github.com/apache/beam/issues/23868">#23868&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
+&lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.49.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Abzal Tuganbay&lt;/p>
@@ -435,6 +439,7 @@ to allow them.&lt;/li>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
 &lt;li>PubsubIO writes will throw &lt;em>SizeLimitExceededException&lt;/em> for any message above 100 bytes, when used in batch (bounded) mode. (Java) (&lt;a href="https://github.com/apache/beam/issues/27000">#27000&lt;/a>).&lt;/li>
+&lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.48.0 release. Thank you to all contributors!&lt;/p>
@@ -558,6 +563,7 @@ in response to the Google Cloud Debugger service &lt;a href="https://cloud.googl
 &lt;h3 id="known-issues">Known Issues&lt;/h3>
 &lt;ul>
 &lt;li>BigQueryIO Storage API write with autoUpdateSchema may cause data corruption for Beam SDKs 2.45.0 - 2.47.0 (inclusive) (&lt;a href="https://github.com/apache/beam/issues/26789">#26789&lt;/a>)&lt;/li>
+&lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.47.0 release. Thank you to all contributors!&lt;/p>
