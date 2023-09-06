@@ -103,7 +103,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 * Apache ID and Password;
 * GitHub ID, Password, and Personal Access Token.
 * PyPi account and apitoken
-* DockerHub ID and Password and beam mainainter access
+* DockerHub ID and Password with beam maintainer access
 * GPG pass phrase & 16-digit key ID
 * Access to Beam's Apache Nexus repository
 * Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail at dev@ mailing list to request access)
@@ -134,7 +134,7 @@ Ask on the mailing list for assistance.
 Generate a [PyPI APIToken](https://pypi.org/help/#apitoken) for use during the release.
 
 #### Login to DockerHub
-If you are a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam), run following command manually.
+If you are a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam), run the following command manually.
 It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
 
 ```
@@ -453,8 +453,8 @@ Afterwards, this list can be refined and updated by the release manager and the 
 
 ### Review cherry-picks
 
-The release manager is empowered to triage issues, and accept or regject cherry-picks to the release branch.
-Cherry picks are necessary if there are outstanding issues at time of the release branche cut, or issues were found in verification.
+The release manager is empowered to triage issues, and accept or reject cherry-picks to the release branch.
+Cherry picks are necessary if there are outstanding issues at time of the release branch cut, or issues were found in verification.
 
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
 Make sure they have blocker Issues attached and are OK to get into the release by checking with community if needed.
@@ -644,7 +644,7 @@ A committer can manually trigger the [beam_PostCommit_Website_Publish](https://c
 **PR 1: apache/beam-site**
 
 This pull request is against the `apache/beam-site` repo, on the `release-docs` branch ([example](https://github.com/apache/beam-site/pull/603)).
-It is created by the `build_release_candidate.` workflow (see above).
+It is created by the `build_release_candidate` workflow (see above).
 
 **PR 2: apache/beam**
 
