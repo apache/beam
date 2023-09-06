@@ -127,7 +127,7 @@ UNLIFTABLE_AGGREGATIONS = [
 ]
 # mad was removed in Pandas 2.0.
 if PD_VERSION < (2, 0):
-    UNLIFTABLE_AGGREGATIONS.append('mad')
+  UNLIFTABLE_AGGREGATIONS.append('mad')
 
 ALL_AGGREGATIONS = (
     LIFTABLE_AGGREGATIONS + LIFTABLE_WITH_SUM_AGGREGATIONS +
@@ -2097,7 +2097,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   sem = _agg_method(pd.Series, 'sem')
   # mad was removed in Pandas 2.0.
   if PD_VERSION < (2, 0):
-      mad = _agg_method(pd.Series, 'mad')
+    mad = _agg_method(pd.Series, 'mad')
 
   argmax = frame_base.wont_implement_method(
       pd.Series, 'argmax', reason='order-sensitive')

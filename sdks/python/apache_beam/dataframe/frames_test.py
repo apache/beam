@@ -1945,10 +1945,12 @@ class GroupByTest(_AbstractFrameTest):
       self._run_test(
           lambda df: df.groupby(['foo', 'bar'], dropna=False).sum(), GROUPBY_DF)
 
+
 NONPARALLEL_METHODS = ['quantile', 'describe', 'median', 'sem']
 # mad was removed in pandas 2
 if PD_VERSION < (2, 0):
   NONPARALLEL_METHODS.append('mad')
+
 
 class AggregationTest(_AbstractFrameTest):
   """Tests for global aggregation methods on DataFrame/Series."""
