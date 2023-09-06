@@ -96,7 +96,7 @@ jobs:
           name: java-code-coverage-report
           path: "**/build/reports/checkstyle/*.xml"
       - name: Publish checkstyle check
-        uses: jwgmeligmeyling/checkstyle-github-action@master
+        uses: jwgmeligmeyling/checkstyle-github-action@v1
         if: always()
         with:
           path: '**/build/reports/checkstyle/*.xml'
