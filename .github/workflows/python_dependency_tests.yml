@@ -41,6 +41,12 @@ jobs:
       - name: Install base_image_requirements.txt
         working-directory: ./sdks/python
         run: pip install --no-deps -r container/${{ matrix.params.py_env }}/base_image_requirements.txt
+        # prior to PEP 517, wheel and setuptools were downloaded by default by pip. Now they are installed
+        # in isolated envs during build process and will not be present in the users virtual envs. To
+        # satisy projects that has wheel as a dependency, we need to install it here.
+      - name: Install wheel
+        working-directory: ./sdks/python
+        run: pip install wheel
       - name: Install Apache Beam
         working-directory: ./sdks/python
         run: pip install --no-deps -v -e .[test,gcp,interactive,dataframe,aws,azure]
