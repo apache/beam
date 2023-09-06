@@ -41,9 +41,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -74,7 +74,7 @@ public class FileLoadsStreamingIT {
 
   @Parameterized.Parameters
   public static Iterable<Object[]> data() {
-    return ImmutableList.of(new Object[] {true}, new Object[] {false});
+    return ImmutableList.of(new Object[] {false}, new Object[] {true});
   }
 
   @Parameterized.Parameter(0)
@@ -108,6 +108,7 @@ public class FileLoadsStreamingIT {
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
+    cleanUp();
     BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
 
@@ -202,22 +203,25 @@ public class FileLoadsStreamingIT {
                       .setTableId(tableId + suffix)
                       .setDatasetId(BIG_QUERY_DATASET_ID)
                       .setProjectId(PROJECT)));
+    } else {
+      tableId += "WithInputSchema";
     }
     return String.format("%s.%s.%s", PROJECT, BIG_QUERY_DATASET_ID, tableId + suffix);
   }
 
   private void runStreaming(int numFileShards, boolean useCopyJobs)
       throws IOException, InterruptedException {
+    TestPipelineOptions opts = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    opts.setTempLocation(opts.getTempRoot());
+    Pipeline p = Pipeline.create(opts);
 
-    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
-    // Only run the most relevant test case on Dataflow. Testing this dimension on DirectRunner is
-    // sufficient
+    // Only run the most relevant test case on Dataflow.
+    // Testing this dimension on DirectRunner is sufficient
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue("Skipping in favor of more relevant test case", useInputSchema);
     }
 
     List<String> fieldNamesOrigin = Arrays.asList(FIELDS);
-
     // Shuffle the fields in the write schema to do fuzz testing on field order
     List<String> fieldNamesShuffled = new ArrayList<String>(fieldNamesOrigin);
     Collections.shuffle(fieldNamesShuffled, randomGenerator);
@@ -245,20 +249,24 @@ public class FileLoadsStreamingIT {
     // build write transform
     Write<TableRow> write =
         BigQueryIO.writeTableRows()
-            .withCustomGcsTempLocation(
-                ValueProvider.StaticValueProvider.of("gs://ahmedabualsaud-wordcount/tmp"))
             .to(tableSpec)
             .withMethod(Write.Method.FILE_LOADS)
-            .withWriteDisposition(WriteDisposition.WRITE_APPEND)
             .withTriggeringFrequency(Duration.standardSeconds(10));
-    if (useInputSchema) {
-      write =
-          write.withSchema(inputSchema).withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
-    } else {
-      write = write.withCreateDisposition(CreateDisposition.CREATE_NEVER);
-    }
     if (useCopyJobs) {
       write = write.withMaxBytesPerPartition(100);
+    }
+    if (useInputSchema) {
+      // we're creating the table with the input schema
+      write =
+          write
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
+    } else {
+      // table already exists with a schema, no need to create it
+      write =
+          write
+              .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+              .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     }
     write = numFileShards == 0 ? write.withAutoSharding() : write.withNumFileShards(numFileShards);
 
@@ -337,30 +345,26 @@ public class FileLoadsStreamingIT {
   @Test
   public void testDynamicDestinationsWithAutoShardingAndCopyJobs()
       throws IOException, InterruptedException {
-    // This currently fails when creating tables is needed
-    // TODO(https://github.com/apache/beam/issues/28309)
-    assumeTrue(!useInputSchema);
     runStreamingToDynamicDestinations(0, true);
   }
 
   @Test
   public void testDynamicDestinationsWithFixedShardsAndCopyJobs()
       throws IOException, InterruptedException {
-    // This currently fails when creating tables is needed
-    // TODO(https://github.com/apache/beam/issues/28309)
-    assumeTrue(!useInputSchema);
     runStreamingToDynamicDestinations(6, true);
   }
 
   private void runStreamingToDynamicDestinations(int numFileShards, boolean useCopyJobs)
       throws IOException, InterruptedException {
-    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
-
+    TestPipelineOptions opts = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    opts.setTempLocation(opts.getTempRoot());
+    Pipeline p = Pipeline.create(opts);
     // Only run the most relevant test cases on Dataflow. Testing this dimension on DirectRunner is
     // sufficient
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue("Skipping in favor of more relevant test case", useInputSchema);
     }
+
     List<String> allFields = Arrays.asList(FIELDS);
     List<String> subFields0 = new ArrayList<>(allFields.subList(0, 4));
     List<String> subFields1 = new ArrayList<>(allFields.subList(4, 8));
@@ -375,12 +379,7 @@ public class FileLoadsStreamingIT {
     GenerateRowFunc generateRowFunc1 = new GenerateRowFunc(subFields1);
     GenerateRowFunc generateRowFunc2 = new GenerateRowFunc(subFields2);
 
-    String tablePrefix =
-        String.format(
-            "%s.%s.%s",
-            PROJECT,
-            BIG_QUERY_DATASET_ID,
-            Iterables.get(Splitter.on('[').split(testName.getMethodName()), 0));
+    String tablePrefix = table0Id.substring(0, table0Id.length() - 2);
 
     // set up and build pipeline
     Instant start = new Instant(0);
@@ -416,15 +415,23 @@ public class FileLoadsStreamingIT {
                   return row;
                 })
             .withMethod(Write.Method.FILE_LOADS)
-            .withCustomGcsTempLocation(
-                ValueProvider.StaticValueProvider.of("gs://ahmedabualsaud-wordcount/tmp"))
             .withTriggeringFrequency(Duration.standardSeconds(10));
     if (useCopyJobs) {
       write = write.withMaxBytesPerPartition(100);
     }
-    write =
-        write.withCreateDisposition(
-            useInputSchema ? CreateDisposition.CREATE_IF_NEEDED : CreateDisposition.CREATE_NEVER);
+    if (useInputSchema) {
+      // we're creating the table with the input schema
+      write =
+          write
+              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+              .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
+    } else {
+      // table already exists with a schema, no need to create it
+      write =
+          write
+              .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+              .withWriteDisposition(WriteDisposition.WRITE_APPEND);
+    }
     write = numFileShards == 0 ? write.withAutoSharding() : write.withNumFileShards(numFileShards);
 
     longs.apply("Stream loads to dynamic destinations", write);
