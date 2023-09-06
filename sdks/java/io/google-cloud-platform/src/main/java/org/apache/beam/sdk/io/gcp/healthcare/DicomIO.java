@@ -141,6 +141,21 @@ public class DicomIO {
   private static final String LRO_FAILURE_KEY = "failure";
   private static final Logger LOG = LoggerFactory.getLogger(DicomIO.class);
 
+  public static Deidentify deidentify(
+      String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidConfig) {
+    return new Deidentify(
+        StaticValueProvider.of(sourceDicomStore),
+        StaticValueProvider.of(destinationDicomStore),
+        StaticValueProvider.of(deidConfig));
+  }
+
+  public static Deidentify deidentify(
+      ValueProvider<String> sourceDicomStore,
+      ValueProvider<String> destinationDicomStore,
+      ValueProvider<DeidentifyConfig> deidConfig) {
+    return new Deidentify(sourceDicomStore, destinationDicomStore, deidConfig);
+  }
+
   public static ReadStudyMetadata readStudyMetadata() {
     return new ReadStudyMetadata();
   }
