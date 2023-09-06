@@ -3027,7 +3027,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
               }
             }
-          } else if (project.hasProperty('noSdistWheel')) {
+          } else {
             // tox task will run in editable mode, which is configured in the tox.ini file.
             doLast {
               project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
@@ -3035,19 +3035,6 @@ class BeamModulePlugin implements Plugin<Project> {
               project.exec {
                 executable 'sh'
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
-              }
-            }
-          } else {
-            doLast {
-              // Python source directory is also tox execution workspace, We want
-              // to isolate them per tox suite to avoid conflict when running
-              // multiple tox suites in parallel.
-              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-              def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
-              project.exec {
-                executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
               }
             }
           }
