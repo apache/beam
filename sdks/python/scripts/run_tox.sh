@@ -66,6 +66,7 @@ else
   tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$@"
 fi
 
+exit_code=$?
 
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
