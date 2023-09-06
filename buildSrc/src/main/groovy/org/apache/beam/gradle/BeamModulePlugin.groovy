@@ -3035,12 +3035,13 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
-          project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-          def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+          dependsOn ':sdks:python:sdist'
           if (project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
             doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
               def collection = project.fileTree(project.project(':sdks:python').buildDir){
                 include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
               }
@@ -3053,7 +3054,8 @@ class BeamModulePlugin implements Plugin<Project> {
               }
             }
           } else {
-            dependsOn ':sdks:python:sdist'
+            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             String packageFilename = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.ext.sdkLocation = packageFilename
             logger.info('Use tarball {} for sdk_location.', packageFilename)
