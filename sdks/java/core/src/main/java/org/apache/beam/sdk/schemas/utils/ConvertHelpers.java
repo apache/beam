@@ -57,8 +57,11 @@ import org.slf4j.LoggerFactory;
   "rawtypes"
 })
 public class ConvertHelpers {
-  private static final ServiceLoader<SchemaInformationProvider> SCHEMA_INFORMATION_PROVIDERS =
-      ServiceLoader.load(SchemaInformationProvider.class);
+  private static class SchemaInformationProviders {
+    private static final ServiceLoader<SchemaInformationProvider> INSTANCE =
+        ServiceLoader.load(SchemaInformationProvider.class);
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(ConvertHelpers.class);
 
   /** Return value after converting a schema. */
@@ -84,7 +87,7 @@ public class ConvertHelpers {
 
     ConvertedSchemaInformation<T> schemaInformation = null;
     // Try to load schema information from loaded providers
-    for (SchemaInformationProvider provider : SCHEMA_INFORMATION_PROVIDERS) {
+    for (SchemaInformationProvider provider : SchemaInformationProviders.INSTANCE) {
       schemaInformation = provider.getConvertedSchemaInformation(inputSchema, outputType);
       if (schemaInformation != null) {
         return schemaInformation;

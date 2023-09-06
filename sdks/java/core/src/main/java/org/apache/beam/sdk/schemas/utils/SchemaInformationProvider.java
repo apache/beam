@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers.ConvertedSchemaInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/** Provides an instance of {@link ConvertedSchemaInformation}. Use for internal purposes. */
+@Internal
 public interface SchemaInformationProvider {
   @Nullable
   <T> ConvertedSchemaInformation<T> getConvertedSchemaInformation(
