@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           CURDATE=$(date '+%m%d%H%M%S' --utc)
-          CURCONFIG=$(cat ./.github/workflows/performance-tests-job-configs/config_BigQueryIO_Batch_Java_Json.txt | tr '\n' ' ')
+          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/performance-tests-job-configs/config_BigQueryIO_Batch_Java_Json.txt | tr '\n' ' ')
           CONFIGWITHDATE=$(echo "${CURCONFIG/bqio_write_10GB_java_json_/bqio_write_10GB_java_json_$CURDATE}")
           echo "prepared_config=$CONFIGWITHDATE" >> $GITHUB_OUTPUT
       - name: run Java BigQueryIO Batch Json Performance Test
