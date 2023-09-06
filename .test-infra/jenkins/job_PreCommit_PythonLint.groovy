@@ -22,6 +22,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'PythonLint',
     gradleTask: ':pythonLintPreCommit',
+    gradleSwitches: [
+      '-PnoSdistWheel'
+    ],
     triggerPathPatterns: [
       '^sdks/python/.*$',
       '^release/.*$',

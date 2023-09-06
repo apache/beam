@@ -3066,6 +3066,21 @@ class BeamModulePlugin implements Plugin<Project> {
             }
             inputs.files project.pythonSdkDeps
             outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          } else if {
+            // tox task will run in editable mode, which is configured in the tox.ini file.
+            if (project.hasProperty('noSdistWheel')){
+              doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+              }
+            }
+            inputs.files project.pythonSdkDeps
+            outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+            }
+
           } else {
             doLast {
               // Python source directory is also tox execution workspace, We want
