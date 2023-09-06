@@ -350,7 +350,35 @@ PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
 }
 
 
+def dicts_to_rows(o):
+  if isinstance(o, dict):
+    return beam.Row(**{k: dicts_to_rows(v) for k, v in o.items()})
+  elif isinstance(o, list):
+    return [dicts_to_rows(e) for e in o]
+  else:
+    return o
+
+
 def create_builtin_provider():
+  def create(elements: Iterable[Any], reshuffle: bool = True):
+    """Creates a collection containing a specified set of elements.
+
+    YAML/JSON-style mappings will be interpreted as Beam rows. For example::
+
+        type: Create
+        elements:
+           - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+
+    will result in a schema of the form (int, Row(string, List[int])).
+
+    Args:
+        elements: The set of elements that should belong to the PCollection.
+            YAML/JSON-style mappings will be interpreted as Beam rows.
+        reshuffle (optional): Whether to introduce a reshuffle if there is more
+            than one element in the collection. Defaults to True.
+    """
+    return beam.Create(dicts_to_rows(elements), reshuffle)
+
   def with_schema(**args):
     # TODO: This is preliminary.
     def parse_type(spec):
@@ -448,8 +476,7 @@ def create_builtin_provider():
 
   return InlineProvider(
       dict({
-          'Create': lambda elements,
-          reshuffle=True: beam.Create(elements, reshuffle),
+          'Create': create,
           'PyMap': lambda fn: beam.Map(
               python_callable.PythonCallableWithSource(fn)),
           'PyMapTuple': lambda fn: beam.MapTuple(
