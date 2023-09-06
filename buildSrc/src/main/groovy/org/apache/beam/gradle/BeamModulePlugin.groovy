@@ -454,11 +454,11 @@ class BeamModulePlugin implements Plugin<Project> {
   /*
    * Set compile args for compiling and running in different java version by modifying the compiler args in place.
    *
-   * If there is already `-source X` and `-target X` option, replace X with desired version number.
-   * Otherwise, append them.
+   * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
    */
   static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
     boolean foundS = false, foundT = false
+    int foundR = -1
     logger.fine("set java ver ${ver} to compiler args")
     for (int i = 0; i < compilerArgs.size()-1; ++i) {
       if (compilerArgs.get(i) == '-source') {
@@ -467,7 +467,13 @@ class BeamModulePlugin implements Plugin<Project> {
       } else if (compilerArgs.get(i) == '-target')  {
         foundT = true
         compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '--release') {
+        foundR = i
       }
+    }
+    if (foundR != -1) {
+      compilerArgs.removeAt(foundR + 1)
+      compilerArgs.removeAt(foundR)
     }
     if (!foundS) {
       compilerArgs.addAll('-source', ver)
@@ -1081,12 +1087,12 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // Use -source 8 -target 8 when targeting Java 8 and running on JDK > 8
         //
-        // Consider migrating compilation and testing to use JDK 9+ and setting '-source 8 -target 8' as
+        // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
         // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '8')
+          options.compilerArgs += ['--release', '8']
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
           options.compilerArgs += ['-XDoptimizeOuterThis=false']
@@ -1503,7 +1509,7 @@ class BeamModulePlugin implements Plugin<Project> {
           options.compilerArgs += ['-Xlint:-path']
           setCompileAndRuntimeJavaVersion(options.compilerArgs, '11')
         }
-        project.tasks.withType(Test) {
+        project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${java11Home}/bin/java"
         }
@@ -1513,7 +1519,7 @@ class BeamModulePlugin implements Plugin<Project> {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
           project.ext.setJava17Options(options)
         }
-        project.tasks.withType(Test) {
+        project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${java17Home}/bin/java"
         }
