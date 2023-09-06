@@ -259,6 +259,7 @@ public class FileLoadsStreamingIT {
       // we're creating the table with the input schema
       write =
           write
+              .withSchema(inputSchema)
               .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
               .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     } else {
