@@ -3073,13 +3073,30 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.register(name) {
           dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
-
-          doLast {
+          if (project.hasProperty('useWheelDistribution')) {
+            def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
+            dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
+            doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              def collection = project.fileTree(project.project(':sdks:python').buildDir){
+                include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+              }
+              String packageFilename = collection.singleFile.toString()
+              logger.info('Use wheel {} for sdk_location.', packageFilename)
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+              }
+            }
+            inputs.files project.pythonSdkDeps
+            outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          } else {
+            doLast {
             // Python source directory is also tox execution workspace, We want
             // to isolate them per tox suite to avoid conflict when running
             // multiple tox suites in parallel.
             project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-
             def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
             def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
             project.exec {
@@ -3087,8 +3104,25 @@ class BeamModulePlugin implements Plugin<Project> {
               args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
             }
           }
-          inputs.files project.pythonSdkDeps
-          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+            inputs.files project.pythonSdkDeps
+            outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          }
+
+          // doLast {
+          //   // Python source directory is also tox execution workspace, We want
+          //   // to isolate them per tox suite to avoid conflict when running
+          //   // multiple tox suites in parallel.
+          //   project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+
+          //   def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+          //   def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
+          //   project.exec {
+          //     executable 'sh'
+          //     args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+          //   }
+          // }
+          // inputs.files project.pythonSdkDeps
+          // outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
       }
 
