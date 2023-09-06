@@ -762,6 +762,7 @@ class PerWindowInvoker(DoFnInvoker):
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
+    input_args = list(input_args)
     (
         self.placeholders_for_process,
         self.args_for_process,
@@ -1434,7 +1435,8 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exn: BaseException, windowed_value: WindowedValue) -> None:
+      self, exn: BaseException,
+      windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return

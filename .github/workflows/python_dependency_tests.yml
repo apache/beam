@@ -7,7 +7,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     # paths where Beam Python's dependencies are configured.
-    paths: ['sdks/python/setup.py', 'sdks/python/build-requirements.txt', 'sdks/python/container/base_image_requirements_manual.txt']
+    paths: ['sdks/python/setup.py', 'sdks/python/pyproject.toml', 'sdks/python/container/base_image_requirements_manual.txt']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -38,9 +38,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.params.py_ver }}
-      - name: Install Build dependencies
-        working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
       - name: Install base_image_requirements.txt
         working-directory: ./sdks/python
         run: pip install --no-deps -r container/${{ matrix.params.py_env }}/base_image_requirements.txt

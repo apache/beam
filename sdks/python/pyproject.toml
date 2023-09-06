@@ -15,17 +15,24 @@
 # limitations under the License.
 #
 
-"""Common imports for generated cloudbuild client library."""
-# pylint:disable=wildcard-import
-# mypy: ignore-errors
+# since we rely on setuptools and according to https://peps.python.org/pep-0518/#build-system-table
+# this is the minimum requirements for the build system to execute.
+[build-system]
+requires = [
+    "setuptools",
+    "wheel>=0.36.0",
+    "grpcio-tools==1.53.0",
+    "mypy-protobuf==3.5.0",
+    # Avoid https://github.com/pypa/virtualenv/issues/2006
+    "distlib==0.3.7",
+    # Numpy headers
+    "numpy>=1.14.3,<1.26",
+    # having cython here will create wheels that are platform dependent.
+    "cython==0.29.36",
+    "setuptools",
+    "wheel"
+]
 
-import pkgutil
 
-# Protect against environments where apitools library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from apitools.base.py import *
-  from apache_beam.runners.dataflow.internal.clients.cloudbuild.cloudbuild_v1_client import *
-  from apache_beam.runners.dataflow.internal.clients.cloudbuild.cloudbuild_v1_messages import *
-except ImportError:
-  pass
+# legacy installation is needed to generate `apache_beam.portability.api` package.
+build-backend = "setuptools.build_meta"

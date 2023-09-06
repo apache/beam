@@ -24,13 +24,13 @@
 
 ###########################################################################
 # Usage check.
-if [[ $# < 1 ]]; then
-  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location> [<posargs> ...]]"
-  printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
-  printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
-  printf "\n\tposarg: [optional] Any additional arguments will be passed as posargs to tox.\n"
-  exit 1
-fi
+#if [[ $# < 1 ]]; then
+#  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location> [<posargs> ...]]"
+#  printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
+#  printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
+#  printf "\n\tposarg: [optional] Any additional arguments will be passed as posargs to tox.\n"
+#  exit 1
+#fi
 
 TOX_ENVIRONMENT="$1"
 shift
@@ -53,15 +53,21 @@ if [[ "$JENKINS_HOME" != "" ]]; then
   export PY_COLORS=1
 fi
 
+# SDK_LOCATION="$1"
+# shift;
+# tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+# exit_code=$?
+
 if [[ ! -z $2 ]]; then
   SDK_LOCATION="$1"
   shift;
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
 else
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$@"
 fi
 
 exit_code=$?
+
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
   tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
