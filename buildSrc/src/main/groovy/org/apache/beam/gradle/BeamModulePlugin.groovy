@@ -3093,17 +3093,17 @@ class BeamModulePlugin implements Plugin<Project> {
             outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
           } else {
             doLast {
-            // Python source directory is also tox execution workspace, We want
-            // to isolate them per tox suite to avoid conflict when running
-            // multiple tox suites in parallel.
-            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
-            project.exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+              // Python source directory is also tox execution workspace, We want
+              // to isolate them per tox suite to avoid conflict when running
+              // multiple tox suites in parallel.
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+              }
             }
-          }
             inputs.files project.pythonSdkDeps
             outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
           }
