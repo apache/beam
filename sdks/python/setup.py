@@ -17,6 +17,7 @@
 
 """Apache Beam SDK for Python setup file."""
 
+import logging
 import os
 import subprocess
 import sys
@@ -167,8 +168,7 @@ def generate_protos_first():
     if p != 0:
       raise RuntimeError()
   except RuntimeError:
-    raise RuntimeError(
-      "Could not import gen_protos, skipping proto generation.")
+    logging.warning('Could not import gen_protos, skipping proto generation.')
 
 
 def get_portability_package_data():
