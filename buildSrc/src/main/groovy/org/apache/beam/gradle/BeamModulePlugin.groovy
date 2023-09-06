@@ -3045,27 +3045,27 @@ class BeamModulePlugin implements Plugin<Project> {
       // }
 
       project.ext.toxTask = { name, tox_env, posargs='' ->
-      project.tasks.register(name) {
-        dependsOn setupVirtualenv
-        dependsOn ':sdks:python:sdist'
+        project.tasks.register(name) {
+          dependsOn setupVirtualenv
+          dependsOn ':sdks:python:sdist'
 
-        doLast {
-          // Python source directory is also tox execution workspace, We want
-          // to isolate them per tox suite to avoid conflict when running
-          // multiple tox suites in parallel.
-          project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+          doLast {
+            // Python source directory is also tox execution workspace, We want
+            // to isolate them per tox suite to avoid conflict when running
+            // multiple tox suites in parallel.
+            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
 
-          def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-          def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
-          project.exec {
-            executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+            }
           }
+          inputs.files project.pythonSdkDeps
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
-        inputs.files project.pythonSdkDeps
-        outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
       }
-    }
 
 
       // Run single or a set of integration tests with provided test options and pipeline options.
