@@ -143,10 +143,21 @@ class ExternalProvider(Provider):
 
   @classmethod
   def provider_from_spec(cls, spec):
+    from apache_beam.yaml.yaml_transform import SafeLineLoader
+    for required in ('type', 'transforms'):
+      if required not in spec:
+        raise ValueError(
+            f'Missing {required} in provider '
+            f'at line {SafeLineLoader.get_line(spec)}')
     urns = spec['transforms']
     type = spec['type']
-    from apache_beam.yaml.yaml_transform import SafeLineLoader
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
+    extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - set(
+        ['transforms', 'type', 'config'])
+    if extra_params:
+      raise ValueError(
+          f'Unexpected parameters in provider of type {type} '
+          f'at line {SafeLineLoader.get_line(spec)}: {extra_params}')
     if config.get('version', None) == 'BEAM_VERSION':
       config['version'] = beam_version
     if type in cls._provider_types:

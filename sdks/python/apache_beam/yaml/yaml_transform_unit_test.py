@@ -37,6 +37,7 @@ from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import only_element
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
+from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
@@ -186,7 +187,7 @@ class MainTest(unittest.TestCase):
           - type: Create
             config:
               elements: [0,1,2]
-        output: 
+        output:
           Create
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
@@ -204,7 +205,7 @@ class MainTest(unittest.TestCase):
             input: input
             config:
               fn: 'lambda x: x*x'
-        output: 
+        output:
           PyMap
         '''
       elements = p | beam.Create(range(3))
@@ -222,7 +223,7 @@ class MainTest(unittest.TestCase):
           - type: Create
             config:
               elements: [0,1,2]
-        output: 
+        output:
           Create
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
@@ -315,7 +316,7 @@ class MainTest(unittest.TestCase):
   def test_chain_as_composite_with_input(self):
     spec = '''
         type: chain
-        input: 
+        input:
           elements
         transforms:
         - type: PyMap
@@ -367,7 +368,7 @@ class MainTest(unittest.TestCase):
         - type: PyMap
           config:
             fn: 'lambda x: x*x'
-       
+
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = normalize_source_sink(spec)
@@ -499,10 +500,10 @@ class MainTest(unittest.TestCase):
 
     expected = '''
       type: PyMap
-      input: 
+      input:
         input: [Create1, Create2]
       fn: 'lambda x: x*x'
-      output: 
+      output:
         output: Squared
     '''
     self.assertYaml(expected, result)
@@ -512,7 +513,7 @@ class MainTest(unittest.TestCase):
         type: PyMap
         input: [Create1, Create2]
         fn: 'lambda x: x*x'
-        output: 
+        output:
           out1: Squared1
           out2: Squared2
       '''
@@ -521,10 +522,10 @@ class MainTest(unittest.TestCase):
 
     expected = '''
       type: PyMap
-      input: 
+      input:
         input: [Create1, Create2]
       fn: 'lambda x: x*x'
-      output: 
+      output:
         out1: Squared1
         out2: Squared2
     '''
@@ -610,13 +611,13 @@ class MainTest(unittest.TestCase):
         windowing:
           type: fixed
           size: 2
-        __consumed_outputs: 
+        __consumed_outputs:
           - null
         input: {}
         output: {}
       - type: PyMap
         fn: 'lambda x: x*x'
-        input: 
+        input:
           input: Create
         output: {}
       windowing:
@@ -646,7 +647,7 @@ class MainTest(unittest.TestCase):
         input: Create
       transforms:
         - type: SumGlobally
-          input:  
+          input:
             input: {result['transforms'][1]['__uuid__']}
           output: {{}}
         - type: WindowInto
@@ -696,10 +697,10 @@ class MainTest(unittest.TestCase):
           input: {}
           output: {}
         - type: SumGlobally
-          input: 
+          input:
             input: Create
           output: {}
-      output: 
+      output:
         output: SumGlobally
     '''
     self.assertYaml(expected, result)
@@ -736,13 +737,13 @@ class MainTest(unittest.TestCase):
           input: {}
           output: {}
         - type: SumGlobally
-          input: 
+          input:
             input: Create
           windowing:
             type: fixed
             size: 4
           output: {}
-      output: 
+      output:
         output: SumGlobally
     '''
     self.assertYaml(expected, result)
@@ -805,7 +806,7 @@ class MainTest(unittest.TestCase):
             input1: Create2
         - type: PyMap
           fn: 'lambda x: x*x'
-          input: 
+          input:
             input: {result['transforms'][0]['__uuid__']}
           output: {{}}
       output: CreateTimestamped
@@ -839,7 +840,7 @@ class MainTest(unittest.TestCase):
           output: {}
         - type: PyMap
           fn: 'lambda x: x*x'
-          input: 
+          input:
             input: Flatten
           output: {}
       output: CreateTimestamped
@@ -865,6 +866,17 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     with self.assertRaisesRegex(ValueError, r"Missing type .*"):
       ensure_transforms_have_types(spec)
+    with self.assertRaisesRegex(ValueError, r"Missing type .*"):
+      preprocess(spec)
+
+  def test_ensure_transforms_have_providers_error(self):
+    spec = '''
+      type: UnknownType
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(ValueError,
+                                r"Unknown type or missing provider .*"):
+      preprocess(spec, known_transforms=['KnownType'])
 
   def test_ensure_errors_consumed_unconsumed(self):
     spec = '''
