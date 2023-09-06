@@ -339,6 +339,15 @@ PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
 }
 
 
+def dicts_to_rows(o):
+  if isinstance(o, dict):
+    return beam.Row(**{k: dicts_to_rows(v) for k, v in o.items()})
+  elif isinstance(o, list):
+    return [dicts_to_rows(e) for e in o]
+  else:
+    return o
+
+
 def create_builtin_provider():
   def with_schema(**args):
     # TODO: This is preliminary.
@@ -438,7 +447,7 @@ def create_builtin_provider():
   return InlineProvider(
       dict({
           'Create': lambda elements,
-          reshuffle=True: beam.Create(elements, reshuffle),
+          reshuffle=True: beam.Create(dicts_to_rows(elements), reshuffle),
           'PyMap': lambda fn: beam.Map(
               python_callable.PythonCallableWithSource(fn)),
           'PyMapTuple': lambda fn: beam.MapTuple(
