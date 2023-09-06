@@ -17,6 +17,7 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+import js2py
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -47,57 +48,44 @@ def _check_mapping_arguments(
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
+# js2py EvalJs and JsObjectWrapper objects have self-referencing __dict__ property
+# that cannot be pickled without implementing the __getstate__ method.
+class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
+  def __init__(self, js_obj):
+    super().__init__(js_obj.__dict__['_obj'])
+
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+
+
+class _CustomEvalJs(js2py.EvalJs):
+  def __init__(self):
+    super().__init__()
+    self.__dict__['_var'] = _CustomJsObjectWrapper(self.__dict__['_var'])
+
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+
+
 # TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
-  try:
-    import js2py
-  except ImportError:
-    raise ImportError(
-        "js2py must be installed to run javascript UDF's for YAML mapping transforms."
-    )
-
-  # js2py EvalJs and JsObjectWrapper objects have self-referencing __dict__ property
-  # that cannot be pickled without implementing the __getstate__ and __setstate__
-  # methods.
-  class CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
-    def __init__(self, js_obj):
-      super().__init__(js_obj.__dict__['_obj'])
-
-    def __getstate__(self):
-      state = self.__dict__.copy()
-      return state
-
-    def __setstate__(self, state):
-      self.__dict__.update(state)
-
-  class CustomEvalJs(js2py.EvalJs):
-    def __init__(self):
-      super().__init__()
-      self.__dict__['_var'] = CustomJsObjectWrapper(self.__dict__['_var'])
-
-    def __getstate__(self):
-      state = self.__dict__.copy()
-      return state
-
-    def __setstate__(self, state):
-      self.__dict__.update(state)
 
   if expression:
     args = ', '.join(original_fields)
     js_func = f'function fn({args}) {{return ({expression})}}'
-    js_callable = CustomJsObjectWrapper(js2py.eval_js(js_func))
+    js_callable = _CustomJsObjectWrapper(js2py.eval_js(js_func))
     return lambda __row__: js_callable(*__row__._asdict().values())
 
   elif callable:
-    js_callable = CustomJsObjectWrapper(js2py.eval_js(callable))
+    js_callable = _CustomJsObjectWrapper(js2py.eval_js(callable))
     return lambda __row__: js_callable(__row__._asdict())
 
   else:
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
-    js = CustomEvalJs()
+    js = _CustomEvalJs()
     js.eval(udf_code)
     return lambda __row__: getattr(js, name)(__row__._asdict())
 
