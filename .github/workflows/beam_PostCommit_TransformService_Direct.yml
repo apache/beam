@@ -56,28 +56,33 @@ jobs:
       github.event.comment.body == 'Run TransformService_Direct PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
     strategy:
       matrix:
         job_name: ["beam_PostCommit_TransformService_Direct"]
         job_phrase: ["Run TransformService_Direct PostCommit"]
+        python_version: ['3.8','3.11']
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Set up Java 11
         uses: actions/setup-java@v3.11.0
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Install Python
+      - name: Install Python 3.8
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: 3.8
+      - name: Install Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
       - name: run TransformService Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -86,7 +91,7 @@ jobs:
             -PcompileAndRunTestsWithJava11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             -PuseWheelDistribution \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         if: always()
