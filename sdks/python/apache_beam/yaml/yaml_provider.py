@@ -536,7 +536,10 @@ class PypiExpansionService:
   @classmethod
   def _create_venv_to_clone(cls, base_python):
     return cls._create_venv_from_scratch(
-        base_python, ['apache_beam==' + beam_version, 'virtualenv-clone'])
+        base_python, [
+            'apache_beam[dataframe,gcp,test]==' + beam_version,
+            'virtualenv-clone'
+        ])
 
   def _venv(self):
     return self._create_venv_from_clone(self._base_python, self._packages)
