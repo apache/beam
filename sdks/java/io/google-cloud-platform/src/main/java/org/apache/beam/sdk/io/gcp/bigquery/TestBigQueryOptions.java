@@ -30,4 +30,10 @@ public interface TestBigQueryOptions extends TestPipelineOptions, BigQueryOption
   String getTargetDataset();
 
   void setTargetDataset(String value);
+
+  @Description("Region to perform BigQuery operations in.")
+  @Default.String("")
+  String getBigQueryLocation();
+
+  void setBigQueryLocation(String location);
 }

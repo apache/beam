@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -214,7 +215,7 @@ public class BigQueryToTableIT {
   }
 
   /** Customized PipelineOption for BigQueryToTable Pipeline. */
-  public interface BigQueryToTableOptions extends TestPipelineOptions, ExperimentalOptions {
+  public interface BigQueryToTableOptions extends TestBigQueryOptions, ExperimentalOptions {
 
     @Description("The BigQuery query to be used for creating the source")
     @Validation.Required
@@ -252,9 +253,10 @@ public class BigQueryToTableIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
-    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    BigQueryToTableOptions options = TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
+    project = options.as(GcpOptions.class).getProject();
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID, null, options.getBigQueryLocation());
 
     // Create table and insert data for new type query test cases.
     BQ_CLIENT.createNewTable(
