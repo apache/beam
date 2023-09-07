@@ -220,7 +220,7 @@ class Scope(LightweightScope):
   def compute_outputs(self, transform_id):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
-  def best_provider(self, t, input_providers):
+  def best_provider(self, t, input_providers: yaml_provider.Iterable[yaml_provider.Provider]):
     if isinstance(t, dict):
       spec = t
     else:
@@ -232,8 +232,9 @@ class Scope(LightweightScope):
       raise ValueError(
           'No available provider for type %r at %s' %
           (spec['type'], identify_object(spec)))
+    # From here on, we have the invariant that possible_providers is not empty.
 
-    # Only one choice, no need to rank further.
+    # Only one possible provider, no need to rank further.
     if len(possible_providers) == 1:
       return possible_providers[0]
 
@@ -241,8 +242,14 @@ class Scope(LightweightScope):
         possible_providers: Iterable[yaml_provider.Provider],
         adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
     ) -> Iterable[yaml_provider.Provider]:
+      """Given a set of possible providers, and a set of providers for each
+      adjacent transform, returns the top possible providers as ranked by
+      affinity to the adjacent transforms' providers.
+      """
       providers_by_score = collections.defaultdict(list)
       for p in possible_providers:
+        # The sum of the affinity of the best provider
+        # for each adjacent transform.
         providers_by_score[sum(
             max(p.affinity(ap) for ap in apo)
             for apo in adjacent_provider_options)].append(p)
@@ -253,20 +260,33 @@ class Scope(LightweightScope):
       possible_providers = best_matches(
           possible_providers, [[p] for p in input_providers])
 
-    # Try to match downstream operations, continuing until there is no tie.
-    adjacent_transforms = [spec['__uuid__']]
-    while len(possible_providers) > 1:
-      # Go downstream one step. (This is why we start with spec itself.)
-      adjacent_transforms = sum(
-          [list(self.followers(t)) for t in adjacent_transforms], [])
-      if not adjacent_transforms:
-        break
-      adjacent_provider_options = [[
-          p for p in self.providers[self._transforms_by_uuid[t]['type']]
-          if p.available()
-      ] for t in adjacent_transforms]
-      possible_providers = best_matches(
-          possible_providers, adjacent_provider_options)
+    # Without __uuid__ we can't find downstream operations.
+    if '__uuid__' not in spec:
+      return possible_providers[0]
+
+    # Match against downstream transforms, continuing until there is no tie
+    # or we run out of downstream transforms.
+    if len(possible_providers) > 1:
+      adjacent_transforms = list(self.followers(spec['__uuid__']))
+      while adjacent_transforms:
+        # This is a list of all possible providers for each adjacent transform.
+        adjacent_provider_options = [[
+            p for p in self.providers[self._transforms_by_uuid[t]['type']]
+            if p.available()
+        ] for t in adjacent_transforms]
+        if any(not apo for apo in adjacent_provider_options):
+          # One of the transforms had no available providers.
+          # We will throw an error later, doesn't matter what we return.
+          break
+        # Filter down the set of possible providers to the best ones.
+        possible_providers = best_matches(
+            possible_providers, adjacent_provider_options)
+        # If we are down to one option, no ned to go further.
+        if len(possible_providers) == 1:
+          break
+        # Go downstream one more step.
+        adjacent_transforms = sum(
+            [list(self.followers(t)) for t in adjacent_transforms], [])
 
     return possible_providers[0]
 
