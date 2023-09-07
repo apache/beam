@@ -62,7 +62,7 @@ class NaturalLanguageMlTest(unittest.TestCase):
 
   @unittest.skip(
       'TypeError: Expected bytes, got MagicMock.'
-      'Please look at https://github.com/apache/beam/issues/26266.')
+      'Please look at https://github.com/apache/beam/issues/28307.')
   def test_annotate_test_called(self):
     with mock.patch('apache_beam.ml.gcp.naturallanguageml._AnnotateTextFn'
                     '._get_api_client'):

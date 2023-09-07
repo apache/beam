@@ -25,7 +25,9 @@ import unittest
 from apache_beam.coders.coders_test_common import *
 
 
-@unittest.skip('https://github.com/apache/beam/issues/26266')
+@unittest.skip(
+    'Add a test for non-compiled implementation.'
+    'https://github.com/apache/beam/issues/28307')
 class SlowCoders(unittest.TestCase):
   def test_using_slow_impl(self):
     try:
@@ -35,7 +37,7 @@ class SlowCoders(unittest.TestCase):
       self.skipTest('Found cython, cannot test non-compiled implementation.')
     except ModuleNotFoundError:
       # Assert that we are not using the compiled implementation.
-      with self.assertRaises(ModuleNotFoundError):
+      with self.assertRaises(ImportError):
         # pylint: disable=wrong-import-order, wrong-import-position
         # pylint: disable=unused-import
         import apache_beam.coders.stream
