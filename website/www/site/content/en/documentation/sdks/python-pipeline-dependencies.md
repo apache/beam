@@ -224,7 +224,7 @@ Use a constraint file to ensure that Beam dependencies in the launch environment
 
 The launch environment translates the  pipeline graph into a [runner-independent representation](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto). This process involves serializing (or pickling) the code of the transforms. The serialized content is deserialized on the workers. If the runtime worker environment significantly differs from the launch environment, runtime errors might occur for the following reasons:
 
-* The Apache Beam version and the Python major.minor versions must match in the submission and runtime environments. Otherwise, the pipeline might fail with errors like `Pipeline construction environment and pipeline runtime environment are not compatible`. On older SDK versions, the error might be reported as `SystemError: unknown opcode`.
+* The Apache Beam version  must match in the submission and runtime environments. Python major.minor versions must match as well. Otherwise, the pipeline might fail with errors like `Pipeline construction environment and pipeline runtime environment are not compatible`. On older SDK versions, the error might be reported as `SystemError: unknown opcode`.
 
 * Versions of `protobuf` in the submission and runtime environment need to match or be compatible.
 
