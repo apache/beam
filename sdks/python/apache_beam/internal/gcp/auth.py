@@ -28,6 +28,8 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
 # google.auth is only available when Beam is installed with the gcp extra.
+from apache_beam.utils import retry
+
 try:
   from google.auth import impersonated_credentials
   import google.auth
@@ -149,8 +151,7 @@ class _Credentials(object):
 
     try:
       # pylint: disable=c-extension-no-member
-      credentials, _ = google.auth.default(
-          scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
+      credentials = _Credentials._get_credentials_with_retrys(pipeline_options)
       credentials = _Credentials._add_impersonation_credentials(
           credentials, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
@@ -159,11 +160,18 @@ class _Credentials(object):
           'Credentials.')
       return credentials
     except Exception as e:
-      _LOGGER.warning(
+      _LOGGER.error(
           'Unable to find default credentials to use: %s\n'
           'Connecting anonymously.',
           e)
       return None
+
+  @staticmethod
+  @retry.with_exponential_backoff
+  def _get_credentials_with_retrys(pipeline_options):
+    credentials, _ = google.auth.default(
+      scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
+    return credentials
 
   @staticmethod
   def _add_impersonation_credentials(credentials, pipeline_options):
