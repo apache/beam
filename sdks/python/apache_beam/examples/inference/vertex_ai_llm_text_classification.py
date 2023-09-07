@@ -39,6 +39,12 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
+      '--output',
+      dest='output',
+      type=str,
+      required=True,
+      help='Path to save output predictions.')
+  parser.add_argument(
       '--endpoint_id',
       dest='endpoint',
       type=str,
@@ -115,7 +121,9 @@ def run(
       }))
   predictions = preprocess | "RunInference" >> RunInference(
       KeyedModelHandler(model_handler), inference_args=parameters)
-  _ = predictions | "WriteOutput" >> beam.Map(print)
+  _ = predictions | "PrintOutput" >> beam.Map(print)
+  _ = predictions | "WriteOutput" >> beam.io.WriteToText(
+      known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
   result.wait_until_finish()

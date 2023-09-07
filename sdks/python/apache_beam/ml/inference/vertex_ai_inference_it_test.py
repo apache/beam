@@ -72,6 +72,7 @@ class VertexAIInference(unittest.TestCase):
 
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {
+        'output': output_file,
         'endpoint_id': _LLM_ENDPOINT_ID,
         'endpoint_project': _ENDPOINT_PROJECT,
         'endpoint_region': _ENDPOINT_REGION
