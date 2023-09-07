@@ -37,17 +37,27 @@ echo "Which release candidate will be the source of final docker images? (ex: 1)
 read RC_NUM
 RC_VERSION="rc${RC_NUM}"
 
+echo "================Pull RC Containers from DockerHub==========="
+IMAGES=$(docker search ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX} --format "{{.Name}}" --limit 100)
+KNOWN_IMAGES=()
+echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
+while read IMAGE; do
+  # Try pull verified RC from dockerhub.
+  if docker pull "${IMAGE}:${RELEASE}${RC_VERSION}" 2>/dev/null ; then
+    KNOWN_IMAGES+=( $IMAGE )
+  fi
+done < <(echo "${IMAGES}")
+
 echo "================Confirming Release and RC version==========="
-ALL_IMAGES=$(docker search ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX} --filter tag=${RELEASE}${RC_VERSION} --format "{{.Name}}" --limit 100)	
 echo "Publishing the following images:"
 # Sort by name for easy examination
-IFS=$'\n' ALL_IMAGES=($(sort <<<"${ALL_IMAGES[*]}"))
+IFS=$'\n' KNOWN_IMAGES=($(sort <<<"${KNOWN_IMAGES[*]}"))
 unset IFS
-printf "%s\n" ${ALL_IMAGES[@]}
+printf "%s\n" ${KNOWN_IMAGES[@]}
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
-  for IMAGE in "${ALL_IMAGES[@]}"; do
+  for IMAGE in "${KNOWN_IMAGES[@]}"; do
     # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as ${RELEASE}".
     docker buildx imagetools create --tag "${IMAGE}:${RELEASE}" "${IMAGE}:${RELEASE}${RC_VERSION}"
 
