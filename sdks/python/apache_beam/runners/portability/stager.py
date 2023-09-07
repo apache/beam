@@ -780,7 +780,7 @@ class Stager(object):
             '--sdist',
             '--outdir',
             temp_dir,
-            os.path.basename(setup_file),
+            os.path.dirname(setup_file),
         ]
       _LOGGER.info('Executing command: %s', build_setup_args)
       processes.check_output(build_setup_args)
