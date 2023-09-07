@@ -58,10 +58,10 @@ echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
   for IMAGE in "${KNOWN_IMAGES[@]}"; do
-    # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as ${RELEASE}".
+    # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as ${RELEASE}.
     docker buildx imagetools create --tag "${IMAGE}:${RELEASE}" "${IMAGE}:${RELEASE}${RC_VERSION}"
 
-    # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as latest".
+    # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as latest.
     docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}"
   done
 
