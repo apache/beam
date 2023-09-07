@@ -62,7 +62,7 @@ if [[ $confirmation = "y" ]]; then
     docker buildx imagetools create --tag "${IMAGE}:${RELEASE}" "${IMAGE}:${RELEASE}${RC_VERSION}"
 
     # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as latest".
-    docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}${RC_VERSION}"
+    docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}"
   done
 
 fi
