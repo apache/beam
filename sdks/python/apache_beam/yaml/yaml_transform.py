@@ -220,7 +220,8 @@ class Scope(LightweightScope):
   def compute_outputs(self, transform_id):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
-  def best_provider(self, t, input_providers: yaml_provider.Iterable[yaml_provider.Provider]):
+  def best_provider(
+      self, t, input_providers: yaml_provider.Iterable[yaml_provider.Provider]):
     if isinstance(t, dict):
       spec = t
     else:
