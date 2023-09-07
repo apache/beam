@@ -17,6 +17,7 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+
 import js2py
 
 import apache_beam as beam
@@ -33,44 +34,39 @@ def _check_mapping_arguments(
   # Argument checking
   if not expression and not callable and not path and not name:
     raise ValueError(
-        f'{transform_name} must specify either "expression", "callable", or both "path" and "name"'
-    )
+        f'{transform_name} must specify either "expression", "callable", '
+        f'or both "path" and "name"')
   if expression and callable:
     raise ValueError(
         f'{transform_name} cannot specify both "expression" and "callable"')
   if (expression or callable) and (path or name):
     raise ValueError(
-        f'{transform_name} cannot specify "expression" or "callable" with "path" or "name"'
-    )
+        f'{transform_name} cannot specify "expression" or "callable" with '
+        f'"path" or "name"')
   if path and not name:
     raise ValueError(f'{transform_name} cannot specify "path" without "name"')
   if name and not path:
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
-# js2py EvalJs and JsObjectWrapper objects have self-referencing __dict__ property
-# that cannot be pickled without implementing the __getstate__ method.
+# js2py's JsObjectWrapper object has a self-referencing __dict__ property
+# that cannot be pickled without implementing the __getstate__ and
+# __setstate__ methods.
 class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
   def __init__(self, js_obj):
     super().__init__(js_obj.__dict__['_obj'])
 
-  def __setstate__(self, state):
-    self.__dict__.update(state)
-
-
-class _CustomEvalJs(js2py.EvalJs):
-  def __init__(self):
-    super().__init__()
-    self.__dict__['_var'] = _CustomJsObjectWrapper(self.__dict__['_var'])
+  def __getstate__(self):
+    return self.__dict__.copy()
 
   def __setstate__(self, state):
     self.__dict__.update(state)
 
 
-# TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
+# TODO(yaml) Consider adding optional language version parameter to support
+#  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
-
   if expression:
     args = ', '.join(original_fields)
     js_func = f'function fn({args}) {{return ({expression})}}'
@@ -85,9 +81,10 @@ def _expand_javascript_mapping_func(
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
-    js = _CustomEvalJs()
+    js = js2py.EvalJs()
     js.eval(udf_code)
-    return lambda __row__: getattr(js, name)(__row__._asdict())
+    js_callable = _CustomJsObjectWrapper(getattr(js, name))
+    return lambda __row__: js_callable(__row__._asdict())
 
 
 def _expand_python_mapping_func(
