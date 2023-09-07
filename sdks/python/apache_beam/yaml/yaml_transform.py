@@ -22,8 +22,11 @@ import os
 import pprint
 import re
 import uuid
+from typing import Any
 from typing import Iterable
+from typing import List
 from typing import Mapping
+from typing import Set
 
 import yaml
 from yaml.loader import SafeLoader
@@ -162,12 +165,18 @@ class LightweightScope(object):
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
-  def __init__(self, root, inputs, transforms, providers, input_providers):
+  def __init__(
+      self,
+      root,
+      inputs: Mapping[str, Any],
+      transforms: Iterable[dict],
+      providers: Mapping[str, Iterable[yaml_provider.Provider]],
+      input_providers: Iterable[yaml_provider.Provider]):
     super().__init__(transforms)
     self.root = root
     self._inputs = inputs
     self.providers = providers
-    self._seen_names = set()
+    self._seen_names : Set[str] = set()
     self.input_providers = input_providers
     self._all_followers = None
 
@@ -242,7 +251,7 @@ class Scope(LightweightScope):
     def best_matches(
         possible_providers: Iterable[yaml_provider.Provider],
         adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
-    ) -> Iterable[yaml_provider.Provider]:
+    ) -> List[yaml_provider.Provider]:
       """Given a set of possible providers, and a set of providers for each
       adjacent transform, returns the top possible providers as ranked by
       affinity to the adjacent transforms' providers.
