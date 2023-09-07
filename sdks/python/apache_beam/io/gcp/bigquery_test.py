@@ -83,7 +83,7 @@ try:
   from apitools.base.py.exceptions import HttpError
   from google.cloud import bigquery as gcp_bigquery
   from google.api_core import exceptions
-except (ImportError, ModuleNotFoundError):
+except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position
 

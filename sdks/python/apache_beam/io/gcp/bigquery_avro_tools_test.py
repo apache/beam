@@ -24,7 +24,7 @@ try:
   from apache_beam.io.gcp import bigquery_tools
   from apache_beam.io.gcp.bigquery_test import HttpError
   from apache_beam.io.gcp.internal.clients import bigquery
-except (ImportError, ModuleNotFoundError):
+except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
 
