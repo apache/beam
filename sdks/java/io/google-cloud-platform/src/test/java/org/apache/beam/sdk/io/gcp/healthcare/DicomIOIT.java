@@ -78,7 +78,7 @@ public class DicomIOIT {
   }
 
   @Ignore("https://github.com/apache/beam/issues/28099")
-  @Test
+  /*@Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
         String.format(
@@ -105,7 +105,7 @@ public class DicomIOIT {
     } catch (UnsupportedOperationException exc) {
       // noop - if runner does not support job.cancel()
     }
-  }
+  }*/
   @Test
   public void test_DicomIO_deidentify() throws IOException {
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
