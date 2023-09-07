@@ -21,7 +21,7 @@
 
 The larger one's pipeline gets, the more common it is to encounter "exceptional"
 data that is malformatted, doesn't handle the proper preconditions, or otherwise
-breaks during processing.  Genrally any such record will cause the pipeline to
+breaks during processing.  Generally any such record will cause the pipeline to
 permanently fail, but often it is desirable to allow the pipeline to continue,
 re-directing bad records to another path for special handling or simply
 recording them for later off-line analysis.  This is often called the
@@ -137,7 +137,7 @@ pipeline:
           output: still_bad
 
     - type: WriteToJson
-      # Takes as input everything form the "success" path of both transforms.
+      # Takes as input everything from the "success" path of both transforms.
       input: [ComputeRatio, ComputeRatioForBadRecords]
       config:
         path: /path/to/output.json
