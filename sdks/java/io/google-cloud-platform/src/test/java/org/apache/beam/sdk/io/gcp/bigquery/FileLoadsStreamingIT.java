@@ -253,7 +253,7 @@ public class FileLoadsStreamingIT {
             .withMethod(Write.Method.FILE_LOADS)
             .withTriggeringFrequency(Duration.standardSeconds(10));
     if (useCopyJobs) {
-      write = write.withMaxBytesPerPartition(100);
+      write = write.withMaxBytesPerPartition(250);
     }
     if (useInputSchema) {
       // we're creating the table with the input schema
@@ -418,7 +418,7 @@ public class FileLoadsStreamingIT {
             .withMethod(Write.Method.FILE_LOADS)
             .withTriggeringFrequency(Duration.standardSeconds(10));
     if (useCopyJobs) {
-      write = write.withMaxBytesPerPartition(100);
+      write = write.withMaxBytesPerPartition(150);
     }
     if (useInputSchema) {
       // we're creating the table with the input schema
@@ -484,7 +484,7 @@ public class FileLoadsStreamingIT {
 
     @Override
     public TableDestination getTable(Long destination) {
-      return new TableDestination(tablePrefix + "-" + destination, "");
+      return new TableDestination(tablePrefix + "-" + destination, null);
     }
 
     @Override
