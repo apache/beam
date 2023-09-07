@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -101,8 +100,6 @@ class WriteTables<DestinationT extends @NonNull Object>
     abstract String getTableName();
     // Downstream operations may rely on pane info which will get lost after a ReShuffle
     abstract Boolean isFirstPane();
-
-    abstract Long getPaneIndex();
   }
 
   static class ResultCoder extends AtomicCoder<WriteTables.Result> {
@@ -112,15 +109,12 @@ class WriteTables<DestinationT extends @NonNull Object>
     public void encode(Result value, OutputStream outStream) throws IOException {
       StringUtf8Coder.of().encode(value.getTableName(), outStream);
       BooleanCoder.of().encode(value.isFirstPane(), outStream);
-      VarLongCoder.of().encode(value.getPaneIndex(), outStream);
     }
 
     @Override
     public Result decode(InputStream inStream) throws IOException {
       return new AutoValue_WriteTables_Result(
-          StringUtf8Coder.of().decode(inStream),
-          BooleanCoder.of().decode(inStream),
-          VarLongCoder.of().decode(inStream));
+          StringUtf8Coder.of().decode(inStream), BooleanCoder.of().decode(inStream));
     }
   }
 
@@ -366,8 +360,7 @@ class WriteTables<DestinationT extends @NonNull Object>
                     Result result =
                         new AutoValue_WriteTables_Result(
                             BigQueryHelpers.toJsonString(pendingJob.tableReference),
-                            pendingJob.isFirstPane(),
-                            pendingJob.paneIndex());
+                            pendingJob.isFirstPane());
                     c.output(
                         mainOutputTag,
                         KV.of(pendingJob.destinationT, result),

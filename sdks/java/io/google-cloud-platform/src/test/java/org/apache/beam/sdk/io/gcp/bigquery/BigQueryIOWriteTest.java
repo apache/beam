@@ -2606,7 +2606,7 @@ public class BigQueryIOWriteTest implements Serializable {
         String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
         tempTablesElement.add(
-            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true, 0L)));
+            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true)));
       }
     }
 
