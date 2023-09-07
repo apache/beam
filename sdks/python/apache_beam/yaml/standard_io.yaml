@@ -42,7 +42,7 @@
       type: beamJar
       transforms:
         'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
-        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v1'
+        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
