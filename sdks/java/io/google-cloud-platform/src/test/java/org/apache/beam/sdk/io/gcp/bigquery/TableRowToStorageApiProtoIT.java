@@ -321,7 +321,7 @@ public class TableRowToStorageApiProtoIT {
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
   }
 
   @AfterClass
