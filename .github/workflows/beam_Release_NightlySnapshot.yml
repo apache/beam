@@ -84,6 +84,6 @@ jobs:
           </settings>" > ${HOME}/.m2/settings.xml
       - name: run Publish script
         run: |
-          ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework -PisNightly \
+          ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework \
           --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
           -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses
