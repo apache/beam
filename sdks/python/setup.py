@@ -247,11 +247,7 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-<<<<<<< HEAD
           'js2py>=0.74,<1',
-=======
-          'js2py>=0.74',
->>>>>>> 6c2b4498b3 (Address initial comments)
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update build-requirements.txt as well.

@@ -17,11 +17,8 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
-<<<<<<< HEAD
 
 import js2py
-=======
->>>>>>> 6c2b4498b3 (Address initial comments)
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -52,7 +49,6 @@ def _check_mapping_arguments(
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
-<<<<<<< HEAD
 # js2py's JsObjectWrapper object has a self-referencing __dict__ property
 # that cannot be pickled without implementing the __getstate__ and
 # __setstate__ methods.
@@ -113,89 +109,6 @@ def _expand_python_mapping_func(
   else:
     source = callable
 
-=======
-# TODO(yaml) Consider adding optional language version parameter to support ECMAScript 5 and 6
-def _expand_javascript_mapping_func(
-    original_fields, expression=None, callable=None, path=None, name=None):
-  try:
-    import js2py
-  except ImportError:
-    raise ImportError(
-        "js2py must be installed to run javascript UDF's for YAML mapping transforms."
-    )
-
-  # js2py EvalJs and JsObjectWrapper objects have self-referencing __dict__ property
-  # that cannot be pickled without implementing the __getstate__ and __setstate__
-  # methods.
-  class CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
-    def __init__(self, js_obj):
-      super().__init__(js_obj.__dict__['_obj'])
-
-    def __getstate__(self):
-      state = self.__dict__.copy()
-      return state
-
-    def __setstate__(self, state):
-      self.__dict__.update(state)
-
-  class CustomEvalJs(js2py.EvalJs):
-    def __init__(self):
-      super().__init__()
-      self.__dict__['_var'] = CustomJsObjectWrapper(self.__dict__['_var'])
-
-    def __getstate__(self):
-      state = self.__dict__.copy()
-      return state
-
-    def __setstate__(self, state):
-      self.__dict__.update(state)
-
-  if expression:
-    args = ', '.join(original_fields)
-    js_func = f'function fn({args}) {{return ({expression})}}'
-    js_callable = CustomJsObjectWrapper(js2py.eval_js(js_func))
-    return lambda __row__: js_callable(*__row__._asdict().values())
-
-  elif callable:
-    js_callable = CustomJsObjectWrapper(js2py.eval_js(callable))
-    return lambda __row__: js_callable(__row__._asdict())
-
-  else:
-    if not path.endswith('.js'):
-      raise ValueError(f'File "{path}" is not a valid .js file.')
-    udf_code = FileSystems.open(path).read().decode()
-    js = CustomEvalJs()
-    js.eval(udf_code)
-    return lambda __row__: getattr(js, name)(__row__._asdict())
-
-
-def _expand_python_mapping_func(
-    original_fields, expression=None, callable=None, path=None, name=None):
-  if path and name:
-    if not path.endswith('.py'):
-      raise ValueError(f'File "{path}" is not a valid .py file.')
-    py_file = FileSystems.open(path).read().decode()
-
-    return python_callable.PythonCallableWithSource.load_from_script(
-        py_file, name)
-
-  elif expression:
-    # TODO(robertwb): Consider constructing a single callable that takes
-    # the row and returns the new row, rather than invoking (and unpacking)
-    # for each field individually.
-    source = '\n'.join(['def fn(__row__):'] + [
-        f'  {name} = __row__.{name}'
-        for name in original_fields if name in expression
-    ] + ['  return (' + expression + ')'])
-
-  else:
-    source = callable
-
-<<<<<<< HEAD
-  # Python inline UDF case - already valid python code
->>>>>>> 6c2b4498b3 (Address initial comments)
-=======
->>>>>>> 91d80d5cb7 (add fix for js2py pickling)
   return python_callable.PythonCallableWithSource(source)
 
 
@@ -258,32 +171,12 @@ class _Explode(beam.PTransform):
         yield beam.Row(**copy)
 
     return (
-<<<<<<< HEAD
-<<<<<<< HEAD
         beam.core._MaybePValueWithErrors(pcoll, self._exception_handling_args)
         | beam.FlatMap(
             lambda row:
             (explode_cross_product if self._cross_product else explode_zip)
             ({name: getattr(row, name)
               for name in all_fields}, to_explode))).as_result()
-=======
-        beam.core._MaybePValueWithErrors(
-          pcoll, self._exception_handling_args)
-        | beam.FlatMap(
-      lambda row: (
-        explode_cross_product if self._cross_product else explode_zip)(
-        {name: getattr(row, name) for name in all_fields},  # yapf
-        to_explode))
-    ).as_result()
->>>>>>> 6c2b4498b3 (Address initial comments)
-=======
-        beam.core._MaybePValueWithErrors(pcoll, self._exception_handling_args)
-        | beam.FlatMap(
-            lambda row:
-            (explode_cross_product if self._cross_product else explode_zip)
-            ({name: getattr(row, name)
-              for name in all_fields}, to_explode))).as_result()
->>>>>>> 91d80d5cb7 (add fix for js2py pickling)
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(

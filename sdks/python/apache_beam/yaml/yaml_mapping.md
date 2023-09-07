@@ -20,7 +20,7 @@
 # Beam YAML mappings
 
 Beam YAML has the ability to do simple transformations which can be used to
-get data into the correct shape. The simplest of these is `MaptoFields`
+get data into the correct shape. The simplest of these is `MapToFields`
 which creates records with new fields defined in terms of the input fields.
 
 ## Field renames
@@ -65,7 +65,7 @@ fields.  When the append field is specified, one can drop fields as well, e.g.
       new_col2: col2
 ```
 
-which includes all original fiels *except* col3 in addition to outputting the
+which includes all original fields *except* col3 in addition to outputting the
 two new ones.
 
 
@@ -73,8 +73,7 @@ two new ones.
 
 Of course one may want to do transformations beyond just dropping and renaming
 fields.  Beam YAML has the ability to inline simple UDFs.
-This requires a language specification. For example
-
+This requires a language specification. For example, using python
 ```
 - type: MapToFields
   config:
@@ -83,11 +82,20 @@ This requires a language specification. For example
       new_col: "col1.upper()"
       another_col: "col2 + col3"
 ```
+Javascript ES5 is also supported, e.g.
+```
+- type: MapToFields
+  config:
+    language: javascript
+    fields:
+      new_col: "col1.toUpperCase()"
+      another_col: "col2 === col3"
+```
 
-In addition, one can provide a full Python callable that takes the row as an
+In addition, one can provide a full Python or Javascript callable that takes the row as an
 argument to do more complex mappings
 (see [PythonCallableSource](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.python_callable.html#apache_beam.utils.python_callable.PythonCallableWithSource)
-for acceptable formats). Thus one can write
+for acceptable formats). Using Python, one can write
 
 ```
 - type: MapToFields
@@ -103,6 +111,23 @@ for acceptable formats). Thus one can write
             else:
               return "bad"
 ```
+Similarly, using Javascript, one can write
+```
+- type: MapToFields
+  config:
+    language: javascript
+    fields:
+      new_col:
+        callable: |
+          function myMapping(row) {
+            if (row.col1.match("[0-9]+") && row.col2 > 0) {
+              return "good"
+            }
+            else {
+              return "bad"
+            }
+          }
+```
 
 Once one reaches a certain level of complexity, it may be preferable to package
 this up as a dependency and simply refer to it by fully qualified name, e.g.
@@ -116,7 +141,31 @@ this up as a dependency and simply refer to it by fully qualified name, e.g.
         callable: pkg.module.fn
 ```
 
-Currently, in addition to Python, SQL expressions are supported as well
+The UDF can also be a separate file that is stored either on the local filesystem 
+or in a GCS bucket.
+Specifying the path to this UDF file and the name of the function is also supported.
+```
+- type: MapToFields
+  config:
+    language: python
+    fields:
+      new_col:
+        path: /path/to/local/udf.py 
+        name: my_mapping
+      other_new_col:
+        path: gs://my-gcs-bucket/path/to/gcs/udf.py
+        name: my_other_mapping
+```
+where the UDF file looks something like
+```
+def my_mapping(row):
+  return row.col2 > 0
+
+def my_other_mapping(row):  
+  return row.col2 > 1
+```
+
+Currently, in addition to Python and Javascript, SQL expressions are supported as well
 
 ```
 - type: MapToFields
