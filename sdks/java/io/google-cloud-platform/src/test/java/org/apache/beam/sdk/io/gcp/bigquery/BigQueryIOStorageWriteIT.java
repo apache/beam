@@ -65,7 +65,6 @@ public class BigQueryIOStorageWriteIT {
 
   @BeforeClass
   public static void setup() throws Exception {
-    PipelineOptionsFactory.register(TestBigQueryOptions.class);
     bqOptions = TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class);
     project = bqOptions.as(GcpOptions.class).getProject();
     // Create one BQ dataset for all test cases.
