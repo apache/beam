@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
+import java.security.SecureRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -36,6 +37,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,24 +56,34 @@ public class BigQueryIOStorageWriteIT {
     AT_LEAST_ONCE
   }
 
-  private String project;
-  private static final String DATASET_ID = "big_query_storage";
+  private static String project;
+  private static final String DATASET_ID = "big_query_storage_write_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private static final String TABLE_PREFIX = "storage_write_";
 
-  private BigQueryOptions bqOptions;
+  private static TestBigQueryOptions bqOptions;
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStorageIOWriteIT");
 
+  @BeforeClass
+  public static void setup() throws Exception {
+    PipelineOptionsFactory.register(TestBigQueryOptions.class);
+    bqOptions = TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class);
+    project = bqOptions.as(GcpOptions.class).getProject();
+    // Create one BQ dataset for all test cases.
+    BQ_CLIENT.createNewDataset(project, DATASET_ID, null, bqOptions.getBigQueryLocation());
+  }
+
+  @AfterClass
+  public static void cleanup() {
+    BQ_CLIENT.deleteDataset(project, DATASET_ID);
+  }
+
   private void setUpTestEnvironment(WriteMode writeMode) {
-    PipelineOptionsFactory.register(BigQueryOptions.class);
-    bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject(TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject());
     bqOptions.setUseStorageWriteApi(true);
     if (writeMode == WriteMode.AT_LEAST_ONCE) {
       bqOptions.setUseStorageWriteApiAtLeastOnce(true);
     }
     bqOptions.setNumStorageWriteApiStreams(2);
     bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
-    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   }
 
   static class FillRowFn extends DoFn<Long, TableRow> {
