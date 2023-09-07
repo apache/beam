@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.ServiceLoader;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription;
@@ -35,7 +36,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,7 +45,6 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -58,6 +57,11 @@ import org.slf4j.LoggerFactory;
   "rawtypes"
 })
 public class ConvertHelpers {
+  private static class SchemaInformationProviders {
+    private static final ServiceLoader<SchemaInformationProvider> INSTANCE =
+        ServiceLoader.load(SchemaInformationProvider.class);
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(ConvertHelpers.class);
 
   /** Return value after converting a schema. */
@@ -80,17 +84,17 @@ public class ConvertHelpers {
   /** Get the coder used for converting from an inputSchema to a given type. */
   public static <T> ConvertedSchemaInformation<T> getConvertedSchemaInformation(
       Schema inputSchema, TypeDescriptor<T> outputType, SchemaRegistry schemaRegistry) {
-    ConvertedSchemaInformation<T> convertedSchema = null;
-    if (outputType.equals(TypeDescriptor.of(Row.class))) {
-      // If the output is of type Row, then just forward the schema of the input type to the
-      // output.
-      convertedSchema =
-          new ConvertedSchemaInformation<>((SchemaCoder<T>) SchemaCoder.of(inputSchema), null);
-    } else if (outputType.equals(TypeDescriptor.of(GenericRecord.class))) {
-      convertedSchema =
-          new ConvertedSchemaInformation<T>(
-              (SchemaCoder<T>) AvroUtils.schemaCoder(AvroUtils.toAvroSchema(inputSchema)), null);
-    } else {
+
+    ConvertedSchemaInformation<T> schemaInformation = null;
+    // Try to load schema information from loaded providers
+    for (SchemaInformationProvider provider : SchemaInformationProviders.INSTANCE) {
+      schemaInformation = provider.getConvertedSchemaInformation(inputSchema, outputType);
+      if (schemaInformation != null) {
+        return schemaInformation;
+      }
+    }
+
+    if (schemaInformation == null) {
       // Otherwise, try to find a schema for the output type in the schema registry.
       Schema outputSchema = null;
       SchemaCoder<T> outputSchemaCoder = null;
@@ -129,9 +133,9 @@ public class ConvertHelpers {
                   + outputSchema);
         }
       }
-      convertedSchema = new ConvertedSchemaInformation<T>(outputSchemaCoder, unboxedType);
+      schemaInformation = new ConvertedSchemaInformation<T>(outputSchemaCoder, unboxedType);
     }
-    return convertedSchema;
+    return schemaInformation;
   }
 
   /**

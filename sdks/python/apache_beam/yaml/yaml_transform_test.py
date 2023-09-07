@@ -117,6 +117,27 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''')
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
+  def create_has_schema(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                  elements: [{a: 1, b: 'x'}, {a: 2, b: 'y'}]
+            - type: MapToFields
+              config:
+                  language: python
+                  fields:
+                      repeated: a * b
+            - type: PyMap
+              config:
+                  fn: "lambda x: x.repeated"
+          ''')
+      assert_that(result, equal_to(['x', 'yy']))
+
   def test_implicit_flatten(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

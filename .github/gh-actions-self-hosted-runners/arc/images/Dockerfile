@@ -63,6 +63,13 @@ RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-c
     #revert permission
     chown -R runner:runner /home/runner/.config
 ENV PATH="${PATH}:/usr/local/google-cloud-sdk/bin"
+#Install Apache Maven
+RUN curl -OL https://dlcdn.apache.org/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz && \
+    tar -xvf apache-maven-3.9.4-bin.tar.gz && \
+    rm apache-maven-3.9.4-bin.tar.gz && \
+    mv apache-maven-3.9.4 /usr/local/maven
+ENV PATH="${PATH}:/usr/local/maven/bin"
+ENV MAVEN_HOME="/usr/local/maven"
 
 # Needed to transfer path addtitions to runner environment
 RUN echo PATH=$PATH >> /runnertmp/.env

@@ -247,7 +247,7 @@ if __name__ == '__main__':
       install_requires=[
           'build>=0.9.0,<0.11.0',
           'crcmod>=1.7,<2.0',
-          'orjson<4.0',
+          'orjson<3.9.3',  # https://github.com/ijl/orjson/issues/415
           # Dill doesn't have forwards-compatibility guarantees within minor
           # version. Pickles created with a new version of dill may not unpickle
           # using older version of dill. It is best to use the same version of

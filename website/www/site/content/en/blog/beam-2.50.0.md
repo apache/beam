@@ -80,7 +80,8 @@ For more information on changes in 2.50.0, check out the [detailed release notes
 
 ## Known Issues
 
-* TBD
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+* Python Pipelines using BigQuery IO or `orjson` dependency might experience segmentation faults or get stuck: [#28318](https://github.com/apache/beam/issues/28318).
 
 
 ## List of Contributors
