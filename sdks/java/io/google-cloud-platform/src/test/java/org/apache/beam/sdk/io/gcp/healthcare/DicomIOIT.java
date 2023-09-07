@@ -36,8 +36,6 @@ import org.junit.Test;
 
 @SuppressWarnings({"nullness", "uninitialized"})
 public class DicomIOIT {
-  private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
-  private static final String TEST_FILE_STUDY_ID = "study_000000000";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private String healthcareDataset;
@@ -66,13 +64,17 @@ public class DicomIOIT {
   @Before
   public void setup() throws IOException, URISyntaxException {
     client.createDicomStore(healthcareDataset, dicomStoreName);
-    client.uploadToDicomStore(healthcareDataset + "/dicomStores/" + dicomStoreName, TEST_FILE_PATH);
-    client.createDicomStore(healthcareDataset, deidDicomStoreId);
+    client.createDicomStore(healthcareDataset, deidDicomStoreName);
   }
 
   @After
-  public void deleteDicomStore() throws IOException {
-    client.deleteDicomStore(healthcareDataset + "/dicomStores/" + dicomStoreName);
+  public void deleteAllDicomStores() {
+    try {
+      client.deleteDicomStore(dicomStoreName);
+      client.deleteFhirStore(deidDicomStoreName);
+    } catch (IOException e) {
+      // Do nothing.
+    }
   }
 
   @Ignore("https://github.com/apache/beam/issues/28099")
