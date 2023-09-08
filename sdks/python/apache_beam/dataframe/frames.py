@@ -941,9 +941,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         # data.
         requires = partitionings.Singleton(
             reason=(
-                f"where(errors={kwargs['errors']!r}) is currently not parallelizable, "
-                "because all data must be collected on one node to determine if "
-                "the original data should be propagated instead."))
+                f"where(errors={kwargs['errors']!r}) is currently not "
+                 "parallelizable, because all data must be collected on one "
+                 "node to determine if the original data should be propagated "
+                 "instead."))
 
       actual_args['errors'] = kwargs['errors']
 
