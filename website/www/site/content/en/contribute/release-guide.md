@@ -250,7 +250,10 @@ related to the update have time to surface.
 
 #### Update the Java BOM
 
-TODO(lostluck): Find instructions or associated issue/PRs (go/beam-issue/#####)
+Tracked in Github issue https://github.com/apache/beam/issues/28379
+
+Ideally, do the update at least a week before the release cut, so that any issues
+related to the update have time to surface. 
 
 #### Investigate performance regressions
 
