@@ -37,6 +37,7 @@ from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import only_element
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
+from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
@@ -775,12 +776,14 @@ class MainTest(unittest.TestCase):
           output: {{}}
         - type: WindowInto
           name: WindowInto[None]
-          input: {result['transforms'][0]["__uuid__"]}
+          input:
+            input: {result['transforms'][0]["__uuid__"]}
           windowing:
             type: fixed
             size: 4
       output: {result['transforms'][1]["__uuid__"]}
     '''
+    self.maxDiff = 1e9
 
     self.assertYaml(expected, result)
 
@@ -869,6 +872,17 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     with self.assertRaisesRegex(ValueError, r"Missing type .*"):
       ensure_transforms_have_types(spec)
+    with self.assertRaisesRegex(ValueError, r"Missing type .*"):
+      preprocess(spec)
+
+  def test_ensure_transforms_have_providers_error(self):
+    spec = '''
+      type: UnknownType
+    '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(ValueError,
+                                r"Unknown type or missing provider .*"):
+      preprocess(spec, known_transforms=['KnownType'])
 
   def test_ensure_errors_consumed_unconsumed(self):
     spec = '''

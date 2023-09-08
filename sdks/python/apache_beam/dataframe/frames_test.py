@@ -1946,6 +1946,12 @@ class GroupByTest(_AbstractFrameTest):
           lambda df: df.groupby(['foo', 'bar'], dropna=False).sum(), GROUPBY_DF)
 
 
+NONPARALLEL_METHODS = ['quantile', 'describe', 'median', 'sem']
+# mad was removed in pandas 2
+if PD_VERSION < (2, 0):
+  NONPARALLEL_METHODS.append('mad')
+
+
 class AggregationTest(_AbstractFrameTest):
   """Tests for global aggregation methods on DataFrame/Series."""
 
@@ -1955,7 +1961,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in NONPARALLEL_METHODS
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -1974,7 +1980,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg_method(self, agg_method):
     s = pd.Series(list(range(16)))
 
-    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in NONPARALLEL_METHODS
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -1990,7 +1996,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in NONPARALLEL_METHODS
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy
@@ -2007,7 +2013,7 @@ class AggregationTest(_AbstractFrameTest):
   def test_dataframe_agg_method(self, agg_method):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
-    nonparallel = agg_method in ('quantile', 'describe', 'median', 'sem', 'mad')
+    nonparallel = agg_method in NONPARALLEL_METHODS
 
     # TODO(https://github.com/apache/beam/issues/20926): max and min produce
     # the wrong proxy

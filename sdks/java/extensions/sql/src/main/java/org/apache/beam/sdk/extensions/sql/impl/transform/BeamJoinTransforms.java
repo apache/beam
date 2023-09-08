@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexFieldAccess;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexInputRef;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexNode;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -153,6 +154,20 @@ public class BeamJoinTransforms {
                     @Setup
                     public void setup() {
                       seekableTable.setUp();
+                    }
+
+                    @StartBundle
+                    public void startBundle(
+                        DoFn<Row, Row>.StartBundleContext context,
+                        PipelineOptions pipelineOptions) {
+                      seekableTable.startBundle(context, pipelineOptions);
+                    }
+
+                    @FinishBundle
+                    public void finishBundle(
+                        DoFn<Row, Row>.FinishBundleContext context,
+                        PipelineOptions pipelineOptions) {
+                      seekableTable.finishBundle(context, pipelineOptions);
                     }
 
                     @ProcessElement
