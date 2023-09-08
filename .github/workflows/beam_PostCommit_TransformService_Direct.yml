@@ -75,14 +75,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Install Python 3.8
+      - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
-      - name: Install Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
+          python-version: |
+            3.8
+            3.11
       - name: run TransformService Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
