@@ -22,13 +22,9 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import java.security.SecureRandom;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
