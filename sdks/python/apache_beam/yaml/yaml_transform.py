@@ -425,6 +425,7 @@ def chain_as_composite(spec):
     else:
       transform['input'] = new_transforms[-1]['__uuid__']
     new_transforms.append(transform)
+  new_transforms.extend(spec.get('extra_transforms', []))
   composite_spec['transforms'] = new_transforms
 
   last_transform = new_transforms[-1]['__uuid__']
