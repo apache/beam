@@ -17961,7 +17961,7 @@ user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367
 user=user-1, score=9, window=[2019-05-26T14:30:22.429Z..2019-05-26T14:30:30.553Z)
 user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z)
 user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
-&lt;/code>&lt;/pre>&lt;p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it&amp;rsquo;s grouped into a different session. The large, 18-point session is split into two 9-point sessions.&lt;/p></description></item><item><title>Documentation: Data processing</title><link>/documentation/ml/data-processing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/data-processing/</guid><description>
+&lt;/code>&lt;/pre>&lt;p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it&amp;rsquo;s grouped into a different session. The large, 18-point session is split into two 9-point sessions.&lt;/p></description></item><item><title>Documentation: Data exploration</title><link>/documentation/ml/data-processing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/data-processing/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17973,7 +17973,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="data-processing">Data processing&lt;/h1>
+&lt;h1 id="data-exploration">Data exploration&lt;/h1>
 &lt;p>Several types of Apache Beam data processing are applicable to AI/ML projects:&lt;/p>
 &lt;ul>
 &lt;li>Data exploration: Learn about your data (properties, distributions, statistics) when you start to deploy your project or when the data changes.&lt;/li>
