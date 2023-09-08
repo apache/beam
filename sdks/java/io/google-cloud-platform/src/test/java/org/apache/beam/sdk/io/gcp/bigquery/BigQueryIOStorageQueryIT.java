@@ -52,7 +52,9 @@ public class BigQueryIOStorageQueryIT {
           "1G", 11110839L,
           "1T", 11110839000L);
 
-  private static final String DATASET_ID = "big_query_storage";
+  private static String DATASET_ID = TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation().equals("us-east7")?
+      "big_query_storage_day0" :
+      "big_query_storage";
   private static final String TABLE_PREFIX = "storage_read_";
 
   private BigQueryIOStorageQueryOptions options;
