@@ -72,6 +72,12 @@ class Provider:
     """
     raise NotImplementedError(type(self))
 
+  def underlying_provider(self):
+    """If this provider is simply a proxy to another provider, return the
+    provider that should actually be used for affinity checking.
+    """
+    return self
+
   def affinity(self, other: "Provider"):
     """Returns a value approximating how good it would be for this provider
     to be used immediately following a transform from the other provider
@@ -81,7 +87,9 @@ class Provider:
     # E.g. we could look at the the expected environments themselves.
     # Possibly, we could provide multiple expansions and have the runner itself
     # choose the actual implementation based on fusion (and other) criteria.
-    return self._affinity(other) + other._affinity(self)
+    return (
+        self.underlying_provider()._affinity(other) +
+        other.underlying_provider()._affinity(self))
 
   def _affinity(self, other: "Provider"):
     if self is other or self == other:
@@ -122,16 +130,18 @@ class ExternalProvider(Provider):
       self._service = self._service()
     if self._schema_transforms is None:
       try:
-        self._schema_transforms = [
-            config.identifier
+        self._schema_transforms = {
+            config.identifier: config
             for config in external.SchemaAwareExternalTransform.discover(
-                self._service)
-        ]
+                self._service, ignore_errors=True)
+        }
       except Exception:
-        self._schema_transforms = []
+        # It's possible this service doesn't vend schema transforms.
+        self._schema_transforms = {}
     urn = self._urns[type]
     if urn in self._schema_transforms:
-      return external.SchemaAwareExternalTransform(urn, self._service, **args)
+      return external.SchemaAwareExternalTransform(
+          urn, self._service, rearrange_based_on_discovery=True, **args)
     else:
       return type >> self.create_external_transform(urn, args)
 
@@ -256,6 +266,19 @@ class ExternalJavaProvider(ExternalProvider):
     # pylint: disable=subprocess-run-check
     return subprocess.run(['which', 'java'],
                           capture_output=True).returncode == 0
+
+
+@ExternalProvider.register_provider_type('python')
+def python(urns, packages=()):
+  if packages:
+    return ExternalPythonProvider(urns, packages)
+  else:
+    return InlineProvider({
+        name:
+        python_callable.PythonCallableWithSource.load_from_fully_qualified_name(
+            constructor)
+        for (name, constructor) in urns.items()
+    })
 
 
 @ExternalProvider.register_provider_type('pythonPackage')
@@ -468,12 +491,6 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  ios = {
-      key: getattr(apache_beam.io, key)
-      for key in dir(apache_beam.io)
-      if key.startswith('ReadFrom') or key.startswith('WriteTo')
-  }
-
   return InlineProvider(
       dict({
           'Create': create,
@@ -497,8 +514,7 @@ def create_builtin_provider():
           'Flatten': Flatten,
           'WindowInto': WindowInto,
           'GroupByKey': beam.GroupByKey,
-      },
-           **ios))
+      }))
 
 
 class PypiExpansionService:
@@ -550,6 +566,50 @@ class PypiExpansionService:
     self._service = None
 
 
+@ExternalProvider.register_provider_type('renaming')
+class RenamingProvider(Provider):
+  def __init__(self, transforms, mappings, underlying_provider):
+    if isinstance(underlying_provider, dict):
+      underlying_provider = ExternalProvider.provider_from_spec(
+          underlying_provider)
+    self._transforms = transforms
+    self._underlying_provider = underlying_provider
+    for transform in transforms.keys():
+      if transform not in mappings:
+        raise ValueError(f'Missing transform {transform} in mappings.')
+    self._mappings = mappings
+
+  def available(self) -> bool:
+    return self._underlying_provider.available()
+
+  def provided_transforms(self) -> Iterable[str]:
+    return self._transforms.keys()
+
+  def create_transform(
+      self,
+      typ: str,
+      args: Mapping[str, Any],
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
+  ) -> beam.PTransform:
+    """Creates a PTransform instance for the given transform type and arguments.
+    """
+    mappings = self._mappings[typ]
+    remapped_args = {
+        mappings.get(key, key): value
+        for key, value in args.items()
+    }
+    return self._underlying_provider.create_transform(
+        self._transforms[typ], remapped_args, yaml_create_transform)
+
+  def _affinity(self, other):
+    raise NotImplementedError(
+        'Should not be calling _affinity directly on this provider.')
+
+  def underlying_provider(self):
+    return self._underlying_provider.underlying_provider()
+
+
 def parse_providers(provider_specs):
   providers = collections.defaultdict(list)
   for provider_spec in provider_specs:
@@ -577,10 +637,12 @@ def merge_providers(*provider_sets):
 
 def standard_providers():
   from apache_beam.yaml.yaml_mapping import create_mapping_provider
+  from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
   return merge_providers(
       create_builtin_provider(),
       create_mapping_provider(),
+      io_providers(),
       parse_providers(standard_providers))
