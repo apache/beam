@@ -18,8 +18,8 @@
 import logging
 import time
 
-from apache_beam.yaml import yaml_provider
 from apache_beam.version import __version__ as beam_version
+from apache_beam.yaml import yaml_provider
 
 
 def cache_provider_artifacts():
