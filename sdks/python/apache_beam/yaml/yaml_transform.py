@@ -176,7 +176,7 @@ class Scope(LightweightScope):
     self.root = root
     self._inputs = inputs
     self.providers = providers
-    self._seen_names : Set[str] = set()
+    self._seen_names: Set[str] = set()
     self.input_providers = input_providers
     self._all_followers = None
 
