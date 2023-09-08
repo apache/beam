@@ -613,6 +613,9 @@ class RenamingProvider(Provider):
   def provided_transforms(self) -> Iterable[str]:
     return self._transforms.keys()
 
+  def requires_inputs(self, typ, args):
+    return self._underlying_provider.requires_inputs(typ, args)
+
   def create_transform(
       self,
       typ: str,
