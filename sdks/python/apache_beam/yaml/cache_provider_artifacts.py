@@ -16,7 +16,6 @@
 #
 
 import logging
-import sys
 import time
 
 from apache_beam.yaml import yaml_provider
@@ -33,7 +32,8 @@ def cache_provider_artifacts():
     t = time.time()
     artifacts = provider.cache_artifacts()
     if artifacts:
-      logging.info('Cached %s in %0.03f seconds.', ', '.join(artifacts), time.time() - t)
+      logging.info(
+          'Cached %s in %0.03f seconds.', ', '.join(artifacts), time.time() - t)
   if '.dev' not in beam_version:
     # Also cache a base python venv for fast cloning.
     t = time.time()
