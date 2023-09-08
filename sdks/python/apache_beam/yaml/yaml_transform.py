@@ -291,7 +291,7 @@ class Scope(LightweightScope):
         # Filter down the set of possible providers to the best ones.
         possible_providers = best_matches(
             possible_providers, adjacent_provider_options)
-        # If we are down to one option, no ned to go further.
+        # If we are down to one option, no need to go further.
         if len(possible_providers) == 1:
           break
         # Go downstream one more step.
