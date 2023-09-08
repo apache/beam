@@ -80,3 +80,10 @@
         'WriteToCsv': 'apache_beam.io.WriteToCsv'
         'ReadFromJson': 'apache_beam.io.ReadFromJson'
         'WriteToJson': 'apache_beam.io.WriteToJson'
+
+- type: beamJar
+  transforms:
+    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
+    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
