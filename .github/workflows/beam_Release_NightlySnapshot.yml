@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Release Nightly Snapshot Python
+name: Release Nightly Snapshot
 
 on:
   schedule:
@@ -37,20 +37,21 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+    GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+    GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+    GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_Release_Python_NightlySnapshot:
+  beam_Release_NightlySnapshot:
     name: ${{matrix.job_name}}  (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
-        job_name: [beam_Release_Python_NightlySnapshot]
-        job_phrase: [Release Nightly Snapshot Python]
-    if: github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'schedule'
+        job_name: [beam_Release_NightlySnapshot]
+        job_phrase: [Release Nightly Snapshot]
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
 
     steps:
       - uses: actions/checkout@v3
@@ -59,7 +60,7 @@ jobs:
         with:
           github_job: ${{matrix.job_name}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: "Release Nightly Snapshot"
       - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
@@ -69,27 +70,20 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
-      - name: run Cleanup script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:python:clean
-      - name: run Snapshot script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:python:buildSnapshot
-      - name: Publish Python Artifacts
+      - name: Auth on snapshot repository
         run: |
-          bash sdks/python/scripts/run_snapshot_publish.sh
-        env:
-          WORKSPACE: ${{ github.workspace }}
+          mkdir -p ${HOME}/.m2
+          echo "<settings>
+            <servers>
+              <server>
+                <id>apache.snapshots.https</id>
+                <username>${{ secrets.NEXUS_USER }}</username>
+                <password>${{ secrets.NEXUS_PW }}</password>
+              </server>
+            </servers>
+          </settings>" > ${HOME}/.m2/settings.xml
+      - name: run Publish script
+        run: |
+          ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework \
+          --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
+          -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses
