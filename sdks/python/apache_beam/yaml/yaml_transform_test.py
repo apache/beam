@@ -232,7 +232,6 @@ class YamlTransformE2ETest(unittest.TestCase):
   def test_annotations(self):
     t = LinearTransform(5, b=100)
     annotations = t.annotations()
-    print(annotations)
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
