@@ -23,6 +23,7 @@ try:
   from apache_beam.io.gcp import bigquery_avro_tools
   from apache_beam.io.gcp import bigquery_tools
   from apache_beam.io.gcp.internal.clients import bigquery
+  from apitools.base.py.exceptions import HttpError  # pylint: disable=unused-import
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
