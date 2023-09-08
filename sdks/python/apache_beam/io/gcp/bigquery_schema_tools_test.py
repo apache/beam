@@ -28,12 +28,11 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options import value_provider
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpError  # pylint: disable=unused-import
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryToSchema(unittest.TestCase):
   def test_check_schema_conversions(self):
     fields = [
