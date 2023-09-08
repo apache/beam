@@ -57,8 +57,9 @@ from apache_beam.utils.timestamp import Timestamp
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.api_core.exceptions import ClientError, DeadlineExceeded
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
+  from google.api_core.exceptions import DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
   import google.cloud
 except ImportError:
@@ -66,7 +67,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableSchemaParser(unittest.TestCase):
   def test_parse_table_schema_from_json(self):
     string_field = bigquery.TableFieldSchema(
@@ -103,7 +103,6 @@ class TestTableSchemaParser(unittest.TestCase):
     self.assertEqual(parse_table_schema_from_json(json_str), expected_schema)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableReferenceParser(unittest.TestCase):
   def test_calling_with_table_reference(self):
     table_ref = bigquery.TableReference()
@@ -169,7 +168,6 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.tableId, tableId)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
@@ -509,7 +507,6 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertTrue(
         found, "Did not find write call metric with status: %s" % status)
 
-  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
   def test_insert_rows_sets_metric_on_failure(self):
     MetricsEnvironment.process_wide_container().reset()
     client = mock.Mock()
@@ -531,7 +528,6 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.verify_write_call_metric(
         "my_project", "my_dataset", "my_table", "ok", 1)
 
-  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
   def test_start_query_job_priority_configuration(self):
     client = mock.Mock()
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
@@ -565,7 +561,6 @@ class TestBigQueryWrapper(unittest.TestCase):
         'INTERACTIVE')
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestRowAsDictJsonCoder(unittest.TestCase):
   def test_row_as_dict(self):
     coder = RowAsDictJsonCoder()
@@ -606,7 +601,6 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     self.assertEqual(output_value, coder.encode(test_value))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonRowWriter(unittest.TestCase):
   def test_write_row(self):
     rows = [
@@ -638,7 +632,6 @@ class TestJsonRowWriter(unittest.TestCase):
     self.assertEqual(read_rows, rows)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestAvroRowWriter(unittest.TestCase):
   def test_write_row(self):
     schema = bigquery.TableSchema(
@@ -704,7 +697,6 @@ class TestBQJobNames(unittest.TestCase):
     self.assertRegex(job_name, base_pattern)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestCheckSchemaEqual(unittest.TestCase):
   def test_simple_schemas(self):
     schema1 = bigquery.TableSchema(fields=[])
@@ -786,7 +778,6 @@ class TestCheckSchemaEqual(unittest.TestCase):
         check_schema_equal(schema1, schema2, ignore_descriptions=True))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBeamRowFromDict(unittest.TestCase):
   DICT_ROW = {
       "str": "a",
@@ -938,7 +929,6 @@ class TestBeamRowFromDict(unittest.TestCase):
     self.assertEqual(expected_beam_row, beam_row_from_dict(dict_row, schema))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBeamTypehintFromSchema(unittest.TestCase):
   EXPECTED_TYPEHINTS = [("str", str), ("bool", bool), ("bytes", bytes),
                         ("int", np.int64), ("float", np.float64),

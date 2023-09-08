@@ -81,7 +81,6 @@ try:
   from apache_beam.transforms.display_test import DisplayDataItemMatcher
   from apache_beam.utils import retry
   from apitools.base.py.exceptions import HttpError
-  from google.cloud import bigquery as gcp_bigquery
   from google.api_core import exceptions
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
@@ -147,9 +146,6 @@ def _load_or_default(filename):
     return {}
 
 
-@unittest.skipIf(
-    HttpError is None or gcp_bigquery is None,
-    'GCP dependencies are not installed')
 class TestTableRowJsonCoder(unittest.TestCase):
   def test_row_as_table_row(self):
     schema_definition = [('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'),
@@ -232,7 +228,6 @@ class TestTableRowJsonCoder(unittest.TestCase):
     self.json_compliance_exception(float('-inf'))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonToDictCoder(unittest.TestCase):
   @staticmethod
   def _make_schema(fields):
@@ -333,7 +328,6 @@ class TestJsonToDictCoder(unittest.TestCase):
     self.assertEqual(expected_row, actual)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -531,7 +525,6 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
   def test_table_spec_display_data(self):
     sink = beam.io.BigQuerySink('dataset.table')
@@ -562,7 +555,6 @@ class TestBigQuerySink(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteToBigQuery(unittest.TestCase):
   def _cleanup_files(self):
     if os.path.exists('insert_calls1'):
@@ -970,9 +962,6 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
 
-@unittest.skipIf(
-    HttpError is None or exceptions is None,
-    'GCP dependencies are not installed')
 class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
   # Using https://cloud.google.com/bigquery/docs/error-messages and
@@ -1237,7 +1226,6 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
     self.assertEqual(3, mock_send.call_count)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
   def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
@@ -1373,7 +1361,6 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     self.assertTrue(client.insert_rows_json.called)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
   @mock.patch('time.sleep')
   def test_failure_has_same_insert_ids(self, unused_mock_sleep):
@@ -1678,7 +1665,6 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
       self.assertEqual(out2['colA_values'], ['value5'])
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
@@ -1885,7 +1871,6 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           self.project)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PubSubBigQueryIT(unittest.TestCase):
 
   INPUT_TOPIC = 'psit_topic_output'
@@ -1976,7 +1961,6 @@ class PubSubBigQueryIT(unittest.TestCase):
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
 
