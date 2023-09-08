@@ -914,7 +914,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def where(self, cond, other, errors, **kwargs):
+  def where(self, cond, other, **kwargs):
     """where is not parallelizable when ``errors="ignore"`` is specified."""
     requires = partitionings.Arbitrary()
     deferred_args = {}
@@ -934,16 +934,18 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     else:
       actual_args['other'] = other
 
-    if errors == "ignore":
-      # We need all data in order to ignore errors and propagate the original
-      # data.
-      requires = partitionings.Singleton(
-          reason=(
-              f"where(errors={errors!r}) is currently not parallelizable, "
-              "because all data must be collected on one node to determine if "
-              "the original data should be propagated instead."))
+    # For Pandas 2.0, errors was removed as an argument.
+    if PD_VERSION < (2, 0):
+      if "errors" in kwargs and kwargs['errors'] == "ignore":
+        # We need all data in order to ignore errors and propagate the original
+        # data.
+        requires = partitionings.Singleton(
+            reason=(
+                f"where(errors={kwargs['errors']!r}) is currently not parallelizable, "
+                "because all data must be collected on one node to determine if "
+                "the original data should be propagated instead."))
 
-    actual_args['errors'] = errors
+      actual_args['errors'] = kwargs['errors']
 
     def where_execution(df, *args):
       runtime_values = {
@@ -1602,12 +1604,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def var(self, axis, skipna, level, ddof, **kwargs):
-    """Per-level aggregation is not yet supported
-    (https://github.com/apache/beam/issues/21829). Only the default,
-    ``level=None``, is allowed."""
-    if level is not None:
-      raise NotImplementedError("per-level aggregation")
+  def var(self, axis, skipna, ddof, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
 
@@ -1677,9 +1674,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def skew(self, axis, skipna, level, numeric_only, **kwargs):
-    if level is not None:
-      raise NotImplementedError("per-level aggregation")
+  def skew(self, axis, skipna, numeric_only, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
     # See the online, numerically stable formulae at
@@ -1741,9 +1736,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def kurtosis(self, axis, skipna, level, numeric_only, **kwargs):
-    if level is not None:
-      raise NotImplementedError("per-level aggregation")
+  def kurtosis(self, axis, skipna, numeric_only, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
 
@@ -2571,7 +2564,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if kwargs:
       raise NotImplementedError('align(%s)' % ', '.join(kwargs.keys()))
 
-    if level is not None:
+    # In Pandas 2.0, all aggregations lost the level keyword.
+    if PD_VERSION < (2, 0) and level is not None:
       # Could probably get by partitioning on the used levels.
       requires_partition_by = partitionings.Singleton(reason=(
           f"align(level={level}) is not currently parallelizable. Only "
@@ -5376,6 +5370,7 @@ for base in ['add',
           name,
           frame_base._elementwise_method(name, restrictions={'level': None},
                                          base=pd.Series))
+
     if hasattr(pd.DataFrame, name):
       setattr(
           DeferredDataFrame,
