@@ -946,7 +946,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
                 "node to determine if the original data should be propagated "
                 "instead."))
 
-      actual_args['errors'] = kwargs['errors']
+      actual_args['errors'] = kwargs['errors'] if 'errors' in kwargs else None
 
     def where_execution(df, *args):
       runtime_values = {
