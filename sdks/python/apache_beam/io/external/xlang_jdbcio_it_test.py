@@ -134,7 +134,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         "f_float DOUBLE PRECISION, " + "f_char CHAR(10), " +
         "f_varchar VARCHAR(10), " + f"f_bytes {binary_type[0]}, " +
         f"f_varbytes {binary_type[1]}, " + "f_timestamp TIMESTAMP(3), " +
-        "f_decimal DECIMAL(10, 2))")
+        "f_decimal DECIMAL(10, 2), " + "f_date DATE, " + "f_time TIME)")
     inserted_rows = [
         JdbcTestRow(
             i,
