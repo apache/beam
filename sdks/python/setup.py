@@ -64,7 +64,6 @@ class mypy(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    generate_protos_first()
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
