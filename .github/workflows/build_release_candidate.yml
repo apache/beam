@@ -244,7 +244,7 @@ jobs:
             pip install -U pip
             pip install tox
             # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-            pip install -r build-requirements.txt && tox -e py38-docs
+            tox -e py38-docs
             rm -rf target/docs/_build/.doctrees
       - name: Build Typescript Docs
         working-directory: beam/sdks/typescript

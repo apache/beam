@@ -49,14 +49,12 @@ from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
-from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -83,6 +81,7 @@ from apache_beam.utils import retry
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
+  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
   from apitools.base.py.exceptions import HttpError
   from google.cloud import bigquery as gcp_bigquery
   from google.api_core import exceptions
@@ -101,6 +100,51 @@ def _load_or_default(filename):
       return json.load(f)
   except:  # pylint: disable=bare-except
     return {}
+
+
+_DESTINATION_ELEMENT_PAIRS = [
+    # DESTINATION 1
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'go'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'scala'
+    }),
+
+    # DESTINATION 3
+    ('project1:dataset1.table3', {
+        'name': 'spark', 'language': 'scala'
+    }),
+
+    # DESTINATION 1
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'scala'
+    }),
+
+    # DESTINATION 2
+    ('project1:dataset1.table2', {
+        'name': 'beam', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'flink', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'spark', 'foundation': 'apache'
+    }),
+]
+_ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
 
 @unittest.skipIf(

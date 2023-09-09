@@ -20,8 +20,8 @@ import unittest
 
 import hamcrest as hc
 
-import apache_beam.runners.dataflow.internal.clients.dataflow as dataflow
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.clients.dataflow import message_matchers
 
 # Protect against environments where apitools library is not available.
@@ -29,7 +29,7 @@ from apache_beam.runners.dataflow.internal.clients.dataflow import message_match
 try:
   from apitools.base.py import base_api
 except ImportError:
-  base_api = None
+  raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
