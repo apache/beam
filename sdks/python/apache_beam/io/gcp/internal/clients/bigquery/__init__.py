@@ -28,3 +28,6 @@ try:
   from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import *
 except ImportError:
   pass
+# pylint: enable=wrong-import-order, wrong-import-position
+
+__path__ = pkgutil.extend_path(__path__, __name__)  # type: ignore

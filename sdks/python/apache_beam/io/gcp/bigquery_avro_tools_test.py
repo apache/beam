@@ -19,15 +19,13 @@ import unittest
 
 from fastavro.schema import parse_schema
 
-try:
-  from apache_beam.io.gcp import bigquery_avro_tools
-  from apache_beam.io.gcp import bigquery_tools
-  from apache_beam.io.gcp.internal.clients import bigquery
-  from apitools.base.py.exceptions import HttpError  # pylint: disable=unused-import
-except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
+from apache_beam.io.gcp import bigquery_avro_tools
+from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery_test import HttpError
+from apache_beam.io.gcp.internal.clients import bigquery
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryToAvroSchema(unittest.TestCase):
   def test_convert_bigquery_schema_to_avro_schema(self):
     subfields = [

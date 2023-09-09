@@ -39,103 +39,60 @@ import requests
 from parameterized import param
 from parameterized import parameterized
 
+import apache_beam as beam
+from apache_beam.internal import pickler
+from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.gcp import bigquery as beam_bq
+from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _StreamToBigQuery
+from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
+from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import RetryStrategy
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
+from apache_beam.io.gcp.tests import utils
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
+from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing import test_utils
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils import retry
+
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+
 try:
-  import apache_beam as beam
-  from apache_beam.internal import pickler
-  from apache_beam.internal.gcp.json_value import to_json_value
-  from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
-  from apache_beam.io.gcp import bigquery as beam_bq
-  from apache_beam.io.gcp import bigquery_tools
-  from apache_beam.io.gcp.bigquery import ReadFromBigQuery
-  from apache_beam.io.gcp.bigquery import TableRowJsonCoder
-  from apache_beam.io.gcp.bigquery import WriteToBigQuery
-  from apache_beam.io.gcp.bigquery import _StreamToBigQuery
-  from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
-  from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
-  from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
-  from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-  from apache_beam.io.gcp.bigquery_tools import RetryStrategy
-  from apache_beam.io.gcp.internal.clients import bigquery
-  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
-  from apache_beam.io.gcp.pubsub import ReadFromPubSub
-  from apache_beam.io.gcp.tests import utils
-  from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
-  from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
-  from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
-  from apache_beam.options import value_provider
-  from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import StandardOptions
-  from apache_beam.options.value_provider import RuntimeValueProvider
-  from apache_beam.options.value_provider import StaticValueProvider
-  from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
-  from apache_beam.runners.runner import PipelineState
-  from apache_beam.testing import test_utils
-  from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
-  from apache_beam.testing.test_pipeline import TestPipeline
-  from apache_beam.testing.test_stream import TestStream
-  from apache_beam.testing.util import assert_that
-  from apache_beam.testing.util import equal_to
-  from apache_beam.transforms.display import DisplayData
-  from apache_beam.transforms.display_test import DisplayDataItemMatcher
-  from apache_beam.utils import retry
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
   from google.api_core import exceptions
 except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
+  gcp_bigquery = None
+  HttpError = None
+  exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-
-_DESTINATION_ELEMENT_PAIRS = [
-    # DESTINATION 1
-    ('project1:dataset1.table1', {
-        'name': 'beam', 'language': 'py'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'beam', 'language': 'java'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'beam', 'language': 'go'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'flink', 'language': 'java'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'flink', 'language': 'scala'
-    }),
-
-    # DESTINATION 3
-    ('project1:dataset1.table3', {
-        'name': 'spark', 'language': 'scala'
-    }),
-
-    # DESTINATION 1
-    ('project1:dataset1.table1', {
-        'name': 'spark', 'language': 'py'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'spark', 'language': 'scala'
-    }),
-
-    # DESTINATION 2
-    ('project1:dataset1.table2', {
-        'name': 'beam', 'foundation': 'apache'
-    }),
-    ('project1:dataset1.table2', {
-        'name': 'flink', 'foundation': 'apache'
-    }),
-    ('project1:dataset1.table2', {
-        'name': 'spark', 'foundation': 'apache'
-    }),
-]
-
-# test modules are not importable by each other. So we need to define the
-# constants here instead of importing the same constants from
-# different test files.
-# https://docs.pytest.org/en/7.1.x/explanation/pythonpath.html
-_ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
 
 def _load_or_default(filename):
@@ -146,6 +103,9 @@ def _load_or_default(filename):
     return {}
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestTableRowJsonCoder(unittest.TestCase):
   def test_row_as_table_row(self):
     schema_definition = [('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'),
@@ -228,6 +188,7 @@ class TestTableRowJsonCoder(unittest.TestCase):
     self.json_compliance_exception(float('-inf'))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonToDictCoder(unittest.TestCase):
   @staticmethod
   def _make_schema(fields):
@@ -328,6 +289,7 @@ class TestJsonToDictCoder(unittest.TestCase):
     self.assertEqual(expected_row, actual)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -525,6 +487,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
   def test_table_spec_display_data(self):
     sink = beam.io.BigQuerySink('dataset.table')
@@ -555,6 +518,7 @@ class TestBigQuerySink(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteToBigQuery(unittest.TestCase):
   def _cleanup_files(self):
     if os.path.exists('insert_calls1'):
@@ -962,6 +926,9 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
 
+@unittest.skipIf(
+    HttpError is None or exceptions is None,
+    'GCP dependencies are not installed')
 class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
   # Using https://cloud.google.com/bigquery/docs/error-messages and
@@ -1226,6 +1193,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
     self.assertEqual(3, mock_send.call_count)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
   def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
@@ -1361,6 +1329,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     self.assertTrue(client.insert_rows_json.called)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
   @mock.patch('time.sleep')
   def test_failure_has_same_insert_ids(self, unused_mock_sleep):
@@ -1665,6 +1634,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
       self.assertEqual(out2['colA_values'], ['value5'])
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
@@ -1871,6 +1841,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           self.project)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PubSubBigQueryIT(unittest.TestCase):
 
   INPUT_TOPIC = 'psit_topic_output'
@@ -1961,6 +1932,7 @@ class PubSubBigQueryIT(unittest.TestCase):
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
 
