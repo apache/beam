@@ -3036,7 +3036,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.register(name) {
           dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
-          if (project.hasProperty('useWheelDistribution')) {
+          if (!project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
             doLast {
