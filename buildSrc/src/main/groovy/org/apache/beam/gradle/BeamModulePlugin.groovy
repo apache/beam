@@ -3046,7 +3046,6 @@ class BeamModulePlugin implements Plugin<Project> {
                 include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
               }
               String packageFilename = collection.singleFile.toString()
-              logger.info('Use wheel {} for sdk_location.', packageFilename)
               project.exec {
                 executable 'sh'
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
