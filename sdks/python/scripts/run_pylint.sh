@@ -32,7 +32,6 @@ fi
 # Go to the Apache Beam Python SDK root
 if [[ $PWD != *sdks/python ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
-  python setup.py sdist
 fi
 
 set -o errexit
