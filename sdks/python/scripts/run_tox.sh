@@ -53,24 +53,26 @@ if [[ "$JENKINS_HOME" != "" ]]; then
   export PY_COLORS=1
 fi
 
-# If only TOX_ENVIRONMENT is provided
-if [[ $# -eq 0 ]]; then
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
-
-# If TOX_ENVIRONMENT and SDK_LOCATION are provided
-elif [[ $# -eq 1 ]]; then
-  SDK_LOCATION="$1"
-  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
-
-# If TOX_ENVIRONMENT, SDK_LOCATION, and additional positional arguments are provided
-else
+# Determine if the second argument is SDK_LOCATION or posargs
+if [[ -f "$1" ]]; then  # Check if the argument corresponds to a file
   SDK_LOCATION="$1"
   shift
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+fi
+
+# If SDK_LOCATION is identified and there are still arguments left, those are posargs.
+# If SDK_LOCATION is not identified, all remaining arguments are posargs.
+
+if [[ ! -z "$SDK_LOCATION" ]]; then
+  if [[ $# -gt 0 ]]; then  # There are posargs
+    tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+  else
+    tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
+  fi
+else  # No SDK_LOCATION; all arguments are posargs
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$@"
 fi
 
 exit_code=$?
-
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
   tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
