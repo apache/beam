@@ -58,7 +58,7 @@ if [[ ! -z $2 ]]; then
   shift;
   tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
 else
-  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$@"
+  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
 fi
 
 exit_code=$?
