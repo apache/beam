@@ -65,7 +65,7 @@ exit_code=$?
 
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
   exit_code=$?
 fi
 exit $exit_code
