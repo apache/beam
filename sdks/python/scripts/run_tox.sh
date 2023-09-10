@@ -53,12 +53,20 @@ if [[ "$JENKINS_HOME" != "" ]]; then
   export PY_COLORS=1
 fi
 
-if [[ ! -z $2 ]]; then
+# If only TOX_ENVIRONMENT is provided
+if [[ $# -eq 0 ]]; then
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+
+# If TOX_ENVIRONMENT and SDK_LOCATION are provided
+elif [[ $# -eq 1 ]]; then
   SDK_LOCATION="$1"
-  shift;
-  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
+
+# If TOX_ENVIRONMENT, SDK_LOCATION, and additional positional arguments are provided
 else
-  tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+  SDK_LOCATION="$1"
+  shift
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
 fi
 
 exit_code=$?
@@ -69,3 +77,6 @@ if [[ $exit_code == 245 ]]; then
   exit_code=$?
 fi
 exit $exit_code
+This code first captures TOX_ENVIRONMENT and then shifts the arguments. It then checks the number of remaining arguments to decide how to proceed. If there are no remaining arguments, it assumes only the environment was provided. If there's one remaining argument, it assumes that's the SDK location. If there are two or more arguments, it takes the next one as the SDK location and passes all the remaining ones as positional arguments to the tox command.
+
+
