@@ -77,7 +77,8 @@ jobs:
       - name: run PostCommit Java Jpms Direct Java11 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest -Dorg.gradle.java.home=$JAVA_HOME_11_X64
+          gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
+          arguments: -Dorg.gradle.java.home=$JAVA_HOME_11_X64
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         if: always()

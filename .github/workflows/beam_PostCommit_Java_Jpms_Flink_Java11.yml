@@ -77,7 +77,8 @@ jobs:
       - name: run PostCommit Java Jpms Flink Java11 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:testing:jpms-tests:flinkRunnerIntegrationTest -Dorg.gradle.java.home=$JAVA_HOME_11_X64
+          gradle-command: :sdks:java:testing:jpms-tests:flinkRunnerIntegrationTest
+          arguments: -Dorg.gradle.java.home=$JAVA_HOME_11_X64
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         if: always()
