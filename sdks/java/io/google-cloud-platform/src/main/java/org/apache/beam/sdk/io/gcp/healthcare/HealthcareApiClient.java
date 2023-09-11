@@ -251,9 +251,10 @@ public interface HealthcareApiClient {
 
   /**
    * Deidentify Dicom Store
-   * 
+   *
    * @param sourceDicomStore the source GCP Dicom Store
-   * @param destinationDicomStore the destination GCP Dicom Store that will contain the deidentified data
+   * @param destinationDicomStore the destination GCP Dicom Store that will contain the deidentified
+   *     data
    * @param deidConfig the deidConfig
    * @return empty
    * @throws IOException

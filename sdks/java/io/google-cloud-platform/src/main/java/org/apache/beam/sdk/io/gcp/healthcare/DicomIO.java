@@ -64,7 +64,6 @@ import org.slf4j.LoggerFactory;
  * readMetadataResult.getReadResponse() PCollection<String> failRead =
  * readMetadataResult.getFailedReads() }
  */
-
 public class DicomIO {
 
   static final String BASE_METRIC_PREFIX = "dicomio/";
