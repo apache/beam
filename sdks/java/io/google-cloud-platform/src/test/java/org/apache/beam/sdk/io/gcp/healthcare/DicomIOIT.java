@@ -44,7 +44,6 @@ public class DicomIOIT {
   private final String dicomStoreName;
   private final String deidDicomStoreId;
   private final String deidDicomStoreName;
-  private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
   private static final String TEST_FILE_STUDY_ID = "study_000000000";
 
   public DicomIOIT() throws IOException {
