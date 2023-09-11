@@ -772,12 +772,14 @@ class MainTest(unittest.TestCase):
           output: {{}}
         - type: WindowInto
           name: WindowInto[None]
-          input: {result['transforms'][0]["__uuid__"]}
+          input:
+            input: {result['transforms'][0]["__uuid__"]}
           windowing:
             type: fixed
             size: 4
       output: {result['transforms'][1]["__uuid__"]}
     '''
+    self.maxDiff = 1e9
 
     self.assertYaml(expected, result)
 
