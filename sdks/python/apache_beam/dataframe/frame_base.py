@@ -475,7 +475,10 @@ def maybe_inplace(func):
   return wrapper
 
 
-def args_to_kwargs(base_type, ignore=False):
+def args_to_kwargs(
+    base_type: object,
+    removed_method: bool = False,
+    removed_args: list[str] | None = None):
   """Convert all args to kwargs before calling the decorated function.
 
   When applied to a function, this decorator creates a new function
@@ -484,25 +487,43 @@ def args_to_kwargs(base_type, ignore=False):
   determine the name to use for arguments that are converted to keyword
   arguments.
 
-  ignore used mainly in cases where a method has been removed in a later version
-  of Pandas.
+  removed_method used in cases where a method has been removed in a later version
+  of Pandas. removed_args used in cases where a method has had arguments removed
+  in a later version of Pandas.
 
   For internal use only. No backwards compatibility guarantees.
   """
   def wrap(func):
-    if ignore:
+    if removed_method:
+      # Do no processing, let Beam function itself raise the error if called.
       return func
 
-    arg_names = getfullargspec(unwrap(getattr(base_type, func.__name__))).args
+    removed_arg_names = removed_args if removed_args is not None else []
+
+    base_arg_spec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
+    base_arg_names = base_arg_spec.args
+    # Some arguments are keyword only and we still want to check against those.
+    all_possible_base_arg_names = base_arg_names + base_arg_spec.kwonlyargs
+    beam_arg_names = getfullargspec(func).args
+
+    if not_found := (set(beam_arg_names) - set(all_possible_base_arg_names) -
+                     set(removed_arg_names)):
+      raise TypeError(
+          f"Beam definition of {func.__name__} has arguments that are not found in the base version of the function: {not_found}"
+      )
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-      for name, value in zip(arg_names, args):
+      for name, value in zip(base_arg_names, args):
         if name in kwargs:
           raise TypeError(
               "%s() got multiple values for argument '%s'" %
               (func.__name__, name))
         kwargs[name] = value
+      # Still have to populate these for the Beam function signature.
+      if removed_args:
+        for name in removed_args:
+          kwargs[name] = None
       return func(**kwargs)
 
     return wrapper
@@ -531,19 +552,23 @@ EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
     f"**{BEAM_SPECIFIC!r}** for details.")
 
 
-def with_docs_from(base_type, name=None, ignore=False):
+def with_docs_from(
+    base_type: object,
+    name: str = None,
+    removed_method: bool = False,
+    ignored_args: list[str] | None = None):
   """Decorator that updates the documentation from the wrapped function to
-
   duplicate the documentation from the identically-named method in `base_type`.
 
   Any docstring on the original function will be included in the new function
   under a "Differences from pandas" heading.
 
-  ignore used mainly in cases where a method has been removed in a later version
+  removed_method used in cases where a method has been removed in a later version
   of Pandas.
   """
   def wrap(func):
-    if ignore:
+    if removed_method:
+      func.__doc__ = "This method has been removed in the current version of Pandas."
       return func
 
     fn_name = name or func.__name__
@@ -602,20 +627,25 @@ def with_docs_from(base_type, name=None, ignore=False):
   return wrap
 
 
-def populate_defaults(base_type, ignore=False):
+def populate_defaults(
+    base_type: object,
+    removed_method: bool = False,
+    removed_args: list[str] | None = None,
+    ignore: bool = False):
   """Populate default values for keyword arguments in decorated function.
 
   When applied to a function, this decorator creates a new function
   with default values for all keyword arguments, based on the default values
   for the identically-named method on `base_type`.
 
-  ignore used mainly in cases where a method has been removed in a later version
-  of Pandas.
+  removed_method used in cases where a method has been removed in a later version
+  of Pandas. removed_args used in cases where a method has had arguments removed
+  in a later version of Pandas.
 
   For internal use only. No backwards compatibility guarantees.
   """
   def wrap(func):
-    if ignore:
+    if removed_method:
       return func
 
     base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
@@ -634,6 +664,8 @@ def populate_defaults(base_type, ignore=False):
     defaults_to_populate = set(
         func_argspec.args[:num_non_defaults]).intersection(
             arg_to_default.keys())
+    if removed_args:
+      defaults_to_populate -= set(removed_args)
 
     @functools.wraps(func)
     def wrapper(**kwargs):
