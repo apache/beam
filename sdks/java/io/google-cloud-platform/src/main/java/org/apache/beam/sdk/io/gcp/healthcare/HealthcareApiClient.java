@@ -249,6 +249,15 @@ public interface HealthcareApiClient {
 
   Empty uploadToDicomStore(String webPath, String filePath) throws IOException, URISyntaxException;
 
+  /**
+   * Deidentify Dicom Store
+   * 
+   * @param sourceDicomStore the source GCP Dicom Store
+   * @param destinationDicomStore the destination GCP Dicom Store that will contain the deidentified data
+   * @param deidConfig the deidConfig
+   * @return empty
+   * @throws IOException
+   */
   Operation deidentifyDicomStore(
       String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidConfig)
       throws IOException;
