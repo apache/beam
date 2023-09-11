@@ -138,8 +138,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -661,7 +659,7 @@ public class BigQueryIO {
   @VisibleForTesting
   static class GenericDatumTransformer<T> implements DatumReader<T> {
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
-    private final Supplier<TableSchema> tableSchema;
+    private final TableSchema tableSchema;
     private GenericDatumReader<T> reader;
     private org.apache.avro.Schema writerSchema;
 
@@ -670,9 +668,17 @@ public class BigQueryIO {
         String tableSchema,
         org.apache.avro.Schema writer) {
       this.parseFn = parseFn;
-      this.tableSchema =
-          Suppliers.memoize(
-              Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(tableSchema)));
+      this.tableSchema = new TableSchemaFunction().apply(tableSchema);
+      this.writerSchema = writer;
+      this.reader = new GenericDatumReader<>(this.writerSchema);
+    }
+
+    public GenericDatumTransformer(
+        SerializableFunction<SchemaAndRecord, T> parseFn,
+        TableSchema tableSchema,
+        org.apache.avro.Schema writer) {
+      this.parseFn = parseFn;
+      this.tableSchema = tableSchema;
       this.writerSchema = writer;
       this.reader = new GenericDatumReader<>(this.writerSchema);
     }
@@ -690,7 +696,7 @@ public class BigQueryIO {
     @Override
     public T read(T reuse, Decoder in) throws IOException {
       GenericRecord record = (GenericRecord) this.reader.read(reuse, in);
-      return parseFn.apply(new SchemaAndRecord(record, this.tableSchema.get()));
+      return parseFn.apply(new SchemaAndRecord(record, this.tableSchema));
     }
   }
 
@@ -723,16 +729,8 @@ public class BigQueryIO {
             (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>)
                 input -> {
                   TableSchema safeInput = checkStateNotNull(input);
-                  try {
-                    String jsonTableSchema = BigQueryIO.JSON_FACTORY.toString(safeInput);
-                    return (AvroSource.DatumReaderFactory<T>)
-                        (writer, reader) ->
-                            new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
-                  } catch (IOException e) {
-                    throw new IllegalStateException(
-                        String.format(
-                            "error converting TableSchema to JSON: %s, error: %s", safeInput, e));
-                  }
+                  return (AvroSource.DatumReaderFactory<T>)
+                      (writer, reader) -> new GenericDatumTransformer<>(parseFn, safeInput, writer);
                 })
         // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is fixed.
         .setParseFn(parseFn)
