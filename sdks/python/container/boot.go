@@ -371,23 +371,18 @@ func setupAcceptableWheelSpecs() error {
 		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
 	}
 	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
-	var wheelName string
-	switch pyVersion {
-	case "36", "37":
-		wheelName = fmt.Sprintf("cp%s-cp%sm-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", pyVersion, pyVersion)
-	default:
-		wheelName = fmt.Sprintf("cp%s-cp%s-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", pyVersion, pyVersion)
-	}
+	wheelName := fmt.Sprintf("cp%s-cp%s-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", pyVersion, pyVersion)
 	acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
 	return nil
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
-	log.Printf("Installing setup packages ...")
+	bufLogger := tools.NewBufferedLogger(logger)
+	bufLogger.Printf(ctx, "Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
-		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+		bufLogger.Printf(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
 	pkgName := "apache-beam"
