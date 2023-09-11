@@ -31,7 +31,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -57,7 +56,11 @@ public class BigQueryIOStorageWriteIT {
   }
 
   private static String project;
-  private static final String DATASET_ID = "big_query_storage_write_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+  private static final String DATASET_ID =
+      "big_query_storage_write_it_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
   private static final String TABLE_PREFIX = "storage_write_";
 
   private static TestBigQueryOptions bqOptions;

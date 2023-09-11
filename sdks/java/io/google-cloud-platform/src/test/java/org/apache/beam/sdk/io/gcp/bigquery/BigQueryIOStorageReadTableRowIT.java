@@ -52,9 +52,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTableRowIT {
 
-  private static final String DATASET_ID = TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation().equals("us-east7") ?
-      "big_query_import_export_day0":
-      "big_query_import_export";
+  private static final String DATASET_ID =
+      TestPipeline.testingPipelineOptions()
+              .as(TestBigQueryOptions.class)
+              .getBigQueryLocation()
+              .equals("us-east7")
+          ? "big_query_import_export_day0"
+          : "big_query_import_export";
   private static final String TABLE_PREFIX = "parallel_read_table_row_";
 
   private BigQueryIOStorageReadTableRowOptions options;
@@ -72,7 +76,7 @@ public class BigQueryIOStorageReadTableRowIT {
   private static class TableRowToKVPairFn extends SimpleFunction<TableRow, KV<Integer, String>> {
     @Override
     public KV<Integer, String> apply(TableRow input) {
-      Integer rowId  = Integer.parseInt((String) input.get("id"));
+      Integer rowId = Integer.parseInt((String) input.get("id"));
       return KV.of(rowId, BigQueryHelpers.toJsonString(input));
     }
   }

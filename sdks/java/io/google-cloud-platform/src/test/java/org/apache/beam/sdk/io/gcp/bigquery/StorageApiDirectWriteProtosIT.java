@@ -32,7 +32,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -84,7 +83,11 @@ public class StorageApiDirectWriteProtosIT {
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
+    BQ_CLIENT.createNewDataset(
+        PROJECT,
+        BIG_QUERY_DATASET_ID,
+        null,
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
   }
 
   @AfterClass

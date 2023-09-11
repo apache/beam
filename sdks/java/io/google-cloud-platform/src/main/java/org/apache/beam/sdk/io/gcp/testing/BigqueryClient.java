@@ -400,7 +400,10 @@ public class BigqueryClient {
 
   /** Creates a new dataset with defaultTableExpirationMs and in a specified location. */
   public void createNewDataset(
-      String projectId, String datasetId, @Nullable Long defaultTableExpirationMs, @Nullable String location)
+      String projectId,
+      String datasetId,
+      @Nullable Long defaultTableExpirationMs,
+      @Nullable String location)
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());

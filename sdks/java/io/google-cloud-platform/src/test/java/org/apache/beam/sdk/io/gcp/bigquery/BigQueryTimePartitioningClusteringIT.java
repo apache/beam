@@ -24,7 +24,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-
 import java.security.SecureRandom;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
@@ -58,9 +57,11 @@ public class BigQueryTimePartitioningClusteringIT {
   private static String project;
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("BigQueryTimePartitioningClusteringIT");
-  private static final String DATASET_NAME = "BigQueryTimePartitioningIT_" + System.currentTimeMillis()
-      + "_"
-      + new SecureRandom().nextInt(32);
+  private static final String DATASET_NAME =
+      "BigQueryTimePartitioningIT_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
   private static final TimePartitioning TIME_PARTITIONING =
       new TimePartitioning().setField("date").setType("DAY");
   private static final Clustering CLUSTERING =
@@ -78,7 +79,11 @@ public class BigQueryTimePartitioningClusteringIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    BQ_CLIENT.createNewDataset(project, DATASET_NAME, null, TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
+    BQ_CLIENT.createNewDataset(
+        project,
+        DATASET_NAME,
+        null,
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
   }
 
   @Before
