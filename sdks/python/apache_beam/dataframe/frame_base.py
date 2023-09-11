@@ -484,9 +484,9 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
   determine the name to use for arguments that are converted to keyword
   arguments.
 
-  removed_method used in cases where a method has been removed in a later version
-  of Pandas. removed_args used in cases where a method has had arguments removed
-  in a later version of Pandas.
+  removed_method used in cases where a method has been removed in a later
+  version of Pandas. removed_args used in cases where a method has had
+  arguments removed in a later version of Pandas.
 
   For internal use only. No backwards compatibility guarantees.
   """
@@ -506,8 +506,8 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
     if not_found := (set(beam_arg_names) - set(all_possible_base_arg_names) -
                      set(removed_arg_names)):
       raise TypeError(
-          f"Beam definition of {func.__name__} has arguments that are not found in the base version of the function: {not_found}"
-      )
+          f"Beam definition of {func.__name__} has arguments that are not found"
+          f" in the base version of the function: {not_found}")
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -556,12 +556,13 @@ def with_docs_from(base_type: object, name=None, removed_method=False):
   Any docstring on the original function will be included in the new function
   under a "Differences from pandas" heading.
 
-  removed_method used in cases where a method has been removed in a later version
-  of Pandas.
+  removed_method used in cases where a method has been removed in a later
+  version of Pandas.
   """
   def wrap(func):
     if removed_method:
-      func.__doc__ = "This method has been removed in the current version of Pandas."
+      func.__doc__ = (
+          "This method has been removed in the current version of Pandas.")
       return func
 
     fn_name = name or func.__name__
@@ -627,9 +628,9 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
   with default values for all keyword arguments, based on the default values
   for the identically-named method on `base_type`.
 
-  removed_method used in cases where a method has been removed in a later version
-  of Pandas. removed_args used in cases where a method has had arguments removed
-  in a later version of Pandas.
+  removed_method used in cases where a method has been removed in a later
+  version of Pandas. removed_args used in cases where a method has had
+  arguments removed in a later version of Pandas.
 
   For internal use only. No backwards compatibility guarantees.
   """
