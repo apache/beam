@@ -271,7 +271,7 @@ public class FileLoadsStreamingIT {
     }
     write = numFileShards == 0 ? write.withAutoSharding() : write.withNumFileShards(numFileShards);
 
-    rows.apply("Stream loads to dynamic BigQuery destinations", write);
+    rows.apply("Stream loads to BigQuery", write);
     p.run().waitUntilFinish();
 
     List<TableRow> expectedRows = new ArrayList<>();
@@ -283,7 +283,7 @@ public class FileLoadsStreamingIT {
     checkRowCompleteness(tableSpec, inputSchema, expectedRows);
   }
 
-  // Check the expected number of rows reached the table.
+  // Check that the expected rows reached the table.
   private static void checkRowCompleteness(
       String tableSpec, TableSchema schema, List<TableRow> expectedRows)
       throws IOException, InterruptedException {
@@ -323,13 +323,11 @@ public class FileLoadsStreamingIT {
 
   @Test
   public void testWithAutoShardingAndCopyJobs() throws IOException, InterruptedException {
-    // Tests the copy jobs (aka multiple partitions) route
     runStreaming(0, true);
   }
 
   @Test
   public void testWithFixedShardsAndCopyJobs() throws IOException, InterruptedException {
-    // Tests the copy jobs (aka multiple partitions) route
     runStreaming(5, true);
   }
 
