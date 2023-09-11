@@ -553,10 +553,7 @@ EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
 
 
 def with_docs_from(
-    base_type: object,
-    name: str = None,
-    removed_method: bool = False,
-    ignored_args: list[str] | None = None):
+    base_type: object, name: str = None, removed_method: bool = False):
   """Decorator that updates the documentation from the wrapped function to
   duplicate the documentation from the identically-named method in `base_type`.
 
