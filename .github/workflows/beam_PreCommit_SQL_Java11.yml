@@ -31,7 +31,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
 
 env:
@@ -43,7 +43,7 @@ env:
 permissions:
     actions: write
     pull-requests: read
-    checks: read
+    checks: write
     contents: read
     deployments: read
     id-token: none
@@ -115,4 +115,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: SpotBugs Results
+          path: '**/build/reports/spotbugs/*.html'
+      - name: Publish SpotBugs Results
+        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+        if: always()
+        with:
+          name: SpotBugs
           path: '**/build/reports/spotbugs/*.html'

@@ -32,6 +32,7 @@ from yaml.loader import SafeLoader
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
 
@@ -121,12 +122,18 @@ class SomeAggregation(beam.PTransform):
 
 
 RENDER_DIR = None
-TEST_PROVIDERS = {
+TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
     'SomeAggregation': SomeAggregation,
 }
+
+
+class TestProvider(yaml_provider.InlineProvider):
+  def _affinity(self, other):
+    # Always try to choose this one.
+    return float('inf')
 
 
 class TestEnvironment:
@@ -196,8 +203,13 @@ def create_test_method(test_type, test_name, test_yaml):
             os.path.join(RENDER_DIR, test_name + '.png')
         ]
         options['render_leaf_composite_nodes'] = ['.*']
+      test_provider = TestProvider(TEST_TRANSFORMS)
       p = beam.Pipeline(options=PipelineOptions(**options))
-      yaml_transform.expand_pipeline(p, modified_yaml, TEST_PROVIDERS)
+      yaml_transform.expand_pipeline(
+          p,
+          modified_yaml,
+          {t: test_provider
+           for t in test_provider.provided_transforms()})
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()
@@ -248,6 +260,10 @@ def createTestSuite(name, path):
 
 ReadMeTest = createTestSuite(
     'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
+
+ErrorHandlingTest = createTestSuite(
+    'ErrorHandlingTest',
+    os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
