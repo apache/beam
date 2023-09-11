@@ -2597,7 +2597,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame, removed_method=PD_VERSION >= (2, 0))
   @frame_base.args_to_kwargs(pd.DataFrame, removed_method=PD_VERSION >= (2, 0))
-  @frame_base.populate_defaults(pd.DataFrame, removed_method=PD_VERSION >= (2, 0))
+  @frame_base.populate_defaults(pd.DataFrame,
+                                removed_method=PD_VERSION >= (2, 0))
   def append(self, other, ignore_index, verify_integrity, sort, **kwargs):
     """``ignore_index=True`` is not supported, because it requires generating an
     order-sensitive index."""
