@@ -23,6 +23,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -272,6 +273,7 @@ func launchSDKProcess() error {
 		go func(workerId string) {
 			defer wg.Done()
 
+			bufLogger := tools.NewBufferedLogger(logger)
 			errorCount := 0
 			for {
 				childPids.mu.Lock()
@@ -280,7 +282,7 @@ func launchSDKProcess() error {
 					return
 				}
 				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, "python", args...)
+				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
@@ -288,6 +290,7 @@ func launchSDKProcess() error {
 					// Retry on fatal errors, like OOMs and segfaults, not just
 					// DoFns throwing exceptions.
 					errorCount += 1
+					bufLogger.FlushAtError(ctx)
 					if errorCount < 4 {
 						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
@@ -296,6 +299,7 @@ func launchSDKProcess() error {
 							workerId, errorCount, err)
 					}
 				} else {
+					bufLogger.FlushAtDebug(ctx)
 					logger.Printf(ctx, "Python (worker %v) exited.", workerId)
 					break
 				}
@@ -309,11 +313,11 @@ func launchSDKProcess() error {
 // Start a command object in a new process group with the given arguments with
 // additional environment variables. It attaches stdio to the child process.
 // Returns the process handle.
-func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.Cmd {
+func StartCommandEnv(env map[string]string, stdin io.Reader, stdout, stderr io.Writer, prog string, args ...string) *exec.Cmd {
 	cmd := exec.Command(prog, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	if env != nil {
 		cmd.Env = os.Environ()
 		for k, v := range env {

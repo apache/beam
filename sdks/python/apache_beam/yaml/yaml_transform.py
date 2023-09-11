@@ -22,8 +22,11 @@ import os
 import pprint
 import re
 import uuid
+from typing import Any
 from typing import Iterable
+from typing import List
 from typing import Mapping
+from typing import Set
 
 import yaml
 from yaml.loader import SafeLoader
@@ -162,13 +165,31 @@ class LightweightScope(object):
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
-  def __init__(self, root, inputs, transforms, providers, input_providers):
+  def __init__(
+      self,
+      root,
+      inputs: Mapping[str, Any],
+      transforms: Iterable[dict],
+      providers: Mapping[str, Iterable[yaml_provider.Provider]],
+      input_providers: Iterable[yaml_provider.Provider]):
     super().__init__(transforms)
     self.root = root
     self._inputs = inputs
     self.providers = providers
-    self._seen_names = set()
+    self._seen_names: Set[str] = set()
     self.input_providers = input_providers
+    self._all_followers = None
+
+  def followers(self, transform_name):
+    if self._all_followers is None:
+      self._all_followers = collections.defaultdict(list)
+      # TODO(yaml): Also trace through outputs and composites.
+      for transform in self._transforms:
+        if transform['type'] != 'composite':
+          for input in transform.get('input').values():
+            transform_id, _ = self.get_transform_id_and_output_name(input)
+            self._all_followers[transform_id].append(transform['__uuid__'])
+    return self._all_followers[self.get_transform_id(transform_name)]
 
   def compute_all(self):
     for transform_id in self._transforms_by_uuid.keys():
@@ -208,6 +229,77 @@ class Scope(LightweightScope):
   def compute_outputs(self, transform_id):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
+  def best_provider(
+      self, t, input_providers: yaml_provider.Iterable[yaml_provider.Provider]):
+    if isinstance(t, dict):
+      spec = t
+    else:
+      spec = self._transforms_by_uuid[self.get_transform_id(t)]
+    possible_providers = [
+        p for p in self.providers[spec['type']] if p.available()
+    ]
+    if not possible_providers:
+      raise ValueError(
+          'No available provider for type %r at %s' %
+          (spec['type'], identify_object(spec)))
+    # From here on, we have the invariant that possible_providers is not empty.
+
+    # Only one possible provider, no need to rank further.
+    if len(possible_providers) == 1:
+      return possible_providers[0]
+
+    def best_matches(
+        possible_providers: Iterable[yaml_provider.Provider],
+        adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
+    ) -> List[yaml_provider.Provider]:
+      """Given a set of possible providers, and a set of providers for each
+      adjacent transform, returns the top possible providers as ranked by
+      affinity to the adjacent transforms' providers.
+      """
+      providers_by_score = collections.defaultdict(list)
+      for p in possible_providers:
+        # The sum of the affinity of the best provider
+        # for each adjacent transform.
+        providers_by_score[sum(
+            max(p.affinity(ap) for ap in apo)
+            for apo in adjacent_provider_options)].append(p)
+      return providers_by_score[max(providers_by_score.keys())]
+
+    # If there are any inputs, prefer to match them.
+    if input_providers:
+      possible_providers = best_matches(
+          possible_providers, [[p] for p in input_providers])
+
+    # Without __uuid__ we can't find downstream operations.
+    if '__uuid__' not in spec:
+      return possible_providers[0]
+
+    # Match against downstream transforms, continuing until there is no tie
+    # or we run out of downstream transforms.
+    if len(possible_providers) > 1:
+      adjacent_transforms = list(self.followers(spec['__uuid__']))
+      while adjacent_transforms:
+        # This is a list of all possible providers for each adjacent transform.
+        adjacent_provider_options = [[
+            p for p in self.providers[self._transforms_by_uuid[t]['type']]
+            if p.available()
+        ] for t in adjacent_transforms]
+        if any(not apo for apo in adjacent_provider_options):
+          # One of the transforms had no available providers.
+          # We will throw an error later, doesn't matter what we return.
+          break
+        # Filter down the set of possible providers to the best ones.
+        possible_providers = best_matches(
+            possible_providers, adjacent_provider_options)
+        # If we are down to one option, no need to go further.
+        if len(possible_providers) == 1:
+          break
+        # Go downstream one more step.
+        adjacent_transforms = sum(
+            [list(self.followers(t)) for t in adjacent_transforms], [])
+
+    return possible_providers[0]
+
   # A method on scope as providers may be scoped...
   def create_ptransform(self, spec, input_pcolls):
     if 'type' not in spec:
@@ -225,19 +317,7 @@ class Scope(LightweightScope):
         providers_by_input[pcoll] for pcoll in input_pcolls
         if pcoll in providers_by_input
     ]
-
-    def provider_score(p):
-      return sum(p.affinity(o) for o in input_providers)
-
-    for provider in sorted(self.providers.get(spec['type']),
-                           key=provider_score,
-                           reverse=True):
-      if provider.available():
-        break
-    else:
-      raise ValueError(
-          'No available provider for type %r at %s' %
-          (spec['type'], identify_object(spec)))
+    provider = self.best_provider(spec, input_providers)
 
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     if not isinstance(config, dict):
@@ -293,8 +373,11 @@ class Scope(LightweightScope):
     if 'name' in spec:
       name = spec['name']
       strictness += 1
-    else:
+    elif 'ExternalTransform' not in ptransform.label:
+      # The label may have interesting information.
       name = ptransform.label
+    else:
+      name = spec['type']
     if name in self._seen_names:
       if strictness >= 2:
         raise ValueError(f'Duplicate name at {identify_object(spec)}: {name}')
@@ -422,6 +505,7 @@ def chain_as_composite(spec):
     else:
       transform['input'] = new_transforms[-1]['__uuid__']
     new_transforms.append(transform)
+  new_transforms.extend(spec.get('extra_transforms', []))
   composite_spec['transforms'] = new_transforms
 
   last_transform = new_transforms[-1]['__uuid__']
@@ -506,14 +590,19 @@ def identify_object(spec):
 
 
 def extract_name(spec):
-  if 'name' in spec:
-    return spec['name']
-  elif 'id' in spec:
-    return spec['id']
-  elif 'type' in spec:
-    return spec['type']
-  elif len(spec) == 1:
-    return extract_name(next(iter(spec.values())))
+  if isinstance(spec, dict):
+    if 'name' in spec:
+      return spec['name']
+    elif 'id' in spec:
+      return spec['id']
+    elif 'type' in spec:
+      return spec['type']
+    elif len(spec) == 1:
+      return extract_name(next(iter(spec.values())))
+    else:
+      return ''
+  elif isinstance(spec, str):
+    return spec
   else:
     return ''
 
@@ -598,7 +687,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{out}]',
         'windowing': windowing,
-        'input': modified_spec['__uuid__'] + ('.' + out if out else ''),
+        'input': {
+            'input': modified_spec['__uuid__'] + ('.' + out if out else '')
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for out in consumed_outputs]

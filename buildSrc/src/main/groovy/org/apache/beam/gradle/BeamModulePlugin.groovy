@@ -431,9 +431,6 @@ class BeamModulePlugin implements Plugin<Project> {
   def isRelease(Project project) {
     return parseBooleanProperty(project, 'isRelease');
   }
-  def isNightly(Project project) {
-    return parseBooleanProperty(project, 'isNightly');
-  }
   /**
    * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
    */
@@ -492,14 +489,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
-    if (isRelease(project) && isNightly(project)) {
-      throw new GradleException("Cannot specify both -PisRelease and -PisNightly properties")
-    }
-    if (isNightly(project)) {
-      Date date = new Date()
-      project.version += "-" + date.format('yyyyMMdd')
-    }
-    else if (!isRelease(project)) {
+    // Automatically use the official release version if we are performing a release
+    // otherwise append '-SNAPSHOT'
+    project.version = '2.51.0'
+    if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
 
@@ -594,7 +587,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.27.0"
-    def classgraph_version = "4.8.104"
+    def classgraph_version = "4.8.162"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom

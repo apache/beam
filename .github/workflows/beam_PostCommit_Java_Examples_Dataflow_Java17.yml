@@ -15,34 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PreCommit Integration and Load Test Framework
+name: PostCommit Java Examples Dataflow Java17
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'it/**'
-      - '.github/workflows/beam_PreCommit_ItFramework.yml'
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'it/**'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '10 */6 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
-
-env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -59,40 +44,45 @@ permissions:
   repository-projects: read
   security-events: read
   statuses: read
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
 jobs:
-  beam_PreCommit_ItFramework:
+  beam_PostCommit_Java_Examples_Dataflow_Java17:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 180
     strategy:
       matrix:
-        job_name: [beam_PreCommit_ItFramework]
-        job_phrase: [Run It_Framework PreCommit]
+        job_name: [beam_PostCommit_Java_Examples_Dataflow_Java17]
+        job_phrase: [Run Java examples on Dataflow Java 17]
     if: |
-      github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run It_Framework PreCommit'
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Java examples on Dataflow Java 17'
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Set up Java
+        uses: actions/setup-java@v3.8.0
         with:
-          requires-py-38: false
-          requires-py-39: false
-          requires-go: false
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+          distribution: 'temurin'
+          java-version: |
+            17
+            8
+      - name: run PostCommit Java  Examples Dataflow Java17 script
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          cache-read-only: false
-      - name: run ItFrameworkPrecommit script
-        run: ./gradlew -p it build
+          gradle-command: :runners:google-cloud-dataflow-java:examples:java17PostCommit
+          max-workers: 12
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:
