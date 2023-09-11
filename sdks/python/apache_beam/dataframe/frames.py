@@ -1336,12 +1336,14 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       frame_base.wont_implement_method(
           pd.Series, 'shape', reason="non-deferred-result"))
 
-  @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
+  @frame_base.with_docs_from(pd.Series, ignore=PD_VERSION >= (2, 0))
+  @frame_base.args_to_kwargs(pd.Series, ignore=PD_VERSION >= (2, 0))
+  @frame_base.populate_defaults(pd.Series, ignore=PD_VERSION >= (2, 0))
   def append(self, to_append, ignore_index, verify_integrity, **kwargs):
     """``ignore_index=True`` is not supported, because it requires generating an
     order-sensitive index."""
+    if PD_VERSION >= (2, 0):
+      raise frame_base.WontImplementError('append() was removed in Pandas 2.0.')
     if not isinstance(to_append, DeferredSeries):
       raise frame_base.WontImplementError(
           "append() only accepts DeferredSeries instances, received " +
@@ -2593,12 +2595,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=requires_partition_by,
             preserves_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.with_docs_from(pd.DataFrame, ignore=PD_VERSION >= (2, 0))
+  @frame_base.args_to_kwargs(pd.DataFrame, ignore=PD_VERSION >= (2, 0))
+  @frame_base.populate_defaults(pd.DataFrame, ignore=PD_VERSION >= (2, 0))
   def append(self, other, ignore_index, verify_integrity, sort, **kwargs):
     """``ignore_index=True`` is not supported, because it requires generating an
     order-sensitive index."""
+    if PD_VERSION >= (2, 0):
+      raise frame_base.WontImplementError('append() was removed in Pandas 2.0.')
     if not isinstance(other, DeferredDataFrame):
       raise frame_base.WontImplementError(
           "append() only accepts DeferredDataFrame instances, received " +
