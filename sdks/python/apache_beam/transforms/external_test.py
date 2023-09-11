@@ -528,15 +528,19 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
     kwargs = {"int_field": 0, "str_field": "str"}
 
     transform = beam.SchemaAwareExternalTransform(
-        identifier=identifier, expansion_service=expansion_service, **kwargs)
-    ordered_kwargs = transform._rearrange_kwargs(identifier)
+        identifier=identifier,
+        expansion_service=expansion_service,
+        rearrange_based_on_discovery=True,
+        **kwargs)
+    payload = transform._payload_builder.build()
+    ordered_fields = [f.name for f in payload.configuration_schema.fields]
 
     schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
         expansion_service, identifier)
     external_config_fields = schematransform_config.configuration_schema._fields
 
     self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
-    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_fields), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

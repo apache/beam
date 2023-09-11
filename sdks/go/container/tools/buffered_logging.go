@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-const INITIAL_LOG_SIZE int = 255
+const initialLogSize int = 255
 
 // BufferedLogger is a wrapper around the FnAPI logging client meant to be used
 // in place of stdout and stderr in bootloader subprocesses. Not intended for
@@ -46,7 +46,7 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 	}
 	n, err := b.builder.Write(p)
 	if b.logs == nil {
-		b.logs = make([]string, 0, INITIAL_LOG_SIZE)
+		b.logs = make([]string, 0, initialLogSize)
 	}
 	b.logs = append(b.logs, b.builder.String())
 	b.builder.Reset()

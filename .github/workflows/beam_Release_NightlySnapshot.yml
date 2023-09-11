@@ -83,7 +83,7 @@ jobs:
             </servers>
           </settings>" > ${HOME}/.m2/settings.xml
       - name: run Publish script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: publish
-          arguments: -Ppublishing -PskipCheckerFramework -PisNightly
+        run: |
+          ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework \
+          --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
+          -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses
