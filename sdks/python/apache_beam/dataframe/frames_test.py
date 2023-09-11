@@ -797,6 +797,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.C.loc[df.A > 10], df)
     self._run_test(lambda df, s: df.loc[s.loc[1:3]], df, pd.Series(dates))
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_sort(self):
     # yapf: disable
     df1 = pd.DataFrame({'int': [1, 2, 3], 'str': ['a', 'b', 'c']},
@@ -985,6 +986,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))

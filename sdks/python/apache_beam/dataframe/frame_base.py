@@ -475,7 +475,7 @@ def maybe_inplace(func):
   return wrapper
 
 
-def args_to_kwargs(base_type):
+def args_to_kwargs(base_type, ignore=False):
   """Convert all args to kwargs before calling the decorated function.
 
   When applied to a function, this decorator creates a new function
@@ -484,8 +484,15 @@ def args_to_kwargs(base_type):
   determine the name to use for arguments that are converted to keyword
   arguments.
 
-  For internal use only. No backwards compatibility guarantees."""
+  ignore used mainly in cases where a method has been removed in a later version
+  of Pandas.
+
+  For internal use only. No backwards compatibility guarantees.
+  """
   def wrap(func):
+    if ignore:
+      return func
+
     arg_names = getfullargspec(unwrap(getattr(base_type, func.__name__))).args
 
     @functools.wraps(func)
@@ -524,14 +531,21 @@ EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
     f"**{BEAM_SPECIFIC!r}** for details.")
 
 
-def with_docs_from(base_type, name=None):
+def with_docs_from(base_type, name=None, ignore=False):
   """Decorator that updates the documentation from the wrapped function to
+
   duplicate the documentation from the identically-named method in `base_type`.
 
   Any docstring on the original function will be included in the new function
   under a "Differences from pandas" heading.
+
+  ignore used mainly in cases where a method has been removed in a later version
+  of Pandas.
   """
   def wrap(func):
+    if ignore:
+      return func
+
     fn_name = name or func.__name__
     orig_doc = getattr(base_type, fn_name).__doc__
     if orig_doc is None:
@@ -588,15 +602,22 @@ def with_docs_from(base_type, name=None):
   return wrap
 
 
-def populate_defaults(base_type):
+def populate_defaults(base_type, ignore=False):
   """Populate default values for keyword arguments in decorated function.
 
   When applied to a function, this decorator creates a new function
   with default values for all keyword arguments, based on the default values
   for the identically-named method on `base_type`.
 
-  For internal use only. No backwards compatibility guarantees."""
+  ignore used mainly in cases where a method has been removed in a later version
+  of Pandas.
+
+  For internal use only. No backwards compatibility guarantees.
+  """
   def wrap(func):
+    if ignore:
+      return func
+
     base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
     if not base_argspec.defaults:
       return func
