@@ -83,6 +83,19 @@ class RenderRunnerTest(unittest.TestCase):
     renderer.update(toggle=[create_transform_id])
     renderer.render_data()
 
+  def test_leaf_composite_filter(self):
+    try:
+      subprocess.run(['dot', '-V'], capture_output=True, check=True)
+    except FileNotFoundError:
+      self.skipTest('dot executable not installed')
+    p = beam.Pipeline()
+    _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
+    dot = render.PipelineRenderer(
+        p.to_runner_api(),
+        render.RenderOptions(['--render_leaf_composite_nodes=Create'],
+                             render_testing=True)).to_dot()
+    self.assertEqual(dot.count('->'), 1)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

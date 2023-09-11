@@ -32,12 +32,12 @@ on:
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -47,7 +47,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
 
 env:
@@ -114,3 +114,8 @@ jobs:
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/build/test-results/**/*.xml'

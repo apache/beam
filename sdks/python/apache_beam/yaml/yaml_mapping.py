@@ -158,10 +158,10 @@ def _PythonProjectionTransform(
     result = projected
 
   return result.as_result(
-      beam.MapTuple(
-          lambda element,
-          exc_info: beam.Row(
-              element=element, msg=str(exc_info[1]), stack=str(exc_info[2]))))
+      # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
+      beam.Map(
+          lambda x: beam.Row(
+              element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))))
 
 
 @beam.ptransform.ptransform_fn
