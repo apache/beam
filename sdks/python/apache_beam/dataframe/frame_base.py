@@ -475,10 +475,7 @@ def maybe_inplace(func):
   return wrapper
 
 
-def args_to_kwargs(
-    base_type: object,
-    removed_method: bool = False,
-    removed_args: list[str] | None = None):
+def args_to_kwargs(base_type, removed_method=False, removed_args=None):
   """Convert all args to kwargs before calling the decorated function.
 
   When applied to a function, this decorator creates a new function
@@ -552,8 +549,7 @@ EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
     f"**{BEAM_SPECIFIC!r}** for details.")
 
 
-def with_docs_from(
-    base_type: object, name: str = None, removed_method: bool = False):
+def with_docs_from(base_type: object, name=None, removed_method=False):
   """Decorator that updates the documentation from the wrapped function to
   duplicate the documentation from the identically-named method in `base_type`.
 
@@ -624,11 +620,7 @@ def with_docs_from(
   return wrap
 
 
-def populate_defaults(
-    base_type: object,
-    removed_method: bool = False,
-    removed_args: list[str] | None = None,
-    ignore: bool = False):
+def populate_defaults(base_type, removed_method=False, removed_args=None):
   """Populate default values for keyword arguments in decorated function.
 
   When applied to a function, this decorator creates a new function
