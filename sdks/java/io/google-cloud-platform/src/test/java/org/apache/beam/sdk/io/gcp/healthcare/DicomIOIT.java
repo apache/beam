@@ -23,6 +23,7 @@ import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
