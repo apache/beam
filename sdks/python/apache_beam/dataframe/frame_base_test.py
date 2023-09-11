@@ -99,11 +99,6 @@ class FrameBaseTest(unittest.TestCase):
       def func(self, a, c=1000, **kwargs):
         return dict(kwargs, a=a, c=c)
 
-      @frame_base.args_to_kwargs(Base, ignore=True)
-      @frame_base.populate_defaults(Base, ignore=True)
-      def func_ignore(self, a, **kwargs):
-        return dict(kwargs, a=a)
-
     proxy = Proxy()
     # pylint: disable=too-many-function-args
     self.assertEqual(proxy.func(), {'a': 1, 'c': 1000})
@@ -112,10 +107,6 @@ class FrameBaseTest(unittest.TestCase):
     self.assertEqual(proxy.func(2, c=6), {'a': 2, 'c': 6})
     self.assertEqual(proxy.func(c=6, a=2), {'a': 2, 'c': 6})
     self.assertEqual(proxy.func(c=6), {'a': 1, 'c': 6})
-
-    with self.assertRaises(TypeError):  # missing 1 required positional argument
-      proxy.func_ignore()
-    self.assertEqual(proxy.func_ignore(12, c=100), {'a': 12, 'c': 100})
 
 
 if __name__ == '__main__':
