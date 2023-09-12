@@ -134,7 +134,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         "f_float DOUBLE PRECISION, " + "f_char CHAR(10), " +
         "f_varchar VARCHAR(10), " + f"f_bytes {binary_type[0]}, " +
         f"f_varbytes {binary_type[1]}, " + "f_timestamp TIMESTAMP(3), " +
-        "f_decimal DECIMAL(10, 2), " + "f_date DATE, " + "f_time TIME)")
+        "f_decimal DECIMAL(10, 2), " + "f_date DATE, " + "f_time TIME(3))")
     inserted_rows = [
         JdbcTestRow(
             i,
@@ -149,7 +149,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
             Decimal(f'{i-1}.23'),
             # Test both date before or after EPOCH
             datetime.date(1969 + i, i % 12 + 1, i % 31 + 1),
-            datetime.time(i % 24, i % 60, i % 60, (i * 100) % 1_000_000))
+            datetime.time(i % 24, i % 60, i % 60, (i * 1000) % 1_000_000))
         for i in range(ROW_COUNT)
     ]
     expected_row = []
