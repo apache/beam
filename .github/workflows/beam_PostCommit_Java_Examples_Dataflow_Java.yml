@@ -52,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_Examples_Dataflow_Java:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.java_version}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
@@ -72,7 +72,7 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }}) ${{matrix.java_version}}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
       - name: Set up Java${{ matrix.java_version }}
         uses: actions/setup-java@v3.8.0
         with:

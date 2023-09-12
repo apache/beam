@@ -84,7 +84,7 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }}) ${{matrix.java_version}}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{matrix.java_version}})
       - name: Setup self-hosted
         uses: ./.github/actions/setup-self-hosted-action
         with:
