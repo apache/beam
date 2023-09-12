@@ -380,10 +380,11 @@ func setupAcceptableWheelSpecs() error {
 
 // installSetupPackages installs Beam SDK and user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
-	log.Printf("Installing setup packages ...")
+	bufLogger := tools.NewBufferedLogger(logger)
+	bufLogger.Printf(ctx, "Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
-		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+		bufLogger.Printf(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
 	pkgName := "apache-beam"

@@ -47,7 +47,7 @@ func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []s
 			// used without following their dependencies.
 			args := []string{"-m", "pip", "install", "-q", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
 			if err := execx.Execute(pythonVersion, args...); err != nil {
-				fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
+				bufLogger.Printf(ctx, "Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 			}
 			// The second install round opens up the search for packages on PyPI and
 			// also installs dependencies. The key is that if all the packages have
@@ -173,12 +173,13 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 	return nil
 }
 
-func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
+func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string, acceptableWhlSpecs []string) string {
+	bufLogger := tools.NewBufferedLogger(logger)
 	for _, file := range files {
 		if strings.HasPrefix(file, "apache_beam") {
 			for _, s := range acceptableWhlSpecs {
 				if strings.HasSuffix(file, s) {
-					log.Printf("Found Apache Beam SDK wheel: %v", file)
+					bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
 					return file
 				}
 			}
@@ -193,8 +194,8 @@ func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
 // file, and we try to install it. If not successful, we fall back to installing
 // SDK from source tarball provided in sdkSrcFile.
 func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
-	sdkWhlFile := findBeamSdkWhl(files, acceptableWhlSpecs)
-
+	sdkWhlFile := findBeamSdkWhl(ctx, logger, files, acceptableWhlSpecs)
+	bufLogger := tools.NewBufferedLogger(logger)
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed
 		isDev := strings.Contains(sdkWhlFile, ".dev")
@@ -202,7 +203,7 @@ func installSdk(ctx context.Context, logger *tools.Logger, files []string, workD
 		if err == nil {
 			return nil
 		}
-		log.Printf("Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
+		bufLogger.Printf(ctx, "Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
 	}
 	if !required {
 		_, err := os.Stat(filepath.Join(workDir, sdkSrcFile))

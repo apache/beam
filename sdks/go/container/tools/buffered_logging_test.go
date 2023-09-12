@@ -166,4 +166,22 @@ func TestBufferedLogger(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("direct print", func(t *testing.T) {
+		catcher := &logCatcher{}
+		l := &Logger{client: catcher}
+		bl := NewBufferedLogger(l)
+
+		bl.Printf(ctx, "foo %v", "bar")
+
+		received := catcher.msgs[0].GetLogEntries()[0]
+
+		if got, want := received.Message, "foo bar"; got != want {
+			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got message %q, want %q", got, want)
+		}
+
+		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
+			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got severity %v, want %v", got, want)
+		}
+	})
 }

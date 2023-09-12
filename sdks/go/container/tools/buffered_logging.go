@@ -17,6 +17,7 @@ package tools
 
 import (
 	"context"
+	"log"
 	"os"
 	"strings"
 )
@@ -75,4 +76,14 @@ func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 		b.logger.Printf(ctx, message)
 	}
 	b.logs = nil
+}
+
+// Prints directly to the logging service. If the logger is nil, prints directly to the
+// console. Used for the container pre-build workflow.
+func (b *BufferedLogger) Printf(ctx context.Context, format string, args ...any) {
+	if b.logger == nil {
+		log.Printf(format, args...)
+		return
+	}
+	b.logger.Printf(ctx, format, args...)
 }
