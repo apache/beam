@@ -25,7 +25,7 @@ go 1.20
 require (
 	cloud.google.com/go/bigquery v1.55.0
 	cloud.google.com/go/bigtable v1.19.0
-	cloud.google.com/go/datastore v1.13.0
+	cloud.google.com/go/datastore v1.14.0
 	cloud.google.com/go/profiler v0.3.1
 	cloud.google.com/go/pubsub v1.33.0
 	cloud.google.com/go/spanner v1.49.0
@@ -58,7 +58,7 @@ require (
 	golang.org/x/sys v0.12.0
 	golang.org/x/text v0.13.0
 	google.golang.org/api v0.140.0
-	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5
+	google.golang.org/genproto v0.0.0-20230821184602-ccc8af3d0e93
 	google.golang.org/grpc v1.58.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/retry.v1 v1.0.3
@@ -74,7 +74,7 @@ require (
 require dario.cat/mergo v1.0.0 // indirect
 
 require (
-	cloud.google.com/go v0.110.6 // indirect
+	cloud.google.com/go v0.110.7 // indirect
 	cloud.google.com/go/compute v1.23.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.1 // indirect
