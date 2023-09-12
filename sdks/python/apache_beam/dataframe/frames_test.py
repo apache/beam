@@ -813,6 +813,13 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
 
+  @unittest.skipIf(PD_VERSION < (2, 0), 'append removed in Pandas 2.0')
+  def test_append_raises_pandas_2(self):
+    df = pd.DataFrame({'A': [1, 1]})
+
+    with self.assertRaises(NotImplementedError):
+      df.append(df)
+
   def test_smallest_largest(self):
     df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
