@@ -233,7 +233,7 @@ with pipeline as p:
 ```
 
 The previous example loads a model by using `config1`. That model is then used for inference for all examples associated
-with `key1`. It then loads a model by using `config2`. That model is used for all examples associated with `key2` and `key3`.
+with `key1`. It also loads a model by using `config2`. That model is used for all examples associated with `key2` and `key3`.
 
 Loading multiple models at the same times increases the risk of out of memory (OOM) errors. By default, `KeyedModelHandler` doesn't
 limit the number of models loaded into memory at the same time. If the models don't all fit into memory,
