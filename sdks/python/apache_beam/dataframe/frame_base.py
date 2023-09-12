@@ -550,7 +550,7 @@ EXAMPLES_DIFFERENCES = EXAMPLES_DISCLAIMER + (
     f"**{BEAM_SPECIFIC!r}** for details.")
 
 
-def with_docs_from(base_type: object, name=None, removed_method=False):
+def with_docs_from(base_type, name=None, removed_method=False):
   """Decorator that updates the documentation from the wrapped function to
   duplicate the documentation from the identically-named method in `base_type`.
 
