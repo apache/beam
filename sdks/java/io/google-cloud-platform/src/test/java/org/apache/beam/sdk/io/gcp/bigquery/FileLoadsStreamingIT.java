@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -219,6 +220,9 @@ public class FileLoadsStreamingIT {
     // Testing this dimension on DirectRunner is sufficient
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue("Skipping in favor of more relevant test case", useInputSchema);
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     }
 
     List<String> fieldNamesOrigin = Arrays.asList(FIELDS);
@@ -341,6 +345,9 @@ public class FileLoadsStreamingIT {
     // sufficient
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue("Skipping in favor of more relevant test case", useInputSchema);
+      // Need to manually enable streaming engine for legacy dataflow runner
+      ExperimentalOptions.addExperiment(
+          p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     }
 
     List<String> allFields = Arrays.asList(FIELDS);
