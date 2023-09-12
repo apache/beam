@@ -224,7 +224,7 @@ public class FnHarness {
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
 
-    final DataSampler dataSampler = DataSampler.create(options);
+    final @Nullable DataSampler dataSampler = DataSampler.create(options);
 
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
@@ -335,7 +335,12 @@ public class FnHarness {
           InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
           processWideHandler::harnessMonitoringInfos);
       handlers.put(
-          InstructionRequest.RequestCase.SAMPLE_DATA, dataSampler::handleDataSampleRequest);
+          InstructionRequest.RequestCase.SAMPLE_DATA,
+          request ->
+              dataSampler == null
+                  ? BeamFnApi.InstructionResponse.newBuilder()
+                      .setSampleData(BeamFnApi.SampleDataResponse.newBuilder())
+                  : dataSampler.handleDataSampleRequest(request));
 
       JvmInitializers.runBeforeProcessing(options);
 
