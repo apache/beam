@@ -482,11 +482,11 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     from the cohort. When model updates occur, the metrics will be reported in
     the form `<cohort_key>-<model id>-<metric_name>`.
 
-    Loading multiple models at once can introduce greater risks of an Out of
-    Memory (OOM) exception. To avoid this, you can use the parameter
-    `max_models_per_worker_hint` to limit the number of models loaded at once.
-    For more information on memory management, see
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler
+    Loading multiple models at the same time can increase the risk of an out of
+    memory (OOM) exception. To avoid this issue, use the parameter
+    `max_models_per_worker_hint` to limit the number of models that are loaded at the same time.
+    For more information about memory management, see
+    [Use a keyed `ModelHandler`](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler).
 
 
     Args:
@@ -497,9 +497,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         models can be held in memory at one time per worker process. For
         example, if your worker has 8 GB of memory provisioned and your workers
         take up 1 GB each, you should set this to 7 to allow all models to sit
-        in memory with some buffer. For more information on memory management,
+        in memory with some buffer. For more information about memory management,
         see
-        https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler
+        [Use a keyed `ModelHandler`](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler).
     """
     self._metrics_collectors: Dict[str, _MetricsCollector] = {}
     self._default_metrics_collector: _MetricsCollector = None
