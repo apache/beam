@@ -1685,8 +1685,15 @@ class GroupByTest(_AbstractFrameTest):
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
 
+    kwargs = {}
+    # Behavior for numeric_only in these methods changed in Pandas 2 to default
+    # to False instead of True, so explicitly make it True in Pandas 2.
+    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov', 'quantile'):
+      kwargs["numeric_only"] = True
+
     self._run_test(
-        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
+        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)
+        (**kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1900,12 +1907,19 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
+
+    kwargs = {}
+    # Behavior for numeric_only in these methods changed in Pandas 2 to default
+    # to False instead of True, so explicitly make it True in Pandas 2.
+    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov', 'quantile'):
+      kwargs["numeric_only"] = True
+
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
+        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type, **kwargs),
         GROUPBY_DF,
         check_proxy=False)
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type),
+        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type, **kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
