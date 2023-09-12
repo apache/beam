@@ -520,7 +520,8 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
       # Still have to populate these for the Beam function signature.
       if removed_args:
         for name in removed_args:
-          kwargs[name] = None
+          if not name in kwargs:
+            kwargs[name] = None
       return func(**kwargs)
 
     return wrapper
