@@ -914,8 +914,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         ))
 
   @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame, removed_args=["errors"] if PD_VERSION >= (2,0) else None)
-  @frame_base.populate_defaults(pd.DataFrame, removed_args=["errors"] if PD_VERSION >= (2,0) else None)
+  @frame_base.args_to_kwargs(
+      pd.DataFrame, removed_args=["errors"] if PD_VERSION >= (2, 0) else None)
+  @frame_base.populate_defaults(
+      pd.DataFrame, removed_args=["errors"] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def where(self, cond, other, errors, **kwargs):
     """where is not parallelizable when ``errors="ignore"`` is specified."""
@@ -1608,8 +1610,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return self.sum(skipna=skipna, **kwargs) / size
 
   @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series, removed_args=["level"] if PD_VERSION >= (2,0) else None)
-  @frame_base.populate_defaults(pd.Series, removed_args=["level"] if PD_VERSION >= (2,0) else None)
+  @frame_base.args_to_kwargs(
+      pd.Series, removed_args=["level"] if PD_VERSION >= (2, 0) else None)
+  @frame_base.populate_defaults(
+      pd.Series, removed_args=["level"] if PD_VERSION >= (2, 0) else None)
   def var(self, axis, skipna, level, ddof, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
@@ -1678,8 +1682,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               requires_partition_by=partitionings.Singleton(reason=reason)))
 
   @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series, removed_args=["level"] if PD_VERSION >= (2,0) else None)
-  @frame_base.populate_defaults(pd.Series, removed_args=["level"] if PD_VERSION >= (2,0) else None)
+  @frame_base.args_to_kwargs(
+      pd.Series, removed_args=["level"] if PD_VERSION >= (2, 0) else None)
+  @frame_base.populate_defaults(
+      pd.Series, removed_args=["level"] if PD_VERSION >= (2, 0) else None)
   def skew(self, axis, skipna, level, numeric_only, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
@@ -1740,8 +1746,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               requires_partition_by=partitionings.Singleton()))
 
   @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series, removed_args=["level"] if PD_VERSION >= (2,0) else None)
-  @frame_base.populate_defaults(pd.Series, removed_args=["level"] if PD_VERSION >= (2,0) else None)
+  @frame_base.args_to_kwargs(
+      pd.Series, removed_args=["level"] if PD_VERSION >= (2, 0) else None)
+  @frame_base.populate_defaults(
+      pd.Series, removed_args=["level"] if PD_VERSION >= (2, 0) else None)
   def kurtosis(self, axis, skipna, level, numeric_only, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
