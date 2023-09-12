@@ -247,8 +247,10 @@ class DataSampler:
     enable_data_sampling = DataSampler._ENABLE_DATA_SAMPLING in experiments
 
     if enable_data_sampling or always_on_exception_sampling:
+      sample_only_exceptions = (
+          always_on_exception_sampling and not enable_data_sampling)
       return DataSampler(
-          sample_only_exceptions=always_on_exception_sampling, **kwargs)
+          sample_only_exceptions=sample_only_exceptions, **kwargs)
     else:
       return None
 
