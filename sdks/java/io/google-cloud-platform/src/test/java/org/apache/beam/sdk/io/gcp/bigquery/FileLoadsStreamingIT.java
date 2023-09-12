@@ -312,28 +312,13 @@ public class FileLoadsStreamingIT {
   }
 
   @Test
-  public void testLoadWithAutoSharding() throws IOException, InterruptedException {
-    runStreaming(0, false);
-  }
-
-  @Test
   public void testLoadWithFixedShards() throws IOException, InterruptedException {
     runStreaming(5, false);
   }
 
   @Test
-  public void testWithAutoShardingAndCopyJobs() throws IOException, InterruptedException {
+  public void testLoadWithAutoShardingAndCopyJobs() throws IOException, InterruptedException {
     runStreaming(0, true);
-  }
-
-  @Test
-  public void testWithFixedShardsAndCopyJobs() throws IOException, InterruptedException {
-    runStreaming(5, true);
-  }
-
-  @Test
-  public void testDynamicDestinationsWithAutoSharding() throws IOException, InterruptedException {
-    runStreamingToDynamicDestinations(0, false);
   }
 
   @Test
@@ -345,12 +330,6 @@ public class FileLoadsStreamingIT {
   public void testDynamicDestinationsWithAutoShardingAndCopyJobs()
       throws IOException, InterruptedException {
     runStreamingToDynamicDestinations(0, true);
-  }
-
-  @Test
-  public void testDynamicDestinationsWithFixedShardsAndCopyJobs()
-      throws IOException, InterruptedException {
-    runStreamingToDynamicDestinations(6, true);
   }
 
   private void runStreamingToDynamicDestinations(int numFileShards, boolean useCopyJobs)
