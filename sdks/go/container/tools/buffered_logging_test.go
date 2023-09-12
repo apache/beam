@@ -18,6 +18,7 @@ package tools
 import (
 	"context"
 	"testing"
+	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
@@ -182,6 +183,43 @@ func TestBufferedLogger(t *testing.T) {
 
 		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got severity %v, want %v", got, want)
+		}
+	})
+
+	t.Run("debug flush at interval", func(t *testing.T) {
+		catcher := &logCatcher{}
+		l := &Logger{client: catcher}
+		interval := time.Duration(5e9)
+		bl := NewBufferedLoggerWithFlushInterval(context.Background(), l, interval)
+
+		messages := []string{"foo", "bar", "baz"}
+
+		for _, message := range messages {
+			// Pause for four seconds before each message
+			time.Sleep(2e9)
+			messBytes := []byte(message)
+			n, err := bl.Write(messBytes)
+
+			if err != nil {
+				t.Errorf("got error %v", err)
+			}
+			if got, want := n, len(messBytes); got != want {
+				t.Errorf("got %d bytes written, want %d", got, want)
+			}
+		}
+
+		// Type should have auto-flushed at debug after the third message
+		// (12 seconds > 10 second interval)
+		received := catcher.msgs[0].GetLogEntries()
+
+		for i, message := range received {
+			if got, want := message.Message, messages[i]; got != want {
+				t.Errorf("got message %q, want %q", got, want)
+			}
+
+			if got, want := message.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
+				t.Errorf("got severity %v, want %v", got, want)
+			}
 		}
 	})
 }

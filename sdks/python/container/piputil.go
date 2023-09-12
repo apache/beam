@@ -21,11 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
@@ -77,13 +77,15 @@ func isPackageInstalled(pkgName string) bool {
 	return true
 }
 
+const pipLogFlushInterval time.Duration = time.Duration(5e9)
+
 // pipInstallPackage installs the given package, if present.
 func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional bool, extras []string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	bufLogger := tools.NewBufferedLogger(logger)
+	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
 	for _, file := range files {
 		if file == name {
 			var packageSpec = name
@@ -146,6 +148,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 // installExtraPackages installs all the packages declared in the extra
 // packages manifest file.
 func installExtraPackages(ctx context.Context, logger *tools.Logger, files []string, extraPackagesFile, dir string) error {
+	bufLogger := tools.NewBufferedLogger(logger)
 	// First check that extra packages manifest file is present.
 	for _, file := range files {
 		if file != extraPackagesFile {
@@ -163,7 +166,7 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 
 		for s.Scan() {
 			extraPackage := s.Text()
-			log.Printf("Installing extra package: %s", extraPackage)
+			bufLogger.Printf(ctx, "Installing extra package: %s", extraPackage)
 			if err = pipInstallPackage(ctx, logger, files, dir, extraPackage, true, false, nil); err != nil {
 				return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
 			}

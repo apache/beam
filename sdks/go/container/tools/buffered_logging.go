@@ -18,8 +18,10 @@ package tools
 import (
 	"context"
 	"log"
+	"math"
 	"os"
 	"strings"
+	"time"
 )
 
 const initialLogSize int = 255
@@ -28,14 +30,23 @@ const initialLogSize int = 255
 // in place of stdout and stderr in bootloader subprocesses. Not intended for
 // Beam end users.
 type BufferedLogger struct {
-	logger  *Logger
-	builder strings.Builder
-	logs    []string
+	logger               *Logger
+	builder              strings.Builder
+	logs                 []string
+	lastFlush            time.Time
+	flushInterval        time.Duration
+	periodicFlushContext context.Context
 }
 
 // NewBufferedLogger returns a new BufferedLogger type by reference.
 func NewBufferedLogger(logger *Logger) *BufferedLogger {
-	return &BufferedLogger{logger: logger}
+	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: time.Duration(math.MaxInt64), periodicFlushContext: context.Background()}
+}
+
+// NewBufferedLoggerWithFlushInterval returns a new BufferedLogger type by reference. This type will
+// flush logs periodically on Write() calls as well as when Flush*() functions are called.
+func NewBufferedLoggerWithFlushInterval(ctx context.Context, logger *Logger, interval time.Duration) *BufferedLogger {
+	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: interval, periodicFlushContext: ctx}
 }
 
 // Write implements the io.Writer interface, converting input to a string
@@ -51,6 +62,9 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 	}
 	b.logs = append(b.logs, b.builder.String())
 	b.builder.Reset()
+	if time.Since(b.lastFlush) > b.flushInterval {
+		b.FlushAtDebug(b.periodicFlushContext)
+	}
 	return n, err
 }
 
