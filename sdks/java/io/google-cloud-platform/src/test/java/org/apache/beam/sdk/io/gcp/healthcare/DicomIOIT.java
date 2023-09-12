@@ -63,9 +63,13 @@ public class DicomIOIT {
 
   @Before
   public void setup() throws IOException, URISyntaxException {
-    client.createDicomStore(healthcareDataset, dicomStoreName);
-    client.createDicomStore(healthcareDataset, deidDicomStoreName);
+    try {
+      client.createDicomStore(healthcareDataset, dicomStoreName);
+      client.createDicomStore(healthcareDataset, deidDicomStoreName);
+    } catch (IOException e) {
+    // Do nothing.
   }
+}
 
   @After
   public void deleteAllDicomStores() {
