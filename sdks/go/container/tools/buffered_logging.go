@@ -78,6 +78,7 @@ func (b *BufferedLogger) FlushAtError(ctx context.Context) {
 		b.logger.Errorf(ctx, message)
 	}
 	b.logs = nil
+	b.lastFlush = time.Now()
 }
 
 // FlushAtDebug flushes the contents of the buffer to the logging
@@ -90,6 +91,7 @@ func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 		b.logger.Printf(ctx, message)
 	}
 	b.logs = nil
+	b.lastFlush = time.Now()
 }
 
 // Prints directly to the logging service. If the logger is nil, prints directly to the
