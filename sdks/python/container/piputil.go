@@ -77,7 +77,7 @@ func isPackageInstalled(pkgName string) bool {
 	return true
 }
 
-const pipLogFlushInterval time.Duration = time.Duration(5e9)
+const pipLogFlushInterval time.Duration = 5 * time.Second
 
 // pipInstallPackage installs the given package, if present.
 func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional bool, extras []string) error {

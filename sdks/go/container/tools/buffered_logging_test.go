@@ -189,14 +189,18 @@ func TestBufferedLogger(t *testing.T) {
 	t.Run("debug flush at interval", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}
-		interval := time.Duration(5e9)
+		interval := 5 * time.Second
 		bl := NewBufferedLoggerWithFlushInterval(context.Background(), l, interval)
 
-		messages := []string{"foo", "bar", "baz"}
+		startTime := time.Now()
+		bl.now = func() time.Time { return startTime }
 
-		for _, message := range messages {
-			// Pause for four seconds before each message
-			time.Sleep(2e9)
+		messages := []string{"foo", "bar"}
+
+		for i, message := range messages {
+			if i > 1 {
+				bl.now = func() time.Time { return startTime.Add(6 * time.Second) }
+			}
 			messBytes := []byte(message)
 			n, err := bl.Write(messBytes)
 
@@ -208,9 +212,21 @@ func TestBufferedLogger(t *testing.T) {
 			}
 		}
 
+		lastMessage := "baz"
+		bl.now = func() time.Time { return startTime.Add(6 * time.Second) }
+		messBytes := []byte(lastMessage)
+		n, err := bl.Write(messBytes)
+
+		if err != nil {
+			t.Errorf("got error %v", err)
+		}
+		if got, want := n, len(messBytes); got != want {
+			t.Errorf("got %d bytes written, want %d", got, want)
+		}
+
 		// Type should have auto-flushed at debug after the third message
-		// (12 seconds > 10 second interval)
 		received := catcher.msgs[0].GetLogEntries()
+		messages = append(messages, lastMessage)
 
 		for i, message := range received {
 			if got, want := message.Message, messages[i]; got != want {
