@@ -67,9 +67,9 @@ public class DicomIOIT {
       client.createDicomStore(healthcareDataset, dicomStoreName);
       client.createDicomStore(healthcareDataset, deidDicomStoreName);
     } catch (IOException e) {
-    // Do nothing.
+      // Do nothing.
+    }
   }
-}
 
   @After
   public void deleteAllDicomStores() {
