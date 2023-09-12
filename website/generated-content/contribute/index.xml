@@ -1605,18 +1605,18 @@ Ask other contributors to do the same.&lt;/p>
 &lt;li>Change the value for _SDK_TAG variable (Advanced -&amp;gt; Substitution Variables) to the actual version of Beam SDK (e.g. 2.47.0)&lt;/li>
 &lt;li>Click the Save button. The settings window should close without any errors&lt;/li>
 &lt;li>Click the RUN button next to the trigger name&lt;/li>
-&lt;li>Set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)&lt;/li>
+&lt;li>In the panel that opened, set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)&lt;/li>
 &lt;li>Click the Run Trigger button&lt;/li>
 &lt;li>Open the &lt;a href="https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing">Trigger History&lt;/a> and wait for the job completion. Ensure that the job completed successfully (Status field shows a green tick)&lt;/li>
 &lt;/ol>
 &lt;/li>
-&lt;li>Find the trigger &amp;ldquo;Playground-CD-stable-manual-stg&amp;rdquo;:
+&lt;li>Find the trigger &amp;ldquo;Playground-CD-stable-manual-stg&amp;rdquo;, it will be run twice, once with default variables, and once with some overridden:
 &lt;ol>
 &lt;li>Click the RUN button next to the trigger name&lt;/li>
-&lt;li>Click the Run Trigger button (with default varaible vaues)&lt;/li>
+&lt;li>In the panel that opened, click the Run Trigger button (with default variable values)&lt;/li>
 &lt;li>Open the &lt;a href="https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing">Trigger History&lt;/a> and wait for the job completion. Ensure that the job completed successfully (Status field shows a green tick)&lt;/li>
 &lt;li>Click the RUN button next to the trigger name&lt;/li>
-&lt;li>Change values for the variables:
+&lt;li>In the panel that opened, change values for the variables:
 &lt;ul>
 &lt;li>_ORIGIN = PG_BEAMDOC&lt;/li>
 &lt;li>_SUBDIRS = ./learning/beamdoc&lt;/li>
