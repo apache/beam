@@ -272,8 +272,7 @@ func makePipelineOptionsFile(options string) error {
 func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
 	if setRecommendedMaxXmx {
 		return 32 << 30
-	}
-	else if size, err := syscallx.PhysicalMemorySize(); err == nil {
+	} else if size, err := syscallx.PhysicalMemorySize(); err == nil {
 		return (size * 70) / 100
 	}
 	return 1 << 30
