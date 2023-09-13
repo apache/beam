@@ -400,7 +400,7 @@ class DataSamplerTest(unittest.TestCase):
     b_sampler.element_sampler.el = 'b'
     b_sampler.element_sampler.has_element = True
 
-    samples = self.data_sampler.wait_for_samples([])
+    samples = self.data_sampler.wait_for_samples(['a', 'b'])
     self.assertEqual(len(samples.element_samples), 2)
     self.assertTrue(
         samples.element_samples['a'].elements[0].HasField('exception'))
