@@ -2936,7 +2936,7 @@ class DocstringTest(unittest.TestCase):
       (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
-      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames._DeferredStringMethods, pd.Series.str),
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),
