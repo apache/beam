@@ -13,21 +13,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit SQL Java11
+name: PreCommit Java GCP IO Direct
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java11.yml']
+    paths:
+      - "runners/core-construction-java/**"
+      - "runners/core-java/**"
+      - "sdks/java/core/src/main/**"
+      - "sdks/java/extensions/arrow/**"
+      - "sdks/java/extensions/google-cloud-platform-core/**"
+      - "sdks/java/extensions/protobuf/**"
+      - "sdks/java/testing/test-utils/**"
+      - "sdks/java/io/common/**"
+      - "sdks/java/io/expansion-service/**"
+      - "sdks/java/io/google-cloud-platform/**"
+      - ".github/workflows/beam_PreCommit_Java_GCP_IO_Direct.yml"
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: [sdks/java/extensions/sql/**]
+    paths:
+      - "runners/core-construction-java/**"
+      - "runners/core-java/**"
+      - "sdks/java/core/src/main/**"
+      - "sdks/java/extensions/arrow/**"
+      - "sdks/java/extensions/google-cloud-platform-core/**"
+      - "sdks/java/extensions/protobuf/**"
+      - "sdks/java/testing/test-utils/**"
+      - "sdks/java/io/common/**"
+      - "sdks/java/io/expansion-service/**"
+      - "sdks/java/io/google-cloud-platform/**"
   issue_comment:
     types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -39,37 +76,21 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
-# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
-permissions:
-    actions: write
-    pull-requests: read
-    checks: write
-    contents: read
-    deployments: read
-    id-token: none
-    issues: read
-    discussions: read
-    packages: read
-    pages: read
-    repository-projects: read
-    security-events: read
-    statuses: read
-
 jobs:
-  beam_PreCommit_SQL_Java11:
+  beam_PreCommit_Java_GCP_IO_Direct:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
-        job_name: [beam_PreCommit_SQL_Java11]
-        job_phrase: [Run SQL_Java11 PreCommit]
+        job_name: ["beam_PreCommit_Java_GCP_IO_Direct"]
+        job_phrase: ["Run Java_GCP_IO_Direct PreCommit"]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run SQL_Java11 PreCommit'
+      github.event.comment.body == 'Run Java_GCP_IO_Direct PreCommit'
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
@@ -78,47 +99,24 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
-        uses: actions/setup-java@v3.8.0
-        with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.10.4'
-          channel: 'stable'
-      - name: Build and Test
+      - name: run PreCommit Java GCP IO Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sqlPreCommit
+          gradle-command: |
+            :sdks:java:io:google-cloud-platform:build \
+            :sdks:java:io:google-cloud-platform:expansion-service:build \
+            :sdks:java:io:google-cloud-platform:postCommit \
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PcompileAndRunTestsWithJava11 \
-            -PskipCheckerFramework \
-            -Pjava11Home=$JAVA_HOME_11_X64 \
-      - name: Archive JUnit Test Results
+            -PenableJacocoReport \
+      - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
-          name: JUnit Test Results
-          path: '**/build/test-results/**/*.xml'
+          name: java-code-coverage-report
+          path: "**/build/test-results/**/*.xml"
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v3
         with:
           name: SpotBugs Results
-          path: '**/build/reports/spotbugs/*.html'
-      - name: Publish SpotBugs Results
-        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
-        if: always()
-        with:
-          name: SpotBugs
-          path: '**/build/reports/spotbugs/*.html'
+          path: "**/build/reports/spotbugs/*.html"
