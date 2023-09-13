@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
@@ -73,18 +74,11 @@ public class DicomIO {
   private static final String LRO_FAILURE_KEY = "failure";
   private static final Logger LOG = LoggerFactory.getLogger(DicomIO.class);
 
-  public static Deidentify deidentify(
-      String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidConfig) {
-    return new Deidentify(
-        StaticValueProvider.of(sourceDicomStore),
-        StaticValueProvider.of(destinationDicomStore),
-        StaticValueProvider.of(deidConfig));
-  }
 
   public static Deidentify deidentify(
-      ValueProvider<String> sourceDicomStore,
-      ValueProvider<String> destinationDicomStore,
-      ValueProvider<DeidentifyConfig> deidConfig) {
+      String sourceDicomStore,
+      String destinationDicomStore,
+      DeidentifyConfig deidConfig) {
     return new Deidentify(sourceDicomStore, destinationDicomStore, deidConfig);
   }
 
@@ -303,7 +297,7 @@ public class DicomIO {
     public PCollection<String> expand(PBegin input) {
       return input
           .getPipeline()
-          .apply(Create.ofProvider(sourceDicomStore, StringUtf8Coder.of()))
+          .apply(Create.of(sourceDicomStore, StringUtf8Coder.of()))
           .apply(
               "ScheduleDeidentifyDicomStoreOperations",
               ParDo.of(new DeidentifyFn(destinationDicomStore, deidConfig)));
@@ -331,7 +325,7 @@ public class DicomIO {
     // try catch the IO exceptions
     public static class DeidentifyFn extends DoFn<String, String> {
 
-      private transient @MonotonicNotNull HealthcareApiClient dicomStore;
+      private transient @MonotonicNonNull HttpHealthcareApiClient dicomStore;
       private final String destinationDicomStore;
       private static final Gson GSON = new Gson();
       private final String deidConfigJson;
@@ -339,7 +333,7 @@ public class DicomIO {
       public DeidentifyFn(
           String destinationDicomStore, DeidentifyConfig deidConfig) {
         this.destinationDicomStore = destinationDicomStore;
-        this.deidConfigJson = GSON.toJson(deidConfig.get());
+        this.deidConfigJson = GSON.toJson(deidConfig);
       }
 
       @Setup
@@ -350,7 +344,7 @@ public class DicomIO {
       @ProcessElement
       public void deidentify(@Element String sourceDicomStore, OutputReceiver<String> receiver) throws IOException, InterruptedException {
         HttpHealthcareApiClient safeClient = checkStateNotNull(dicomStore);
-        String destinationDicomStore = this.destinationDicomStore.get();
+        String destinationDicomStore = this.destinationDicomStore;
         DeidentifyConfig deidConfig = GSON.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
             safeClient.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
