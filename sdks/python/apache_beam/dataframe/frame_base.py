@@ -484,11 +484,14 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
   determine the name to use for arguments that are converted to keyword
   arguments.
 
-  removed_method used in cases where a method has been removed in a later
-  version of Pandas. removed_args used in cases where a method has had
-  arguments removed in a later version of Pandas.
-
   For internal use only. No backwards compatibility guarantees.
+
+  Args:
+      base_type: The pandas type of the method that this is trying to replicate.
+      removed_method: Whether this method has been removed in the running
+           Pandas version.
+      removed_args: If not empty, which arguments have been dropped in the
+           running Pandas version.
   """
   def wrap(func):
     if removed_method:
@@ -629,11 +632,14 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
   with default values for all keyword arguments, based on the default values
   for the identically-named method on `base_type`.
 
-  removed_method used in cases where a method has been removed in a later
-  version of Pandas. removed_args used in cases where a method has had
-  arguments removed in a later version of Pandas.
-
   For internal use only. No backwards compatibility guarantees.
+
+  Args:
+      base_type: The pandas type of the method that this is trying to replicate.
+      removed_method: Whether this method has been removed in the running
+           Pandas version.
+      removed_args: If not empty, which arguments have been dropped in the
+           running Pandas version.
   """
   def wrap(func):
     if removed_method:
