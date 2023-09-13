@@ -2044,6 +2044,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).bar.count(level=0),
@@ -2067,6 +2068,7 @@ class AggregationTest(_AbstractFrameTest):
         lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
         GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_dataframe_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).count(level=0), GROUPBY_DF)
@@ -2234,6 +2236,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_error_test(
         lambda df: df.median(min_count=3, numeric_only=True), GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_agg_min_count(self):
     df = pd.DataFrame({
         'good': [1, 2, 3, np.nan],
