@@ -333,6 +333,10 @@ public class Create<T> {
       return elems;
     }
 
+    public @Nullable Coder<T> getCoder() {
+      return coder.isPresent() ? coder.get() : null;
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       Coder<T> coder;
