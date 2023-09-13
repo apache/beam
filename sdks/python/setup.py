@@ -142,7 +142,7 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
+  pyarrow_dependency = 'pyarrow>=3.0.0,<14.0.0'
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
