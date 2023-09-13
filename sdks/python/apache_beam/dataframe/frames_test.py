@@ -797,6 +797,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.C.loc[df.A > 10], df)
     self._run_test(lambda df, s: df.loc[s.loc[1:3]], df, pd.Series(dates))
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_sort(self):
     # yapf: disable
     df1 = pd.DataFrame({'int': [1, 2, 3], 'str': ['a', 'b', 'c']},
@@ -985,6 +986,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
@@ -1683,8 +1685,15 @@ class GroupByTest(_AbstractFrameTest):
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
 
+    kwargs = {}
+    # Behavior for numeric_only in these methods changed in Pandas 2 to default
+    # to False instead of True, so explicitly make it True in Pandas 2.
+    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov', 'quantile'):
+      kwargs["numeric_only"] = True
+
     self._run_test(
-        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
+        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)
+        (**kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1898,12 +1907,19 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
+
+    kwargs = {}
+    # Behavior for numeric_only in these methods changed in Pandas 2 to default
+    # to False instead of True, so explicitly make it True in Pandas 2.
+    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov', 'quantile'):
+      kwargs["numeric_only"] = True
+
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
+        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type, **kwargs),
         GROUPBY_DF,
         check_proxy=False)
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type),
+        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type, **kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -2042,6 +2058,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).bar.count(level=0),
@@ -2065,6 +2082,7 @@ class AggregationTest(_AbstractFrameTest):
         lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
         GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_dataframe_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).count(level=0), GROUPBY_DF)
@@ -2232,6 +2250,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_error_test(
         lambda df: df.median(min_count=3, numeric_only=True), GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_agg_min_count(self):
     df = pd.DataFrame({
         'good': [1, 2, 3, np.nan],
@@ -2936,7 +2955,7 @@ class DocstringTest(unittest.TestCase):
       (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
-      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames._DeferredStringMethods, pd.Series.str),
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),
