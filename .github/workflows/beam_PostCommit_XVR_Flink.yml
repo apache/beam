@@ -87,7 +87,6 @@ jobs:
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
             -PskipNonPythonTask=true \
-            --no-parallel \
       - name: run PostCommit XVR Flink script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
@@ -98,7 +97,6 @@ jobs:
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
             -PskipNonPythonTask=false \
-            --no-parallel \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         if: always()
