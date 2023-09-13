@@ -45,6 +45,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
@@ -285,14 +286,14 @@ public class DicomIO {
   /** Deidentify DICOM resources from a DICOM store to a destination DICOM store. */
   public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
 
-    private final ValueProvider<String> sourceDicomStore;
-    private final ValueProvider<String> destinationDicomStore;
-    private final ValueProvider<DeidentifyConfig> deidConfig;
+    private final String sourceDicomStore;
+    private final String destinationDicomStore;
+    private final DeidentifyConfig deidConfig;
 
     public Deidentify(
-        ValueProvider<String> sourceDicomStore,
-        ValueProvider<String> destinationDicomStore,
-        ValueProvider<DeidentifyConfig> deidConfig) {
+        String sourceDicomStore,
+        String destinationDicomStore,
+        DeidentifyConfig deidConfig) {
       this.sourceDicomStore = sourceDicomStore;
       this.destinationDicomStore = destinationDicomStore;
       this.deidConfig = deidConfig;
@@ -324,35 +325,36 @@ public class DicomIO {
     }
 
     /** A function that schedules a deidentify operation and monitors the status. */
+    // Corrections: remove valueprovider, all caps for private static final.
+    // when instantiating DoFn
+    // private static final TupleTag<String> SUCCESS = new TupleTag<String>(){};
+    // try catch the IO exceptions
     public static class DeidentifyFn extends DoFn<String, String> {
 
-      private HealthcareApiClient dicomStore;
-      private final ValueProvider<String> destinationDicomStore;
-      private static final Gson gson = new Gson();
+      private transient @MonotonicNotNull HealthcareApiClient dicomStore;
+      private final String destinationDicomStore;
+      private static final Gson GSON = new Gson();
       private final String deidConfigJson;
 
       public DeidentifyFn(
-          ValueProvider<String> destinationDicomStore, ValueProvider<DeidentifyConfig> deidConfig) {
+          String destinationDicomStore, DeidentifyConfig deidConfig) {
         this.destinationDicomStore = destinationDicomStore;
-        this.deidConfigJson = gson.toJson(deidConfig.get());
-        Preconditions.checkArgumentNotNull(dicomStore);
+        this.deidConfigJson = GSON.toJson(deidConfig.get());
       }
 
       @Setup
       public void instantiateHealthcareClient() throws IOException {
-        if (dicomStore == null) {
-          this.dicomStore = new HttpHealthcareApiClient();
-        }
+        this.dicomStore = new HttpHealthcareApiClient();
       }
 
       @ProcessElement
-      public void deidentify(ProcessContext context) throws IOException, InterruptedException {
-        String sourceDicomStore = context.element();
+      public void deidentify(@Element String sourceDicomStore, OutputReceiver<String> receiver) throws IOException, InterruptedException {
+        HttpHealthcareApiClient safeClient = checkStateNotNull(dicomStore);
         String destinationDicomStore = this.destinationDicomStore.get();
-        DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
+        DeidentifyConfig deidConfig = GSON.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
-            dicomStore.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
-        operation = dicomStore.pollOperation(operation, 15000L);
+            safeClient.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
+        operation = safeClient.pollOperation(operation, 15000L);
         incrementLroCounters(
             operation,
             LroCounters.DEIDENTIFY_OPERATION_SUCCESS,
@@ -363,7 +365,7 @@ public class DicomIO {
           throw new IOException(
               String.format("DeidentifyDicomStore operation (%s) failed.", operation.getName()));
         }
-        context.output(destinationDicomStore);
+        receiver.output(destinationDicomStore);
       }
     }
   }
