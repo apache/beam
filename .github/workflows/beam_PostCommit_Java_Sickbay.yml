@@ -21,7 +21,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '29 6 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
