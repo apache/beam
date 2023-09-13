@@ -93,20 +93,41 @@ class FrameBaseTest(unittest.TestCase):
       def func(self, a=1, b=2, c=3):
         pass
 
+      def func_removed_args(self, a):
+        pass
+
     class Proxy(object):
       @frame_base.args_to_kwargs(Base)
       @frame_base.populate_defaults(Base)
       def func(self, a, c=1000, **kwargs):
         return dict(kwargs, a=a, c=c)
 
+      @frame_base.args_to_kwargs(Base, removed_method=True)
+      @frame_base.populate_defaults(Base, removed_method=True)
+      def func_removed_method(self, a, **kwargs):
+        return dict(kwargs, a=a)
+
+      @frame_base.args_to_kwargs(Base, removed_args=['c'])
+      @frame_base.populate_defaults(Base, removed_args=['c'])
+      def func_removed_args(self, a, c, **kwargs):
+        return dict(kwargs, a=a)
+
     proxy = Proxy()
-    # pylint: disable=too-many-function-args
+    # pylint: disable=too-many-function-args,no-value-for-parameter
     self.assertEqual(proxy.func(), {'a': 1, 'c': 1000})
     self.assertEqual(proxy.func(100), {'a': 100, 'c': 1000})
     self.assertEqual(proxy.func(2, 4, 6), {'a': 2, 'b': 4, 'c': 6})
     self.assertEqual(proxy.func(2, c=6), {'a': 2, 'c': 6})
     self.assertEqual(proxy.func(c=6, a=2), {'a': 2, 'c': 6})
     self.assertEqual(proxy.func(c=6), {'a': 1, 'c': 6})
+
+    with self.assertRaises(TypeError):  # missing 1 required positional argument
+      proxy.func_removed_method()
+    self.assertEqual(proxy.func_removed_method(12, c=100), {'a': 12, 'c': 100})
+
+    with self.assertRaises(TypeError):  # missing 1 required positional argument
+      proxy.func_removed_args()
+    self.assertEqual(proxy.func_removed_args(12, d=100), {'a': 12, 'd': 100})
 
 
 if __name__ == '__main__':
