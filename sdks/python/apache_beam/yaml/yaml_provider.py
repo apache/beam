@@ -32,6 +32,7 @@ from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Mapping
+from typing import Optional
 
 import yaml
 from yaml.loader import SafeLoader
@@ -55,6 +56,9 @@ class Provider:
   """Maps transform types names and args to concrete PTransform instances."""
   def available(self) -> bool:
     """Returns whether this provider is available to use in this environment."""
+    raise NotImplementedError(type(self))
+
+  def cache_artifacts(self) -> Optional[Iterable[str]]:
     raise NotImplementedError(type(self))
 
   def provided_transforms(self) -> Iterable[str]:
@@ -256,16 +260,23 @@ class RemoteProvider(ExternalProvider):
         self._is_available = False
     return self._is_available
 
+  def cache_artifacts(self):
+    pass
+
 
 class ExternalJavaProvider(ExternalProvider):
   def __init__(self, urns, jar_provider):
     super().__init__(
         urns, lambda: external.JavaJarExpansionService(jar_provider()))
+    self._jar_provider = jar_provider
 
   def available(self):
     # pylint: disable=subprocess-run-check
     return subprocess.run(['which', 'java'],
                           capture_output=True).returncode == 0
+
+  def cache_artifacts(self):
+    return [self._jar_provider()]
 
 
 @ExternalProvider.register_provider_type('python')
@@ -288,6 +299,9 @@ class ExternalPythonProvider(ExternalProvider):
 
   def available(self):
     return True  # If we're running this script, we have Python installed.
+
+  def cache_artifacts(self):
+    return [self._service._venv()]
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
@@ -350,6 +364,9 @@ class InlineProvider(Provider):
 
   def available(self):
     return True
+
+  def cache_artifacts(self):
+    pass
 
   def provided_transforms(self):
     return self._transform_factories.keys()
@@ -527,22 +544,59 @@ class PypiExpansionService:
     self._packages = packages
     self._base_python = base_python
 
-  def _key(self):
-    return json.dumps({'binary': self._base_python, 'packages': self._packages})
+  @classmethod
+  def _key(cls, base_python, packages):
+    return json.dumps({
+        'binary': base_python, 'packages': sorted(packages)
+    },
+                      sort_keys=True)
 
-  def _venv(self):
-    venv = os.path.join(
-        self.VENV_CACHE,
-        hashlib.sha256(self._key().encode('utf-8')).hexdigest())
+  @classmethod
+  def _path(cls, base_python, packages):
+    return os.path.join(
+        cls.VENV_CACHE,
+        hashlib.sha256(cls._key(base_python,
+                                packages).encode('utf-8')).hexdigest())
+
+  @classmethod
+  def _create_venv_from_scratch(cls, base_python, packages):
+    venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      python_binary = os.path.join(venv, 'bin', 'python')
-      subprocess.run([self._base_python, '-m', 'venv', venv], check=True)
-      subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
-      subprocess.run([python_binary, '-m', 'pip', 'install'] + self._packages,
+      subprocess.run([base_python, '-m', 'venv', venv], check=True)
+      venv_python = os.path.join(venv, 'bin', 'python')
+      subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+      subprocess.run([venv_python, '-m', 'pip', 'install'] + packages,
                      check=True)
       with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(self._packages))
+        fout.write('\n'.join(packages))
     return venv
+
+  @classmethod
+  def _create_venv_from_clone(cls, base_python, packages):
+    venv = cls._path(base_python, packages)
+    if not os.path.exists(venv):
+      clonable_venv = cls._create_venv_to_clone(base_python)
+      clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+      subprocess.run(
+          [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+          check=True)
+      venv_binary = os.path.join(venv, 'bin', 'python')
+      subprocess.run([venv_binary, '-m', 'pip', 'install'] + packages,
+                     check=True)
+      with open(venv + '-requirements.txt', 'w') as fout:
+        fout.write('\n'.join(packages))
+    return venv
+
+  @classmethod
+  def _create_venv_to_clone(cls, base_python):
+    return cls._create_venv_from_scratch(
+        base_python, [
+            'apache_beam[dataframe,gcp,test]==' + beam_version,
+            'virtualenv-clone'
+        ])
+
+  def _venv(self):
+    return self._create_venv_from_clone(self._base_python, self._packages)
 
   def __enter__(self):
     venv = self._venv()

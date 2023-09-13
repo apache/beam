@@ -49,11 +49,19 @@ _LOGGER = logging.getLogger(__name__)
 class SampleTimer:
   """Periodic timer for sampling elements."""
   def __init__(self, timeout_secs: float, sampler: OutputSampler) -> None:
-    self._timeout_secs = timeout_secs
+    self._target_timeout_secs = timeout_secs
+    self._timeout_secs = min(timeout_secs, 0.5) if timeout_secs > 0 else 0.0
     self._timer = Timer(self._timeout_secs, self.sample)
     self._sampler = sampler
+    self._sample_duration_secs = 0.0
 
   def reset(self) -> None:
+    # For the first 30 seconds, sample every 0.5 seconds. After that, sample at
+    # the normal rate.
+    if self._sample_duration_secs >= 30.0:
+      self._timeout_secs = self._target_timeout_secs
+    self._sample_duration_secs += self._timeout_secs
+
     self._timer.cancel()
     self._timer = Timer(self._timeout_secs, self.sample)
     self._timer.start()
