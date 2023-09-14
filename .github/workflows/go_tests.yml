@@ -29,7 +29,6 @@ on:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*']
-  workflow_dispatch:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
