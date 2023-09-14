@@ -56,6 +56,8 @@ runs:
           git fetch --depth=1 origin +refs/pull/${{ github.event.issue.number }}/merge:refs/remotes/pull/${{ github.event.issue.number }}/merge || \
           git fetch --depth=1 origin +refs/pull/${{ github.event.issue.number }}/head:refs/remotes/pull/${{ github.event.issue.number }}/head
           git checkout pull/${{ github.event.issue.number }}/merge || git checkout pull/${{ github.event.issue.number }}/head
+          # Add pull request head sha to env variable, used for test result publisher
+          echo "INPUT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
     - name: Rerun if comment phrase
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
       uses: ./.github/actions/rerun-job-action
