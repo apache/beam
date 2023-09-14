@@ -1688,7 +1688,14 @@ class GroupByTest(_AbstractFrameTest):
     kwargs = {}
     # Behavior for numeric_only in these methods changed in Pandas 2 to default
     # to False instead of True, so explicitly make it True in Pandas 2.
-    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov', 'quantile'):
+    # The default will fail due to non-numeric fields in Pandas 2.
+    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov'):
+      with self.assertRaises(ValueError):
+        self._run_test(
+            lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
+            GROUPBY_DF,
+            check_proxy=False)
+
       kwargs["numeric_only"] = True
 
     self._run_test(
@@ -1911,7 +1918,14 @@ class GroupByTest(_AbstractFrameTest):
     kwargs = {}
     # Behavior for numeric_only in these methods changed in Pandas 2 to default
     # to False instead of True, so explicitly make it True in Pandas 2.
-    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov', 'quantile'):
+    # The default will fail due to non-numeric fields in Pandas 2.
+    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov'):
+      with self.assertRaises(ValueError):
+        self._run_test(
+            lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
+            GROUPBY_DF,
+            check_proxy=False)
+
       kwargs["numeric_only"] = True
 
     self._run_test(
