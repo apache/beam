@@ -27,6 +27,7 @@ from typing import Optional
 
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.coders import WindowedValueCoder
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.data_sampler import OutputSampler
@@ -56,7 +57,9 @@ class DataSamplerTest(unittest.TestCase):
     return descriptor
 
   def setUp(self):
-    self.data_sampler = DataSampler(sample_every_sec=0.1)
+    self.data_sampler = DataSampler.create(
+        PipelineOptions(experiments=[DataSampler._ENABLE_DATA_SAMPLING]),
+        sample_every_sec=0.1)
 
   def tearDown(self):
     self.data_sampler.stop()
@@ -340,6 +343,103 @@ class DataSamplerTest(unittest.TestCase):
 
     samples = self.data_sampler.wait_for_samples([MAIN_PCOLLECTION_ID])
     self.assertGreater(len(samples.element_samples), 0)
+
+  def test_create_experiments(self):
+    """Tests that the experiments correctly make the DataSampler."""
+    enable_exception_exp = DataSampler._ENABLE_ALWAYS_ON_EXCEPTION_SAMPLING
+    disable_exception_exp = DataSampler._DISABLE_ALWAYS_ON_EXCEPTION_SAMPLING
+    enable_sampling_exp = DataSampler._ENABLE_DATA_SAMPLING
+
+    self.assertIsNone(DataSampler.create(PipelineOptions()))
+
+    exp = [disable_exception_exp]
+    self.assertIsNone(DataSampler.create(PipelineOptions(experiments=exp)))
+
+    exp = [enable_exception_exp, disable_exception_exp]
+    self.assertIsNone(DataSampler.create(PipelineOptions(experiments=exp)))
+
+    exp = [enable_exception_exp]
+    self.assertIsNotNone(DataSampler.create(PipelineOptions(experiments=exp)))
+
+    exp = [enable_sampling_exp]
+    self.assertIsNotNone(DataSampler.create(PipelineOptions(experiments=exp)))
+
+    exp = [enable_sampling_exp, enable_exception_exp, disable_exception_exp]
+    self.assertIsNotNone(DataSampler.create(PipelineOptions(experiments=exp)))
+
+  def test_samples_all_with_both_experiments(self):
+    """Tests that the using both sampling experiments samples everything."""
+    self.data_sampler = DataSampler.create(
+        PipelineOptions(
+            experiments=[
+                DataSampler._ENABLE_DATA_SAMPLING,
+                DataSampler._ENABLE_ALWAYS_ON_EXCEPTION_SAMPLING
+            ]),
+        sample_every_sec=0.1)
+
+    # Create a descriptor with one transform with two outputs, 'a' and 'b'.
+    descriptor = self.make_test_descriptor(outputs=['a', 'b'])
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
+
+    # Get the samples for the two outputs.
+    a_sampler = self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 0)
+    b_sampler = self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 1)
+
+    # Sample an exception for the output 'a', this will show up in the final
+    # samples response.
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+    a_sampler.sample_exception('a', exc_info, MAIN_TRANSFORM_ID, 'instid')
+
+    # Sample a normal element for the output 'b', this will not show up in the
+    # final samples response.
+    b_sampler.element_sampler.el = 'b'
+    b_sampler.element_sampler.has_element = True
+
+    samples = self.data_sampler.wait_for_samples(['a', 'b'])
+    self.assertEqual(len(samples.element_samples), 2)
+    self.assertTrue(
+        samples.element_samples['a'].elements[0].HasField('exception'))
+    self.assertFalse(
+        samples.element_samples['b'].elements[0].HasField('exception'))
+
+  def test_only_sample_exceptions(self):
+    """Tests that the exception sampling experiment only samples exceptions."""
+    self.data_sampler = DataSampler.create(
+        PipelineOptions(
+            experiments=[DataSampler._ENABLE_ALWAYS_ON_EXCEPTION_SAMPLING]),
+        sample_every_sec=0.1)
+
+    # Create a descriptor with one transform with two outputs, 'a' and 'b'.
+    descriptor = self.make_test_descriptor(outputs=['a', 'b'])
+    self.data_sampler.initialize_samplers(
+        MAIN_TRANSFORM_ID, descriptor, self.primitives_coder_factory)
+
+    # Get the samples for the two outputs.
+    a_sampler = self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 0)
+    b_sampler = self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 1)
+
+    # Sample an exception for the output 'a', this will show up in the final
+    # samples response.
+    exc_info = None
+    try:
+      raise Exception('test')
+    except Exception:
+      exc_info = sys.exc_info()
+    a_sampler.sample_exception('a', exc_info, MAIN_TRANSFORM_ID, 'instid')
+
+    # Sample a normal element for the output 'b', this will not show up in the
+    # final samples response.
+    b_sampler.element_sampler.el = 'b'
+    b_sampler.element_sampler.has_element = True
+
+    samples = self.data_sampler.wait_for_samples([])
+    self.assertEqual(len(samples.element_samples), 1)
+    self.assertIsNotNone(samples.element_samples['a'].elements[0].exception)
 
 
 class OutputSamplerTest(unittest.TestCase):

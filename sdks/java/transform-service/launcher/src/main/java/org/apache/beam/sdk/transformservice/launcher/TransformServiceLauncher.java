@@ -58,7 +58,7 @@ public class TransformServiceLauncher {
   private Map<String, String> environmentVariables = new HashMap<>();
 
   // Amount of time (in milliseconds) to wait till the Docker Compose starts up.
-  private static final int DEFAULT_START_WAIT_TIME = 25000;
+  private static final int DEFAULT_START_WAIT_TIME = 50000;
   private static final int STATUS_LOGGER_WAIT_TIME = 3000;
 
   @SuppressWarnings("argument")
