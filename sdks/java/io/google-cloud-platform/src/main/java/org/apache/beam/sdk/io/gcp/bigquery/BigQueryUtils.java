@@ -689,6 +689,10 @@ public class BigQueryUtils {
       }
     }
 
+    if (jsonBQValue instanceof byte[] && fieldType.getTypeName() == TypeName.BYTES) {
+      return jsonBQValue;
+    }
+
     if (jsonBQValue instanceof List) {
       if (fieldType.getCollectionElementType() == null) {
         throw new IllegalArgumentException(
