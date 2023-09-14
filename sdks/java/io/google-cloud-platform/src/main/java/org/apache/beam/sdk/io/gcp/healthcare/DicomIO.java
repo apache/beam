@@ -319,7 +319,7 @@ public class DicomIO {
     }
 
     /** A function that schedules a deidentify operation and monitors the status. */
-    // Corrections: remove valueprovider, all caps for private static final.
+    // Corrections:
     // when instantiating DoFn
     // private static final TupleTag<String> SUCCESS = new TupleTag<String>(){};
     // try catch the IO exceptions
