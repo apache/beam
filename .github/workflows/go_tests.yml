@@ -68,5 +68,5 @@ jobs:
           $(go env GOPATH)/bin/staticcheck ./...
       - uses: golang/govulncheck-action@v1
         with:
-          go-package: ./...
+          go-package: ./sdks
           go-version-input: 1.21
