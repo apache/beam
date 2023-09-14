@@ -16,8 +16,13 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -27,13 +32,13 @@ import (
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
 // TODO move environment handling to the worker package.
 
 func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *worker.W) error {
+	logger := slog.With(slog.String("envID", wk.Env))
 	// TODO fix broken abstraction.
 	// We're starting a worker pool here, because that's the loopback environment.
 	// It's sort of a mess, largely because of loopback, which has
@@ -43,25 +48,19 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	case urns.EnvExternal:
 		ep := &pipepb.ExternalPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ep); err != nil {
-			slog.Error("unmarshing external environment payload", err, slog.String("envID", wk.Env))
+			logger.Error("unmarshing external environment payload", "error", err)
 		}
 		go func() {
 			externalEnvironment(ctx, ep, wk)
-			slog.Debug("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
+			slog.Debug("environment stopped", slog.String("job", j.String()))
 		}()
 		return nil
 	case urns.EnvDocker:
 		dp := &pipepb.DockerPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), dp); err != nil {
-			slog.Error("unmarshing docker environment payload", err, slog.String("envID", wk.Env))
+			logger.Error("unmarshing docker environment payload", "error", err)
 		}
-
-		// TODO: Check if the image exists.
-		// TODO: Download if the image doesn't exist.
-		// TODO: Ensure artifact server downloads to a consistent cache, and doesn't re-download artifacts.
-		// Ensure Go worker rebuilds are consistent?
-		// TODO: Fail sensibly when the image can't be downloaded or started without process crash.
-		return fmt.Errorf("environment %v with urn %v unimplemented:e\n%v payload\n%v ", env, e.GetUrn(), prototext.Format(e), prototext.Format(dp))
+		return dockerEnvironment(ctx, logger, dp, wk, j.ArtifactEndpoint())
 	default:
 		return fmt.Errorf("environment %v with urn %v unimplemented", env, e.GetUrn())
 	}
@@ -84,9 +83,8 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 		LoggingEndpoint:   endpoint,
 		ArtifactEndpoint:  endpoint,
 		ProvisionEndpoint: endpoint,
-		Params:            nil,
+		Params:            ep.GetParams(),
 	})
-
 	// Job processing happens here, but orchestrated by other goroutines
 	// This goroutine blocks until the context is cancelled, signalling
 	// that the pool runner should stop the worker.
@@ -97,4 +95,91 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	pool.StopWorker(context.Background(), &fnpb.StopWorkerRequest{
 		WorkerId: wk.ID,
 	})
+}
+
+func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.DockerPayload, wk *worker.W, artifactEndpoint string) error {
+	logger = logger.With("worker_id", wk.ID, "image", dp.GetContainerImage())
+	// TODO: Ensure artifact server downloads to a consistent cache, and doesn't re-download artifacts.
+	// Ensure Go worker rebuilds are consistent?
+	// TODO: Fail sensibly when the image can't be downloaded or started without process crash.
+
+	var credentialArgs []string
+	// TODO better abstract cloud specific auths.
+	const gcloudCredsEnv = "GOOGLE_APPLICATION_CREDENTIALS"
+	gcloudCredsFile, ok := os.LookupEnv(gcloudCredsEnv)
+	if ok {
+		_, err := os.Stat(gcloudCredsFile)
+		// File exists
+		if err == nil {
+			dockerGcloudCredsFile := "/docker_cred_file.json"
+			credentialArgs = append(credentialArgs,
+				"--mount",
+				fmt.Sprintf("type=bind,source=%v,target=%v", gcloudCredsFile, dockerGcloudCredsFile),
+				"--env",
+				fmt.Sprintf("%v=%v", gcloudCredsEnv, dockerGcloudCredsFile),
+			)
+		}
+	}
+
+	logger.Info("attempting to pull docker image for environment")
+	pullCmd := exec.CommandContext(ctx, "docker", "pull", dp.GetContainerImage())
+	pullCmd.Start()
+	pullCmd.Wait()
+
+	runArgs := []string{"run", "-d", "--network=host"}
+	runArgs = append(runArgs, credentialArgs...)
+	runArgs = append(runArgs,
+		dp.GetContainerImage(),
+		fmt.Sprintf("--id=%v-%v", wk.JobKey, wk.Env),
+		fmt.Sprintf("--control_endpoint=%v", wk.Endpoint()),
+		fmt.Sprintf("--artifact_endpoint=%v", artifactEndpoint),
+		fmt.Sprintf("--provision_endpoint=%v", wk.Endpoint()),
+		fmt.Sprintf("--logging_endpoint=%v", wk.Endpoint()),
+	)
+
+	runCmd := exec.CommandContext(ctx, "docker", runArgs...)
+	slog.Info("docker run command", "run_cmd", runCmd.String())
+	var buf bytes.Buffer
+	runCmd.Stdout = &buf
+	if err := runCmd.Start(); err != nil {
+		return fmt.Errorf("unable to start container image %v with docker for env %v", dp.GetContainerImage(), wk.Env)
+	}
+	if err := runCmd.Wait(); err != nil {
+		return fmt.Errorf("docker run failed for image %v with docker for env %v", dp.GetContainerImage(), wk.Env)
+	}
+
+	containerID := strings.TrimSpace(buf.String())
+	if containerID == "" {
+		return fmt.Errorf("docker run failed for image %v with docker for env %v - no container ID", dp.GetContainerImage(), wk.Env)
+	}
+	logger.Info("docker container is started", "container_id", containerID)
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		buf.Reset()
+		inspectCmd := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.State.Status}}", containerID)
+		inspectCmd.Stdout = &buf
+		inspectCmd.Start()
+		inspectCmd.Wait()
+
+		status := strings.TrimSpace(buf.String())
+		switch status {
+		case "running":
+			logger.Info("docker container is running", "container_id", containerID)
+			return nil
+		case "dead", "exited":
+			logDumpCmd := exec.CommandContext(ctx, "docker", "container", "logs", containerID)
+			buf.Reset()
+			logDumpCmd.Stdout = &buf
+			logDumpCmd.Stderr = &buf
+			logDumpCmd.Start()
+			logDumpCmd.Wait()
+			logger.Error("SDK failed to start.", "final_status", status, "log", buf.String())
+			return fmt.Errorf("docker run failed for image %v with docker for env %v - containerID %v - log:\n%v", dp.GetContainerImage(), wk.Env, containerID, buf.String())
+		default:
+			logger.Info("docker container status", "container_id", containerID, "status", status)
+		}
+	}
+	return nil
 }

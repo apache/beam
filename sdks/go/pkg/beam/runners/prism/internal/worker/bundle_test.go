@@ -23,7 +23,7 @@ import (
 )
 
 func TestBundle_ProcessOn(t *testing.T) {
-	wk := New("test", "testEnv")
+	wk := New("test", "testEnv", nil)
 	b := &B{
 		InstID:      "testInst",
 		PBDID:       "testPBDID",

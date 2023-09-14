@@ -57,6 +57,9 @@ type W struct {
 
 	ID, Env string
 
+	JobKey, ArtifactEndpoint string
+	envPb                    *pipepb.Environment
+
 	// Server management
 	lis    net.Listener
 	server *grpc.Server
@@ -80,7 +83,7 @@ type controlResponder interface {
 }
 
 // New starts the worker server components of FnAPI Execution.
-func New(id, env string) *W {
+func New(id, env string, envPb *pipepb.Environment) *W {
 	lis, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
@@ -100,6 +103,8 @@ func New(id, env string) *W {
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
 
+		envPb: envPb,
+
 		D: &DataService{},
 	}
 	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
@@ -107,6 +112,7 @@ func New(id, env string) *W {
 	fnpb.RegisterBeamFnDataServer(wk.server, wk)
 	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
 	fnpb.RegisterBeamFnStateServer(wk.server, wk)
+	fnpb.RegisterProvisionServiceServer(wk.server, wk)
 	return wk
 }
 
@@ -154,6 +160,7 @@ func (wk *W) NextStage() string {
 var minsev = fnpb.LogEntry_Severity_DEBUG
 
 func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
+	slog.Info("GetProvisionInfo", "worker", wk)
 	endpoint := &pipepb.ApiServiceDescriptor{
 		Url: wk.Endpoint(),
 	}
@@ -164,10 +171,15 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 			RunnerCapabilities: []string{
 				urns.CapabilityMonitoringInfoShortIDs,
 			},
-			LoggingEndpoint:  endpoint,
-			ControlEndpoint:  endpoint,
-			ArtifactEndpoint: endpoint,
-			// TODO add this job's RetrievalToken
+			LoggingEndpoint: endpoint,
+			ControlEndpoint: endpoint,
+			ArtifactEndpoint: &pipepb.ApiServiceDescriptor{
+				Url: wk.ArtifactEndpoint,
+			},
+
+			RetrievalToken: wk.JobKey,
+			Dependencies:   wk.envPb.GetDependencies(),
+
 			// TODO add this job's artifact Dependencies
 
 			Metadata: map[string]string{

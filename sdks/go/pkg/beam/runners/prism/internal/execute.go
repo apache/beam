@@ -80,14 +80,17 @@ func RunPipeline(j *jobservices.Job) {
 
 // makeWorker creates a worker for that environment.
 func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
-	wk := worker.New(j.String()+"_"+env, env) // Cheating by having the worker id match the environment id.
+	envPb := j.Pipeline.GetComponents().GetEnvironments()[env]
+	wk := worker.New(j.String()+"_"+env, env, envPb) // Cheating by having the worker id match the environment id.
+	wk.JobKey = j.JobKey()
+	wk.ArtifactEndpoint = j.ArtifactEndpoint()
 	go wk.Serve()
-	timeout := time.Minute
+	timeout := 5 * time.Minute
 	time.AfterFunc(timeout, func() {
 		if wk.Connected() {
 			return
 		}
-		err := fmt.Errorf("prism %v didn't get control connection after %v", wk, timeout)
+		err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
 		j.Failed(err)
 		j.CancelFn(err)
 	})
