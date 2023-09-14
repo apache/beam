@@ -67,90 +67,91 @@ def excluded_dependencies = [
         library.java.error_prone_annotations,        // Provided scope added in worker
         library.java.hamcrest,                       // Test only
         library.java.junit,                          // Test only
-        library.java.jsonassert                      // Test only
+        library.java.jsonassert,                     // Test only
+        library.java.truth                           // Test only
 ]
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         classesTriggerCheckerBugs: [
-          'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
-          'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
-          'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
+                'BatchGroupAlsoByWindowAndCombineFn'        : 'TODO: file a bug report',
+                'AssignWindowsParDoFnFactory'               : 'TODO: file a bug report',
+                'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
         ],
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
         shadowJarValidationExcludes: [
-            "org/apache/beam/runners/dataflow/worker/**",
-            "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
-            // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
-            "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
-            // Allow slf4j implementation worker for logging during pipeline execution
-            "org/slf4j/impl/**"
+                "org/apache/beam/runners/dataflow/worker/**",
+                "org/apache/beam/repackaged/beam_runners_google_cloud_dataflow_java_legacy_worker/**",
+                // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
+                "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
+                // Allow slf4j implementation worker for logging during pipeline execution
+                "org/slf4j/impl/**"
         ],
         shadowClosure: {
-    // Each included dependency must also include all of its necessary transitive dependencies
-    // or have them provided by the users pipeline during job submission. Typically a users
-    // pipeline includes :runners:google-cloud-dataflow-java and its transitive dependencies
-    // so those dependencies don't need to be shaded (bundled and relocated) away. All other
-    // dependencies needed to run the worker must be shaded (bundled and relocated) to prevent
-    // ClassNotFound and/or MethodNotFound errors during pipeline execution.
-    //
-    // Each included dependency should have a matching relocation rule below that ensures
-    // that the shaded jar is correctly built.
+            // Each included dependency must also include all of its necessary transitive dependencies
+            // or have them provided by the users pipeline during job submission. Typically a users
+            // pipeline includes :runners:google-cloud-dataflow-java and its transitive dependencies
+            // so those dependencies don't need to be shaded (bundled and relocated) away. All other
+            // dependencies needed to run the worker must be shaded (bundled and relocated) to prevent
+            // ClassNotFound and/or MethodNotFound errors during pipeline execution.
+            //
+            // Each included dependency should have a matching relocation rule below that ensures
+            // that the shaded jar is correctly built.
 
-    dependencies {
-      include(dependency(library.java.slf4j_jdk14))
-    }
+            dependencies {
+                include(dependency(library.java.slf4j_jdk14))
+            }
 
-    dependencies {
-        include(project(path: ":model:fn-execution", configuration: "shadow"))
-    }
-    relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
+            dependencies {
+                include(project(path: ":model:fn-execution", configuration: "shadow"))
+            }
+            relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
-    dependencies {
-        include(project(":runners:core-construction-java"))
-        include(project(":runners:core-java"))
-    }
-    relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
-    relocate("org.apache.beam.repackaged.beam_runners_core_construction_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_construction_java"))
-    relocate("org.apache.beam.repackaged.beam_runners_core_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_java"))
+            dependencies {
+                include(project(":runners:core-construction-java"))
+                include(project(":runners:core-java"))
+            }
+            relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
+            relocate("org.apache.beam.repackaged.beam_runners_core_construction_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_construction_java"))
+            relocate("org.apache.beam.repackaged.beam_runners_core_java", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_core_java"))
 
-    dependencies {
-        include(project(":runners:java-fn-execution"))
-    }
-    relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
-    relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
+            dependencies {
+                include(project(":runners:java-fn-execution"))
+            }
+            relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
+            relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
 
-    dependencies {
-        include(project(":sdks:java:fn-execution"))
-    }
-    relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
-    relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
+            dependencies {
+                include(project(":sdks:java:fn-execution"))
+            }
+            relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
+            relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
 
-    dependencies {
-        // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
-        // which includes several org.eclipse.jetty artifacts + servlet-api
-        include(dependency("org.eclipse.jetty:.*:9.2.10.v20150310"))
-        include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
-    }
-    relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
-    relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
+            dependencies {
+                // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
+                // which includes several org.eclipse.jetty artifacts + servlet-api
+                include(dependency("org.eclipse.jetty:.*:9.2.10.v20150310"))
+                include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
+            }
+            relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
+            relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
 
-    // We don't relocate windmill since it is already underneath the org.apache.beam.runners.dataflow.worker namespace and never
-    // expect a user pipeline to include it. There is also a JNI component that windmill server relies on which makes
-    // arbitrary relocation more difficult.
-    dependencies {
-        include(project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow"))
-    }
+            // We don't relocate windmill since it is already underneath the org.apache.beam.runners.dataflow.worker namespace and never
+            // expect a user pipeline to include it. There is also a JNI component that windmill server relies on which makes
+            // arbitrary relocation more difficult.
+            dependencies {
+                include(project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow"))
+            }
 
-    // Include original source files extracted under
-    // '$buildDir/original_sources_to_package' to jar
-    from "$buildDir/original_sources_to_package"
+            // Include original source files extracted under
+            // '$buildDir/original_sources_to_package' to jar
+            from "$buildDir/original_sources_to_package"
 
-    exclude "META-INF/LICENSE.txt"
-    exclude "about.html"
-})
+            exclude "META-INF/LICENSE.txt"
+            exclude "about.html"
+        })
 
 /******************************************************************************/
 // Configure the worker root project
@@ -219,6 +220,10 @@ dependencies {
     // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
     testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    // TODO: excluding Guava until Truth updates it to >32.1.x
+    testImplementation(library.java.truth) {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
     shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
@@ -232,8 +237,8 @@ dependencies {
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     ext.outFile = project.file("${project.reportsDir}/${name}.out")
     inputs.files(project.configurations.shadow.artifacts.files)
-        .withPropertyName("shadowArtifactsFiles")
-        .withPathSensitivity(PathSensitivity.RELATIVE)
+            .withPropertyName("shadowArtifactsFiles")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.files outFile
     doLast {
         project.configurations.shadow.artifacts.files.each {

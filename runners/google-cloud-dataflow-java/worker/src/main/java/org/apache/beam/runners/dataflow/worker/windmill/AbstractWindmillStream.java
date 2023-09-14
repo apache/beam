@@ -60,21 +60,16 @@ import org.slf4j.LoggerFactory;
  * synchronizing on this.
  */
 public abstract class AbstractWindmillStream<RequestT, ResponseT> implements WindmillStream {
-  protected static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
+  public static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
   // Default gRPC streams to 2MB chunks, which has shown to be a large enough chunk size to reduce
   // per-chunk overhead, and small enough that we can still perform granular flow-control.
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
-
   private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStream.class);
-
   protected final AtomicBoolean clientClosed;
-
+  private final AtomicLong lastSendTimeMs;
   private final Executor executor;
   private final BackOff backoff;
-  // Indicates if the current stream in requestObserver is closed by calling close() method
-  private final AtomicBoolean streamClosed;
   private final AtomicLong startTimeMs;
-  private final AtomicLong lastSendTimeMs;
   private final AtomicLong lastResponseTimeMs;
   private final AtomicInteger errorCount;
   private final AtomicReference<String> lastError;
@@ -83,6 +78,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
   private final int logEveryNStreamFailures;
   private final Supplier<StreamObserver<RequestT>> requestObserverSupplier;
+  // Indicates if the current stream in requestObserver is closed by calling close() method
+  private final AtomicBoolean streamClosed;
   private @Nullable StreamObserver<RequestT> requestObserver;
 
   protected AbstractWindmillStream(
@@ -132,9 +129,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract boolean hasPendingRequests();
 
   /**
-   * Called when the stream is throttled due to resource exhausted errors. Will be called for each
-   * resource exhausted error not just the first. onResponse() must stop throttling on receipt of
-   * the first good message.
+   * Called when the client side stream is throttled due to resource exhausted errors. Will be
+   * called for each resource exhausted error not just the first. onResponse() must stop throttling
+   * on receipt of the first good message.
    */
   protected abstract void startThrottleTimer();
 

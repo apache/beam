@@ -158,8 +158,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java PreCommit'
     steps:
+      - uses: actions/checkout@v3
       - name: Setup repository
-        uses: actions/checkout@v3
+        uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -172,10 +173,11 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
       - name: Upload test report
+        if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
+          name: junit-report
+          path: "**/build/reports/tests/"
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v3
         with:

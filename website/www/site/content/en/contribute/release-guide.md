@@ -1301,15 +1301,15 @@ After new Beam Release is published, Beam Playground can be updated following th
     1. Change the value for _SDK_TAG variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g. 2.47.0)
     1. Click the Save button. The settings window should close without any errors
     1. Click the RUN button next to the trigger name
-    1. Set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)
+    1. In the panel that opened, set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)
     1. Click the Run Trigger button
     1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
-1. Find the trigger "Playground-CD-stable-manual-stg":
+1. Find the trigger "Playground-CD-stable-manual-stg", it will be run twice, once with default variables, and once with some overridden:
     1. Click the RUN button next to the trigger name
-    1. Click the Run Trigger button (with default varaible vaues)
+    1. In the panel that opened, click the Run Trigger button (with default variable values)
     1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
     1. Click the RUN button next to the trigger name
-    1. Change values for the variables:
+    1. In the panel that opened, change values for the variables:
         * _ORIGIN = PG_BEAMDOC
         * _SUBDIRS = ./learning/beamdoc
     1. Click the Run Trigger button
