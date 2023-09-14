@@ -797,6 +797,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.C.loc[df.A > 10], df)
     self._run_test(lambda df, s: df.loc[s.loc[1:3]], df, pd.Series(dates))
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_sort(self):
     # yapf: disable
     df1 = pd.DataFrame({'int': [1, 2, 3], 'str': ['a', 'b', 'c']},
@@ -985,6 +986,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
@@ -2042,6 +2044,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).bar.count(level=0),
@@ -2065,6 +2068,7 @@ class AggregationTest(_AbstractFrameTest):
         lambda df: df.set_index(['group', 'foo']).bar.median(level=1),
         GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_dataframe_agg_level(self):
     self._run_test(
         lambda df: df.set_index(['group', 'foo']).count(level=0), GROUPBY_DF)
@@ -2232,6 +2236,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_error_test(
         lambda df: df.median(min_count=3, numeric_only=True), GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_agg_min_count(self):
     df = pd.DataFrame({
         'good': [1, 2, 3, np.nan],

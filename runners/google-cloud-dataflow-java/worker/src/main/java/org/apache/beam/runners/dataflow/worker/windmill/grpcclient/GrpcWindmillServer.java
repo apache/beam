@@ -107,7 +107,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private final ThrottleTimer commitWorkThrottleTimer;
   private final Random rand;
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
-
   private ImmutableSet<HostAndPort> endpoints;
   private int logEveryNStreamFailures;
   private Duration maxBackoff = MAX_BACKOFF;
@@ -301,14 +300,21 @@ public final class GrpcWindmillServer extends WindmillServerStub {
         .build();
   }
 
+  /**
+   * Stubs returned from this method do not (and should not) have {@link
+   * org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Deadline}(s) set since they represent an absolute
+   * point in time. {@link org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Deadline}(s) should not be
+   * treated as a timeout which represents a relative point in time.
+   *
+   * @see <a href=https://grpc.io/blog/deadlines/>Official gRPC deadline documentation for more
+   *     details.</a>
+   */
   private synchronized CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub() {
     if (stubList.isEmpty()) {
       throw new RuntimeException("windmillServiceEndpoint has not been set");
     }
-    if (stubList.size() == 1) {
-      return stubList.get(0);
-    }
-    return stubList.get(rand.nextInt(stubList.size()));
+
+    return stubList.size() == 1 ? stubList.get(0) : stubList.get(rand.nextInt(stubList.size()));
   }
 
   @Override
@@ -398,7 +404,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             .build();
 
     return GrpcGetWorkStream.create(
-        stub(),
+        responseObserver ->
+            stub()
+                // Deadlines are absolute points in time, so generate a new one everytime this
+                // function is called.
+                .withDeadlineAfter(
+                    AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                .getWorkStream(responseObserver),
         getWorkRequest,
         grpcBackoff(),
         newStreamObserverFactory(),
@@ -411,7 +423,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     return GrpcGetDataStream.create(
-        stub(),
+        responseObserver ->
+            stub()
+                // Deadlines are absolute points in time, so generate a new one everytime this
+                // function is called.
+                .withDeadlineAfter(
+                    AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                .getDataStream(responseObserver),
         grpcBackoff(),
         newStreamObserverFactory(),
         streamRegistry,
@@ -425,7 +443,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public CommitWorkStream commitWorkStream() {
     return GrpcCommitWorkStream.create(
-        stub(),
+        responseObserver ->
+            stub()
+                // Deadlines are absolute points in time, so generate a new one everytime this
+                // function is called.
+                .withDeadlineAfter(
+                    AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                .commitWorkStream(responseObserver),
         grpcBackoff(),
         newStreamObserverFactory(),
         streamRegistry,
