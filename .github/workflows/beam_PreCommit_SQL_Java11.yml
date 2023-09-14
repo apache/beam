@@ -41,19 +41,19 @@ env:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
-    actions: write
-    pull-requests: read
-    checks: write
-    contents: read
-    deployments: read
-    id-token: none
-    issues: read
-    discussions: read
-    packages: read
-    pages: read
-    repository-projects: read
-    security-events: read
-    statuses: read
+  actions: write
+  pull-requests: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 
 jobs:
   beam_PreCommit_SQL_Java11:
