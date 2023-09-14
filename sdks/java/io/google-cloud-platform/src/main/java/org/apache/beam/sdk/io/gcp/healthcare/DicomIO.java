@@ -296,11 +296,9 @@ public class DicomIO {
     @Override
     public PCollection<String> expand(PBegin input) {
       return input
-          .getPipeline()
-          .apply(Create.of(sourceDicomStore, StringUtf8Coder.of()))
           .apply(
               "ScheduleDeidentifyDicomStoreOperations",
-              ParDo.of(new DeidentifyFn(destinationDicomStore, deidConfig)));
+              ParDo.of(new DeidentifyFn(this)));
     }
 
     public static class LroCounters {
@@ -317,23 +315,23 @@ public class DicomIO {
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
     }
-
+    public static class Result implements POutput{
+      
+    }
     /** A function that schedules a deidentify operation and monitors the status. */
     // Corrections:
     // when instantiating DoFn
     // private static final TupleTag<String> SUCCESS = new TupleTag<String>(){};
     // try catch the IO exceptions
-    public static class DeidentifyFn extends DoFn<String, String> {
+    private static class DeidentifyFn extends DoFn<String, String> {
+
+      private static final Gson GSON = new Gson();
 
       private transient @MonotonicNonNull HttpHealthcareApiClient dicomStore;
-      private final String destinationDicomStore;
-      private static final Gson GSON = new Gson();
-      private final String deidConfigJson;
+      private final Deidentify spec; 
 
-      public DeidentifyFn(
-          String destinationDicomStore, DeidentifyConfig deidConfig) {
-        this.destinationDicomStore = destinationDicomStore;
-        this.deidConfigJson = GSON.toJson(deidConfig);
+      DeidentifyFn(Deidentify spec){
+        this.spec = spec;
       }
 
       @Setup
@@ -344,10 +342,8 @@ public class DicomIO {
       @ProcessElement
       public void deidentify(@Element String sourceDicomStore, OutputReceiver<String> receiver) throws IOException, InterruptedException {
         HttpHealthcareApiClient safeClient = checkStateNotNull(dicomStore);
-        String destinationDicomStore = this.destinationDicomStore;
-        DeidentifyConfig deidConfig = GSON.fromJson(this.deidConfigJson, DeidentifyConfig.class);
         Operation operation =
-            safeClient.deidentifyDicomStore(sourceDicomStore, destinationDicomStore, deidConfig);
+            safeClient.deidentifyDicomStore(sourceDicomStore, spec.destinationDicomStore, spec.deidConfig);
         operation = safeClient.pollOperation(operation, 15000L);
         incrementLroCounters(
             operation,
@@ -359,7 +355,7 @@ public class DicomIO {
           throw new IOException(
               String.format("DeidentifyDicomStore operation (%s) failed.", operation.getName()));
         }
-        receiver.output(destinationDicomStore);
+        receiver.output(operation);
       }
     }
   }
