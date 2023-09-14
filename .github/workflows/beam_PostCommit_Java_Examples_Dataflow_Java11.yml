@@ -86,8 +86,14 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:examples:java11PostCommit
           max-workers: 12
-      - name: Upload test report
+      - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
+        if: failure()
         with:
-          name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
+          name: JUnit Test Results
+          path: "**/build/reports/tests/"
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/build/test-results/**/*.xml'
