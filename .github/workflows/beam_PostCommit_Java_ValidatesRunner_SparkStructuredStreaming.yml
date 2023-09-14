@@ -13,52 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python PVR Flink
+name: PostCommit Java ValidatesRunner SparkStructuredStreaming
 
 on:
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/python/**'
-      - 'release/**'
-      - 'sdks/java/io/kafka/**'
-      - 'runners/core-construction-java/**'
-      - 'runners/core-java/**'
-      - 'runners/extensions-java/**'
-      - 'runners/flink/**'
-      - 'runners/java-fn-execution/**'
-      - 'runners/reference/**'
   issue_comment:
     types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/python/**'
-      - 'release/**'
-      - 'sdks/java/io/kafka/**'
-      - 'runners/core-construction-java/**'
-      - 'runners/core-java/**'
-      - 'runners/extensions-java/**'
-      - 'runners/flink/**'
-      - 'runners/java-fn-execution/**'
-      - 'runners/reference/**'
-      - '.github/workflows/beam_PreCommit_Python_PVR_Flink.yml'
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -71,21 +43,24 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
 
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
 jobs:
-  beam_PreCommit_Python_PVR_Flink:
+  beam_PostCommit_Java_ValidatesRunner_SparkStructuredStreaming:    
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 120
     strategy:
       matrix:
-        job_name: ["beam_PreCommit_Python_PVR_Flink"]
-        job_phrase: ["Run Python_PVR_Flink PreCommit"]
-    timeout-minutes: 120
+        job_name: [beam_PostCommit_Java_ValidatesRunner_SparkStructuredStreaming]
+        job_phrase: [Run Spark StructuredStreaming ValidatesRunner]
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
-      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Python_PVR_Flink PreCommit'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Spark StructuredStreaming ValidatesRunner'
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
@@ -94,20 +69,23 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Install Java
+        uses: actions/setup-java@v3.8.0
         with:
-          python-version: 3.11
-      - name: run Python PVR Flink PreCommit script
+          distribution: 'zulu'
+          java-version: '8'
+      - name: run validatesStructuredStreamingRunnerBatch script
         uses: ./.github/actions/gradle-command-self-hosted-action
-        env:
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         with:
-          gradle-command: :sdks:python:test-suites:portable:py311:flinkValidatesRunner
-          arguments: |
-            -PpythonVersion=3.11 \
-      - name: Archive code coverage results
+          gradle-command: :runners:spark:3:validatesStructuredStreamingRunnerBatch
+      - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
+        if: failure()
         with:
-          name: python-code-coverage-report
-          path: '**/pytest*.xml'
+          name: JUnit Test Results
+          path: "**/build/reports/tests/"
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/build/test-results/**/*.xml'
