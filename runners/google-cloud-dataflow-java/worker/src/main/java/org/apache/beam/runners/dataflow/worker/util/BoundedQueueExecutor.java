@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import java.time.Clock;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -49,24 +48,6 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
-    this(
-        maximumPoolSize,
-        keepAliveTime,
-        unit,
-        maximumElementsOutstanding,
-        maximumBytesOutstanding,
-        threadFactory,
-        Clock.systemUTC());
-  }
-
-  public BoundedQueueExecutor(
-      int maximumPoolSize,
-      long keepAliveTime,
-      TimeUnit unit,
-      int maximumElementsOutstanding,
-      long maximumBytesOutstanding,
-      ThreadFactory threadFactory,
-      Clock clock) {
     executor =
         new ThreadPoolExecutor(
             maximumPoolSize,
@@ -80,7 +61,7 @@ public class BoundedQueueExecutor {
             super.beforeExecute(t, r);
             synchronized (this) {
               if (activeCount.getAndIncrement() >= maximumPoolSize - 1) {
-                startTimeMaxActiveThreadsUsed = clock.millis();
+                startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
             }
           }
@@ -90,7 +71,8 @@ public class BoundedQueueExecutor {
             super.afterExecute(r, t);
             synchronized (this) {
               if (activeCount.getAndDecrement() == maximumPoolSize) {
-                totalTimeMaxActiveThreadsUsed += (clock.millis() - startTimeMaxActiveThreadsUsed);
+                totalTimeMaxActiveThreadsUsed +=
+                    (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
               }
             }

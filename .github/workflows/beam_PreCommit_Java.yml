@@ -158,8 +158,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java PreCommit'
     steps:
+      - uses: actions/checkout@v3
       - name: Setup repository
-        uses: actions/checkout@v3
+        uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
