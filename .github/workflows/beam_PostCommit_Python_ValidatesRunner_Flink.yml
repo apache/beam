@@ -84,9 +84,6 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           cache-read-only: false
-      - name: Configure passenv for tox
-        run: |
-          sed -i '/^\[testenv\]$/,/^\[/ s/^passenv=TERM/passenv=TERM,CLOUDSDK_CONFIG/' sdks/python/tox.ini
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
