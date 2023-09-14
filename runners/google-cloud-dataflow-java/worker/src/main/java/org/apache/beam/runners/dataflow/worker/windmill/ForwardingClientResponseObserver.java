@@ -27,23 +27,23 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
  * <p>Used to wrap existing {@link StreamObserver}s to be able to install an {@link
  * ClientCallStreamObserver#setOnReadyHandler(Runnable) onReadyHandler}.
  *
- * <p>This is as thread-safe as the undering stream observer that is being wrapped.
+ * <p>This is as thread-safe as the underlying stream observer that is being wrapped.
  */
-final class ForwardingClientResponseObserver<ReqT, RespT>
-    implements ClientResponseObserver<RespT, ReqT> {
+final class ForwardingClientResponseObserver<ResponseT, RequestT>
+    implements ClientResponseObserver<RequestT, ResponseT> {
   private final Runnable onReadyHandler;
   private final Runnable onDoneHandler;
-  private final StreamObserver<ReqT> inboundObserver;
+  private final StreamObserver<ResponseT> inboundObserver;
 
   ForwardingClientResponseObserver(
-      StreamObserver<ReqT> inboundObserver, Runnable onReadyHandler, Runnable onDoneHandler) {
+      StreamObserver<ResponseT> inboundObserver, Runnable onReadyHandler, Runnable onDoneHandler) {
     this.inboundObserver = inboundObserver;
     this.onReadyHandler = onReadyHandler;
     this.onDoneHandler = onDoneHandler;
   }
 
   @Override
-  public void onNext(ReqT value) {
+  public void onNext(ResponseT value) {
     inboundObserver.onNext(value);
   }
 
@@ -60,7 +60,7 @@ final class ForwardingClientResponseObserver<ReqT, RespT>
   }
 
   @Override
-  public void beforeStart(ClientCallStreamObserver<RespT> stream) {
+  public void beforeStart(ClientCallStreamObserver<RequestT> stream) {
     stream.setOnReadyHandler(onReadyHandler);
   }
 }

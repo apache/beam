@@ -129,6 +129,12 @@ class RenderOptions(pipeline_options.PipelineOptions):
         help='Set to also log input pipeline proto to stdout.')
     return parser
 
+  def __init__(self, *args, render_testing=False, **kwargs):
+    super().__init__(*args, **kwargs)
+    if self.render_port < 0 and not self.render_output and not render_testing:
+      raise ValueError(
+          'At least one of --render_port or --render_output must be provided.')
+
 
 class PipelineRenderer:
   def __init__(self, pipeline, options):
@@ -147,8 +153,10 @@ class PipelineRenderer:
 
     # Figure out at what point to stop rendering composite internals.
     if options.render_leaf_composite_nodes:
-      is_leaf = lambda name: any(
-          re.match(pattern, name)
+      is_leaf = lambda transform_id: any(
+          re.match(
+              pattern,
+              self.pipeline.components.transforms[transform_id].unique_name)
           for patterns in options.render_leaf_composite_nodes
           for pattern in patterns.split(','))
       self.leaf_composites = set()
@@ -403,6 +411,30 @@ class RenderRunner(runner.PipelineRunner):
     if render_options.log_proto:
       logging.info(pipeline_proto)
     renderer = PipelineRenderer(pipeline_proto, render_options)
+    try:
+      subprocess.run(['dotX', '-V'], capture_output=True, check=True)
+    except FileNotFoundError as exn:
+      # If dot is not available, we can at least output the raw .dot files.
+      dot_files = [
+          output for output in render_options.render_output
+          if output.endswith('.dot')
+      ]
+      for output in dot_files:
+        with open(output, 'w') as fout:
+          fout.write(renderer.to_dot())
+          logging.info("Wrote pipeline as %s", output)
+
+      non_dot_files = set(render_options.render_output) - set(dot_files)
+      if non_dot_files:
+        raise RuntimeError(
+            "Graphviz dot executable not available "
+            f"for rendering non-dot output files {non_dot_files}") from exn
+      elif render_options.render_port >= 0:
+        raise RuntimeError(
+            "Graphviz dot executable not available for serving") from exn
+
+      return RenderPipelineResult(None)
+
     renderer.page()
 
     if render_options.render_port >= 0:

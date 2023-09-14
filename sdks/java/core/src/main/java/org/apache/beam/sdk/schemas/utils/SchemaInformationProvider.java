@@ -15,17 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.schemas.utils;
 
-import PrecommitJobBuilder
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.ConvertHelpers.ConvertedSchemaInformation;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Whitespace',
-    gradleTask: ':whitespacePreCommit',
-    triggerPathPatterns: [
-      '.*\\.md$',
-      '.*build\\.gradle$',
-      '.*build\\.gradle.kts$',
-    ]
-    )
-builder.build()
+/** Provides an instance of {@link ConvertedSchemaInformation}. Use for internal purposes. */
+@Internal
+public interface SchemaInformationProvider {
+  @Nullable
+  <T> ConvertedSchemaInformation<T> getConvertedSchemaInformation(
+      Schema inputSchema, TypeDescriptor<T> outputType);
+}

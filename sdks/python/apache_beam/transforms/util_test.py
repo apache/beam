@@ -1174,6 +1174,31 @@ class LogElementsTest(unittest.TestCase):
           | util.LogElements(prefix='prefix_'))
       assert_that(result, equal_to(['a', 'b', 'c']))
 
+  @pytest.fixture(scope="function")
+  def _capture_logs(request, caplog):
+    with caplog.at_level(logging.INFO):
+      with TestPipeline() as p:
+        _ = (
+            p | "info" >> beam.Create(["element"])
+            | "I" >> beam.LogElements(prefix='info_', level=logging.INFO))
+        _ = (
+            p | "warning" >> beam.Create(["element"])
+            | "W" >> beam.LogElements(prefix='warning_', level=logging.WARNING))
+        _ = (
+            p | "error" >> beam.Create(["element"])
+            | "E" >> beam.LogElements(prefix='error_', level=logging.ERROR))
+
+    request.captured_log = caplog.text
+
+  @pytest.mark.usefixtures("_capture_logs")
+  def test_setting_level_uses_appropriate_log_channel(self):
+    self.assertTrue(
+        re.compile('INFO(.*)info_element').search(self.captured_log))
+    self.assertTrue(
+        re.compile('WARNING(.*)warning_element').search(self.captured_log))
+    self.assertTrue(
+        re.compile('ERROR(.*)error_element').search(self.captured_log))
+
 
 class ReifyTest(unittest.TestCase):
   def test_timestamp(self):
