@@ -15,6 +15,15 @@
     under the License.
 -->
 
+# Running Workflows Manually
+
+Most workflows will get kicked off automatically when you open a PR, push code, or on a schedule.
+
+If you would like to manually trigger a job, you have 2 options:
+
+1) Trigger Phrases: Many jobs have trigger phrases associated with them (e.g. `Run XYZ PreCommit`). These will appear in statuses of previous PR runs of that check. You can trigger the job on any PR by commenting that trigger phrase in the PR.
+2) **Committers only** - Manual triggering: Any committer can start any job with a [workflow_dispatch](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch) trigger defined (all jobs should have these). To do so, navigate to the [Actions tab](https://github.com/apache/beam/actions), click on your desired workflow in the left navigation bar, and then click `Run Workflow`.
+
 # Guidelines for Adding or Modifying Workflows
 
 On top of normal Actions workflow steps, all new CI workflows (excluding release workflows or other workflow automation) should have the following:
