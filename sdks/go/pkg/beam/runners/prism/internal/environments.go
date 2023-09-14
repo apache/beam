@@ -167,6 +167,14 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		switch status {
 		case "running":
 			logger.Info("docker container is running", "container_id", containerID)
+			// Shut down container on job termination.
+			go func() {
+				<-ctx.Done()
+				// Can't use command context, since it's already canceled here.
+				killCmd := exec.Command("docker", "kill", containerID)
+				killCmd.Start()
+				logger.Info("docker container is killed - job finished", "container_id", containerID)
+			}()
 			return nil
 		case "dead", "exited":
 			logDumpCmd := exec.CommandContext(ctx, "docker", "container", "logs", containerID)
