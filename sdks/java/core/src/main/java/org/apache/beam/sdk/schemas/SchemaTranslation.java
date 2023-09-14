@@ -454,7 +454,7 @@ public class SchemaTranslation {
                   urn);
             }
           } else {
-            LOG.info("Constructing non-standard logical type {} as UnknownLogicalType", urn);
+            LOG.debug("Constructing non-standard logical type {} as UnknownLogicalType", urn);
           }
         }
         // assemble an UnknownLogicalType
