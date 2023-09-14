@@ -199,6 +199,23 @@ idea {
   }
 }
 
+task codeCoverageReport(type: JacocoReport, dependsOn: test) {
+  group = "Reporting"
+  description = "Generates code coverage report for SQL related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+            project.fileTree(
+                    dir: it,
+                    includes: ['**/org/apache/beam/sdk/extensions/sql/**'],
+                    excludes: ['**/AutoValue_*'])
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  reports {
+    xml.enabled true
+    html.enabled true
+  }
+}
+
 // Run basic SQL example
 task runBasicExample(type: JavaExec) {
   description = "Run basic SQL example"

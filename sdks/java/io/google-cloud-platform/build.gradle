@@ -244,6 +244,23 @@ task integrationTestKms(type: Test) {
   }
 }
 
+task codeCoverageReport(type: JacocoReport, dependsOn: test) {
+  group = "Reporting"
+  description = "Generates code coverage report for GCP related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+            project.fileTree(
+                    dir: it,
+                    includes: ['**/org/apache/beam/sdk/io/gcp/**'],
+                    excludes: ['**/AutoValue_*'])
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  reports {
+    xml.enabled true
+    html.enabled true
+  }
+}
+
 // path(s) for Cloud Spanner related classes
 def spannerIncludes = [
         '**/org/apache/beam/sdk/io/gcp/spanner/**',

@@ -371,6 +371,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:runPojoExample")
   dependsOn(":sdks:java:extensions:sql:build")
   dependsOn(":sdks:java:extensions:sql:buildDependents")
+  dependsOn(":sdks:java:extensions:sql:codeCoverageReport")
 }
 
 tasks.register("javaPreCommitPortabilityApi") {
