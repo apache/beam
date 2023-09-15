@@ -1,0 +1,60 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+import unittest
+
+import mock
+
+from apache_beam.internal.gcp import auth
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+
+try:
+  import google.auth as gauth
+except ImportError:
+  gauth = None
+
+
+@unittest.skipIf(gauth is None, 'Google Auth dependencies are not installed')
+class MyTestCase(unittest.TestCase):
+  @mock.patch('google.auth.default')
+  def test_auth_with_retrys(self, unused_mock_arg):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(
+        GoogleCloudOptions).impersonate_service_account = False
+
+    credentials = ('creds', 1)
+
+    self.is_called = False
+
+    def side_effect(scopes=None):
+      if self.is_called:
+        return credentials
+      else:
+        self.is_called = True
+        raise IOError('Failed')
+
+    google_auth_mock = mock.MagicMock()
+    gauth.default = google_auth_mock
+    google_auth_mock.side_effect = side_effect
+
+    returned_credentials = auth.get_service_credentials(pipeline_options)
+
+    self.assertEqual('creds', returned_credentials._google_auth_credentials)
+
+
+if __name__ == '__main__':
+  unittest.main()

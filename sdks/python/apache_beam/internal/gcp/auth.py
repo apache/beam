@@ -166,7 +166,7 @@ class _Credentials(object):
       return None
 
   @staticmethod
-  @retry.with_exponential_backoff
+  @retry.with_exponential_backoff()
   def _get_credentials_with_retrys(pipeline_options):
     credentials, _ = google.auth.default(
       scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
