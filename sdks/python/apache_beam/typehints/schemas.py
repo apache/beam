@@ -72,6 +72,7 @@ from typing import Any
 from typing import ByteString
 from typing import Dict
 from typing import Generic
+from typing import Iterable
 from typing import List
 from typing import Mapping
 from typing import NamedTuple
@@ -299,6 +300,11 @@ class SchemaTranslation(object):
                   atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[int])))
 
     elif _safe_issubclass(type_, Sequence) and not _safe_issubclass(type_, str):
+      element_type = self.typing_to_runner_api(_get_args(type_)[0])
+      return schema_pb2.FieldType(
+          array_type=schema_pb2.ArrayType(element_type=element_type))
+
+    elif _safe_issubclass(type_, Iterable) and not _safe_issubclass(type_, str):
       element_type = self.typing_to_runner_api(_get_args(type_)[0])
       return schema_pb2.FieldType(
           array_type=schema_pb2.ArrayType(element_type=element_type))
