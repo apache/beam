@@ -57,6 +57,9 @@ type W struct {
 
 	ID, Env string
 
+	JobKey, ArtifactEndpoint string
+	EnvPb                    *pipepb.Environment
+
 	// Server management
 	lis    net.Listener
 	server *grpc.Server
@@ -107,6 +110,7 @@ func New(id, env string) *W {
 	fnpb.RegisterBeamFnDataServer(wk.server, wk)
 	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
 	fnpb.RegisterBeamFnStateServer(wk.server, wk)
+	fnpb.RegisterProvisionServiceServer(wk.server, wk)
 	return wk
 }
 
@@ -164,10 +168,15 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 			RunnerCapabilities: []string{
 				urns.CapabilityMonitoringInfoShortIDs,
 			},
-			LoggingEndpoint:  endpoint,
-			ControlEndpoint:  endpoint,
-			ArtifactEndpoint: endpoint,
-			// TODO add this job's RetrievalToken
+			LoggingEndpoint: endpoint,
+			ControlEndpoint: endpoint,
+			ArtifactEndpoint: &pipepb.ApiServiceDescriptor{
+				Url: wk.ArtifactEndpoint,
+			},
+
+			RetrievalToken: wk.JobKey,
+			Dependencies:   wk.EnvPb.GetDependencies(),
+
 			// TODO add this job's artifact Dependencies
 
 			Metadata: map[string]string{
