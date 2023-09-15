@@ -116,6 +116,7 @@ public class BeamJoinTransforms {
       this.outputSchema = outputSchema;
       this.factColOffset = factColOffset;
       joinFieldsMapping(joinCondition, factColOffset, lkpColOffset);
+      this.seekableTable.setJoinSubsetType(joinSubsetType);
     }
 
     private void joinFieldsMapping(RexNode joinCondition, int factColOffset, int lkpColOffset) {

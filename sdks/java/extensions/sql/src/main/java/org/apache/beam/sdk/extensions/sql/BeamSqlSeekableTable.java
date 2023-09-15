@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
 
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.values.Row;
  * FROM FACT_TABLE JOIN LOOKUP_TABLE ON ...}.
  */
 public interface BeamSqlSeekableTable extends Serializable {
+  default void setJoinSubsetType(Schema joinSubsetType) {}
   /** prepare the instance. */
   default void setUp() {}
 
