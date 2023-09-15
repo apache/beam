@@ -443,6 +443,7 @@ public class SchemaTranslation {
           return FieldType.DECIMAL;
         } else if (urn.startsWith("beam:logical_type:")) {
           if (!logicalType.getPayload().isEmpty()) {
+            // logical type has a payload, try to recover the instance by deserialization
             try {
               return FieldType.logicalType(
                   (LogicalType)
@@ -454,6 +455,8 @@ public class SchemaTranslation {
                   urn);
             }
           } else {
+            // logical type does not have a payload. This happens when it is passed xlang.
+            // TODO(yathu) it appears this path is called heavily, consider cache the instance
             LOG.debug("Constructing non-standard logical type {} as UnknownLogicalType", urn);
           }
         }
