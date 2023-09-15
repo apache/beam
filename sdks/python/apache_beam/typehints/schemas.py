@@ -87,6 +87,7 @@ from google.protobuf import text_format
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
@@ -586,6 +587,25 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
 def named_fields_from_element_type(
     element_type: type) -> List[Tuple[str, type]]:
   return named_fields_from_schema(schema_from_element_type(element_type))
+
+
+def union_schema_type(element_types):
+  """Returns a schema whose fields are the union of each corresponding field.
+
+  element_types must be a set of schema-aware types whose fields have the
+  same naming and ordering.
+  """
+  union_fields_and_types = []
+  for field in zip(*[named_fields_from_element_type(t) for t in element_types]):
+    names, types = zip(*field)
+    name_set = set(names)
+    if len(name_set) != 1:
+      raise TypeError(
+          f"Could not determine schema for type hints {element_types!r}: "
+          f"Inconsistent names: {name_set}")
+    union_fields_and_types.append(
+        (next(iter(name_set)), typehints.Union[types]))
+  return named_tuple_from_schema(named_fields_to_schema(union_fields_and_types))
 
 
 # Registry of typings for a schema by UUID

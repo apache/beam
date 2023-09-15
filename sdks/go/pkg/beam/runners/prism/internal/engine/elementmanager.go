@@ -209,11 +209,11 @@ func (rb RunBundle) LogValue() slog.Value {
 // remaining.
 func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string) <-chan RunBundle {
 	runStageCh := make(chan RunBundle)
-	ctx, cancelFn := context.WithCancel(ctx)
+	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
 		em.pendingElements.Wait()
-		slog.Info("no more pending elements: terminating pipeline")
-		cancelFn()
+		slog.Debug("no more pending elements: terminating pipeline")
+		cancelFn(fmt.Errorf("elementManager out of elements, cleaning up"))
 		// Ensure the watermark evaluation goroutine exits.
 		em.refreshCond.Broadcast()
 	}()
@@ -392,6 +392,17 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 
 	// TODO support state/timer watermark holds.
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
+}
+
+// FailBundle clears the extant data allowing the execution to shut down.
+func (em *ElementManager) FailBundle(rb RunBundle) {
+	stage := em.stages[rb.StageID]
+	stage.mu.Lock()
+	completed := stage.inprogress[rb.BundleID]
+	em.pendingElements.Add(-len(completed.es))
+	delete(stage.inprogress, rb.BundleID)
+	stage.mu.Unlock()
+	em.addRefreshAndClearBundle(rb.StageID, rb.BundleID)
 }
 
 // ReturnResiduals is called after a successful split, so the remaining work

@@ -908,7 +908,8 @@ class Read(ptransform.PTransform):
       return (
           pbegin
           | Impulse()
-          | core.Map(lambda _: self.source).with_output_types(BoundedSource)
+          | 'EmitSource' >>
+          core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input

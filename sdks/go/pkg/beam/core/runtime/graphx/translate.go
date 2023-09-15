@@ -47,6 +47,7 @@ const (
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window_into:v1"
 	URNMapWindows    = "beam:transform:map_windows:v1"
+	URNToString      = "beam:transform:to_string:v1"
 
 	URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -106,6 +107,7 @@ func goCapabilities() []string {
 		URNWorkerStatus,
 		URNMonitoringInfoShortID,
 		URNBaseVersionGo,
+		URNToString,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }

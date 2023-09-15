@@ -37,23 +37,24 @@ This guide complements the foundation-wide [Product Release Policy](https://www.
 
 ### Overview
 
-<img src="/images/release-guide-1.png" alt="Alt text" width="100%">
+<img src="/images/release-guide-1.png" alt="Release step flow chart" width="100%">
 
 The release process consists of several steps:
 
 1. Decide to release
 1. Prepare for the release
-1. Update base image dependencies for Python container images
-1. Investigate performance regressions
-1. Create a release branch
-1. Verify release branch
 1. Build a release candidate
+    1. Create a release branch
+    1. Verify release branch
+    1. Tag a release candidate
+    1. Build release artifacts
 1. Vote on the release candidate
-1. During vote process, run validation tests
+    * During vote process, run validation tests
 1. If necessary, fix any issues and go back to step 3.
 1. Finalize the release
 1. Promote the release
 
+**********
 
 ## 1. Decide to release
 
@@ -70,34 +71,86 @@ That said, if you are a committer interested in serving the community in this wa
 ### Checklist to proceed to the next step
 
 1. Community agrees to release
-1. Community selects a Release Manager
+1. Community selects a committer as Release Manager
 
 **********
 
-## 2. Prepare for the release
+## 2. Prepare for the release (~1 week before branch cut)
 
 Before your first release, you should perform one-time configuration steps.
- This will set up your security keys for signing the release and access to various release repositories.
+This will set up your security keys for signing the release and access to various release repositories.
 
 To prepare for each release, you should audit the project status in the GitHub issue tracker, and do necessary bookkeeping.
-Finally, you should create a release branch from which individual release candidates will be built.
+Finally, create a release branch from which individual release candidates will be built.
 
 __NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access,
 please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
 
+### Create a new milestone in GitHub for the next release
+
+When contributors resolve an issue in GitHub, they are tagging it with a release that will contain their changes.
+With the release currently underway, new issues should be resolved against a subsequent future release.
+Therefore, you should create a release item for this subsequent release, as follows:
+
+1. In GitHub, navigate to [`Issues > Milestones > New Milestone`](https://github.com/apache/beam/milestones).
+1. Add a new release. Choose the next minor version number after the version currently underway, select the next release due date (generally 6 weeks from today’s date) as the `Start Date`, and choose `Create Milestone`.
+1. At the end of the release, go to the same page and mark the recently released version as closed.
 
 ### Accounts
 
 Please have these credentials ready at hand, you will likely need to enter them multiple times:
 
-* GPG pass phrase (see the next section);
 * Apache ID and Password;
-* GitHub ID and Password.
-* DockerHub ID and Password. (You should be a member of maintainer team; email at dev@ if you are not.)
-* Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail to pabloem@google.com to request access)
+* GitHub ID, Password, and Personal Access Token.
+* PyPi account and apitoken
+* DockerHub ID and Password with beam maintainer access
+* GPG pass phrase & 16-digit key ID
+* Access to Beam's Apache Nexus repository
+* Account to access to apache-beam-testing Google Cloud Platform project. The account must have permissions to start Cloud Build triggers. Required for Playground environment update. (E-mail at dev@ mailing list to request access)
+
+If you don't have a given credential, follow the 'one-time' instructions below.
+
+**********
 
 ### One-time setup instructions
 
+#### Apache ID and Password
+
+This is your Apache committer user name and password. You selected these when you became an Apache Beam Committer.
+
+#### Github ID, Password, and Personal Access Token
+
+For some scripts, you need a Personal Access Token with `repo` and `workflow` permissions.
+They can be generated from this page: https://github.com/settings/tokens.
+See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens for details.
+
+#### Register to PyPI
+
+Release manager needs to have an account with PyPI.
+If you need one, [register at PyPI](https://pypi.python.org/account/register/).
+You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release.
+Ask on the mailing list for assistance.
+
+Generate a [PyPI APIToken](https://pypi.org/help/#apitoken) for use during the release.
+
+#### Login to DockerHub
+If you are a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam), run the following command manually.
+It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
+
+```
+docker login docker.io
+```
+
+After successful login, authorization info will be stored at ~/.docker/config.json file.
+For example,
+```
+"https://index.docker.io/v1/": {
+   "auth": "xxxxxx"
+}
+```
+
+If you are not already a member of the `beam` team, please email `dev@` mailing list for help with any DockerHub related tasks. We are not able
+to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
 
 #### GPG Key
 
@@ -141,6 +194,14 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
 
   Here, the key ID is the 16-digit hex string in the `pub` line: `845E6689845E6689`.
 
+##### Submit your GPG public key into Ubuntu OpenPGP Key Server
+In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
+please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
+
+You will need to use an ascii-armored version of your key.
+This can be obtained by running `gpg --export --armor` and copying the whole block
+(including `-----<START/END> PGP PUBLIC KEY BLOCK-----`).
+
 #### Access to Apache Nexus repository
 
 Configure access to the [Apache Nexus repository](https://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
@@ -167,79 +228,34 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
           </servers>
         </settings>
 
-#### Submit your GPG public key into Ubuntu OpenPGP Key Server
-In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
-please submit your GPG public key into the [Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
-
-You will need to use an ascii-armored version of your key.
-This can be obtained by running `gpg --export --armor` and copying the whole block
-(including `-----<START/END> PGP PUBLIC KEY BLOCK-----`).
-
-#### Website development setup
-
-Updating the Beam website requires submitting PRs to both the main `apache/beam` repo and the `apache/beam-site` repo.
-The first contains reference manuals generated from SDK code, while the second updates the current release version number.
-
-You should already have setup a local clone of `apache/beam`.
-Setting up a clone of `apache/beam-site` is similar:
-
-    $ git clone -b release-docs https://github.com/apache/beam-site.git
-    $ cd beam-site
-    $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam-site.git
-    $ git fetch --all
-    $ git checkout -b <my-branch> origin/release-docs
-
-Further instructions on website development on `apache/beam` is [here](https://github.com/apache/beam/blob/master/website).
-Background information about how the website is updated can be found in [Beam-Site Automation Reliability](https://s.apache.org/beam-site-automation).
-
-#### Register to PyPI
-
-Release manager needs to have an account with PyPI.
-If you need one, [register at PyPI](https://pypi.python.org/account/register/).
-You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release.
-Ask on the mailing list for assistance.
-
-#### Login to DockerHub
-If you are a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam), run following command manually.
-It will ask you to input your DockerHub ID and password if authorization info cannot be found from ~/.docker/config.json file.
-
-```
-docker login docker.io
-```
-
-After successful login, authorization info will be stored at ~/.docker/config.json file.
-For example,
-```
-"https://index.docker.io/v1/": {
-   "auth": "xxxxxx"
-}
-```
-
-If you are not already a member of the `beam` team, please email `dev@` for help with any DockerHub related tasks. We are not able
-to add more members to the DockerHub team because [the ASF has a limited number of seats available](https://infra.apache.org/docker-hub-policy.html).
-
-### Create a new milestone in GitHub
-
-When contributors resolve an issue in GitHub, they are tagging it with a release that will contain their changes.
-With the release currently underway, new issues should be resolved against a subsequent future release.
-Therefore, you should create a release item for this subsequent release, as follows:
-
-1. In GitHub, navigate to [`Issues > Milestones > New Milestone`](https://github.com/apache/beam/milestones).
-1. Add a new release. Choose the next minor version number after the version currently underway, select the next release due date (generally 6 weeks from today’s date) as the `Start Date`, and choose `Create Milestone`.
-1. At the end of the release, go to the same page and mark the recently released version as closed.
-
-
 **********
 
+### Handle Per Release tasks
 
-## 3. Update base image dependencies for Python container images
+#### Update base image dependencies for Python container images
+
+Tracked in Github issue https://github.com/apache/beam/issues/27944
 
 See instructions at: https://s.apache.org/beam-python-requirements-generate
 
 Ideally, do the update at least a week before the release cut, so that any issues
 related to the update have time to surface.
 
-## 4. Investigate performance regressions
+#### Update Go version used for container builds
+
+Tracked in Github issue https://github.com/apache/beam/issues/27897
+
+Ideally, do the update at least a week before the release cut, so that any issues
+related to the update have time to surface.
+
+#### Update the Java BOM
+
+Tracked in Github issue https://github.com/apache/beam/issues/28379
+
+Ideally, do the update at least a week before the release cut, so that any issues
+related to the update have time to surface.
+
+#### Investigate performance regressions
 
 Check the Beam load tests for possible performance regressions.
 Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apache.org).
@@ -254,150 +270,12 @@ If regressions are found, the release branch can still be created, but the regre
 The role of the release manager is to file GitHub issues for each regression with the milestone set to the to-be-released version.
 The release manager oversees these just like any other issue marked with the milestone of the release.
 
-The mailing list should be informed to allow fixing the regressions in the course of the release.
+The mailing list should be informed to allow fixing the regressions in the course of the release. Issues should be filed and tagged with the milestone.
 
-## 5. Create a release branch in apache/beam repository
-
-Attention: Only committer has permission to create release branch in apache/beam.
-
-Release candidates are built from a release branch.
-As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
-The final state of the repository should match this diagram:
-
-<img src="/images/cut-release-branch.png" alt="Increment minor version on master branch and set Dataflow container version on release branch" width="100%">
-
-The key points to know:
-
-- The `master` branch has the SNAPSHOT/dev version incremented.
-- The release branch has the SNAPSHOT/dev version to be released.
-- The Dataflow container image should be modified to the version to be released.
-
-This will all be accomplished by the [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
-workflow. This workflow will also update [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-to contain all of the active Jenkins jobs.
-
-After updating the master branch, the workflow will also start a build of
-[the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
-Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch.
-Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.
-The workflow starts the nightly snapshot by creating an empty PR against apache:master (which will be linked to in the logs).
-
-#### Use cut_release_branch.sh to cut a release branch
-* **Action:** [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml) (click `run workflow`)
-
-In order to run this workflow, you will need to provide a Jenkins username and API token. Your Jenkins username should be your Apache ID.
-Your Jenkins API token can be generated by visiting https://ci-beam.apache.org/user/<your Jenkins username>/configure and clicking
-`Add new token` in the API token section.
-
-* Tasks you need to do manually to __verify the SNAPSHOT build__
-  1. Check whether the Jenkins job gets triggered. If not, please comment ```Run Gradle Publish``` into the generated PR.
-  1. After verifying build succeeded, you need to close PR manually.
-  1. Manually update `CHANGES.md` on `master` by adding a new section for the next release ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
-
-
-**********
-
-
-## 6. Verify release branch
-
-After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
-There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
-
-! Dataflow tests will fail if Dataflow worker container is not created and published by this time. (Should be done by Google)
-
-#### Run automation script (verify_release_build.sh)
-* **Script:** [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
-
-* **Usage**
-  1. Create a personal access token from your Github account.
-  See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
-     It'll be used by the script for accessing Github API.
-     You only need to enable "repo" permissions to this token.
-  1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
-  1. Then run
-     ```
-     cd beam/release/src/main/scripts && ./verify_release_build.sh
-     ```
-  1. Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
-     You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
-     Or manually add one trigger phrase per PR comment.
-     See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
-     for a full list of phrases.
-
-* **Tasks included in the script**
-  1. Installs ```hub``` with your agreement and setup local git repo;
-  1. Create a test PR against release branch;
-
-#### Verify the build succeeds
-
-* Tasks you need to do manually to __verify the build succeed__:
-  1. Check the build result.
-  2. If build failed, scan log will contain all failures.
-  3. You should stabilize the release branch until release build succeeded.
-
-There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to ignore failures there.
-
-To triage the failures and narrow things down you may want to look at `settings.gradle.kts` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
-
-#### (Alternative) Run release build manually (locally)
-You will need to have Python interpreters for all supported Python minor
-versions to run Python tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
-
-* **Run gradle release build**
-
-  1. Clean current workspace
-
-      ```
-      git clean -fdx
-      ./gradlew clean
-      ```
-
-  1. Unlock the secret key
-      ```
-      gpg --output ~/doc.sig --sign ~/.bashrc
-      ```
-
-  1.  Run build command
-      ```
-      ./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
-      ```
-
-      To speed things up locally you might want to omit `--no-parallel`. You can also omit `--continue`
-      if you want build fails after the first error instead of continuing, it may be easier and faster
-      to find environment issues this way without having to wait until the full build completes.
-
-
-#### Create release-blocking issues in GitHub
-
-The verify_release_build.sh script may include failing or flaky tests.
-For each of the failing tests create a GitHub Issue with the following properties:
-
-* **Issue Type:** Bug
-
-* **Summary:** Name of failing gradle task and name of failing test (where applicable) in form of :MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure
-
-* **Priority:** P1
-
-* **Component:** "test-failures"
-
-* **Milestone:** Release number of verified release branch
-
-* **Description:** Description of failure
-
-#### Inform the mailing list
-
-The dev@beam.apache.org mailing list should be informed about the release branch being cut.
-Alongside with this note, a list of pending issues and to-be-triaged issues should be included.
-Afterwards, this list can be refined and updated by the release manager and the Beam community.
-
-**********
-
-
-## 7. Triage release-blocking issues in GitHub
+#### Triage release-blocking issues in GitHub
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
 We track them by assigning the blocked release to the issue's milestone before the issue is resolved.
-
 
 The release manager should triage what does and does not block a release.
 The list of release-blocking issues is available at the [milestone status page](https://github.com/apache/beam/milestones).
@@ -429,12 +307,161 @@ For all other GitHub issues:
 
 If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
 
+### Checklist to proceed to the next step
+
+1. Next release has a milestone in github.
+1. You have your various account credentials prepared.
+1. Per Release tasks for the current release have been handled.
+1. Open issues/PRs against the current release have been notified.
+1. Performance Regressions have been investigated and had issues filed.
+1. It is the proposed branch cut day.
+
+**********
+
+## 3. Build a release candidate
+
+Building a release candidate involves creating a release branch, running validation tests against the branch, filing issues, cherry picking fixes,
+making a release candidate tag, and building all artifacts from that tag.
+
+### Create a release branch in apache/beam repository
+
+As a final step in preparation for the release, you should create the release branch, and update version information on the original branch.
+This should happen once per release. If additional release candidates are required, they are built from later versions of this branch.
+
+The final state of the repository should match this diagram:
+
+<img src="/images/cut-release-branch.png" alt="Increment minor version on master branch and set Dataflow container version on release branch" width="100%">
+
+The key points to know:
+
+- The `master` branch has the SNAPSHOT/dev version incremented.
+- The release branch has the SNAPSHOT/dev version to be released.
+- The Dataflow container image should be modified to the version to be released.
+
+This will all be accomplished by the [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
+workflow. This workflow will also update [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
+to contain all of the active Jenkins jobs.
+
+After updating the master branch, the workflow will also start a build of
+[the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
+Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch.
+Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.
+The workflow starts the nightly snapshot by creating an empty PR against apache:master (which will be linked to in the logs).
+
+#### Use cut_release_branch workflow to cut a release branch
+
+* **Action:** [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml) (click `run workflow`)
+
+In order to run this workflow, you will need to provide a Apache ID and Jenkins API token.
+Your Jenkins API token can be generated by visiting https://ci-beam.apache.org, signing in with your Apache credentials,
+then going to `https://ci-beam.apache.org/user/<your ID username>/configure` and clicking `Add new token` in the API token section.
+
+* Tasks you need to do manually to __verify the SNAPSHOT build__
+  1. Check whether the Jenkins job gets triggered. If not, please comment ```Run Gradle Publish``` into the generated PR.
+  1. After verifying build succeeded, you need to close PR manually.
+  1. Manually update `CHANGES.md` on `master` by adding a new section for the next release ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
+
+### Verify release branch
+
+After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
+There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
+
+> Dataflow tests will fail if the Dataflow worker container is not created and published by this time.
+> Should be done by Google, in response to the creation of the release branch, and docker images are hosted.
+> This should not block creation of the first release candidate, but should block approval of the release.
+
+#### Run automation script (verify_release_build.sh)
+* **Script:** [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
+
+* **Usage**
+  1. Create a personal access token from your Github account.
+  See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
+     It'll be used by the script for accessing Github API.
+     You need to enable `repo` and `workflow` permissions for this token.
+  1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
+  1. Then run
+     ```
+     cd beam/release/src/main/scripts && ./verify_release_build.sh
+     ```
+  1. Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
+     You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
+     Or manually add one trigger phrase per PR comment.
+     See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
+     for a full list of phrases.
+
+* **Tasks included in the script**
+  1. Installs `hub` with your agreement and setup local git repo;
+  1. Create a test PR against release branch;
+
+#### Verify the build succeeds
+
+* Tasks you need to do manually to __verify the build succeed__:
+  1. Check the build result.
+  2. If build failed, scan log will contain all failures.
+  3. You should stabilize the release branch until release build succeeded.
+
+There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to ignore failures there.
+
+To triage the failures and narrow things down you may want to look at `settings.gradle.kts` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
+
+#### (Alternative) Run release build locally
+You will need to have Python interpreters for all supported Python minor
+versions to run Python tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
+
+* **Run gradle release build**
+
+  1. Clean current workspace
+
+      ```
+      git clean -fdx
+      ./gradlew clean
+      ```
+
+  1. Unlock the secret key
+      ```
+      gpg --output ~/doc.sig --sign ~/.bashrc
+      ```
+
+  1.  Run build command
+      ```
+      ./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
+      ```
+
+      To speed things up locally you might want to omit `--no-parallel`. You can also omit `--continue`
+      if you want build fails after the first error instead of continuing, it may be easier and faster
+      to find environment issues this way without having to wait until the full build completes.
+
+#### Create release-blocking issues in GitHub
+
+The verify_release_build.sh script may include failing or flaky tests.
+For each of the failing tests create a GitHub Issue with the following properties:
+
+* **Issue Type:** Bug
+
+* **Summary:** Name of failing gradle task and name of failing test (where applicable) in form of :MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure
+
+* **Priority:** P1
+
+* **Component:** "test-failures"
+
+* **Milestone:** Release number of verified release branch
+
+* **Description:** Description of failure
+
+#### Inform the mailing list
+
+The dev@ mailing list should be informed about the release branch being cut.
+Alongside with this note, a list of pending issues and to-be-triaged issues should be included.
+Afterwards, this list can be refined and updated by the release manager and the Beam community.
+
 ### Review cherry-picks
+
+The release manager is empowered to triage issues, and accept or reject cherry-picks to the release branch.
+Cherry picks are necessary if there are outstanding issues at time of the release branch cut, or issues were found in verification.
 
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
 Make sure they have blocker Issues attached and are OK to get into the release by checking with community if needed.
 
-As the Release Manager you are empowered to accept or reject cherry-picks to the release branch.
 You are encouraged to ask the following questions to be answered on each cherry-pick PR and you can choose to reject cherry-pick requests if these questions are not satisfactorily answered:
 
 * Is this a regression from a previous release? (If no, fix could go to a newer version.)
@@ -450,11 +477,9 @@ Neither late releases nor not fully tested code will provide positive user value
 __Tip__: Another tool in your toolbox is the known issues section of the release blog.
 Consider adding known issues there for minor issues instead of accepting cherry picks to the release branch.
 
+### Build release artifacts
 
-**********
-
-
-## 8. Build a release candidate
+Once the branch is verified, it's time to build
 
 #### Checklist before proceeding
 
@@ -479,7 +504,7 @@ The Release Manager repeats this cycle until the community approves one release 
 
 For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.
 
-### Tag a chosen commit for the RC
+#### Tag a chosen commit for the RC
 
 Release candidates are built from single commits off the release branch.
 Before building, the version must be set to a non-SNAPSHOT, non-dev version.
@@ -509,7 +534,7 @@ is perfectly safe since the script does not depend on the current working tree.
 
 See the source of the script for more details, or to run commands manually in case of a problem.
 
-### Run build_release_candidate GitHub Action to create a release candidate
+#### Run build_release_candidate GitHub Action to create a release candidate
 
 Note: This step is partially automated (in progress), so part of the rc creation is done by GitHub Actions and the rest is done by a script.
 You don't need to wait for the action to complete to start running the script.
@@ -523,7 +548,7 @@ You don't need to wait for the action to complete to start running the script.
   1. Build javadoc, pydoc, typedocs for a PR to update beam-site.
      * **NOTE**: Do not merge this PR until after an RC has been approved (see "Finalize the Release").
 
-#### Tasks you need to do manually
+##### Tasks you need to do manually
 
   1. Publish staging artifacts
       1. Log in to the [Apache Nexus](https://repository.apache.org/#stagingRepositories) website.
@@ -537,7 +562,7 @@ You don't need to wait for the action to complete to start running the script.
          Carefully review any new artifacts.
          Some additional validation should be done during the rc validation step.
 
-### Run build_release_candidate.sh to create a release candidate
+#### Run build_release_candidate.sh to create a release candidate
 
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
@@ -553,14 +578,14 @@ Skip this step if you already did it with the build_release_candidate GitHub Act
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
 Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
 Note: if you are not a member of the [`beam` DockerHub team](https://hub.docker.com/orgs/apache/teams/beam) you will need
-help with this step. Please email `dev@` and ask a member of the `beam` DockerHub team for help.
+help with this step. Please email `dev@` mailing list and ask a member of the `beam` DockerHub team for help.
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
      * **NOTE**: Do not merge this PR until after an RC has been approved (see "Finalize the Release").
 Skip this step if you already did it with the build_release_candidate GitHub Actions workflow.
 
-#### Tasks you need to do manually
+##### Tasks you need to do manually
   1. Verify the script worked.
       1. Verify that the source and Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
       1. Verify Docker images are published. How to find images:
@@ -581,7 +606,7 @@ Skip this step if you already did it with the build_release_candidate GitHub Act
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
 
-### Upload release candidate to PyPi
+#### Upload release candidate to PyPi
 
 * **Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
 
@@ -608,13 +633,6 @@ You can do a dry run by omitting the `--deploy` flag. Then it will only download
 
 See the source of the script for more details or to run commands manually in case of a problem.
 
-
-
-**********
-
-
-## 9. Prepare documents
-
 ### Propose pull requests for website updates
 
 Beam publishes API reference manuals for each release on the website.
@@ -629,7 +647,7 @@ A committer can manually trigger the [beam_PostCommit_Website_Publish](https://c
 **PR 1: apache/beam-site**
 
 This pull request is against the `apache/beam-site` repo, on the `release-docs` branch ([example](https://github.com/apache/beam-site/pull/603)).
-It is created by `build_release_candidate.sh` (see above).
+It is created by the `build_release_candidate` workflow (see above).
 
 **PR 2: apache/beam**
 
@@ -728,7 +746,7 @@ all major features and bug fixes, and all known issues.
     ${CONTRIBUTORS}
 
 
-#### Checklist to proceed to the next step
+### Checklist to proceed to the next step
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
@@ -747,11 +765,9 @@ docker pull {image_name}
 docker pull apache/beam_python3.7_sdk:2.39.0rc1
 ```
 
-
 **********
 
-
-## 10. Vote and validate release candidate
+## 4. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
 Please review foundation-wide [voting guidelines](https://www.apache.org/foundation/voting.html) for more information.
@@ -809,7 +825,7 @@ Here’s an email template; please adjust as you see fit.
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote.
 There’s no need to wait 72 hours.
-Proceed to the `Fix Issues` step below and address the problem.
+Proceed to the `Fix issues` step below and address the problem.
 However, some issues don’t require cancellation.
 For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
@@ -819,7 +835,7 @@ Before accepting an RC, as a community we try to exercise most (if not all) of t
 [spreadsheet](https://s.apache.org/beam-release-validation), and those are good validations for you to try out as release manager.
 The goal of these tests is to validate that we're able to run basic pipelines from a variety of environments (not just our CI environment).
 
-Since there are a bunch of tests, we recommend you running some validations using an automation script.
+Since there are many tests, we recommend you running some validations using an automation script.
 In case of script failure, you can still run all of them manually.
 
 You may need to have Python interpreters for all supported Python minor
@@ -1078,7 +1094,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     * bq head -n 10 ${USER}_test.game_stats_sessions
 
 
-### Fix any issues
+### Fix issues
 
 Any issues identified during the community review and vote should be fixed in this step.
 Additionally, any GitHub issues created from the initial branch verification should be fixed.
@@ -1086,7 +1102,7 @@ Additionally, any GitHub issues created from the initial branch verification sho
 Code changes should be proposed as standard pull requests to the `master` branch and reviewed using the normal contributing process.
 Then, relevant changes should be cherry-picked into the release branch proposed as pull requests against the release branch, again reviewed and merged using the normal contributing process.
 
-Once all issues have been resolved, you should go back and build a new release candidate with these changes.
+Once all issues have been resolved as in the `Verify release branch` step, you should go back and build a new release candidate with these changes.
 
 ### Finalize the vote
 
@@ -1123,11 +1139,12 @@ Here’s an email template; please adjust as you see fit.
 
 **********
 
-
-## 11. Finalize the release
+## 5. Finalize the release
 
 Once the release candidate has been reviewed and approved by the community, the release should be finalized.
 This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.
+
+This does not take very long, and can be accomplished within hours of the vote being finalized.
 
 ### Deploy artifacts to Maven Central Repository
 
@@ -1152,7 +1169,7 @@ All wheels should be published, in addition to the zip of the release source.
 ### Deploy docker images to DockerHub
 
 Note: if you are not a member of the [beam DockerHub team](https://hub.docker.com/orgs/apache/teams/beam),
-you will need help with this step. Please email dev@ and ask a member of the beam DockerHub team for help.
+you will need help with this step. Please email dev@ mailing list and ask a member of the beam DockerHub team for help.
 
 * **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * **Usage**
@@ -1214,7 +1231,7 @@ In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), c
 
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do.
-Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
+Ping [dev@](mailto:dev@beam.apache.org) mailing list for assistance if you need it.
 
 #### Deploy source release to dist.apache.org
 
@@ -1241,8 +1258,7 @@ Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to s
 
 **********
 
-
-## 12. Promote the release
+## 6. Promote the release
 
 Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.
 
@@ -1273,9 +1289,11 @@ Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wik
 
 **********
 
-## 13. Update Beam Playground
+## Post Release Tasks
 
-After new Beam Release is published, Beam Playgorund can be updated following the steps below:
+### Update Beam Playground
+
+After new Beam Release is published, Beam Playground can be updated following the steps below:
 
 1. Open the [Cloud Build triggers in apache-beam-testing](https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing) GCP project.
 1. Find the trigger "Deploy-Update-Playground-environment-stg":
@@ -1283,15 +1301,15 @@ After new Beam Release is published, Beam Playgorund can be updated following th
     1. Change the value for _SDK_TAG variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g. 2.47.0)
     1. Click the Save button. The settings window should close without any errors
     1. Click the RUN button next to the trigger name
-    1. Set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)
+    1. In the panel that opened, set the value for the _CONTAINER_TAG variable in format DD-MM-vXX (DD - day, MM - month, XX - version, e.g., 20-12-v01)
     1. Click the Run Trigger button
     1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
-1. Find the trigger "Playground-CD-stable-manual-stg":
+1. Find the trigger "Playground-CD-stable-manual-stg", it will be run twice, once with default variables, and once with some overridden:
     1. Click the RUN button next to the trigger name
-    1. Click the Run Trigger button (with default varaible vaues)
+    1. In the panel that opened, click the Run Trigger button (with default variable values)
     1. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
     1. Click the RUN button next to the trigger name
-    1. Change values for the variables:
+    1. In the panel that opened, change values for the variables:
         * _ORIGIN = PG_BEAMDOC
         * _SUBDIRS = ./learning/beamdoc
     1. Click the Run Trigger button
@@ -1312,7 +1330,7 @@ After new Beam Release is published, Beam Playgorund can be updated following th
     1. Set the value for the _BEAM_VERSION variable (Advanced -> Substitution Variables) to the actual version of Beam SDK (e.g., 2.47.0)
     1. Click the Save button. Click the Save button. The settings window should close without any errors
 
-## Improve the process
+### Improve the process
 
 It is important that we improve the release processes over time.
 Once you’ve finished the release, please take a step back and look what areas of this process and be improved. Perhaps some part of the process can be simplified.

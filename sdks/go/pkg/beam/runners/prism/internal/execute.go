@@ -54,7 +54,7 @@ func RunPipeline(j *jobservices.Job) {
 		return
 	}
 	env, _ := getOnlyPair(envs)
-	wk := worker.New(env) // Cheating by having the worker id match the environment id.
+	wk := worker.New(j.String()+"_"+env, env) // Cheating by having the worker id match the environment id.
 	go wk.Serve()
 	timeout := time.Minute
 	time.AfterFunc(timeout, func() {
@@ -69,7 +69,7 @@ func RunPipeline(j *jobservices.Job) {
 	// When this function exits, we cancel the context to clear
 	// any related job resources.
 	defer func() {
-		j.CancelFn(nil)
+		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
 	}()
 	go runEnvironment(j.RootCtx, j, env, wk)
 
@@ -102,10 +102,10 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 	case urns.EnvExternal:
 		ep := &pipepb.ExternalPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ep); err != nil {
-			slog.Error("unmarshing environment payload", err, slog.String("envID", wk.ID))
+			slog.Error("unmarshing environment payload", err, slog.String("envID", wk.Env))
 		}
 		externalEnvironment(ctx, ep, wk)
-		slog.Info("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
+		slog.Debug("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
 	default:
 		panic(fmt.Sprintf("environment %v with urn %v unimplemented", env, e.GetUrn()))
 	}
@@ -271,7 +271,7 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			}
 			stages[stage.ID] = stage
 			wk.Descriptors[stage.ID] = stage.desc
-		case wk.ID:
+		case wk.Env:
 			// Great! this is for this environment. // Broken abstraction.
 			if err := buildDescriptor(stage, comps, wk); err != nil {
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
@@ -296,16 +296,31 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 	// Use a channel to limit max parallelism for the pipeline.
 	maxParallelism := make(chan struct{}, 8)
 	// Execute stages here
-	for rb := range em.Bundles(ctx, wk.NextInst) {
-		maxParallelism <- struct{}{}
-		go func(rb engine.RunBundle) {
-			defer func() { <-maxParallelism }()
-			s := stages[rb.StageID]
-			s.Execute(ctx, j, wk, comps, em, rb)
-		}(rb)
+	bundleFailed := make(chan error)
+	bundles := em.Bundles(ctx, wk.NextInst)
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case rb, ok := <-bundles:
+			if !ok {
+				slog.Debug("pipeline done!", slog.String("job", j.String()))
+				return nil
+			}
+			maxParallelism <- struct{}{}
+			go func(rb engine.RunBundle) {
+				defer func() { <-maxParallelism }()
+				s := stages[rb.StageID]
+				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
+					// Ensure we clean up on bundle failure
+					em.FailBundle(rb)
+					bundleFailed <- err
+				}
+			}(rb)
+		case err := <-bundleFailed:
+			return err
+		}
 	}
-	slog.Info("pipeline done!", slog.String("job", j.String()))
-	return nil
 }
 
 func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comps *pipepb.Components) func(io.Reader) []byte {
