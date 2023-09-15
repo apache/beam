@@ -273,7 +273,7 @@ public class StreamingDataflowWorkerTest {
         CloudObject.forClassName(
             "com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder");
     List<CloudObject> component =
-        Collections.singletonList(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
+        Collections.singletonList(CloudObjects.asCloudObject(coder, /* sdkComponents= */ null));
     Structs.addList(timerCloudObject, PropertyNames.COMPONENT_ENCODINGS, component);
 
     CloudObject encodedCoder = CloudObject.forClassName("kind:windowed_value");
@@ -283,7 +283,7 @@ public class StreamingDataflowWorkerTest {
         PropertyNames.COMPONENT_ENCODINGS,
         ImmutableList.of(
             timerCloudObject,
-            CloudObjects.asCloudObject(IntervalWindowCoder.of(), /*sdkComponents=*/ null)));
+            CloudObjects.asCloudObject(IntervalWindowCoder.of(), /* sdkComponents= */ null)));
 
     return new ParallelInstruction()
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
@@ -315,7 +315,7 @@ public class StreamingDataflowWorkerTest {
                         .setCodec(
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
-                                /*sdkComponents=*/ null))))
+                                /* sdkComponents= */ null))))
         .setOutputs(
             Arrays.asList(
                 new InstructionOutput()
@@ -325,7 +325,7 @@ public class StreamingDataflowWorkerTest {
                     .setCodec(
                         CloudObjects.asCloudObject(
                             WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
-                            /*sdkComponents=*/ null))));
+                            /* sdkComponents= */ null))));
   }
 
   private ParallelInstruction makeDoFnInstruction(
@@ -371,7 +371,7 @@ public class StreamingDataflowWorkerTest {
                         CloudObjects.asCloudObject(
                             WindowedValue.getFullCoder(
                                 outputCoder, windowingStrategy.getWindowFn().windowCoder()),
-                            /*sdkComponents=*/ null))));
+                            /* sdkComponents= */ null))));
   }
 
   private ParallelInstruction makeDoFnInstruction(
@@ -407,7 +407,7 @@ public class StreamingDataflowWorkerTest {
                         .setCodec(
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(coder, windowCoder),
-                                /*sdkComponents=*/ null))));
+                                /* sdkComponents= */ null))));
   }
 
   private ParallelInstruction makeSinkInstruction(
@@ -1431,7 +1431,7 @@ public class StreamingDataflowWorkerTest {
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(
                                     StringUtf8Coder.of(), IntervalWindow.getCoder()),
-                                /*sdkComponents=*/ null))));
+                                /* sdkComponents= */ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1539,7 +1539,7 @@ public class StreamingDataflowWorkerTest {
     addObject(
         spec,
         WorkerPropertyNames.INPUT_CODER,
-        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
+        CloudObjects.asCloudObject(windowedKvCoder, /* sdkComponents= */ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -1559,7 +1559,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                windowedGroupedCoder, /*sdkComponents=*/ null))));
+                                windowedGroupedCoder, /* sdkComponents= */ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1835,7 +1835,7 @@ public class StreamingDataflowWorkerTest {
     addObject(
         spec,
         WorkerPropertyNames.INPUT_CODER,
-        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
+        CloudObjects.asCloudObject(windowedKvCoder, /* sdkComponents= */ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -1855,7 +1855,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                windowedGroupedCoder, /*sdkComponents=*/ null))));
+                                windowedGroupedCoder, /* sdkComponents= */ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -2156,7 +2156,7 @@ public class StreamingDataflowWorkerTest {
     addObject(
         spec,
         WorkerPropertyNames.INPUT_CODER,
-        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
+        CloudObjects.asCloudObject(windowedKvCoder, /* sdkComponents= */ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -2176,7 +2176,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                windowedGroupedCoder, /*sdkComponents=*/ null))));
+                                windowedGroupedCoder, /* sdkComponents= */ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -2316,7 +2316,7 @@ public class StreamingDataflowWorkerTest {
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
                 GlobalWindow.Coder.INSTANCE),
-            /*sdkComponents=*/ null);
+            /* sdkComponents= */ null);
 
     return Arrays.asList(
         new ParallelInstruction()
@@ -2923,6 +2923,98 @@ public class StreamingDataflowWorkerTest {
     executor.shutdown();
   }
 
+  @Test
+  public void testActiveThreadMetric() throws Exception {
+    LOG.info("[chengedward] testActiveThreadMetric running");
+    int maxThreads = 4;
+    int threadExpiration = 60;
+
+    Clock mockClock = Mockito.mock(Clock.class);
+    CountDownLatch latch = new CountDownLatch(2);
+    doAnswer(
+            invocation -> {
+              latch.countDown();
+              // Return 0 until we are called once (reach max thread count).
+              if (latch.getCount() == 1) {
+                return 0L;
+              }
+              return 1000L;
+            })
+        .when(mockClock)
+        .millis();
+    LOG.info("[chengedward] testActiveThreadMetric created clock");
+    // setting up actual implementation of executor instead of mocking to keep track of
+    // active thread count.
+    BoundedQueueExecutor executor =
+        new BoundedQueueExecutor(
+            maxThreads,
+            threadExpiration,
+            TimeUnit.SECONDS,
+            maxThreads,
+            10000000,
+            new ThreadFactoryBuilder()
+                .setNameFormat("DataflowWorkUnits-%d")
+                .setDaemon(true)
+                .build(),
+            mockClock);
+
+    LOG.info("[chengedward] testActiveThreadMetric created executor");
+
+    StreamingDataflowWorker.ComputationState computationState =
+        new StreamingDataflowWorker.ComputationState(
+            "computation",
+            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            executor,
+            ImmutableMap.of(),
+            null);
+
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    LOG.info("[chengedward] testActiveThreadMetric creating work");
+    MockWork m2 =
+        new MockWork(2) {
+          @Override
+          public void run() {
+            try {
+              // Make sure we don't finish before both MockWork are executed, thus afterExecute must
+              // be called after
+              // beforeExecute.
+              while (latch.getCount() > 1) {
+                Thread.sleep(50);
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        };
+
+    MockWork m3 =
+        new MockWork(3) {
+          @Override
+          public void run() {
+            try {
+              while (latch.getCount() > 1) {
+                Thread.sleep(50);
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          }
+        };
+    LOG.info("[chengedward] testActiveThreadMetric checking asserts");
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    assertTrue(computationState.activateWork(key1Shard1, m3));
+    
+    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    // Wait until the afterExecute is called.
+    latch.await();
+
+    assertEquals(1000L, executor.allThreadsActiveTime());
+    LOG.info("[chengedward] testActiveThreadMetric shutting down executor");
+    executor.shutdown();
+    LOG.info("[chengedward] testActiveThreadMetric finished");
+  }
+
   static class TestExceptionInvalidatesCacheFn
       extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
@@ -3003,7 +3095,7 @@ public class StreamingDataflowWorkerTest {
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
                 GlobalWindow.Coder.INSTANCE),
-            /*sdkComponents=*/ null);
+            /* sdkComponents= */ null);
 
     TestCountingSource counter = new TestCountingSource(3).withThrowOnFirstSnapshot(true);
 
@@ -3152,8 +3244,7 @@ public class StreamingDataflowWorkerTest {
           // The commit will include a timer to clean up state - this timer is irrelevant
           // for the current test. Also remove source_bytes_processed because it's dynamic.
           setValuesTimestamps(
-                  removeDynamicFields(commit)
-                      .toBuilder()
+                  removeDynamicFields(commit).toBuilder()
                       .clearOutputTimers()
                       .clearSourceBytesProcessed())
               .build(),

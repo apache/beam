@@ -156,6 +156,12 @@ applyJavaNature(
 /******************************************************************************/
 // Configure the worker root project
 
+test {
+    filter {
+        includeTestsMatching "*testActiveThreadMetric*"
+    }
+}
+
 configurations {
     sourceFile
 

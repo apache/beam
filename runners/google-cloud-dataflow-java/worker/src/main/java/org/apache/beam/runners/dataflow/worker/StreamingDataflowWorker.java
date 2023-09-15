@@ -158,6 +158,7 @@ public class StreamingDataflowWorker {
 
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
+
   /**
    * Fix up MapTask representation because MultiOutputInfos are missing from system generated
    * ParDoInstructions.
@@ -255,7 +256,7 @@ public class StreamingDataflowWorker {
 
   public static void main(String[] args) throws Exception {
     JvmInitializers.runOnStartup();
-
+    LOG.info("[chengedward] streaming dataflow worker starting up");
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     DataflowWorkerHarnessOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
@@ -434,6 +435,8 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
   private final Counter<Long, Long> timeAtMaxActiveThreads;
+  private final Counter<Integer, Integer> activeThreads;
+  private final Counter<Integer, Integer> maxActiveThreads;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private final Counter<Integer, Integer> memoryThrashing;
   private ScheduledExecutorService refreshWorkTimer;
@@ -612,9 +615,15 @@ public class StreamingDataflowWorker {
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
+    LOG.info("[chengedward] creating TIME_AT_MAX_ACTIVE_THREADS counter");
     this.timeAtMaxActiveThreads =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName());
+    this.activeThreads =
+        pendingCumulativeCounters.intSum(StreamingSystemCounterNames.ACTIVE_THREADS.counterName());
+    this.maxActiveThreads =
+        pendingCumulativeCounters.intSum(
+            StreamingSystemCounterNames.MAX_ACTIVE_THREADS.counterName());
     this.windmillMaxObservedWorkItemCommitBytes =
         pendingCumulativeCounters.intMax(
             StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
@@ -996,7 +1005,7 @@ public class StreamingDataflowWorker {
               inputDataWatermark,
               synchronizedProcessingTime,
               workItem,
-              /*getWorkStreamLatencies=*/ Collections.emptyList());
+              /* getWorkStreamLatencies= */ Collections.emptyList());
         }
       }
     }
@@ -1399,8 +1408,7 @@ public class StreamingDataflowWorker {
       // The coder type that will be present is:
       //     WindowedValueCoder(TimerOrElementCoder(KvCoder))
       @Nullable Coder<?> keyCoder = executionState.getKeyCoder();
-      @Nullable
-      Object executionKey =
+      @Nullable Object executionKey =
           keyCoder == null ? null : keyCoder.decode(key.newInput(), Coder.Context.OUTER);
 
       if (workItem.hasHotKeyInfo()) {
@@ -2027,6 +2035,12 @@ public class StreamingDataflowWorker {
   private void updateThreadMetrics() {
     timeAtMaxActiveThreads.getAndReset();
     timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());
+    activeThreads.getAndReset();
+    activeThreads.addValue(workUnitExecutor.activeCount());
+    maxActiveThreads.getAndReset();
+    maxActiveThreads.addValue(chooseMaximumNumberOfThreads());
+    LOG.info("[chengedward] active thread metric: " + activeThreads.getAggregate());
+    LOG.info("[chengedward] max active thread metric: " + maxActiveThreads.getAggregate());
   }
 
   @VisibleForTesting
@@ -2277,7 +2291,8 @@ public class StreamingDataflowWorker {
         if (completedWork.getWorkItem().getWorkToken() != workToken) {
           // Work may have been completed due to clearing of stuck commits.
           LOG.warn(
-              "Unable to complete due to token mismatch for key {} and token {}, actual token was {}.",
+              "Unable to complete due to token mismatch for key {} and token {}, actual token was"
+                  + " {}.",
               shardedKey,
               workToken,
               completedWork.getWorkItem().getWorkToken());
@@ -2356,7 +2371,8 @@ public class StreamingDataflowWorker {
           "<table border=\"1\" "
               + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
       writer.println(
-          "<tr><th>Key</th><th>Token</th><th>Queued</th><th>Active For</th><th>State</th><th>State Active For</th></tr>");
+          "<tr><th>Key</th><th>Token</th><th>Queued</th><th>Active For</th><th>State</th><th>State"
+              + " Active For</th></tr>");
       // We use a StringBuilder in the synchronized section to buffer writes since the provided
       // PrintWriter may block when flushing.
       StringBuilder builder = new StringBuilder();
