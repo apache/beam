@@ -392,11 +392,11 @@ class TranslationsTest(unittest.TestCase):
     class MyCombinePerKey(beam.CombinePerKey):
       def annotations(self):
         return {"my_annotation":b""}
-    # Verify the results are as expected.
     with TestPipeline() as pipeline:
       pipeline | beam.Create([(1, 2)]) | MyCombinePerKey(min)
 
-    # Verify the optimization is as expected.
+    # Verify the annotations are propagated to the split up
+    # CPK transforms
     proto = pipeline.to_runner_api(
         default_environment=environments.EmbeddedPythonEnvironment(
             capabilities=environments.python_sdk_capabilities()))
