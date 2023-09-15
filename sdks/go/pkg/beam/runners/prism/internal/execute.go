@@ -85,7 +85,11 @@ func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
 	wk.JobKey = j.JobKey()
 	wk.ArtifactEndpoint = j.ArtifactEndpoint()
 	go wk.Serve()
-	timeout := 5 * time.Minute
+	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
+		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
+	}
+	// Check for connection succeeding after we've created the environment successfully.
+	timeout := 1 * time.Minute
 	time.AfterFunc(timeout, func() {
 		if wk.Connected() {
 			return
@@ -94,9 +98,6 @@ func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
 		j.Failed(err)
 		j.CancelFn(err)
 	})
-	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
-		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
-	}
 	return wk, nil
 }
 
