@@ -724,7 +724,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230129-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230817-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230830-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230617-$google_clients_version",
