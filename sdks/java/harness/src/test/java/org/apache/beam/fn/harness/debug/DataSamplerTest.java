@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -32,10 +33,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampledElement;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -115,6 +119,21 @@ public class DataSamplerTest {
     }
 
     assertTrue(elementList.getElementsList().containsAll(expectedSamples));
+  }
+
+  void assertHasSamples(
+      BeamFnApi.InstructionResponse response,
+      String pcollection,
+      List<BeamFnApi.SampledElement> elements) {
+    Map<String, BeamFnApi.SampleDataResponse.ElementList> elementSamplesMap =
+        response.getSampleData().getElementSamplesMap();
+
+    assertFalse(elementSamplesMap.isEmpty());
+
+    BeamFnApi.SampleDataResponse.ElementList elementList = elementSamplesMap.get(pcollection);
+    assertNotNull(elementList);
+
+    assertTrue(elementList.getElementsList().containsAll(elements));
   }
 
   /**
@@ -203,7 +222,7 @@ public class DataSamplerTest {
    */
   @Test
   public void testFiltersSinglePCollectionId() throws Exception {
-    DataSampler sampler = new DataSampler(10, 10);
+    DataSampler sampler = new DataSampler(10, 10, false);
     generateStringSamples(sampler);
 
     BeamFnApi.InstructionResponse samples = getSamplesForPCollection(sampler, "a");
@@ -219,7 +238,7 @@ public class DataSamplerTest {
   public void testFiltersMultiplePCollectionIds() throws Exception {
     List<String> pcollectionIds = ImmutableList.of("a", "c");
 
-    DataSampler sampler = new DataSampler(10, 10);
+    DataSampler sampler = new DataSampler(10, 10, false);
     generateStringSamples(sampler);
 
     BeamFnApi.InstructionResponse samples = getSamplesForPCollections(sampler, pcollectionIds);
@@ -274,5 +293,88 @@ public class DataSamplerTest {
     for (Thread sampleThread : sampleThreads) {
       sampleThread.join();
     }
+  }
+
+  /**
+   * Tests that including the "enable_always_on_exception_sampling" can sample.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testEnableAlwaysOnExceptionSampling() throws Exception {
+    ExperimentalOptions experimentalOptions = PipelineOptionsFactory.as(ExperimentalOptions.class);
+    experimentalOptions.setExperiments(
+        Collections.singletonList("enable_always_on_exception_sampling"));
+    DataSampler sampler = DataSampler.create(experimentalOptions);
+    assertNotNull(sampler);
+
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = sampler.sampleOutput("pcollection-id", coder);
+    ElementSample<Integer> elementSample = outputSampler.sample(globalWindowedValue(1));
+    outputSampler.exception(elementSample, new RuntimeException(), "", "");
+
+    outputSampler.sample(globalWindowedValue(2));
+
+    BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
+    List<SampledElement> expectedSamples =
+        ImmutableList.of(
+            SampledElement.newBuilder()
+                .setElement(ByteString.copyFrom(encodeInt(1)))
+                .setException(
+                    SampledElement.Exception.newBuilder()
+                        .setError(new RuntimeException().toString()))
+                .build());
+    assertHasSamples(samples, "pcollection-id", expectedSamples);
+  }
+
+  /**
+   * Tests that "disable_always_on_exception_sampling" overrides the always on experiment.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testDisableAlwaysOnExceptionSampling() throws Exception {
+    ExperimentalOptions experimentalOptions = PipelineOptionsFactory.as(ExperimentalOptions.class);
+    experimentalOptions.setExperiments(
+        ImmutableList.of(
+            "enable_always_on_exception_sampling", "disable_always_on_exception_sampling"));
+    DataSampler sampler = DataSampler.create(experimentalOptions);
+    assertNull(sampler);
+  }
+
+  /**
+   * Tests that the "enable_data_sampling" experiment overrides
+   * "disable_always_on_exception_sampling".
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testDisableAlwaysOnExceptionSamplingWithEnableDataSampling() throws Exception {
+    ExperimentalOptions experimentalOptions = PipelineOptionsFactory.as(ExperimentalOptions.class);
+    experimentalOptions.setExperiments(
+        ImmutableList.of(
+            "enable_data_sampling",
+            "enable_always_on_exception_sampling",
+            "disable_always_on_exception_sampling"));
+    DataSampler sampler = DataSampler.create(experimentalOptions);
+    assertNotNull(sampler);
+
+    VarIntCoder coder = VarIntCoder.of();
+    OutputSampler<Integer> outputSampler = sampler.sampleOutput("pcollection-id", coder);
+    ElementSample<Integer> elementSample = outputSampler.sample(globalWindowedValue(1));
+    outputSampler.exception(elementSample, new RuntimeException(), "", "");
+
+    outputSampler.sample(globalWindowedValue(2));
+
+    BeamFnApi.InstructionResponse samples = getAllSamples(sampler);
+    List<SampledElement> expectedSamples =
+        ImmutableList.of(
+            SampledElement.newBuilder()
+                .setElement(ByteString.copyFrom(encodeInt(1)))
+                .setException(
+                    SampledElement.Exception.newBuilder()
+                        .setError(new RuntimeException().toString()))
+                .build());
+    assertHasSamples(samples, "pcollection-id", expectedSamples);
   }
 }

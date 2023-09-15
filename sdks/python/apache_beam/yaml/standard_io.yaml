@@ -1,0 +1,82 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This file enumerates the various IOs that are available by default as
+# top-level transforms in Beam's YAML.
+#
+# Note that there may be redundant implementations. In these cases the specs
+# should be kept in sync.
+# TODO(yaml): See if this can be enforced programmatically.
+
+- type: renaming
+  transforms:
+    'ReadFromBigQuery': 'ReadFromBigQuery'
+    'WriteToBigQuery': 'WriteToBigQuery'
+  config:
+    mappings:
+      'ReadFromBigQuery':
+        query: 'query'
+        table: 'tableSpec'
+        fields: 'selectedFields'
+        row_restriction: 'rowRestriction'
+      'WriteToBigQuery':
+        table: 'table'
+        create_disposition: 'createDisposition'
+        write_disposition: 'writeDisposition'
+        error_handling: 'errorHandling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
+        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+      config:
+        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+
+- type: python
+  transforms:
+    'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
+    # Disable until https://github.com/apache/beam/issues/28162 is resolved.
+    # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+
+# Declared as a renaming transform to avoid exposing all
+# (implementation-specific) pandas arguments and aligning with possible Java
+# implementation.
+# Invoking these directly as a PyTransform is still an option for anyone wanting
+# to use these power-features in a language-dependent manner.
+- type: renaming
+  transforms:
+    'ReadFromCsv': 'ReadFromCsv'
+    'WriteToCsv': 'WriteToCsv'
+    'ReadFromJson': 'ReadFromJson'
+    'WriteToJson': 'WriteToJson'
+  config:
+    mappings:
+      'ReadFromCsv':
+        path: 'path'
+      'WriteToCsv':
+        path: 'path'
+      'ReadFromJson':
+        path: 'path'
+      'WriteToJson':
+        path: 'path'
+    underlying_provider:
+      type: python
+      transforms:
+        'ReadFromCsv': 'apache_beam.io.ReadFromCsv'
+        'WriteToCsv': 'apache_beam.io.WriteToCsv'
+        'ReadFromJson': 'apache_beam.io.ReadFromJson'
+        'WriteToJson': 'apache_beam.io.WriteToJson'

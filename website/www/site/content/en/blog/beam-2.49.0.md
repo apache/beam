@@ -50,6 +50,8 @@ For more information on changes in 2.49.0, check out the [detailed release notes
 
 ### Known Issues
 
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+
 
 ## List of Contributors
 

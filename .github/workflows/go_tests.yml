@@ -29,9 +29,10 @@ on:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*']
+  workflow_dispatch:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
 jobs:
   build:
@@ -65,3 +66,8 @@ jobs:
           go install "honnef.co/go/tools/cmd/staticcheck@2023.1.3"
           cd sdks/go/pkg/beam
           $(go env GOPATH)/bin/staticcheck ./...
+      - uses: golang/govulncheck-action@v1.0.1
+        with:
+          work-dir: ./sdks
+          go-package: ./...
+          go-version-input: 1.21

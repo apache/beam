@@ -18,6 +18,7 @@
 [MASTER]
 # Ignore auto-generated files.
 ignore=clients
+load-plugins=pylint.extensions.no_self_use,pylint.extensions.bad_builtin
 
 [BASIC]
 # Regular expression which should only match the name
@@ -69,7 +70,6 @@ variable-rgx=^[a-z][a-z0-9_]*$
 inlinevar-rgx=^[a-z][a-z0-9_]*$
 
 # List of builtins function names that should not be used, separated by a comma
-# TODO(https://github.com/apache/beam/issues/27473) Remove or re-enable
 bad-functions=input,apply,reduce
 
 # Good variable names which should always be accepted, separated by a comma
@@ -85,11 +85,16 @@ disable =
   arguments-differ,
   arguments-renamed,
   attribute-defined-outside-init,
-  bad-builtin, # TODO(https://github.com/apache/beam/issues/27473) Remove or re-enable
+  bad-builtin,
   broad-except,
+  broad-exception-raised,
+  c-extension-no-member,
   comparison-with-callable,
+  consider-iterating-dictionary,
+  consider-using-dict-items,
   consider-using-enumerate,
   consider-using-f-string,
+  consider-using-generator,
   consider-using-in,
   consider-using-sys-exit,
   consider-using-with,
@@ -97,6 +102,7 @@ disable =
   design,
   fixme,
   global-statement,
+  global-variable-undefined,
   import-error,
   import-outside-toplevel,
   import-self,
@@ -108,7 +114,9 @@ disable =
   locally-disabled,
   logging-not-lazy,
   missing-docstring,
+  modified-iterating-list, 
   multiple-statements,
+  missing-timeout, #TODO(https://github.com/apache/beam/issues/28240) Enable and fix warnings
   no-self-use,
   no-else-break,
   no-else-continue,
@@ -126,23 +134,33 @@ disable =
   redefined-builtin,
   redefined-outer-name,
   redundant-keyword-arg,
+  self-cls-assignment,
   similarities,
   simplifiable-if-statement,
   stop-iteration-return,
   super-init-not-called,
+  superfluous-parens,
+  typevar-name-mismatch, #TODO(https://github.com/apache/beam/issues/28241) Enable and fix warnings
   try-except-raise,
   undefined-variable,
   unexpected-keyword-arg,
   unidiomatic-typecheck,
   unnecessary-comprehension,
+  unnecessary-direct-lambda-call,
+  unnecessary-dunder-call,
   unnecessary-lambda,
+  unnecessary-lambda-assignment,
   unnecessary-pass,
   unneeded-not,
+  used-before-assignment,
   unsubscriptable-object,
+  unsupported-binary-operation,
   unspecified-encoding, #TODO(https://github.com/apache/beam/issues/21236) Enable explicit encoding
   unused-argument,
+  use-dict-literal,
   unused-wildcard-import,
   useless-object-inheritance,
+  useless-with-lock, #TODO(https://github.com/apache/beam/issues/28242) Enable and fix warnings
   wildcard-import,
   wrong-import-order,
 

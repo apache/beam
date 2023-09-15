@@ -52,14 +52,11 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	// TODO move response channel to an atomic and an additional
-	// block on the DataWait channel, to allow progress & splits for
-	// no output DoFns.
-	Resp chan *fnpb.ProcessBundleResponse
+	Resp      chan *fnpb.ProcessBundleResponse
+	BundleErr error
+	responded bool
 
 	SinkToPCollection map[string]string
-
-	Fail func(err string) // Called if bundle returns an error.
 }
 
 // Init initializes the bundle's internal state for waiting on all
@@ -90,8 +87,13 @@ func (b *B) LogValue() slog.Value {
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	if b.responded {
+		slog.Warn("additional bundle response", "bundle", b, "resp", resp)
+		return
+	}
+	b.responded = true
 	if resp.GetError() != "" {
-		b.Fail(resp.GetError())
+		b.BundleErr = fmt.Errorf("bundle %v failed:%v", resp.GetInstructionId(), resp.GetError())
 		close(b.Resp)
 		return
 	}
@@ -152,8 +154,8 @@ func (b *B) Cleanup(wk *W) {
 }
 
 // Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
-func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
-	resp := wk.sendInstruction(&fnpb.InstructionRequest{
+func (b *B) Progress(ctx context.Context, wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
 			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
 				InstructionId: b.InstID,
@@ -167,8 +169,8 @@ func (b *B) Progress(wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
 }
 
 // Split sends a split request for the given bundle to the passed in worker, blocking on the response.
-func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
-	resp := wk.sendInstruction(&fnpb.InstructionRequest{
+func (b *B) Split(ctx context.Context, wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
 			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
 				InstructionId: b.InstID,
