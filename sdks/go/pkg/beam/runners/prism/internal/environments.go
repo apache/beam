@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -104,7 +105,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	logger = logger.With("worker_id", wk.ID, "image", dp.GetContainerImage())
 
 	// TODO consider preserving client?
-	cli, err := dcli.NewClientWithOpts(dcli.FromEnv)
+	cli, err := dcli.NewClientWithOpts(dcli.FromEnv, dcli.WithAPIVersionNegotiation())
 	if err != nil {
 		return fmt.Errorf("couldn't connect to docker:%w", err)
 	}
@@ -130,7 +131,11 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	}
 
 	if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dtyp.ImagePullOptions{}); err == nil {
+		// Copy the output, but discard it so we can wait until the image pull is finished.
+		io.Copy(io.Discard, rc)
 		rc.Close()
+	} else {
+		logger.Warn("unable to pull image", "error", err)
 	}
 
 	ccr, err := cli.ContainerCreate(ctx, &container.Config{

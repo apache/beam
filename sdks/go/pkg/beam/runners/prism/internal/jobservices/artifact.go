@@ -60,7 +60,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 					return err
 				}
 				if in.GetIsLast() {
-					slog.Info("GetArtifact finish",
+					slog.Debug("GetArtifact finished",
 						slog.Group("dep",
 							slog.String("urn", dep.GetTypeUrn()),
 							slog.String("payload", string(dep.GetTypePayload()))),
@@ -91,14 +91,12 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 }
 
 func (s *Server) ResolveArtifacts(_ context.Context, req *jobpb.ResolveArtifactsRequest) (*jobpb.ResolveArtifactsResponse, error) {
-	slog.Info("GetArtifact request received", "artifact", prototext.Format(req))
 	return &jobpb.ResolveArtifactsResponse{
 		Replacements: req.GetArtifacts(),
 	}, nil
 }
 
 func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.ArtifactRetrievalService_GetArtifactServer) error {
-	slog.Info("GetArtifact request received", "artifact", prototext.Format(req))
 	info := req.GetArtifact()
 	buf, ok := s.artifacts[string(info.GetTypePayload())]
 	if !ok {
@@ -106,9 +104,9 @@ func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.Artifac
 		slog.Warn("unable to provide artifact to worker", "artifact_info", pt)
 		return fmt.Errorf("unable to provide %v to worker", pt)
 	}
-	chunk := 4 * 1024 * 1024 // 4 MB
+	chunk := 4 * 1024 * 1024 // 128 MB
 	var i int
-	for i+chunk > len(buf) {
+	for i+chunk < len(buf) {
 		stream.Send(&jobpb.GetArtifactResponse{
 			Data: buf[i : i+chunk],
 		})

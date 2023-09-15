@@ -160,7 +160,6 @@ func (wk *W) NextStage() string {
 var minsev = fnpb.LogEntry_Severity_DEBUG
 
 func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
-	slog.Info("GetProvisionInfo", "worker", wk)
 	endpoint := &pipepb.ApiServiceDescriptor{
 		Url: wk.Endpoint(),
 	}
