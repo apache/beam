@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PostCommit Java Examples Dataflow Java17
+name: PostCommit Java Examples Flink
 
 on:
   issue_comment:
@@ -51,18 +51,18 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Java_Examples_Dataflow_Java17:
+  beam_PostCommit_Java_Examples_Flink:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 120
     strategy:
       matrix:
-        job_name: [beam_PostCommit_Java_Examples_Dataflow_Java17]
-        job_phrase: [Run Java examples on Dataflow Java 17]
+        job_name: [beam_PostCommit_Java_Examples_Flink]
+        job_phrase: [Run Java Examples_Flink]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java examples on Dataflow Java 17'
+      github.event.comment.body == 'Run Java Examples_Flink'
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
@@ -71,18 +71,23 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
+      - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
-          distribution: 'temurin'
-          java-version: |
-            17
-            8
-      - name: run PostCommit Java  Examples Dataflow Java17 script
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+      - name: run examplesIntegrationTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:google-cloud-dataflow-java:examples:java17PostCommit
-          max-workers: 12
+          gradle-command: :runners:flink:1.15:examplesIntegrationTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PostCommit Java Examples Dataflow Java11
+name: PostCommit Java Examples Spark
 
 on:
   issue_comment:
@@ -51,19 +51,18 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Java_Examples_Dataflow_Java11:
+  beam_PostCommit_Java_Examples_Spark:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 120
     strategy:
-      fail-fast: false
       matrix:
-        job_name: [beam_PostCommit_Java_Examples_Dataflow_Java11]
-        job_phrase: [Run Java examples on Dataflow Java 11]
+        job_name: [beam_PostCommit_Java_Examples_Spark]
+        job_phrase: [Run Java Examples_Spark]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java examples on Dataflow Java 11'
+      github.event.comment.body == 'Run Java Examples_Spark'
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
@@ -72,20 +71,15 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      # The test requires Java 11 and Java 8 versions.
-      # Java 8 is installed second because JAVA_HOME needs to point to Java 8.
-      - name: Set up Java
+      - name: Install Java
         uses: actions/setup-java@v3.8.0
         with:
-          distribution: 'temurin'
-          java-version: |
-            11
-            8
-      - name: run PostCommit Java Examples Dataflow Java11 script
+          distribution: 'zulu'
+          java-version: '8'
+      - name: run examplesIntegrationTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:google-cloud-dataflow-java:examples:java11PostCommit
-          max-workers: 12
+          gradle-command: :runners:spark:3:examplesIntegrationTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()
