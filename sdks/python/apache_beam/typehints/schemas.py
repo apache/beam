@@ -304,15 +304,15 @@ class SchemaTranslation(object):
       return schema_pb2.FieldType(
           array_type=schema_pb2.ArrayType(element_type=element_type))
 
-    elif _safe_issubclass(type_, Iterable) and not _safe_issubclass(type_, str):
-      element_type = self.typing_to_runner_api(_get_args(type_)[0])
-      return schema_pb2.FieldType(
-          array_type=schema_pb2.ArrayType(element_type=element_type))
-
     elif _safe_issubclass(type_, Mapping):
       key_type, value_type = map(self.typing_to_runner_api, _get_args(type_))
       return schema_pb2.FieldType(
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
+
+    elif _safe_issubclass(type_, Iterable) and not _safe_issubclass(type_, str):
+      element_type = self.typing_to_runner_api(_get_args(type_)[0])
+      return schema_pb2.FieldType(
+          array_type=schema_pb2.ArrayType(element_type=element_type))
 
     try:
       logical_type = LogicalType.from_typing(type_)
