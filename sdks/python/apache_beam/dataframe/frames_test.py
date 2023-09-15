@@ -20,8 +20,8 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from parameterized import parameterized
 import pytest
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.dataframe import expressions
