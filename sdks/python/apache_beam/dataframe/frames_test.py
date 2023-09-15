@@ -1634,6 +1634,11 @@ class DeferredFrameTest(_AbstractFrameTest):
 # https://github.com/pandas-dev/pandas/issues/40139
 ALL_GROUPING_AGGREGATIONS = sorted(
     set(frames.ALL_AGGREGATIONS) - set(('kurt', 'kurtosis')))
+# In Pandas 2 all these change to having default False for numeric_only.
+# The other methods already started that way.
+NUMERIC_ONLY_DEFAULT_TRUE_FOR_PANDAS_LT_2_AGGREGATIONS = set(
+    frames.ALL_AGGREGATIONS) - set(
+        ('count', 'idxmin', 'idxmax', 'mode', 'rank'))
 
 
 class GroupByTest(_AbstractFrameTest):
@@ -1689,7 +1694,10 @@ class GroupByTest(_AbstractFrameTest):
     # Behavior for numeric_only in these methods changed in Pandas 2 to default
     # to False instead of True, so explicitly make it True in Pandas 2.
     # The default will fail due to non-numeric fields in Pandas 2.
-    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov'):
+
+    if PD_VERSION >= (
+        2, 0
+    ) and agg_type in NUMERIC_ONLY_DEFAULT_TRUE_FOR_PANDAS_LT_2_AGGREGATIONS:
       with self.assertRaises(ValueError):
         self._run_test(
             lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
@@ -1919,7 +1927,9 @@ class GroupByTest(_AbstractFrameTest):
     # Behavior for numeric_only in these methods changed in Pandas 2 to default
     # to False instead of True, so explicitly make it True in Pandas 2.
     # The default will fail due to non-numeric fields in Pandas 2.
-    if PD_VERSION >= (2, 0) and agg_type in ('corr', 'cov'):
+    if PD_VERSION >= (
+        2, 0
+    ) and agg_type in NUMERIC_ONLY_DEFAULT_TRUE_FOR_PANDAS_LT_2_AGGREGATIONS:
       with self.assertRaises(ValueError):
         self._run_test(
             lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
