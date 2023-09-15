@@ -146,7 +146,7 @@ class FrameBaseTest(unittest.TestCase):
     proxy = ProxyUsesKwOnly()
 
     # pylint: disable=too-many-function-args,no-value-for-parameter
-    with self.assertRaises(TypeError):  # missing 1 require positional argument
+    with self.assertRaises(TypeError):  # missing 1 required positional argument
       proxy.func()
 
     self.assertEqual(proxy.func(100), {'a': 100, 'kw_only': 4})
