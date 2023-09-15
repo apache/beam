@@ -500,7 +500,7 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
 
     removed_arg_names = removed_args if removed_args is not None else []
 
-    # TODO: Better handle position only arguments if they are ever a thing
+    # We would need to add position only arguments if they ever become a thing
     # in Pandas (as of 2.1 currently they aren't).
     base_arg_spec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
     base_arg_names = base_arg_spec.args

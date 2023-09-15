@@ -134,7 +134,7 @@ class FrameBaseTest(unittest.TestCase):
 
   def test_args_to_kwargs_populates_default_handles_kw_only(self):
     class Base(object):
-      def func(self, a=1, b=2, c=3, *, kw_only=4):
+      def func(self, a, b=2, c=3, *, kw_only=4):
         pass
 
     class ProxyUsesKwOnly(object):
@@ -146,7 +146,9 @@ class FrameBaseTest(unittest.TestCase):
     proxy = ProxyUsesKwOnly()
 
     # pylint: disable=too-many-function-args,no-value-for-parameter
-    self.assertEqual(proxy.func(), {'a': 1, 'kw_only': 4})
+    with self.assertRaises(TypeError):  # missing 1 require positional argument
+      proxy.func()
+
     self.assertEqual(proxy.func(100), {'a': 100, 'kw_only': 4})
     self.assertEqual(
         proxy.func(2, 4, 6, kw_only=8), {
@@ -164,7 +166,8 @@ class FrameBaseTest(unittest.TestCase):
     proxy = ProxyDoesntUseKwOnly()
 
     # pylint: disable=too-many-function-args,no-value-for-parameter
-    self.assertEqual(proxy.func(), {'a': 1})
+    with self.assertRaises(TypeError):  # missing 1 required positional argument
+      proxy.func()
     self.assertEqual(proxy.func(100), {'a': 100})
     self.assertEqual(
         proxy.func(2, 4, 6, kw_only=8), {
