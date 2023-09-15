@@ -73,6 +73,8 @@ public extension Coder {
                 throw ApacheBeamError.runtimeError("Invalid pane encoding \(String(pane,radix:2))")
             }
             return .windowed(try valueCoder.decode(&data), timestamp, pane, window)
+        case let .row(schema):
+            return .row(try .from(data: &data, as: .row(schema))!)
         default:
             throw ApacheBeamError.runtimeError("Decoding of \(self.urn) coders not supported.")
         }

@@ -36,8 +36,8 @@ public indirect enum BeamValue {
     case boolean(Bool?)
     /// A window
     case window(Window)
-    
-    //TODO: Custom Values and Row Values
+    /// Schema-valued thing. Doesn't technically need to be a row, but that's the only coder support.
+    case row(FieldValue)
     
     // Composite Values
     
@@ -64,6 +64,8 @@ public indirect enum BeamValue {
             b
         case let .window(w):
             w
+        case let .row(r):
+            r.baseValue
         default:
             nil as Any?
         }

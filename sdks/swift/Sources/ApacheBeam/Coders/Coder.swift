@@ -32,8 +32,8 @@ public indirect enum Coder {
     case lengthprefix(Coder)
     case windowedvalue(Coder,Coder)
     
-    // TODO: Row Coder
-    
+    /// Schema-valued things
+    case row(Schema)
 }
 
 
@@ -69,6 +69,8 @@ public extension Coder {
             return .coderUrn("length_prefix")
         case .windowedvalue(_, _):
             return .coderUrn("windowed_value")
+        case .row(_):
+            return .coderUrn("row")
         }
     }
     
@@ -120,6 +122,8 @@ extension Coder : Equatable {
             return true
         case (.globalwindow,.globalwindow):
             return true
+        case let (.row(ls), .row(rs)):
+            return ls == rs
         case let (.keyvalue(lk,lv),.keyvalue(rk, rv)):
             return lk == rk && lv == rv
         case let (.iterable(a),.iterable(b)):
@@ -180,6 +184,9 @@ extension Coder {
                     try .of(name: baseCoder.componentCoderIds[1],in:container))
             case "beam:coder:length_prefix:v1":
                 return .lengthprefix(try .of(name: baseCoder.componentCoderIds[0],in:container))
+            case "beam:coder:row:v1":
+                let proto: SchemaProto = try SchemaProto(serializedData: baseCoder.spec.payload)
+                return .row(.from(proto))
             default:
                 return .unknown(baseCoder.spec.urn)
             }
@@ -190,9 +197,7 @@ extension Coder {
 }
 
 extension Coder {
-    
-    
-    
+
     public static func of<Of>(type: Optional<Of>.Type) -> Coder? {
         return .lengthprefix(.of(type: Of.self)!)
     }

@@ -64,6 +64,18 @@ public extension Coder {
             }
         case .globalwindow:
             break
+        case .row(let coderSchema):
+            if let fieldValue = value as? FieldValue {
+                if case .row(let schema, _) = fieldValue {
+                    guard schema == coderSchema else {
+                        //FUTURE: Should we have a less strict schema conformance here?
+                        throw ApacheBeamError.runtimeError("\(coderSchema) does not match \(schema)")
+                    }
+                    try data.next(fieldValue)
+                } else {
+                    throw ApacheBeamError.runtimeError("Row coder can only encode rows not \(fieldValue)")
+                }
+            }
         case .lengthprefix(let coder):
             let subData = try coder.encode(value)
             data.varint(subData.count)

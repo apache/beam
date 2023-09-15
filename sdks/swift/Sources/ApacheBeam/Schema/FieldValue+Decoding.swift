@@ -1,5 +1,11 @@
 import Foundation
 
+public extension Data {
+    mutating func next(_ schema: Schema) throws -> FieldValue {
+        try .from(data: &self,as:.row(schema))!
+    }
+}
+
 public extension FieldValue {
 
     static func from(data: inout Data,as type:FieldType) throws -> FieldValue? {

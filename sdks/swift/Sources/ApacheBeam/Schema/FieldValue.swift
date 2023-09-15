@@ -22,11 +22,12 @@ import Foundation
 /// when using schema objects internally, particularly in PCollections we would favor @Row structs
 @dynamicMemberLookup
 public indirect enum FieldValue {
+    
     // Variable width numbers
     case int(Int,FieldType)
     case float(Double,FieldType)
     case decimal(Decimal,FieldType)
-
+    
     // Other scalar types
     case boolean(Bool)
     case string(String)
@@ -59,13 +60,33 @@ public indirect enum FieldValue {
         }
     }
     
+    //Similar to baseValue in BeamValue just extracts
+    //the value from a scalar value. Use wisely
+    var baseValue : Any? {
+        get {
+            switch self {
+            case .int(let value,_):
+                return value
+            case .float(let value,_):
+                return value
+            case .datetime(let value):
+                return value
+            case .string(let value):
+                return value
+            default:
+                return nil
+            }
+        }
+    }
     
 
     var intValue : Int? {
-        if case .int(let value,_) = self {
-            return value
+        get {
+            if case .int(let value,_) = self {
+                return value
+            }
+            return nil
         }
-        return nil
     }
     
     var doubleValue : Double? {
@@ -102,35 +123,52 @@ public indirect enum FieldValue {
     }
     
     subscript(key: String) -> FieldValue? {
-        if case let .map(entries) = self {
-            for entry in entries {
-                if key == entry.0.stringValue {
-                    return entry.1
+        get {
+            if case let .map(entries) = self {
+                for entry in entries {
+                    if key == entry.0.stringValue {
+                        return entry.1
+                    }
+                }
+            }
+            return nil
+        }
+        set {
+            if case .map(var entries) = self {
+                if let value = newValue {
+                    if let ndx = entries.firstIndex(where: { $0.0.stringValue == key}) {
+                        entries[ndx] = (entries[ndx].0,value)
+                    } else {
+                        entries.append((.string(key),value))
+                    }
+                } else {
+                    entries.removeAll(where: {$0.0.stringValue == key })
                 }
             }
         }
-        return nil
     }
     
     subscript(dynamicMember member: String) -> FieldValue? {
-        if case let .row(schema, array) = self {
-            var index = 0
-            for field in schema.fields {
-                if field.name == member {
+        get {
+            if case let .row(schema, array) = self {
+                if let index = schema.fields.firstIndex(where: { $0.name == member }) {
                     return array[index]
                 }
-                index += 1
+            }
+            return nil
+        }
+        set {
+            if case .row(let schema, var array) = self {
+                if let index = schema.fields.firstIndex(where: { $0.name == member }) {
+                    array[index] = newValue ?? .null
+                }
             }
         }
-        return nil
     }
     
 }
 
 public extension FieldValue {
-    init() {
-        self = .undefined
-    }
     
     init(_ schema: Schema,_ content: (inout FieldValue) -> Void = { _ in }) {
         var output : FieldValue = .row(schema,(0..<schema.fields.count).map { _ in .undefined })

@@ -21,6 +21,7 @@ final class SchemaTests: XCTestCase {
             fields
                 .string("id")
                 .datetime("timestamp")
+                .string("description")
         }
     }
 

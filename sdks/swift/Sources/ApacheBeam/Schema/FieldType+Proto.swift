@@ -5,7 +5,7 @@ extension FieldType {
             try self.proto()
         }
     }
-    
+     
     func proto(_ nullable: Bool = false) throws -> Org_Apache_Beam_Model_Pipeline_V1_FieldType {
         switch self {
         case .unspecified:

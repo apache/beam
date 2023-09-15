@@ -12,5 +12,18 @@ public indirect enum FieldType {
     case array(FieldType)
     case repeated(FieldType)
     case map(FieldType,FieldType)
+    
+    public var baseType : FieldType {
+        switch self {
+        case .nullable(let baseType):
+            return baseType
+        case .array(let baseType):
+            return baseType
+        case .repeated(let baseType):
+            return baseType
+        default:
+            return self
+        }
+    }
 }
 
