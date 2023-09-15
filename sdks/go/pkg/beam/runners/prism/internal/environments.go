@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -36,6 +35,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	dcli "github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // TODO move environment handling to the worker package.
@@ -109,7 +109,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		return fmt.Errorf("couldn't connect to docker:%w", err)
 	}
 
-	// TODO better abstract cloud specific auths.
+	// TODO abstract mounting cloud specific auths better.
 	const gcloudCredsEnv = "GOOGLE_APPLICATION_CREDENTIALS"
 	gcloudCredsFile, ok := os.LookupEnv(gcloudCredsEnv)
 	var mounts []mount.Mount
@@ -128,8 +128,6 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 			envs = append(envs, credEnv)
 		}
 	}
-
-	logger.Info("attempting to pull docker image for environment")
 
 	if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dtyp.ImagePullOptions{}); err == nil {
 		rc.Close()
@@ -161,7 +159,6 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		cli.Close()
 		return fmt.Errorf("unable to start container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
 	}
-	logger.Info("docker container is started")
 
 	// Start goroutine to wait on container state.
 	go func() {
@@ -182,15 +179,14 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		case resp := <-statusCh:
 			logger.Info("docker container has self terminated", "status_code", resp.StatusCode)
 
-			rc, err := cli.ContainerLogs(ctx, containerID, dtyp.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+			rc, err := cli.ContainerLogs(ctx, containerID, dtyp.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
 				logger.Error("docker container logs error", "error", err)
 			}
 			defer rc.Close()
-
 			var buf bytes.Buffer
-			io.Copy(&buf, rc)
-			logger.Error("container self terminated.", "log", buf.String())
+			stdcopy.StdCopy(&buf, &buf, rc)
+			logger.Error("container self terminated", "log", buf.String())
 		}
 	}()
 
