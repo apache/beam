@@ -21,6 +21,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from parameterized import parameterized
+import pytest
 
 import apache_beam as beam
 from apache_beam.dataframe import expressions
@@ -43,6 +44,10 @@ GROUPBY_DF = pd.DataFrame({
     'bool': [i % 17 == 0 for i in range(100)],
     'str': [str(i) for i in range(100)],
 })
+
+if PD_VERSION < (2, 0):
+  # All these are things that are fixed in the Pandas 2 transition.
+  pytestmark = pytest.mark.filterwarnings("ignore:.*:FutureWarning")
 
 
 def _get_deferred_args(*args):
