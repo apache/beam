@@ -372,21 +372,27 @@ class ErrorHandlingTest(unittest.TestCase):
               input: Create
               config:
                   fn: "lambda x: beam.Row(num=x, str='a' * x or 'bbb')"
+            - type: Filter
+              input: ToRow
+              config:
+                  language: python
+                  keep:
+                    str[1] >= 'a'
+                  error_handling:
+                    output: errors
             - type: MapToFields
               name: MapWithErrorHandling
-              input: ToRow
+              input: Filter
               config:
                   language: python
                   fields:
                     num: num
                     inverse: float(1 / num)
-                  keep:
-                    str[1] >= 'a'
                   error_handling:
                     output: errors
             - type: PyMap
               name: TrimErrors
-              input: MapWithErrorHandling.errors
+              input: [MapWithErrorHandling.errors, Filter.errors]
               config:
                   fn: "lambda x: x.msg"
             - type: MapToFields

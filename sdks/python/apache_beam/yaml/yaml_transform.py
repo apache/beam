@@ -830,8 +830,23 @@ def preprocess(spec, verbose=False, known_transforms=None):
             f'Unknown type or missing provider for {identify_object(spec)}')
     return spec
 
+  def preprocess_langauges(spec):
+    if spec['type'] in ('Filter', 'MapToFields'):
+      language = spec.get('config', {}).get('language', 'generic')
+      new_type = spec['type'] + '-' + language
+      if known_transforms and new_type not in known_transforms:
+        if language == 'generic':
+          raise ValueError(f'Missing language for {identify_object(spec)}')
+        else:
+          raise ValueError(
+              f'Unknown language {language} for {identify_object(spec)}')
+      return dict(spec, type=new_type, name=spec.get('name', spec['type']))
+    else:
+      return spec
+
   for phase in [
       ensure_transforms_have_types,
+      preprocess_langauges,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
