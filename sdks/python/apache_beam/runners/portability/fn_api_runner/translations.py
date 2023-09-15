@@ -1367,6 +1367,7 @@ def lift_combiners(stages, context):
                 payload=transform.spec.payload),
             inputs={'in': grouped_pcoll_id},
             outputs={'out': merged_pcoll_id},
+            annotations=transform.annotations,
             environment_id=transform.environment_id))
 
     yield make_stage(
