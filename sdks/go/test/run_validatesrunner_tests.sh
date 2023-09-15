@@ -293,9 +293,7 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
     elif [[ "$RUNNER" == "prism" ]]; then
       PRISMBIN=$TMPDIR/prismbin
       ./sdks/go/run_with_go_version.sh build -o $PRISMBIN sdks/go/cmd/prism/*.go
-      $PRISMBIN \
-          --serve_http=true \
-          --job_port $JOB_PORT &
+      $PRISMBIN --job_port $JOB_PORT &
     else
       echo "Unknown runner: $RUNNER"
       exit 1;
