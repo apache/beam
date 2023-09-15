@@ -4,32 +4,33 @@
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
+ *  License); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed under the License is distributed on an  AS IS BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import Foundation
 
 public extension Coder {
-
     func encode(_ value: Any?) throws -> Data {
         var data = Data()
-        try self.encode(value,data: &data)
+        try encode(value, data: &data)
         return data
     }
-    func encode(_ value: Any?,data: inout Data) throws {
+
+    func encode(_ value: Any?, data: inout Data) throws {
         switch self {
             // Scalar values check for size 0 input data and return null if that's a problem
-                
+
             // TODO: Endian and other encoding checks
-                
+
         case .bytes:
             if let v = value as? Data {
                 data.varint(v.count)
@@ -64,11 +65,11 @@ public extension Coder {
             }
         case .globalwindow:
             break
-        case .row(let coderSchema):
+        case let .row(coderSchema):
             if let fieldValue = value as? FieldValue {
-                if case .row(let schema, _) = fieldValue {
+                if case let .row(schema, _) = fieldValue {
                     guard schema == coderSchema else {
-                        //FUTURE: Should we have a less strict schema conformance here?
+                        // FUTURE: Should we have a less strict schema conformance here?
                         throw ApacheBeamError.runtimeError("\(coderSchema) does not match \(schema)")
                     }
                     try data.next(fieldValue)
@@ -76,7 +77,7 @@ public extension Coder {
                     throw ApacheBeamError.runtimeError("Row coder can only encode rows not \(fieldValue)")
                 }
             }
-        case .lengthprefix(let coder):
+        case let .lengthprefix(coder):
             let subData = try coder.encode(value)
             data.varint(subData.count)
             data.append(subData)
@@ -86,10 +87,10 @@ public extension Coder {
                 // We do a special case check here to account for the fact that
                 // keyvalue is used both for group by as well as a pair type
                 switch valueCoder {
-                case .iterable(_):
-                    try valueCoder.encode(v.anyValues,data:&data)
+                case .iterable:
+                    try valueCoder.encode(v.anyValues, data: &data)
                 default:
-                    try valueCoder.encode(v.anyValue,data:&data)
+                    try valueCoder.encode(v.anyValue, data: &data)
                 }
             }
         case let .iterable(coder):
@@ -100,22 +101,22 @@ public extension Coder {
                 }
             }
         case let .windowedvalue(valueCoder, windowCoder):
-            if let (v,ts,w) = value as? (Any,Date,Window) {
-                //Timestamp
+            if let (v, ts, w) = value as? (Any, Date, Window) {
+                // Timestamp
                 data.instant(ts)
                 switch w {
                 case .global:
                     data.next(Int32(1))
                 default:
                     data.next(Int32(1))
-                    try windowCoder.encode(w,data:&data)
+                    try windowCoder.encode(w, data: &data)
                 }
                 // TODO: Real Panes
                 data.append(UInt8(1 >> 5 | 1 >> 6 | 1 >> 7))
                 try valueCoder.encode(v, data: &data)
             }
-            default:
-                throw ApacheBeamError.runtimeError("Encoding of \(self.urn) coders not supported.")
+        default:
+            throw ApacheBeamError.runtimeError("Encoding of \(urn) coders not supported.")
         }
     }
 }

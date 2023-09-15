@@ -38,6 +38,7 @@ let dependencies: [Package.Dependency] = [
 
     // Swift Package Manager Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+    .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.52.3"),
 ]
 
 let package = Package(

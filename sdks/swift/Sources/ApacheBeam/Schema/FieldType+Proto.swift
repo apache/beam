@@ -1,100 +1,117 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ *  License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an  AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 extension FieldType {
-    
     var proto: Org_Apache_Beam_Model_Pipeline_V1_FieldType {
         get throws {
             try self.proto()
         }
     }
-     
+
     func proto(_ nullable: Bool = false) throws -> Org_Apache_Beam_Model_Pipeline_V1_FieldType {
         switch self {
         case .unspecified:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .byte:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .int16:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .int32:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .int64:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .float:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .double:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .string:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .datetime:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .boolean:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
         case .bytes:
-            return .with {
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
-        case .decimal(_, _):
-            return .with {
+        case .decimal:
+            .with {
                 $0.nullable = nullable
                 $0.atomicType = .unspecified
             }
-        case .logical(_, _):
+        case .logical:
             throw ApacheBeamError.runtimeError("Logical types not specified yet")
-        case .row(let schema):
-                return try .with {
-                    $0.nullable = nullable
-                    $0.rowType = try .with {
-                        $0.schema = try schema.proto
-                    }
+        case let .row(schema):
+            try .with {
+                $0.nullable = nullable
+                $0.rowType = try .with {
+                    $0.schema = try schema.proto
                 }
-        case .nullable(let base):
-            return try base.proto(true)
-        case .array(let type):
-            return try .with {
+            }
+        case let .nullable(base):
+            try base.proto(true)
+        case let .array(type):
+            try .with {
                 $0.nullable = nullable
                 $0.arrayType = try .with {
                     $0.elementType = try type.proto
                 }
             }
-        case .repeated(let type):
-            return try .with {
+        case let .repeated(type):
+            try .with {
                 $0.nullable = nullable
                 $0.iterableType = try .with {
                     $0.elementType = try type.proto
                 }
             }
-        case .map(let key, let value):
-            return try .with {
+        case let .map(key, value):
+            try .with {
                 $0.nullable = nullable
                 $0.mapType = try .with {
                     $0.keyType = try key.proto
@@ -103,42 +120,42 @@ extension FieldType {
             }
         }
     }
-    
+
     static func from(_ proto: Org_Apache_Beam_Model_Pipeline_V1_FieldType) -> FieldType {
         let baseType: FieldType = switch proto.typeInfo {
-        case .atomicType(let type):
+        case let .atomicType(type):
             switch type {
             case .byte:
-                    .byte
+                .byte
             case .int16:
-                    .int16
+                .int16
             case .int32:
-                    .int32
+                .int32
             case .int64:
-                    .int64
+                .int64
             case .float:
-                    .float
+                .float
             case .double:
-                    .double
+                .double
             case .string:
-                    .string
+                .string
             case .boolean:
-                    .boolean
+                .boolean
             case .bytes:
-                    .bytes
+                .bytes
             default:
-                    .unspecified
-            }
-        case .rowType(let type):
-                .row(.from(type.schema))
-        case .mapType(let type):
-                .map(.from(type.keyType),.from(type.valueType))
-        case .iterableType(let type):
-                .repeated(.from(type.elementType))
-        case .arrayType(let type):
-                .array(.from(type.elementType))
-        default:
                 .unspecified
+            }
+        case let .rowType(type):
+            .row(.from(type.schema))
+        case let .mapType(type):
+            .map(.from(type.keyType), .from(type.valueType))
+        case let .iterableType(type):
+            .repeated(.from(type.elementType))
+        case let .arrayType(type):
+            .array(.from(type.elementType))
+        default:
+            .unspecified
         }
         return proto.nullable ? .nullable(baseType) : baseType
     }
