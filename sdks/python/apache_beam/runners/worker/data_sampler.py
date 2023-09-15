@@ -40,6 +40,8 @@ from typing import Union
 from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import WindowedValueCoderImpl
 from apache_beam.coders.coders import Coder
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -49,11 +51,19 @@ _LOGGER = logging.getLogger(__name__)
 class SampleTimer:
   """Periodic timer for sampling elements."""
   def __init__(self, timeout_secs: float, sampler: OutputSampler) -> None:
-    self._timeout_secs = timeout_secs
+    self._target_timeout_secs = timeout_secs
+    self._timeout_secs = min(timeout_secs, 0.5) if timeout_secs > 0 else 0.0
     self._timer = Timer(self._timeout_secs, self.sample)
     self._sampler = sampler
+    self._sample_duration_secs = 0.0
 
   def reset(self) -> None:
+    # For the first 30 seconds, sample every 0.5 seconds. After that, sample at
+    # the normal rate.
+    if self._sample_duration_secs >= 30.0:
+      self._timeout_secs = self._target_timeout_secs
+    self._sample_duration_secs += self._timeout_secs
+
     self._timer.cancel()
     self._timer = Timer(self._timeout_secs, self.sample)
     self._timer.start()
@@ -208,6 +218,7 @@ class DataSampler:
       self,
       max_samples: int = 10,
       sample_every_sec: float = 30,
+      sample_only_exceptions: bool = False,
       clock=None) -> None:
     # Key is PCollection id. Is guarded by the _samplers_lock.
     self._samplers: Dict[str, OutputSampler] = {}
@@ -215,9 +226,33 @@ class DataSampler:
     # runner queries for samples.
     self._samplers_lock: threading.Lock = threading.Lock()
     self._max_samples = max_samples
-    self._sample_every_sec = sample_every_sec
+    self._sample_every_sec = 0.0 if sample_only_exceptions else sample_every_sec
     self._samplers_by_output: Dict[str, List[OutputSampler]] = {}
     self._clock = clock
+
+  _ENABLE_DATA_SAMPLING = 'enable_data_sampling'
+  _ENABLE_ALWAYS_ON_EXCEPTION_SAMPLING = 'enable_always_on_exception_sampling'
+  _DISABLE_ALWAYS_ON_EXCEPTION_SAMPLING = 'disable_always_on_exception_sampling'
+
+  @staticmethod
+  def create(sdk_pipeline_options: PipelineOptions, **kwargs):
+    experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+
+    # When true, enables only the sampling of exceptions.
+    always_on_exception_sampling = (
+        DataSampler._ENABLE_ALWAYS_ON_EXCEPTION_SAMPLING in experiments and
+        DataSampler._DISABLE_ALWAYS_ON_EXCEPTION_SAMPLING not in experiments)
+
+    # When true, enables the sampling of all PCollections and exceptions.
+    enable_data_sampling = DataSampler._ENABLE_DATA_SAMPLING in experiments
+
+    if enable_data_sampling or always_on_exception_sampling:
+      sample_only_exceptions = (
+          always_on_exception_sampling and not enable_data_sampling)
+      return DataSampler(
+          sample_only_exceptions=sample_only_exceptions, **kwargs)
+    else:
+      return None
 
   def stop(self) -> None:
     """Stops all sampling, does not clear samplers in case there are outstanding

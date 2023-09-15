@@ -604,6 +604,15 @@ class UnionHint(CompositeTypeHint):
       return Any
     elif len(params) == 1:
       return next(iter(params))
+
+    if len(params) > 1:
+      from apache_beam.typehints import schemas
+      try:
+        return schemas.union_schema_type(params)
+      except (TypeError, KeyError):
+        # Not a union of compatible schema types.
+        pass
+
     return self.UnionConstraint(params)
 
 

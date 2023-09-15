@@ -152,7 +152,6 @@ disable =
   unnecessary-lambda-assignment,
   unnecessary-pass,
   unneeded-not,
-  use-implicit-booleaness-not-comparison, #TODO(https://github.com/apache/beam/issues/28244) Enable and fix warnings
   used-before-assignment,
   unsubscriptable-object,
   unsupported-binary-operation,

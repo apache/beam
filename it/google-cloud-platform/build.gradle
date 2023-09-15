@@ -15,7 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+<<<<<<< HEAD
 import groovy.json.JsonOutput
+=======
+import org.apache.beam.gradle.IoPerformanceTestUtilities
+>>>>>>> 5df59a943d18723942cd0531c12bef256ef90e20
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
@@ -81,7 +85,6 @@ dependencies {
     testRuntimeOnly library.java.slf4j_simple
 }
 
-
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
 task loadTestLegacyRunner(type: Test, dependsOn: processTestResources) {
@@ -104,3 +107,6 @@ task loadTestLegacyRunner(type: Test, dependsOn: processTestResources) {
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }
+
+tasks.register("GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
+tasks.register("BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])

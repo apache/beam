@@ -97,7 +97,6 @@ public class FnHarness {
   private static final String PIPELINE_OPTIONS_FILE = "PIPELINE_OPTIONS_FILE";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
-  private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
@@ -248,7 +247,8 @@ public class FnHarness {
         options.as(ExecutorOptions.class).getScheduledExecutorService();
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
-    final DataSampler dataSampler = new DataSampler();
+
+    final @Nullable DataSampler dataSampler = DataSampler.create(options);
 
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
@@ -275,10 +275,6 @@ public class FnHarness {
           new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);
 
       FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
-
-      // Create the sampler, if the experiment is enabled.
-      boolean shouldSample =
-          ExperimentalOptions.hasExperiment(options, ENABLE_DATA_SAMPLING_EXPERIMENT);
 
       // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
       // doesn't exist. Additionally, runs any graph modifications.
@@ -314,7 +310,7 @@ public class FnHarness {
               metricsShortIds,
               executionStateSampler,
               processWideCache,
-              shouldSample ? dataSampler : null);
+              dataSampler);
       logging.setProcessBundleHandler(processBundleHandler);
 
       BeamFnStatusClient beamFnStatusClient = null;
@@ -363,7 +359,12 @@ public class FnHarness {
           InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
           processWideHandler::harnessMonitoringInfos);
       handlers.put(
-          InstructionRequest.RequestCase.SAMPLE_DATA, dataSampler::handleDataSampleRequest);
+          InstructionRequest.RequestCase.SAMPLE_DATA,
+          request ->
+              dataSampler == null
+                  ? BeamFnApi.InstructionResponse.newBuilder()
+                      .setSampleData(BeamFnApi.SampleDataResponse.newBuilder())
+                  : dataSampler.handleDataSampleRequest(request));
 
       JvmInitializers.runBeforeProcessing(options);
 
