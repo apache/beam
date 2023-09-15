@@ -19,10 +19,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
-	"strings"
-	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -33,6 +31,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
+
+	dtyp "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	dcli "github.com/docker/docker/client"
 )
 
 // TODO move environment handling to the worker package.
@@ -99,95 +102,97 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 
 func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.DockerPayload, wk *worker.W, artifactEndpoint string) error {
 	logger = logger.With("worker_id", wk.ID, "image", dp.GetContainerImage())
-	// TODO: Ensure artifact server downloads to a consistent cache, and doesn't re-download artifacts.
-	// Ensure Go worker rebuilds are consistent?
-	// TODO: Fail sensibly when the image can't be downloaded or started without process crash.
 
-	var credentialArgs []string
+	// TODO consider preserving client?
+	cli, err := dcli.NewClientWithOpts(dcli.FromEnv)
+	if err != nil {
+		return fmt.Errorf("couldn't connect to docker:%w", err)
+	}
+
 	// TODO better abstract cloud specific auths.
 	const gcloudCredsEnv = "GOOGLE_APPLICATION_CREDENTIALS"
 	gcloudCredsFile, ok := os.LookupEnv(gcloudCredsEnv)
+	var mounts []mount.Mount
+	var envs []string
 	if ok {
 		_, err := os.Stat(gcloudCredsFile)
 		// File exists
 		if err == nil {
 			dockerGcloudCredsFile := "/docker_cred_file.json"
-			credentialArgs = append(credentialArgs,
-				"--mount",
-				fmt.Sprintf("type=bind,source=%v,target=%v", gcloudCredsFile, dockerGcloudCredsFile),
-				"--env",
-				fmt.Sprintf("%v=%v", gcloudCredsEnv, dockerGcloudCredsFile),
-			)
+			mounts = append(mounts, mount.Mount{
+				Type:   "bind",
+				Source: gcloudCredsFile,
+				Target: dockerGcloudCredsFile,
+			})
+			credEnv := fmt.Sprintf("%v=%v", gcloudCredsEnv, dockerGcloudCredsFile)
+			envs = append(envs, credEnv)
 		}
 	}
 
 	logger.Info("attempting to pull docker image for environment")
-	pullCmd := exec.CommandContext(ctx, "docker", "pull", dp.GetContainerImage())
-	pullCmd.Start()
-	pullCmd.Wait()
 
-	runArgs := []string{"run", "-d", "--network=host"}
-	runArgs = append(runArgs, credentialArgs...)
-	runArgs = append(runArgs,
-		dp.GetContainerImage(),
-		fmt.Sprintf("--id=%v-%v", wk.JobKey, wk.Env),
-		fmt.Sprintf("--control_endpoint=%v", wk.Endpoint()),
-		fmt.Sprintf("--artifact_endpoint=%v", artifactEndpoint),
-		fmt.Sprintf("--provision_endpoint=%v", wk.Endpoint()),
-		fmt.Sprintf("--logging_endpoint=%v", wk.Endpoint()),
-	)
-
-	runCmd := exec.CommandContext(ctx, "docker", runArgs...)
-	slog.Info("docker run command", "run_cmd", runCmd.String())
-	var buf bytes.Buffer
-	runCmd.Stdout = &buf
-	if err := runCmd.Start(); err != nil {
-		return fmt.Errorf("unable to start container image %v with docker for env %v", dp.GetContainerImage(), wk.Env)
-	}
-	if err := runCmd.Wait(); err != nil {
-		return fmt.Errorf("docker run failed for image %v with docker for env %v", dp.GetContainerImage(), wk.Env)
+	if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dtyp.ImagePullOptions{}); err == nil {
+		rc.Close()
 	}
 
-	containerID := strings.TrimSpace(buf.String())
-	if containerID == "" {
-		return fmt.Errorf("docker run failed for image %v with docker for env %v - no container ID", dp.GetContainerImage(), wk.Env)
+	ccr, err := cli.ContainerCreate(ctx, &container.Config{
+		Image: dp.GetContainerImage(),
+		Cmd: []string{
+			fmt.Sprintf("--id=%v-%v", wk.JobKey, wk.Env),
+			fmt.Sprintf("--control_endpoint=%v", wk.Endpoint()),
+			fmt.Sprintf("--artifact_endpoint=%v", artifactEndpoint),
+			fmt.Sprintf("--provision_endpoint=%v", wk.Endpoint()),
+			fmt.Sprintf("--logging_endpoint=%v", wk.Endpoint()),
+		},
+		Env: envs,
+		Tty: false,
+	}, &container.HostConfig{
+		NetworkMode: "host",
+		Mounts:      mounts,
+	}, nil, nil, "")
+	if err != nil {
+		cli.Close()
+		return fmt.Errorf("unable to create container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
 	}
-	logger.Info("docker container is started", "container_id", containerID)
+	containerID := ccr.ID
+	logger = logger.With("container", containerID)
 
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for range ticker.C {
-		buf.Reset()
-		inspectCmd := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.State.Status}}", containerID)
-		inspectCmd.Stdout = &buf
-		inspectCmd.Start()
-		inspectCmd.Wait()
+	if err := cli.ContainerStart(ctx, containerID, dtyp.ContainerStartOptions{}); err != nil {
+		cli.Close()
+		return fmt.Errorf("unable to start container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
+	}
+	logger.Info("docker container is started")
 
-		status := strings.TrimSpace(buf.String())
-		switch status {
-		case "running":
-			logger.Info("docker container is running", "container_id", containerID)
-			// Shut down container on job termination.
-			go func() {
-				<-ctx.Done()
-				// Can't use command context, since it's already canceled here.
-				killCmd := exec.Command("docker", "kill", containerID)
-				killCmd.Start()
-				logger.Info("docker container is killed - job finished", "container_id", containerID)
-			}()
-			return nil
-		case "dead", "exited":
-			logDumpCmd := exec.CommandContext(ctx, "docker", "container", "logs", containerID)
-			buf.Reset()
-			logDumpCmd.Stdout = &buf
-			logDumpCmd.Stderr = &buf
-			logDumpCmd.Start()
-			logDumpCmd.Wait()
-			logger.Error("SDK failed to start.", "final_status", status, "log", buf.String())
-			return fmt.Errorf("docker run failed for image %v with docker for env %v - containerID %v - log:\n%v", dp.GetContainerImage(), wk.Env, containerID, buf.String())
-		default:
-			logger.Info("docker container status", "container_id", containerID, "status", status)
+	// Start goroutine to wait on container state.
+	go func() {
+		defer cli.Close()
+
+		statusCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+		select {
+		case <-ctx.Done():
+			// Can't use command context, since it's already canceled here.
+			err := cli.ContainerKill(context.Background(), containerID, "")
+			if err != nil {
+				logger.Error("docker container kill error", "error", err)
+			}
+		case err := <-errCh:
+			if err != nil {
+				logger.Error("docker container wait error", "error", err)
+			}
+		case resp := <-statusCh:
+			logger.Info("docker container has self terminated", "status_code", resp.StatusCode)
+
+			rc, err := cli.ContainerLogs(ctx, containerID, dtyp.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+			if err != nil {
+				logger.Error("docker container logs error", "error", err)
+			}
+			defer rc.Close()
+
+			var buf bytes.Buffer
+			io.Copy(&buf, rc)
+			logger.Error("container self terminated.", "log", buf.String())
 		}
-	}
+	}()
+
 	return nil
 }
