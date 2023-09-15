@@ -106,9 +106,10 @@ jobs:
             -Pjava17Home=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
+        if: failure()
         with:
           name: JUnit Test Results
-          path: '**/build/test-results/**/*.xml'
+          path: "**/build/reports/tests/"
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v2
         with:
