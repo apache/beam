@@ -26,10 +26,9 @@ from typing import Optional
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-
-# google.auth is only available when Beam is installed with the gcp extra.
 from apache_beam.utils import retry
 
+# google.auth is only available when Beam is installed with the gcp extra.
 try:
   from google.auth import impersonated_credentials
   import google.auth
