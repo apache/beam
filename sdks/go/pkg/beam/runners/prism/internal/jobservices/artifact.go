@@ -104,7 +104,7 @@ func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.Artifac
 		slog.Warn("unable to provide artifact to worker", "artifact_info", pt)
 		return fmt.Errorf("unable to provide %v to worker", pt)
 	}
-	chunk := 4 * 1024 * 1024 // 128 MB
+	chunk := 128 * 1024 * 1024 // 128 MB
 	var i int
 	for i+chunk < len(buf) {
 		stream.Send(&jobpb.GetArtifactResponse{
