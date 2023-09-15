@@ -99,5 +99,4 @@ def write_to_bigquery(
 
 def io_providers():
   with open(os.path.join(os.path.dirname(__file__), 'standard_io.yaml')) as fin:
-    return yaml_provider.parse_providers(
-        yaml.load(fin, Loader=yaml.SafeLoader))
+    return yaml_provider.parse_providers(yaml.load(fin, Loader=yaml.SafeLoader))
