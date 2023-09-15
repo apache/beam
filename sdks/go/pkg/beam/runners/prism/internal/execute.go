@@ -81,10 +81,14 @@ func RunPipeline(j *jobservices.Job) {
 // makeWorker creates a worker for that environment.
 func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
 	wk := worker.New(j.String()+"_"+env, env)
+
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
+	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
 	wk.ArtifactEndpoint = j.ArtifactEndpoint()
+
 	go wk.Serve()
+
 	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
 		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
 	}
