@@ -72,14 +72,15 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	// Since jobs execute in the background, they should not be tied to a request's context.
 	rootCtx, cancelFn := context.WithCancelCause(context.Background())
 	job := &Job{
-		key:              s.nextId(),
+		key:        s.nextId(),
+		Pipeline:   req.GetPipeline(),
+		jobName:    req.GetJobName(),
+		options:    req.GetPipelineOptions(),
+		streamCond: sync.NewCond(&sync.Mutex{}),
+		RootCtx:    rootCtx,
+		CancelFn:   cancelFn,
+
 		artifactEndpoint: s.Endpoint(),
-		Pipeline:         req.GetPipeline(),
-		jobName:          req.GetJobName(),
-		options:          req.GetPipelineOptions(),
-		streamCond:       sync.NewCond(&sync.Mutex{}),
-		RootCtx:          rootCtx,
-		CancelFn:         cancelFn,
 	}
 
 	// Queue initial state of the job.

@@ -58,7 +58,7 @@ type W struct {
 	ID, Env string
 
 	JobKey, ArtifactEndpoint string
-	envPb                    *pipepb.Environment
+	EnvPb                    *pipepb.Environment
 
 	// Server management
 	lis    net.Listener
@@ -83,7 +83,7 @@ type controlResponder interface {
 }
 
 // New starts the worker server components of FnAPI Execution.
-func New(id, env string, envPb *pipepb.Environment) *W {
+func New(id, env string) *W {
 	lis, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
@@ -102,8 +102,6 @@ func New(id, env string, envPb *pipepb.Environment) *W {
 
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
-
-		envPb: envPb,
 
 		D: &DataService{},
 	}
@@ -177,7 +175,7 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 			},
 
 			RetrievalToken: wk.JobKey,
-			Dependencies:   wk.envPb.GetDependencies(),
+			Dependencies:   wk.EnvPb.GetDependencies(),
 
 			// TODO add this job's artifact Dependencies
 

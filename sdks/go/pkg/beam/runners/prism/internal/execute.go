@@ -80,8 +80,8 @@ func RunPipeline(j *jobservices.Job) {
 
 // makeWorker creates a worker for that environment.
 func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
-	envPb := j.Pipeline.GetComponents().GetEnvironments()[env]
-	wk := worker.New(j.String()+"_"+env, env, envPb) // Cheating by having the worker id match the environment id.
+	wk := worker.New(j.String()+"_"+env, env)
+	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.JobKey = j.JobKey()
 	wk.ArtifactEndpoint = j.ArtifactEndpoint()
 	go wk.Serve()
