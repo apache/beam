@@ -191,7 +191,7 @@ public interface HealthcareApiClient {
   /**
    * Deidentify a GCP FHIR Store and write the result into a new FHIR Store.
    *
-   * @param sourcefhirStore the FhirStore to be deidentified.
+   * @param sourceFhirStore the FhirStore to be deidentified.
    * @param destinationFhirStore the FhirStore that the deidentified data will be written to.
    * @param deidConfig the deidCongig specifying form of deidentification.
    * @return Empty.
