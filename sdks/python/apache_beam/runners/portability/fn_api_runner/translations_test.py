@@ -391,9 +391,10 @@ class TranslationsTest(unittest.TestCase):
     """
     class MyCombinePerKey(beam.CombinePerKey):
       def annotations(self):
-        return {"my_annotation":b""}
+        return {"my_annotation": b""}
+
     with TestPipeline() as pipeline:
-      pipeline | beam.Create([(1, 2)]) | MyCombinePerKey(min)
+      _ = pipeline | beam.Create([(1, 2)]) | MyCombinePerKey(min)
 
     # Verify the annotations are propagated to the split up
     # CPK transforms
@@ -405,13 +406,13 @@ class TranslationsTest(unittest.TestCase):
         phases=[translations.lift_combiners],
         known_runner_urns=frozenset(),
         partial=True)
-    for transform_id in [
-        'MyCombinePerKey(min)/Precombine',
-        'MyCombinePerKey(min)/Group',
-        'MyCombinePerKey(min)/Merge',
-        'MyCombinePerKey(min)/ExtractOutputs']:
-      assert ("my_annotation" in
-              optimized.components.transforms[transform_id].annotations)
+    for transform_id in ['MyCombinePerKey(min)/Precombine',
+                         'MyCombinePerKey(min)/Group',
+                         'MyCombinePerKey(min)/Merge',
+                         'MyCombinePerKey(min)/ExtractOutputs']:
+      assert (
+          "my_annotation" in
+          optimized.components.transforms[transform_id].annotations)
 
   def test_conditionally_packed_combiners(self):
     class RecursiveCombine(beam.PTransform):
