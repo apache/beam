@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -143,18 +144,11 @@ public class BigQueryIOReadTest implements Serializable {
 
   private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>
       datumReaderFactoryFn =
-          (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<TableRow>>)
-              input -> {
-                try {
-                  String jsonSchema = BigQueryIO.JSON_FACTORY.toString(input);
-                  return (AvroSource.DatumReaderFactory<TableRow>)
-                      (writer, reader) ->
-                          new BigQueryIO.GenericDatumTransformer<>(
-                              BigQueryIO.TableRowParser.INSTANCE, jsonSchema, writer);
-                } catch (IOException e) {
-                  return null;
-                }
-              };
+          input ->
+              (AvroSource.DatumReaderFactory<TableRow>)
+                  (writer, reader) ->
+                      new BigQueryIO.GenericDatumTransformer<>(
+                          BigQueryIO.TableRowParser.INSTANCE, checkStateNotNull(input), writer);
 
   private static class MyData implements Serializable {
     private String name;

@@ -665,16 +665,6 @@ public class BigQueryIO {
 
     public GenericDatumTransformer(
         SerializableFunction<SchemaAndRecord, T> parseFn,
-        String tableSchema,
-        org.apache.avro.Schema writer) {
-      this.parseFn = parseFn;
-      this.tableSchema = new TableSchemaFunction().apply(tableSchema);
-      this.writerSchema = writer;
-      this.reader = new GenericDatumReader<>(this.writerSchema);
-    }
-
-    public GenericDatumTransformer(
-        SerializableFunction<SchemaAndRecord, T> parseFn,
         TableSchema tableSchema,
         org.apache.avro.Schema writer) {
       this.parseFn = parseFn;
