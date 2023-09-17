@@ -21,6 +21,7 @@ import argparse
 import logging
 import subprocess
 import unittest
+import tempfile
 import pytest
 
 import apache_beam as beam
@@ -98,9 +99,16 @@ class DotRequiringRenderingTest(unittest.TestCase):
         p | beam.Impulse() | beam.Map(lambda _: 2)
         | 'CustomName' >> beam.Map(lambda x: x * x))
     pipeline_proto = p.to_runner_api()
-    render.RenderRunner().run_portable_pipeline(
-        pipeline_proto, render.RenderOptions(render_output=["my_output.svg"]))
-    assert os.path.exists("my_output.svg")
+
+    # In tmpdir:
+    #   - Create a file called "my_output.svg"
+    #   - Run the pipeline
+    #   - Assert that "my_output.svg" exists
+    with tempfile.TemporaryDirectory() as tmpdir:
+      svg_path = os.path.join(tmpdir, "my_output.svg")
+      render.RenderRunner().run_portable_pipeline(
+          pipeline_proto, render.RenderOptions(render_output=[svg_path]))
+      assert os.path.exists(svg_path)
 
   def test_dot_well_formed(self):
     p = beam.Pipeline()
