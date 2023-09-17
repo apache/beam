@@ -78,6 +78,8 @@ try:
 except ImportError:
   gcsio = None  # type: ignore
 
+_LOGGER = logging.getLogger(__name__)
+
 # From the Beam site, circa November 2022.
 DEFAULT_EDGE_STYLE = 'color="#ff570b"'
 DEFAULT_TRANSFORM_STYLE = (
@@ -336,7 +338,7 @@ class PipelineRenderer:
     }
 
   def render_data(self):
-    logging.info("Re-rendering pipeline...")
+    _LOGGER.info("Re-rendering pipeline...")
     layout = self.layout_dot()
     if self.options.render_output:
       for path in self.options.render_output:
@@ -346,10 +348,10 @@ class PipelineRenderer:
             input=layout,
             check=False)
         if result.returncode:
-          logging.error(
+          _LOGGER.error(
               "Failed render pipeline as %r: exit %s", path, result.returncode)
         else:
-          logging.info("Rendered pipeline as %r", path)
+          _LOGGER.info("Rendered pipeline as %r", path)
     return self.page_callback_data(layout)
 
   def render_json(self):
@@ -407,7 +409,7 @@ class RenderRunner(runner.PipelineRunner):
       raise ValueError(
           'At least one of --render_port or --render_output must be provided.')
     if render_options.log_proto:
-      logging.info(pipeline_proto)
+      _LOGGER.info(pipeline_proto)
     renderer = PipelineRenderer(pipeline_proto, render_options)
     try:
       subprocess.run(['dot', '-V'], capture_output=True, check=True)
@@ -420,7 +422,7 @@ class RenderRunner(runner.PipelineRunner):
       for output in dot_files:
         with open(output, 'w') as fout:
           fout.write(renderer.to_dot())
-          logging.info("Wrote pipeline as %s", output)
+          _LOGGER.info("Wrote pipeline as %s", output)
 
       non_dot_files = set(render_options.render_output) - set(dot_files)
       if non_dot_files:
