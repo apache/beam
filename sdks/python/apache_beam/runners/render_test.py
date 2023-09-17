@@ -21,6 +21,7 @@ import argparse
 import logging
 import subprocess
 import unittest
+import pytest
 
 import apache_beam as beam
 from apache_beam.runners import render
@@ -47,10 +48,18 @@ class RenderRunnerTest(unittest.TestCase):
         | 'CustomName' >> beam.Map(lambda x: x * x))
     pipeline_proto = p.to_runner_api()
     render.RenderRunner().run_portable_pipeline(
-        pipeline_proto,
-        render.RenderOptions(
-            render_output=["my_output.svg"], render_testing=True))
+        pipeline_proto, render.RenderOptions(render_output=["my_output.svg"]))
     assert os.path.exists("my_output.svg")
+
+  def test_render_config_validation(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Impulse() | beam.Map(lambda _: 2)
+        | 'CustomName' >> beam.Map(lambda x: x * x))
+    pipeline_proto = p.to_runner_api()
+    with pytest.raises(ValueError):
+      render.RenderRunner().run_portable_pipeline(
+          pipeline_proto, render.RenderOptions())
 
   def test_side_input(self):
     p = beam.Pipeline()
@@ -105,8 +114,8 @@ class RenderRunnerTest(unittest.TestCase):
     _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
     dot = render.PipelineRenderer(
         p.to_runner_api(),
-        render.RenderOptions(['--render_leaf_composite_nodes=Create'],
-                             render_testing=True)).to_dot()
+        render.RenderOptions(['--render_leaf_composite_nodes=Create'
+                              ])).to_dot()
     self.assertEqual(dot.count('->'), 1)
 
 

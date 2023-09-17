@@ -129,12 +129,6 @@ class RenderOptions(pipeline_options.PipelineOptions):
         help='Set to also log input pipeline proto to stdout.')
     return parser
 
-  def __init__(self, *args, render_testing=False, **kwargs):
-    super().__init__(*args, **kwargs)
-    if self.render_port < 0 and not self.render_output and not render_testing:
-      raise ValueError(
-          'At least one of --render_port or --render_output must be provided.')
-
 
 class PipelineRenderer:
   def __init__(self, pipeline, options):
@@ -408,8 +402,10 @@ class RenderRunner(runner.PipelineRunner):
     return self.run_portable_pipeline(pipeline_object.to_runner_api(), options)
 
   def run_portable_pipeline(self, pipeline_proto, options):
-    #render_options = options.view_as(RenderOptions)
-    render_options = options
+    render_options = options.view_as(RenderOptions)
+    if render_options.render_port < 0 and not render_options.render_output:
+      raise ValueError(
+          'At least one of --render_port or --render_output must be provided.')
     if render_options.log_proto:
       logging.info(pipeline_proto)
     renderer = PipelineRenderer(pipeline_proto, render_options)
