@@ -404,15 +404,17 @@ class RenderRunner(runner.PipelineRunner):
   # (such as counters, stage completion status, or possibly even PCollection
   # samples) queryable and/or displayed.  This could evolve into a full Beam
   # UI.
-  def run_pipeline(self, pipeline_object, options, pipeline_proto=None):
-    if not pipeline_proto:
-      pipeline_proto = pipeline_object.to_runner_api()
-    render_options = options.view_as(RenderOptions)
+  def run_pipeline(self, pipeline_object, options):
+    return self.run_portable_pipeline(pipeline_object.to_runner_api(), options)
+
+  def run_portable_pipeline(self, pipeline_proto, options):
+    #render_options = options.view_as(RenderOptions)
+    render_options = options
     if render_options.log_proto:
       logging.info(pipeline_proto)
     renderer = PipelineRenderer(pipeline_proto, render_options)
     try:
-      subprocess.run(['dotX', '-V'], capture_output=True, check=True)
+      subprocess.run(['dot', '-V'], capture_output=True, check=True)
     except FileNotFoundError as exn:
       # If dot is not available, we can at least output the raw .dot files.
       dot_files = [
@@ -543,17 +545,16 @@ def render_one(options):
     pipeline_proto = beam_runner_api_pb2.Pipeline()
     pipeline_proto.ParseFromString(content)
 
-  RenderRunner().run_pipeline(
-      None, pipeline_options.PipelineOptions(**vars(options)), pipeline_proto)
+  RenderRunner().run_portable_pipeline(
+      pipeline_proto, pipeline_options.PipelineOptions(**vars(options)))
 
 
 def run_server(options):
   class RenderBeamJob(local_job_service.BeamJob):
     def _invoke_runner(self):
-      return RenderRunner().run_pipeline(
-          None,
-          pipeline_options.PipelineOptions(**vars(options)),
-          self._pipeline_proto)
+      return RenderRunner().run_portable_pipeline(
+          self._pipeline_proto,
+          pipeline_options.PipelineOptions(**vars(options)))
 
   with tempfile.TemporaryDirectory() as staging_dir:
     job_servicer = local_job_service.LocalJobServicer(

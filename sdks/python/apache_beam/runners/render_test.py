@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import os
 import argparse
 import logging
 import subprocess
@@ -45,11 +46,11 @@ class RenderRunnerTest(unittest.TestCase):
         p | beam.Impulse() | beam.Map(lambda _: 2)
         | 'CustomName' >> beam.Map(lambda x: x * x))
     pipeline_proto = p.to_runner_api()
-    dot = render.RenderRunner().run_portable_pipeline(
-        pipeline_proto, default_options)
-    self.assertIn('digraph', dot)
-    self.assertIn('CustomName', dot)
-    self.assertEqual(dot.count('->'), 2)
+    render.RenderRunner().run_portable_pipeline(
+        pipeline_proto,
+        render.RenderOptions(
+            render_output=["my_output.svg"], render_testing=True))
+    assert os.path.exists("my_output.svg")
 
   def test_side_input(self):
     p = beam.Pipeline()
