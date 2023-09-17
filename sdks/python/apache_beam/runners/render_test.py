@@ -39,6 +39,18 @@ class RenderRunnerTest(unittest.TestCase):
     self.assertIn('CustomName', dot)
     self.assertEqual(dot.count('->'), 2)
 
+  def test_run_portable_pipeline(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Impulse() | beam.Map(lambda _: 2)
+        | 'CustomName' >> beam.Map(lambda x: x * x))
+    pipeline_proto = p.to_runner_api()
+    dot = render.RenderRunner().run_portable_pipeline(
+        pipeline_proto, default_options)
+    self.assertIn('digraph', dot)
+    self.assertIn('CustomName', dot)
+    self.assertEqual(dot.count('->'), 2)
+
   def test_side_input(self):
     p = beam.Pipeline()
     pcoll = p | beam.Impulse() | beam.FlatMap(lambda x: [1, 2, 3])
