@@ -41,16 +41,6 @@ class RenderRunnerTest(unittest.TestCase):
     self.assertIn('CustomName', dot)
     self.assertEqual(dot.count('->'), 2)
 
-  def test_run_portable_pipeline(self):
-    p = beam.Pipeline()
-    _ = (
-        p | beam.Impulse() | beam.Map(lambda _: 2)
-        | 'CustomName' >> beam.Map(lambda x: x * x))
-    pipeline_proto = p.to_runner_api()
-    render.RenderRunner().run_portable_pipeline(
-        pipeline_proto, render.RenderOptions(render_output=["my_output.svg"]))
-    assert os.path.exists("my_output.svg")
-
   def test_render_config_validation(self):
     p = beam.Pipeline()
     _ = (
@@ -87,11 +77,32 @@ class RenderRunnerTest(unittest.TestCase):
     renderer.update(toggle=[create_transform_id])
     self.assertEqual(renderer.to_dot().count('->'), 1)
 
-  def test_dot_well_formed(self):
+
+class DotRequiringRenderingTest(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
     try:
       subprocess.run(['dot', '-V'], capture_output=True, check=True)
     except FileNotFoundError:
+      cls._dot_installed = False
+    else:
+      cls._dot_installed = True
+
+  def setUp(self) -> None:
+    if not self._dot_installed:
       self.skipTest('dot executable not installed')
+
+  def test_run_portable_pipeline(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Impulse() | beam.Map(lambda _: 2)
+        | 'CustomName' >> beam.Map(lambda x: x * x))
+    pipeline_proto = p.to_runner_api()
+    render.RenderRunner().run_portable_pipeline(
+        pipeline_proto, render.RenderOptions(render_output=["my_output.svg"]))
+    assert os.path.exists("my_output.svg")
+
+  def test_dot_well_formed(self):
     p = beam.Pipeline()
     _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
     pipeline_proto = p.to_runner_api()
@@ -106,10 +117,6 @@ class RenderRunnerTest(unittest.TestCase):
     renderer.render_data()
 
   def test_leaf_composite_filter(self):
-    try:
-      subprocess.run(['dot', '-V'], capture_output=True, check=True)
-    except FileNotFoundError:
-      self.skipTest('dot executable not installed')
     p = beam.Pipeline()
     _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
     dot = render.PipelineRenderer(
