@@ -2763,6 +2763,25 @@ public class StreamingDataflowWorkerTest {
     public void run() {}
   }
 
+  private static class MockActiveWork extends StreamingDataflowWorker.Work {
+    public static volatile boolean exit;
+
+    public MockActiveWork(long workToken) {
+      super(
+          Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
+          Instant::now,
+          Collections.emptyList());
+      exit = false;
+    }
+
+    @Override
+    public void run() {}
+
+    public void stop() {
+      exit = true;
+    }
+  }
+
   @Test
   public void testActiveWork() throws Exception {
     BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
@@ -2925,24 +2944,8 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testActiveThreadMetric() throws Exception {
-    LOG.info("[chengedward] testActiveThreadMetric running");
-    int maxThreads = 4;
+    int maxThreads = 5;
     int threadExpiration = 60;
-
-    Clock mockClock = Mockito.mock(Clock.class);
-    CountDownLatch latch = new CountDownLatch(2);
-    doAnswer(
-            invocation -> {
-              latch.countDown();
-              // Return 0 until we are called once (reach max thread count).
-              if (latch.getCount() == 1) {
-                return 0L;
-              }
-              return 1000L;
-            })
-        .when(mockClock)
-        .millis();
-    LOG.info("[chengedward] testActiveThreadMetric created clock");
     // setting up actual implementation of executor instead of mocking to keep track of
     // active thread count.
     BoundedQueueExecutor executor =
@@ -2955,10 +2958,7 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build(),
-            mockClock);
-
-    LOG.info("[chengedward] testActiveThreadMetric created executor");
+                .build());
 
     StreamingDataflowWorker.ComputationState computationState =
         new StreamingDataflowWorker.ComputationState(
@@ -2969,50 +2969,65 @@ public class StreamingDataflowWorkerTest {
             null);
 
     ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
-    LOG.info("[chengedward] testActiveThreadMetric creating work");
+
+    // overriding definition of MockWork to add sleep, which will help us keep track of how
+    // long each work item takes to process and therefore let us manipulate how long the time
+    // at which we're at max threads is.
+
+    // real work
+    MockActiveWork m1 =
+        new MockActiveWork(1) {
+          @Override
+          public void run() {
+            int count = 0;
+            while (!exit) {
+              count += 1;
+            }
+            Thread.currentThread().interrupt();
+          }
+        };
+
+    // idle work
     MockWork m2 =
         new MockWork(2) {
           @Override
           public void run() {
             try {
-              // Make sure we don't finish before both MockWork are executed, thus afterExecute must
-              // be called after
-              // beforeExecute.
-              while (latch.getCount() > 1) {
-                Thread.sleep(50);
-              }
+              Thread.sleep(2000);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
             }
           }
         };
 
+    // idle work
     MockWork m3 =
         new MockWork(3) {
           @Override
           public void run() {
             try {
-              while (latch.getCount() > 1) {
-                Thread.sleep(50);
-              }
+              Thread.sleep(2000);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
             }
           }
         };
-    LOG.info("[chengedward] testActiveThreadMetric checking asserts");
+    assertEquals(0, executor.activeCount());
+
+    assertTrue(computationState.activateWork(key1Shard1, m1));
+    executor.execute(m1, m1.getWorkItem().getSerializedSize());
+    Thread.sleep(1000);
+    assertEquals(2, executor.activeCount());
+
     assertTrue(computationState.activateWork(key1Shard1, m2));
     assertTrue(computationState.activateWork(key1Shard1, m3));
-    
     executor.execute(m2, m2.getWorkItem().getSerializedSize());
     executor.execute(m3, m3.getWorkItem().getSerializedSize());
-    // Wait until the afterExecute is called.
-    latch.await();
+    Thread.sleep(1000);
+    assertEquals(4, executor.activeCount());
 
-    assertEquals(1000L, executor.allThreadsActiveTime());
-    LOG.info("[chengedward] testActiveThreadMetric shutting down executor");
+    m1.stop();
     executor.shutdown();
-    LOG.info("[chengedward] testActiveThreadMetric finished");
   }
 
   static class TestExceptionInvalidatesCacheFn

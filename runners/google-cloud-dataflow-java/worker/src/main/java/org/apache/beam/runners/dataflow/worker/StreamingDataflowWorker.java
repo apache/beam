@@ -256,7 +256,6 @@ public class StreamingDataflowWorker {
 
   public static void main(String[] args) throws Exception {
     JvmInitializers.runOnStartup();
-    LOG.info("[chengedward] streaming dataflow worker starting up");
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     DataflowWorkerHarnessOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
@@ -615,7 +614,6 @@ public class StreamingDataflowWorker {
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
-    LOG.info("[chengedward] creating TIME_AT_MAX_ACTIVE_THREADS counter");
     this.timeAtMaxActiveThreads =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName());
@@ -2039,8 +2037,6 @@ public class StreamingDataflowWorker {
     activeThreads.addValue(workUnitExecutor.activeCount());
     maxActiveThreads.getAndReset();
     maxActiveThreads.addValue(chooseMaximumNumberOfThreads());
-    LOG.info("[chengedward] active thread metric: " + activeThreads.getAggregate());
-    LOG.info("[chengedward] max active thread metric: " + maxActiveThreads.getAggregate());
   }
 
   @VisibleForTesting
