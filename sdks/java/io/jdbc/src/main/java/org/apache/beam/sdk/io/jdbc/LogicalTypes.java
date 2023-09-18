@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.JDBCType;
 import java.time.Instant;
-import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
@@ -30,11 +29,11 @@ import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType} implementations of JDBC types. */
 class LogicalTypes {
+  // Logical types of the following static members are not portable and are preserved for
+  // compatibility reason. Consider using portable logical types when adding new ones.
   static final Schema.FieldType JDBC_BIT_TYPE =
       Schema.FieldType.logicalType(
           new PassThroughLogicalType<Boolean>(
@@ -108,71 +107,6 @@ class LogicalTypes {
       return VariableBytes.of(name, length);
     } else {
       return FixedBytes.of(name, length);
-    }
-  }
-
-  /** Base class for JDBC logical types. */
-  abstract static class JdbcLogicalType<T extends @NonNull Object>
-      implements Schema.LogicalType<T, T> {
-    protected final String identifier;
-    protected final Schema.FieldType argumentType;
-    protected final Schema.FieldType baseType;
-    protected final Object argument;
-
-    protected JdbcLogicalType(
-        String identifier,
-        Schema.FieldType argumentType,
-        Schema.FieldType baseType,
-        Object argument) {
-      this.identifier = identifier;
-      this.argumentType = argumentType;
-      this.baseType = baseType;
-      this.argument = argument;
-    }
-
-    @Override
-    public String getIdentifier() {
-      return identifier;
-    }
-
-    @Override
-    public FieldType getArgumentType() {
-      return argumentType;
-    }
-
-    @Override
-    @SuppressWarnings("TypeParameterUnusedInFormals")
-    public <ArgumentT> ArgumentT getArgument() {
-      return (ArgumentT) argument;
-    }
-
-    @Override
-    public Schema.FieldType getBaseType() {
-      return baseType;
-    }
-
-    @Override
-    public T toBaseType(T input) {
-      return input;
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof JdbcLogicalType)) {
-        return false;
-      }
-      JdbcLogicalType<?> that = (JdbcLogicalType<?>) o;
-      return Objects.equals(identifier, that.identifier)
-          && Objects.equals(baseType, that.baseType)
-          && Objects.equals(argument, that.argument);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(identifier, baseType, argument);
     }
   }
 }
