@@ -24,7 +24,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
-	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
@@ -32,8 +31,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -54,30 +51,21 @@ func RunPipeline(j *jobservices.Job) {
 		return
 	}
 	env, _ := getOnlyPair(envs)
-	wk := worker.New(j.String()+"_"+env, env) // Cheating by having the worker id match the environment id.
-	go wk.Serve()
-	timeout := time.Minute
-	time.AfterFunc(timeout, func() {
-		if wk.Connected() {
-			return
-		}
-		err := fmt.Errorf("prism %v didn't get control connection after %v", wk, timeout)
+	wk, err := makeWorker(env, j)
+	if err != nil {
 		j.Failed(err)
-		j.CancelFn(err)
-	})
-
+		return
+	}
 	// When this function exits, we cancel the context to clear
 	// any related job resources.
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
 	}()
-	go runEnvironment(j.RootCtx, j, env, wk)
 
 	j.SendMsg("running " + j.String())
 	j.Running()
 
-	err := executePipeline(j.RootCtx, wk, j)
-	if err != nil {
+	if err := executePipeline(j.RootCtx, wk, j); err != nil {
 		j.Failed(err)
 		return
 	}
@@ -90,57 +78,27 @@ func RunPipeline(j *jobservices.Job) {
 	j.Done()
 }
 
-// TODO move environment handling to the worker package.
-
-func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *worker.W) {
-	// TODO fix broken abstraction.
-	// We're starting a worker pool here, because that's the loopback environment.
-	// It's sort of a mess, largely because of loopback, which has
-	// a different flow from a provisioned docker container.
-	e := j.Pipeline.GetComponents().GetEnvironments()[env]
-	switch e.GetUrn() {
-	case urns.EnvExternal:
-		ep := &pipepb.ExternalPayload{}
-		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), ep); err != nil {
-			slog.Error("unmarshing environment payload", err, slog.String("envID", wk.Env))
+// makeWorker creates a worker for that environment.
+func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
+	wk := worker.New(j.String()+"_"+env, env)
+	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
+	wk.JobKey = j.JobKey()
+	wk.ArtifactEndpoint = j.ArtifactEndpoint()
+	go wk.Serve()
+	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
+		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
+	}
+	// Check for connection succeeding after we've created the environment successfully.
+	timeout := 1 * time.Minute
+	time.AfterFunc(timeout, func() {
+		if wk.Connected() {
+			return
 		}
-		externalEnvironment(ctx, ep, wk)
-		slog.Debug("environment stopped", slog.String("envID", wk.String()), slog.String("job", j.String()))
-	default:
-		panic(fmt.Sprintf("environment %v with urn %v unimplemented", env, e.GetUrn()))
-	}
-}
-
-func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *worker.W) {
-	conn, err := grpc.Dial(ep.GetEndpoint().GetUrl(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		panic(fmt.Sprintf("unable to dial sdk worker %v: %v", ep.GetEndpoint().GetUrl(), err))
-	}
-	defer conn.Close()
-	pool := fnpb.NewBeamFnExternalWorkerPoolClient(conn)
-
-	endpoint := &pipepb.ApiServiceDescriptor{
-		Url: wk.Endpoint(),
-	}
-	pool.StartWorker(ctx, &fnpb.StartWorkerRequest{
-		WorkerId:          wk.ID,
-		ControlEndpoint:   endpoint,
-		LoggingEndpoint:   endpoint,
-		ArtifactEndpoint:  endpoint,
-		ProvisionEndpoint: endpoint,
-		Params:            nil,
+		err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
+		j.Failed(err)
+		j.CancelFn(err)
 	})
-
-	// Job processing happens here, but orchestrated by other goroutines
-	// This goroutine blocks until the context is cancelled, signalling
-	// that the pool runner should stop the worker.
-	<-ctx.Done()
-
-	// Previous context cancelled so we need a new one
-	// for this request.
-	pool.StopWorker(context.Background(), &fnpb.StopWorkerRequest{
-		WorkerId: wk.ID,
-	})
+	return wk, nil
 }
 
 type transformExecuter interface {

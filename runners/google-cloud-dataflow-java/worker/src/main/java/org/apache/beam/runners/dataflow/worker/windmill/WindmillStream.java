@@ -86,4 +86,8 @@ public interface WindmillStream {
     /** Flushes any pending work items to the wire. */
     void flush();
   }
+
+  /** Interface for streaming GetWorkerMetadata requests to Windmill. */
+  @ThreadSafe
+  interface GetWorkerMetadataStream extends WindmillStream {}
 }

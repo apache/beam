@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import org.apache.beam.gradle.IoPerformanceTestUtilities
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
@@ -75,3 +76,6 @@ dependencies {
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
     testRuntimeOnly library.java.slf4j_simple
 }
+
+tasks.register("GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
+tasks.register("BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -28,10 +31,9 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
@@ -45,8 +47,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataSt
 import org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,8 @@ final class GrpcGetDataStream
   private final int streamingRpcBatchLimit;
 
   private GrpcGetDataStream(
-      CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub,
+      Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
+          startGetDataRpcFn,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
@@ -74,14 +76,7 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
     super(
-        responseObserver ->
-            stub.withDeadlineAfter(
-                    AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
-                .getDataStream(responseObserver),
-        backoff,
-        streamObserverFactory,
-        streamRegistry,
-        logEveryNStreamFailures);
+        startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
@@ -91,7 +86,8 @@ final class GrpcGetDataStream
   }
 
   static GrpcGetDataStream create(
-      CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub,
+      Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
+          startGetDataRpcFn,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
@@ -102,7 +98,7 @@ final class GrpcGetDataStream
       int streamingRpcBatchLimit) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
-            stub,
+            startGetDataRpcFn,
             backoff,
             streamObserverFactory,
             streamRegistry,
@@ -122,7 +118,7 @@ final class GrpcGetDataStream
       // We rely on close only occurring after all methods on the stream have returned.
       // Since the requestKeyedData and requestGlobalData methods are blocking this
       // means there should be no pending requests.
-      Verify.verify(!hasPendingRequests());
+      verify(!hasPendingRequests());
     } else {
       for (AppendableInputStream responseStream : pending.values()) {
         responseStream.cancel();
@@ -138,14 +134,13 @@ final class GrpcGetDataStream
   @Override
   @SuppressWarnings("dereference.of.nullable")
   protected void onResponse(StreamingGetDataResponse chunk) {
-    Preconditions.checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
-    Preconditions.checkArgument(
-        chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
+    checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
+    checkArgument(chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
     getDataThrottleTimer.stop();
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
       AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
-      Verify.verify(responseStream != null, "No pending response stream");
+      verify(responseStream != null, "No pending response stream");
       responseStream.append(chunk.getSerializedResponse(i).newInput());
       if (chunk.getRemainingBytesForResponse() == 0) {
         responseStream.complete();
@@ -283,12 +278,12 @@ final class GrpcGetDataStream
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for it's completion.
       synchronized (batches) {
-        Verify.verify(batch == batches.peekFirst());
+        verify(batch == batches.peekFirst());
         batch.markFinalized();
       }
       sendBatch(batch.requests());
       synchronized (batches) {
-        Verify.verify(batch == batches.pollFirst());
+        verify(batch == batches.pollFirst());
       }
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
@@ -308,7 +303,7 @@ final class GrpcGetDataStream
       for (QueuedRequest request : requests) {
         // Map#put returns null if there was no previous mapping for the key, meaning we have not
         // seen it before.
-        Verify.verify(pending.put(request.id(), request.getResponseStream()) == null);
+        verify(pending.put(request.id(), request.getResponseStream()) == null);
       }
       try {
         send(batchedRequest);

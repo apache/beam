@@ -68,7 +68,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
 
 jobs:
@@ -98,9 +98,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
-      - name: Configure passenv for tox
-        run: |
-          sed -i '/^\[testenv\]$/,/^\[/ s/^passenv=TERM/passenv=TERM,CLOUDSDK_CONFIG/' sdks/python/tox.ini
       - name: run Python PVR Flink PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         env:
