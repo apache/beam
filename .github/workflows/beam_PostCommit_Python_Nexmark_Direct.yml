@@ -97,6 +97,8 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_Nexmark_Direct]
         job_phrase: [Run Python Direct Runner Nexmark Tests]
+        # Query numbers are listed explicitly due to issues with Python Nexmark Query.
+        # See selection logic: https://github.com/apache/beam/blob/master/.test-infra/jenkins/NexmarkBuilder.groovy#L184
         query: [0, 2, 3, 5, 7, 8, 10, 11]
     if: |
       github.event_name == 'workflow_dispatch' ||
