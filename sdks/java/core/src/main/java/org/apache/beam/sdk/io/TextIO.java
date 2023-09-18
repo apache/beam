@@ -402,6 +402,8 @@ public class TextIO {
      * <p>This disables split file reading and may cause performance degradation.
      */
     public Read withSkipHeaderLines(int skipHeaderLines) {
+      checkArgument(
+          skipHeaderLines > 0, "skipHeaderLines should be > 0, but was %s", skipHeaderLines);
       return toBuilder().setSkipHeaderLines(skipHeaderLines).build();
     }
 

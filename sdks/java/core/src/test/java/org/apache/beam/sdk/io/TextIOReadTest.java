@@ -356,7 +356,6 @@ public class TextIOReadTest {
     @Parameterized.Parameters(name = "{index}: {1}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {TINY, 0, TINY.subList(0, TINY.size())})
           .add(new Object[] {TINY, 1, TINY.subList(1, TINY.size())})
           .add(new Object[] {TINY, 2, TINY.subList(2, TINY.size())})
           .add(new Object[] {TINY, 3, TINY.subList(3, TINY.size())})
