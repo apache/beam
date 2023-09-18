@@ -27,7 +27,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_transform import YamlTransform
 
-AsRows = beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict()))
+
+def AsRows():
+  return beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict()))
 
 
 class YamlUDFMappingTest(unittest.TestCase):
@@ -108,7 +110,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           callable: "function filter(x) {return x.rank > 0}"
       ''')
       assert_that(
-          result | AsRows,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
@@ -128,7 +130,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           callable: "lambda x: x.rank > 0"
       ''')
       assert_that(
-          result | AsRows,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
@@ -148,7 +150,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           expression: "label.toUpperCase().indexOf('3') == -1 && conductor"
       ''')
       assert_that(
-          result | AsRows,
+          result | AsRows(),
           equal_to([
               beam.Row(label='11a', conductor=11, rank=0),
           ]))
@@ -167,7 +169,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           expression: "'3' not in label"
       ''')
       assert_that(
-          result | AsRows,
+          result | AsRows(),
           equal_to([
               beam.Row(label='11a', conductor=11, rank=0),
           ]))
@@ -200,7 +202,7 @@ class YamlUDFMappingTest(unittest.TestCase):
             name: "f"
         ''')
       assert_that(
-          result | AsRows,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
@@ -232,7 +234,7 @@ class YamlUDFMappingTest(unittest.TestCase):
             name: "f"
         ''')
       assert_that(
-          result | AsRows,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
