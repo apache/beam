@@ -28,7 +28,6 @@ on:
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
-    branches: ['fixprismaction']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
