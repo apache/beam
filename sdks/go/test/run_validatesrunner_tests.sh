@@ -294,7 +294,9 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
       PRISMBIN=$TMPDIR/prismbin
       cd sdks
       ./go/run_with_go_version.sh build -o $PRISMBIN go/cmd/prism/*.go
-      $PRISMBIN --job_port $JOB_PORT &
+      $PRISMBIN \
+      --serve_http=false \
+      --job_port $JOB_PORT &
       cd ..
     else
       echo "Unknown runner: $RUNNER"
