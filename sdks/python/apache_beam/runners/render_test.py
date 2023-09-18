@@ -90,7 +90,7 @@ class DotRequiringRenderingTest(unittest.TestCase):
       cls._dot_installed = True
 
   def setUp(self) -> None:
-    if not self._dot_installed:
+    if not self._dot_installed:  # type: ignore[attr-defined]
       self.skipTest('dot executable not installed')
 
   def test_run_portable_pipeline(self):
