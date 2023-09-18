@@ -71,9 +71,6 @@ func RunPipeline(j *jobservices.Job) {
 	}
 	j.SendMsg("pipeline completed " + j.String())
 
-	// Stop the worker.
-	wk.Stop()
-
 	j.SendMsg("terminating " + j.String())
 	j.Done()
 }
