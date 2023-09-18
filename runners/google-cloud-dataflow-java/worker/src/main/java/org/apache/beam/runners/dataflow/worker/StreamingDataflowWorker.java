@@ -1406,7 +1406,8 @@ public class StreamingDataflowWorker {
       // The coder type that will be present is:
       //     WindowedValueCoder(TimerOrElementCoder(KvCoder))
       @Nullable Coder<?> keyCoder = executionState.getKeyCoder();
-      @Nullable Object executionKey =
+      @Nullable
+      Object executionKey =
           keyCoder == null ? null : keyCoder.decode(key.newInput(), Coder.Context.OUTER);
 
       if (workItem.hasHotKeyInfo()) {

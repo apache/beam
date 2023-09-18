@@ -3259,7 +3259,8 @@ public class StreamingDataflowWorkerTest {
           // The commit will include a timer to clean up state - this timer is irrelevant
           // for the current test. Also remove source_bytes_processed because it's dynamic.
           setValuesTimestamps(
-                  removeDynamicFields(commit).toBuilder()
+                  removeDynamicFields(commit)
+                      .toBuilder()
                       .clearOutputTimers()
                       .clearSourceBytesProcessed())
               .build(),
