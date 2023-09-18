@@ -525,7 +525,6 @@ def create_builtin_provider():
           'WithSchemaExperimental': with_schema,
           'Flatten': Flatten,
           'WindowInto': WindowInto,
-          'GroupByKey': beam.GroupByKey,
       }))
 
 
