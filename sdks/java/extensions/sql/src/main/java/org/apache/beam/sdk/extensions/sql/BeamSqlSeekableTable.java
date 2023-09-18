@@ -29,9 +29,12 @@ import org.apache.beam.sdk.values.Row;
  * FROM FACT_TABLE JOIN LOOKUP_TABLE ON ...}.
  */
 public interface BeamSqlSeekableTable extends Serializable {
-  default void setJoinSubsetType(Schema joinSubsetType) {}
-  /** prepare the instance. */
-  default void setUp() {}
+  /**
+   * prepare the instance
+   *
+   * @param joinSubsetType joining subset schema
+   */
+  default void setUp(Schema joinSubsetType) {}
 
   default void startBundle(
       DoFn<Row, Row>.StartBundleContext context, PipelineOptions pipelineOptions) {}

@@ -116,7 +116,6 @@ public class BeamJoinTransforms {
       this.outputSchema = outputSchema;
       this.factColOffset = factColOffset;
       joinFieldsMapping(joinCondition, factColOffset, lkpColOffset);
-      this.seekableTable.setJoinSubsetType(joinSubsetType);
     }
 
     private void joinFieldsMapping(RexNode joinCondition, int factColOffset, int lkpColOffset) {
@@ -154,7 +153,7 @@ public class BeamJoinTransforms {
                   new DoFn<Row, Row>() {
                     @Setup
                     public void setup() {
-                      seekableTable.setUp();
+                      seekableTable.setUp(joinSubsetType);
                     }
 
                     @StartBundle

@@ -48,7 +48,6 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
 
   /** Test table for JOIN-AS-LOOKUP. */
   public static class SiteLookupTable extends SchemaBaseBeamTable implements BeamSqlSeekableTable {
-
     private Schema joinSubsetType;
 
     public SiteLookupTable(Schema schema) {
@@ -56,8 +55,9 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
     }
 
     @Override
-    public void setJoinSubsetType(Schema joinSubsetType) {
+    public void setUp(Schema joinSubsetType) {
       this.joinSubsetType = joinSubsetType;
+      Assert.assertNotNull(joinSubsetType);
     }
 
     @Override
@@ -77,7 +77,7 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
 
     @Override
     public List<Row> seekRow(Row lookupSubRow) {
-      Assert.assertNotNull(joinSubsetType);
+      Assert.assertEquals(joinSubsetType, lookupSubRow.getSchema());
       if (lookupSubRow.getInt32("site_id") == 2) {
         return Arrays.asList(Row.withSchema(getSchema()).addValues(2, "SITE1").build());
       }
