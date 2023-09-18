@@ -52,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Sickbay_Python:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase_1}}${{matrix.job_phrase_2}})
+    name: ${{matrix.job_name}} (${{matrix.job_phrase_1}} ${{matrix.python_version}} ${{matrix.job_phrase_2}})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
