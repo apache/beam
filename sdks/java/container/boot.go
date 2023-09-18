@@ -267,8 +267,10 @@ func makePipelineOptionsFile(options string) error {
 // it returns 70% of the physical memory on the machine. If it cannot determine
 // that value, it returns 1GB. This is an imperfect heuristic. It aims to
 // ensure there is memory for non-heap use and other overhead, while also not
-// underutilizing the machine. if set_recommended_max_xmx experiment is enabled, sets xmx 
-// to 32G
+// underutilizing the machine. if set_recommended_max_xmx experiment is enabled, 
+// sets xmx to 32G. Under 32G JVM enables CompressedOops. CompressedOops 
+// utilizes memory more efficiently, and has positive impact on GC performance 
+// and cache hit rate.
 func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
 	if setRecommendedMaxXmx {
 		return 32 << 30
