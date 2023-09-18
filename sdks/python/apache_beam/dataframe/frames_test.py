@@ -17,6 +17,7 @@
 import re
 import unittest
 import warnings
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -1648,7 +1649,7 @@ AGGREGATIONS_WHERE_NUMERIC_ONLY_DEFAULTS_TO_TRUE_IN_PANDAS_1 = set(
         'describe'))
 
 
-def numeric_only_kwargs_for_pandas_2(agg_type: str) -> dict[str, bool]:
+def numeric_only_kwargs_for_pandas_2(agg_type: str) -> Dict[str, bool]:
   """Get proper arguments for numeric_only.
 
   Behavior for numeric_only in these methods changed in Pandas 2 to default
