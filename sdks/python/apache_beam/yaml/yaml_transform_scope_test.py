@@ -88,40 +88,13 @@ class ScopeTest(unittest.TestCase):
       spec = '''
         transforms:
           - type: PyMap
+            input: something
             config:
               fn: "lambda x: x*x"
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
 
-      result = scope.create_ptransform(spec['transforms'][0], [])
-      self.assertIsInstance(result, beam.transforms.ParDo)
-      self.assertEqual(result.label, 'Map(lambda x: x*x)')
-
-      result_annotations = {**result.annotations()}
-      target_annotations = {
-          'yaml_type': 'PyMap',
-          'yaml_args': '{"fn": "lambda x: x*x"}',
-          'yaml_provider': '{"type": "InlineProvider"}'
-      }
-
-      # Check if target_annotations is a subset of result_annotations
-      self.assertDictEqual(
-          result_annotations, {
-              **result_annotations, **target_annotations
-          })
-
-  def test_create_ptransform_with_inputs(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      spec = '''
-        transforms:
-          - type: PyMap
-            config:
-              fn: "lambda x: x*x"
-        '''
-      scope, spec = self.get_scope_by_spec(p, spec)
-
-      result = scope.create_ptransform(spec['transforms'][0], [])
+      result = scope.create_ptransform(spec['transforms'][0], ['something'])
       self.assertIsInstance(result, beam.transforms.ParDo)
       self.assertEqual(result.label, 'Map(lambda x: x*x)')
 
