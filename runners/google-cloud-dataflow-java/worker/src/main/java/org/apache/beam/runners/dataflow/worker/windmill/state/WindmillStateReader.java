@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import com.google.api.client.util.Lists;
-import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.AbstractMap;
@@ -27,43 +25,41 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.WindmillStateReader.StateTag.Kind;
+import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
+import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListFetchRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValuePrefixRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.state.StateTag.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ForwardingList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ForwardingFuture;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.joda.time.Instant;
@@ -80,7 +76,7 @@ import org.joda.time.Instant;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class WindmillStateReader {
+public class WindmillStateReader {
   /**
    * Ideal maximum bytes in a TagBag response. However, Windmill will always return at least one
    * value if possible irrespective of this limit.
@@ -116,189 +112,43 @@ class WindmillStateReader {
   public static final long MAX_KEY_BYTES = 16L << 20; // 16MB
 
   public static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
-
-  /**
-   * When combined with a key and computationId, represents the unique address for state managed by
-   * Windmill.
-   */
-  @AutoValue
-  abstract static class StateTag<RequestPositionT> {
-    enum Kind {
-      VALUE,
-      BAG,
-      WATERMARK,
-      ORDERED_LIST,
-      VALUE_PREFIX,
-      MULTIMAP_SINGLE_ENTRY,
-      MULTIMAP_ALL
-    }
-
-    abstract Kind getKind();
-
-    abstract ByteString getTag();
-
-    abstract String getStateFamily();
-
-    /**
-     * For {@link Kind#BAG, Kind#ORDERED_LIST, Kind#VALUE_PREFIX, KIND#MULTIMAP_SINGLE_ENTRY,
-     * KIND#MULTIMAP_ALL} kinds: A previous 'continuation_position' returned by Windmill to signal
-     * the resulting state was incomplete. Sending that position will request the next page of
-     * values. Null for first request.
-     *
-     * <p>Null for other kinds.
-     */
-    @Nullable
-    abstract RequestPositionT getRequestPosition();
-
-    /** For {@link Kind#ORDERED_LIST} kinds: the range to fetch or delete. */
-    @Nullable
-    abstract Range<Long> getSortedListRange();
-
-    /** For {@link Kind#MULTIMAP_SINGLE_ENTRY} kinds: the key in the multimap to fetch or delete. */
-    @Nullable
-    abstract ByteString getMultimapKey();
-
-    /**
-     * For {@link Kind#MULTIMAP_ALL} kinds: will only return the keys of the multimap and not the
-     * values if true.
-     */
-    @Nullable
-    abstract Boolean getOmitValues();
-
-    static <RequestPositionT> StateTag<RequestPositionT> of(
-        Kind kind, ByteString tag, String stateFamily, @Nullable RequestPositionT requestPosition) {
-      return new AutoValue_WindmillStateReader_StateTag.Builder<RequestPositionT>()
-          .setKind(kind)
-          .setTag(tag)
-          .setStateFamily(stateFamily)
-          .setRequestPosition(requestPosition)
-          .build();
-    }
-
-    static <RequestPositionT> StateTag<RequestPositionT> of(
-        Kind kind, ByteString tag, String stateFamily) {
-      return of(kind, tag, stateFamily, null);
-    }
-
-    abstract Builder<RequestPositionT> toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder<RequestPositionT> {
-      abstract Builder<RequestPositionT> setKind(Kind kind);
-
-      abstract Builder<RequestPositionT> setTag(ByteString tag);
-
-      abstract Builder<RequestPositionT> setStateFamily(String stateFamily);
-
-      abstract Builder<RequestPositionT> setRequestPosition(
-          @Nullable RequestPositionT requestPosition);
-
-      abstract Builder<RequestPositionT> setSortedListRange(@Nullable Range<Long> sortedListRange);
-
-      abstract Builder<RequestPositionT> setMultimapKey(@Nullable ByteString encodedMultimapKey);
-
-      abstract Builder<RequestPositionT> setOmitValues(Boolean omitValues);
-
-      abstract StateTag<RequestPositionT> build();
-    }
-  }
-
-  /**
-   * An in-memory collection of deserialized values and an optional continuation position to pass to
-   * Windmill when fetching the next page of values.
-   */
-  private static class ValuesAndContPosition<T, ContinuationT> {
-    private final List<T> values;
-
-    /** Position to pass to next request for next page of values. Null if done. */
-    private final @Nullable ContinuationT continuationPosition;
-
-    public ValuesAndContPosition(List<T> values, @Nullable ContinuationT continuationPosition) {
-      this.values = values;
-      this.continuationPosition = continuationPosition;
-    }
-  }
-
+  @VisibleForTesting final ConcurrentLinkedQueue<StateTag<?>> pendingLookups;
   private final String computation;
   private final ByteString key;
   private final long shardingKey;
   private final long workToken;
-
   // WindmillStateReader should only perform blocking i/o in a try-with-resources block that
   // declares an AutoCloseable vended by readWrapperSupplier.
   private final Supplier<AutoCloseable> readWrapperSupplier;
-
-  private final MetricTrackingWindmillServerStub server;
-
+  private final MetricTrackingWindmillServerStub metricTrackingWindmillServerStub;
+  private final ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting;
   private long bytesRead = 0L;
 
   public WindmillStateReader(
-      MetricTrackingWindmillServerStub server,
+      MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
       String computation,
       ByteString key,
       long shardingKey,
       long workToken,
       Supplier<AutoCloseable> readWrapperSupplier) {
-    this.server = server;
+    this.metricTrackingWindmillServerStub = metricTrackingWindmillServerStub;
     this.computation = computation;
     this.key = key;
     this.shardingKey = shardingKey;
     this.workToken = workToken;
     this.readWrapperSupplier = readWrapperSupplier;
+    this.waiting = new ConcurrentHashMap<>();
+    this.pendingLookups = new ConcurrentLinkedQueue<>();
   }
 
   public WindmillStateReader(
-      MetricTrackingWindmillServerStub server,
+      MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
       String computation,
       ByteString key,
       long shardingKey,
       long workToken) {
-    this(server, computation, key, shardingKey, workToken, () -> null);
+    this(metricTrackingWindmillServerStub, computation, key, shardingKey, workToken, () -> null);
   }
-
-  private static final class CoderAndFuture<FutureT> {
-    private Coder<?> coder = null;
-    private final SettableFuture<FutureT> future;
-
-    private CoderAndFuture(Coder<?> coder, SettableFuture<FutureT> future) {
-      this.coder = coder;
-      this.future = future;
-    }
-
-    private SettableFuture<FutureT> getFuture() {
-      return future;
-    }
-
-    private SettableFuture<FutureT> getNonDoneFuture(StateTag stateTag) {
-      if (future.isDone()) {
-        throw new IllegalStateException("Future for " + stateTag + " is already done");
-      }
-      return future;
-    }
-
-    private <ElemT> Coder<ElemT> getAndClearCoder() {
-      if (coder == null) {
-        throw new IllegalStateException("Coder has already been cleared from cache");
-      }
-      Coder<ElemT> result = (Coder<ElemT>) coder;
-      if (result == null) {
-        throw new IllegalStateException("Coder has already been cleared from cache");
-      }
-      coder = null;
-      return result;
-    }
-
-    private void checkNoCoder() {
-      if (coder != null) {
-        throw new IllegalStateException("Unexpected coder");
-      }
-    }
-  }
-
-  @VisibleForTesting
-  ConcurrentLinkedQueue<StateTag<?>> pendingLookups = new ConcurrentLinkedQueue<>();
-
-  private ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting = new ConcurrentHashMap<>();
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
     CoderAndFuture<FutureT> coderAndFuture = new CoderAndFuture<>(coder, SettableFuture.create());
@@ -393,53 +243,14 @@ class WindmillStateReader {
    * Internal request to fetch the next 'page' of values. Return null if no continuation position is
    * in {@code contStateTag}, which signals there are no more pages.
    */
-  private @Nullable <ContinuationT, ResultT>
-      Future<ValuesAndContPosition<ResultT, ContinuationT>> continuationFuture(
-          StateTag<ContinuationT> contStateTag, Coder<?> coder) {
+  @Nullable
+  <ContinuationT, ResultT> Future<ValuesAndContPosition<ResultT, ContinuationT>> continuationFuture(
+      StateTag<ContinuationT> contStateTag, Coder<?> coder) {
     if (contStateTag.getRequestPosition() == null) {
       // We're done.
       return null;
     }
     return stateFuture(contStateTag, coder);
-  }
-
-  /**
-   * A future which will trigger a GetData request to Windmill for all outstanding futures on the
-   * first {@link #get}.
-   */
-  private static class WrappedFuture<T> extends ForwardingFuture.SimpleForwardingFuture<T> {
-    /**
-     * The reader we'll use to service the eventual read. Null if read has been fulfilled.
-     *
-     * <p>NOTE: We must clear this after the read is fulfilled to prevent space leaks.
-     */
-    private @Nullable WindmillStateReader reader;
-
-    public WrappedFuture(WindmillStateReader reader, Future<T> delegate) {
-      super(delegate);
-      this.reader = reader;
-    }
-
-    @Override
-    public T get() throws InterruptedException, ExecutionException {
-      if (!delegate().isDone() && reader != null) {
-        // Only one thread per reader, so no race here.
-        reader.startBatchAndBlock();
-      }
-      reader = null;
-      return super.get();
-    }
-
-    @Override
-    public T get(long timeout, TimeUnit unit)
-        throws InterruptedException, ExecutionException, TimeoutException {
-      if (!delegate().isDone() && reader != null) {
-        // Only one thread per reader, so no race here.
-        reader.startBatchAndBlock();
-      }
-      reader = null;
-      return super.get(timeout, unit);
-    }
   }
 
   private <T> Future<T> wrappedFuture(final Future<T> future) {
@@ -449,59 +260,6 @@ class WindmillStateReader {
     } else {
       // Otherwise, wrap the true future so we know when to trigger a GetData.
       return new WrappedFuture<>(this, future);
-    }
-  }
-
-  /** Function to extract an {@link Iterable} from the continuation-supporting page read future. */
-  private static class ToIterableFunction<ContinuationT, ResultT>
-      implements Function<ValuesAndContPosition<ResultT, ContinuationT>, Iterable<ResultT>> {
-    /**
-     * Reader to request continuation pages from, or {@literal null} if no continuation pages
-     * required.
-     */
-    private @Nullable WindmillStateReader reader;
-
-    private final StateTag<ContinuationT> stateTag;
-    private final Coder<?> coder;
-
-    public ToIterableFunction(
-        WindmillStateReader reader, StateTag<ContinuationT> stateTag, Coder<?> coder) {
-      this.reader = reader;
-      this.stateTag = stateTag;
-      this.coder = coder;
-    }
-
-    @SuppressFBWarnings(
-        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-        justification = "https://github.com/google/guava/issues/920")
-    @Override
-    public Iterable<ResultT> apply(
-        @Nonnull ValuesAndContPosition<ResultT, ContinuationT> valuesAndContPosition) {
-      if (valuesAndContPosition.continuationPosition == null) {
-        // Number of values is small enough Windmill sent us the entire bag in one response.
-        reader = null;
-        return valuesAndContPosition.values;
-      } else {
-        // Return an iterable which knows how to come back for more.
-        StateTag.Builder<ContinuationT> continuationTBuilder =
-            StateTag.of(
-                    stateTag.getKind(),
-                    stateTag.getTag(),
-                    stateTag.getStateFamily(),
-                    valuesAndContPosition.continuationPosition)
-                .toBuilder();
-        if (stateTag.getSortedListRange() != null) {
-          continuationTBuilder.setSortedListRange(stateTag.getSortedListRange()).build();
-        }
-        if (stateTag.getMultimapKey() != null) {
-          continuationTBuilder.setMultimapKey(stateTag.getMultimapKey()).build();
-        }
-        if (stateTag.getOmitValues() != null) {
-          continuationTBuilder.setOmitValues(stateTag.getOmitValues()).build();
-        }
-        return new PagingIterable<ContinuationT, ResultT>(
-            reader, valuesAndContPosition.values, continuationTBuilder.build(), coder);
-      }
     }
   }
 
@@ -588,14 +346,7 @@ class WindmillStateReader {
         return;
       }
 
-      Windmill.KeyedGetDataRequest request = createRequest(toFetch);
-      Windmill.KeyedGetDataResponse response;
-      try (AutoCloseable readWrapper = readWrapperSupplier.get()) {
-        response = server.getStateData(computation, request);
-      }
-      if (response == null) {
-        throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
-      }
+      KeyedGetDataResponse response = tryGetDataFromWindmill(toFetch);
 
       // Removes tags from toFetch as they are processed.
       consumeResponse(response, toFetch);
@@ -605,7 +356,21 @@ class WindmillStateReader {
       for (StateTag<?> stateTag : toFetch) {
         waiting.get(stateTag).future.setException(e);
       }
+
       throw new RuntimeException(e);
+    }
+  }
+
+  private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
+      throws Exception {
+    KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
+    try (AutoCloseable ignored = readWrapperSupplier.get()) {
+      return Optional.ofNullable(
+              metricTrackingWindmillServerStub.getStateData(computation, keyedGetDataRequest))
+          .orElseThrow(
+              () ->
+                  new RuntimeException(
+                      "Windmill unexpectedly returned null for request " + keyedGetDataRequest));
     }
   }
 
@@ -613,9 +378,9 @@ class WindmillStateReader {
     return bytesRead;
   }
 
-  private Windmill.KeyedGetDataRequest createRequest(Iterable<StateTag<?>> toFetch) {
-    Windmill.KeyedGetDataRequest.Builder keyedDataBuilder =
-        Windmill.KeyedGetDataRequest.newBuilder()
+  private KeyedGetDataRequest createRequest(Iterable<StateTag<?>> toFetch) {
+    KeyedGetDataRequest.Builder keyedDataBuilder =
+        KeyedGetDataRequest.newBuilder()
             .setKey(key)
             .setShardingKey(shardingKey)
             .setWorkToken(workToken);
@@ -760,7 +525,7 @@ class WindmillStateReader {
     return keyedDataBuilder.build();
   }
 
-  private void consumeResponse(Windmill.KeyedGetDataResponse response, Set<StateTag<?>> toFetch) {
+  private void consumeResponse(KeyedGetDataResponse response, Set<StateTag<?>> toFetch) {
     bytesRead += response.getSerializedSize();
     if (response.getFailed()) {
       throw new KeyTokenInvalidException(key.toStringUtf8());
@@ -885,41 +650,10 @@ class WindmillStateReader {
     }
   }
 
-  @VisibleForTesting
-  static class WeightedList<T> extends ForwardingList<T> implements Weighted {
-    private List<T> delegate;
-    long weight;
-
-    WeightedList(List<T> delegate) {
-      this.delegate = delegate;
-      this.weight = 0;
-    }
-
-    @Override
-    protected List<T> delegate() {
-      return delegate;
-    }
-
-    @Override
-    public boolean add(T elem) {
-      throw new UnsupportedOperationException("Must use AddWeighted()");
-    }
-
-    @Override
-    public long getWeight() {
-      return weight;
-    }
-
-    public void addWeighted(T elem, long weight) {
-      delegate.add(elem);
-      this.weight += weight;
-    }
-  }
-
   /** The deserialized values in {@code bag} as a read-only array list. */
   private <T> List<T> bagPageValues(TagBag bag, Coder<T> elemCoder) {
     if (bag.getValuesCount() == 0) {
-      return new WeightedList<T>(Collections.<T>emptyList());
+      return new WeightedList<T>(Collections.emptyList());
     }
 
     WeightedList<T> valueList = new WeightedList<>(new ArrayList<T>(bag.getValuesCount()));
@@ -1013,23 +747,19 @@ class WindmillStateReader {
 
   private <T> void consumeBag(TagBag bag, StateTag<Long> stateTag) {
     boolean shouldRemove;
-    if (stateTag.getRequestPosition() == null) {
-      // This is the response for the first page.
-      // Leave the future in the cache so subsequent requests for the first page
-      // can return immediately.
-      shouldRemove = false;
-    } else {
-      // This is a response for a subsequent page.
-      // Don't cache the future since we may need to make multiple requests with different
-      // continuation positions.
-      shouldRemove = true;
-    }
+    // This is the response for the first page.
+    // Leave the future in the cache so subsequent requests for the first page
+    // can return immediately.
+    // This is a response for a subsequent page.
+    // Don't cache the future since we may need to make multiple requests with different
+    // continuation positions.
+    shouldRemove = stateTag.getRequestPosition() != null;
     CoderAndFuture<ValuesAndContPosition<T, Long>> coderAndFuture =
         getWaiting(stateTag, shouldRemove);
     SettableFuture<ValuesAndContPosition<T, Long>> future =
         coderAndFuture.getNonDoneFuture(stateTag);
     try {
-      Coder<T> coder = coderAndFuture.<T>getAndClearCoder();
+      Coder<T> coder = coderAndFuture.getAndClearCoder();
       List<T> values = this.bagPageValues(bag, coder);
       future.set(
           new ValuesAndContPosition<>(
@@ -1082,18 +812,14 @@ class WindmillStateReader {
   private <V> void consumeTagPrefixResponse(
       Windmill.TagValuePrefixResponse tagValuePrefixResponse, StateTag<ByteString> stateTag) {
     boolean shouldRemove;
-    if (stateTag.getRequestPosition() == null) {
-      // This is the response for the first page.
-      // Leave the future in the cache so subsequent
-      // requests for the first page
-      // can return immediately.
-      shouldRemove = false;
-    } else {
-      // This is a response for a subsequent page.
-      // Don't cache the future since we may need to make multiple requests with different
-      // continuation positions.
-      shouldRemove = true;
-    }
+    // This is the response for the first page.
+    // Leave the future in the cache so subsequent
+    // requests for the first page
+    // can return immediately.
+    // This is a response for a subsequent page.
+    // Don't cache the future since we may need to make multiple requests with different
+    // continuation positions.
+    shouldRemove = stateTag.getRequestPosition() != null;
 
     CoderAndFuture<ValuesAndContPosition<Map.Entry<ByteString, V>, ByteString>> coderAndFuture =
         getWaiting(stateTag, shouldRemove);
@@ -1117,17 +843,13 @@ class WindmillStateReader {
   private <T> void consumeSortedList(
       Windmill.TagSortedListFetchResponse sortedListFetchResponse, StateTag<ByteString> stateTag) {
     boolean shouldRemove;
-    if (stateTag.getRequestPosition() == null) {
-      // This is the response for the first page.// Leave the future in the cache so subsequent
-      // requests for the first page
-      // can return immediately.
-      shouldRemove = false;
-    } else {
-      // This is a response for a subsequent page.
-      // Don't cache the future since we may need to make multiple requests with different
-      // continuation positions.
-      shouldRemove = true;
-    }
+    // This is the response for the first page.// Leave the future in the cache so subsequent
+    // requests for the first page
+    // can return immediately.
+    // This is a response for a subsequent page.
+    // Don't cache the future since we may need to make multiple requests with different
+    // continuation positions.
+    shouldRemove = stateTag.getRequestPosition() != null;
 
     CoderAndFuture<ValuesAndContPosition<TimestampedValue<T>, ByteString>> coderAndFuture =
         getWaiting(stateTag, shouldRemove);
@@ -1187,102 +909,42 @@ class WindmillStateReader {
     }
   }
 
-  /**
-   * An iterable over elements backed by paginated GetData requests to Windmill. The iterable may be
-   * iterated over an arbitrary number of times and multiple iterators may be active simultaneously.
-   *
-   * <p>There are two pattern we wish to support with low -memory and -latency:
-   *
-   * <ol>
-   *   <li>Re-iterate over the initial elements multiple times (eg Iterables.first). We'll cache the
-   *       initial 'page' of values returned by Windmill from our first request for the lifetime of
-   *       the iterable.
-   *   <li>Iterate through all elements of a very large collection. We'll send the GetData request
-   *       for the next page when the current page is begun. We'll discard intermediate pages and
-   *       only retain the first. Thus the maximum memory pressure is one page plus one page per
-   *       call to iterator.
-   * </ol>
-   */
-  private static class PagingIterable<ContinuationT, ResultT> implements Iterable<ResultT> {
-    /**
-     * The reader we will use for scheduling continuation pages.
-     *
-     * <p>NOTE We've made this explicit to remind us to be careful not to cache the iterable.
-     */
-    private final WindmillStateReader reader;
+  private static final class CoderAndFuture<FutureT> {
+    private final SettableFuture<FutureT> future;
+    private Coder<?> coder = null;
 
-    /** Initial values returned for the first page. Never reclaimed. */
-    private final List<ResultT> firstPage;
-
-    /** State tag with continuation position set for second page. */
-    private final StateTag<ContinuationT> secondPagePos;
-
-    /** Coder for elements. */
-    private final Coder<?> coder;
-
-    private PagingIterable(
-        WindmillStateReader reader,
-        List<ResultT> firstPage,
-        StateTag<ContinuationT> secondPagePos,
-        Coder<?> coder) {
-      this.reader = reader;
-      this.firstPage = firstPage;
-      this.secondPagePos = secondPagePos;
+    private CoderAndFuture(Coder<?> coder, SettableFuture<FutureT> future) {
       this.coder = coder;
+      this.future = future;
     }
 
-    @Override
-    public Iterator<ResultT> iterator() {
-      return new AbstractIterator<ResultT>() {
-        private Iterator<ResultT> currentPage = firstPage.iterator();
-        private StateTag<ContinuationT> nextPagePos = secondPagePos;
-        private Future<ValuesAndContPosition<ResultT, ContinuationT>> pendingNextPage =
-            // NOTE: The results of continuation page reads are never cached.
-            reader.continuationFuture(nextPagePos, coder);
+    private SettableFuture<FutureT> getFuture() {
+      return future;
+    }
 
-        @Override
-        protected ResultT computeNext() {
-          while (true) {
-            if (currentPage.hasNext()) {
-              return currentPage.next();
-            }
-            if (pendingNextPage == null) {
-              return endOfData();
-            }
+    private SettableFuture<FutureT> getNonDoneFuture(StateTag stateTag) {
+      if (future.isDone()) {
+        throw new IllegalStateException("Future for " + stateTag + " is already done");
+      }
+      return future;
+    }
 
-            ValuesAndContPosition<ResultT, ContinuationT> valuesAndContPosition;
-            try {
-              valuesAndContPosition = pendingNextPage.get();
-            } catch (InterruptedException | ExecutionException e) {
-              if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-              }
-              throw new RuntimeException("Unable to read value from state", e);
-            }
-            currentPage = valuesAndContPosition.values.iterator();
-            StateTag.Builder<ContinuationT> nextPageBuilder =
-                StateTag.of(
-                        nextPagePos.getKind(),
-                        nextPagePos.getTag(),
-                        nextPagePos.getStateFamily(),
-                        valuesAndContPosition.continuationPosition)
-                    .toBuilder();
-            if (secondPagePos.getSortedListRange() != null) {
-              nextPageBuilder.setSortedListRange(secondPagePos.getSortedListRange());
-            }
-            if (secondPagePos.getOmitValues() != null) {
-              nextPageBuilder.setOmitValues(secondPagePos.getOmitValues());
-            }
-            if (secondPagePos.getMultimapKey() != null) {
-              nextPageBuilder.setMultimapKey(secondPagePos.getMultimapKey());
-            }
-            nextPagePos = nextPageBuilder.build();
-            pendingNextPage =
-                // NOTE: The results of continuation page reads are never cached.
-                reader.continuationFuture(nextPagePos, coder);
-          }
-        }
-      };
+    private <ElemT> Coder<ElemT> getAndClearCoder() {
+      if (coder == null) {
+        throw new IllegalStateException("Coder has already been cleared from cache");
+      }
+      Coder<ElemT> result = (Coder<ElemT>) coder;
+      if (result == null) {
+        throw new IllegalStateException("Coder has already been cleared from cache");
+      }
+      coder = null;
+      return result;
+    }
+
+    private void checkNoCoder() {
+      if (coder != null) {
+        throw new IllegalStateException("Unexpected coder");
+      }
     }
   }
 }
