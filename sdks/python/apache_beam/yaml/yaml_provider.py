@@ -522,12 +522,7 @@ def create_builtin_provider():
           'PyFilter': lambda keep: beam.Filter(
               python_callable.PythonCallableWithSource(keep)),
           'PyTransform': fully_qualified_named_transform,
-          'PyToRow': lambda fields: beam.Select(
-              **{
-                  name: python_callable.PythonCallableWithSource(fn)
-                  for (name, fn) in fields.items()
-              }),
-          'WithSchema': with_schema,
+          'WithSchemaExperimental': with_schema,
           'Flatten': Flatten,
           'WindowInto': WindowInto,
           'GroupByKey': beam.GroupByKey,
