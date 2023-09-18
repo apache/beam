@@ -100,10 +100,6 @@ class DotRequiringRenderingTest(unittest.TestCase):
         | 'CustomName' >> beam.Map(lambda x: x * x))
     pipeline_proto = p.to_runner_api()
 
-    # In tmpdir:
-    #   - Create a file called "my_output.svg"
-    #   - Run the pipeline
-    #   - Assert that "my_output.svg" exists
     with tempfile.TemporaryDirectory() as tmpdir:
       svg_path = os.path.join(tmpdir, "my_output.svg")
       render.RenderRunner().run_portable_pipeline(
