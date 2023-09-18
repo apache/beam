@@ -108,9 +108,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
-/** Tests for {@link TextIO.Read}. */
+/**
+ * Tests for {@link TextIO.Read}.
+ */
 @RunWith(Enclosed.class)
 public class TextIOReadTest {
+
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();
   private static final List<String> TINY =
@@ -159,7 +162,9 @@ public class TextIOReadTest {
     }
   }
 
-  /** Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n). */
+  /**
+   * Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n).
+   */
   private static List<String> makeLines(int n) {
     List<String> ret = new ArrayList<>();
     for (int i = 0; i < n; ++i) {
@@ -212,9 +217,9 @@ public class TextIOReadTest {
   /**
    * Create a zip file with the given lines.
    *
-   * @param expected A list of expected lines, populated in the zip file.
-   * @param folder A temporary folder used to create files.
-   * @param filename Optionally zip file name (can be null).
+   * @param expected      A list of expected lines, populated in the zip file.
+   * @param folder        A temporary folder used to create files.
+   * @param filename      Optionally zip file name (can be null).
    * @param fieldsEntries Fields to write in zip entries.
    * @return The zip filename.
    * @throws Exception In case of a failure during zip file creation.
@@ -273,30 +278,35 @@ public class TextIOReadTest {
     }
   }
 
-  /** Tests for reading from different size of files with various Compression. */
+  /**
+   * Tests for reading from different size of files with various Compression.
+   */
   @RunWith(Parameterized.class)
   public static class CompressedReadTest {
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-    @Rule public TestPipeline p = TestPipeline.create();
+
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule
+    public TestPipeline p = TestPipeline.create();
 
     @Parameterized.Parameters(name = "{index}: {1}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {EMPTY, UNCOMPRESSED})
-          .add(new Object[] {EMPTY, GZIP})
-          .add(new Object[] {EMPTY, BZIP2})
-          .add(new Object[] {EMPTY, ZIP})
-          .add(new Object[] {EMPTY, DEFLATE})
-          .add(new Object[] {TINY, UNCOMPRESSED})
-          .add(new Object[] {TINY, GZIP})
-          .add(new Object[] {TINY, BZIP2})
-          .add(new Object[] {TINY, ZIP})
-          .add(new Object[] {TINY, DEFLATE})
-          .add(new Object[] {LARGE, UNCOMPRESSED})
-          .add(new Object[] {LARGE, GZIP})
-          .add(new Object[] {LARGE, BZIP2})
-          .add(new Object[] {LARGE, ZIP})
-          .add(new Object[] {LARGE, DEFLATE})
+          .add(new Object[]{EMPTY, UNCOMPRESSED})
+          .add(new Object[]{EMPTY, GZIP})
+          .add(new Object[]{EMPTY, BZIP2})
+          .add(new Object[]{EMPTY, ZIP})
+          .add(new Object[]{EMPTY, DEFLATE})
+          .add(new Object[]{TINY, UNCOMPRESSED})
+          .add(new Object[]{TINY, GZIP})
+          .add(new Object[]{TINY, BZIP2})
+          .add(new Object[]{TINY, ZIP})
+          .add(new Object[]{TINY, DEFLATE})
+          .add(new Object[]{LARGE, UNCOMPRESSED})
+          .add(new Object[]{LARGE, GZIP})
+          .add(new Object[]{LARGE, BZIP2})
+          .add(new Object[]{LARGE, ZIP})
+          .add(new Object[]{LARGE, DEFLATE})
           .build();
     }
 
@@ -306,7 +316,9 @@ public class TextIOReadTest {
     @Parameterized.Parameter(1)
     public Compression compression;
 
-    /** Tests reading from a small, compressed file with no extension. */
+    /**
+     * Tests reading from a small, compressed file with no extension.
+     */
     @Test
     @Category(NeedsRunner.class)
     public void testCompressedReadWithoutExtension() throws Exception {
@@ -345,24 +357,79 @@ public class TextIOReadTest {
     }
   }
 
-  /** Tests for reading files with various delimiters. */
+  @RunWith(Parameterized.class)
+  public static class ReadWithSkipHeaderLinesTest {
+
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule
+    public TestPipeline p = TestPipeline.create();
+
+    @Parameterized.Parameters(name = "{index}: {1}")
+    public static Iterable<Object[]> data() {
+      return ImmutableList.<Object[]>builder()
+          .add(new Object[]{TINY, 0, TINY.subList(0, TINY.size())})
+          .add(new Object[]{TINY, 1, TINY.subList(1, TINY.size())})
+          .add(new Object[]{TINY, 2, TINY.subList(2, TINY.size())})
+          .add(new Object[]{TINY, 3, TINY.subList(3, TINY.size())})
+          .build();
+    }
+
+    @Parameterized.Parameter(0)
+    public List<String> lines;
+
+    @Parameterized.Parameter(1)
+    public int skipHeaderLines;
+
+    @Parameterized.Parameter(2)
+    public List<String> expected;
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadWithSkipHeaderLines() throws Exception {
+      File tmpFile = tempFolder.newFile();
+      String filename = tmpFile.getPath();
+
+      try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+        for (String elem : lines) {
+          byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
+          String line = new String(encodedElem, Charsets.UTF_8);
+          writer.println(line);
+        }
+      }
+
+      TextIO.Read read = TextIO.read()
+          .from(filename)
+          .withSkipHeaderLines(skipHeaderLines);
+      PCollection<String> output = p.apply(read);
+
+      PAssert.that(output).containsInAnyOrder(expected);
+      p.run();
+    }
+  }
+
+  /**
+   * Tests for reading files with various delimiters.
+   */
   @RunWith(Parameterized.class)
   public static class ReadWithDefaultDelimiterTest {
+
     private static final ImmutableList<String> EXPECTED = ImmutableList.of("asdf", "hjkl", "xyz");
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {"\n\n\n", ImmutableList.of("", "", "")})
-          .add(new Object[] {"asdf\nhjkl\nxyz\n", EXPECTED})
-          .add(new Object[] {"asdf\rhjkl\rxyz\r", EXPECTED})
-          .add(new Object[] {"asdf\r\nhjkl\r\nxyz\r\n", EXPECTED})
-          .add(new Object[] {"asdf\rhjkl\r\nxyz\n", EXPECTED})
-          .add(new Object[] {"asdf\nhjkl\nxyz", EXPECTED})
-          .add(new Object[] {"asdf\rhjkl\rxyz", EXPECTED})
-          .add(new Object[] {"asdf\r\nhjkl\r\nxyz", EXPECTED})
-          .add(new Object[] {"asdf\rhjkl\r\nxyz", EXPECTED})
+          .add(new Object[]{"\n\n\n", ImmutableList.of("", "", "")})
+          .add(new Object[]{"asdf\nhjkl\nxyz\n", EXPECTED})
+          .add(new Object[]{"asdf\rhjkl\rxyz\r", EXPECTED})
+          .add(new Object[]{"asdf\r\nhjkl\r\nxyz\r\n", EXPECTED})
+          .add(new Object[]{"asdf\rhjkl\r\nxyz\n", EXPECTED})
+          .add(new Object[]{"asdf\nhjkl\nxyz", EXPECTED})
+          .add(new Object[]{"asdf\rhjkl\rxyz", EXPECTED})
+          .add(new Object[]{"asdf\r\nhjkl\r\nxyz", EXPECTED})
+          .add(new Object[]{"asdf\rhjkl\r\nxyz", EXPECTED})
           .build();
     }
 
@@ -444,30 +511,34 @@ public class TextIOReadTest {
     }
   }
 
-  /** Tests for reading files with various delimiters. */
+  /**
+   * Tests for reading files with various delimiters.
+   */
   @RunWith(Parameterized.class)
   public static class ReadWithCustomDelimiterTest {
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {"first|*second|*|*third"})
-          .add(new Object[] {"first|*second|*|*third|"})
-          .add(new Object[] {"first|*second|*|*third*"})
-          .add(new Object[] {"first|*second|*|*third|*"})
-          .add(new Object[] {"|first|*second|*|*third"})
-          .add(new Object[] {"|first|*second|*|*third|"})
-          .add(new Object[] {"|first|*second|*|*third*"})
-          .add(new Object[] {"|first|*second|*|*third|*"})
-          .add(new Object[] {"*first|*second|*|*third"})
-          .add(new Object[] {"*first|*second|*|*third|"})
-          .add(new Object[] {"*first|*second|*|*third*"})
-          .add(new Object[] {"*first|*second|*|*third|*"})
-          .add(new Object[] {"|*first|*second|*|*third"})
-          .add(new Object[] {"|*first|*second|*|*third|"})
-          .add(new Object[] {"|*first|*second|*|*third*"})
-          .add(new Object[] {"|*first|*second|*|*third|*"})
+          .add(new Object[]{"first|*second|*|*third"})
+          .add(new Object[]{"first|*second|*|*third|"})
+          .add(new Object[]{"first|*second|*|*third*"})
+          .add(new Object[]{"first|*second|*|*third|*"})
+          .add(new Object[]{"|first|*second|*|*third"})
+          .add(new Object[]{"|first|*second|*|*third|"})
+          .add(new Object[]{"|first|*second|*|*third*"})
+          .add(new Object[]{"|first|*second|*|*third|*"})
+          .add(new Object[]{"*first|*second|*|*third"})
+          .add(new Object[]{"*first|*second|*|*third|"})
+          .add(new Object[]{"*first|*second|*|*third*"})
+          .add(new Object[]{"*first|*second|*|*third|*"})
+          .add(new Object[]{"|*first|*second|*|*third"})
+          .add(new Object[]{"|*first|*second|*|*third|"})
+          .add(new Object[]{"|*first|*second|*|*third*"})
+          .add(new Object[]{"|*first|*second|*|*third|*"})
           .build();
     }
 
@@ -477,14 +548,14 @@ public class TextIOReadTest {
     @Test
     public void testReadLinesWithCustomDelimiter() throws Exception {
       SourceTestUtils.assertSplitAtFractionExhaustive(
-          TextIOReadTest.prepareSource(tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}),
+          TextIOReadTest.prepareSource(tempFolder, testCase.getBytes(UTF_8), new byte[]{'|', '*'}),
           PipelineOptionsFactory.create());
     }
 
     @Test
     public void testReadLinesWithCustomDelimiterAndZeroAndOneLengthReturningChannel()
         throws Exception {
-      byte[] delimiter = new byte[] {'|', '*'};
+      byte[] delimiter = new byte[]{'|', '*'};
       Path path = tempFolder.newFile().toPath();
       Files.write(path, testCase.getBytes(UTF_8));
       Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
@@ -534,11 +605,16 @@ public class TextIOReadTest {
     }
   }
 
-  /** Tests for some basic operations in {@link TextIO.Read}. */
+  /**
+   * Tests for some basic operations in {@link TextIO.Read}.
+   */
   @RunWith(JUnit4.class)
   public static class BasicIOTest {
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-    @Rule public TestPipeline p = TestPipeline.create();
+
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule
+    public TestPipeline p = TestPipeline.create();
 
     private void runTestRead(String[] expected) throws Exception {
       File tmpFile = tempFolder.newFile();
@@ -561,26 +637,26 @@ public class TextIOReadTest {
 
     @Test
     public void testDelimiterSelfOverlaps() {
-      assertFalse(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'c'}));
-      assertFalse(TextIO.Read.isSelfOverlapping(new byte[] {'c', 'a', 'b', 'd', 'a', 'b'}));
-      assertFalse(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'c', 'a', 'b', 'd'}));
-      assertTrue(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'a'}));
-      assertTrue(TextIO.Read.isSelfOverlapping(new byte[] {'a', 'b', 'c', 'a', 'b'}));
+      assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c'}));
+      assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'c', 'a', 'b', 'd', 'a', 'b'}));
+      assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c', 'a', 'b', 'd'}));
+      assertTrue(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'a'}));
+      assertTrue(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c', 'a', 'b'}));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testReadStringsWithCustomDelimiter() throws Exception {
       final String[] inputStrings =
-          new String[] {
-            // incomplete delimiter
-            "To be, or not to be: that |is the question: ",
-            // incomplete delimiter
-            "To be, or not to be: that *is the question: ",
-            // complete delimiter
-            "Whether 'tis nobler in the mind to suffer |*",
-            // truncated delimiter
-            "The slings and arrows of outrageous fortune,|"
+          new String[]{
+              // incomplete delimiter
+              "To be, or not to be: that |is the question: ",
+              // incomplete delimiter
+              "To be, or not to be: that *is the question: ",
+              // complete delimiter
+              "Whether 'tis nobler in the mind to suffer |*",
+              // truncated delimiter
+              "The slings and arrows of outrageous fortune,|"
           };
 
       File tmpFile = tempFolder.newFile("tmpfile.txt");
@@ -590,7 +666,7 @@ public class TextIOReadTest {
         writer.write(Joiner.on("").join(inputStrings));
       }
 
-      PAssert.that(p.apply(TextIO.read().from(filename).withDelimiter(new byte[] {'|', '*'})))
+      PAssert.that(p.apply(TextIO.read().from(filename).withDelimiter(new byte[]{'|', '*'})))
           .containsInAnyOrder(
               "To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
@@ -631,8 +707,11 @@ public class TextIOReadTest {
       assertThat(displayData, hasDisplayItem("compressionType", BZIP2.toString()));
     }
 
-    /** Options for testing. */
+    /**
+     * Options for testing.
+     */
     public interface RuntimeTestOptions extends PipelineOptions {
+
       ValueProvider<String> getInput();
 
       void setInput(ValueProvider<String> value);
@@ -704,9 +783,9 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithMultiEntriesFile() throws Exception {
-      String[] entry0 = new String[] {"first", "second", "three"};
-      String[] entry1 = new String[] {"four", "five", "six"};
-      String[] entry2 = new String[] {"seven", "eight", "nine"};
+      String[] entry0 = new String[]{"first", "second", "three"};
+      String[] entry1 = new String[]{"four", "five", "six"};
+      String[] entry2 = new String[]{"seven", "eight", "nine"};
 
       List<String> expected = new ArrayList<>();
 
@@ -727,10 +806,10 @@ public class TextIOReadTest {
               new ArrayList<>(),
               tempFolder,
               "complex empty and present entries",
-              new String[] {"cat"},
-              new String[] {},
-              new String[] {},
-              new String[] {"dog"});
+              new String[]{"cat"},
+              new String[]{},
+              new String[]{},
+              new String[]{"dog"});
 
       assertReadingCompressedFileMatchesExpected(file, ZIP, Arrays.asList("cat", "dog"), p);
       p.run();
@@ -977,7 +1056,7 @@ public class TextIOReadTest {
               new TextSource(
                   ValueProvider.StaticValueProvider.of(input),
                   EmptyMatchTreatment.DISALLOW,
-                  new byte[] {'\n'});
+                  new byte[]{'\n'});
 
       PCollection<KV<String, String>> lines =
           p.apply(
@@ -1032,10 +1111,14 @@ public class TextIOReadTest {
     }
   }
 
-  /** Tests for TextSource class. */
+  /**
+   * Tests for TextSource class.
+   */
   @RunWith(JUnit4.class)
   public static class TextSourceTest {
-    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Rule
+    public transient TestPipeline pipeline = TestPipeline.create();
 
     @Test
     @Category(NeedsRunner.class)
@@ -1118,10 +1201,14 @@ public class TextIOReadTest {
       }
     }
 
-    /** A transform that reads CSV file records. */
+    /**
+     * A transform that reads CSV file records.
+     */
     private static class TextFileReadTransform
         extends PTransform<PCollection<String>, PCollection<String>> {
-      public TextFileReadTransform() {}
+
+      public TextFileReadTransform() {
+      }
 
       @Override
       public PCollection<String> expand(PCollection<String> files) {

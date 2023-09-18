@@ -41,9 +41,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>A {@link FileBasedSource} which can decode records delimited by newline characters.
  *
- * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or {@code
- * \r\n} as the delimiter. This source is not strict and supports decoding the last record even if
- * it is not delimited. Finally, no records are decoded if the stream is empty.
+ * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
+ * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
+ * even if it is not delimited. Finally, no records are decoded if the stream is empty.
  *
  * <p>This source supports reading from any arbitrary byte position within the stream. If the
  * starting position is not {@code 0}, then bytes are skipped until the first delimiter is found
@@ -51,36 +51,56 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @VisibleForTesting
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TextSource extends FileBasedSource<String> {
+
+  int skipHeaderLines;
   byte[] delimiter;
 
-  public TextSource(
-      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
+  public TextSource(ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment,
+      byte[] delimiter) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
   }
 
-  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+  public TextSource(ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment,
+      int skipHeaderLines, byte[] delimiter) {
+    super(fileSpec, emptyMatchTreatment, 1L);
+    this.skipHeaderLines = skipHeaderLines;
+    this.delimiter = delimiter;
+  }
+
+  public TextSource(MatchResult.Metadata metadata, long start, long end, int skipHeaderLines,
+      byte[] delimiter) {
     super(metadata, 1L, start, end);
+    this.skipHeaderLines = skipHeaderLines;
     this.delimiter = delimiter;
   }
 
   @Override
   protected FileBasedSource<String> createForSubrangeOfFile(
       MatchResult.Metadata metadata, long start, long end) {
-    return new TextSource(metadata, start, end, delimiter);
+    return new TextSource(metadata, start, end, skipHeaderLines, delimiter);
   }
 
   @Override
   protected FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
-    return new TextBasedReader(this, delimiter);
+    return new TextBasedReader(this, skipHeaderLines, delimiter);
   }
 
   @Override
   public Coder<String> getOutputCoder() {
     return StringUtf8Coder.of();
+  }
+
+  @Override
+  public boolean isSplittable() throws Exception {
+    if (skipHeaderLines > 0) {
+      return false;
+    }
+
+    return super.isSplittable();
   }
 
   /**
@@ -91,12 +111,14 @@ public class TextSource extends FileBasedSource<String> {
    */
   @VisibleForTesting
   static class TextBasedReader extends FileBasedReader<String> {
+
     private static final int READ_BUFFER_SIZE = 8192;
     private static final ByteString UTF8_BOM =
-        ByteString.copyFrom(new byte[] {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
+        ByteString.copyFrom(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
     private static final byte CR = '\r';
     private static final byte LF = '\n';
 
+    private final int skipHeaderLines;
     private final byte @Nullable [] delimiter;
     private final ByteArrayOutputStream str;
     private final byte[] buffer;
@@ -111,11 +133,12 @@ public class TextSource extends FileBasedSource<String> {
     private int bufferPosn = 0; // the current position in the buffer
     private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
-    private TextBasedReader(TextSource source, byte[] delimiter) {
+    private TextBasedReader(TextSource source, int skipHeaderLines, byte[] delimiter) {
       super(source);
       this.buffer = new byte[READ_BUFFER_SIZE];
       this.str = new ByteArrayOutputStream();
       this.byteBuffer = ByteBuffer.wrap(buffer);
+      this.skipHeaderLines = skipHeaderLines;
       this.delimiter = delimiter;
     }
 
@@ -185,6 +208,10 @@ public class TextSource extends FileBasedSource<String> {
         if (fileStartsWithBom()) {
           startOfNextRecord = bufferPosn = UTF8_BOM.size();
         }
+
+        for (int i = 0; i < skipHeaderLines; i++) {
+          readNextRecord();
+        }
       }
     }
 
@@ -198,7 +225,8 @@ public class TextSource extends FileBasedSource<String> {
         }
         if (bufferLength >= UTF8_BOM.size()) {
           int i;
-          for (i = 0; i < UTF8_BOM.size() && buffer[i] == UTF8_BOM.byteAt(i); ++i) {}
+          for (i = 0; i < UTF8_BOM.size() && buffer[i] == UTF8_BOM.byteAt(i); ++i) {
+          }
           if (i == UTF8_BOM.size()) {
             return true;
           }
