@@ -65,8 +65,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      (startswith(github.event.comment.body, 'Run Java') &&
-         endswith(github.event.comment.body, 'Examples on Dataflow Runner V2'))
+      (contains(github.event.comment.body, 'Run Java') &&
+         contains(github.event.comment.body, 'Examples on Dataflow Runner V2'))
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
