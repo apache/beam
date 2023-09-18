@@ -407,6 +407,11 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /**
+     * Sets the number of lines to skip from the beginning of the file.
+     * <p>
+     * This disables split file reading and may cause performance degradation.
+     */
     public Read withSkipHeaderLines(int skipHeaderLines) {
       return toBuilder().setSkipHeaderLines(skipHeaderLines).build();
     }
