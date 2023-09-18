@@ -58,7 +58,6 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
-      fail-fast: false
       matrix:
         job_name: ["beam_PostCommit_Python_Examples_Dataflow"]
         job_phrase: ["Run Python Examples_Dataflow"]

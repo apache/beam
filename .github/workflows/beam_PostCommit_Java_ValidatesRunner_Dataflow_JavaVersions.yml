@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PostCommit Java Examples Dataflow Java17
+name: PostCommit Java ValidatesRunner Dataflow JavaVersions
 
 on:
   issue_comment:
@@ -32,12 +32,12 @@ concurrency:
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -51,40 +51,64 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Java_Examples_Dataflow_Java17:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+  beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions:
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.java_version}}) 
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 480
     strategy:
+      fail-fast: false
       matrix:
-        job_name: [beam_PostCommit_Java_Examples_Dataflow_Java17]
-        job_phrase: [Run Java examples on Dataflow Java 17]
+        job_name: [beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions]
+        job_phrase: [Run Dataflow ValidatesRunner Java]
+        java_version: ['11','17']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java examples on Dataflow Java 17'
+      startswith(github.event.comment.body, 'Run Dataflow ValidatesRunner Java')
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }}) ${{matrix.java_version}}
+      - name: Set up Java${{ matrix.java_version }}
         uses: actions/setup-java@v3.8.0
         with:
           distribution: 'temurin'
           java-version: |
-            17
+            ${{ matrix.java_version }}
             8
-      - name: run PostCommit Java  Examples Dataflow Java17 script
+      - name: run jar Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:google-cloud-dataflow-java:examples:java17PostCommit
-          max-workers: 12
-      - name: Upload test report
-        uses: actions/upload-artifact@v3
+          gradle-command: :runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar
+          arguments: |
+            -Dorg.gradle.java.home=$JAVA_HOME_8_X64 \
+      - name: run validatesRunner Java${{ matrix.java_version }} script
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          name: java-code-coverage-report
-          path: "**/build/test-results/**/*.xml"
+          gradle-command: :runners:google-cloud-dataflow-java:validatesRunner
+          arguments: |
+            -x shadowJar \
+            -x shadowTestJar \
+            -x compileJava \
+            -x compileTestJava \
+            -x jar \
+            -x testJar \
+            -x classes \
+            -x testClasses \
+            -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+          max-workers: 12
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: JUnit Test Results
+          path: "**/build/reports/tests/"
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: '**/build/test-results/**/*.xml'
