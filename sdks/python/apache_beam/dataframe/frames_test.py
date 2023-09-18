@@ -307,7 +307,7 @@ class DeferredFrameTest(_AbstractFrameTest):
         'num_wings': [0, 0, 2, 2],
         'class': ['mammal', 'mammal', 'mammal', 'bird'],
         'animal': ['cat', 'dog', 'bat', 'penguin'],
-        'locomotion': ['walks', 'walks', 'flies', 'walks']
+        'locomotion': ['walks', 'walks', 'flies', 'walks'],
     }
     df = pd.DataFrame(data=d)
     df = df.set_index(['class', 'animal', 'locomotion'])
@@ -319,20 +319,51 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+    df2 = df.assign(color=['brown', 'brown', 'black', 'black']).set_index(
+        'color', append=True)
+    # Ok with length 3 lookup if index is 4 dims.
+    self._run_test(lambda df: df.num_legs.xs(('mammal', 'dog', 'walks')), df2)
+
+    # Fails with lookup length == index number of dims
+    self._run_test(
+        lambda df: df.num_legs.xs(('mammal', 'dog')),
+        df.reset_index().set_index(['class', 'animal']))
+
+    # Fails with lookup length == index number of dims
+    self._run_test(lambda df: df.num_legs.xs(('mammal', 'dog', 'walks')), df)
+
+    # Fails with lookup length == index number of dims
+    self._run_test(
+        lambda df: df.num_legs.xs(('mammal', 'dog', 'walks', 'brown')), df2)
+
   def test_dataframe_xs(self):
     # Test cases reported in BEAM-13421
     df = pd.DataFrame(
         np.array([
-            ['state', 'day1', 12],
-            ['state', 'day1', 1],
-            ['state', 'day2', 14],
-            ['county', 'day1', 9],
+            ['state', 'day1', 'A', 12],
+            ['state', 'day1', 'B', 1],
+            ['state', 'day2', 'A', 14],
+            ['county', 'day1', 'B', 9],
         ]),
-        columns=['provider', 'time', 'value'])
+        columns=['provider', 'time', 'group', 'value'])
 
     self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
     self._run_test(
         lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
+    # Ok with lookup length == index number of dims
+    self._run_test(
+        lambda df: df.xs(('state', 'day1')), df.set_index(['provider', 'time']))
+
+    # Ok with lookup length < index number of dims
+    self._run_test(
+        lambda df: df.xs(('state', 'day1')),
+        df.set_index(['provider', 'time', 'group']))
+
+    # Fails, shape isn't correct with lookup length == index number of dims = 3
+    self._run_test(
+        lambda df: df.xs(('state', 'day1', 'A')),
+        df.set_index(['provider', 'time', 'group']))
 
   def test_set_column(self):
     def new_column(df):
