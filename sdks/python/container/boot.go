@@ -400,6 +400,7 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	// folder that is mapped to the host (and therefore survives restarts).
 	for _, f := range requirementsFiles {
 		if err := pipInstallRequirements(ctx, logger, files, workDir, f); err != nil {
+
 			return fmt.Errorf("failed to install requirements: %v", err)
 		}
 	}
@@ -409,7 +410,25 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
+	if err := logRuntimeDependencies(ctx, logger); err != nil {
+		logger.Warnf(ctx, "couldn't fetch the runtime dependencies: %v", err)
+	}
 
+	return nil
+}
+
+func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return err
+	}
+	args := []string{"-m", "pip", "freeze"}
+	bufLogger := tools.NewBufferedLogger(logger)
+	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
+		bufLogger.FlushAtError(ctx)
+	} else {
+		bufLogger.FlushAtDebug(ctx)
+	}
 	return nil
 }
 
