@@ -159,9 +159,10 @@ class _Credentials(object):
           'Credentials.')
       return credentials
     except Exception as e:
-      _LOGGER.error(
+      _LOGGER.warning(
           'Unable to find default credentials to use: %s\n'
-          'Connecting anonymously.',
+          'Connecting anonymously. This is expected if no '
+          'credentials are needed to access GCP resources.',
           e)
       return None
 
