@@ -31,8 +31,15 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  gcsbucket: apache-beam-website-pull-requests  
+  ghprbPullId:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -50,10 +57,6 @@ permissions:
   security-events: read
   statuses: read
 
-env:
-  gcsbucket: apache-beam-website-pull-requests  
-  ghprbPullId:
-
 jobs:
   beam_PreCommit_Website_Stage_GCS:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
@@ -70,7 +73,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

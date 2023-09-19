@@ -23,10 +23,10 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
-import com.alibaba.fastjson.JSON;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -170,7 +170,8 @@ public class IOPushDownRuleTest {
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
         .properties(
-            JSON.parseObject("{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
+            TableUtils.parseProperties(
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }

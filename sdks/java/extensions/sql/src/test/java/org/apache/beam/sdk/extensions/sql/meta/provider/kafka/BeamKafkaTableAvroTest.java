@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import com.alibaba.fastjson.JSON;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -25,6 +24,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
@@ -94,7 +94,7 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
                     .type("kafka")
                     .schema(TEST_SCHEMA)
                     .location("localhost/mytopic")
-                    .properties(JSON.parseObject("{ \"format\": \"avro\" }"))
+                    .properties(TableUtils.parseProperties("{ \"format\": \"avro\" }"))
                     .build());
   }
 }

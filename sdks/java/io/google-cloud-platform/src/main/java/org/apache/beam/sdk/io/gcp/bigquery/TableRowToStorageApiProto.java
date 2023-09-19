@@ -30,6 +30,7 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -216,7 +217,7 @@ public class TableRowToStorageApiProto {
     return Optional.ofNullable(mode)
         .map(Mode::valueOf)
         .map(m -> MODE_MAP_JSON_PROTO.get(m))
-        .orElse(TableFieldSchema.Mode.REQUIRED);
+        .orElse(TableFieldSchema.Mode.NULLABLE);
   }
 
   public static String protoModeToJsonMode(TableFieldSchema.Mode protoMode) {
@@ -302,16 +303,14 @@ public class TableRowToStorageApiProto {
   public static TableFieldSchema tableFieldToProtoTableField(
       com.google.api.services.bigquery.model.TableFieldSchema field) {
     TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
-    builder.setName(field.getName());
+    builder.setName(field.getName().toLowerCase());
     if (field.getDescription() != null) {
       builder.setDescription(field.getDescription());
     }
     if (field.getMaxLength() != null) {
       builder.setMaxLength(field.getMaxLength());
     }
-    if (field.getMode() != null) {
-      builder.setMode(modeToProtoMode(field.getMode()));
-    }
+    builder.setMode(modeToProtoMode(field.getMode()));
     if (field.getPrecision() != null) {
       builder.setPrecision(field.getPrecision());
     }
@@ -395,7 +394,7 @@ public class TableRowToStorageApiProto {
     }
   }
 
-  static final Map<TableFieldSchema.Type, Type> PRIMITIVE_TYPES =
+  static final Map<TableFieldSchema.Type, Type> PRIMITIVE_TYPES_BQ_TO_PROTO =
       ImmutableMap.<TableFieldSchema.Type, Type>builder()
           .put(TableFieldSchema.Type.INT64, Type.TYPE_INT64)
           .put(TableFieldSchema.Type.DOUBLE, Type.TYPE_DOUBLE)
@@ -411,6 +410,26 @@ public class TableRowToStorageApiProto {
           .put(TableFieldSchema.Type.TIMESTAMP, Type.TYPE_INT64)
           .put(TableFieldSchema.Type.JSON, Type.TYPE_STRING)
           .build();
+
+  static final Map<Descriptors.FieldDescriptor.Type, TableFieldSchema.Type>
+      PRIMITIVE_TYPES_PROTO_TO_BQ =
+          ImmutableMap.<Descriptors.FieldDescriptor.Type, TableFieldSchema.Type>builder()
+              .put(Descriptors.FieldDescriptor.Type.INT32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.FIXED32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.UINT32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.SFIXED32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.SINT32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.INT64, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.FIXED64, TableFieldSchema.Type.NUMERIC)
+              .put(FieldDescriptor.Type.UINT64, TableFieldSchema.Type.NUMERIC)
+              .put(FieldDescriptor.Type.SFIXED64, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.SINT64, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.DOUBLE, TableFieldSchema.Type.DOUBLE)
+              .put(FieldDescriptor.Type.FLOAT, TableFieldSchema.Type.DOUBLE)
+              .put(FieldDescriptor.Type.STRING, TableFieldSchema.Type.STRING)
+              .put(FieldDescriptor.Type.BOOL, TableFieldSchema.Type.BOOL)
+              .put(FieldDescriptor.Type.BYTES, TableFieldSchema.Type.BYTES)
+              .build();
 
   public static Descriptor getDescriptorFromTableSchema(
       com.google.api.services.bigquery.model.TableSchema jsonSchema,
@@ -428,8 +447,12 @@ public class TableRowToStorageApiProto {
   public static Descriptor getDescriptorFromTableSchema(
       TableSchema tableSchema, boolean respectRequired, boolean includeCdcColumns)
       throws DescriptorValidationException {
-    DescriptorProto descriptorProto =
-        descriptorSchemaFromTableSchema(tableSchema, respectRequired, includeCdcColumns);
+    return wrapDescriptorProto(
+        descriptorSchemaFromTableSchema(tableSchema, respectRequired, includeCdcColumns));
+  }
+
+  public static Descriptor wrapDescriptorProto(DescriptorProto descriptorProto)
+      throws DescriptorValidationException {
     FileDescriptorProto fileDescriptorProto =
         FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
     FileDescriptor fileDescriptor =
@@ -633,6 +656,44 @@ public class TableRowToStorageApiProto {
     }
   }
 
+  static TableSchema tableSchemaFromDescriptor(Descriptor descriptor) {
+    List<TableFieldSchema> tableFields =
+        descriptor.getFields().stream()
+            .map(f -> tableFieldSchemaFromDescriptorField(f))
+            .collect(toList());
+    return TableSchema.newBuilder().addAllFields(tableFields).build();
+  }
+
+  static TableFieldSchema tableFieldSchemaFromDescriptorField(FieldDescriptor fieldDescriptor) {
+    TableFieldSchema.Builder tableFieldSchemaBuilder = TableFieldSchema.newBuilder();
+    tableFieldSchemaBuilder = tableFieldSchemaBuilder.setName(fieldDescriptor.getName());
+
+    switch (fieldDescriptor.getType()) {
+      case MESSAGE:
+        tableFieldSchemaBuilder = tableFieldSchemaBuilder.setType(TableFieldSchema.Type.STRUCT);
+        TableSchema nestedTableField = tableSchemaFromDescriptor(fieldDescriptor.getMessageType());
+        tableFieldSchemaBuilder =
+            tableFieldSchemaBuilder.addAllFields(nestedTableField.getFieldsList());
+        break;
+      default:
+        TableFieldSchema.Type type = PRIMITIVE_TYPES_PROTO_TO_BQ.get(fieldDescriptor.getType());
+        if (type == null) {
+          throw new UnsupportedOperationException(
+              "proto type " + fieldDescriptor.getType() + " is unsupported.");
+        }
+        tableFieldSchemaBuilder = tableFieldSchemaBuilder.setType(type);
+    }
+
+    if (fieldDescriptor.isRepeated()) {
+      tableFieldSchemaBuilder = tableFieldSchemaBuilder.setMode(TableFieldSchema.Mode.REPEATED);
+    } else if (fieldDescriptor.isRequired()) {
+      tableFieldSchemaBuilder = tableFieldSchemaBuilder.setMode(TableFieldSchema.Mode.REQUIRED);
+    } else {
+      tableFieldSchemaBuilder = tableFieldSchemaBuilder.setMode(TableFieldSchema.Mode.NULLABLE);
+    }
+    return tableFieldSchemaBuilder.build();
+  }
+
   @VisibleForTesting
   static DescriptorProto descriptorSchemaFromTableSchema(
       com.google.api.services.bigquery.model.TableSchema tableSchema,
@@ -700,7 +761,7 @@ public class TableRowToStorageApiProto {
             fieldDescriptorBuilder.setType(Type.TYPE_MESSAGE).setTypeName(nested.getName());
         break;
       default:
-        @Nullable Type type = PRIMITIVE_TYPES.get(fieldSchema.getType());
+        @Nullable Type type = PRIMITIVE_TYPES_BQ_TO_PROTO.get(fieldSchema.getType());
         if (type == null) {
           throw new UnsupportedOperationException(
               "Converting BigQuery type " + fieldSchema.getType() + " to Beam type is unsupported");
@@ -710,9 +771,9 @@ public class TableRowToStorageApiProto {
 
     if (fieldSchema.getMode() == TableFieldSchema.Mode.REPEATED) {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REPEATED);
-    } else if (!respectRequired || fieldSchema.getMode() == TableFieldSchema.Mode.NULLABLE) {
+    } else if (!respectRequired || fieldSchema.getMode() != TableFieldSchema.Mode.REQUIRED) {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
-    } else if (fieldSchema.getMode() == TableFieldSchema.Mode.REQUIRED) {
+    } else {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REQUIRED);
     }
     descriptorBuilder.addField(fieldDescriptorBuilder.build());

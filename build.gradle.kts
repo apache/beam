@@ -443,23 +443,16 @@ tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
+tasks.register("goPrismPreCommit") {
+  dependsOn(":sdks:go:test:prismValidatesRunner")
+}
+
 tasks.register("goPostCommitDataflowARM") {
   dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
 }
 
 tasks.register("goPostCommit") {
-  dependsOn(":goIntegrationTests")
-}
-
-tasks.register("goIntegrationTests") {
-  doLast {
-    exec {
-      executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
-    }
-  }
-  dependsOn(":sdks:go:test:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+  dependsOn(":sdks:go:test:dataflowValidatesRunner")
 }
 
 tasks.register("playgroundPreCommit") {

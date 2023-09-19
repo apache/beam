@@ -39,15 +39,23 @@ runs:
         echo "The comment ${{ github.event.comment.body }} does not match the phrase for this instance:  ${{ inputs.comment_phrase }}. Exiting."
         exit 1
     - name: Check out repository code if pull request commit
-      uses: actions/checkout@v3
+      shell: bash
       if: ${{ github.event_name == 'pull_request_target' }}
-      with:
-        ref: refs/pull/${{ github.event.number }}/merge
+      run: |
+          # GitHub will automatically generate a merge commit when there are no merge conflicts.
+          # We first try to check that out, and fall back to checking out the tip of the pull request branch.
+          git fetch --depth=1 origin +refs/pull/${{ github.event.number }}/merge:refs/remotes/pull/${{ github.event.number }}/merge || \
+          git fetch --depth=1 origin +refs/pull/${{ github.event.number }}/head:refs/remotes/pull/${{ github.event.number }}/head
+          git checkout pull/${{ github.event.number }}/merge || git checkout pull/${{ github.event.number }}/head
     - name: Check out repository code if comment phrase
-      uses: actions/checkout@v3
+      shell: bash
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
-      with:
-        ref: refs/pull/${{ github.event.issue.number }}/merge
+      run: |
+          # GitHub will automatically generate a merge commit when there are no merge conflicts.
+          # We first try to check that out, and fall back to checking out the tip of the pull request branch.
+          git fetch --depth=1 origin +refs/pull/${{ github.event.issue.number }}/merge:refs/remotes/pull/${{ github.event.issue.number }}/merge || \
+          git fetch --depth=1 origin +refs/pull/${{ github.event.issue.number }}/head:refs/remotes/pull/${{ github.event.issue.number }}/head
+          git checkout pull/${{ github.event.issue.number }}/merge || git checkout pull/${{ github.event.issue.number }}/head
     - name: Rerun if comment phrase
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
       uses: ./.github/actions/rerun-job-action
@@ -57,3 +65,8 @@ runs:
         github_repository: ${{ github.repository }}     
         github_current_run_id: ${{ github.run_id }}
         pull_request_url: ${{ github.event.issue.pull_request.url }}
+    ## Used for jobs that spawn docker containers and need to mount gcloud config directory
+    - name: expose gcloud path
+      shell: bash
+      run: |
+        echo KUBELET_GCLOUD_CONFIG_PATH=/var/lib/kubelet/pods/$POD_UID/volumes/kubernetes.io~empty-dir/gcloud >> $GITHUB_ENV

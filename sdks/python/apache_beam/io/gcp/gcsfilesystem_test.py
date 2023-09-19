@@ -272,7 +272,8 @@ class GCSFileSystemTest(unittest.TestCase):
         'gs://bucket/to2',
         'gs://bucket/to3',
     ]
-    gcsio_mock.delete_batch.side_effect = Exception("BadThings")
+    exception = IOError('Failed')
+    gcsio_mock.delete_batch.side_effect = [[(f, exception) for f in sources]]
     gcsio_mock.copy_batch.side_effect = [[
         ('gs://bucket/from1', 'gs://bucket/to1', None),
         ('gs://bucket/from2', 'gs://bucket/to2', None),
@@ -280,8 +281,16 @@ class GCSFileSystemTest(unittest.TestCase):
     ]]
 
     # Issue batch rename.
-    with self.assertRaisesRegex(BeamIOError, r'^Rename operation failed'):
+    expected_results = {
+        (s, d): exception
+        for s, d in zip(sources, destinations)
+    }
+
+    # Issue batch rename.
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Rename operation failed') as error:
       self.fs.rename(sources, destinations)
+    self.assertEqual(error.exception.exception_details, expected_results)
 
     gcsio_mock.copy_batch.assert_called_once_with([
         ('gs://bucket/from1', 'gs://bucket/to1'),
@@ -299,7 +308,7 @@ class GCSFileSystemTest(unittest.TestCase):
     # Prepare mocks.
     gcsio_mock = mock.MagicMock()
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
-    gcsio_mock._status.return_value = {'size': 0, 'updated': 99999.0}
+    gcsio_mock._status.return_value = {'size': 0, 'last_updated': 99999.0}
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',
@@ -317,7 +326,7 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsfilesystem.gcsio.GcsIO = lambda pipeline_options=None: gcsio_mock
     exception = IOError('Failed')
     gcsio_mock.delete_batch.side_effect = exception
-    gcsio_mock._status.return_value = {'size': 0, 'updated': 99999.0}
+    gcsio_mock._status.return_value = {'size': 0, 'last_updated': 99999.0}
     files = [
         'gs://bucket/from1',
         'gs://bucket/from2',

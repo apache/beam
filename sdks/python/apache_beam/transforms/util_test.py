@@ -39,6 +39,7 @@ from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsList
@@ -1041,6 +1042,24 @@ class GroupIntoBatchesTest(unittest.TestCase):
               ShardedKeyType[typehints.Tuple[int, int]],  # type: ignore[misc]
               typehints.Iterable[str]])
 
+  def test_runtime_type_check(self):
+    options = PipelineOptions()
+    options.view_as(TypeOptions).runtime_type_check = True
+    with TestPipeline(options=options) as pipeline:
+      collection = (
+          pipeline
+          | beam.Create(GroupIntoBatchesTest._create_test_data())
+          | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE))
+      num_batches = collection | beam.combiners.Count.Globally()
+      assert_that(
+          num_batches,
+          equal_to([
+              int(
+                  math.ceil(
+                      GroupIntoBatchesTest.NUM_ELEMENTS /
+                      GroupIntoBatchesTest.BATCH_SIZE))
+          ]))
+
   def _test_runner_api_round_trip(self, transform, urn):
     context = pipeline_context.PipelineContext()
     proto = transform.to_runner_api(context)
@@ -1154,6 +1173,31 @@ class LogElementsTest(unittest.TestCase):
           | beam.Create(['a', 'b', 'c'])
           | util.LogElements(prefix='prefix_'))
       assert_that(result, equal_to(['a', 'b', 'c']))
+
+  @pytest.fixture(scope="function")
+  def _capture_logs(request, caplog):
+    with caplog.at_level(logging.INFO):
+      with TestPipeline() as p:
+        _ = (
+            p | "info" >> beam.Create(["element"])
+            | "I" >> beam.LogElements(prefix='info_', level=logging.INFO))
+        _ = (
+            p | "warning" >> beam.Create(["element"])
+            | "W" >> beam.LogElements(prefix='warning_', level=logging.WARNING))
+        _ = (
+            p | "error" >> beam.Create(["element"])
+            | "E" >> beam.LogElements(prefix='error_', level=logging.ERROR))
+
+    request.captured_log = caplog.text
+
+  @pytest.mark.usefixtures("_capture_logs")
+  def test_setting_level_uses_appropriate_log_channel(self):
+    self.assertTrue(
+        re.compile('INFO(.*)info_element').search(self.captured_log))
+    self.assertTrue(
+        re.compile('WARNING(.*)warning_element').search(self.captured_log))
+    self.assertTrue(
+        re.compile('ERROR(.*)error_element').search(self.captured_log))
 
 
 class ReifyTest(unittest.TestCase):

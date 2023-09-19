@@ -746,6 +746,8 @@ message WorkerMetadataRequest {
   optional JobHeader header = 1;
 }
 
+// Converted into org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints
+// used to connect to Streaming Engine.
 message WorkerMetadataResponse {
   // The metadata version increases with every modification. Within a single
   // stream it will always be increasing. The version may be used across streams
@@ -758,7 +760,9 @@ message WorkerMetadataResponse {
   // CommitWorkStream. Each response on this stream replaces the previous, and
   // connections to endpoints that are no longer present should be closed.
   message Endpoint {
-    optional string endpoint = 1;
+    // IPv6 address of a streaming engine windmill worker.
+    optional string direct_endpoint = 1;
+    optional string worker_token = 2;
   }
   repeated Endpoint work_endpoints = 2;
 
@@ -766,10 +770,7 @@ message WorkerMetadataResponse {
   // calls to retrieve that global data.
   map<string, Endpoint> global_data_endpoints = 3;
 
-  // DirectPath endpoints to be used by user workers for streaming engine jobs.
-  // DirectPath endpoints here are virtual IPv6 addresses of the windmill
-  // workers.
-  repeated Endpoint direct_path_endpoints = 4;
+  reserved 4;
 }
 
 service WindmillAppliance {

@@ -79,6 +79,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		streamCond: sync.NewCond(&sync.Mutex{}),
 		RootCtx:    rootCtx,
 		CancelFn:   cancelFn,
+
+		artifactEndpoint: s.Endpoint(),
 	}
 
 	// Queue initial state of the job.
@@ -226,7 +228,7 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 			job.streamCond.Wait()
 			select { // Quit out if the external connection is done.
 			case <-stream.Context().Done():
-				return stream.Context().Err()
+				return context.Cause(stream.Context())
 			default:
 			}
 		}

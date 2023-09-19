@@ -1354,8 +1354,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       _ = p | beam.Create([10, 20, 30]) | PackableCombines()
 
-    res = p.run()
-    res.wait_until_finish()
+    res = p.result
 
     packed_step_name_regex = (
         r'.*Packed.*PackableMin.*CombinePerKey.*PackableMax.*CombinePerKey.*' +

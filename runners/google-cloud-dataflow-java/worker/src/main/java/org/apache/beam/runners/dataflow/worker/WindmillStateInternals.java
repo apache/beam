@@ -945,7 +945,9 @@ class WindmillStateInternals<K> implements StateInternals {
         // that the ids don't overlap with any in pendingAdds, so begin with pendingAdds.size().
         Iterable<TimestampedValueWithId<T>> data =
             new Iterable<TimestampedValueWithId<T>>() {
-              private Iterable<TimestampedValue<T>> iterable = future.get();
+              // Anything returned from windmill that has been deleted should be ignored.
+              private Iterable<TimestampedValue<T>> iterable =
+                  Iterables.filter(future.get(), tv -> !pendingDeletes.contains(tv.getTimestamp()));
 
               @Override
               public Iterator<TimestampedValueWithId<T>> iterator() {
@@ -970,9 +972,8 @@ class WindmillStateInternals<K> implements StateInternals {
             Iterables.mergeSorted(
                 ImmutableList.of(data, pendingInRange), TimestampedValueWithId.COMPARATOR);
         Iterable<TimestampedValue<T>> fullIterable =
-            Iterables.filter(
-                Iterables.transform(includingAdds, TimestampedValueWithId::getValue),
-                tv -> !pendingDeletes.contains(tv.getTimestamp()));
+            Iterables.transform(includingAdds, TimestampedValueWithId::getValue);
+
         // TODO(reuvenlax): If we have a known bounded amount of data, cache known ranges.
         return fullIterable;
       } catch (InterruptedException | ExecutionException | IOException e) {

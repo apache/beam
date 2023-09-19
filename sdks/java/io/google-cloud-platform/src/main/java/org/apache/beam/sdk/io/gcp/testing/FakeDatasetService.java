@@ -43,6 +43,7 @@ import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
@@ -599,7 +600,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public StreamAppendClient getStreamAppendClient(
-      String streamName, Descriptor descriptor, boolean useConnectionPool) {
+      String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+      throws Exception {
     return new StreamAppendClient() {
       private Descriptor protoDescriptor;
       private TableSchema currentSchema;
@@ -609,7 +611,8 @@ public class FakeDatasetService implements DatasetService, Serializable {
       private boolean usedForUpdate = false;
 
       {
-        this.protoDescriptor = descriptor;
+        this.protoDescriptor = TableRowToStorageApiProto.wrapDescriptorProto(descriptor);
+
         synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
           if (stream == null) {

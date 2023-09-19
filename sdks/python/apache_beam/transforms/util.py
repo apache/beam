@@ -1155,13 +1155,24 @@ class ToString(object):
 class LogElements(PTransform):
   """
   PTransform for printing the elements of a PCollection.
+
+  Args:
+    label (str): (optional) A custom label for the transform.
+    prefix (str): (optional) A prefix string to prepend to each logged element.
+    with_timestamp (bool): (optional) Whether to include element's timestamp.
+    with_window (bool): (optional) Whether to include element's window.
+    level: (optional) The logging level for the output (e.g. `logging.DEBUG`,
+        `logging.INFO`, `logging.WARNING`, `logging.ERROR`). If not specified,
+        the log is printed to stdout.
   """
   class _LoggingFn(DoFn):
-    def __init__(self, prefix='', with_timestamp=False, with_window=False):
+    def __init__(
+        self, prefix='', with_timestamp=False, with_window=False, level=None):
       super().__init__()
       self.prefix = prefix
       self.with_timestamp = with_timestamp
       self.with_window = with_window
+      self.level = level
 
     def process(
         self,
@@ -1178,19 +1189,38 @@ class LogElements(PTransform):
         log_line += ', window(start=' + window.start.to_rfc3339()
         log_line += ', end=' + window.end.to_rfc3339() + ')'
 
-      print(log_line)
+      if self.level == logging.DEBUG:
+        logging.debug(log_line)
+      elif self.level == logging.INFO:
+        logging.info(log_line)
+      elif self.level == logging.WARNING:
+        logging.warning(log_line)
+      elif self.level == logging.ERROR:
+        logging.error(log_line)
+      elif self.level == logging.CRITICAL:
+        logging.critical(log_line)
+      else:
+        print(log_line)
+
       yield element
 
   def __init__(
-      self, label=None, prefix='', with_timestamp=False, with_window=False):
+      self,
+      label=None,
+      prefix='',
+      with_timestamp=False,
+      with_window=False,
+      level=None):
     super().__init__(label)
     self.prefix = prefix
     self.with_timestamp = with_timestamp
     self.with_window = with_window
+    self.level = level
 
   def expand(self, input):
     return input | ParDo(
-        self._LoggingFn(self.prefix, self.with_timestamp, self.with_window))
+        self._LoggingFn(
+            self.prefix, self.with_timestamp, self.with_window, self.level))
 
 
 class Reify(object):

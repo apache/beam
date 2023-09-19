@@ -45,21 +45,64 @@
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.50.0] - Unreleased
+# [2.51.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* In Python, [RunInference](https://beam.apache.org/documentation/sdks/python-machine-learning/#why-use-the-runinference-api) now supports loading many models in the same transform using a [KeyedModelHandler](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler) ([#27628](https://github.com/apache/beam/issues/27628)).
+* In Python, the [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vertex_ai_inference.html#apache_beam.ml.inference.vertex_ai_inference.VertexAIModelHandlerJSON) now supports passing in inference_args. These will be passed through to the Vertex endpoint as parameters.
+
+## Breaking Changes
+
+* Removed fastjson library dependency for Beam SQL. Table property is changed to be based on jackson ObjectNode (Java) ([#24154](https://github.com/apache/beam/issues/24154)).
+* Removed TensorFlow from Beam Python container images [PR](https://github.com/apache/beam/pull/28424). If you have been negatively affected by this change, please comment on [#20605](https://github.com/apache/beam/issues/20605).
+* Removed the parameter `t reflect.Type` from `parquetio.Write`. The element type is derived from the input PCollection (Go) ([#28490](https://github.com/apache/beam/issues/28490))
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed exception chaining issue in GCS connector (Python) ([#26769](https://github.com/apache/beam/issues/26769#issuecomment-1700422615)).
+* Fixed streaming inserts exception handling, GoogleAPICallErrors are now retried according to retry strategy and routed to failed rows where appropriate rather than causing a pipeline error (Python) ([#21080](https://github.com/apache/beam/issues/21080)).
+
+
+## Security Fixes
+* Python containers updated, fixing [CVE-2021-30474](https://nvd.nist.gov/vuln/detail/CVE-2021-30474), [CVE-2021-30475](https://nvd.nist.gov/vuln/detail/CVE-2021-30475), [CVE-2021-30473](https://nvd.nist.gov/vuln/detail/CVE-2021-30473), [CVE-2020-36133](https://nvd.nist.gov/vuln/detail/CVE-2020-36133), [CVE-2020-36131](https://nvd.nist.gov/vuln/detail/CVE-2020-36131), [CVE-2020-36130](https://nvd.nist.gov/vuln/detail/CVE-2020-36130), and [CVE-2020-36135](https://nvd.nist.gov/vuln/detail/CVE-2020-36135)
+* Used go 1.21.1 to build, fixing [CVE-2023-39320](https://security-tracker.debian.org/tracker/CVE-2023-39320)
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.50.0] - 2023-08-30
 
 ## Highlights
 
 * Spark 3.2.2 is used as default version for Spark runner ([#23804](https://github.com/apache/beam/issues/23804)).
 * The Go SDK has a new default local runner, called Prism ([#24789](https://github.com/apache/beam/issues/24789)).
+* All Beam released container images are now [multi-arch images](https://cloud.google.com/kubernetes-engine/docs/how-to/build-multi-arch-for-arm#what_is_a_multi-arch_image) that support both x86 and ARM CPU architectures.
 
 ## I/Os
 
-* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Java KafkaIO now supports picking up topics via topicPattern ([#26948](https://github.com/apache/beam/pull/26948))
 * Support for read from Cosmos DB Core SQL API ([#23604](https://github.com/apache/beam/issues/23604))
 * Upgraded to HBase 2.5.5 for HBaseIO. (Java) ([#27711](https://github.com/apache/beam/issues/19554))
@@ -89,7 +132,7 @@
 ## Breaking Changes
 
 * Python SDK: Legacy runner support removed from Dataflow, all pipelines must use runner v2.
-* [Python] Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
+* Python SDK: Dataflow Runner will no longer stage Beam SDK from PyPI in the `--staging_location` at pipeline submission. Custom container images that are not based on Beam's default image must include Apache Beam installation.([#26996](https://github.com/apache/beam/issues/26996))
 
 ## Deprecations
 
@@ -106,7 +149,9 @@
 
 ## Known Issues
 
-* TBD
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+* Python Pipelines using BigQuery IO or `orjson` dependency might experience segmentation faults or get stuck: [#28318](https://github.com/apache/beam/issues/28318).
+* Beam Python containers rely on a version of Debian/aom that has several security vulnerabilities: [CVE-2021-30474](https://nvd.nist.gov/vuln/detail/CVE-2021-30474), [CVE-2021-30475](https://nvd.nist.gov/vuln/detail/CVE-2021-30475), [CVE-2021-30473](https://nvd.nist.gov/vuln/detail/CVE-2021-30473), [CVE-2020-36133](https://nvd.nist.gov/vuln/detail/CVE-2020-36133), [CVE-2020-36131](https://nvd.nist.gov/vuln/detail/CVE-2020-36131), [CVE-2020-36130](https://nvd.nist.gov/vuln/detail/CVE-2020-36130), and [CVE-2020-36135](https://nvd.nist.gov/vuln/detail/CVE-2020-36135)
 
 
 # [2.49.0] - 2023-07-17
@@ -125,13 +170,15 @@
 
 ## Deprecations
 
-* Remove Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
+* Removed Python 3.7 support. ([#26447](https://github.com/apache/beam/issues/26447))
 
 ## Bugfixes
 
 * Fixed KinesisIO `NullPointerException` when a progress check is made before the reader is started (IO) ([#23868](https://github.com/apache/beam/issues/23868))
 
 ## Known Issues
+
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
 
 # [2.48.0] - 2023-05-31
@@ -168,16 +215,16 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
 
 ## Known Issues
 
 * PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+
 
 # [2.47.0] - 2023-05-10
 
@@ -221,6 +268,7 @@
 
 * The google-cloud-profiler dependency was accidentally removed from Beam's Python Docker
   Image [#26998](https://github.com/apache/beam/issues/26698). [Dataflow Docker images](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies) still preinstall this dependency.
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
 # [2.46.0] - 2023-03-10
 
@@ -274,7 +322,6 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.45.0] - 2023-02-15
 

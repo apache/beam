@@ -117,7 +117,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
   }
 
   @BeforeClass
-  public static void beforeClass() throws IOException {
+  public static void beforeClass() {
     resourceManager =
         GcsResourceManager.builder(TestProperties.artifactBucket(), "textiolt", CREDENTIALS)
             .build();

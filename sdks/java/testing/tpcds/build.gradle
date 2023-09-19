@@ -66,7 +66,7 @@ dependencies {
     implementation library.java.commons_csv
     implementation library.java.slf4j_api
     implementation "com.googlecode.json-simple:json-simple:1.1.1"
-    implementation "com.alibaba:fastjson:1.2.69"
+    implementation library.java.jackson_databind
     implementation project(":sdks:java:extensions:sql")
     implementation project(":sdks:java:extensions:sql:zetasql")
     implementation project(":sdks:java:io:parquet")
@@ -126,6 +126,7 @@ task run(type: JavaExec) {
     tpcdsArgsList.add("--sparkMaster=local[4]")
     // Dataset runner only
     systemProperty "spark.sql.shuffle.partitions", "4"
+    systemProperty "spark.sql.adaptive.enabled", "false" // high overhead for complex queries
   }
 
     mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"

@@ -18,23 +18,24 @@
 
 package org.apache.beam.gradle
 
+import static java.util.UUID.randomUUID
+
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.net.ServerSocket
+import java.util.logging.Logger
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
-import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Copy
-import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
@@ -43,11 +44,10 @@ import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
-import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
-import java.net.ServerSocket
+
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -64,6 +64,8 @@ import java.net.ServerSocket
  * <p>For example, see applyJavaNature.
  */
 class BeamModulePlugin implements Plugin<Project> {
+
+  static final Logger logger = Logger.getLogger(BeamModulePlugin.class.getName())
 
   /** Licence header enforced by spotless */
   static final String javaLicenseHeader = """/*
@@ -331,6 +333,8 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider startJobServer
     // Job server cleanup task.
     TaskProvider cleanupJobServer
+    // any additional environment variables specific to the suite of tests
+    Map<String,String> additionalEnvs
   }
 
   // A class defining the configuration for CrossLanguageUsingJavaExpansion.
@@ -356,6 +360,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String expansionProjectPath
     // Collect Python pipeline tests with this marker
     String collectMarker
+    // any additional environment variables to be exported
+    Map<String,String> additionalEnvs
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
@@ -398,10 +404,33 @@ class BeamModulePlugin implements Plugin<Project> {
     FileCollection classpath
   }
 
+  // A class defining the configuration for createTransformServiceTask.
+  static class TransformServiceConfiguration {
+    // Task name TransformService case.
+    String name = 'transformService'
+
+    List<String> pythonPipelineOptions = []
+
+    List<String> javaPipelineOptions = []
+
+    // Additional pytest options
+    List<String> pytestOptions = []
+    // Job server startup task.
+    TaskProvider startJobServer
+    // Job server cleanup task.
+    TaskProvider cleanupJobServer
+    // Number of parallel test runs.
+    Integer numParallelTests = 1
+    // Whether the pipeline needs --sdk_location option
+    boolean needsSdkLocation = false
+
+    // Collect Python pipeline tests with this marker
+    String collectMarker
+  }
+
   def isRelease(Project project) {
     return parseBooleanProperty(project, 'isRelease');
   }
-
   /**
    * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
    */
@@ -421,6 +450,38 @@ class BeamModulePlugin implements Plugin<Project> {
     return 'beam' + p.path.replace(':', '-')
   }
 
+  /*
+   * Set compile args for compiling and running in different java version by modifying the compiler args in place.
+   *
+   * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
+   */
+  static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
+    boolean foundS = false, foundT = false
+    int foundR = -1
+    logger.fine("set java ver ${ver} to compiler args")
+    for (int i = 0; i < compilerArgs.size()-1; ++i) {
+      if (compilerArgs.get(i) == '-source') {
+        foundS = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '-target')  {
+        foundT = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '--release') {
+        foundR = i
+      }
+    }
+    if (foundR != -1) {
+      compilerArgs.removeAt(foundR + 1)
+      compilerArgs.removeAt(foundR)
+    }
+    if (!foundS) {
+      compilerArgs.addAll('-source', ver)
+    }
+    if (!foundT) {
+      compilerArgs.addAll('-target', ver)
+    }
+  }
+
   void apply(Project project) {
 
     /** ***********************************************************************************************/
@@ -430,7 +491,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.50.0'
+    project.version = '2.51.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -526,16 +587,16 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.27.0"
-    def classgraph_version = "4.8.104"
+    def classgraph_version = "4.8.162"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.31.1"
+    def gax_version = "2.32.0"
     def google_ads_version = "26.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.16"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.44.0"
+    def google_cloud_spanner_version = "6.45.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -663,7 +724,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230129-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230510-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230830-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230617-$google_clients_version",
@@ -679,14 +740,14 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         // Keep version consistent with the version in google_cloud_datastore, managed by google_cloud_platform_libraries_bom
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.16.2",
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.16.3",
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The release notes shows the versions set by the BOM:
         // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.21.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.21.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.22.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -1023,9 +1084,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
-        // Use --release 8 when targeting Java 8 and running on JDK > 8
+        // Use -source 8 -target 8 when targeting Java 8 and running on JDK > 8
         //
-        // Consider migrating compilation and testing to use JDK 9+ and setting '--release=8' as
+        // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
         // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
         // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
@@ -1050,20 +1111,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(Jar).configureEach {
         preserveFileTimestamps(false)
-      }
-
-      if (project.hasProperty("compileAndRunTestsWithJava11")) {
-        def java11Home = project.findProperty("java11Home")
-        project.tasks.compileTestJava {
-          options.fork = true
-          options.forkOptions.javaHome = java11Home as File
-          options.compilerArgs += ['-Xlint:-path']
-          options.compilerArgs.addAll(['--release', '11'])
-        }
-        project.tasks.withType(Test) {
-          useJUnit()
-          executable = "${java11Home}/bin/java"
-        }
       }
 
       // Configure the default test tasks set of tests executed
@@ -1201,8 +1248,6 @@ class BeamModulePlugin implements Plugin<Project> {
               )
         }
       }
-
-
 
       if (configuration.shadowClosure) {
         // Ensure that tests are packaged and part of the artifact set.
@@ -1455,17 +1500,30 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
-      if (project.hasProperty("compileAndRunTestsWithJava17")) {
+      if (project.hasProperty("compileAndRunTestsWithJava11")) {
+        def java11Home = project.findProperty("java11Home")
+        project.tasks.compileTestJava {
+          options.fork = true
+          options.forkOptions.javaHome = java11Home as File
+          options.compilerArgs += ['-Xlint:-path']
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '11')
+        }
+        project.tasks.withType(Test).configureEach {
+          useJUnit()
+          executable = "${java11Home}/bin/java"
+        }
+      } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
-          options.compilerArgs.addAll(['--release', '17'])
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
           project.ext.setJava17Options(options)
         }
-        project.tasks.withType(Test) {
+        project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${java17Home}/bin/java"
         }
       }
+
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
         // above about dependency management for Java projects and how the shadow plugin
@@ -2104,7 +2162,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.21.0"
+      project.ext.goVersion = "go1.21.1"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2525,6 +2583,9 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             environment "EXPANSION_JAR", expansionJar
             environment "EXPANSION_PORT", javaExpansionPort
+            for (envs in config.additionalEnvs){
+              environment envs.getKey(), envs.getValue()
+            }
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
@@ -2730,6 +2791,117 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       cleanupTask.configure { mustRunAfter goTask }
       config.cleanupJobServer.configure { mustRunAfter goTask }
+    }
+
+    /** ***********************************************************************************************/
+
+    // Method to create the createTransformServiceTask.
+    // The method takes TransformServiceConfiguration as parameter.
+    project.ext.createTransformServiceTask = {
+      // This task won't work if the python build file doesn't exist.
+      if (!project.project(":sdks:python").buildFile.exists()) {
+        System.err.println 'Python build file not found. Skipping createTransformServiceTask.'
+        return
+      }
+      def config = it ? it as TransformServiceConfiguration : new TransformServiceConfiguration()
+
+      project.evaluationDependsOn(":sdks:python")
+      project.evaluationDependsOn(":runners:core-construction-java")
+      project.evaluationDependsOn(":sdks:java:extensions:python")
+      project.evaluationDependsOn(":sdks:java:transform-service:launcher")
+
+      def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
+
+      // Task for launching transform services
+      def envDir = project.project(":sdks:python").envdir
+      def pythonDir = project.project(":sdks:python").projectDir
+      def externalPort = getRandomPort()
+      def launcherJar = project.project(':sdks:java:transform-service:launcher').shadowJar.archivePath
+      def groupId = project.name + randomUUID().toString()
+      def transformServiceOpts = [
+        "transform_service_launcher_jar": launcherJar,
+        "group_id": groupId,
+        "external_port": externalPort,
+        "beam_version": project.version
+      ]
+      def serviceArgs = project.project(':sdks:python').mapToArgString(transformServiceOpts)
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
+      def javaContainerSuffix
+      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+        javaContainerSuffix = 'java8'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+        javaContainerSuffix = 'java11'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+        javaContainerSuffix = 'java17'
+      } else {
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
+      }
+
+      // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
+      def transformServiceJavaContainerSuffix = 'java11'
+      def transformServicePythonContainerSuffix = '38'
+
+      def setupTask = project.tasks.register(config.name+"Setup", Exec) {
+        // Containers for main SDKs when running tests.
+        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
+        // Containers for external SDKs used through the transform service.
+        dependsOn ':sdks:java:container:'+transformServiceJavaContainerSuffix+':docker'
+        dependsOn ':sdks:python:container:py'+transformServicePythonContainerSuffix+':docker'
+        dependsOn ':sdks:java:transform-service:controller-container:docker'
+        dependsOn ':sdks:python:expansion-service-container:docker'
+        dependsOn ':sdks:java:expansion-service:container:docker'
+        dependsOn ":sdks:python:installGcpTest"
+        dependsOn project.project(':sdks:java:transform-service:launcher').shadowJar.getPath()
+
+        if (usesDataflowRunner) {
+          dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
+        }
+
+        // setup test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_transform_service.sh stop $serviceArgs && $pythonDir/scripts/run_transform_service.sh start $serviceArgs"
+      }
+
+      if (config.needsSdkLocation) {
+        setupTask.configure {dependsOn ':sdks:python:sdist'}
+      }
+
+      def pythonTask = project.tasks.register(config.name+"PythonUsingJava") {
+        group = "Verification"
+        description = "Runs Python SDK pipeline tests that use transform service"
+        dependsOn setupTask
+        dependsOn config.startJobServer
+        doLast {
+          def beamPythonTestPipelineOptions = [
+            "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
+              "--sdk_location=${project.ext.sdkLocation}"]
+            : []),
+            "test_opts": config.pytestOptions,
+            "suite": config.name,
+            "collect": config.collectMarker,
+          ]
+          def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+
+          project.exec {
+            environment "EXPANSION_PORT", externalPort
+            executable 'sh'
+            args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+          }
+        }
+      }
+
+      def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
+        // teardown test env
+        executable 'sh'
+        args '-c', "$pythonDir/scripts/run_transform_service.sh stop $serviceArgs"
+      }
+      setupTask.configure {finalizedBy cleanupTask}
+      config.startJobServer.configure {finalizedBy config.cleanupJobServer}
+
+      cleanupTask.configure{mustRunAfter pythonTask}
+      config.cleanupJobServer.configure{mustRunAfter pythonTask}
     }
 
     /** ***********************************************************************************************/
