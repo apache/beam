@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.common.utils.PipelineUtils;
 import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -85,9 +84,9 @@ import org.slf4j.LoggerFactory;
  * options. See the cases in `getOptions()` for examples.
  *
  * <p>This also includes the option of testing the sink's retry resilience by setting
- * `crashStorageApiWriteEverySeconds` in BigQueryOptions. This intentionally fails the worker or work item
- * periodically and expects the sink to recover appropriately.
- * Note: This should not be used when publishing performance metrics.
+ * `crashStorageApiWriteEverySeconds` in BigQueryOptions. This intentionally fails the worker or
+ * work item periodically and expects the sink to recover appropriately. Note: This should not be
+ * used when publishing performance metrics.
  */
 public class BigQueryStreamingLT extends IOLoadTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStreamingLT.class);
@@ -144,7 +143,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
           "local", // 300K rows, >3 MB, 1K rows/s, >10KB/s
               TestConfiguration.of(5, 5, 2, 1_000, "DirectRunner", null),
           "small", // 600K rows, >30 MB, 1K rows/s, >50KB/s
-              TestConfiguration.of(10, 10, 5, 1_000,"DataflowRunner", null),
+              TestConfiguration.of(10, 10, 5, 1_000, "DataflowRunner", null),
           "medium", // 6M rows, >1.2 GB, 5K rows/s, >1MB/s
               TestConfiguration.of(20, 20, 10, 5_000, "DataflowRunner", null),
           "large", // 18M rows, >18 GB, 10K rows/s, >10MB/s
@@ -237,8 +236,12 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     long totalRows = multiplier * millis / fireInterval;
     // If we run with DataflowRunner and have not specified a positive crash duration for the sink,
     // this signifies a performance test, and so we publish metrics to a BigQuery dataset
-    boolean publishMetrics = config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())
-        && TestPipeline.testingPipelineOptions().as(BigQueryOptions.class).getCrashStorageApiSinkEverySeconds() <= 0;
+    boolean publishMetrics =
+        config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())
+            && TestPipeline.testingPipelineOptions()
+                    .as(BigQueryOptions.class)
+                    .getCrashStorageApiSinkEverySeconds()
+                <= 0;
 
     String expectedTable = config.getExpectedTable();
     GenerateTableRow genRow =
