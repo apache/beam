@@ -37,7 +37,7 @@ jobs:
       JAVA_VERSION: '11'
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: actions/setup-python@v4
         with:

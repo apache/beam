@@ -38,7 +38,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3        
+        uses: actions/checkout@v4        
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -48,7 +48,7 @@ jobs:
     name: Update Python Dependencies
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup environment
         uses: ./.github/actions/setup-self-hosted-action
       - name: Update Python Dependencies

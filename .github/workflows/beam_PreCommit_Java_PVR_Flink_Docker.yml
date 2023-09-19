@@ -85,7 +85,7 @@ jobs:
       github.event.comment.body == 'Run Java_PVR_Flink_Docker PreCommit'
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

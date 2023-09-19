@@ -67,7 +67,7 @@ jobs:
         job_phrase: ["Run Java PostCommit IO Performance Tests"]
         test_case: ["GCSPerformanceTest", "BigTablePerformanceTest"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
@@ -76,7 +76,7 @@ jobs:
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
     - name: Checkout release branch
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: v2.50.0 #TODO(https://github.com/apache/beam/issues/28330) automate updating this
         repository: apache/beam
