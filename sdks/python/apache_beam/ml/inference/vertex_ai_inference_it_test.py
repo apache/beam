@@ -26,6 +26,7 @@ import pytest
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
   from apache_beam.examples.inference import vertex_ai_image_classification
