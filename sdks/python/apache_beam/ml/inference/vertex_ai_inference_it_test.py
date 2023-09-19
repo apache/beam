@@ -28,7 +28,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
-  import tensorflow as tf
   from apache_beam.examples.inference import vertex_ai_image_classification
   from apache_beam.examples.inference import vertex_ai_llm_text_classification
 except ImportError as e:
