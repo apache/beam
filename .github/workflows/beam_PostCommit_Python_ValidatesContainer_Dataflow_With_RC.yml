@@ -64,7 +64,7 @@ jobs:
         job_phrase: ["Run Python RC Dataflow ValidatesContainer"]
         python_version: ['3.8','3.9','3.10','3.11']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -97,7 +97,7 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainer
           arguments: |
-            -PtestRCDependencies=true
+            -PtestRCDependencies=true \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3

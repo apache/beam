@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PostCommit_Python_Xlang_Gcp_Direct"]
         job_phrase: ["Run Python_Xlang_Gcp_Direct PostCommit"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

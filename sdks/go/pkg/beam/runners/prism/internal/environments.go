@@ -129,13 +129,15 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 			envs = append(envs, credEnv)
 		}
 	}
-
-	if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dtyp.ImagePullOptions{}); err == nil {
-		// Copy the output, but discard it so we can wait until the image pull is finished.
-		io.Copy(io.Discard, rc)
-		rc.Close()
-	} else {
-		logger.Warn("unable to pull image", "error", err)
+	if _, _, err := cli.ImageInspectWithRaw(ctx, dp.GetContainerImage()); err != nil {
+		// We don't have a local image, so we should pull it.
+		if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dtyp.ImagePullOptions{}); err == nil {
+			// Copy the output, but discard it so we can wait until the image pull is finished.
+			io.Copy(io.Discard, rc)
+			rc.Close()
+		} else {
+			logger.Warn("unable to pull image and it's not local", "error", err)
+		}
 	}
 
 	ccr, err := cli.ContainerCreate(ctx, &container.Config{

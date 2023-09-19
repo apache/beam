@@ -43,6 +43,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // A W manages worker environments, sending them work
@@ -59,6 +60,7 @@ type W struct {
 
 	JobKey, ArtifactEndpoint string
 	EnvPb                    *pipepb.Environment
+	PipelineOptions          *structpb.Struct
 
 	// Server management
 	lis    net.Listener
@@ -163,7 +165,6 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 	}
 	resp := &fnpb.GetProvisionInfoResponse{
 		Info: &fnpb.ProvisionInfo{
-			// TODO: Add the job's Pipeline options
 			// TODO: Include runner capabilities with the per job configuration.
 			RunnerCapabilities: []string{
 				urns.CapabilityMonitoringInfoShortIDs,
@@ -174,14 +175,14 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 				Url: wk.ArtifactEndpoint,
 			},
 
-			RetrievalToken: wk.JobKey,
-			Dependencies:   wk.EnvPb.GetDependencies(),
-
-			// TODO add this job's artifact Dependencies
+			RetrievalToken:  wk.JobKey,
+			Dependencies:    wk.EnvPb.GetDependencies(),
+			PipelineOptions: wk.PipelineOptions,
 
 			Metadata: map[string]string{
 				"runner":         "prism",
 				"runner_version": core.SdkVersion,
+				"variant":        "test",
 			},
 		},
 	}
