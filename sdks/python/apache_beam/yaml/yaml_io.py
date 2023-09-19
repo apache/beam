@@ -24,6 +24,11 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import os
+from typing import Any
+from typing import Iterable
+from typing import Mapping
+from typing import Optional
+from typing import Union
 
 import yaml
 
@@ -31,6 +36,8 @@ import apache_beam as beam
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
+from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import schemas
 from apache_beam.yaml import yaml_provider
 
 
@@ -95,6 +102,125 @@ def write_to_bigquery(
           }
 
   return WriteToBigQueryHandlingErrors()
+
+
+def _create_parser(format, schema):
+  if format == 'raw':
+    if schema:
+      raise ValueError('raw format does not take a schema')
+    return (
+        schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
+        lambda payload: beam.Row(payload=payload))
+  else:
+    raise ValueError(f'Unknown format: {format}')
+
+
+@beam.ptransform_fn
+def read_from_pubsub(
+    root,
+    *,
+    topic: Optional[str]=None,
+    subscription: Optional[str]=None,
+    format: str,
+    schema: Optional[Any]=None,
+    attributes: Optional[Union[str, Iterable[str]]]=None,
+    timestamp_attribute: Optional[str]=None,
+    error_handling: Optional[Mapping[str, str]]=None):
+  if topic and subscription:
+    raise TypeError('Only one of topic and subscription may be specified.')
+  elif not topic and not subscription:
+    raise TypeError('One of topic or subscription may be specified.')
+  payload_schema, parser = _create_parser(format, schema)
+  if not attributes:
+    extra_fields = []
+    mapper = lambda msg: parser(msg)
+  else:
+    if isinstance(attributes, str):
+      extra_fields = [schemas.schema_field(attributes, Mapping[str, str])]
+    else:
+      extra_fields = [schemas.schema_field(attr, str) for attr in attributes]
+
+    def mapper(msg):
+      values = parser(msg.data).as_dict()
+      if isinstance(attributes, str):
+        values[attributes] = msg.attributes
+      else:
+        # Should missing attributes be optional or parse errors?
+        for attr in attributes:
+          values[attr] = msg.attributes[attr]
+      return beam.Row(**values)
+
+  if error_handling:
+    raise ValueError('waiting for https://github.com/apache/beam/pull/28462')
+  output = (
+      root
+      | beam.io.ReadFromPubSub(
+          topic=topic,
+          subscription=subscription,
+          with_attributes=bool(attributes),
+          timestamp_attribute=timestamp_attribute)
+      | 'ParseMessage' >> beam.Map(mapper))
+  output.element_type = schemas.named_tuple_from_schema(
+      schema_pb2.Schema(fields=list(payload_schema.fields) + extra_fields))
+  return output
+
+
+def _create_formatter(format, schema, beam_schema):
+  if format == 'raw':
+    if schema:
+      raise ValueError('raw format does not take a schema')
+    field_names = [field.name for field in beam_schema.fields]
+    if len(field_names) != 1:
+      raise ValueError(f'Expecting exactly one field, found {field_names}')
+    return lambda row: getattr(row, field_names[0])
+  else:
+    raise ValueError(f'Unknown format: {format}')
+
+
+@beam.ptransform_fn
+def write_to_pubsub(
+    pcoll,
+    *,
+    topic: str,
+    format: str,
+    schema: Optional[Any]=None,
+    attributes: Optional[Union[str, Iterable[str]]]=None,
+    timestamp_attribute: Optional[str]=None,
+    error_handling: Optional[Mapping[str, str]]=None):
+
+  input_schema = schemas.schema_from_element_type(pcoll.element_type)
+
+  if not attributes:
+    extra_fields = []
+    attributes_extractor = lambda row: {}
+  elif isinstance(attributes, str):
+    extra_fields = [attributes]
+    attributes_extractor = lambda row: getattr(row, attributes)
+  else:
+    extra_fields = attributes
+    attributes_extractor = lambda row: {
+        attr: getattr(row, attr)
+        for attr in attributes
+    }
+
+  schema_names = set(f.name for f in input_schema.fields)
+  missing_attribute_names = set(extra_fields) - schema_names
+  if missing_attribute_names:
+    raise ValueError(f'Attributes {missing_attribute_names} not found in schema fields {schema_names}')
+
+  payload_schema = schema_pb2.Schema(
+      fields=[
+          field for field in input_schema.fields
+          if field.name not in extra_fields
+      ])
+  formatter = _create_formatter(format, schema, payload_schema)
+  _ = (
+      pcoll | beam.Map(
+          lambda row: beam.io.gcp.pubsub.PubsubMessage(
+              formatter(row), attributes_extractor(row)))
+      | beam.io.WriteToPubSub(
+          topic, with_attributes=True, timestamp_attribute=timestamp_attribute))
+  return {}
 
 
 def io_providers():
