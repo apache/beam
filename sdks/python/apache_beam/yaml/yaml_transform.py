@@ -827,7 +827,8 @@ def preprocess(spec, verbose=False, known_transforms=None):
     if known_transforms:
       if spec['type'] not in known_transforms:
         raise ValueError(
-            f'Unknown type or missing provider for {identify_object(spec)}')
+            'Unknown type or missing provider '
+            f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
 
   def preprocess_langauges(spec):
@@ -869,12 +870,14 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
-    # TODO(BEAM-26941): Validate as a transform.
-    self._providers = yaml_provider.merge_providers(
-        {
+    if isinstance(providers, dict):
+      providers = {
             key: yaml_provider.as_provider_list(key, value)
             for (key, value) in providers.items()
-        },
+        }
+    # TODO(BEAM-26941): Validate as a transform.
+    self._providers = yaml_provider.merge_providers(
+        providers,
         yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
 
