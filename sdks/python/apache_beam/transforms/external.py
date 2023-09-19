@@ -414,7 +414,7 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
 
   def expand(self, pcolls):
     # Expand the transform using the expansion service.
-    return pcolls | ExternalTransform(
+    return pcolls | self._payload_builder._identifier >> ExternalTransform(
         common_urns.schematransform_based_expand.urn,
         self._payload_builder,
         self._expansion_service)
