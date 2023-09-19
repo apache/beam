@@ -852,19 +852,23 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     // by throwing an exception (failed work item) or performing a System exit (worker failure)
     private void maybeCrash() {
       if (crashIntervalSeconds != -1) {
-        Instant crash = lastCrash;
-        if (crash == null) {
+        Instant last = lastCrash;
+        if (last == null) {
           lastCrash = Instant.now();
-        } else if (Instant.now().isAfter(crash.plusSeconds(crashIntervalSeconds))) {
+        } else if (Instant.now().isAfter(last.plusSeconds(crashIntervalSeconds))) {
           lastCrash = Instant.now();
 
-          boolean throwException = ThreadLocalRandom.current().nextBoolean();
-          if (throwException) {
-            throw new RuntimeException(
-                "Throwing a random exception! This is for testing retry resilience.");
-          } else {
-            LOG.error("Crashing this worker! This is for testing retry resilience.");
-            System.exit(0);
+          // Only crash 30% of the time (this is arbitrary)
+          if (ThreadLocalRandom.current().nextInt(100) < 30) {
+            // Half the time throw an exception (which fails this specific work item)
+            // Other half crash the entire worker, which fails all work items on this worker
+            if (ThreadLocalRandom.current().nextBoolean()) {
+              throw new RuntimeException(
+                  "Throwing a random exception! This is for testing retry resilience.");
+            } else {
+              LOG.error("Crashing this worker! This is for testing retry resilience.");
+              System.exit(0);
+            }
           }
         }
       }
