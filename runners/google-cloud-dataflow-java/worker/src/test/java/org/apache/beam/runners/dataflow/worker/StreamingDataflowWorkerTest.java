@@ -273,7 +273,7 @@ public class StreamingDataflowWorkerTest {
         CloudObject.forClassName(
             "com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder");
     List<CloudObject> component =
-        Collections.singletonList(CloudObjects.asCloudObject(coder, /* sdkComponents= */ null));
+        Collections.singletonList(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
     Structs.addList(timerCloudObject, PropertyNames.COMPONENT_ENCODINGS, component);
 
     CloudObject encodedCoder = CloudObject.forClassName("kind:windowed_value");
@@ -283,7 +283,7 @@ public class StreamingDataflowWorkerTest {
         PropertyNames.COMPONENT_ENCODINGS,
         ImmutableList.of(
             timerCloudObject,
-            CloudObjects.asCloudObject(IntervalWindowCoder.of(), /* sdkComponents= */ null)));
+            CloudObjects.asCloudObject(IntervalWindowCoder.of(), /*sdkComponents=*/ null)));
 
     return new ParallelInstruction()
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
@@ -315,7 +315,7 @@ public class StreamingDataflowWorkerTest {
                         .setCodec(
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
-                                /* sdkComponents= */ null))))
+                                /*sdkComponents=*/ null))))
         .setOutputs(
             Arrays.asList(
                 new InstructionOutput()
@@ -325,7 +325,7 @@ public class StreamingDataflowWorkerTest {
                     .setCodec(
                         CloudObjects.asCloudObject(
                             WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
-                            /* sdkComponents= */ null))));
+                            /*sdkComponents=*/ null))));
   }
 
   private ParallelInstruction makeDoFnInstruction(
@@ -371,7 +371,7 @@ public class StreamingDataflowWorkerTest {
                         CloudObjects.asCloudObject(
                             WindowedValue.getFullCoder(
                                 outputCoder, windowingStrategy.getWindowFn().windowCoder()),
-                            /* sdkComponents= */ null))));
+                            /*sdkComponents=*/ null))));
   }
 
   private ParallelInstruction makeDoFnInstruction(
@@ -407,7 +407,7 @@ public class StreamingDataflowWorkerTest {
                         .setCodec(
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(coder, windowCoder),
-                                /* sdkComponents= */ null))));
+                                /*sdkComponents=*/ null))));
   }
 
   private ParallelInstruction makeSinkInstruction(
@@ -1431,7 +1431,7 @@ public class StreamingDataflowWorkerTest {
                             CloudObjects.asCloudObject(
                                 WindowedValue.getFullCoder(
                                     StringUtf8Coder.of(), IntervalWindow.getCoder()),
-                                /* sdkComponents= */ null))));
+                                /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1539,7 +1539,7 @@ public class StreamingDataflowWorkerTest {
     addObject(
         spec,
         WorkerPropertyNames.INPUT_CODER,
-        CloudObjects.asCloudObject(windowedKvCoder, /* sdkComponents= */ null));
+        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -1559,7 +1559,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                windowedGroupedCoder, /* sdkComponents= */ null))));
+                                windowedGroupedCoder, /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -1835,7 +1835,7 @@ public class StreamingDataflowWorkerTest {
     addObject(
         spec,
         WorkerPropertyNames.INPUT_CODER,
-        CloudObjects.asCloudObject(windowedKvCoder, /* sdkComponents= */ null));
+        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -1855,7 +1855,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                windowedGroupedCoder, /* sdkComponents= */ null))));
+                                windowedGroupedCoder, /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -2156,7 +2156,7 @@ public class StreamingDataflowWorkerTest {
     addObject(
         spec,
         WorkerPropertyNames.INPUT_CODER,
-        CloudObjects.asCloudObject(windowedKvCoder, /* sdkComponents= */ null));
+        CloudObjects.asCloudObject(windowedKvCoder, /*sdkComponents=*/ null));
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
@@ -2176,7 +2176,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                windowedGroupedCoder, /* sdkComponents= */ null))));
+                                windowedGroupedCoder, /*sdkComponents=*/ null))));
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -2316,7 +2316,7 @@ public class StreamingDataflowWorkerTest {
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
                 GlobalWindow.Coder.INSTANCE),
-            /* sdkComponents= */ null);
+            /*sdkComponents=*/ null);
 
     return Arrays.asList(
         new ParallelInstruction()
@@ -3110,7 +3110,7 @@ public class StreamingDataflowWorkerTest {
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
                 GlobalWindow.Coder.INSTANCE),
-            /* sdkComponents= */ null);
+            /*sdkComponents=*/ null);
 
     TestCountingSource counter = new TestCountingSource(3).withThrowOnFirstSnapshot(true);
 

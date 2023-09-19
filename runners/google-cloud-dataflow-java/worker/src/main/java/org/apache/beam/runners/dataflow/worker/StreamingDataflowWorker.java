@@ -256,6 +256,7 @@ public class StreamingDataflowWorker {
 
   public static void main(String[] args) throws Exception {
     JvmInitializers.runOnStartup();
+
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     DataflowWorkerHarnessOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
@@ -1003,7 +1004,7 @@ public class StreamingDataflowWorker {
               inputDataWatermark,
               synchronizedProcessingTime,
               workItem,
-              /* getWorkStreamLatencies= */ Collections.emptyList());
+              /*getWorkStreamLatencies=*/ Collections.emptyList());
         }
       }
     }
@@ -1406,8 +1407,7 @@ public class StreamingDataflowWorker {
       // The coder type that will be present is:
       //     WindowedValueCoder(TimerOrElementCoder(KvCoder))
       @Nullable Coder<?> keyCoder = executionState.getKeyCoder();
-      @Nullable
-      Object executionKey =
+      @Nullable Object executionKey =
           keyCoder == null ? null : keyCoder.decode(key.newInput(), Coder.Context.OUTER);
 
       if (workItem.hasHotKeyInfo()) {
@@ -2288,8 +2288,7 @@ public class StreamingDataflowWorker {
         if (completedWork.getWorkItem().getWorkToken() != workToken) {
           // Work may have been completed due to clearing of stuck commits.
           LOG.warn(
-              "Unable to complete due to token mismatch for key {} and token {}, actual token was"
-                  + " {}.",
+              "Unable to complete due to token mismatch for key {} and token {}, actual token was {}.",
               shardedKey,
               workToken,
               completedWork.getWorkItem().getWorkToken());
@@ -2368,8 +2367,7 @@ public class StreamingDataflowWorker {
           "<table border=\"1\" "
               + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
       writer.println(
-          "<tr><th>Key</th><th>Token</th><th>Queued</th><th>Active For</th><th>State</th><th>State"
-              + " Active For</th></tr>");
+          "<tr><th>Key</th><th>Token</th><th>Queued</th><th>Active For</th><th>State</th><th>State Active For</th></tr>");
       // We use a StringBuilder in the synchronized section to buffer writes since the provided
       // PrintWriter may block when flushing.
       StringBuilder builder = new StringBuilder();
