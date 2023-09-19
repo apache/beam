@@ -68,7 +68,7 @@ jobs:
       (startswith(github.event.comment.body, 'Run Python') &&
          endswith(github.event.comment.body, 'PostCommit Sickbay'))
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

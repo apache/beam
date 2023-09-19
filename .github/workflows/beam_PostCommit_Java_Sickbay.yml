@@ -64,7 +64,7 @@ jobs:
       github.event_name == 'schedule' ||
       github.event.comment.body == 'Run Java Sickbay'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
