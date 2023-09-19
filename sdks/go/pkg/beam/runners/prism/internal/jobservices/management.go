@@ -79,6 +79,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		streamCond: sync.NewCond(&sync.Mutex{}),
 		RootCtx:    rootCtx,
 		CancelFn:   cancelFn,
+
+		artifactEndpoint: s.Endpoint(),
 	}
 
 	// Queue initial state of the job.

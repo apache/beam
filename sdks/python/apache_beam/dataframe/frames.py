@@ -907,7 +907,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'sort_index',
-            lambda df: df.sort_index(axis, **kwargs),
+            lambda df: df.sort_index(axis=axis, **kwargs),
             [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary(),
@@ -1471,8 +1471,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     index = pd.Index([], dtype=index_dtype)
     proxy = self._expr.proxy().copy()
     proxy.index = index
-    proxy = proxy.append(
-        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype)))
+    proxy = pd.concat([
+        proxy,
+        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype))
+    ])
 
     idx_func = expressions.ComputedExpression(
         'idx_func',
@@ -2687,7 +2689,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'set_axis',
-              lambda df: df.set_axis(labels, axis, **kwargs),
+              lambda df: df.set_axis(labels, axis=axis, **kwargs),
               [self._expr],
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))

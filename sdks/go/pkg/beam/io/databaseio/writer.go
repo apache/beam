@@ -108,7 +108,7 @@ type valueTemplateGenerator struct {
 
 func (v *valueTemplateGenerator) generate(rowCount int, columnColunt int) string {
 	switch v.driver {
-	case "postgres":
+	case "postgres", "pgx":
 		// the point is to generate ($1,$2),($3,$4)
 		valueTemplates := make([]string, rowCount)
 		for i := 0; i < rowCount; i++ {

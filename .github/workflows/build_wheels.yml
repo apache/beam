@@ -54,7 +54,7 @@ jobs:
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
       py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -87,7 +87,7 @@ jobs:
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install python
         uses: actions/setup-python@v4
         with:
@@ -269,7 +269,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
@@ -295,7 +295,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
@@ -385,7 +385,7 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           submodules: recursive

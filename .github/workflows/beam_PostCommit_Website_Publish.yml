@@ -55,7 +55,7 @@ jobs:
     timeout-minutes: 30
     name: beam_PostCommit_Website_Publish
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: run PostCommit Website Publish script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

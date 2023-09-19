@@ -21,12 +21,12 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -52,27 +52,29 @@ env:
 
 jobs:
   beam_PostCommit_Sickbay_Python:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
+    name: ${{matrix.job_name}} (${{matrix.job_phrase_1}} ${{matrix.python_version}} ${{matrix.job_phrase_2}})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PostCommit_Sickbay_Python]
-        job_phrase: [Run Python PostCommit Sickbay tests]
+        job_phrase_1: [Run Python]
+        job_phrase_2: [PostCommit Sickbay]
         python_version: ['3.8', '3.9', '3.10', '3.11']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Python PostCommit Sickbay tests'
+      (startswith(github.event.comment.body, 'Run Python') &&
+         endswith(github.event.comment.body, 'PostCommit Sickbay'))
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{matrix.python_version}} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+          github_job: ${{ matrix.job_name }} ${{ matrix.job_phrase_1 }} ${{matrix.python_version}} ${{ matrix.job_phrase_2 }}
       - name: Install Python
         uses: actions/setup-python@v4
         with:

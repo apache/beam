@@ -99,18 +99,4 @@ def write_to_bigquery(
 
 def io_providers():
   with open(os.path.join(os.path.dirname(__file__), 'standard_io.yaml')) as fin:
-    explicit_ios = yaml_provider.parse_providers(
-        yaml.load(fin, Loader=yaml.SafeLoader))
-
-  # TOOD(yaml): We should make all top-level IOs explicit.
-  # This will be a chance to clean up the APIs and align them with their
-  # Java implementations.
-  # PythonTransform can be used to get the "raw" transforms for any others.
-  implicit_ios = yaml_provider.InlineProvider({
-      key: getattr(beam.io, key)
-      for key in dir(beam.io)
-      if (key.startswith('ReadFrom') or key.startswith('WriteTo')) and
-      key not in explicit_ios
-  })
-
-  return yaml_provider.merge_providers(explicit_ios, implicit_ios)
+    return yaml_provider.parse_providers(yaml.load(fin, Loader=yaml.SafeLoader))
