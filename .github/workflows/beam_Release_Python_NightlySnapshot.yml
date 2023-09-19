@@ -70,7 +70,7 @@ jobs:
         with:
           cache-read-only: false
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
       - name: Authenticate on GCP
