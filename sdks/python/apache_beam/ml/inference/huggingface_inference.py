@@ -594,10 +594,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Args:
       task (str or enum.Enum): task supported by HuggingFace Pipelines.
         Accepts a string task or an enum.Enum from PipelineTask.
-      model (str): path to the pretrained model-id on Hugging Face Models Hub
+      model (str): path to the pretrained *model-id* on Hugging Face Models Hub
         to use custom model for the chosen task. If the `model` already defines
-        the task then no need to specify the `task` parameter. Use the model-id
-        string instead of an actual model here.
+        the task then no need to specify the `task` parameter.
+        Use the *model-id* string instead of an actual model here.
         Model-specific kwargs for `from_pretrained(..., **model_kwargs)` can be
         specified with `model_kwargs` using `load_pipeline_args`.
         Example Usage:
