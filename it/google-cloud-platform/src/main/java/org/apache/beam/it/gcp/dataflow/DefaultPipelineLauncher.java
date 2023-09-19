@@ -99,7 +99,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           .put(PipelineResult.State.UNRECOGNIZED, JobState.UNKNOWN)
           .build();
 
-  private DefaultPipelineLauncher(Builder builder) {
+  private DefaultPipelineLauncher(DefaultPipelineLauncher.Builder builder) {
     super(
         new Dataflow(
             Utils.getDefaultTransport(),
@@ -109,8 +109,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
                 : new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
-  public static Builder builder(Credentials credentials) {
-    return new Builder(credentials);
+  public static DefaultPipelineLauncher.Builder builder(Credentials credentials) {
+    return new DefaultPipelineLauncher.Builder(credentials);
   }
 
   @Override
@@ -416,8 +416,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
     // add pipeline options from beamTestPipelineOptions system property to preserve the
     // pipeline options already set in TestPipeline.
-    @Nullable
-    String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+    @Nullable String beamTestPipelineOptions =
+        System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
     if (!Strings.isNullOrEmpty(beamTestPipelineOptions)) {
       try {
         additionalOptions.addAll(MAPPER.readValue(beamTestPipelineOptions, List.class));

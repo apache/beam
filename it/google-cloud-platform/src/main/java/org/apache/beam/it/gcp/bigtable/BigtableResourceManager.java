@@ -33,6 +33,7 @@ import com.google.cloud.bigtable.admin.v2.models.AppProfile;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.MultiClusterRoutingPolicy;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.RoutingPolicy;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.SingleClusterRoutingPolicy;
+import com.google.cloud.bigtable.admin.v2.models.Cluster;
 import com.google.cloud.bigtable.admin.v2.models.CreateAppProfileRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateInstanceRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
@@ -54,6 +55,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.commons.lang3.StringUtils;
@@ -93,6 +96,8 @@ public class BigtableResourceManager implements ResourceManager {
   private final Set<String> cdcEnabledTables;
 
   private boolean hasInstance;
+  private Iterable<BigtableResourceManagerCluster> clusters;
+
   private final boolean usingStaticInstance;
 
   private BigtableResourceManager(Builder builder) throws IOException {
@@ -223,6 +228,7 @@ public class BigtableResourceManager implements ResourceManager {
           "Failed to create instance " + instanceId + ".", e);
     }
     hasInstance = true;
+    this.clusters = clusters;
 
     LOG.info("Successfully created instance {}.", instanceId);
   }
@@ -542,6 +548,32 @@ public class BigtableResourceManager implements ResourceManager {
     LOG.info("Loaded {} rows from {}.{}", tableRows.size(), instanceId, tableId);
 
     return tableRows;
+  }
+
+  /** Get all the cluster names of the current instance. */
+  public List<String> getClusterNames() {
+    return StreamSupport.stream(getClusters().spliterator(), false)
+        .map(BigtableResourceManagerCluster::clusterId)
+        .collect(Collectors.toList());
+  }
+
+  private Iterable<BigtableResourceManagerCluster> getClusters() {
+    if (usingStaticInstance && this.clusters == null) {
+      try (BigtableInstanceAdminClient instanceAdminClient =
+          bigtableResourceManagerClientFactory.bigtableInstanceAdminClient()) {
+        List<BigtableResourceManagerCluster> managedClusters = new ArrayList<>();
+        for (Cluster cluster : instanceAdminClient.listClusters(instanceId)) {
+          managedClusters.add(
+              BigtableResourceManagerCluster.create(
+                  cluster.getId(),
+                  cluster.getZone(),
+                  cluster.getServeNodes(),
+                  cluster.getStorageType()));
+        }
+        this.clusters = managedClusters;
+      }
+    }
+    return this.clusters;
   }
 
   /**
