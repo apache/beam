@@ -659,8 +659,10 @@ public class ExecutionStateSamplerTest {
                 .create(),
             clock);
     ExecutionStateTracker tracker = sampler.create();
-    ExecutionState state1 = tracker.create("shortId1", "ptransformId1", "ptransformIdName1", "process");
-    ExecutionState state2 = tracker.create("shortId2", "ptransformId2", "ptransformIdName2", "process");
+    ExecutionState state1 =
+        tracker.create("shortId1", "ptransformId1", "ptransformIdName1", "process");
+    ExecutionState state2 =
+        tracker.create("shortId2", "ptransformId2", "ptransformIdName2", "process");
 
     state1.activate();
     state2.activate();
