@@ -2970,10 +2970,6 @@ public class StreamingDataflowWorkerTest {
 
     ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
 
-    // overriding definition of MockWork to add sleep, which will help us keep track of how
-    // long each work item takes to process and therefore let us manipulate how long the time
-    // at which we're at max threads is.
-
     // real work
     MockActiveWork m1 =
         new MockActiveWork(1) {
