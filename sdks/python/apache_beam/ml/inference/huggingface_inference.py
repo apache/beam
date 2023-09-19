@@ -603,7 +603,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
 
         Example Usage::
           model_handler = HuggingFacePipelineModelHandler(
-            model_uri="bert-base-uncased", model="meta-llama/Llama-2-7b-hf",
+            task="text-generation", model="meta-llama/Llama-2-7b-hf",
             load_pipeline_args={'model_kwargs':{'quantization_map':config}})
 
       inference_fn: the inference function to use during RunInference.
