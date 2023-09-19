@@ -354,7 +354,7 @@ public class SchemaUtil {
    * A {@link org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper} implementation that converts JDBC
    * results into Beam {@link Row} objects.
    */
-  static final class BeamRowMapper implements JdbcIO.RowMapper<Row> {
+  public static final class BeamRowMapper implements JdbcIO.RowMapper<Row> {
     private final Schema schema;
     private final List<ResultSetFieldExtractor> fieldExtractors;
 
