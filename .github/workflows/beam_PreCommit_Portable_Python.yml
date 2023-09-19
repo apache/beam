@@ -91,7 +91,7 @@ jobs:
       github.event_name == 'schedule' ||
       startsWith(github.event.comment.body, 'Run Portable_Python PreCommit')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

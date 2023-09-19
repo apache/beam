@@ -47,7 +47,7 @@ jobs:
       FLUTTER_VERSION: '3.10.4'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: 'Cache Flutter Dependencies'
         uses: actions/cache@v3

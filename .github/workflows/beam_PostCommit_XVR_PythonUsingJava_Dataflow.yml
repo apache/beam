@@ -63,7 +63,7 @@ jobs:
         job_phrase: ["Run XVR_PythonUsingJava_Dataflow PostCommit"]
         python_version: ['3.8','3.11']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

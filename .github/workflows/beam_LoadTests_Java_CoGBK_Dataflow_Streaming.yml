@@ -62,7 +62,7 @@ jobs:
         job_name: [ "beam_LoadTests_Java_CoGBK_Dataflow_Streaming" ]
         job_phrase: ["Run Load Tests Java CoGBK Dataflow Streaming"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

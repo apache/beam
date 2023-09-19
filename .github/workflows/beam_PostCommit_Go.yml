@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PostCommit_Go"]
         job_phrase: ["Run Go PostCommit"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
