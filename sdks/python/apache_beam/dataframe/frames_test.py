@@ -694,6 +694,8 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
+    # Ensure we don't drop rows due to nan values in unused columns.
+    self._run_test(lambda df: df.value_counts('num_wings'), df)
 
     if PD_VERSION >= (1, 3):
       # dropna=False is new in pandas 1.3
