@@ -31,3 +31,7 @@ tasks.register('GCSPerformanceTest') {
 tasks.register('BigTablePerformanceTest') {
     dependsOn(":it:google-cloud-platform:BigTablePerformanceTest")
 }
+
+tasks.register('BigQueryStorageApiStreamingPerformanceTest') {
+    dependsOn(":it:google-cloud-platform:BigQueryStorageApiStreamingPerformanceTest")
+}

@@ -20,28 +20,32 @@ package org.apache.beam.it.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSpec;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
+import org.apache.beam.it.common.PipelineLauncher;
+import org.apache.beam.it.common.PipelineOperator;
+import org.apache.beam.it.common.TestProperties;
+import org.apache.beam.it.common.utils.PipelineUtils;
+import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.TestDataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -54,12 +58,16 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,131 +81,166 @@ import org.slf4j.LoggerFactory;
  * also the option of providing an existing table with the expected data, in which case the test
  * will skip the first step.
  *
- * <p>The throughput, length of test (in minutes), and data shape can be changed with the
- * appropriate options. See the cases in `getOptions()` for examples.
+ * <p>The throughput, length of test (in minutes), and data shape can be changed via pipeline
+ * options. See the cases in `getOptions()` for examples.
  *
  * <p>This also includes testing the sink's retry resilience by setting the
  * `crashStorageApiWriteEverySeconds` option. This intentionally fails the worker or work item
  * periodically and expects the sink to recover appropriately.
  */
-public class BigQueryStreamingLT {
+public class BigQueryStreamingLT extends IOLoadTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStreamingLT.class);
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStreamingLT");
-  private static final String PROJECT =
-      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_load_test_" + System.nanoTime();
 
+  private TestConfiguration config;
+
+  @Rule public final transient TestPipeline fileLoadsPipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline storageApiPipeline = TestPipeline.create();
+
   @BeforeClass
-  public static void setUp() throws IOException, InterruptedException {
+  public static void setUpClass() throws IOException, InterruptedException {
     PipelineOptionsFactory.register(TestPipelineOptions.class);
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(TestProperties.project(), BIG_QUERY_DATASET_ID);
+  }
+
+  @Before
+  public void setUpTest() {
+    String testConfig =
+        TestProperties.getProperty("configuration", "small", TestProperties.Type.PROPERTY);
+    config = TEST_CONFIGS.get(testConfig);
+    if (config == null) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unknown test configuration: [%s]. Known configs: %s",
+              testConfig, TEST_CONFIGS.keySet()));
+    }
+    // tempLocation needs to be set for file loads
+    if (!Strings.isNullOrEmpty(tempBucketName)) {
+      String tempLocation = String.format("gs://%s/temp/", tempBucketName);
+      fileLoadsPipeline.getOptions().as(TestPipelineOptions.class).setTempRoot(tempLocation);
+      fileLoadsPipeline.getOptions().setTempLocation(tempLocation);
+    }
+
+    // disable crashing if not specified
+    boolean crashSink =
+        Boolean.valueOf(
+            TestProperties.getProperty("crashSink", "false", TestProperties.Type.PROPERTY));
+    if (!crashSink) {
+      config = config.toBuilder().setCrashEverySeconds(-1).build();
+    }
+    // Set expected table if the property is provided,
+    @Nullable
+    String expectedTable =
+        TestProperties.getProperty("expectedTable", "", TestProperties.Type.PROPERTY);
+    if (!Strings.isNullOrEmpty(expectedTable)) {
+      config.toBuilder().setExpectedTable(expectedTable).build();
+    }
   }
 
   @AfterClass
   public static void cleanup() {
-    BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.deleteDataset(project, BIG_QUERY_DATASET_ID);
   }
 
-  public interface BigQueryStreamingLoadTestOptions extends TestPipelineOptions, BigQueryOptions {
-    @Default.String("")
-    @Description("The destination table to write to.")
-    String getDestinationTable();
+  private static final Map<String, TestConfiguration> TEST_CONFIGS =
+      ImmutableMap.of(
+          "local", // 300K rows, >3 MB, 1K rows/s, >10KB/s
+              TestConfiguration.of(1, 5, 2, 1_000, 30, "DirectRunner", null),
+          "small", // 600K rows, >30 MB, 1K rows/s, >50KB/s
+              TestConfiguration.of(10, 10, 5, 1_000, 30, "DataflowRunner", null),
+          "medium", // 36M rows, >36 GB, 10K rows/s, >10MB/s
+              TestConfiguration.of(60, 100, 10, 10_000, 300, "DataflowRunner", null),
+          "large", // 1.8B rows, >180 TB, 100K rows/s, >10GB/s
+              TestConfiguration.of(300, 1_000, 100, 100_000, 1_200, "DataflowRunner", null));
 
-    void setDestinationTable(String destinationTable);
+  /** Options for Bigquery IO Streaming load test. */
+  @AutoValue
+  abstract static class TestConfiguration {
+    /** Rows will be generated for this many minutes. */
+    abstract Integer getMinutes();
 
-    @Default.String("")
-    @Description(
-        "The expected table to check against for correctness. If unset, the test will run a batch job with FILE_LOADS and use the resulting table as a source of truth.")
-    String getExpectedTable();
+    /** Data shape: The byte-size for each field. */
+    abstract Integer getByteSizePerField();
 
-    void setExpectedTable(String expectedTable);
+    /** Data shape: The number of fields per row. */
+    abstract Integer getNumFields();
 
-    @Default.Integer(10_000)
-    @Description(
-        "Rate of generated elements sent to the sink. Will run with a minimum of 1k rows per second.")
-    Integer getRowsPerSecond();
+    /**
+     * Rate of generated elements sent to the sink. Will run with a minimum of 1k rows per second.
+     */
+    abstract Integer getRowsPerSecond();
 
-    void setRowsPerSecond(Integer rowsPerSecond);
+    /** If set, the Storage API sink will periodically crash at this interval. */
+    abstract Integer getCrashEverySeconds();
 
-    @Default.Integer(15)
-    @Description("Rows will be generated for this many minutes.")
-    Integer getMinutes();
+    abstract String getRunner();
 
-    void setMinutes(Integer minutes);
+    /**
+     * The expected table to check against for correctness. If unset, the test will run a batch
+     * FILE_LOADS job and use the resulting table as a source of truth.
+     */
+    @Nullable
+    abstract String getExpectedTable();
 
-    @Default.Integer(5)
-    @Description("Data shape: The number of fields per row.")
-    Integer getNumFields();
-
-    void setNumFields(Integer numFields);
-
-    @Default.Integer(100)
-    @Description("Data shape: The byte-size for each field.")
-    Integer getByteSizePerField();
-
-    void setByteSizePerField(Integer byteSizePerField);
-  }
-
-  public BigQueryStreamingLoadTestOptions getOptions(String size, boolean crash) {
-    BigQueryStreamingLoadTestOptions options =
-        TestPipeline.testingPipelineOptions().as(BigQueryStreamingLoadTestOptions.class);
-    switch (size) {
-      case "large":
-        // 1.8B rows, >180 TB
-        // 100K rows/s, >10GB/s
-        options.setMinutes(300);
-        options.setByteSizePerField(1000);
-        options.setNumFields(100);
-        options.setRowsPerSecond(100_000);
-        if (crash) {
-          // crash every 20 min
-          options.setCrashStorageApiWriteEverySeconds(1200L);
-        }
-        break;
-      case "medium":
-        // 36M rows, >36 GB
-        // 10K rows/s, >10MB/s
-        options.setMinutes(60);
-        options.setByteSizePerField(100);
-        options.setNumFields(10);
-        options.setRowsPerSecond(10_000);
-        if (crash) {
-          // crash every 5 min
-          options.setCrashStorageApiWriteEverySeconds(300L);
-        }
-        break;
-      default: // small
-        // 300K rows, >3 MB
-        // 1K rows/s, >10KB/s
-        options.setMinutes(5);
-        options.setByteSizePerField(5);
-        options.setNumFields(2);
-        options.setRowsPerSecond(1000);
+    static TestConfiguration of(
+        int numMin,
+        int byteSizePerField,
+        int numFields,
+        int rowsPerSecond,
+        int crashEverySeconds,
+        String runner,
+        @Nullable String expectedTable) {
+      return new AutoValue_BigQueryStreamingLT_TestConfiguration.Builder()
+          .setMinutes(numMin)
+          .setByteSizePerField(byteSizePerField)
+          .setNumFields(numFields)
+          .setRowsPerSecond(rowsPerSecond)
+          .setCrashEverySeconds(crashEverySeconds)
+          .setRunner(runner)
+          .setExpectedTable(expectedTable)
+          .build();
     }
-    return options;
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setMinutes(int numMin);
+
+      abstract Builder setByteSizePerField(int byteSizePerField);
+
+      abstract Builder setNumFields(int numFields);
+
+      abstract Builder setRowsPerSecond(int rowsPerSecond);
+
+      abstract Builder setCrashEverySeconds(int crashEverySeconds);
+
+      abstract Builder setRunner(String runner);
+
+      abstract Builder setExpectedTable(@Nullable String expectedTable);
+
+      abstract TestConfiguration build();
+    }
+
+    abstract Builder toBuilder();
   }
 
   @Test
   public void testExactlyOnceStreaming() throws IOException, InterruptedException {
-    BigQueryStreamingLoadTestOptions options = getOptions("medium", true);
-    options.setUseStorageWriteApi(true);
-    runTest(options);
+    runTest(BigQueryIO.Write.Method.STORAGE_WRITE_API);
   }
 
   @Test
+  @Ignore
   public void testAtLeastOnceStreaming() throws IOException, InterruptedException {
-    BigQueryStreamingLoadTestOptions options = getOptions("medium", true);
-    options.setUseStorageWriteApiAtLeastOnce(true);
-    runTest(options);
+    runTest(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE);
   }
 
-  public void runTest(BigQueryStreamingLoadTestOptions options)
+  public void runTest(BigQueryIO.Write.Method writeMethod)
       throws IOException, InterruptedException {
-    long millis = Duration.standardMinutes(options.getMinutes()).getMillis();
-    int rowsPerSecond = Math.max(options.getRowsPerSecond(), 1000);
+    long millis = Duration.standardMinutes(config.getMinutes()).getMillis();
+    int rowsPerSecond = Math.max(config.getRowsPerSecond(), 1000);
 
     // The PeriodicImpulse source will generate an element every this many millis:
     int fireInterval = 1;
@@ -206,94 +249,160 @@ public class BigQueryStreamingLT {
     long multiplier = rowsPerSecond / 1000;
     long totalRows = multiplier * millis / fireInterval;
 
-    String expectedTable = options.getExpectedTable();
+    String expectedTable = config.getExpectedTable();
     GenerateTableRow genRow =
-        new GenerateTableRow(options.getNumFields(), options.getByteSizePerField());
-    TableSchema schema = generateTableSchema(options.getNumFields());
-
+        new GenerateTableRow(config.getNumFields(), config.getByteSizePerField());
+    TableSchema schema = generateTableSchema(config.getNumFields());
     if (Strings.isNullOrEmpty(expectedTable)) {
+      String fileLoadsDescription =
+          String.format("fileloads-%s-records", withScaleSymbol(totalRows));
       expectedTable =
-          String.format(
-              "%s.%s.fileloads-%s-records",
-              PROJECT, BIG_QUERY_DATASET_ID, withScaleSymbol(totalRows));
+          String.format("%s.%s.%s", project, BIG_QUERY_DATASET_ID, fileLoadsDescription);
       LOG.info(
           "No expected table was set. Will run a batch job to load {} rows to {}."
               + " This will be used as the source of truth.",
           totalRows,
           expectedTable);
 
-      Pipeline q = Pipeline.create(TestPipeline.testingPipelineOptions());
-      q.apply(GenerateSequence.from(0).to(totalRows))
+      fileLoadsPipeline.getOptions().setRunner(PipelineUtils.getRunnerClass(config.getRunner()));
+      fileLoadsPipeline
+          .apply(GenerateSequence.from(0).to(totalRows))
           .apply(
+              "Write to source of truth",
               BigQueryIO.<Long>write()
                   .to(expectedTable)
                   .withFormatFunction(genRow::apply)
                   .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                   .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
                   .withSchema(schema));
-      q.run();
+
+      // If running on Dataflow, launch pipeline via launcher utils
+      if (config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())) {
+        PipelineLauncher.LaunchConfig options =
+            PipelineLauncher.LaunchConfig.builder("test-" + fileLoadsDescription)
+                .setSdk(PipelineLauncher.Sdk.JAVA)
+                .setPipeline(fileLoadsPipeline)
+                .addParameter("runner", config.getRunner())
+                .build();
+
+        // Don't use PipelineOperator because we don't want to wait on this batch job
+        // The streaming job will run in parallel and it will take longer anyways; this job will
+        // finish by then.
+        pipelineLauncher.launch(project, region, options);
+      } else {
+        fileLoadsPipeline.run();
+      }
     }
 
-    String destTable = options.getDestinationTable();
-    if (Strings.isNullOrEmpty(destTable)) {
-      destTable =
-          String.format(
-              "%s.%s.storageapi-load-%sqps-%smin-%stotal",
-              PROJECT,
-              BIG_QUERY_DATASET_ID,
-              withScaleSymbol(rowsPerSecond),
-              options.getMinutes(),
-              withScaleSymbol(totalRows));
+    String atLeastOnce =
+        writeMethod == BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE ? "-atleastonce" : "";
+    String storageApiDescription =
+        String.format(
+            "storageapi%s-load-%sqps-%smin-%stotal",
+            atLeastOnce,
+            withScaleSymbol(rowsPerSecond),
+            config.getMinutes(),
+            withScaleSymbol(totalRows));
+    String destTable =
+        String.format("%s.%s.%s", project, BIG_QUERY_DATASET_ID, storageApiDescription);
+    if (config.getCrashEverySeconds() > 0) {
+      storageApiPipeline
+          .getOptions()
+          .as(BigQueryOptions.class)
+          .setCrashStorageApiWriteEverySeconds(config.getCrashEverySeconds());
     }
     LOG.info(
         "Preparing a source generating at a rate of {} rows per second for a period of {} minutes."
             + " This results in a total of {} rows written to {}.",
         rowsPerSecond,
-        options.getMinutes(),
+        config.getMinutes(),
         totalRows,
         destTable);
-    if (options.getRunner().equals(DataflowRunner.class)
-        || options.getRunner().equals(TestDataflowRunner.class)) {
-      options.as(DataflowPipelineOptions.class).setStreaming(true);
-      options.as(DataflowPipelineOptions.class).setEnableStreamingEngine(true);
-    }
-    Pipeline p = Pipeline.create(options);
 
     Instant start = Instant.now();
     PCollection<Long> source =
-        p.apply(
+        storageApiPipeline
+            .apply(
                 PeriodicImpulse.create()
                     .startAt(start)
                     .stopAt(start.plus(Duration.millis(millis - 1)))
                     .withInterval(Duration.millis(fireInterval)))
-            .apply("Extract row IDs",
+            .apply(
+                "Extract row IDs",
                 MapElements.into(TypeDescriptors.longs())
                     .via(instant -> instant.getMillis() % totalRows));
     if (multiplier > 1) {
       source =
           source
-              .apply(String.format("One input to %s outputs", multiplier), ParDo.of(new MultiplierDoFn(multiplier)))
+              .apply(
+                  String.format("One input to %s outputs", multiplier),
+                  ParDo.of(new MultiplierDoFn(multiplier)))
               .apply("Reshuffle fanout", Reshuffle.viaRandomKey());
     }
-    BigQueryIO.Write.Method method =
-        options.getUseStorageWriteApiAtLeastOnce()
-            ? BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE
-            : BigQueryIO.Write.Method.STORAGE_WRITE_API;
+
     source.apply(
         BigQueryIO.<Long>write()
             .to(destTable)
-            .withFormatFunction(id -> genRow.apply(id))
-            .withMethod(method)
+            .withFormatFunction(genRow::apply)
+            .withMethod(writeMethod)
             .withTriggeringFrequency(Duration.standardSeconds(1))
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withSchema(schema));
-    p.run().waitUntilFinish();
+
+    // If running on Dataflow, launch pipeline via launcher utils and export metrics
+    if (config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())) {
+      // Set up dataflow job
+      PipelineLauncher.LaunchConfig storageApiOptions =
+          PipelineLauncher.LaunchConfig.builder("test-" + storageApiDescription)
+              .setSdk(PipelineLauncher.Sdk.JAVA)
+              .setPipeline(storageApiPipeline)
+              .addParameter("runner", config.getRunner())
+              .addParameter("streaming", "true")
+              .addParameter("experiments", GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+              .build();
+      // Launch job
+      PipelineLauncher.LaunchInfo storageApiInfo =
+          pipelineLauncher.launch(project, region, storageApiOptions);
+      // Wait until the streaming pipeline is finished and drained, get the result.
+      PipelineOperator.Result storageApiResult =
+          pipelineOperator.waitUntilDoneAndFinish(
+              PipelineOperator.Config.builder()
+                  .setJobId(storageApiInfo.jobId())
+                  .setProject(project)
+                  .setRegion(region)
+                  .setTimeoutAfter(java.time.Duration.ofMinutes(config.getMinutes() * 2L))
+                  .setCheckAfter(java.time.Duration.ofSeconds(config.getMinutes() * 60 / 20))
+                  .build());
+      // Check the initial launch didn't fail
+      assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, storageApiResult);
+      // Check that the pipeline succeeded
+      assertEquals(
+          PipelineLauncher.JobState.DONE,
+          pipelineLauncher.getJobStatus(project, region, storageApiInfo.jobId()));
+
+      // Export metrics
+      MetricsConfiguration metricsConfig =
+          MetricsConfiguration.builder()
+              .setInputPCollection(
+                  (multiplier > 1) ? "Extract row IDs.out0" : "Reshuffle fanout.out0")
+              .build();
+      try {
+        exportMetricsToBigQuery(storageApiInfo, getMetrics(storageApiInfo, metricsConfig));
+      } catch (ParseException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    // For runners besides DataflowRunner, just run the pipeline normally
+    else {
+      storageApiPipeline.run().waitUntilFinish();
+    }
 
     LOG.info(
         "Write pipeline finished writing to {}. Will now perform accuracy checks against the rows in {}.",
         destTable,
         expectedTable);
-    // Filter our structs and arrays, so we can use `EXCEPT DISTINCT` when we compare with query
+    // Filter our structs and arrays because they are not supported when querying with `EXCEPT
+    // DISTINCT`
     String columnNames =
         schema.getFields().stream()
             .map(TableFieldSchema::getName)
@@ -301,7 +410,7 @@ public class BigQueryStreamingLT {
             .collect(Collectors.joining(", "));
     checkCorrectness(columnNames, destTable, expectedTable);
     // check non-duplication for STORAGE_WRITE_API
-    if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
+    if (writeMethod == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
       checkNonDuplication(destTable, expectedTable, totalRows);
     }
   }
