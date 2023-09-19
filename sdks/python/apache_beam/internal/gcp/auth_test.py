@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import logging
 import unittest
 
 import mock
@@ -26,6 +27,25 @@ try:
   import google.auth as gauth
 except ImportError:
   gauth = None
+
+
+class MockLoggingHandler(logging.Handler):
+  """Mock logging handler to check for expected logs."""
+  def __init__(self, *args, **kwargs):
+    self.reset()
+    logging.Handler.__init__(self, *args, **kwargs)
+
+  def emit(self, record):
+    self.messages[record.levelname.lower()].append(record.getMessage())
+
+  def reset(self):
+    self.messages = {
+        'debug': [],
+        'info': [],
+        'warning': [],
+        'error': [],
+        'critical': [],
+    }
 
 
 @unittest.skipIf(gauth is None, 'Google Auth dependencies are not installed')
@@ -54,6 +74,41 @@ class MyTestCase(unittest.TestCase):
     returned_credentials = auth.get_service_credentials(pipeline_options)
 
     self.assertEqual('creds', returned_credentials._google_auth_credentials)
+
+  @mock.patch('google.auth.default')
+  def test_auth_with_retrys_always_fail(self, unused_mock_arg):
+    pipeline_options = PipelineOptions()
+    pipeline_options.view_as(
+        GoogleCloudOptions).impersonate_service_account = False
+
+    self.is_called = False
+
+    def side_effect(scopes=None):
+      raise IOError('Failed')
+
+    google_auth_mock = mock.MagicMock()
+    gauth.default = google_auth_mock
+    google_auth_mock.side_effect = side_effect
+
+    loggerHandler = MockLoggingHandler()
+
+    auth._LOGGER.addHandler(loggerHandler)
+
+    #Remove the retry decorator to speed up testing.
+    #Otherwise, test takes ~10 minutes
+    auth._Credentials._get_credentials_with_retrys = \
+      auth._Credentials._get_credentials_with_retrys.__closure__[2
+      ].cell_contents
+
+    returned_credentials = auth.get_service_credentials(pipeline_options)
+
+    self.assertEqual(None, returned_credentials)
+    self.assertEqual([
+        'Unable to find default credentials to use: Failed\n'
+        'Connecting anonymously. This is expected if no credentials are '
+        'needed to access GCP resources.'
+    ],
+                     loggerHandler.messages.get('warning'))
 
 
 if __name__ == '__main__':
