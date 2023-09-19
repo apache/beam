@@ -158,7 +158,6 @@ public class StreamingDataflowWorker {
 
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
-
   /**
    * Fix up MapTask representation because MultiOutputInfos are missing from system generated
    * ParDoInstructions.
