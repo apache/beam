@@ -1901,7 +1901,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
+  @frame_base.populate_defaults(
+      pd.Series, removed_args=['inplace'] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def set_axis(self, labels, **kwargs):
     # TODO: assigning the index is generally order-sensitive, but we could
@@ -2675,7 +2676,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.populate_defaults(
+      pd.DataFrame,
+      removed_args=['inplace'] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def set_axis(self, labels, axis, **kwargs):
     if axis in ('index', 0):
