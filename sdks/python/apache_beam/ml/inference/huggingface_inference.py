@@ -600,10 +600,12 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         Use the *model-id* string instead of an actual model here.
         Model-specific kwargs for `from_pretrained(..., **model_kwargs)` can be
         specified with `model_kwargs` using `load_pipeline_args`.
-        Example Usage:
+
+        Example Usage::
           model_handler = HuggingFacePipelineModelHandler(
             model_uri="bert-base-uncased", model="meta-llama/Llama-2-7b-hf",
             load_pipeline_args={'model_kwargs':{'quantization_map':config}})
+
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
