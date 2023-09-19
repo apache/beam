@@ -245,7 +245,7 @@ public class PCollectionConsumerRegistry {
         });
   }
 
-  private static <T> void LogAndRethrow(
+  private static <T> void logAndRethrow(
       Exception e,
       ExecutionState executionState,
       ExecutionStateTracker executionStateTracker,
@@ -347,7 +347,7 @@ public class PCollectionConsumerRegistry {
       try {
         this.delegate.accept(input);
       } catch (Exception e) {
-        LogAndRethrow(
+        logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
       } finally {
         executionState.deactivate();
@@ -437,7 +437,7 @@ public class PCollectionConsumerRegistry {
         try {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
-          LogAndRethrow(
+          logAndRethrow(
               e,
               state,
               consumerAndMetadata.getExecutionStateTracker(),
