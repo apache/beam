@@ -21,6 +21,9 @@ import (
 	"runtime/metrics"
 	"runtime/pprof"
 	"strings"
+	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
 type debugzData struct {
@@ -54,16 +57,24 @@ func dumpMetrics() debugzData {
 		name, value := sample.Name, sample.Value
 
 		m := goRuntimeMetric{
-			Name:        name,
+			Name:        strings.TrimSpace(name),
 			Description: descs[i].Description,
 		}
 
 		// Handle each sample.
 		switch value.Kind() {
 		case metrics.KindUint64:
-			m.Value = fmt.Sprintf("%d", value.Uint64())
+			if strings.HasSuffix(name, "bytes") {
+				m.Value = humanize.Bytes(value.Uint64())
+			} else {
+				m.Value = humanize.FormatInteger("", int(value.Uint64()))
+			}
 		case metrics.KindFloat64:
-			m.Value = fmt.Sprintf("%f", value.Float64())
+			if strings.HasSuffix(name, "seconds") {
+				m.Value = time.Duration(float64(time.Second) * value.Float64()).String()
+			} else {
+				m.Value = humanize.FormatFloat("", value.Float64())
+			}
 		case metrics.KindFloat64Histogram:
 			m.Value = fmt.Sprintf("%f", medianBucket(value.Float64Histogram()))
 			// The histogram may be quite large, so let's just pull out
@@ -88,16 +99,16 @@ func dumpMetrics() debugzData {
 
 	data.Metrics = append(data.Metrics, goRuntimeMetric{
 		Name:        "BUILD INFO",
-		Value:       "n/a",
-		Description: b.String(),
+		Value:       b.String(),
+		Description: "result from runtime/debug.ReadBuildInfo()",
 	})
 
 	b.Reset()
 	goroutineDump(&b)
 	data.Metrics = append(data.Metrics, goRuntimeMetric{
 		Name:        "GOROUTINES",
-		Value:       "n/a",
-		Description: b.String(),
+		Value:       b.String(),
+		Description: "consolidated active goroutines",
 	})
 
 	b.Reset()
