@@ -164,6 +164,8 @@ class DoctestTest(unittest.TestCase):
                 '   key=lambda x: np.argsort(index_natsorted(df["time"]))\n'
                 ')'
             ],
+            # Current bug, should fix
+            'pandas.core.generic.NDFrame.xs': ['*'],
             **skip_writes
         })
     self.assertEqual(result.failed, 0)

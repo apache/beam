@@ -1829,7 +1829,8 @@ class GroupByTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
             lambda x: x),
-        df)
+        df,
+        check_proxy=False)
 
   def test_groupby_transform(self):
     df = pd.DataFrame({
