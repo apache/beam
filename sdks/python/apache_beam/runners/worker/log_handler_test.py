@@ -32,8 +32,8 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import NameContext
 from apache_beam.runners.worker import bundle_processor
-from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import log_handler
+from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
