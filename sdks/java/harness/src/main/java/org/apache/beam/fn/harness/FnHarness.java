@@ -311,7 +311,6 @@ public class FnHarness {
               executionStateSampler,
               processWideCache,
               dataSampler);
-      logging.setProcessBundleHandler(processBundleHandler);
 
       BeamFnStatusClient beamFnStatusClient = null;
       if (statusApiServiceDescriptor != null) {

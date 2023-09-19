@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
@@ -120,6 +121,14 @@ public class ExecutionStateSampler {
      * <p>Must only be invoked by the bundle processing thread.
      */
     void deactivate();
+
+    /**
+     * Sets the error state to the currently executing state. Returns true if this was the first
+     * time the error was set. Returns false otherwise.
+     *
+     * <p>This can only be set once.
+     */
+    boolean error();
   }
 
   /** Stops the execution of the state sampler. */
@@ -250,6 +259,8 @@ public class ExecutionStateSampler {
     private @Nullable ExecutionStateImpl currentState;
     // Read by multiple threads, written by the bundle processing thread lazily.
     private final AtomicReference<@Nullable ExecutionStateImpl> currentStateLazy;
+    // If an exception occurs, this will be to state at the time of exception.
+    private boolean inErrorState = false;
     // Read and written by the ExecutionStateSampler thread
     private long transitionsAtLastSample;
 
@@ -465,6 +476,15 @@ public class ExecutionStateSampler {
         numTransitions += 1;
         numTransitionsLazy.lazySet(numTransitions);
       }
+
+      @Override
+      public boolean error() {
+        if (!inErrorState) {
+          inErrorState = true;
+          return true;
+        }
+        return false;
+      }
     }
 
     /**
@@ -473,6 +493,7 @@ public class ExecutionStateSampler {
      * <p>Only invoked by the bundle processing thread.
      */
     public void start(String processBundleId) {
+      BeamFnLoggingMDC.setStateTracker(this);
       this.processBundleId.lazySet(processBundleId);
       this.lastTransitionTime.lazySet(clock.getMillis());
       this.trackedThread.lazySet(Thread.currentThread());
@@ -514,6 +535,8 @@ public class ExecutionStateSampler {
       this.numTransitionsLazy.lazySet(0);
       this.lastTransitionTime.lazySet(0);
       this.metricsContainerRegistry.reset();
+      this.inErrorState = false;
+      BeamFnLoggingMDC.setStateTracker(null);
     }
   }
 
