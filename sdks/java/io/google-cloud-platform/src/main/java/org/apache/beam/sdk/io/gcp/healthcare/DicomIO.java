@@ -20,17 +20,20 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1.model.Operation;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.healthcare.DicomIO.Deidentify.Result;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.Preconditions;
@@ -43,6 +46,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
@@ -69,11 +74,6 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 public class DicomIO {
 
   static final String BASE_METRIC_PREFIX = "dicomio/";
-  private static final String LRO_COUNTER_KEY = "counter";
-  private static final String LRO_SUCCESS_KEY = "success";
-  private static final String LRO_FAILURE_KEY = "failure";
-  private static final Logger LOG = LoggerFactory.getLogger(DicomIO.class);
-
 
   public static Deidentify deidentify(
       String sourceDicomStore,
@@ -216,6 +216,7 @@ public class DicomIO {
     }
 
     @Override
+    @SuppressWarnings("SameNameButDifferent")
     public ReadStudyMetadata.Result expand(PCollection<String> input) {
       return new Result(
           input.apply(
@@ -237,68 +238,35 @@ public class DicomIO {
    * @param resourceSuccessCounter the success counter for individual resources in the operation.
    * @param resourceFailureCounter the failure counter for individual resources in the operation.
    */
-  private static void incrementLroCounters(
-      Operation operation,
-      Counter operationSuccessCounter,
-      Counter operationFailureCounter,
-      Counter resourceSuccessCounter,
-      Counter resourceFailureCounter) {
-    // Update operation counters.
-    com.google.api.services.healthcare.v1.model.Status error = operation.getError();
-    if (error == null) {
-      operationSuccessCounter.inc();
-      LOG.debug(String.format("Operation %s finished successfully.", operation.getName()));
-    } else {
-      operationFailureCounter.inc();
-      LOG.error(
-          String.format(
-              "Operation %s failed with error code: %d and message: %s.",
-              operation.getName(), error.getCode(), error.getMessage()));
-    }
-
-    // Update resource counters.
-    Map<String, Object> opMetadata = operation.getMetadata();
-    if (opMetadata.containsKey(LRO_COUNTER_KEY)) {
-      try {
-        Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_KEY);
-        if (counters.containsKey(LRO_SUCCESS_KEY)) {
-          resourceSuccessCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
-        }
-        if (counters.containsKey(LRO_FAILURE_KEY)) {
-          Long numFailures = Long.parseLong(counters.get(LRO_FAILURE_KEY));
-          resourceFailureCounter.inc(numFailures);
-          if (numFailures > 0) {
-            LOG.error("Operation " + operation.getName() + " had " + numFailures + " failures.");
-          }
-        }
-      } catch (Exception e) {
-        LOG.error("failed to increment LRO counters, error message: " + e.getMessage());
-      }
-    }
-  }
 
   /** Deidentify DICOM resources from a DICOM store to a destination DICOM store. */
-  public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
-
-    private final String sourceDicomStore;
-    private final String destinationDicomStore;
-    private final DeidentifyConfig deidConfig;
+    public static class Deidentify extends PTransform<PBegin, Result> {
+    private static final TupleTag<Operation> OUTPUT = new TupleTag<Operation>(){};
+    private static final TupleTag<HealthcareIOError<String>> FAILURE = new TupleTag<HealthcareIOError<String>>(){};
+    private final @NonNull String sourceDicomStore;
+    private final @NonNull String destinationDicomStore;
+    private final @NonNull DeidentifyConfig deidConfig;
 
     public Deidentify(
-        String sourceDicomStore,
-        String destinationDicomStore,
-        DeidentifyConfig deidConfig) {
+        @NonNull String sourceDicomStore,
+        @NonNull String destinationDicomStore,
+        @NonNull DeidentifyConfig deidConfig) {
       this.sourceDicomStore = sourceDicomStore;
       this.destinationDicomStore = destinationDicomStore;
       this.deidConfig = deidConfig;
     }
 
     @Override
-    public PCollection<String> expand(PBegin input) {
-      return input
-          .apply(
-              "ScheduleDeidentifyDicomStoreOperations",
-              ParDo.of(new DeidentifyFn(this)));
+    @SuppressWarnings("SameNameButDifferent")
+    public Result expand(PBegin input) {
+      PCollectionTuple pct = input
+        .apply("impulse", Impulse.create())
+        .apply(
+            DeidentifyFn.class.getSimpleName(),
+            ParDo.of(new DeidentifyFn(this)).withOutputTags(
+                OUTPUT, TupleTagList.of(FAILURE)
+            ));
+      return new Result(pct);
     }
 
     public static class LroCounters {
@@ -308,22 +276,44 @@ public class DicomIO {
       private static final Counter DEIDENTIFY_OPERATION_ERRORS =
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_failure_count");
-      private static final Counter RESOURCES_DEIDENTIFIED_SUCCESS =
-          Metrics.counter(
-              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_success_count");
-      private static final Counter RESOURCES_DEIDENTIFIED_ERRORS =
-          Metrics.counter(
-              DeidentifyFn.class, BASE_METRIC_PREFIX + "resources_deidentified_failure_count");
     }
     public static class Result implements POutput{
-      
+      private final Pipeline pipeline;
+      private final PCollection<Operation> output;
+      private final PCollection<HealthcareIOError<String>> error;
+      Result(PCollectionTuple pct){
+        this.pipeline = pct.getPipeline();
+        this.output = pct.get(OUTPUT);
+        this.error = pct.get(FAILURE);
+      }
+      public PCollection<Operation> getOperation(){
+        return output;
+      }
+      public PCollection<HealthcareIOError<String>> getError(){
+        return error;
+      }
+      @Override
+      public Pipeline getPipeline(){
+        return pipeline;
+      }
+      @Override
+      public Map<TupleTag<?>, PValue> expand(){
+        return ImmutableMap.of(
+            OUTPUT, output,
+            FAILURE, error
+        );
+      }
+      @Override
+      public void finishSpecifyingOutput(
+          String transformName, PInput input, PTransform<?, ?> transform
+      ){}
     }
     /** A function that schedules a deidentify operation and monitors the status. */
     // Corrections:
     // when instantiating DoFn
     // private static final TupleTag<String> SUCCESS = new TupleTag<String>(){};
     // try catch the IO exceptions
-    private static class DeidentifyFn extends DoFn<String, String> {
+    private static class DeidentifyFn extends DoFn<byte[], Operation> {
 
       private static final Gson GSON = new Gson();
 
@@ -340,22 +330,25 @@ public class DicomIO {
       }
 
       @ProcessElement
-      public void deidentify(@Element String sourceDicomStore, OutputReceiver<String> receiver) throws IOException, InterruptedException {
+      public void deidentify(MultiOutputReceiver receiver) {
         HttpHealthcareApiClient safeClient = checkStateNotNull(dicomStore);
-        Operation operation =
-            safeClient.deidentifyDicomStore(sourceDicomStore, spec.destinationDicomStore, spec.deidConfig);
-        operation = safeClient.pollOperation(operation, 15000L);
-        incrementLroCounters(
-            operation,
-            LroCounters.DEIDENTIFY_OPERATION_SUCCESS,
-            LroCounters.DEIDENTIFY_OPERATION_ERRORS,
-            LroCounters.RESOURCES_DEIDENTIFIED_SUCCESS,
-            LroCounters.RESOURCES_DEIDENTIFIED_ERRORS);
-        if (operation.getError() != null) {
-          throw new IOException(
-              String.format("DeidentifyDicomStore operation (%s) failed.", operation.getName()));
+        try {
+          Operation operation = safeClient.deidentifyDicomStore(spec.sourceDicomStore, spec.destinationDicomStore, spec.deidConfig);
+          if (operation==null){
+            throw new NullPointerException("Operation is null after De-identify Dicom Store operation.");
+          }
+          Operation safeOperation = checkStateNotNull(operation);
+          LroCounters.DEIDENTIFY_OPERATION_SUCCESS.inc();
+          receiver.get(OUTPUT).output(safeOperation);
+        } catch (NullPointerException | IOException e) {
+          LroCounters.DEIDENTIFY_OPERATION_ERRORS.inc();
+          JsonObject sourceObject = new JsonObject();
+          sourceObject.addProperty("source_dicom_store", spec.sourceDicomStore);
+          sourceObject.addProperty("destination_dicom_store", spec.destinationDicomStore);
+          sourceObject.addProperty("deid_config", GSON.toJson(spec.deidConfig));
+          String source = GSON.toJson(sourceObject);
+          receiver.get(FAILURE).output(HealthcareIOError.of(source, e));
         }
-        receiver.output(operation);
       }
     }
   }
