@@ -27,6 +27,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
+  import tensorflow as tf
   from apache_beam.examples.inference import vertex_ai_image_classification
   from apache_beam.examples.inference import vertex_ai_llm_text_classification
 except ImportError as e:
@@ -45,6 +46,10 @@ _SUBNETWORK = "https://www.googleapis.com/compute/v1/projects/apache-beam-testin
 
 
 class VertexAIInference(unittest.TestCase):
+  @unittest.skipIf(
+    tf is None, 'Missing dependencies. '
+    'Test depends on tensorflow')
+  @pytest.mark.uses_tf
   @pytest.mark.uses_vertex_ai
   @pytest.mark.it_postcommit
   def test_vertex_ai_run_flower_image_classification(self):
