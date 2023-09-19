@@ -84,9 +84,10 @@ import org.slf4j.LoggerFactory;
  * <p>The throughput, length of test (in minutes), and data shape can be changed via pipeline
  * options. See the cases in `getOptions()` for examples.
  *
- * <p>This also includes testing the sink's retry resilience by setting the
- * `crashStorageApiWriteEverySeconds` option. This intentionally fails the worker or work item
+ * <p>This also includes the option of testing the sink's retry resilience by setting
+ * `crashStorageApiWriteEverySeconds` in BigQueryOptions. This intentionally fails the worker or work item
  * periodically and expects the sink to recover appropriately.
+ * Note: This should not be used when publishing performance metrics.
  */
 public class BigQueryStreamingLT extends IOLoadTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStreamingLT.class);
@@ -124,13 +125,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       fileLoadsPipeline.getOptions().setTempLocation(tempLocation);
     }
 
-    // disable crashing if not specified
-    boolean crashSink =
-        Boolean.valueOf(
-            TestProperties.getProperty("crashSink", "false", TestProperties.Type.PROPERTY));
-    if (!crashSink) {
-      config = config.toBuilder().setCrashEverySeconds(-1).build();
-    }
     // Set expected table if the property is provided,
     @Nullable
     String expectedTable =
@@ -148,13 +142,13 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
   private static final Map<String, TestConfiguration> TEST_CONFIGS =
       ImmutableMap.of(
           "local", // 300K rows, >3 MB, 1K rows/s, >10KB/s
-              TestConfiguration.of(1, 5, 2, 1_000, 30, "DirectRunner", null),
+              TestConfiguration.of(5, 5, 2, 1_000, "DirectRunner", null),
           "small", // 600K rows, >30 MB, 1K rows/s, >50KB/s
-              TestConfiguration.of(10, 10, 5, 1_000, 30, "DataflowRunner", null),
-          "medium", // 36M rows, >36 GB, 10K rows/s, >10MB/s
-              TestConfiguration.of(60, 100, 10, 10_000, 300, "DataflowRunner", null),
-          "large", // 1.8B rows, >180 TB, 100K rows/s, >10GB/s
-              TestConfiguration.of(300, 1_000, 100, 100_000, 1_200, "DataflowRunner", null));
+              TestConfiguration.of(10, 10, 5, 1_000,"DataflowRunner", null),
+          "medium", // 6M rows, >1.2 GB, 5K rows/s, >1MB/s
+              TestConfiguration.of(20, 20, 10, 5_000, "DataflowRunner", null),
+          "large", // 18M rows, >18 GB, 10K rows/s, >10MB/s
+              TestConfiguration.of(30, 50, 20, 10_000, "DataflowRunner", null));
 
   /** Options for Bigquery IO Streaming load test. */
   @AutoValue
@@ -173,9 +167,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
      */
     abstract Integer getRowsPerSecond();
 
-    /** If set, the Storage API sink will periodically crash at this interval. */
-    abstract Integer getCrashEverySeconds();
-
     abstract String getRunner();
 
     /**
@@ -190,7 +181,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
         int byteSizePerField,
         int numFields,
         int rowsPerSecond,
-        int crashEverySeconds,
         String runner,
         @Nullable String expectedTable) {
       return new AutoValue_BigQueryStreamingLT_TestConfiguration.Builder()
@@ -198,7 +188,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
           .setByteSizePerField(byteSizePerField)
           .setNumFields(numFields)
           .setRowsPerSecond(rowsPerSecond)
-          .setCrashEverySeconds(crashEverySeconds)
           .setRunner(runner)
           .setExpectedTable(expectedTable)
           .build();
@@ -213,8 +202,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       abstract Builder setNumFields(int numFields);
 
       abstract Builder setRowsPerSecond(int rowsPerSecond);
-
-      abstract Builder setCrashEverySeconds(int crashEverySeconds);
 
       abstract Builder setRunner(String runner);
 
@@ -248,6 +235,10 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     // (applicable when a high row-per-second rate is set)
     long multiplier = rowsPerSecond / 1000;
     long totalRows = multiplier * millis / fireInterval;
+    // If we run with DataflowRunner and have not specified a positive crash duration for the sink,
+    // this signifies a performance test, and so we publish metrics to a BigQuery dataset
+    boolean publishMetrics = config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())
+        && TestPipeline.testingPipelineOptions().as(BigQueryOptions.class).getCrashStorageApiSinkEverySeconds() <= 0;
 
     String expectedTable = config.getExpectedTable();
     GenerateTableRow genRow =
@@ -264,7 +255,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
           totalRows,
           expectedTable);
 
-      fileLoadsPipeline.getOptions().setRunner(PipelineUtils.getRunnerClass(config.getRunner()));
       fileLoadsPipeline
           .apply(GenerateSequence.from(0).to(totalRows))
           .apply(
@@ -277,7 +267,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
                   .withSchema(schema));
 
       // If running on Dataflow, launch pipeline via launcher utils
-      if (config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())) {
+      if (publishMetrics) {
         PipelineLauncher.LaunchConfig options =
             PipelineLauncher.LaunchConfig.builder("test-" + fileLoadsDescription)
                 .setSdk(PipelineLauncher.Sdk.JAVA)
@@ -305,12 +295,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
             withScaleSymbol(totalRows));
     String destTable =
         String.format("%s.%s.%s", project, BIG_QUERY_DATASET_ID, storageApiDescription);
-    if (config.getCrashEverySeconds() > 0) {
-      storageApiPipeline
-          .getOptions()
-          .as(BigQueryOptions.class)
-          .setCrashStorageApiWriteEverySeconds(config.getCrashEverySeconds());
-    }
     LOG.info(
         "Preparing a source generating at a rate of {} rows per second for a period of {} minutes."
             + " This results in a total of {} rows written to {}.",
@@ -349,8 +333,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withSchema(schema));
 
-    // If running on Dataflow, launch pipeline via launcher utils and export metrics
-    if (config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())) {
+    // If we're publishing metrics, launch pipeline via Dataflow launcher utils and export metrics
+    if (publishMetrics) {
       // Set up dataflow job
       PipelineLauncher.LaunchConfig storageApiOptions =
           PipelineLauncher.LaunchConfig.builder("test-" + storageApiDescription)
@@ -392,7 +376,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
         throw new RuntimeException(e);
       }
     }
-    // For runners besides DataflowRunner, just run the pipeline normally
+    // If we're not publishing metrics, just run the pipeline normally
     else {
       storageApiPipeline.run().waitUntilFinish();
     }

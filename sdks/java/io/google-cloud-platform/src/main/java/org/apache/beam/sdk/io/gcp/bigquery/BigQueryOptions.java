@@ -169,9 +169,9 @@ public interface BigQueryOptions
   @Description(
       "Intended for testing purposes only. If set, the Storage API sink will periodically crash at this interval.")
   @Default.Integer(-1)
-  Integer getCrashStorageApiWriteEverySeconds();
+  Integer getCrashStorageApiSinkEverySeconds();
 
-  void setCrashStorageApiWriteEverySeconds(Integer value);
+  void setCrashStorageApiSinkEverySeconds(Integer value);
 
   @Description(
       "If set, BigQueryIO.Read will use the StreamBundle based"

@@ -240,7 +240,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
-    final long crashIntervalSeconds = bigQueryOptions.getCrashStorageApiWriteEverySeconds();
+    final long crashIntervalSeconds = bigQueryOptions.getCrashStorageApiSinkEverySeconds();
 
     String operationName = input.getName() + "/" + getName();
     TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);

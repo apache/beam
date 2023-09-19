@@ -76,17 +76,10 @@ dependencies {
     testImplementation library.java.mockito_inline
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":runners:direct-java", configuration: "shadowTest")
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_simple
 }
 
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
-def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-
 tasks.register("GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
 tasks.register("BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigQueryStorageApiStreamingPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest,
-        project, 'google-cloud-platform', 'BigQueryStreamingLT',
-        ['configuration':'small', 'crashSink': 'true', 'project':'google.com:clouddfe', 'artifactBucket':'ahmedabualsaud-wordcount',
-        "beamTestPipelineOptions": JsonOutput.toJson(["--dataflowWorkerJar=${dataflowLegacyWorkerJar}"]),
-        ])
+tasks.register("BigQueryStorageApiStreamingPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryStreamingLT', ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
