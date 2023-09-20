@@ -40,8 +40,7 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -104,8 +103,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
    * garbage collected. java.util.logging only has weak references to the loggers
    * so if they are garbage collected, our hierarchical configuration will be lost. */
   private final Collection<Logger> configuredLoggers = new ArrayList<>();
-
-  private @Nullable ProcessBundleHandler processBundleHandler;
 
   private final BlockingQueue<LogEntry> bufferedLogEntries =
       new ArrayBlockingQueue<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
@@ -347,10 +344,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
-  public void setProcessBundleHandler(ProcessBundleHandler processBundleHandler) {
-    this.processBundleHandler = processBundleHandler;
-  }
-
   // Reset the logging configuration to what it is at startup.
   @RequiresNonNull("configuredLoggers")
   @RequiresNonNull("logRecordHandler")
@@ -440,14 +433,12 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (loggerName != null) {
         builder.setLogLocation(loggerName);
       }
-      if (instructionId != null && processBundleHandler != null) {
-        BundleProcessor bundleProcessor =
-            processBundleHandler.getBundleProcessorCache().find(instructionId);
-        if (bundleProcessor != null) {
-          String transformId = bundleProcessor.getStateTracker().getCurrentThreadsPTransformId();
-          if (transformId != null) {
-            builder.setTransformId(transformId);
-          }
+
+      ExecutionStateSampler.ExecutionStateTracker stateTracker = BeamFnLoggingMDC.getStateTracker();
+      if (stateTracker != null) {
+        String transformId = stateTracker.getCurrentThreadsPTransformId();
+        if (transformId != null) {
+          builder.setTransformId(transformId);
         }
       }
 

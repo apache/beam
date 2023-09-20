@@ -90,7 +90,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
-  private static final Map<String, Configuration> TEST_CONFIGS_PRESET;
+  private static final Map<String, FileBasedIOLT.Configuration> TEST_CONFIGS_PRESET;
 
   static {
     try {
@@ -160,8 +160,6 @@ public class FileBasedIOLT extends IOLoadTestBase {
 
   @Test
   public void testTextIOWriteThenRead() throws IOException {
-    final String readPCollection = "Counting element.out0";
-    final String writePCollection = "Map records.out0";
 
     TextIO.TypedWrite<String, Object> write =
         TextIO.write()
@@ -182,7 +180,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig writeOptions =
-        PipelineLauncher.LaunchConfig.builder("test-textio-write")
+        PipelineLauncher.LaunchConfig.builder("write-textio")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
@@ -196,7 +194,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
     assertThatResult(writeResult).isLaunchFinished();
 
     PipelineLauncher.LaunchConfig readOptions =
-        PipelineLauncher.LaunchConfig.builder("test-textio-read")
+        PipelineLauncher.LaunchConfig.builder("read-textio")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
@@ -222,8 +220,10 @@ public class FileBasedIOLT extends IOLoadTestBase {
     // export metrics
     MetricsConfiguration metricsConfig =
         MetricsConfiguration.builder()
-            .setInputPCollection(writePCollection)
-            .setOutputPCollection(readPCollection)
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapKVToString).out0")
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
     try {
       exportMetricsToBigQuery(writeInfo, getMetrics(writeInfo, metricsConfig));

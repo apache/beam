@@ -30,6 +30,8 @@ import (
 )
 
 var (
+	jobPort            = flag.Int("job_port", 8073, "specify the job management service port")
+	webPort            = flag.Int("web_port", 8074, "specify the web ui port")
 	jobManagerEndpoint = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
 	serveHTTP          = flag.Bool("serve_http", true, "enable or disable the web ui")
 )
@@ -37,12 +39,12 @@ var (
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	cli, err := makeJobClient(ctx, *jobManagerEndpoint)
+	cli, err := makeJobClient(ctx, prism.Options{Port: *jobPort}, *jobManagerEndpoint)
 	if err != nil {
 		log.Fatalf("error creating job server: %v", err)
 	}
 	if *serveHTTP {
-		if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: 8074}); err != nil {
+		if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: *webPort}); err != nil {
 			log.Fatalf("error creating web server: %v", err)
 		}
 	} else {
@@ -51,7 +53,7 @@ func main() {
 	}
 }
 
-func makeJobClient(ctx context.Context, endpoint string) (jobpb.JobServiceClient, error) {
+func makeJobClient(ctx context.Context, opts prism.Options, endpoint string) (jobpb.JobServiceClient, error) {
 	if endpoint != "" {
 		clientConn, err := grpc.DialContext(ctx, endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err != nil {
@@ -59,7 +61,7 @@ func makeJobClient(ctx context.Context, endpoint string) (jobpb.JobServiceClient
 		}
 		return jobpb.NewJobServiceClient(clientConn), nil
 	}
-	cli, err := prism.CreateJobServer(ctx, prism.Options{Port: 8073})
+	cli, err := prism.CreateJobServer(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating local job server: %v", err)
 	}
