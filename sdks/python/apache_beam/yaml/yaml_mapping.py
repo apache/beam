@@ -294,8 +294,7 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
       if name in input_schema and name not in drop:
         raise ValueError(
             f'Redefinition of field "{name}". '
-            'Cannot append a field that already exists in original input.'
-        )
+            'Cannot append a field that already exists in original input.')
 
   if language == 'generic':
     for expr in fields.values():
@@ -335,8 +334,6 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
 class SqlMappingProvider(yaml_provider.Provider):
   def __init__(self, sql_provider=None):
     if sql_provider is None:
-      print('yaml_provider', yaml_provider)
-      print('yaml_provider.beam_jar', yaml_provider.beam_jar)
       sql_provider = yaml_provider.beam_jar(
           urns={'Sql': 'beam:external:java:sql:v1'},
           gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
