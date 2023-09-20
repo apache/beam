@@ -187,6 +187,9 @@ class _AbstractFrameTest(unittest.TestCase):
         if expected.index.is_unique:
           expected = expected.sort_index()
           actual = actual.sort_index()
+        elif isinstance(expected, pd.Series):
+          expected = expected.sort_values()
+          actual = actual.sort_values()
         else:
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
