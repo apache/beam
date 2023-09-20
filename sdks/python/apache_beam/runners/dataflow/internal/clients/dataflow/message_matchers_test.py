@@ -29,7 +29,7 @@ from apache_beam.runners.dataflow.internal.clients.dataflow import message_match
 try:
   from apitools.base.py import base_api
 except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
+  base_api = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 

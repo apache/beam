@@ -110,7 +110,6 @@ platform_identifiers_map.each { platform, idsuffix ->
 }
 
 
-
 /*************************************************************************************************/
 // Non-testing builds and analysis tasks
 

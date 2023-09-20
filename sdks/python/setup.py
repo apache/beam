@@ -194,7 +194,6 @@ if __name__ == '__main__':
   # In order to find the tree of proto packages, the directory
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
-  # while True: print(os.listdir())
   generate_protos_first()
 
   # generate cythonize extensions only if we are building a wheel or

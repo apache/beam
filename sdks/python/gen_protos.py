@@ -18,7 +18,7 @@
 """
 Generates Python proto modules and grpc stubs for Beam protos.
 """
-
+import argparse
 import contextlib
 import glob
 import inspect
@@ -536,14 +536,7 @@ def generate_proto_files(force=False):
 
 
 if __name__ == '__main__':
-  import argparse
   parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--no-force',
-      action='store_true',
-      help="Don't force regenerate all proto files.")
+  parser.add_argument('--no-force', dest='force', action='store_false') 
   args = parser.parse_args()
-
-  force = not args.no_force
-
-  generate_proto_files(force=force)
+  generate_proto_files(force=args.force)

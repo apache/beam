@@ -45,7 +45,7 @@ RUN  \
        && \
     rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade setuptools && pip install --upgrade wheel && \
+    pip install --upgrade setuptools wheel && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.

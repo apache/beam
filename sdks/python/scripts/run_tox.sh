@@ -25,11 +25,11 @@
 ###########################################################################
 # Usage check.
 if [[ $# < 1 ]]; then
- printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location> [<posargs> ...]]"
- printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
- printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
- printf "\n\tposarg: [optional] Any additional arguments will be passed as posargs to tox.\n"
- exit 1
+  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location> [<posargs> ...]]"
+  printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
+  printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
+  printf "\n\tposarg: [optional] Any additional arguments will be passed as posargs to tox.\n"
+  exit 1
 fi
 
 TOX_ENVIRONMENT="$1"
@@ -60,13 +60,11 @@ if [[ -f "$1" ]]; then  # Check if the argument corresponds to a file
 fi
 
 # If SDK_LOCATION is identified and there are still arguments left, those are posargs.
-# If SDK_LOCATION is not identified, all remaining arguments are posargs.
-
 if [[ ! -z "$SDK_LOCATION" ]]; then
   if [[ $# -gt 0 ]]; then  # There are posargs
-    tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+    tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
   else
-    tox -rvv -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
+    tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
   fi
 else  # No SDK_LOCATION; all arguments are posargs
   tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$@"
@@ -79,6 +77,3 @@ if [[ $exit_code == 245 ]]; then
   exit_code=$?
 fi
 exit $exit_code
-This code first captures TOX_ENVIRONMENT and then shifts the arguments. It then checks the number of remaining arguments to decide how to proceed. If there are no remaining arguments, it assumes only the environment was provided. If there's one remaining argument, it assumes that's the SDK location. If there are two or more arguments, it takes the next one as the SDK location and passes all the remaining ones as positional arguments to the tox command.
-
-
