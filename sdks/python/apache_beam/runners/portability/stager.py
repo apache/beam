@@ -55,6 +55,7 @@ import shutil
 import sys
 import tempfile
 from importlib.metadata import distribution
+from pip._internal.operations import freeze
 from typing import Callable
 from typing import List
 from typing import Optional
@@ -364,6 +365,17 @@ class Stager(object):
         resources.append(
             Stager._create_file_stage_to_artifact(
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
+
+    # stage the submission environment dependencies
+    local_dependency_file_path = os.path.join(
+        temp_dir, names.SUBMISSION_ENV_DEPENDENCIES_FILENAME)
+    dependencies = freeze.freeze()
+    with open(local_dependency_file_path, 'w') as f:
+      f.write('\n'.join(dependencies))
+    resources.append(
+        Stager._create_file_stage_to_artifact(
+            local_dependency_file_path,
+            names.SUBMISSION_ENV_DEPENDENCIES_FILENAME))
 
     return resources
 
