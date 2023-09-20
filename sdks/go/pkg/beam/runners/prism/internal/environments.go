@@ -99,6 +99,7 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	pool.StopWorker(context.Background(), &fnpb.StopWorkerRequest{
 		WorkerId: wk.ID,
 	})
+	wk.Stop()
 }
 
 func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.DockerPayload, wk *worker.W, artifactEndpoint string) error {
@@ -170,6 +171,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	// Start goroutine to wait on container state.
 	go func() {
 		defer cli.Close()
+		defer wk.Stop()
 
 		statusCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 		select {
