@@ -288,6 +288,15 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
             residualElementsList == null
                 ? new ResidualElements(Collections.emptyList())
                 : new ResidualElements(residualElementsList);
+
+        if (this.residualSource != null) {
+          // close current residualSource to avoid leak of reader.close() in ResidualSource
+          try {
+            this.residualSource.close();
+          } catch (IOException e) {
+            LOG.warn("Ignore error at closing ResidualSource", e);
+          }
+        }
         this.residualSource =
             residualSource == null ? null : new ResidualSource(residualSource, options);
       }
@@ -505,6 +514,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       }
 
       Checkpoint<T> getCheckpointMark() {
+        checkArgument(!closed, "getCheckpointMark() call on closed %s", getClass().getName());
         if (reader == null) {
           // Reader hasn't started, checkpoint the residualSource.
           return new Checkpoint<>(null /* residualElements */, residualSource);

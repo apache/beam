@@ -776,7 +776,7 @@ public class WorkerCustomSources {
 
   private static class UnboundedReaderIterator<T>
       extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
-    private final UnboundedSource.UnboundedReader<T> reader;
+    private final UnboundedSource.UnboundedReader<T> reader; // not owned
     private final StreamingModeExecutionContext context;
     private final boolean started;
     private final Instant endTime;
