@@ -149,10 +149,11 @@ def _as_callable(original_fields, expr, transform_name, language):
 
   _check_mapping_arguments(transform_name, **expr)
 
-  # TODO(yaml) - Disable until JsObjectWrapper can be parsed into Beam Row
-  # if language == "javascript":
-  #   return _expand_javascript_mapping_func(original_fields, **expr)
-  if language == "python":
+  # TODO(yaml) - Mark as experimental until JsObjectWrapper can be parsed
+  #  into Beam Row
+  if language == "javascript-experimental":
+    return _expand_javascript_mapping_func(original_fields, **expr)
+  elif language == "python":
     return _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
@@ -343,7 +344,7 @@ def MapToFields(
 
     return result
 
-  elif language == 'python':
+  elif language == 'python' or language == 'javascript-experimental':
     return pcoll | yaml_create_transform({
         'type': 'PyTransform',
         'config': {
