@@ -907,7 +907,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'sort_index',
-            lambda df: df.sort_index(axis, **kwargs),
+            lambda df: df.sort_index(axis=axis, **kwargs),
             [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary(),
@@ -1471,8 +1471,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     index = pd.Index([], dtype=index_dtype)
     proxy = self._expr.proxy().copy()
     proxy.index = index
-    proxy = proxy.append(
-        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype)))
+    proxy = pd.concat([
+        proxy,
+        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype))
+    ])
 
     idx_func = expressions.ComputedExpression(
         'idx_func',
@@ -1899,7 +1901,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
+  @frame_base.populate_defaults(
+      pd.Series, removed_args=['inplace'] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def set_axis(self, labels, **kwargs):
     # TODO: assigning the index is generally order-sensitive, but we could
@@ -2345,8 +2348,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     result = column.groupby(column, dropna=dropna).size()
 
-    # groupby.size() names the index, which we don't need
-    result.index.name = None
+    # Pandas 2 introduces new naming for the results.
+    if PD_VERSION >= (2, 0):
+      result.index.name = getattr(self, "name", None)
+      result.name = "proportion" if normalize else "count"
+    else:
+      # groupby.size() names the index, which we don't need
+      result.index.name = None
 
     if normalize:
       return result / column.length()
@@ -2673,7 +2681,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.populate_defaults(
+      pd.DataFrame,
+      removed_args=['inplace'] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def set_axis(self, labels, axis, **kwargs):
     if axis in ('index', 0):
@@ -2687,7 +2697,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'set_axis',
-              lambda df: df.set_axis(labels, axis, **kwargs),
+              lambda df: df.set_axis(labels, axis=axis, **kwargs),
               [self._expr],
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))
@@ -4002,11 +4012,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       columns = subset or list(self.columns)
 
       if dropna:
-        dropped = self.dropna()
+        # Must include subset here because otherwise we spuriously drop NAs due
+        # to columns outside our subset.
+        dropped = self.dropna(subset=subset)
       else:
         dropped = self
 
       result = dropped.groupby(columns, dropna=dropna).size()
+
+      # Pandas 2 introduces new naming for the results.
+      if PD_VERSION >= (2,0):
+        result.name = "proportion" if normalize else "count"
 
       if normalize:
         return result/dropped.length()

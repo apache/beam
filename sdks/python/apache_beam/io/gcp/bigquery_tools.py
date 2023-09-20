@@ -732,11 +732,13 @@ class BigQueryWrapper(object):
     except (ClientError, GoogleAPICallError) as e:
       # e.code contains the numeric http status code.
       service_call_metric.call(e.code)
-      # Re-reise the exception so that we re-try appropriately.
-      raise
+      # Package exception with required fields
+      error = {'message': e.message, 'reason': e.response.reason}
+      # Add all rows to the errors list along with the error
+      errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
     except HttpError as e:
       service_call_metric.call(e)
-      # Re-reise the exception so that we re-try appropriately.
+      # Re-raise the exception so that we re-try appropriately.
       raise
     finally:
       self._latency_histogram_metric.update(
@@ -1491,7 +1493,19 @@ class RetryStrategy(object):
   RETRY_NEVER = 'RETRY_NEVER'
   RETRY_ON_TRANSIENT_ERROR = 'RETRY_ON_TRANSIENT_ERROR'
 
-  _NON_TRANSIENT_ERRORS = {'invalid', 'invalidQuery', 'notImplemented'}
+  # Values below may be found in reasons provided either in an
+  # error returned by a client method or by an http response as
+  # defined in google.api_core.exceptions
+  _NON_TRANSIENT_ERRORS = {
+      'invalid',
+      'invalidQuery',
+      'notImplemented',
+      'Bad Request',
+      'Unauthorized',
+      'Forbidden',
+      'Not Found',
+      'Not Implemented',
+  }
 
   @staticmethod
   def should_retry(strategy, error_message):

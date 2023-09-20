@@ -56,13 +56,13 @@ jobs:
 
       # Check out beam repository
       - name: Fetch beam Sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: main
 
       # Check out intellij community repository for tests
       - name: Fetch intellij-community Sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: JetBrains/intellij-community
           path: intellij
