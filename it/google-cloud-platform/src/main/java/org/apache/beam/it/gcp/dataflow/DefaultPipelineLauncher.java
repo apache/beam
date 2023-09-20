@@ -416,8 +416,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
     // add pipeline options from beamTestPipelineOptions system property to preserve the
     // pipeline options already set in TestPipeline.
-    @Nullable String beamTestPipelineOptions =
-        System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+    @Nullable
+    String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
     if (!Strings.isNullOrEmpty(beamTestPipelineOptions)) {
       try {
         additionalOptions.addAll(MAPPER.readValue(beamTestPipelineOptions, List.class));

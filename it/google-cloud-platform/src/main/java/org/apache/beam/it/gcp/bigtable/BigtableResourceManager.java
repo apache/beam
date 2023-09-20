@@ -116,6 +116,7 @@ public class BigtableResourceManager implements ResourceManager {
     this.createdTables = new ArrayList<>();
     this.createdAppProfiles = new ArrayList<>();
     this.cdcEnabledTables = new HashSet<>();
+    this.clusters = new ArrayList<>();
 
     // Check if RM was configured to use static Bigtable instance.
     if (builder.useStaticInstance) {

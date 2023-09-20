@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.it.splunk.matchers;
 
 import static org.apache.beam.it.splunk.SplunkResourceManagerUtils.splunkEventToMap;
