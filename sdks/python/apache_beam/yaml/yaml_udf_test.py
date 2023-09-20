@@ -57,7 +57,7 @@ class YamlUDFMappingTest(unittest.TestCase):
           '''
       type: MapToFields
       config:
-        language: javascript
+        language: javascript-experimental
         fields:
           label:
             callable: "function label_map(x) {return x.label + 'x'}"
@@ -104,8 +104,13 @@ class YamlUDFMappingTest(unittest.TestCase):
           '''
       type: Filter
       config:
+<<<<<<< HEAD
         language: javascript
         keep:
+=======
+        language: javascript-experimental
+        keep: 
+>>>>>>> 0ced28e35e (Mark JS UDFs as experimental)
           callable: "function filter(x) {return x.rank > 0}"
       ''')
       assert_that(
@@ -143,8 +148,13 @@ class YamlUDFMappingTest(unittest.TestCase):
           '''
       type: Filter
       config:
+<<<<<<< HEAD
         language: javascript
         keep:
+=======
+        language: javascript-experimental
+        keep: 
+>>>>>>> 0ced28e35e (Mark JS UDFs as experimental)
           expression: "label.toUpperCase().indexOf('3') == -1 && conductor"
       ''')
       assert_that(
@@ -193,8 +203,13 @@ class YamlUDFMappingTest(unittest.TestCase):
           f'''
         type: Filter
         config:
+<<<<<<< HEAD
           language: javascript
           keep:
+=======
+          language: javascript-experimental
+          keep: 
+>>>>>>> 0ced28e35e (Mark JS UDFs as experimental)
             path: {path}
             name: "f"
         ''')
