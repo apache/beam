@@ -80,10 +80,15 @@ jobs:
       with:
         ref: v2.50.0 #TODO(https://github.com/apache/beam/issues/28330) automate updating this
         repository: apache/beam
-    - name: Setup environment
-      uses: ./.github/actions/setup-environment-action
+    - name: Install Java
+      uses: actions/setup-java@v3.8.0
       with:
-        java-version: 8
+        distribution: 'zulu'
+        java-version: '8'
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        cache-read-only: false
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0
       with:
