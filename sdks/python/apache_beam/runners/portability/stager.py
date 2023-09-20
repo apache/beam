@@ -55,7 +55,6 @@ import shutil
 import sys
 import tempfile
 from importlib.metadata import distribution
-from pip._internal.operations import freeze
 from typing import Callable
 from typing import List
 from typing import Optional
@@ -63,6 +62,7 @@ from typing import Tuple
 from urllib.parse import urlparse
 
 from packaging import version
+from pip._internal.operations import freeze
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -85,6 +85,8 @@ from apache_beam.utils import retry
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
+# Filename that stores the submission environment dependencies.
+SUBMISSION_ENV_DEPENDENCIES_FILENAME = 'submission_environment_dependencies.txt'
 # One of the choices for user to use for requirements cache during staging
 SKIP_REQUIREMENTS_CACHE = 'skip'
 
@@ -368,14 +370,13 @@ class Stager(object):
 
     # stage the submission environment dependencies
     local_dependency_file_path = os.path.join(
-        temp_dir, names.SUBMISSION_ENV_DEPENDENCIES_FILENAME)
+        temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILENAME)
     dependencies = freeze.freeze()
     with open(local_dependency_file_path, 'w') as f:
       f.write('\n'.join(dependencies))
     resources.append(
         Stager._create_file_stage_to_artifact(
-            local_dependency_file_path,
-            names.SUBMISSION_ENV_DEPENDENCIES_FILENAME))
+            local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILENAME))
 
     return resources
 

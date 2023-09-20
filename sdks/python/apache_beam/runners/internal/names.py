@@ -33,6 +33,3 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 
 # SDK identifiers for different distributions
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
-
-# Filename that stores the submission environment dependencies.
-SUBMISSION_ENV_DEPENDENCIES_FILENAME = 'submission_environment_dependencies.txt'
