@@ -837,6 +837,8 @@ class DoctestTest(unittest.TestCase):
                 'df.groupby("key").agg(result_a=agg_a, result_1=agg_1)'
             ],
             # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
+            # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
         },
     )
