@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
@@ -67,7 +68,8 @@ public class TransformUpgrader implements AutoCloseable {
     return new TransformUpgrader(DEFAULT);
   }
 
-  public static TransformUpgrader of(ExpansionServiceClientFactory clientFactory) {
+  @VisibleForTesting
+  static TransformUpgrader of(ExpansionServiceClientFactory clientFactory) {
     return new TransformUpgrader(clientFactory);
   }
 
