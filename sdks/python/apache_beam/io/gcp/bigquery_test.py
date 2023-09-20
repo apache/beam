@@ -48,6 +48,7 @@ try:
   from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
   from apache_beam.io.gcp import bigquery as beam_bq
   from apache_beam.io.gcp import bigquery_tools
+  from apache_beam.io.gcp import test_utils
   from apache_beam.io.gcp.bigquery import ReadFromBigQuery
   from apache_beam.io.gcp.bigquery import TableRowJsonCoder
   from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -87,55 +88,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-
-_DESTINATION_ELEMENT_PAIRS = [
-    # DESTINATION 1
-    ('project1:dataset1.table1', {
-        'name': 'beam', 'language': 'py'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'beam', 'language': 'java'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'beam', 'language': 'go'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'flink', 'language': 'java'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'flink', 'language': 'scala'
-    }),
-
-    # DESTINATION 3
-    ('project1:dataset1.table3', {
-        'name': 'spark', 'language': 'scala'
-    }),
-
-    # DESTINATION 1
-    ('project1:dataset1.table1', {
-        'name': 'spark', 'language': 'py'
-    }),
-    ('project1:dataset1.table1', {
-        'name': 'spark', 'language': 'scala'
-    }),
-
-    # DESTINATION 2
-    ('project1:dataset1.table2', {
-        'name': 'beam', 'foundation': 'apache'
-    }),
-    ('project1:dataset1.table2', {
-        'name': 'flink', 'foundation': 'apache'
-    }),
-    ('project1:dataset1.table2', {
-        'name': 'spark', 'foundation': 'apache'
-    }),
-]
-
-# test modules are not importable by each other. So we need to define the
-# constants here instead of importing the same constants from
-# different test files.
-# https://docs.pytest.org/en/7.1.x/explanation/pythonpath.html
-_ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
 
 def _load_or_default(filename):
@@ -1719,12 +1671,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_1,
-            data=[(d['name'], d['language']) for d in _ELEMENTS
+            data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_2,
-            data=[(d['name'], d['language']) for d in _ELEMENTS
+            data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
                   if 'language' in d])
     ]
 
@@ -1732,7 +1684,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
+      input = p | beam.Create(
+          [row for row in test_utils._ELEMENTS if 'language' in row])
 
       _ = (
           input
@@ -1786,12 +1739,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           BigqueryFullResultStreamingMatcher(
               project=self.project,
               query="SELECT name, language FROM %s" % output_table_1,
-              data=[(d['name'], d['language']) for d in _ELEMENTS
+              data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
                     if 'language' in d]),
           BigqueryFullResultStreamingMatcher(
               project=self.project,
               query="SELECT name, foundation FROM %s" % output_table_2,
-              data=[(d['name'], d['foundation']) for d in _ELEMENTS
+              data=[(d['name'], d['foundation']) for d in test_utils._ELEMENTS
                     if 'foundation' in d])
       ]
     else:
@@ -1799,12 +1752,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           BigqueryFullResultMatcher(
               project=self.project,
               query="SELECT name, language FROM %s" % output_table_1,
-              data=[(d['name'], d['language']) for d in _ELEMENTS
+              data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
                     if 'language' in d]),
           BigqueryFullResultMatcher(
               project=self.project,
               query="SELECT name, foundation FROM %s" % output_table_2,
-              data=[(d['name'], d['foundation']) for d in _ELEMENTS
+              data=[(d['name'], d['foundation']) for d in test_utils._ELEMENTS
                     if 'foundation' in d])
       ]
 
@@ -1813,14 +1766,16 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
     with beam.Pipeline(argv=args) as p:
       if streaming:
-        _SIZE = len(_ELEMENTS)
+        _SIZE = len(test_utils._ELEMENTS)
         test_stream = (
-            TestStream().advance_watermark_to(0).add_elements(
-                _ELEMENTS[:_SIZE // 2]).advance_watermark_to(100).add_elements(
-                    _ELEMENTS[_SIZE // 2:]).advance_watermark_to_infinity())
+            TestStream().advance_watermark_to(0).addtest_constants._ELEMENTS(
+                test_utils._ELEMENTS[:_SIZE // 2]).
+            advance_watermark_to(100).addtest_constants._ELEMENTS(
+                test_utils._ELEMENTS[_SIZE //
+                                     2:]).advance_watermark_to_infinity())
         input = p | test_stream
       else:
-        input = p | beam.Create(_ELEMENTS)
+        input = p | beam.Create(test_utils._ELEMENTS)
 
       schema_table_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),
