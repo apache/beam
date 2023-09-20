@@ -292,12 +292,12 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
   if append:
     for name in fields:
       if name in input_schema and name not in drop:
-        raise ValueError(f'Redefinition of field "{name}"')
+        raise ValueError(f'Redefinition of field "{name}". Cannot append a field that already exists in original input.')
 
   if language == 'generic':
     for expr in fields.values():
       if not isinstance(expr, str):
-        raise ValueError("Missing language specification.")
+        raise ValueError("Missing language specification. Must specify a language when using a map with custom logic.")
     missing = set(fields.values()) - set(input_schema.keys())
     if missing:
       raise ValueError(
