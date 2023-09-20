@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.Row;
  */
 public interface BeamSqlSeekableTable extends Serializable {
   /**
-   * prepare the instance
+   * prepare the instance.
    *
    * @param joinSubsetType joining subset schema
    */
