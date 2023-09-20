@@ -75,7 +75,8 @@ class MyTestCase(unittest.TestCase):
 
     self.assertEqual('creds', returned_credentials._google_auth_credentials)
 
-  @mock.patch('google.auth.default')
+  @mock.patch(
+      'apache_beam.internal.gcp.auth._Credentials._get_credentials_with_retrys')
   def test_auth_with_retrys_always_fail(self, unused_mock_arg):
     pipeline_options = PipelineOptions()
     pipeline_options.view_as(
@@ -86,10 +87,12 @@ class MyTestCase(unittest.TestCase):
     auth._LOGGER.addHandler(loggerHandler)
 
     #Remove call to retrying method, as otherwise test takes ~10 minutes to run
-    def raise_():
+    def raise_(scopes=None):
       raise IOError('Failed')
 
-    auth._Credentials._get_credentials_with_retrys = lambda options: raise_()
+    retry_auth_mock = mock.MagicMock()
+    auth._Credentials._get_credentials_with_retrys = retry_auth_mock
+    retry_auth_mock.side_effect = raise_
 
     returned_credentials = auth.get_service_credentials(pipeline_options)
 
