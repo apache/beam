@@ -34,7 +34,7 @@ public class ElasticsearchUtilsTest {
   @Test
   public void testGenerateIndexNameShouldReplaceForwardSlash() {
     String testBaseString = "Test/DB/Name";
-    String actual = generateIndexName(testBaseString);
+    String actual = ElasticsearchUtils.generateIndexName(testBaseString);
     assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 

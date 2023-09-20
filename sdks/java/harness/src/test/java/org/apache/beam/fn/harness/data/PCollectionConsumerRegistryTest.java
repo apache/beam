@@ -33,17 +33,26 @@ import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -56,6 +65,7 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -65,6 +75,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
@@ -565,6 +581,124 @@ public class PCollectionConsumerRegistryTest {
     }
 
     assertTrue(elementList.getElementsList().containsAll(expectedSamples));
+  }
+
+  @Test
+  public void logsExceptionWithTransformId() throws Exception {
+    final String pTransformId = "pTransformId";
+    final String message = "testException";
+    final String instructionId = "instruction";
+    final Exception thrownException = new Exception(message);
+
+    // The following is a bunch of boiler-plate to set up a local FnApiLoggingService to catch any
+    // logs for later test
+    // expectations.
+    AtomicBoolean clientClosedStream = new AtomicBoolean();
+    Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
+    AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
+        new AtomicReference<>();
+    CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
+        TestStreams.withOnNext(
+                (BeamFnApi.LogEntry.List logEntries) ->
+                    values.addAll(logEntries.getLogEntriesList()))
+            .withOnCompleted(
+                () -> {
+                  // Remember that the client told us that this stream completed
+                  clientClosedStream.set(true);
+                  outboundServerObserver.get().onCompleted();
+                })
+            .build();
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.LogEntry.List> logging(
+                      StreamObserver<BeamFnApi.LogControl> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
+    server.start();
+    ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+    // End logging boiler-plate...
+
+    // This section is to set up the StateSampler with the expected metadata.
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+    ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
+    stateTracker.start("process-bundle");
+    ExecutionStateSampler.ExecutionState state =
+        stateTracker.create("shortId", pTransformId, pTransformId, "process");
+    state.activate();
+
+    // Track the instruction and state in the logging system. In a real run, this is set when a
+    // ProcessBundlehandler
+    // starts processing.
+    BeamFnLoggingMDC.setInstructionId(instructionId);
+    BeamFnLoggingMDC.setStateTracker(stateTracker);
+
+    // Start the test within the logging context. This reroutes logging through to the boiler-plate
+    // that was set up
+    // earlier.
+    try (BeamFnLoggingClient ignored =
+        BeamFnLoggingClient.createAndStart(
+            PipelineOptionsFactory.create(),
+            apiServiceDescriptor,
+            (Endpoints.ApiServiceDescriptor descriptor) -> channel)) {
+
+      // Set up the component under test, the FnDataReceiver, to emit an exception when it starts.
+      ShortIdMap shortIds = new ShortIdMap();
+      BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+      PCollectionConsumerRegistry consumers =
+          new PCollectionConsumerRegistry(
+              stateTracker, shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
+      FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+
+      consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
+
+      FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+          (FnDataReceiver<WindowedValue<String>>)
+              (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+
+      doThrow(thrownException).when(consumer).accept(any());
+      expectedException.expectMessage(message);
+      expectedException.expect(Exception.class);
+
+      // Run the test.
+      wrapperConsumer.accept(valueInGlobalWindow("elem"));
+
+    } finally {
+      // The actual log entry has a lot of metadata that can't easily be controlled. So set the
+      // entries that are needed
+      // for this test and cull everything else.
+      final BeamFnApi.LogEntry expectedEntry =
+          BeamFnApi.LogEntry.newBuilder()
+              .setInstructionId(instructionId)
+              .setTransformId(pTransformId)
+              .setMessage("Failed to process element for bundle \"process-bundle\"")
+              .build();
+
+      List<BeamFnApi.LogEntry> entries = new ArrayList<>(values);
+      assertEquals(1, entries.size());
+      BeamFnApi.LogEntry actualEntry = entries.get(0);
+      BeamFnApi.LogEntry actualEntryCulled =
+          BeamFnApi.LogEntry.newBuilder()
+              .setInstructionId(actualEntry.getInstructionId())
+              .setTransformId(actualEntry.getTransformId())
+              .setMessage(actualEntry.getMessage())
+              .build();
+
+      assertEquals(expectedEntry, actualEntryCulled);
+
+      server.shutdownNow();
+    }
   }
 
   private static class TestElementByteSizeObservableIterable<T>
