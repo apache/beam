@@ -293,7 +293,8 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
     for name in fields:
       if name in input_schema and name not in drop:
         raise ValueError(
-            f'Redefinition of field "{name}". Cannot append a field that already exists in original input.'
+            f'Redefinition of field "{name}". '
+            'Cannot append a field that already exists in original input.'
         )
 
   if language == 'generic':
