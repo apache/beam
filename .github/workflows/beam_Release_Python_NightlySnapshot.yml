@@ -60,19 +60,11 @@ jobs:
           github_job: ${{matrix.job_name}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           comment_phrase: ${{matrix.job_phrase}}
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+          java-version: 8
+          python-version: 3.8
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

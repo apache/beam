@@ -77,11 +77,11 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-38: false
-          requires-py-39: false
+          java-version: 8
+          go-version: 1.21
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -136,12 +136,11 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-38: false
-          requires-py-39: false
-
+          java-version: 8
+          go-version: 1.21
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -180,11 +179,11 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
-        with: 
-          requires-py-38: false
-          requires-py-39: false
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 8
+          go-version: 1.21
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
