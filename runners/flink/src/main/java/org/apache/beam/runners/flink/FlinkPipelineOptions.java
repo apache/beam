@@ -328,6 +328,14 @@ public interface FlinkPipelineOptions
 
   void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
 
+  @Description(
+      "Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,"
+          + "the RequiresStableInput contract might be violated if there any processing related failures in the DoFn operator.")
+  @Default.Boolean(false)
+  Boolean getEnableStableInputDrain();
+
+  void setEnableStableInputDrain(Boolean enableStableInputDrain);
+
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
   }
