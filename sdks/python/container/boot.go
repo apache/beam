@@ -401,7 +401,6 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	// folder that is mapped to the host (and therefore survives restarts).
 	for _, f := range requirementsFiles {
 		if err := pipInstallRequirements(ctx, logger, files, workDir, f); err != nil {
-
 			return fmt.Errorf("failed to install requirements: %v", err)
 		}
 	}
