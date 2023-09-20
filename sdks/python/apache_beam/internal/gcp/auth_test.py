@@ -81,24 +81,15 @@ class MyTestCase(unittest.TestCase):
     pipeline_options.view_as(
         GoogleCloudOptions).impersonate_service_account = False
 
-    self.is_called = False
-
-    def side_effect(scopes=None):
-      raise IOError('Failed')
-
-    google_auth_mock = mock.MagicMock()
-    gauth.default = google_auth_mock
-    google_auth_mock.side_effect = side_effect
-
     loggerHandler = MockLoggingHandler()
 
     auth._LOGGER.addHandler(loggerHandler)
 
-    #Remove the retry decorator to speed up testing.
-    #Otherwise, test takes ~10 minutes
-    auth._Credentials._get_credentials_with_retrys = \
-      auth._Credentials._get_credentials_with_retrys.__closure__[2
-      ].cell_contents
+    #Remove call to retrying method, as otherwise test takes ~10 minutes to run
+    def raise_():
+      raise IOError('Failed')
+
+    auth._Credentials._get_credentials_with_retrys = lambda options: raise_()
 
     returned_credentials = auth.get_service_credentials(pipeline_options)
 
