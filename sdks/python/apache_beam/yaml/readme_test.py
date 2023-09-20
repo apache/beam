@@ -150,6 +150,12 @@ class TestEnvironment:
   def input_csv(self):
     return self.input_file('input.csv', 'col1,col2,col3\nabc,1,2.5\n')
 
+  def input_udf(self):
+    return self.input_file(
+        'udf.py',
+        'def my_mapping(row):\n  return row.col2 > 0\n'
+        'def my_other_mapping(row):\n  return row.col2 > 1')
+
   def input_json(self):
     return self.input_file(
         'input.json', '{"col1": "abc", "col2": 1, "col3": 2.5"}\n')
@@ -162,6 +168,16 @@ class TestEnvironment:
     self.tempdir.cleanup()
 
 
+def replace_mapping_fields(spec, arg_name, arg_value):
+  if arg_name != 'language' and arg_name != 'fields':
+    spec['config']['fields'] = {
+        k: {arg: arg_value if arg == arg_name else v[arg]
+            for arg in v} if isinstance(v, dict) else v
+        for k,
+        v in spec['config']['fields'].items()
+    }
+
+
 def replace_recursive(spec, transform_type, arg_name, arg_value):
   if isinstance(spec, dict):
     spec = {
@@ -169,7 +185,10 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
         for (key, value) in spec.items()
     }
     if spec.get('type', None) == transform_type:
-      spec['config'][arg_name] = arg_value
+      if transform_type == 'MapToFields':
+        replace_mapping_fields(spec, arg_name, arg_value)
+      else:
+        spec['config'][arg_name] = arg_value
     return spec
   elif isinstance(spec, list):
     return [
@@ -192,6 +211,8 @@ def create_test_method(test_type, test_name, test_yaml):
         spec = replace_recursive(spec, 'ReadFromCsv', 'path', env.input_csv())
       if 'ReadFromJson' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromJson', 'path', env.input_json())
+      if 'MapToFields' in test_yaml:
+        spec = replace_recursive(spec, 'MapToFields', 'path', env.input_udf())
       for write in ['WriteToText', 'WriteToCsv', 'WriteToJson']:
         if write in test_yaml:
           spec = replace_recursive(spec, write, 'path', env.output_file())
@@ -245,9 +266,9 @@ def parse_test_methods(markdown_lines):
             if 'providers:' in yaml_pipeline:
               test_type = 'PARSE'
             yield test_name, create_test_method(
-                test_type,
-                test_name,
-                yaml_pipeline)
+              test_type,
+              test_name,
+              yaml_pipeline)
         code_lines = None
     elif code_lines is not None:
       code_lines.append(line)
