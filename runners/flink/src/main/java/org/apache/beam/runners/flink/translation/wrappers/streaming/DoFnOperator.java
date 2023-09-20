@@ -628,7 +628,7 @@ public class DoFnOperator<InputT, OutputT>
     }
     if (currentOutputWatermark < Long.MAX_VALUE) {
       if (requiresStableInput) {
-        LOG.debug("Skipping watermark hold check for operator %s since requiresStableInput is set.", getOperatorName());
+        LOG.debug("Skipping watermark hold check for operator {} since requiresStableInput is set.", getOperatorName());
       } else {
         throw new RuntimeException(
                 String.format(
