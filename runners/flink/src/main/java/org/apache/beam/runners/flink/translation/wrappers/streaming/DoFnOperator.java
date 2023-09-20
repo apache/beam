@@ -627,10 +627,14 @@ public class DoFnOperator<InputT, OutputT>
       invokeFinishBundle();
     }
     if (currentOutputWatermark < Long.MAX_VALUE) {
-      throw new RuntimeException(
-          String.format(
-              "There are still watermark holds left when terminating operator %s Watermark held %d",
-              getOperatorName(), currentOutputWatermark));
+      if (requiresStableInput) {
+        LOG.debug("Skipping watermark hold check for operator %s since requiresStableInput is set.", getOperatorName());
+      } else {
+        throw new RuntimeException(
+                String.format(
+                        "There are still watermark holds left when terminating operator %s Watermark held %d",
+                        getOperatorName(), currentOutputWatermark));
+      }
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
