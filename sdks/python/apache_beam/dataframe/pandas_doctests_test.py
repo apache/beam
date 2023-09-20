@@ -164,6 +164,9 @@ class DoctestTest(unittest.TestCase):
                 '   key=lambda x: np.argsort(index_natsorted(df["time"]))\n'
                 ')'
             ],
+            # TODO(https://github.com/apache/beam/issues/28559): Re-enable when
+            # bug is fixed.
+            'pandas.core.generic.NDFrame.xs': ['*'],
             **skip_writes
         })
     self.assertEqual(result.failed, 0)
