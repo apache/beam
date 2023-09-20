@@ -54,14 +54,12 @@ jobs:
   beam_PostCommit_Java_InfluxDbIO_IT:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 120
+    timeout-minutes: 100
     strategy:
-      fail-fast: false
       matrix: 
         job_name: [beam_PostCommit_Java_InfluxDbIO_IT]
         job_phrase: [Run Java InfluxDbIO_IT]
     if: |
-      github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java InfluxDbIO_IT'
@@ -83,11 +81,11 @@ jobs:
         uses: ./.github/actions/setup-k8s-access
         with:
           cluster_name: io-datastores
-          k8s_namespace: workflow-${{ github.run_id }}
+          k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
       - name: Install InfluxDB
         id: install_influxdb
         run: | 
-          kubectl apply -f .test-infra/kubernetes/influxdb/influxdb.yml
+          kubectl apply -f ${{ github.workspace }}/.test-infra/kubernetes/influxdb/influxdb.yml
           kubectl wait svc/influxdb-load-balancer-service --for=jsonpath='{.status.loadBalancer.ingress[0].ip}'
           loadbalancer_IP=$(kubectl get svc influxdb-load-balancer-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}') 
           echo influxdb_IP=$loadbalancer_IP >> $GITHUB_OUTPUT
@@ -95,4 +93,4 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:influxdb:integrationTest --tests org.apache.beam.sdk.io.influxdb.InfluxDbIOIT
-          arguments: -DintegrationTestRunner=direct -DintegrationTestPipelineOptions='["--influxDBURL=http://${{ steps.install_influxdb.outputs.influxdb_IP }}:8086","--influxDBUserName=superadmin","--influxDBPassword=supersecretpassword","--databaseName=db1"]'
+          arguments: --info -DintegrationTestRunner=direct -DintegrationTestPipelineOptions='["--influxDBURL=http://${{ steps.install_influxdb.outputs.influxdb_IP }}:8086","--influxDBUserName=superadmin","--influxDBPassword=supersecretpassword","--databaseName=db1"]'

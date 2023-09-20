@@ -46,6 +46,12 @@ runs:
         echo "Kubernetes namespace not provided"
         exit 1
       fi
+  - name: replace '_' with '-' in namespace
+    shell: bash
+    id: replace_namespace
+    run: |
+      TEST_NAMESPACE=$(echo "${{ inputs.k8s_namespace }}" | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+      echo TEST_NAMESPACE=$TEST_NAMESPACE >> $GITHUB_OUTPUT
   - name: Get the kubeconfig using gcloud
     shell: bash
     run: |
@@ -53,16 +59,16 @@ runs:
   - name: Create namespace
     shell: bash
     run: | 
-      kubectl create namespace ${{ inputs.k8s_namespace }}
+      kubectl create namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
   - name: Set default namespace
     shell: bash
     run: |
-      kubectl config set-context --current --namespace=${{ inputs.k8s_namespace }}
+      kubectl config set-context --current --namespace=${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
   - name: Post cleanup
     uses: pyTooling/Actions/with-post-step@v0.4.6
     with:
       main: echo "Post Cleanup"
       post: |
         echo "Post Cleanup"
-        kubectl delete namespace ${{ inputs.k8s_namespace }}
+        kubectl delete namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
     
