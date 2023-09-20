@@ -174,6 +174,21 @@ class FrameBaseTest(unittest.TestCase):
             'a': 2, 'b': 4, 'c': 6, 'kw_only': 8
         })
 
+  def test_populate_defaults_overwrites_copy(self):
+    class Base(object):
+      def func(self, a=1, b=2, c=3, *, copy=None):
+        pass
+
+    class Proxy(object):
+      @frame_base.args_to_kwargs(Base)
+      @frame_base.populate_defaults(Base)
+      def func(self, a, copy, **kwargs):
+        return dict(kwargs, a=a, copy=copy)
+
+    proxy = Proxy()
+    self.assertEqual(proxy.func(), {'a': 1, 'copy': True})
+    self.assertEqual(proxy.func(copy=False), {'a': 1, 'copy': False})
+
 
 if __name__ == '__main__':
   unittest.main()

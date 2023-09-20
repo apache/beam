@@ -73,7 +73,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -82,15 +82,11 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Echo PR number
         run: echo "ghprbPullId=${{ github.event.pull_request.number || github.event.issue.number }}" >> $GITHUB_ENV
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-39: false
-          requires-go: false
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
+          python-version: 3.8
+          java-version: 8
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Jpms_Dataflow_Java11"]
         job_phrase: ["Run Jpms Dataflow Java 11 PostCommit"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

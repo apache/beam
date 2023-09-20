@@ -85,23 +85,17 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Examples_Dataflow PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-38: false
-          requires-py-39: false
-          requires-go: false
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
+          java-version: 8
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

@@ -68,7 +68,7 @@ jobs:
       (contains(github.event.comment.body, 'Run Java') &&
          contains(github.event.comment.body, 'Examples on Dataflow Runner V2'))
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

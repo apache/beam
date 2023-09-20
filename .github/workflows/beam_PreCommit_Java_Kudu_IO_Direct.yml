@@ -74,7 +74,7 @@ jobs:
       github.event.comment.body == 'Run Java_Kudu_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

@@ -78,28 +78,17 @@ jobs:
       github. event_name == 'workflow_dispatch' ||
       startswith(github.event.comment.body, 'Run Java_Examples_Dataflow_ARM PostCommit')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{matrix.java_version}})
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-38: false
-          requires-py-39: false
-          requires-go: false
-      - name: Set up Java${{ matrix.java_version }}
-        uses: actions/setup-java@v3.8.0
-        with:
-          distribution: 'temurin'
           java-version: ${{ matrix.java_version }}
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Authenticate on GCP
