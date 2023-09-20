@@ -28,3 +28,6 @@ try:
   from apache_beam.runners.dataflow.internal.clients.dataflow.dataflow_v1b3_client import *
 except ImportError:
   pass
+# pylint: enable=wrong-import-order, wrong-import-position
+
+__path__ = pkgutil.extend_path(__path__, __name__)  # type: ignore

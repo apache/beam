@@ -48,7 +48,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp import test_utils
+from apache_beam.io.gcp import utils
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -72,7 +72,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.testing import test_utils
+from apache_beam.testing import utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -1671,12 +1671,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_1,
-            data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
+            data=[(d['name'], d['language']) for d in utils.ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_2,
-            data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
+            data=[(d['name'], d['language']) for d in utils.ELEMENTS
                   if 'language' in d])
     ]
 
@@ -1685,7 +1685,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(
-          [row for row in test_utils._ELEMENTS if 'language' in row])
+          [row for row in utils.ELEMENTS if 'language' in row])
 
       _ = (
           input
@@ -1739,12 +1739,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           BigqueryFullResultStreamingMatcher(
               project=self.project,
               query="SELECT name, language FROM %s" % output_table_1,
-              data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
+              data=[(d['name'], d['language']) for d in utils.ELEMENTS
                     if 'language' in d]),
           BigqueryFullResultStreamingMatcher(
               project=self.project,
               query="SELECT name, foundation FROM %s" % output_table_2,
-              data=[(d['name'], d['foundation']) for d in test_utils._ELEMENTS
+              data=[(d['name'], d['foundation']) for d in utils.ELEMENTS
                     if 'foundation' in d])
       ]
     else:
@@ -1752,12 +1752,12 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           BigqueryFullResultMatcher(
               project=self.project,
               query="SELECT name, language FROM %s" % output_table_1,
-              data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
+              data=[(d['name'], d['language']) for d in utils.ELEMENTS
                     if 'language' in d]),
           BigqueryFullResultMatcher(
               project=self.project,
               query="SELECT name, foundation FROM %s" % output_table_2,
-              data=[(d['name'], d['foundation']) for d in test_utils._ELEMENTS
+              data=[(d['name'], d['foundation']) for d in utils.ELEMENTS
                     if 'foundation' in d])
       ]
 
@@ -1766,16 +1766,16 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
     with beam.Pipeline(argv=args) as p:
       if streaming:
-        _SIZE = len(test_utils._ELEMENTS)
+        _SIZE = len(utils.ELEMENTS)
         test_stream = (
-            TestStream().advance_watermark_to(0).addtest_constants._ELEMENTS(
-                test_utils._ELEMENTS[:_SIZE // 2]).
-            advance_watermark_to(100).addtest_constants._ELEMENTS(
-                test_utils._ELEMENTS[_SIZE //
+            TestStream().advance_watermark_to(0).addtest_constants.ELEMENTS(
+                utils.ELEMENTS[:_SIZE // 2]).
+            advance_watermark_to(100).addtest_constants.ELEMENTS(
+                utils.ELEMENTS[_SIZE //
                                      2:]).advance_watermark_to_infinity())
         input = p | test_stream
       else:
-        input = p | beam.Create(test_utils._ELEMENTS)
+        input = p | beam.Create(utils.ELEMENTS)
 
       schema_table_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create([(full_output_table_1, schema1),
@@ -1866,8 +1866,8 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   def tearDown(self):
     # Tear down PubSub
-    test_utils.cleanup_topics(self.pub_client, [self.input_topic])
-    test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
+    utils.cleanup_topics(self.pub_client, [self.input_topic])
+    utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     # Tear down BigQuery
     utils.delete_bq_dataset(self.project, self.dataset_ref)
 

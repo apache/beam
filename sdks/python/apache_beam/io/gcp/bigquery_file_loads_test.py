@@ -38,7 +38,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp import test_utils
+from apache_beam.io.gcp import utils
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -82,7 +82,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     with TestPipeline() as p:
       output_pcs = (
           p
-          | beam.Create(test_utils._DESTINATION_ELEMENT_PAIRS, reshuffle=False)
+          | beam.Create(utils.DESTINATION_ELEMENT_PAIRS, reshuffle=False)
           | beam.ParDo(fn, self.tmpdir).with_outputs(
               fn.WRITTEN_FILE_TAG, fn.UNWRITTEN_RECORD_TAG))
 
@@ -117,7 +117,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
           beam.Map(lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(
           destinations,
-          equal_to(list(test_utils._DISTINCT_DESTINATIONS)),
+          equal_to(list(utils._DISTINCT_DESTINATIONS)),
           label='check destinations ')
 
     self._consume_input(fn, check_files_created)
@@ -247,11 +247,11 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
           beam.Map(lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(
           destinations,
-          equal_to(list(test_utils._DISTINCT_DESTINATIONS)),
+          equal_to(list(utils._DISTINCT_DESTINATIONS)),
           label='check destinations ')
 
     self._consume_input(
-        fn, test_utils._DISTINCT_DESTINATIONS, check_files_created)
+        fn, utils._DISTINCT_DESTINATIONS, check_files_created)
 
   def test_multiple_files(self):
     """Forces records to be written to many files.
@@ -281,7 +281,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       _ = output_pc | beam.Map(lambda x: x[1][0]) | beam.Map(os.path.exists)
 
     self._consume_input(
-        fn, test_utils._DISTINCT_DESTINATIONS, check_multiple_files)
+        fn, utils._DISTINCT_DESTINATIONS, check_multiple_files)
 
 
 class TestPartitionFiles(unittest.TestCase):
@@ -404,7 +404,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
-      outputs = p | beam.Create(test_utils._ELEMENTS) | transform
+      outputs = p | beam.Create(utils._ELEMENTS) | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
       dest_job = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS]
@@ -459,7 +459,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         load_job_project_id='loadJobProject')
 
     with TestPipeline('DirectRunner') as p:
-      outputs = p | beam.Create(test_utils._ELEMENTS) | transform
+      outputs = p | beam.Create(utils._ELEMENTS) | transform
       jobs = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS] \
              | "GetJobs" >> beam.Map(lambda x: x[1])
 
@@ -488,7 +488,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with TestPipeline('DirectRunner') as p:
       outputs = (
           p
-          | beam.Create(test_utils._ELEMENTS, reshuffle=False)
+          | beam.Create(utils._ELEMENTS, reshuffle=False)
           | bqfl.BigQueryBatchFileLoads(
               destination,
               custom_gcs_temp_location=self._new_tempdir(),
@@ -623,7 +623,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with TestPipeline('DirectRunner') as p:
       outputs = (
           p
-          | beam.Create(test_utils._ELEMENTS, reshuffle=False)
+          | beam.Create(utils._ELEMENTS, reshuffle=False)
           | bqfl.BigQueryBatchFileLoads(
               destination,
               custom_gcs_temp_location=self._new_tempdir(),
@@ -705,7 +705,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with TestPipeline('DirectRunner') as p:
       _ = (
           p
-          | beam.Create(test_utils._ELEMENTS, reshuffle=False)
+          | beam.Create(utils._ELEMENTS, reshuffle=False)
           | bqfl.BigQueryBatchFileLoads(
               destination,
               custom_gcs_temp_location=self._new_tempdir(),
@@ -771,14 +771,14 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with TestPipeline(runner='BundleBasedDirectRunner',
                       options=test_options) as p:
       if is_streaming:
-        _SIZE = len(test_utils._ELEMENTS)
+        _SIZE = len(utils._ELEMENTS)
         fisrt_batch = [
             TimestampedValue(value, start_time + i + 1) for i,
-            value in enumerate(test_utils._ELEMENTS[:_SIZE // 2])
+            value in enumerate(utils._ELEMENTS[:_SIZE // 2])
         ]
         second_batch = [
             TimestampedValue(value, start_time + _SIZE // 2 + i + 1) for i,
-            value in enumerate(test_utils._ELEMENTS[_SIZE // 2:])
+            value in enumerate(utils._ELEMENTS[_SIZE // 2:])
         ]
         # Advance processing time between batches of input elements to fire the
         # user triggers. Intentionally advance the processing time twice for the
@@ -792,7 +792,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 30).advance_watermark_to_infinity())
         input = p | test_stream
       else:
-        input = p | beam.Create(test_utils._ELEMENTS)
+        input = p | beam.Create(utils._ELEMENTS)
       outputs = input | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
@@ -876,22 +876,22 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_1,
-            data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
+            data=[(d['name'], d['language']) for d in utils._ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, foundation FROM %s" % output_table_2,
-            data=[(d['name'], d['foundation']) for d in test_utils._ELEMENTS
+            data=[(d['name'], d['foundation']) for d in utils._ELEMENTS
                   if 'foundation' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_3,
-            data=[(d['name'], d['language']) for d in test_utils._ELEMENTS
+            data=[(d['name'], d['language']) for d in utils._ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, foundation FROM %s" % output_table_4,
-            data=[(d['name'], d['foundation']) for d in test_utils._ELEMENTS
+            data=[(d['name'], d['foundation']) for d in utils._ELEMENTS
                   if 'foundation' in d])
     ]
 
@@ -899,7 +899,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         on_success_matcher=all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(test_utils._ELEMENTS, reshuffle=False)
+      input = p | beam.Create(utils._ELEMENTS, reshuffle=False)
 
       schema_map_pcv = beam.pvalue.AsDict(
           p | "MakeSchemas" >> beam.Create(schema_kv_pairs))
@@ -1113,7 +1113,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       # The pipeline below fails because neither a schema nor SCHEMA_AUTODETECT
       # are specified.
       with beam.Pipeline(argv=args) as p:
-        input = p | beam.Create(test_utils._ELEMENTS)
+        input = p | beam.Create(utils._ELEMENTS)
         input2 = p | "Broken record" >> beam.Create(['language_broken_record'])
 
         input = (input, input2) | beam.Flatten()
