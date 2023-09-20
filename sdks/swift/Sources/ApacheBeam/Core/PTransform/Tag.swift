@@ -21,8 +21,8 @@ public struct NamedCollectionPTransform<Of>: _PrimitivePTransform {
     let collection: PCollection<Of>
 }
 
-/// Captures a PCollection and gives it a name so it can be used as an output
-public struct Output<Of>: PTransform {
+/// Captures a PCollection and gives it a name so it can be referenced
+public struct Tag<Of>: PTransform {
     let name: String
     let fn: () -> PCollection<Of>
     public init(_ name: String, _ fn: @escaping () -> PCollection<Of>) {
@@ -34,3 +34,8 @@ public struct Output<Of>: PTransform {
         NamedCollectionPTransform(name: name, collection: fn())
     }
 }
+
+/// Convenience mapping for more readable composites
+public typealias Output = Tag
+
+

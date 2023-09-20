@@ -45,8 +45,23 @@ public protocol ParentPTransform {
     var children: [AnyPTransform] { get }
 }
 
-protocol GroupPTransform: ParentPTransform {}
+public protocol GroupPTransform: ParentPTransform {}
 
 public func neverExpand(_ type: String) -> Never {
     fatalError("\(type) is a primitive PTransform and cannot be expanded.")
+}
+
+public extension ParentPTransform {
+    
+    func pcollection(named:String) throws -> AnyPCollection {
+        throw ApacheBeamError.runtimeError("No collection named \(named) in this PTransform's expansion.")
+    }
+    
+    func pcollection<Of>(of:Of.Type) throws -> PCollection<Of> {
+        throw ApacheBeamError.runtimeError("No collection of type \(Of.self) in  this PTransform's expansion.")
+    }
+    
+    func pcollection<Of>(named:String,of:Of.Type) throws -> PCollection<Of> {
+        throw ApacheBeamError.runtimeError("No collection of type \(Of.self) named \(named) in this PTransform's expansion/")
+    }
 }

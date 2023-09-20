@@ -16,4 +16,10 @@
  * limitations under the License.
  */
 
-public extension PCollection {}
+public extension PCollection {
+    
+    func apply<T:PTransform>(_ transform: T) {
+        
+    }
+    
+}

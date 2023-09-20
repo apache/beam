@@ -31,17 +31,17 @@ public class FieldsBuilder {
 }
 
 public struct Schema {
-    let id: UUID
+    let id: UUID?
     let fields: [Field]
     let options: [String: (FieldType, FieldValue)]
 
-    public init(id: UUID = UUID(), options: [String: (FieldType, FieldValue)] = [:], fields: [Field]) {
+    public init(id: UUID? = UUID(), options: [String: (FieldType, FieldValue)] = [:], fields: [Field]) {
         self.id = id
         self.options = options
         self.fields = fields
     }
 
-    public init(id: UUID = UUID(), options: [String: (FieldType, FieldValue)] = [:], _ fn: (inout FieldsBuilder) -> Void) {
+    public init(id: UUID? = UUID(), options: [String: (FieldType, FieldValue)] = [:], _ fn: (inout FieldsBuilder) -> Void) {
         var builder = FieldsBuilder()
         fn(&builder)
         self = .init(id: id, options: options, fields: builder.fields)

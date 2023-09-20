@@ -35,6 +35,11 @@ public struct AnyPTransform: _PrimitivePTransform {
     }
 }
 
+public func mapAnyPTransform<T,P>(_ anyPTransform: AnyPTransform,transform: (P) -> T) -> T? {
+    guard let ptransform = anyPTransform.transform as? P  else { return nil }
+    return transform(ptransform)
+}
+
 extension AnyPTransform: ParentPTransform {
     public var children: [AnyPTransform] {
         (transform as? ParentPTransform)?.children ?? []

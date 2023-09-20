@@ -51,8 +51,8 @@ public final class Pipeline {
         self.log = log
 
         let transform = content()
-        self.content = { _ in
-            // TODO: Attach transform to the root
+        self.content = { root in
+            _ = root.apply(transform)
         }
     }
 

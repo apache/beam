@@ -48,6 +48,6 @@ extension Schema {
         let fields: [Field] = proto.fields.map {
             .from($0)
         }
-        return Schema(id: UUID(uuidString: proto.id)!, options: [:], fields: fields)
+        return Schema(id: UUID(uuidString: proto.id), options: [:], fields: fields)
     }
 }

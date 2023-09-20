@@ -26,6 +26,7 @@ let dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/grpc/grpc-swift.git", from: "1.19.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.0"),
+    .package(url: "https://github.com/apple/swift-metrics.git", from: "2.0.0"),
     
     // Additional Transform Dependencies
     .package(url: "https://github.com/awslabs/aws-sdk-swift.git", from: "0.23.0"),

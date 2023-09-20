@@ -39,6 +39,7 @@ public protocol PCollectionProtocol {
 
     @discardableResult
     func apply(_ transform: PipelineTransform) -> PipelineTransform
+    
 }
 
 public final class PCollection<Of>: PCollectionProtocol {
@@ -77,14 +78,22 @@ public final class PCollection<Of>: PCollectionProtocol {
     }
 }
 
+public typealias PipelineRoot = PCollection<Never>
+
 extension PCollection: PipelineMember {
-    var roots: [PCollection<Never>] {
+    var roots: [PipelineRoot] {
         if let p = parent {
             return p.roots
-        } else if let p = self as? PCollection<Never> {
+        } else if let p = self as? PipelineRoot {
             return [p]
         } else {
             return []
         }
+    }
+}
+
+public extension PCollection {
+    static func empty() -> PCollection<Of> {
+        return PCollection<Of>()
     }
 }
