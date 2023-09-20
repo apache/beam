@@ -21,6 +21,7 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,10 +38,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -55,6 +59,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
@@ -66,6 +72,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "keyfor"
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class PTransformTranslation {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PTransformTranslation.class);
+
   // We specifically copy the values here so that they can be used in switch case statements
   // and we validate that the value matches the actual URN in the static block below.
 
@@ -84,6 +93,10 @@ public class PTransformTranslation {
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
       ImmutableSet.of(GROUP_BY_KEY_TRANSFORM_URN, IMPULSE_TRANSFORM_URN);
+
+  public static final String CONFIG_ROW_KEY = "config_row";
+
+  public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
 
   // DeprecatedPrimitives
   /**
@@ -388,9 +401,9 @@ public class PTransformTranslation {
    * Translates a set of registered transforms whose content only differs based by differences in
    * their {@link FunctionSpec}s and URNs.
    */
-  public static class KnownTransformPayloadTranslator<T extends PTransform<?, ?>>
+  private static class KnownTransformPayloadTranslator<T extends PTransform<?, ?>>
       implements TransformTranslator<T> {
-    public static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
+    private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
         KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
     private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
@@ -437,10 +450,9 @@ public class PTransformTranslation {
       RunnerApi.PTransform.Builder transformBuilder =
           translateAppliedPTransform(appliedPTransform, subtransforms, components);
 
-      FunctionSpec spec =
-          KNOWN_PAYLOAD_TRANSLATORS
-              .get(appliedPTransform.getTransform().getClass())
-              .translate(appliedPTransform, components);
+      TransformPayloadTranslator payloadTranslator =
+          KNOWN_PAYLOAD_TRANSLATORS.get(appliedPTransform.getTransform().getClass());
+      FunctionSpec spec = payloadTranslator.translate(appliedPTransform, components);
       if (spec != null) {
         transformBuilder.setSpec(spec);
 
@@ -463,6 +475,38 @@ public class PTransformTranslation {
           }
         }
       }
+
+      Row configRow = null;
+      try {
+        configRow = payloadTranslator.toConfigRow(appliedPTransform.getTransform());
+      } catch (UnsupportedOperationException e) {
+        // Optional toConfigRow() has not been implemented. We can just ignore.
+      } catch (Exception e) {
+        LOG.warn(
+            "Could not attach the config row for transform "
+                + appliedPTransform.getTransform().getName()
+                + ": "
+                + e);
+        // Ignoring the error and continuing with the translation since attaching config rows is
+        // optional.
+      }
+      if (configRow != null) {
+        ByteStringOutputStream rowOutputStream = new ByteStringOutputStream();
+        try {
+          RowCoder.of(configRow.getSchema()).encode(configRow, rowOutputStream);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        transformBuilder.putAnnotations(CONFIG_ROW_KEY, rowOutputStream.toByteString());
+
+        ByteStringOutputStream schemaOutputStream = new ByteStringOutputStream();
+        try (ObjectOutputStream schemaObjOut = new ObjectOutputStream(schemaOutputStream)) {
+          schemaObjOut.writeObject(SchemaTranslation.schemaToProto(configRow.getSchema(), true));
+          schemaObjOut.flush();
+          transformBuilder.putAnnotations(CONFIG_ROW_SCHEMA_KEY, schemaOutputStream.toByteString());
+        }
+      }
+
       return transformBuilder.build();
     }
   }
@@ -531,9 +575,16 @@ public class PTransformTranslation {
       return getUrn();
     }
 
+    /** */
     /**
      * Translates the given transform represented by the provided {@code AppliedPTransform} to a
      * {@code FunctionSpec} with a URN and a payload.
+     *
+     * @param application an {@code AppliedPTransform} that includes the transform to be expanded.
+     * @param components components of the pipeline that includes the transform.
+     * @return a generated spec for the transform to be included in the pipeline proto. If return
+     *     value is null, transform should include an empty spec.
+     * @throws IOException
      */
     @Nullable
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)

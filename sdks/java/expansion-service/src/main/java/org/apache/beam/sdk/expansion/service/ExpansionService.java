@@ -194,7 +194,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             continue;
           }
 
-          String urn = null;
+          String urn;
           try {
             urn = translator.getUrn();
             if (urn == null) {

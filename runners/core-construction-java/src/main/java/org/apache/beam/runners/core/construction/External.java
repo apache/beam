@@ -295,7 +295,7 @@ public class External {
           response
               .getComponents()
               .toBuilder()
-              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies))
+              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies, endpoint))
               .build();
       expandedTransform = response.getTransform();
       expandedRequirements = response.getRequirementsList();
@@ -338,8 +338,8 @@ public class External {
       return toOutputCollection(outputMapBuilder.build());
     }
 
-    private Map<String, RunnerApi.Environment> resolveArtifacts(
-        Map<String, RunnerApi.Environment> environments) {
+    static Map<String, RunnerApi.Environment> resolveArtifacts(
+        Map<String, RunnerApi.Environment> environments, Endpoints.ApiServiceDescriptor endpoint) {
       if (environments.size() == 0) {
         return environments;
       }
@@ -367,7 +367,7 @@ public class External {
       }
     }
 
-    private RunnerApi.Environment resolveArtifacts(
+    private static RunnerApi.Environment resolveArtifacts(
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         RunnerApi.Environment environment)
         throws IOException {
@@ -378,7 +378,7 @@ public class External {
           .build();
     }
 
-    private List<RunnerApi.ArtifactInformation> resolveArtifacts(
+    private static List<RunnerApi.ArtifactInformation> resolveArtifacts(
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         List<RunnerApi.ArtifactInformation> artifacts)
         throws IOException {
