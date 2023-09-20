@@ -15,47 +15,42 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: 'Setup environment for self-hosted runners'
-description: 'Setup action to run jobs in a self-hosted runner'
+name: 'Setup environment action'
+description: 'Setup environment to run jobs'
 inputs:
-  requires-py-38:
+  python-version:
     required: false
-    description: 'Set as false if does not require py38 setup'
-    default: 'true'
-  requires-py-39:
+    description: 'Install Python version'
+    default: ''
+  java-version:
     required: false
-    description: 'Set as false if does not require py39 setup'
-    default: 'true'
-  requires-java-8:
+    description: 'Install Java version'
+    default: ''
+  go-version:
     required: false
-    description: 'Set as false if does not require java-8 setup'
-    default: 'true'
-  requires-go:
-    required: false
-    description: 'Set as false if does not require go setup'
-    default: 'true'
+    description: 'Install Go version'
+    default: ''
 
 runs:
   using: "composite"
   steps:
-    - name: Install python 3.8
-      if: ${{ inputs.requires-py-38 == 'true'  }}
+    - name: Install Python
+      if: ${{ inputs.python-version != '' }}
       uses: actions/setup-python@v4
       with:
-        python-version: "3.8"
-    - name: Install python 3.9
-      if: ${{ inputs.requires-py-39 == 'true'  }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.9"
-    - name: Set Java Version
-      if: ${{ inputs.requires-java-8 == 'true'  }}
+        python-version: ${{ inputs.python-version }}
+    - name: Install Java
+      if: ${{ inputs.java-version != '' }}
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
-        java-version: 8
-    - name: Set Go Version
-      if: ${{ inputs.requires-go == 'true'  }}
+        java-version: ${{ inputs.java-version }}
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        cache-read-only: false
+    - name: Install Go
+      if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v3
       with:
-        go-version: '1.21' # never set patch, to get latest patch releases.
+        go-version: ${{ inputs.go-version }} # never set patch, to get latest patch releases.

@@ -34,7 +34,7 @@ public final class BigtableResourceManagerUtils {
   private static final Pattern ILLEGAL_INSTANCE_ID_CHARS = Pattern.compile("[^a-z0-9-]");
   private static final String REPLACE_INSTANCE_ID_CHAR = "-";
   private static final int MIN_TABLE_ID_LENGTH = 1;
-  private static final int MAX_TABLE_ID_LENGTH = 30;
+  private static final int MAX_TABLE_ID_LENGTH = 40;
   private static final Pattern ILLEGAL_TABLE_CHARS = Pattern.compile("[^a-zA-Z0-9-_.]");
   private static final String REPLACE_TABLE_ID_CHAR = "-";
 

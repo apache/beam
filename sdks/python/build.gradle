@@ -96,7 +96,7 @@ platform_identifiers_map.each { platform, idsuffix ->
         exec {
           environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
           environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-          environment CIBW_BEFORE_BUILD: "pip install cython==0.29.36 numpy && pip install --upgrade setuptools"
+          environment CIBW_BEFORE_BUILD: "pip install cython==0.29.36 numpy --config-settings=setup-args='-Dallow-noblas=true' && pip install --upgrade setuptools"
           // note: sync cibuildwheel version with GitHub Action
           // .github/workflow/build_wheel.yml:build_wheels "Install cibuildwheel" step
           executable 'sh'
