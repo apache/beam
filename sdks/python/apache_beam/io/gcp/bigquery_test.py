@@ -41,50 +41,50 @@ from parameterized import parameterized
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
-try:
-  import apache_beam as beam
-  from apache_beam.internal import pickler
-  from apache_beam.internal.gcp.json_value import to_json_value
-  from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
-  from apache_beam.io.gcp import bigquery as beam_bq
-  from apache_beam.io.gcp import bigquery_tools
-  from apache_beam.io.gcp import test_utils
-  from apache_beam.io.gcp.bigquery import ReadFromBigQuery
-  from apache_beam.io.gcp.bigquery import TableRowJsonCoder
-  from apache_beam.io.gcp.bigquery import WriteToBigQuery
-  from apache_beam.io.gcp.bigquery import _StreamToBigQuery
-  from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
-  from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
-  from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
-  from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-  from apache_beam.io.gcp.bigquery_tools import RetryStrategy
-  from apache_beam.io.gcp.internal.clients import bigquery
-  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
-  from apache_beam.io.gcp.pubsub import ReadFromPubSub
-  from apache_beam.io.gcp.tests import utils
-  from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
-  from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
-  from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
-  from apache_beam.options import value_provider
-  from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import StandardOptions
-  from apache_beam.options.value_provider import RuntimeValueProvider
-  from apache_beam.options.value_provider import StaticValueProvider
-  from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
-  from apache_beam.runners.runner import PipelineState
-  from apache_beam.testing import test_utils
-  from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
-  from apache_beam.testing.test_pipeline import TestPipeline
-  from apache_beam.testing.test_stream import TestStream
-  from apache_beam.testing.util import assert_that
-  from apache_beam.testing.util import equal_to
-  from apache_beam.transforms.display import DisplayData
-  from apache_beam.transforms.display_test import DisplayDataItemMatcher
-  from apache_beam.utils import retry
-  from apitools.base.py.exceptions import HttpError
-  from google.api_core import exceptions
-except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
+# try:
+import apache_beam as beam
+from apache_beam.internal import pickler
+from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.gcp import bigquery as beam_bq
+from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp import test_utils
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery import WriteToBigQuery
+from apache_beam.io.gcp.bigquery import _StreamToBigQuery
+from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
+from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import RetryStrategy
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
+from apache_beam.io.gcp.tests import utils
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
+from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing import test_utils
+from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils import retry
+from apitools.base.py.exceptions import HttpError
+from google.api_core import exceptions
+# except ImportError:
+#   raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
