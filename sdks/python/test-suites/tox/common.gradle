@@ -42,5 +42,5 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
           dependsOn = ["testPy38Cython"]
       } else {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
-        }
+      }
 }

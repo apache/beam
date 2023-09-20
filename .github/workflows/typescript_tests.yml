@@ -90,7 +90,7 @@ jobs:
         working-directory: ./sdks/python
         run: |
           pip install 'pandas>=1.0,<1.5'
-          python install -e .
+          pip install -e .
       - run: npm ci
         working-directory: ./sdks/typescript
       - run: npm run build
