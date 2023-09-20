@@ -78,7 +78,8 @@ class ScopeTest(unittest.TestCase):
         "PCollection[Square.None]", str(scope.get_pcollection("LogForTesting")))
 
     self.assertTrue(
-        scope.get_pcollection("Square") == scope.get_pcollection("LogForTesting"))
+        scope.get_pcollection("Square") == scope.get_pcollection(
+            "LogForTesting"))
 
   def test_create_ptransform(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -107,6 +108,7 @@ class ScopeTest(unittest.TestCase):
           result_annotations, {
               **result_annotations, **target_annotations
           })
+
 
 class TestProvider(yaml_provider.InlineProvider):
   def __init__(self, transform, name):

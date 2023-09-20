@@ -20,7 +20,6 @@ import unittest
 import yaml
 
 import apache_beam as beam
-from apache_beam import PCollection
 from apache_beam.yaml import YamlTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import InlineProvider
@@ -30,7 +29,6 @@ from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
-from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import extract_name
 from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
@@ -969,7 +967,8 @@ class YamlTransformTest(unittest.TestCase):
     result = YamlTransform(spec, providers_dict)
     self.assertIn('p1', result._providers)  # check for custom providers
     self.assertIn('p2', result._providers)  # check for custom providers
-    self.assertIn('LogForTesting', result._providers)  # check for standard provider
+    self.assertIn(
+        'LogForTesting', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
 
   def test_init_with_dict(self):
@@ -983,7 +982,8 @@ class YamlTransformTest(unittest.TestCase):
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = YamlTransform(spec)
-    self.assertIn('LogForTesting', result._providers)  # check for standard provider
+    self.assertIn(
+        'LogForTesting', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
 
 
