@@ -177,7 +177,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             invalidConfigMessage + "Output must not be empty if error handling specified.");
       }
 
-      if (this.getAutoSharding()) {
+      if (this.getAutoSharding() != null && this.getAutoSharding()) {
         checkArgument(
             this.getNumStreams() == 0,
             invalidConfigMessage
