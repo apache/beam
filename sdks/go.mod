@@ -31,8 +31,8 @@ require (
 	cloud.google.com/go/spanner v1.49.0
 	cloud.google.com/go/storage v1.33.0
 	github.com/aws/aws-sdk-go-v2 v1.21.0
-	github.com/aws/aws-sdk-go-v2/config v1.18.40
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.38
+	github.com/aws/aws-sdk-go-v2/config v1.18.41
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.39
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.84
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.5
 	github.com/aws/smithy-go v1.14.2
@@ -108,7 +108,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.35 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.15.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.14.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.16.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.17.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.22.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
