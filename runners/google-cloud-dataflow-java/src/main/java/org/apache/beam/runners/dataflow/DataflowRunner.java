@@ -2574,7 +2574,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public String getUrn() {
-      throw new UnsupportedOperationException("URN of DataflowPayloadTranslator depends on the transform. Please use 'getUrn(PTransform transform)' instead.");
+      throw new UnsupportedOperationException(
+          "URN of DataflowPayloadTranslator depends on the transform. Please use 'getUrn(PTransform transform)' instead.");
     }
 
     @Override
