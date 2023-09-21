@@ -922,13 +922,12 @@ class YamlTransform(beam.PTransform):
       spec = yaml.load(spec, Loader=SafeLineLoader)
     if isinstance(providers, dict):
       providers = {
-            key: yaml_provider.as_provider_list(key, value)
-            for (key, value) in providers.items()
-        }
+          key: yaml_provider.as_provider_list(key, value)
+          for (key, value) in providers.items()
+      }
     # TODO(BEAM-26941): Validate as a transform.
     self._providers = yaml_provider.merge_providers(
-        providers,
-        yaml_provider.standard_providers())
+        providers, yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
 
   def expand(self, pcolls):
