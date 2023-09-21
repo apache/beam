@@ -74,6 +74,7 @@ jobs:
         with:
           python-version: '3.8'
       - name: Prepare config
+        #Reads config file, excludes comments
         id: set_config
         shell: bash
         run: |
