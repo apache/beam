@@ -39,6 +39,7 @@ from apache_beam.io import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 
 
@@ -141,7 +142,20 @@ def _create_parser(format, schema):
     raise ValueError(f'Unknown format: {format}')
 
 
+def _create_formatter(format, schema, beam_schema):
+  if format == 'raw':
+    if schema:
+      raise ValueError('raw format does not take a schema')
+    field_names = [field.name for field in beam_schema.fields]
+    if len(field_names) != 1:
+      raise ValueError(f'Expecting exactly one field, found {field_names}')
+    return lambda row: getattr(row, field_names[0])
+  else:
+    raise ValueError(f'Unknown format: {format}')
+
+
 @beam.ptransform_fn
+@yaml_mapping.maybe_with_exception_handling_transform_fn
 def read_from_pubsub(
     root,
     *,
@@ -151,8 +165,7 @@ def read_from_pubsub(
     schema: Optional[Any] = None,
     attributes: Optional[Iterable[str]] = None,
     attributes_map: Optional[str] = None,
-    timestamp_attribute: Optional[str] = None,
-    error_handling: Optional[Mapping[str, str]] = None):
+    timestamp_attribute: Optional[str] = None):
   if topic and subscription:
     raise TypeError('Only one of topic and subscription may be specified.')
   elif not topic and not subscription:
@@ -181,8 +194,6 @@ def read_from_pubsub(
         values[attributes_map] = msg.attributes
       return beam.Row(**values)
 
-  if error_handling:
-    raise ValueError('waiting for https://github.com/apache/beam/pull/28462')
   output = (
       root
       | beam.io.ReadFromPubSub(
@@ -196,19 +207,8 @@ def read_from_pubsub(
   return output
 
 
-def _create_formatter(format, schema, beam_schema):
-  if format == 'raw':
-    if schema:
-      raise ValueError('raw format does not take a schema')
-    field_names = [field.name for field in beam_schema.fields]
-    if len(field_names) != 1:
-      raise ValueError(f'Expecting exactly one field, found {field_names}')
-    return lambda row: getattr(row, field_names[0])
-  else:
-    raise ValueError(f'Unknown format: {format}')
-
-
 @beam.ptransform_fn
+@yaml_mapping.maybe_with_exception_handling_transform_fn
 def write_to_pubsub(
     pcoll,
     *,
@@ -217,8 +217,7 @@ def write_to_pubsub(
     schema: Optional[Any] = None,
     attributes: Optional[Iterable[str]] = None,
     attributes_map: Optional[str] = None,
-    timestamp_attribute: Optional[str] = None,
-    error_handling: Optional[Mapping[str, str]] = None):
+    timestamp_attribute: Optional[str] = None):
 
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 
@@ -252,13 +251,12 @@ def write_to_pubsub(
           if field.name not in extra_fields
       ])
   formatter = _create_formatter(format, schema, payload_schema)
-  _ = (
+  return (
       pcoll | beam.Map(
           lambda row: beam.io.gcp.pubsub.PubsubMessage(
               formatter(row), attributes_extractor(row)))
       | beam.io.WriteToPubSub(
           topic, with_attributes=True, timestamp_attribute=timestamp_attribute))
-  return {}
 
 
 def io_providers():

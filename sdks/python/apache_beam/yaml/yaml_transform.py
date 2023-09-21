@@ -460,6 +460,8 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
+  elif outputs is None:
+    return {}
   else:
     raise ValueError(
         f'Transform {identify_object(spec)} returned an unexpected type '
