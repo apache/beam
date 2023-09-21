@@ -123,7 +123,8 @@ def read_from_pubsub(
     subscription: Optional[str]=None,
     format: str,
     schema: Optional[Any]=None,
-    attributes: Optional[Union[str, Iterable[str]]]=None,
+    attributes: Optional[Iterable[str]]=None,
+    attributes_map: Optional[str]=None,
     timestamp_attribute: Optional[str]=None,
     error_handling: Optional[Mapping[str, str]]=None):
   if topic and subscription:
@@ -131,23 +132,25 @@ def read_from_pubsub(
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
   payload_schema, parser = _create_parser(format, schema)
-  if not attributes:
-    extra_fields = []
+  extra_fields = []
+  if not attributes and not attributes_map:
     mapper = lambda msg: parser(msg)
   else:
     if isinstance(attributes, str):
-      extra_fields = [schemas.schema_field(attributes, Mapping[str, str])]
-    else:
-      extra_fields = [schemas.schema_field(attr, str) for attr in attributes]
+      attributes = [attributes]
+    if attributes:
+      extra_fields.extend([schemas.schema_field(attr, str) for attr in attributes])
+    if attributes_map:
+      extra_fields.append(schemas.schema_field(attributes_map, Mapping[str, str]))
 
     def mapper(msg):
       values = parser(msg.data).as_dict()
-      if isinstance(attributes, str):
-        values[attributes] = msg.attributes
-      else:
+      if attributes:
         # Should missing attributes be optional or parse errors?
         for attr in attributes:
           values[attr] = msg.attributes[attr]
+      if attributes_map:
+        values[attributes_map] = msg.attributes
       return beam.Row(**values)
 
   if error_handling:
@@ -157,7 +160,7 @@ def read_from_pubsub(
       | beam.io.ReadFromPubSub(
           topic=topic,
           subscription=subscription,
-          with_attributes=bool(attributes),
+          with_attributes=bool(attributes or attributes_map),
           timestamp_attribute=timestamp_attribute)
       | 'ParseMessage' >> beam.Map(mapper))
   output.element_type = schemas.named_tuple_from_schema(
@@ -184,29 +187,36 @@ def write_to_pubsub(
     topic: str,
     format: str,
     schema: Optional[Any]=None,
-    attributes: Optional[Union[str, Iterable[str]]]=None,
+    attributes: Optional[Iterable[str]]=None,
+    attributes_map: Optional[str]=None,
     timestamp_attribute: Optional[str]=None,
     error_handling: Optional[Mapping[str, str]]=None):
 
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 
-  if not attributes:
-    extra_fields = []
-    attributes_extractor = lambda row: {}
-  elif isinstance(attributes, str):
-    extra_fields = [attributes]
-    attributes_extractor = lambda row: getattr(row, attributes)
-  else:
-    extra_fields = attributes
-    attributes_extractor = lambda row: {
-        attr: getattr(row, attr)
-        for attr in attributes
-    }
+  extra_fields = []
+  if isinstance(attributes, str):
+    attributes = [attributes]
+  if attributes:
+    extra_fields.extend(attributes)
+  if attributes_map:
+    extra_fields.append(attributes_map)
+
+  def attributes_extractor(row):
+    if attributes_map:
+      attribute_values = dict(getattr(row, attributes_map))
+    else:
+      attribute_values = {}
+    if attributes:
+      attribute_values.update({attr: getattr(row, attr) for attr in attributes})
+    return attribute_values
 
   schema_names = set(f.name for f in input_schema.fields)
   missing_attribute_names = set(extra_fields) - schema_names
   if missing_attribute_names:
-    raise ValueError(f'Attributes {missing_attribute_names} not found in schema fields {schema_names}')
+    raise ValueError(
+        f'Attribute fields {missing_attribute_names} '
+        f'not found in schema fields {schema_names}')
 
   payload_schema = schema_pb2.Schema(
       fields=[

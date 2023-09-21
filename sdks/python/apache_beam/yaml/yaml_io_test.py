@@ -122,7 +122,7 @@ class YamlPubSubTest(unittest.TestCase):
             config:
               topic: my_topic
               format: raw
-              attributes: attrMap
+              attributes_map: attrMap
             ''')
         assert_that(
             result,
@@ -192,7 +192,7 @@ class YamlPubSubTest(unittest.TestCase):
             config:
               topic: my_topic
               format: raw
-              attributes: attrMap
+              attributes_map: attrMap
             '''))
 
 
