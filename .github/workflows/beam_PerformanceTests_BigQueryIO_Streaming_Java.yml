@@ -1,0 +1,101 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Performance Tests BigQueryIO Streaming Java
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '20 15,22 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+jobs:
+  beam_PerformanceTests_BigQueryIO_Streaming_Java:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run BigQueryIO Streaming Performance Test Java'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 100
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PerformanceTests_BigQueryIO_Streaming_Java"]
+        job_phrase: ["Run BigQueryIO Streaming Performance Test Java"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Prepare config
+        id: set_config
+        shell: bash
+        run: |
+          CURDATE=$(date '+%m%d%H%M%S' --utc)
+          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/performance-tests-job-configs/config_BigQueryIO_Streaming_Java.txt | tr '\n' ' ')
+          CONFIGWITHDATE=$(echo "${CURCONFIG/bqio_write_10GB_java_stream_/bqio_write_10GB_java_stream_$CURDATE}")
+          echo "prepared_config=$CONFIGWITHDATE" >> $GITHUB_OUTPUT
+      - name: run Java BigQueryIO Streaming Performance Test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:bigquery-io-perf-tests:integrationTest
+          arguments: |
+            --tests org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT \
+            --info \
+            -DintegrationTestRunner=dataflow \
+            -DintegrationTestPipelineOptions=${{ steps.set_config.outputs.prepared_config }} \
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: JUnit Test Results
+          path: "**/build/reports/tests/"
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/build/test-results/**/*.xml'

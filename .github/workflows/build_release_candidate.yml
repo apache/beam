@@ -50,7 +50,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
@@ -154,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
@@ -204,13 +204,13 @@ jobs:
       SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
       - name: Checkout Beam Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
           path: beam
       - name: Checkout Beam Site Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: apache/beam-site
           path: beam-site

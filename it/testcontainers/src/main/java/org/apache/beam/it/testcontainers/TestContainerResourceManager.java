@@ -32,11 +32,11 @@ import org.testcontainers.containers.GenericContainer;
  * resources.
  *
  * <p>Optionally, a static resource can be specified by calling the useStaticContainer() method in
- * the {@link Builder} class. A static resource is a pre-configured database or other resource that
- * is ready to be connected to by the resource manager. This could be a pre-existing TestContainer
- * that has not been closed, a local database instance, a remote VM, or any other source that can be
- * connected to. If a static container is used, the host and port must also be configured using the
- * Builder's setHost() and setPort() methods, respectively.
+ * the {@link TestContainerResourceManager.Builder} class. A static resource is a pre-configured
+ * database or other resource that is ready to be connected to by the resource manager. This could
+ * be a pre-existing TestContainer that has not been closed, a local database instance, a remote VM,
+ * or any other source that can be connected to. If a static container is used, the host and port
+ * must also be configured using the Builder's setHost() and setPort() methods, respectively.
  */
 public abstract class TestContainerResourceManager<T extends GenericContainer<?>>
     implements ResourceManager {
@@ -48,11 +48,12 @@ public abstract class TestContainerResourceManager<T extends GenericContainer<?>
   private final String host;
   protected int port;
 
-  protected <B extends Builder<?>> TestContainerResourceManager(T container, B builder) {
+  protected <B extends TestContainerResourceManager.Builder<?>> TestContainerResourceManager(
+      T container, B builder) {
     this(container, builder, null);
   }
 
-  protected <B extends Builder<?>> TestContainerResourceManager(
+  protected <B extends TestContainerResourceManager.Builder<?>> TestContainerResourceManager(
       T container, B builder, @Nullable Callable<Void> setup) {
     this.container = container;
     this.usingStaticContainer = builder.useStaticContainer;

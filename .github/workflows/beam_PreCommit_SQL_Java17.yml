@@ -71,7 +71,7 @@ jobs:
       github.event.comment.body == 'Run SQL_Java17 PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -106,9 +106,10 @@ jobs:
             -Pjava17Home=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
+        if: failure()
         with:
           name: JUnit Test Results
-          path: '**/build/test-results/**/*.xml'
+          path: "**/build/reports/tests/"
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v2
         with:
@@ -118,4 +119,6 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'

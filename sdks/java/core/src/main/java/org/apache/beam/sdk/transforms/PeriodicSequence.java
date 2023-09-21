@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -67,6 +68,8 @@ public class PeriodicSequence
       this.catchUpToNow = true;
     }
 
+    /** <b><i>catchUpToNow is experimental; no backwards-compatibility guarantees.</i></b> */
+    @Internal
     public SequenceDefinition(
         Instant first, Instant last, Duration duration, boolean catchUpToNow) {
       this.first = first;

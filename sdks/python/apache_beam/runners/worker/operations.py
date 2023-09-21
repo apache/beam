@@ -207,14 +207,16 @@ class ConsumerSet(Receiver):
     # type: (WindowedValue) -> None
     self.opcounter.update_from(windowed_value)
 
+    if self.execution_context is not None:
+      self.execution_context.output_sampler = self.output_sampler
+
     # The following code is optimized by inlining a function call. Because this
     # is called for every element, a function call is too expensive (order of
     # 100s of nanoseconds). Furthermore, a lock was purposefully not used
     # between here and the DataSampler as an additional operation. The tradeoff
     # is that some samples might be dropped, but it is better than the
     # alternative which is double sampling the same element.
-    if self.element_sampler is not None and self.execution_context is not None:
-      self.execution_context.output_sampler = self.output_sampler
+    if self.element_sampler is not None:
       if not self.element_sampler.has_element:
         self.element_sampler.el = windowed_value
         self.element_sampler.has_element = True

@@ -1,0 +1,106 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: PostCommit Java Nexmark Dataflow V2
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  cancel-in-progress: true
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  GRADLE_COMMAND_ARGUMENTS: |
+    -Pnexmark.args=--manageResources=false 
+    --monitorJobs=true 
+    --bigQueryTable=nexmark 
+    --bigQueryDataset=nexmark 
+    --project=apache-beam-testing 
+    --resourceNameMode=QUERY_RUNNER_AND_MODE 
+    --exportSummaryToBigQuery=false 
+    --tempLocation=gs://temp-storage-for-perf-tests/nexmark 
+    --influxDatabase=beam_test_metrics 
+    --influxHost=http://10.128.0.96:8086 
+    --baseInfluxMeasurement=nexmark 
+    --exportSummaryToInfluxDB=true 
+    --influxRetentionPolicy=forever 
+    --influxTags={"runnerVersion":"V2","javaVersion":"8"} 
+    --region=us-central1 
+    --suite=STRESS 
+    --numWorkers=4 
+    --maxNumWorkers=4 
+    --autoscalingAlgorithm=NONE
+    --nexmarkParallel=16
+    --enforceEncodability=true 
+    --enforceImmutability=true 
+    --runner=DataflowRunner
+
+jobs:
+  beam_PostCommit_Java_Nexmark_Dataflow_V2:
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: [beam_PostCommit_Java_Nexmark_Dataflow_V2]
+        job_phrase: [Run Dataflow Runner V2 Nexmark Tests]
+        streaming: [false, true]
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Dataflow Runner V2 Nexmark Tests'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: run PostCommit Java Nexmark Dataflow V2 (streaming = ${{ matrix.streaming }}) script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:nexmark:run
+          arguments: |
+            -Pnexmark.runner=:runners:google-cloud-dataflow-java \
+            '${{ env.GRADLE_COMMAND_ARGUMENTS }}--streaming=${{ matrix.streaming }}'

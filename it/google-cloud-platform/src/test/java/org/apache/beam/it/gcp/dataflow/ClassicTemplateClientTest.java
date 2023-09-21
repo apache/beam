@@ -18,6 +18,10 @@
 package org.apache.beam.it.gcp.dataflow;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.LEGACY_RUNNER;
+import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.PARAM_JOB_ID;
+import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.PARAM_JOB_TYPE;
+import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.PARAM_RUNNER;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -153,8 +157,14 @@ public final class ClassicTemplateClientTest {
             .setSdk("Apache Beam Java")
             .setVersion("2.42.0")
             .setJobType("JOB_TYPE_BATCH")
-            .setRunner("Dataflow Legacy Runner")
-            .setParameters(ImmutableMap.of(PARAM_KEY, PARAM_VALUE))
+            .setRunner(AbstractPipelineLauncher.LEGACY_RUNNER)
+            .setParameters(
+                ImmutableMap.<String, String>builder()
+                    .put(PARAM_KEY, PARAM_VALUE)
+                    .put(PARAM_JOB_ID, JOB_ID)
+                    .put(PARAM_RUNNER, LEGACY_RUNNER)
+                    .put(PARAM_JOB_TYPE, "JOB_TYPE_BATCH")
+                    .build())
             .build();
     assertThat(actual).isEqualTo(expected);
   }

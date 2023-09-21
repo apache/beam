@@ -50,7 +50,7 @@ concurrency:
 permissions:
   actions: write
   pull-requests: read
-  checks: read
+  checks: write
   contents: read
   deployments: read
   id-token: none
@@ -61,6 +61,11 @@ permissions:
   repository-projects: read
   security-events: read
   statuses: read
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   beam_PreCommit_Spotless:
@@ -79,7 +84,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Spotless PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -95,3 +100,8 @@ jobs:
         with:
           name: java-code-coverage-report
           path: "**/build/reports/checkstyle/*.xml"
+      - name: Publish checkstyle check
+        uses: jwgmeligmeyling/checkstyle-github-action@v1
+        if: always()
+        with:
+          path: '**/build/reports/checkstyle/*.xml'

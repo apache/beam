@@ -118,11 +118,11 @@ public class BeamFnControlClient {
                 sendErrorResponse(e);
                 throw e;
               } finally {
-                BeamFnLoggingMDC.setInstructionId(null);
+                BeamFnLoggingMDC.reset();
               }
             });
       } finally {
-        BeamFnLoggingMDC.setInstructionId(null);
+        BeamFnLoggingMDC.reset();
       }
     }
 
