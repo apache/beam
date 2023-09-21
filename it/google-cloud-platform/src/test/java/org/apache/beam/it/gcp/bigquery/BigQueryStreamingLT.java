@@ -101,9 +101,9 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
   @Rule public final transient TestPipeline storageApiPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setUpClass() throws IOException, InterruptedException {
+  public static void setUpTestClass() throws IOException, InterruptedException {
     PipelineOptionsFactory.register(TestPipelineOptions.class);
-    BQ_CLIENT.createNewDataset(TestProperties.project(), BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
   }
 
   @Before
@@ -306,13 +306,11 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
         totalRows,
         destTable);
 
-    Instant start = Instant.now();
     PCollection<Long> source =
         storageApiPipeline
             .apply(
                 PeriodicImpulse.create()
-                    .startAt(start)
-                    .stopAt(start.plus(Duration.millis(millis - 1)))
+                    .stopAfter(Duration.millis(millis - 1))
                     .withInterval(Duration.millis(fireInterval)))
             .apply(
                 "Extract row IDs",
@@ -375,8 +373,9 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               .build();
       try {
         exportMetricsToBigQuery(storageApiInfo, getMetrics(storageApiInfo, metricsConfig));
-      } catch (ParseException | InterruptedException e) {
-        throw new RuntimeException(e);
+      } catch (Exception e) {
+        // Just log the error. Don't re-throw because we have accuracy checks that are more important below
+        LOG.error("Encountered an error while exporting metrics to BigQuery:\n{}", e);
       }
     }
     // If we're not publishing metrics, just run the pipeline normally
