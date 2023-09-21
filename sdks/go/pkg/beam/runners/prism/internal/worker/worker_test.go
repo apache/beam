@@ -50,18 +50,6 @@ func TestWorker_NextInst(t *testing.T) {
 	}
 }
 
-func TestWorker_NextStage(t *testing.T) {
-	w := New("test", "testEnv")
-
-	stageIDs := map[string]struct{}{}
-	for i := 0; i < 100; i++ {
-		stageIDs[w.NextStage()] = struct{}{}
-	}
-	if got, want := len(stageIDs), 100; got != want {
-		t.Errorf("calling w.NextStage() got %v unique ids, want %v", got, want)
-	}
-}
-
 func TestWorker_GetProcessBundleDescriptor(t *testing.T) {
 	w := New("test", "testEnv")
 
@@ -189,7 +177,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 
 	b := &B{
 		InstID: instID,
-		PBDID:  wk.NextStage(),
+		PBDID:  "teststageID",
 		InputData: [][]byte{
 			{1, 1, 1, 1, 1, 1},
 		},

@@ -33,12 +33,38 @@ from typing import Union
 import yaml
 
 import apache_beam as beam
+import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
 from apache_beam.yaml import yaml_provider
+
+
+def read_from_text(path: str):
+  # TODO(yaml): Consider passing the filename and offset, possibly even
+  # by default.
+  return beam_io.ReadFromText(path) | beam.Map(lambda s: beam.Row(line=s))
+
+
+@beam.ptransform_fn
+def write_to_text(pcoll, path: str):
+  try:
+    field_names = [
+        name for name,
+        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+    ]
+  except Exception as exn:
+    raise ValueError(
+        "WriteToText requires an input schema with exactly one field.") from exn
+  if len(field_names) != 1:
+    raise ValueError(
+        "WriteToText requires an input schema with exactly one field, got %s" %
+        field_names)
+  sole_field_name, = field_names
+  return pcoll | beam.Map(
+      lambda x: str(getattr(x, sole_field_name))) | beam.io.WriteToText(path)
 
 
 def read_from_bigquery(
@@ -119,14 +145,14 @@ def _create_parser(format, schema):
 def read_from_pubsub(
     root,
     *,
-    topic: Optional[str]=None,
-    subscription: Optional[str]=None,
+    topic: Optional[str] = None,
+    subscription: Optional[str] = None,
     format: str,
-    schema: Optional[Any]=None,
-    attributes: Optional[Iterable[str]]=None,
-    attributes_map: Optional[str]=None,
-    timestamp_attribute: Optional[str]=None,
-    error_handling: Optional[Mapping[str, str]]=None):
+    schema: Optional[Any] = None,
+    attributes: Optional[Iterable[str]] = None,
+    attributes_map: Optional[str] = None,
+    timestamp_attribute: Optional[str] = None,
+    error_handling: Optional[Mapping[str, str]] = None):
   if topic and subscription:
     raise TypeError('Only one of topic and subscription may be specified.')
   elif not topic and not subscription:
@@ -139,9 +165,11 @@ def read_from_pubsub(
     if isinstance(attributes, str):
       attributes = [attributes]
     if attributes:
-      extra_fields.extend([schemas.schema_field(attr, str) for attr in attributes])
+      extra_fields.extend(
+          [schemas.schema_field(attr, str) for attr in attributes])
     if attributes_map:
-      extra_fields.append(schemas.schema_field(attributes_map, Mapping[str, str]))
+      extra_fields.append(
+          schemas.schema_field(attributes_map, Mapping[str, str]))
 
     def mapper(msg):
       values = parser(msg.data).as_dict()
@@ -186,11 +214,11 @@ def write_to_pubsub(
     *,
     topic: str,
     format: str,
-    schema: Optional[Any]=None,
-    attributes: Optional[Iterable[str]]=None,
-    attributes_map: Optional[str]=None,
-    timestamp_attribute: Optional[str]=None,
-    error_handling: Optional[Mapping[str, str]]=None):
+    schema: Optional[Any] = None,
+    attributes: Optional[Iterable[str]] = None,
+    attributes_map: Optional[str] = None,
+    timestamp_attribute: Optional[str] = None,
+    error_handling: Optional[Mapping[str, str]] = None):
 
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 

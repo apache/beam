@@ -209,6 +209,7 @@ class ExternalProvider(Provider):
   def register_provider_type(cls, type_name):
     def apply(constructor):
       cls._provider_types[type_name] = constructor
+      return constructor
 
     return apply
 
@@ -549,15 +550,9 @@ def create_builtin_provider():
       'PyFilter': lambda keep: beam.Filter(
           python_callable.PythonCallableWithSource(keep)),
       'PyTransform': fully_qualified_named_transform,
-      'PyToRow': lambda fields: beam.Select(
-          **{
-              name: python_callable.PythonCallableWithSource(fn)
-              for (name, fn) in fields.items()
-          }),
-      'WithSchema': with_schema,
+      'WithSchemaExperimental': with_schema,
       'Flatten': Flatten,
       'WindowInto': WindowInto,
-      'GroupByKey': beam.GroupByKey,
   },
                         no_input_transforms=('Create', ))
 
@@ -715,19 +710,21 @@ def merge_providers(*provider_sets):
           transform_type: [provider]
           for transform_type in provider.provided_transforms()
       }
+    elif isinstance(provider_set, list):
+      provider_set = merge_providers(*provider_set)
     for transform_type, providers in provider_set.items():
       result[transform_type].extend(providers)
   return result
 
 
 def standard_providers():
-  from apache_beam.yaml.yaml_mapping import create_mapping_provider
+  from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
   return merge_providers(
       create_builtin_provider(),
-      create_mapping_provider(),
+      create_mapping_providers(),
       io_providers(),
       parse_providers(standard_providers))

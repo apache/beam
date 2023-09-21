@@ -193,6 +193,9 @@ class _AbstractFrameTest(unittest.TestCase):
         if expected.index.is_unique:
           expected = expected.sort_index()
           actual = actual.sort_index()
+        elif isinstance(expected, pd.Series):
+          expected = expected.sort_values()
+          actual = actual.sort_values()
         else:
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
@@ -694,6 +697,8 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
+    # Ensure we don't drop rows due to nan values in unused columns.
+    self._run_test(lambda df: df.value_counts('num_wings'), df)
 
     if PD_VERSION >= (1, 3):
       # dropna=False is new in pandas 1.3
@@ -1832,8 +1837,8 @@ class GroupByTest(_AbstractFrameTest):
     df = GROUPBY_DF
 
     self._run_test(
-        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
-            lambda x: x),
+        lambda df: df[['foo', 'group', 'bar']].groupby(
+            'group', group_keys=False).apply(lambda x: x),
         df)
 
   def test_groupby_transform(self):
@@ -2984,7 +2989,7 @@ class DocstringTest(unittest.TestCase):
       (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
-      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames._DeferredStringMethods, pd.Series.str),
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),

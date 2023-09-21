@@ -418,7 +418,8 @@ task vertexAIInferenceTest {
           "test_opts": testOpts,
           "suite": "VertexAITests-df-py${pythonVersionSuffix}",
           "collect": "uses_vertex_ai and it_postcommit" ,
-          "runner": "TestDataflowRunner"
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
       ]
       def cmdArgs = mapToArgString(argMap)
       exec {
