@@ -25,20 +25,26 @@ from apache_beam.io import localfilesystem
 from apache_beam.options import pipeline_options
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml.yaml_mapping import row_to_dict
+from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 def AsRows():
-  return beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict()))
+  return beam.Map(lambda named_tuple: dicts_to_rows(row_to_dict(named_tuple)))
 
 
 class YamlUDFMappingTest(unittest.TestCase):
   def __init__(self, method_name='runYamlMappingTest'):
     super().__init__(method_name)
     self.data = [
-        beam.Row(label='11a', conductor=11, rank=0),
-        beam.Row(label='37a', conductor=37, rank=1),
-        beam.Row(label='389a', conductor=389, rank=2),
+        beam.Row(
+            label='11a', conductor=11, row=beam.Row(rank=0, values=[1, 2, 3])),
+        beam.Row(
+            label='37a', conductor=37, row=beam.Row(rank=1, values=[4, 5, 6])),
+        beam.Row(
+            label='389a', conductor=389, row=beam.Row(rank=2, values=[7, 8,
+                                                                      9])),
     ]
 
   def setUp(self):
@@ -57,19 +63,40 @@ class YamlUDFMappingTest(unittest.TestCase):
           '''
       type: MapToFields
       config:
-        language: javascript-experimental
+        language: javascript
         fields:
           label:
-            callable: "function label_map(x) {return x.label + 'x'}"
+            callable: |
+              function label_map(x) {
+                return x.label + 'x'
+              }
           conductor:
-            callable: "function conductor_map(x) {return x.conductor + 1}"
+            callable: |
+              function conductor_map(x) {
+                return x.conductor + 1
+              }
+          row:
+            callable: |
+              function row_map(x) {
+                x.row.values.push(x.row.rank + 10)
+                return x.row
+              }
       ''')
       assert_that(
           result,
           equal_to([
-              beam.Row(label='11ax', conductor=12),
-              beam.Row(label='37ax', conductor=38),
-              beam.Row(label='389ax', conductor=390),
+              beam.Row(
+                  label='11ax',
+                  conductor=12,
+                  row=beam.Row(rank=0, values=[1, 2, 3, 10])),
+              beam.Row(
+                  label='37ax',
+                  conductor=38,
+                  row=beam.Row(rank=1, values=[4, 5, 6, 11])),
+              beam.Row(
+                  label='389ax',
+                  conductor=390,
+                  row=beam.Row(rank=2, values=[7, 8, 9, 12])),
           ]))
 
   def test_map_to_fields_filter_inline_py(self):
@@ -86,13 +113,15 @@ class YamlUDFMappingTest(unittest.TestCase):
             callable: "lambda x: x.label + 'x'"
           conductor:
             callable: "lambda x: x.conductor + 1"
+          sum:
+            callable: "lambda x: sum(x.row.values)"
       ''')
       assert_that(
           result,
           equal_to([
-              beam.Row(label='11ax', conductor=12),
-              beam.Row(label='37ax', conductor=38),
-              beam.Row(label='389ax', conductor=390),
+              beam.Row(label='11ax', conductor=12, sum=6),
+              beam.Row(label='37ax', conductor=38, sum=15),
+              beam.Row(label='389ax', conductor=390, sum=24),
           ]))
 
   def test_filter_inline_js(self):
@@ -104,20 +133,24 @@ class YamlUDFMappingTest(unittest.TestCase):
           '''
       type: Filter
       config:
-<<<<<<< HEAD
         language: javascript
         keep:
-=======
-        language: javascript-experimental
-        keep: 
->>>>>>> 0ced28e35e (Mark JS UDFs as experimental)
-          callable: "function filter(x) {return x.rank > 0}"
+          callable: |
+            function filter(x) {
+              return x.row.rank > 0
+            }
       ''')
       assert_that(
           result | AsRows(),
           equal_to([
-              beam.Row(label='37a', conductor=37, rank=1),
-              beam.Row(label='389a', conductor=389, rank=2),
+              beam.Row(
+                  label='37a',
+                  conductor=37,
+                  row=beam.Row(rank=1, values=[4, 5, 6])),
+              beam.Row(
+                  label='389a',
+                  conductor=389,
+                  row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
   def test_filter_inline_py(self):
@@ -130,13 +163,19 @@ class YamlUDFMappingTest(unittest.TestCase):
       config:
         language: python
         keep:
-          callable: "lambda x: x.rank > 0"
+          callable: "lambda x: x.row.rank > 0"
       ''')
       assert_that(
           result | AsRows(),
           equal_to([
-              beam.Row(label='37a', conductor=37, rank=1),
-              beam.Row(label='389a', conductor=389, rank=2),
+              beam.Row(
+                  label='37a',
+                  conductor=37,
+                  row=beam.Row(rank=1, values=[4, 5, 6])),
+              beam.Row(
+                  label='389a',
+                  conductor=389,
+                  row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
   def test_filter_expression_js(self):
@@ -148,19 +187,17 @@ class YamlUDFMappingTest(unittest.TestCase):
           '''
       type: Filter
       config:
-<<<<<<< HEAD
         language: javascript
         keep:
-=======
-        language: javascript-experimental
-        keep: 
->>>>>>> 0ced28e35e (Mark JS UDFs as experimental)
-          expression: "label.toUpperCase().indexOf('3') == -1 && conductor"
+          expression: "label.toUpperCase().indexOf('3') == -1 && row.rank < 1"
       ''')
       assert_that(
           result | AsRows(),
           equal_to([
-              beam.Row(label='11a', conductor=11, rank=0),
+              beam.Row(
+                  label='11a',
+                  conductor=11,
+                  row=beam.Row(rank=0, values=[1, 2, 3])),
           ]))
 
   def test_filter_expression_py(self):
@@ -178,17 +215,20 @@ class YamlUDFMappingTest(unittest.TestCase):
       assert_that(
           result | AsRows(),
           equal_to([
-              beam.Row(label='11a', conductor=11, rank=0),
+              beam.Row(
+                  label='11a',
+                  conductor=11,
+                  row=beam.Row(rank=0, values=[1, 2, 3])),
           ]))
 
   def test_filter_inline_js_file(self):
     data = '''
     function f(x) {
-      return x.rank > 0
+      return x.row.rank > 0
     }
 
     function g(x) {
-      return x.rank > 1
+      return x.row.rank > 1
     }
     '''.replace('    ', '')
 
@@ -203,30 +243,31 @@ class YamlUDFMappingTest(unittest.TestCase):
           f'''
         type: Filter
         config:
-<<<<<<< HEAD
           language: javascript
           keep:
-=======
-          language: javascript-experimental
-          keep: 
->>>>>>> 0ced28e35e (Mark JS UDFs as experimental)
             path: {path}
             name: "f"
         ''')
       assert_that(
           result | AsRows(),
           equal_to([
-              beam.Row(label='37a', conductor=37, rank=1),
-              beam.Row(label='389a', conductor=389, rank=2),
+              beam.Row(
+                  label='37a',
+                  conductor=37,
+                  row=beam.Row(rank=1, values=[4, 5, 6])),
+              beam.Row(
+                  label='389a',
+                  conductor=389,
+                  row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
   def test_filter_inline_py_file(self):
     data = '''
     def f(x):
-      return x.rank > 0
+      return x.row.rank > 0
 
     def g(x):
-      return x.rank > 1
+      return x.row.rank > 1
     '''.replace('    ', '')
 
     path = os.path.join(self.tmpdir, 'udf.py')
@@ -247,8 +288,14 @@ class YamlUDFMappingTest(unittest.TestCase):
       assert_that(
           result | AsRows(),
           equal_to([
-              beam.Row(label='37a', conductor=37, rank=1),
-              beam.Row(label='389a', conductor=389, rank=2),
+              beam.Row(
+                  label='37a',
+                  conductor=37,
+                  row=beam.Row(rank=1, values=[4, 5, 6])),
+              beam.Row(
+                  label='389a',
+                  conductor=389,
+                  row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
 

@@ -2260,7 +2260,7 @@ class _PValueWithErrors(object):
 
   @property
   def pipeline(self):
-    return self._pvalue.pipeline
+    return self._pcoll.pipeline
 
   @property
   def element_type(self):

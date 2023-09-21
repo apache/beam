@@ -27,8 +27,31 @@ from typing import Optional
 from typing import Union
 
 import js2py
+from js2py.base import JsObjectWrapper
+from js2py.base import PyJsArray
+from js2py.base import PyJsArrayBuffer
+from js2py.base import PyJsBoolean
+from js2py.base import PyJsError
+from js2py.base import PyJsFloat32Array
+from js2py.base import PyJsFloat64Array
+from js2py.base import PyJsInt16Array
+from js2py.base import PyJsInt32Array
+from js2py.base import PyJsInt8Array
+from js2py.base import PyJsNull
+from js2py.base import PyJsNumber
+from js2py.base import PyJsObject
+from js2py.base import PyJsString
+from js2py.base import PyJsUint16Array
+from js2py.base import PyJsUint32Array
+from js2py.base import PyJsUint8Array
+from js2py.base import PyJsUint8ClampedArray
+from js2py.base import PyJsUndefined
+from js2py.base import to_python
+from js2py.constructors.jsdate import PyJsDate
+from js2py.internals.simplex import JsException
 
 import apache_beam as beam
+from apache_beam import Row
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -39,6 +62,7 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 
 def _check_mapping_arguments(
@@ -75,19 +99,77 @@ class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
     self.__dict__.update(state)
 
 
+def row_to_dict(row):
+  if (str(type(row).__name__).startswith('BeamSchema_') or
+      isinstance(row, Row)):
+    row = row._asdict()
+  if isinstance(row, dict):
+    for key, value in row.items():
+      row[key] = row_to_dict(value)
+  elif not isinstance(row, str) and isinstance(row, Iterable):
+    row_list = list(row)
+    for idx in range(len(row_list)):
+      row_list[idx] = row_to_dict(row_list[idx])
+  return row
+
+
 # TODO(yaml) Consider adding optional language version parameter to support
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
+
+  js_array_type = (
+      PyJsArray,
+      PyJsArrayBuffer,
+      PyJsInt8Array,
+      PyJsUint8Array,
+      PyJsUint8ClampedArray,
+      PyJsInt16Array,
+      PyJsUint16Array,
+      PyJsInt32Array,
+      PyJsUint32Array,
+      PyJsFloat32Array,
+      PyJsFloat64Array)
+
+  def _js_object_to_py_object(obj):
+    if isinstance(obj, (PyJsNumber, PyJsString, PyJsBoolean)):
+      obj = to_python(obj)
+    elif isinstance(obj, js_array_type):
+      return [_js_object_to_py_object(value) for value in obj.to_list()]
+    elif isinstance(obj, PyJsDate):
+      obj = obj.to_utc_dt()
+    elif isinstance(obj, (PyJsNull, PyJsUndefined)):
+      return None
+    elif isinstance(obj, PyJsError):
+      raise RuntimeError(obj['message'])
+    elif isinstance(obj, PyJsObject):
+      return {
+          key: _js_object_to_py_object(value['value'])
+          for key,
+          value in obj.own.items()
+      }
+    elif isinstance(obj, JsObjectWrapper):
+      return _js_object_to_py_object(obj._obj)
+
+    return obj
+
+  def _catch_js_errors(func):
+    try:
+      result = func()
+    except JsException as e:
+      result = getattr(e, 'mes')
+    return result
+
   if expression:
     args = ', '.join(original_fields)
     js_func = f'function fn({args}) {{return ({expression})}}'
-    js_callable = _CustomJsObjectWrapper(js2py.eval_js(js_func))
-    return lambda __row__: js_callable(*__row__._asdict().values())
+    js_expr_callable = _CustomJsObjectWrapper(js2py.eval_js(js_func))
+    fn = lambda __row__: lambda: js_expr_callable(
+        *row_to_dict(__row__).values())
 
   elif callable:
     js_callable = _CustomJsObjectWrapper(js2py.eval_js(callable))
-    return lambda __row__: js_callable(__row__._asdict())
+    fn = lambda __row__: lambda: js_callable(row_to_dict(__row__))
 
   else:
     if not path.endswith('.js'):
@@ -95,8 +177,11 @@ def _expand_javascript_mapping_func(
     udf_code = FileSystems.open(path).read().decode()
     js = js2py.EvalJs()
     js.eval(udf_code)
-    js_callable = _CustomJsObjectWrapper(getattr(js, name))
-    return lambda __row__: js_callable(__row__._asdict())
+    js_file_callable = _CustomJsObjectWrapper(getattr(js, name))
+    fn = lambda __row__: lambda: js_file_callable(row_to_dict(__row__))
+
+  return lambda __row__: dicts_to_rows(
+      _js_object_to_py_object(_catch_js_errors(fn(__row__))))
 
 
 def _expand_python_mapping_func(
