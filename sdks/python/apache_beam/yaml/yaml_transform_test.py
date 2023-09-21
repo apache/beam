@@ -31,6 +31,8 @@ from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class CreateTimestamped(beam.PTransform):
+  _yaml_requires_inputs = False
+
   def __init__(self, elements):
     self._elements = elements
 
@@ -117,7 +119,8 @@ class YamlTransformE2ETest(unittest.TestCase):
             - type: PyMap
               config:
                   fn: "lambda x: x + 41"
-          ''', providers=TEST_PROVIDERS)
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
   def test_chain_with_source_sink(self):
@@ -138,7 +141,8 @@ class YamlTransformE2ETest(unittest.TestCase):
             type: PyMap
             config:
                 fn: "lambda x: x + 41"
-          ''', providers=TEST_PROVIDERS)
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
   def test_chain_with_root(self):
@@ -157,7 +161,8 @@ class YamlTransformE2ETest(unittest.TestCase):
             - type: PyMap
               config:
                   fn: "lambda x: x + 41"
-          ''', providers=TEST_PROVIDERS)
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
   def create_has_schema(self):
@@ -185,11 +190,11 @@ class YamlTransformE2ETest(unittest.TestCase):
           '''
           type: composite
           transforms:
-            - type: CreateInts
+            - type: Create
               name: CreateSmall
               config:
                   elements: [1, 2, 3]
-            - type: CreateInts
+            - type: Create
               name: CreateBig
               config:
                   elements: [100, 200]
@@ -198,7 +203,8 @@ class YamlTransformE2ETest(unittest.TestCase):
               config:
                   fn: "lambda x: x * x"
           output: PyMap
-          ''', providers=TEST_PROVIDERS)
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([1, 4, 9, 10000, 40000]))
 
   def test_csv_to_json(self):
@@ -260,7 +266,8 @@ class YamlTransformE2ETest(unittest.TestCase):
                     fn: "lambda elem: elem * elem"
                 input: Create
             output: PyMap
-            ''', providers=TEST_PROVIDERS)
+            ''',
+          providers=TEST_PROVIDERS)
       # No exception raised
       assert_that(result, equal_to([0, 1, 9, 16]))
 
@@ -288,7 +295,53 @@ class YamlTransformE2ETest(unittest.TestCase):
                     fn: "lambda elem: elem + 3"
                 input: PyMap
             output: AnotherMap
-            ''', providers=TEST_PROVIDERS)
+            ''',
+            providers=TEST_PROVIDERS)
+
+  def test_empty_inputs_throws_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with self.assertRaisesRegex(ValueError,
+                                  'Missing inputs for transform at '
+                                  '"EmptyInputOkButYamlDoesntKnow" at line .*'):
+        _ = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: PyTransform
+                name: EmptyInputOkButYamlDoesntKnow
+                config:
+                  constructor: apache_beam.Impulse
+            ''')
+
+  def test_empty_inputs_ok_in_source(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # Does not throw an error like it does above.
+      _ = p | YamlTransform(
+          '''
+          type: composite
+          source:
+            type: PyTransform
+            name: EmptyInputOkButYamlDoesntKnow
+            config:
+              constructor: apache_beam.Impulse
+          ''')
+
+  def test_empty_inputs_ok_if_explicit(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # Does not throw an error like it does above.
+      _ = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: PyTransform
+              name: EmptyInputOkButYamlDoesntKnow
+              input: {}
+              config:
+                constructor: apache_beam.Impulse
+          ''')
 
   def test_annotations(self):
     t = LinearTransform(5, b=100)
@@ -365,12 +418,12 @@ class ErrorHandlingTest(unittest.TestCase):
           '''
           type: composite
           transforms:
-            - type: CreateInts
+            - type: Create
               config:
                   elements: [0, 1, 2, 4]
             - type: PyMap
               name: ToRow
-              input: CreateInts
+              input: Create
               config:
                   fn: "lambda x: beam.Row(num=x, str='a' * x or 'bbb')"
             - type: Filter

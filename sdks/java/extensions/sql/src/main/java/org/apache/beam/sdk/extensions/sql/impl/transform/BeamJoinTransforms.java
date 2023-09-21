@@ -153,7 +153,7 @@ public class BeamJoinTransforms {
                   new DoFn<Row, Row>() {
                     @Setup
                     public void setup() {
-                      seekableTable.setUp();
+                      seekableTable.setUp(joinSubsetType);
                     }
 
                     @StartBundle

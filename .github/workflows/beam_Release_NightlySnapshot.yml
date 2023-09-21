@@ -54,22 +54,17 @@ jobs:
       github.event_name == 'schedule'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           github_job: ${{matrix.job_name}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           comment_phrase: "Release Nightly Snapshot"
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
+          java-version: 8
       - name: Auth on snapshot repository
         run: |
           mkdir -p ${HOME}/.m2

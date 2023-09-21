@@ -343,6 +343,7 @@ class MainTest(unittest.TestCase):
     expected = '''
       transforms:
       - type: Create
+        input: {'__explicitly_empty__': null}
         config:
           elements: [0,1,2]
       - type: PyMap
@@ -372,6 +373,7 @@ class MainTest(unittest.TestCase):
     expected = '''
       transforms:
       - type: Create
+        input: {'__explicitly_empty__': null}
         config:
           elements: [0,1,2]
       - type: PyMap
@@ -441,6 +443,7 @@ class MainTest(unittest.TestCase):
       type: composite
       transforms:
       - type: Create
+        input: {'__explicitly_empty__': null}
         config:
           elements: [0,1,2]
       - type: PyMap
@@ -468,6 +471,7 @@ class MainTest(unittest.TestCase):
       type: chain
       transforms:
       - type: Create
+        input: {'__explicitly_empty__': null}
         config:
           elements: [0,1,2]
       - type: PyMap

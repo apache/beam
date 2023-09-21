@@ -81,7 +81,7 @@ public class RecordsSubject extends Subject {
     Map<String, Object> expected = convertMapToTreeMap(subset);
     for (Map<String, Object> candidate : actual) {
       boolean match = true;
-      for (Entry<String, Object> entry : subset.entrySet()) {
+      for (Map.Entry<String, Object> entry : subset.entrySet()) {
         if (!candidate.containsKey(entry.getKey())
             || !candidate.get(entry.getKey()).equals(entry.getValue())) {
           match = false;

@@ -66,6 +66,16 @@ class Provider:
     """Returns a list of transform type names this provider can handle."""
     raise NotImplementedError(type(self))
 
+  def requires_inputs(self, typ: str, args: Mapping[str, Any]) -> bool:
+    """Returns whether this transform requires inputs.
+
+    Specifically, if this returns True and inputs are not provided than an error
+    will be thrown.
+
+    This is best-effort, primarily for better and earlier error messages.
+    """
+    return not typ.startswith('Read')
+
   def create_transform(
       self,
       typ: str,
@@ -130,9 +140,7 @@ class ExternalProvider(Provider):
   def provided_transforms(self):
     return self._urns.keys()
 
-  def create_transform(self, type, args, yaml_create_transform):
-    if callable(self._service):
-      self._service = self._service()
+  def schema_transforms(self):
     if self._schema_transforms is None:
       try:
         self._schema_transforms = {
@@ -143,8 +151,19 @@ class ExternalProvider(Provider):
       except Exception:
         # It's possible this service doesn't vend schema transforms.
         self._schema_transforms = {}
+    return self._schema_transforms
+
+  def requires_inputs(self, typ, args):
+    if self._urns[type] in self.schema_transforms():
+      return bool(self.schema_transforms()[self._urns[type]].inputs)
+    else:
+      return super().requires_inputs(typ, args)
+
+  def create_transform(self, type, args, yaml_create_transform):
+    if callable(self._service):
+      self._service = self._service()
     urn = self._urns[type]
-    if urn in self._schema_transforms:
+    if urn in self.schema_transforms():
       return external.SchemaAwareExternalTransform(
           urn, self._service, rearrange_based_on_discovery=True, **args)
     else:
@@ -361,8 +380,9 @@ def fix_pycallable():
 
 
 class InlineProvider(Provider):
-  def __init__(self, transform_factories):
+  def __init__(self, transform_factories, no_input_transforms=()):
     self._transform_factories = transform_factories
+    self._no_input_transforms = set(no_input_transforms)
 
   def available(self):
     return True
@@ -378,6 +398,14 @@ class InlineProvider(Provider):
 
   def to_json(self):
     return {'type': "InlineProvider"}
+
+  def requires_inputs(self, typ, args):
+    if typ in self._no_input_transforms:
+      return False
+    elif hasattr(self._transform_factories[typ], '_yaml_requires_inputs'):
+      return self._transform_factories[typ]._yaml_requires_inputs
+    else:
+      return super().requires_inputs(typ, args)
 
 
 class MetaInlineProvider(InlineProvider):
@@ -514,21 +542,15 @@ def create_builtin_provider():
     logging.info(x)
     return x
 
-  return InlineProvider(
-      dict({
-          'Create': create,
-          'LogForTesting': lambda: beam.Map(log_and_return),
-          'PyTransform': fully_qualified_named_transform,
-          'PyToRow': lambda fields: beam.Select(
-              **{
-                  name: python_callable.PythonCallableWithSource(fn)
-                  for (name, fn) in fields.items()
-              }),
-          'WithSchema': with_schema,
-          'Flatten': Flatten,
-          'WindowInto': WindowInto,
-          'GroupByKey': beam.GroupByKey,
-      }))
+  return InlineProvider({
+      'Create': create,
+      'LogForTesting': lambda: beam.Map(log_and_return),
+      'PyTransform': fully_qualified_named_transform,
+      'WithSchemaExperimental': with_schema,
+      'Flatten': Flatten,
+      'WindowInto': WindowInto,
+  },
+                        no_input_transforms=('Create', ))
 
 
 class PypiExpansionService:
@@ -635,6 +657,9 @@ class RenamingProvider(Provider):
 
   def provided_transforms(self) -> Iterable[str]:
     return self._transforms.keys()
+
+  def requires_inputs(self, typ, args):
+    return self._underlying_provider.requires_inputs(typ, args)
 
   def create_transform(
       self,
