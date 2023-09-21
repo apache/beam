@@ -15,13 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
---job_name=load-tests-go-dataflow-batch-combine-4-
+--job_name=load-tests-go-dataflow-batch-combine-2-
 --project=apache-beam-testing
 --region=us-central1
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --influx_namespace=dataflow
---influx_measurement=go_batch_combine_4
+--influx_measurement=go_batch_combine_2
 --input_options=''{\"num_records\":5000000,\"key_size\":10,\"value_size\":90}''
 --fanout=4
 --top_count=20
