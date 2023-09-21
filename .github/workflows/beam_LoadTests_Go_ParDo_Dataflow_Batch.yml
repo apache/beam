@@ -70,22 +70,18 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Prepare configs
+        #Reads config files, excludes comments, appends current date to the job_name parameter
         id: set_configs
         shell: bash
         run: |
           CURDATE=$(date '+%m%d%H%M%S' --utc)
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_10_Iterations.txt | tr '\n' ' ')
-          CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-pardo-1-/load-tests-go-dataflow-batch-pardo-1-$CURDATE}")
-          echo "prepared_config_1=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_200_Iterations.txt | tr '\n' ' ')
-          CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-pardo-2-/load-tests-go-dataflow-batch-pardo-2-$CURDATE}")
-          echo "prepared_config_2=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_10_Counters.txt | tr '\n' ' ')
-          CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-pardo-3-/load-tests-go-dataflow-batch-pardo-3-$CURDATE}")
-          echo "prepared_config_3=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_100_Counters.txt | tr '\n' ' ')
-          CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-pardo-4-/load-tests-go-dataflow-batch-pardo-4-$CURDATE}")
-          echo "prepared_config_4=$CURCONFIG" >> $GITHUB_OUTPUT
+          CONFIG_ARR=('config_ParDo_Go_Batch_10_Iterations.txt' 'config_ParDo_Go_Batch_200_Iterations.txt' 'config_ParDo_Go_Batch_10_Counters.txt' 'config_ParDo_Go_Batch_100_Counters.txt')
+          for INDEX in ${!CONFIG_ARR[@]}
+          do
+            CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/${CONFIG_ARR[INDEX]} | tr '\n' ' ')
+            CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-pardo-$((INDEX + 1))-/load-tests-go-dataflow-batch-pardo-$((INDEX + 1))-$CURDATE}")
+            echo "prepared_config_$((INDEX + 1))=$CURCONFIG" >> $GITHUB_OUTPUT
+          done
       - name: run ParDo Dataflow Batch Go Load Test 1 (10 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
