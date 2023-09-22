@@ -231,8 +231,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public abstract Boolean getAutoSharding();
 
     @SchemaFieldDescription(
-        "If set, the Storage API sink will default to using this number of write streams. " +
-            "Only applicable to unbounded data.")
+        "Specifies the number of write streams that the Storage API sink will use. "
+            + "This parameter is only applicable when writing unbounded data.")
     @Nullable
     public abstract Integer getNumStreams();
 
