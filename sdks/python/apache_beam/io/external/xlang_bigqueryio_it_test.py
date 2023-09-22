@@ -262,7 +262,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         streaming=True,
         allow_unsafe_triggers=True)
 
-    auto_sharding = num_streams == 0
+    auto_sharding = (num_streams == 0)
     with beam.Pipeline(argv=args) as p:
       _ = (
           p
