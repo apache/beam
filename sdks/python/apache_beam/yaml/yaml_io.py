@@ -28,7 +28,6 @@ from typing import Any
 from typing import Iterable
 from typing import Mapping
 from typing import Optional
-from typing import Union
 
 import yaml
 
@@ -219,7 +218,7 @@ def read_from_pubsub(
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
   payload_schema, parser = _create_parser(format, schema)
-  extra_fields = []
+  extra_fields: List[schema_pb2.Field] = []
   if not attributes and not attributes_map:
     mapper = lambda msg: parser(msg)
   else:
@@ -303,7 +302,7 @@ def write_to_pubsub(
   """
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 
-  extra_fields = []
+  extra_fields: List[str] = []
   if isinstance(attributes, str):
     attributes = [attributes]
   if attributes:

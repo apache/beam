@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import collections
 import logging
 import unittest
 
@@ -26,7 +25,6 @@ from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -39,6 +37,7 @@ class FakeReadFromPubSub:
       id_attribute=None,
       timestamp_attribute=None):
     self._topic = topic
+    self._subscription = subscription
     self._messages = messages
     self._id_attribute = id_attribute
     self._timestamp_attribute = timestamp_attribute
@@ -54,7 +53,7 @@ class FakeReadFromPubSub:
     assert topic == self._topic
     assert id_label == self._id_attribute
     assert timestamp_attribute == self._timestamp_attribute
-    assert subscription == subscription
+    assert subscription == self._subscription
     if with_attributes:
       data = self._messages
     else:
@@ -72,7 +71,7 @@ class FakeWriteToPubSub:
 
   def __call__(self, topic, *, with_attributes, id_label, timestamp_attribute):
     assert topic == self._topic
-    assert with_attributes == True
+    assert with_attributes is True
     assert id_label == self._id_attribute
     assert timestamp_attribute == self._timestamp_attribute
     return AssertThat(equal_to(self._messages))
