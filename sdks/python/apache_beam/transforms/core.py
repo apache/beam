@@ -2258,6 +2258,10 @@ class _PValueWithErrors(object):
     self._exception_handling_args = exception_handling_args
     self._upstream_errors = upstream_errors
 
+  @property
+  def element_type(self):
+    return self._pcoll.element_type
+
   def main_output_tag(self):
     return self._exception_handling_args.get('main_tag', 'good')
 
@@ -2308,6 +2312,10 @@ class _MaybePValueWithErrors(object):
       self._pvalue = pvalue
     else:
       self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  @property
+  def element_type(self):
+    return self._pvalue.element_type
 
   def __or__(self, transform):
     return self.apply(transform)

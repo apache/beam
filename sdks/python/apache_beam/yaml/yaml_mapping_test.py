@@ -82,18 +82,18 @@ class YamlMappingTest(unittest.TestCase):
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
-          type: MapToFields
+          type: Filter
           input: input
           config:
               language: python
-              fields:
-                label: label
               keep: "rank > 0"
           ''')
       assert_that(
-          result, equal_to([
-              beam.Row(label='37a'),
-              beam.Row(label='389a'),
+          result
+          | beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict())),
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
           ]))
 
   def test_explode(self):
@@ -105,15 +105,19 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: MapToFields
+          type: chain
           input: input
-          config:
-              language: python
-              append: true
-              fields:
-                range: "range(a)"
-              explode: [range, b]
-              cross_product: true
+          transforms:
+            - type: MapToFields
+              config:
+                  language: python
+                  append: true
+                  fields:
+                    range: "range(a)"
+            - type: Explode
+              config:
+                  fields: [range, b]
+                  cross_product: true
           ''')
       assert_that(
           result,

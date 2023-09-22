@@ -17,6 +17,14 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+from typing import Any
+from typing import Callable
+from typing import Collection
+from typing import Dict
+from typing import Iterable
+from typing import Mapping
+from typing import Optional
+from typing import Union
 
 import js2py
 
@@ -139,18 +147,73 @@ def _as_callable(original_fields, expr, transform_name, language):
         'Supported languages are "javascript" and "python."')
 
 
+def exception_handling_args(error_handling_spec):
+  if error_handling_spec:
+    return {
+        'dead_letter_tag' if k == 'output' else k: v
+        for (k, v) in error_handling_spec.items()
+    }
+  else:
+    return None
+
+
+def _map_errors_to_standard_format():
+  # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
+  return beam.Map(
+      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2])))
+
+
+def maybe_with_exception_handling(inner_expand):
+  def expand(self, pcoll):
+    wrapped_pcoll = beam.core._MaybePValueWithErrors(
+        pcoll, self._exception_handling_args)
+    return inner_expand(self, wrapped_pcoll).as_result(
+        _map_errors_to_standard_format())
+
+  return expand
+
+
+def maybe_with_exception_handling_transform_fn(transform_fn):
+  def expand(pcoll, error_handling=None, **kwargs):
+    wrapped_pcoll = beam.core._MaybePValueWithErrors(
+        pcoll, exception_handling_args(error_handling))
+    return transform_fn(wrapped_pcoll,
+                        **kwargs).as_result(_map_errors_to_standard_format())
+
+  return expand
+
+
 # TODO(yaml): This should be available in all environments, in which case
 # we choose the one that matches best.
 class _Explode(beam.PTransform):
-  def __init__(self, fields, cross_product):
+  def __init__(
+      self,
+      fields: Union[str, Collection[str]],
+      cross_product: Optional[bool] = None,
+      error_handling: Optional[Mapping[str, Any]] = None):
+    if isinstance(fields, str):
+      fields = [fields]
+    if cross_product is None:
+      if len(fields) > 1:
+        raise ValueError(
+            'cross_product must be specified true or false '
+            'when exploding multiple fields')
+      else:
+        # Doesn't matter.
+        cross_product = True
     self._fields = fields
     self._cross_product = cross_product
-    self._exception_handling_args = None
+    # TODO(yaml): Support standard error handling argument.
+    self._exception_handling_args = exception_handling_args(error_handling)
 
+  @maybe_with_exception_handling
   def expand(self, pcoll):
     all_fields = [
         x for x, _ in named_fields_from_element_type(pcoll.element_type)
     ]
+    for field in self._fields:
+      if field not in all_fields:
+        raise ValueError(f'Exploding unknown field "{field}"')
     to_explode = self._fields
 
     def explode_cross_product(base, fields):
@@ -171,12 +234,12 @@ class _Explode(beam.PTransform):
         yield beam.Row(**copy)
 
     return (
-        beam.core._MaybePValueWithErrors(pcoll, self._exception_handling_args)
+        pcoll
         | beam.FlatMap(
             lambda row:
             (explode_cross_product if self._cross_product else explode_zip)
             ({name: getattr(row, name)
-              for name in all_fields}, to_explode))).as_result()
+              for name in all_fields}, to_explode)))
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
@@ -190,189 +253,171 @@ class _Explode(beam.PTransform):
     return self
 
 
-# TODO(yaml): Should Filter and Explode be distinct operations from Project?
-# We'll want these per-language.
 @beam.ptransform.ptransform_fn
-def _PythonProjectionTransform(
-    pcoll,
-    *,
-    fields,
-    transform_name,
-    language,
-    keep=None,
-    explode=(),
-    cross_product=True,
-    error_handling=None):
-  original_fields = [
-      name for (name, _) in named_fields_from_element_type(pcoll.element_type)
-  ]
-
-  if error_handling is None:
-    error_handling_args = None
-  else:
-    error_handling_args = {
-        'dead_letter_tag' if k == 'output' else k: v
-        for (k, v) in error_handling.items()
-    }
-
-  pcoll = beam.core._MaybePValueWithErrors(pcoll, error_handling_args)
-
-  if keep:
-    if isinstance(keep, str) and keep in original_fields:
-      keep_fn = lambda row: getattr(row, keep)
-    else:
-      keep_fn = _as_callable(original_fields, keep, transform_name, language)
-    filtered = pcoll | beam.Filter(keep_fn)
-  else:
-    filtered = pcoll
-
-  projected = filtered | beam.Select(
-      **{
-          name: _as_callable(original_fields, expr, transform_name, language)
-          for (name, expr) in fields.items()
-      })
-
-  if explode:
-    result = projected | _Explode(explode, cross_product=cross_product)
-  else:
-    result = projected
-
-  return result.as_result(
-      # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
-      beam.Map(
-          lambda x: beam.Row(
-              element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))))
-
-
-@beam.ptransform.ptransform_fn
-def MapToFields(
-    pcoll,
-    yaml_create_transform,
-    *,
-    fields,
-    keep=None,
-    explode=(),
-    cross_product=None,
-    append=False,
-    drop=(),
-    language=None,
-    error_handling=None,
-    transform_name="MapToFields",
-    **language_keywords):
-  if isinstance(explode, str):
-    explode = [explode]
-  if cross_product is None:
-    if len(explode) > 1:
-      # TODO(robertwb): Consider if true is an OK default.
-      raise ValueError(
-          'cross_product must be specified true or false '
-          'when exploding multiple fields')
-    else:
-      # Doesn't matter.
-      cross_product = True
+@maybe_with_exception_handling_transform_fn
+def _PyJsFilter(
+    pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
 
   input_schema = dict(named_fields_from_element_type(pcoll.element_type))
+  if isinstance(keep, str) and keep in input_schema:
+    keep_fn = lambda row: getattr(row, keep)
+  else:
+    keep_fn = _as_callable(list(input_schema.keys()), keep, "keep", language)
+  return pcoll | beam.Filter(keep_fn)
+
+
+def is_expr(v):
+  return isinstance(v, str) or (isinstance(v, dict) and 'expression' in v)
+
+
+def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
+  try:
+    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
+  except ValueError as exn:
+    if drop:
+      raise ValueError("Can only drop fields on a schema'd input.") from exn
+    if append:
+      raise ValueError("Can only append fields on a schema'd input.") from exn
+    elif any(is_expr(x) for x in fields.values()):
+      raise ValueError("Can only use expressions on a schema'd input.") from exn
+    input_schema = {}
+
+  if isinstance(drop, str):
+    drop = [drop]
   if drop and not append:
     raise ValueError("Can only drop fields if append is true.")
   for name in drop:
     if name not in input_schema:
       raise ValueError(f'Dropping unknown field "{name}"')
-  for name in explode:
-    if not (name in fields or (append and name in input_schema)):
-      raise ValueError(f'Exploding unknown field "{name}"')
   if append:
     for name in fields:
       if name in input_schema and name not in drop:
-        raise ValueError(f'Redefinition of field "{name}"')
+        raise ValueError(
+            f'Redefinition of field "{name}". '
+            'Cannot append a field that already exists in original input.')
+
+  if language == 'generic':
+    for expr in fields.values():
+      if not isinstance(expr, str):
+        raise ValueError(
+            "Missing language specification. "
+            "Must specify a language when using a map with custom logic.")
+    missing = set(fields.values()) - set(input_schema.keys())
+    if missing:
+      raise ValueError(
+          f"Missing language specification or unknown input fields: {missing}")
 
   if append:
-    fields = {
+    return input_schema, {
         **{name: name
            for name in input_schema.keys() if name not in drop},
         **fields
     }
-
-  if language is None:
-    for name, expr in fields.items():
-      if not isinstance(expr, str) or expr not in input_schema:
-        # TODO(robertw): Could consider defaulting to SQL, or another
-        # lowest-common-denominator expression language.
-        raise ValueError("Missing language specification.")
-
-    # We should support this for all languages.
-    language = "python"
-
-  if language in ("sql", "calcite"):
-    if error_handling:
-      raise ValueError('Error handling unsupported for sql.')
-    selects = [f'{expr} AS {name}' for (name, expr) in fields.items()]
-    query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
-    if keep:
-      query += " WHERE " + keep
-
-    result = pcoll | yaml_create_transform({
-        'type': 'Sql',
-        'config': {
-            'query': query, **language_keywords
-        },
-    }, [pcoll])
-    if explode:
-      # TODO(yaml): Implement via unnest.
-      result = result | _Explode(explode, cross_product)
-
-    return result
-
-  elif language == 'python' or language == 'javascript':
-    return pcoll | yaml_create_transform({
-        'type': 'PyTransform',
-        'config': {
-            'constructor': __name__ + '._PythonProjectionTransform',
-            'kwargs': {
-                'fields': fields,
-                'transform_name': transform_name,
-                'language': language,
-                'keep': keep,
-                'explode': explode,
-                'cross_product': cross_product,
-                'error_handling': error_handling,
-            },
-            **language_keywords
-        },
-    }, [pcoll])
-
   else:
-    # TODO(yaml): Support javascript expressions and UDFs.
-    # TODO(yaml): Support java by fully qualified name.
-    # TODO(yaml): Maybe support java lambdas?
-    raise ValueError(
-        f'Unknown language: {language}. '
-        'Supported languages are "sql" (alias calcite) and "python."')
+    return input_schema, fields
 
 
-def create_mapping_provider():
+@beam.ptransform.ptransform_fn
+@maybe_with_exception_handling_transform_fn
+def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
+  input_schema, fields = normalize_fields(
+      pcoll, language=language, **mapping_args)
+  original_fields = list(input_schema.keys())
+
+  return pcoll | beam.Select(
+      **{
+          name: _as_callable(original_fields, expr, name, language)
+          for (name, expr) in fields.items()
+      })
+
+
+class SqlMappingProvider(yaml_provider.Provider):
+  def __init__(self, sql_provider=None):
+    if sql_provider is None:
+      sql_provider = yaml_provider.beam_jar(
+          urns={'Sql': 'beam:external:java:sql:v1'},
+          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+    self._sql_provider = sql_provider
+
+  def available(self):
+    return self._sql_provider.available()
+
+  def cache_artifacts(self):
+    return self._sql_provider.cache_artifacts()
+
+  def provided_transforms(self) -> Iterable[str]:
+    return [
+        'Filter-sql',
+        'Filter-calcite',
+        'MapToFields-sql',
+        'MapToFields-calcite'
+    ]
+
+  def create_transform(
+      self,
+      typ: str,
+      args: Mapping[str, Any],
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
+  ) -> beam.PTransform:
+    if typ.startswith('Filter-'):
+      return _SqlFilterTransform(
+          self._sql_provider, yaml_create_transform, **args)
+    if typ.startswith('MapToFields-'):
+      return _SqlMapToFieldsTransform(
+          self._sql_provider, yaml_create_transform, **args)
+    else:
+      raise NotImplementedError(typ)
+
+  def underlying_provider(self):
+    return self._sql_provider
+
+  def to_json(self):
+    return {'type': "SqlMappingProvider"}
+
+
+@beam.ptransform.ptransform_fn
+def _SqlFilterTransform(
+    pcoll, sql_provider, yaml_create_transform, keep, language):
+  return pcoll | sql_provider.create_transform(
+      'Sql', {'query': f'SELECT * FROM PCOLLECTION WHERE {keep}'},
+      yaml_create_transform)
+
+
+@beam.ptransform.ptransform_fn
+def _SqlMapToFieldsTransform(
+    pcoll, sql_provider, yaml_create_transform, **mapping_args):
+  _, fields = normalize_fields(pcoll, **mapping_args)
+
+  def extract_expr(name, v):
+    if isinstance(v, str):
+      return v
+    elif 'expression' in v:
+      return v['expression']
+    else:
+      raise ValueError("Only expressions allowed in SQL at {name}.")
+
+  selects = [
+      f'({extract_expr(name, expr)}) AS {name}'
+      for (name, expr) in fields.items()
+  ]
+  query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
+  return pcoll | sql_provider.create_transform(
+      'Sql', {'query': query}, yaml_create_transform)
+
+
+def create_mapping_providers():
   # These are MetaInlineProviders because their expansion is in terms of other
   # YamlTransforms, but in a way that needs to be deferred until the input
   # schema is known.
-  return yaml_provider.MetaInlineProvider({
-      'MapToFields': MapToFields,
-      'Filter': (
-          lambda yaml_create_transform,
-          keep,
-          **kwargs: MapToFields(
-              yaml_create_transform,
-              keep=keep,
-              fields={},
-              append=True,
-              transform_name='Filter',
-              **kwargs)),
-      'Explode': (
-          lambda yaml_create_transform,
-          explode,
-          **kwargs: MapToFields(
-              yaml_create_transform,
-              explode=explode,
-              fields={},
-              append=True,
-              transform_name='Explode',
-              **kwargs)),
-  })
+  return [
+      yaml_provider.InlineProvider({
+          'Explode': _Explode,
+          'Filter-python': _PyJsFilter,
+          'Filter-javascript': _PyJsFilter,
+          'MapToFields-python': _PyJsMapToFields,
+          'MapToFields-javascript': _PyJsMapToFields,
+          'MapToFields-generic': _PyJsMapToFields,
+      }),
+      SqlMappingProvider(),
+  ]

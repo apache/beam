@@ -155,6 +155,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	}, &container.HostConfig{
 		NetworkMode: "host",
 		Mounts:      mounts,
+		AutoRemove:  true,
 	}, nil, nil, "")
 	if err != nil {
 		cli.Close()
