@@ -239,7 +239,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     # don't set a timestamp here. it should default to -1
     row2.set_cell('col_fam', b'col-no-timestamp', row2_col1_no_timestamp.value)
     row2.set_cell(
-        'col_fam', b'col-neg1-timestamp', row2_col1_no_timestamp.value)
+        'col_fam', b'col-neg1-timestamp', row2_col1_no_timestamp.value, -1)
 
     self.run_pipeline([row1, row2])
 
