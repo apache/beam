@@ -17,7 +17,7 @@ You can find the cloud function in the next link
 https://console.cloud.google.com/functions/details/us-central1/github_actions_workflows_dashboard_sync?env=gen1&project=apache-beam-testing
 Pub sub topic : https://console.cloud.google.com/cloudpubsub/topic/detail/github_actions_workflows_sync?project=apache-beam-testing
 Cron Job : https://console.cloud.google.com/cloudscheduler/jobs/edit/us-central1/github_actions_workflows_dashboard_sync?project=apache-beam-testing
-Writing the latest 10 runs of every postcommit workflow in master branch in a beammetrics database
+Writing the latest 10 runs of every workflow in master branch in a beammetrics database
 '''
 
 import os
@@ -134,13 +134,11 @@ def fetchWorkflowData():
                 workflows.append(workflowsPage)
         for pageItem in workflows:
             for item in pageItem:
-                path =item['path']
-                isPostCommit = re.search('(.*)postcommit(.*)',path)
-                if isPostCommit:
-                    result = re.search('/(.*).yml', path)
-                    path =(result.group(1)) + ".yml"
-                    workflowObject = Workflow(item['id'],item['name'],path)
-                    WORKFLOWS_OBJECT_LIST.append(workflowObject)
+                path = item['path']
+                result = re.search('/(.*).yml', path)
+                path = (result.group(1)) + ".yml"
+                workflowObject = Workflow(item['id'],item['name'],path)
+                WORKFLOWS_OBJECT_LIST.append(workflowObject)
             url = "https://api.github.com/repos/apache/beam/actions/workflows/"
             queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
                         'page' :'1', 'exclude_pull_request':True }
@@ -154,7 +152,7 @@ def fetchWorkflowData():
                 if item['status'] == 'completed':
                     workflow.runUrl.append(item['html_url'])
                     workflow.listOfRuns.append(item['conclusion'])
-                else:
+                elif item['status'] != 'cancelled':
                     workflow.listOfRuns.append(item['status'])
                     workflow.runUrl.append(item['html_url'])
             for i in range(0,GH_WORKFLOWS_NUMBER_EXECUTIONS):   
