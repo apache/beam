@@ -17,8 +17,11 @@ package tools
 
 import (
 	"context"
+	"log"
+	"math"
 	"os"
 	"strings"
+	"time"
 )
 
 const initialLogSize int = 255
@@ -27,14 +30,24 @@ const initialLogSize int = 255
 // in place of stdout and stderr in bootloader subprocesses. Not intended for
 // Beam end users.
 type BufferedLogger struct {
-	logger  *Logger
-	builder strings.Builder
-	logs    []string
+	logger               *Logger
+	builder              strings.Builder
+	logs                 []string
+	lastFlush            time.Time
+	flushInterval        time.Duration
+	periodicFlushContext context.Context
+	now                  func() time.Time
 }
 
 // NewBufferedLogger returns a new BufferedLogger type by reference.
 func NewBufferedLogger(logger *Logger) *BufferedLogger {
-	return &BufferedLogger{logger: logger}
+	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: time.Duration(math.MaxInt64), periodicFlushContext: context.Background(), now: time.Now}
+}
+
+// NewBufferedLoggerWithFlushInterval returns a new BufferedLogger type by reference. This type will
+// flush logs periodically on Write() calls as well as when Flush*() functions are called.
+func NewBufferedLoggerWithFlushInterval(ctx context.Context, logger *Logger, interval time.Duration) *BufferedLogger {
+	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: interval, periodicFlushContext: ctx, now: time.Now}
 }
 
 // Write implements the io.Writer interface, converting input to a string
@@ -50,6 +63,9 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 	}
 	b.logs = append(b.logs, b.builder.String())
 	b.builder.Reset()
+	if b.now().Sub(b.lastFlush) > b.flushInterval {
+		b.FlushAtDebug(b.periodicFlushContext)
+	}
 	return n, err
 }
 
@@ -63,6 +79,7 @@ func (b *BufferedLogger) FlushAtError(ctx context.Context) {
 		b.logger.Errorf(ctx, message)
 	}
 	b.logs = nil
+	b.lastFlush = time.Now()
 }
 
 // FlushAtDebug flushes the contents of the buffer to the logging
@@ -75,4 +92,15 @@ func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 		b.logger.Printf(ctx, message)
 	}
 	b.logs = nil
+	b.lastFlush = time.Now()
+}
+
+// Prints directly to the logging service. If the logger is nil, prints directly to the
+// console. Used for the container pre-build workflow.
+func (b *BufferedLogger) Printf(ctx context.Context, format string, args ...any) {
+	if b.logger == nil {
+		log.Printf(format, args...)
+		return
+	}
+	b.logger.Printf(ctx, format, args...)
 }

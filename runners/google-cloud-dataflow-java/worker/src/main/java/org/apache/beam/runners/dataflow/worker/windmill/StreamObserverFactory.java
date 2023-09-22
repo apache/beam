@@ -33,9 +33,9 @@ public abstract class StreamObserverFactory {
     return new Direct(deadlineSeconds, messagesBetweenIsReadyChecks);
   }
 
-  public abstract <ReqT, RespT> StreamObserver<RespT> from(
-      Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
-      StreamObserver<ReqT> responseObserver);
+  public abstract <ResponseT, RequestT> StreamObserver<RequestT> from(
+      Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
+      StreamObserver<ResponseT> responseObserver);
 
   private static class Direct extends StreamObserverFactory {
     private final long deadlineSeconds;
@@ -47,14 +47,14 @@ public abstract class StreamObserverFactory {
     }
 
     @Override
-    public <ReqT, RespT> StreamObserver<RespT> from(
-        Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
-        StreamObserver<ReqT> inboundObserver) {
+    public <ResponseT, RequestT> StreamObserver<RequestT> from(
+        Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
+        StreamObserver<ResponseT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      CallStreamObserver<RespT> outboundObserver =
-          (CallStreamObserver<RespT>)
+      CallStreamObserver<RequestT> outboundObserver =
+          (CallStreamObserver<RequestT>)
               clientFactory.apply(
-                  new ForwardingClientResponseObserver<ReqT, RespT>(
+                  new ForwardingClientResponseObserver<ResponseT, RequestT>(
                       inboundObserver, phaser::arrive, phaser::forceTermination));
       return new DirectStreamObserver<>(
           phaser, outboundObserver, deadlineSeconds, messagesBetweenIsReadyChecks);

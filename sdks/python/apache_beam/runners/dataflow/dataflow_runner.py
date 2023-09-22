@@ -359,6 +359,8 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    _check_and_add_missing_options(options)
+
     # Convert all side inputs into a form acceptable to Dataflow.
     if pipeline:
       pipeline.visit(self.combinefn_visitor())

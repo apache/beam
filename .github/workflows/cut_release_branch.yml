@@ -68,7 +68,7 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -116,7 +116,7 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -184,7 +184,7 @@ jobs:
           tar zvxvf hub-linux-amd64-2.14.2.tgz
           sudo ./hub-linux-amd64-2.14.2/install
           echo "eval "$(hub alias -s)"" >> ~/.bashrc
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

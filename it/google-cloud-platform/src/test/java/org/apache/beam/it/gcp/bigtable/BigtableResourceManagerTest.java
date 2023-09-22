@@ -442,6 +442,7 @@ public class BigtableResourceManagerTest {
     setupReadyTable();
 
     testManager.createTable(TABLE_ID, ImmutableList.of("cf1"));
+
     when(bigtableResourceManagerClientFactory.bigtableTableAdminClient().exists(anyString()))
         .thenReturn(true);
     testManager.readTable(TABLE_ID);

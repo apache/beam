@@ -51,6 +51,8 @@
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
     # Disable until https://github.com/apache/beam/issues/28162 is resolved.
     # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+    'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
+    'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
 
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java
