@@ -1332,8 +1332,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // enable upload_graph when the graph is too large
-    if ((Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) &&
-            !hasExperiment(options, "upload_graph")) {
+    if ((Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES)
+        && !hasExperiment(options, "upload_graph")) {
       List<String> experiments = new ArrayList<>(options.getExperiments());
       experiments.add("upload_graph");
       options.setExperiments(ImmutableList.copyOf(experiments));
