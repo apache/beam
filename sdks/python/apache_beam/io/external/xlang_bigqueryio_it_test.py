@@ -49,13 +49,12 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-_RUNNER = ""
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_PORT'),
+#     "EXPANSION_PORT environment var is not provided.")
 class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
@@ -106,7 +105,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
-    _RUNNER = PipelineOptions(self.args).get_all_options()['runner']
+    self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
     self.bigquery_client = BigQueryWrapper()
     self.dataset_id = '%s_%s_%s' % (
@@ -279,12 +278,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
-  @unittest.skipUnless(
-      "dataflowrunner" in _RUNNER.lower(),
-      "The exactly-once route has the requirement "
-      "`beam:requirement:pardo:on_window_expiration:v1`, "
-      "which is currently only supported by the Dataflow runner.")
   def test_streaming_with_fixed_num_streams(self):
+    # skip if dataflow runner is not specified
+    if not self._runner or "dataflowrunner" not in self._runner.lower():
+      self.skipTest(
+          "The exactly-once route has the requirement "
+          "`beam:requirement:pardo:on_window_expiration:v1`, "
+          "which is currently only supported by the Dataflow runner")
     table = 'streaming_fixed_num_streams'
     self.run_streaming(table_name=table, num_streams=4)
 
