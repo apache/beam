@@ -49,7 +49,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-
+_RUNNER = ""
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
@@ -100,7 +100,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   ALL_TYPES_SCHEMA = (
       "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
       "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
-  _RUNNER = ""
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
