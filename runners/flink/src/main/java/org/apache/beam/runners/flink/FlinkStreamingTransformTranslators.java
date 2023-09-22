@@ -223,7 +223,7 @@ class FlinkStreamingTransformTranslators {
                 ? context.getExecutionEnvironment().getMaxParallelism()
                 : context.getExecutionEnvironment().getParallelism();
 
-        FlinkUnboundedSource<T> unboundedSource = FlinkSource.unbounded(
+        FlinkUnboundedSource<T> unboundedSource = FlinkSource.unbounded(transform.getName(),
             rawSource, new SerializablePipelineOptions(context.getPipelineOptions()), parallelism);
         nonDedupSource =
             context
@@ -376,6 +376,7 @@ class FlinkStreamingTransformTranslators {
               : context.getExecutionEnvironment().getParallelism();
 
       FlinkBoundedSource<T> flinkBoundedSource = FlinkSource.bounded(
+          transform.getName(),
           rawSource,
           new SerializablePipelineOptions(context.getPipelineOptions()),
           parallelism);
