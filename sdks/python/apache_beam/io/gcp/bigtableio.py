@@ -255,7 +255,7 @@ class WriteToBigTable(beam.PTransform):
               "value": mutation.set_cell.value
           }
           micros = mutation.set_cell.timestamp_micros
-          if micros > -1:
+          if micros >= -1:
             mutation_dict['timestamp_micros'] = struct.pack('>q', micros)
         elif mutation.__contains__("delete_from_column"):
           mutation_dict = {
