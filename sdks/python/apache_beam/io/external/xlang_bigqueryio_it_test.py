@@ -51,6 +51,7 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 _RUNNER = ""
 
+
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
