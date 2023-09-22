@@ -215,6 +215,15 @@ class StagerTest(unittest.TestCase):
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
+  def test_no_submission_env_staging(self):
+    staging_dir = self.make_temp_dir()
+    options = PipelineOptions()
+    self.update_options(options)
+
+    resources = self.stager.create_job_resources(
+        options, staging_dir, log_submission_env_dependencies=False)
+    self.assertEqual([], resources)
+
   def test_with_requirements_file(self):
     staging_dir = self.make_temp_dir()
     requirements_cache_dir = self.make_temp_dir()

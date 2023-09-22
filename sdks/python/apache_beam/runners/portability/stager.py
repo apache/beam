@@ -855,7 +855,7 @@ class Stager(object):
       dependencies = subprocess.check_output(
           [sys.executable, '-m', 'pip', 'freeze'])
       with open(local_dependency_file_path, 'w') as f:
-        f.write('\n'.join(dependencies))
+        f.write(str(dependencies))
       return [
           Stager._create_file_stage_to_artifact(
               local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE)
