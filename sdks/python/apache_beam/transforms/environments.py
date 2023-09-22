@@ -580,7 +580,7 @@ class ExternalEnvironment(Environment):
         url,
         params=params,
         capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options),
+        artifacts=python_sdk_dependencies(options, logDependencies=False),
         resource_hints=resource_hints_from_options(options))
 
 
@@ -605,7 +605,7 @@ class EmbeddedPythonEnvironment(Environment):
     # type: (PortableOptions) -> EmbeddedPythonEnvironment
     return cls(
         capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options),
+        artifacts=python_sdk_dependencies(options, logDependencies=False),
         resource_hints=resource_hints_from_options(options),
     )
 
@@ -692,11 +692,11 @@ class EmbeddedPythonGrpcEnvironment(Environment):
           state_cache_size=config.get('state_cache_size'),
           data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'),
           capabilities=python_sdk_capabilities(),
-          artifacts=python_sdk_dependencies(options))
+          artifacts=python_sdk_dependencies(options, logDependencies=False))
     else:
       return cls(
           capabilities=python_sdk_capabilities(),
-          artifacts=python_sdk_dependencies(options),
+          artifacts=python_sdk_dependencies(options, logDependencies=False),
           resource_hints=resource_hints_from_options(options))
 
   @staticmethod
@@ -838,7 +838,7 @@ def _python_sdk_capabilities_iter():
   yield common_urns.protocols.DATA_SAMPLING.urn
 
 
-def python_sdk_dependencies(options, tmp_dir=None):
+def python_sdk_dependencies(options, tmp_dir=None, logDependencies=True):
   if tmp_dir is None:
     tmp_dir = tempfile.mkdtemp()
   skip_prestaged_dependencies = options.view_as(
@@ -850,4 +850,5 @@ def python_sdk_dependencies(options, tmp_dir=None):
           artifact[0] + artifact[1]
           for artifact in PyPIArtifactRegistry.get_artifacts()
       ],
-      skip_prestaged_dependencies=skip_prestaged_dependencies)
+      skip_prestaged_dependencies=skip_prestaged_dependencies,
+      log_submission_env_dependencies=logDependencies)

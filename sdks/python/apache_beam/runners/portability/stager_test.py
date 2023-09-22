@@ -162,7 +162,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).save_main_session = False
     self.update_options(options)
 
-    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME],
+    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
@@ -182,7 +182,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([
         names.PICKLED_MAIN_SESSION_FILE,
-        stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+        stager.SUBMISSION_ENV_DEPENDENCIES_FILE
     ],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
@@ -202,7 +202,7 @@ class StagerTest(unittest.TestCase):
     # session is saved when pickle_library==cloudpickle.
     options.view_as(SetupOptions).pickle_library = pickler.USE_CLOUDPICKLE
     self.update_options(options)
-    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME],
+    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
@@ -211,7 +211,7 @@ class StagerTest(unittest.TestCase):
     options = PipelineOptions()
     self.update_options(options)
 
-    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME],
+    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
@@ -232,7 +232,7 @@ class StagerTest(unittest.TestCase):
             stager.REQUIREMENTS_FILE,
             'abc.txt',
             'def.txt',
-            stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+            stager.SUBMISSION_ENV_DEPENDENCIES_FILE
         ]),
         sorted(
             self.stager.create_and_stage_job_resources(
@@ -258,8 +258,7 @@ class StagerTest(unittest.TestCase):
     self.assertTrue({'abc.txt', 'def.txt'} <= set(resources))
     generated_requirements = (
         set(resources) -
-        {'abc.txt', 'def.txt', stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
-         }).pop()
+        {'abc.txt', 'def.txt', stager.SUBMISSION_ENV_DEPENDENCIES_FILE}).pop()
     with open(os.path.join(staging_dir, generated_requirements)) as f:
       data = f.read()
     self.assertEqual('nothing>=1.0,<2.0', data)
@@ -297,7 +296,7 @@ class StagerTest(unittest.TestCase):
             stager.REQUIREMENTS_FILE,
             'abc.txt',
             'def.txt',
-            stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+            stager.SUBMISSION_ENV_DEPENDENCIES_FILE
         ]),
         sorted(
             self.stager.create_and_stage_job_resources(
@@ -329,10 +328,9 @@ class StagerTest(unittest.TestCase):
           populate_requirements_cache=self.populate_requirements_cache,
           staging_location=staging_dir)[1]
       assert not populate_requirements_cache.called
-      self.assertEqual([
-          stager.REQUIREMENTS_FILE, stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
-      ],
-                       resources)
+      self.assertEqual(
+          [stager.REQUIREMENTS_FILE, stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
+          resources)
       self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
       self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
@@ -397,7 +395,7 @@ class StagerTest(unittest.TestCase):
     _, staged_resources = self.stager.create_and_stage_job_resources(
         options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
-    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME],
+    self.assertEqual([stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
                      staged_resources)
 
   def test_sdk_location_local_directory(self):
@@ -413,7 +411,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([
         names.STAGED_SDK_SOURCES_FILENAME,
-        stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+        stager.SUBMISSION_ENV_DEPENDENCIES_FILE
     ],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
@@ -434,7 +432,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([
         names.STAGED_SDK_SOURCES_FILENAME,
-        stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+        stager.SUBMISSION_ENV_DEPENDENCIES_FILE
     ],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
@@ -453,10 +451,9 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    self.assertEqual(
-        [sdk_filename, stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME],
-        self.stager.create_and_stage_job_resources(
-            options, staging_location=staging_dir)[1])
+    self.assertEqual([sdk_filename, stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
+                     self.stager.create_and_stage_job_resources(
+                         options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, sdk_filename)
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
@@ -492,7 +489,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual([
         names.STAGED_SDK_SOURCES_FILENAME,
-        stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+        stager.SUBMISSION_ENV_DEPENDENCIES_FILE
     ],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
@@ -515,10 +512,9 @@ class StagerTest(unittest.TestCase):
     with mock.patch('apache_beam.runners.portability.stager_test'
                     '.stager.Stager._download_file',
                     staticmethod(file_download)):
-      self.assertEqual(
-          [sdk_filename, stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME],
-          self.stager.create_and_stage_job_resources(
-              options, staging_location=staging_dir)[1])
+      self.assertEqual([sdk_filename, stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
+                       self.stager.create_and_stage_job_resources(
+                           options, staging_location=staging_dir)[1])
 
     wheel_file_path = os.path.join(staging_dir, sdk_filename)
     with open(wheel_file_path) as f:
@@ -542,7 +538,7 @@ class StagerTest(unittest.TestCase):
                     staticmethod(file_download)):
       self.assertEqual([
           names.STAGED_SDK_SOURCES_FILENAME,
-          stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+          stager.SUBMISSION_ENV_DEPENDENCIES_FILE
       ],
                        self.stager.create_and_stage_job_resources(
                            options, staging_location=staging_dir)[1])
@@ -586,7 +582,7 @@ class StagerTest(unittest.TestCase):
             'whl.whl',
             'remote_file.tar.gz',
             stager.EXTRA_PACKAGES_FILE,
-            stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+            stager.SUBMISSION_ENV_DEPENDENCIES_FILE
         ],
                          self.stager.create_and_stage_job_resources(
                              options, staging_location=staging_dir)[1])
@@ -699,7 +695,7 @@ class StagerTest(unittest.TestCase):
             'xyz.jar',
             'ijk.jar',
             'remote.jar',
-            stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+            stager.SUBMISSION_ENV_DEPENDENCIES_FILE
         ],
                          self.stager.create_and_stage_job_resources(
                              options, staging_location=staging_dir)[1])
@@ -761,7 +757,7 @@ class StagerTest(unittest.TestCase):
           options, staging_location=staging_dir)[1]
       for f in resources:
         if (f != stager.REQUIREMENTS_FILE and
-            f != stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME):
+            f != stager.SUBMISSION_ENV_DEPENDENCIES_FILE):
           self.assertTrue(('.tar.gz' in f) or ('.whl' in f))
 
   # requirements cache will populated only with sdists/sources
@@ -787,7 +783,7 @@ class StagerTest(unittest.TestCase):
 
       for f in resources:
         if (f != stager.REQUIREMENTS_FILE and
-            f != stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME):
+            f != stager.SUBMISSION_ENV_DEPENDENCIES_FILE):
           self.assertTrue('.tar.gz' in f)
           self.assertTrue('.whl' not in f)
 
@@ -821,7 +817,7 @@ class StagerTest(unittest.TestCase):
               stager.EXTRA_PACKAGES_FILE,
               'nothing.tar.gz',
               'local_package.tar.gz',
-              stager.SUBMISSION_ENV_DEPENDENCIES_FILENAME
+              stager.SUBMISSION_ENV_DEPENDENCIES_FILE
           ]),
           sorted(resources))
 

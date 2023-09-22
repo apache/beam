@@ -211,15 +211,13 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
-    self.assertEqual(
-        list(remote_runner.proto_pipeline.components.environments.values()),
-        [
-            beam_runner_api_pb2.Environment(
-                urn=common_urns.environments.DOCKER.urn,
-                payload=beam_runner_api_pb2.DockerPayload(
-                    container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_docker_capabilities())
-        ])
+    first = remote_runner.proto_pipeline.components.environments.values()
+    second = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=beam_runner_api_pb2.DockerPayload(
+            container_image='LEGACY').SerializeToString(),
+        capabilities=environments.python_sdk_docker_capabilities())
+    self.assertTrue(first.__eq__(second))
 
   def test_environment_override_translation_sdk_container_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
@@ -231,15 +229,13 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
-    self.assertEqual(
-        list(remote_runner.proto_pipeline.components.environments.values()),
-        [
-            beam_runner_api_pb2.Environment(
-                urn=common_urns.environments.DOCKER.urn,
-                payload=beam_runner_api_pb2.DockerPayload(
-                    container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_docker_capabilities())
-        ])
+    first = remote_runner.proto_pipeline.components.environments.values()
+    second = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=beam_runner_api_pb2.DockerPayload(
+            container_image='FOO').SerializeToString(),
+        capabilities=environments.python_sdk_docker_capabilities())
+    self.assertTrue(first.__eq__(second))
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()

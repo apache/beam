@@ -52,6 +52,7 @@ import hashlib
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from importlib.metadata import distribution
@@ -62,7 +63,6 @@ from typing import Tuple
 from urllib.parse import urlparse
 
 from packaging import version
-from pip._internal.operations import freeze
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -86,7 +86,7 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 # Filename that stores the submission environment dependencies.
-SUBMISSION_ENV_DEPENDENCIES_FILENAME = 'submission_environment_dependencies.txt'
+SUBMISSION_ENV_DEPENDENCIES_FILE = 'submission_environment_dependencies.txt'
 # One of the choices for user to use for requirements cache during staging
 SKIP_REQUIREMENTS_CACHE = 'skip'
 
@@ -165,6 +165,7 @@ class Stager(object):
                            pypi_requirements=None, # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
                            skip_prestaged_dependencies=False, # type: Optional[bool]
+                           log_submission_env_dependencies=True, # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -369,14 +370,9 @@ class Stager(object):
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
     # stage the submission environment dependencies
-    local_dependency_file_path = os.path.join(
-        temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILENAME)
-    dependencies = freeze.freeze()
-    with open(local_dependency_file_path, 'w') as f:
-      f.write('\n'.join(dependencies))
-    resources.append(
-        Stager._create_file_stage_to_artifact(
-            local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILENAME))
+    if log_submission_env_dependencies:
+      resources.extend(
+          Stager._create_stage_submission_env_dependencies(temp_dir))
 
     return resources
 
@@ -850,3 +846,20 @@ class Stager(object):
     return [
         Stager._create_file_stage_to_artifact(local_download_file, staged_name)
     ]
+
+  @staticmethod
+  def _create_stage_submission_env_dependencies(temp_dir):
+    try:
+      local_dependency_file_path = os.path.join(
+          temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILE)
+      dependencies = subprocess.check_output(
+          [sys.executable, '-m', 'pip', 'freeze'])
+      with open(local_dependency_file_path, 'w') as f:
+        f.write('\n'.join(dependencies))
+      return [
+          Stager._create_file_stage_to_artifact(
+              local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE)
+      ]
+    except Exception:
+      _LOGGER.debug("couldn't stage dependencies from submission environment")
+      return []
