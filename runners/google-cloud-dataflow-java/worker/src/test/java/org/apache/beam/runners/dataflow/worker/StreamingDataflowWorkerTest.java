@@ -2976,7 +2976,7 @@ public class StreamingDataflowWorkerTest {
         new MockActiveWork(1) {
           @Override
           public void run() {
-            synchronized(this) {
+            synchronized (this) {
               this.notify();
             }
             int count = 0;
@@ -2992,7 +2992,7 @@ public class StreamingDataflowWorkerTest {
         new MockWork(2) {
           @Override
           public void run() {
-            synchronized(this) {
+            synchronized (this) {
               this.notify();
             }
             try {
@@ -3008,7 +3008,7 @@ public class StreamingDataflowWorkerTest {
         new MockWork(3) {
           @Override
           public void run() {
-            synchronized(this) {
+            synchronized (this) {
               this.notify();
             }
             try {
@@ -3028,7 +3028,7 @@ public class StreamingDataflowWorkerTest {
     }
     LOG.info("[chengedward] thread started m1]");
     assertEquals(2, executor.activeCount());
-    
+
     assertTrue(computationState.activateWork(key1Shard1, m2));
     assertTrue(computationState.activateWork(key1Shard1, m3));
     synchronized (m2) {
