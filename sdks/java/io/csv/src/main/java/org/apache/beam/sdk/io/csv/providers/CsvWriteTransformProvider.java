@@ -123,7 +123,9 @@ public class CsvWriteTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       WriteFilesResult<?> result =
-          input.get(INPUT_ROWS_TAG).apply(CsvIO.writeRows(configuration.getPath(), CSVFormat.DEFAULT).withSuffix(""));
+          input
+              .get(INPUT_ROWS_TAG)
+              .apply(CsvIO.writeRows(configuration.getPath(), CSVFormat.DEFAULT).withSuffix(""));
       Schema outputSchema = Schema.of(Field.of("filename", FieldType.STRING));
       return PCollectionRowTuple.of(
           WRITE_RESULTS,
