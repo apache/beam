@@ -21,7 +21,6 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -44,13 +43,14 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -491,20 +491,15 @@ public class PTransformTranslation {
         // optional.
       }
       if (configRow != null) {
-        ByteStringOutputStream rowOutputStream = new ByteStringOutputStream();
-        try {
-          RowCoder.of(configRow.getSchema()).encode(configRow, rowOutputStream);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-        transformBuilder.putAnnotations(CONFIG_ROW_KEY, rowOutputStream.toByteString());
+        transformBuilder.putAnnotations(
+            CONFIG_ROW_KEY,
+            ByteString.copyFrom(
+                CoderUtils.encodeToByteArray(RowCoder.of(configRow.getSchema()), configRow)));
 
-        ByteStringOutputStream schemaOutputStream = new ByteStringOutputStream();
-        try (ObjectOutputStream schemaObjOut = new ObjectOutputStream(schemaOutputStream)) {
-          schemaObjOut.writeObject(SchemaTranslation.schemaToProto(configRow.getSchema(), true));
-          schemaObjOut.flush();
-          transformBuilder.putAnnotations(CONFIG_ROW_SCHEMA_KEY, schemaOutputStream.toByteString());
-        }
+        transformBuilder.putAnnotations(
+            CONFIG_ROW_SCHEMA_KEY,
+            ByteString.copyFrom(
+                SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
       }
 
       return transformBuilder.build();

@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -35,13 +34,9 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
-import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -84,7 +79,7 @@ public class TransformUpgrader implements AutoCloseable {
    */
   public RunnerApi.Pipeline upgradeTransformsViaTransformService(
       RunnerApi.Pipeline pipeline, List<String> urnsToOverride, ExternalTranslationOptions options)
-      throws Exception {
+      throws IOException, TimeoutException {
     List<String> transformsToOverride =
         pipeline.getComponents().getTransformsMap().entrySet().stream()
             .filter(
@@ -103,43 +98,35 @@ public class TransformUpgrader implements AutoCloseable {
 
     String serviceAddress;
     TransformServiceLauncher service = null;
-    try {
-      if (options.getTransformServiceAddress() != null) {
-        serviceAddress = options.getTransformServiceAddress();
-      } else if (options.getTransformServiceBeamVersion() != null) {
-        String projectName = UUID.randomUUID().toString();
-        int port = findAvailablePort();
-        service = TransformServiceLauncher.forProject(projectName, port);
-        service.setBeamVersion(options.getTransformServiceBeamVersion());
 
-        // Starting the transform service.
-        service.start();
-        service.waitTillUp(40);
-        serviceAddress = "localhost:" + Integer.toString(port);
-        System.out.println("Done waiting ...");
-      } else {
-        throw new IllegalArgumentException(
-            "Either option TransformServiceAddress or option TransformServiceBeamVersion should be "
-                + "provided to override a transform using the transform service");
-      }
+    if (options.getTransformServiceAddress() != null) {
+      serviceAddress = options.getTransformServiceAddress();
+    } else if (options.getTransformServiceBeamVersion() != null) {
+      String projectName = UUID.randomUUID().toString();
+      int port = findAvailablePort();
+      service = TransformServiceLauncher.forProject(projectName, port);
+      service.setBeamVersion(options.getTransformServiceBeamVersion());
 
-      Endpoints.ApiServiceDescriptor expansionServiceEndpoint =
-          Endpoints.ApiServiceDescriptor.newBuilder().setUrl(serviceAddress).build();
+      // Starting the transform service.
+      service.start();
+      service.waitTillUp(-1);
+      serviceAddress = "localhost:" + Integer.toString(port);
+    } else {
+      throw new IllegalArgumentException(
+          "Either option TransformServiceAddress or option TransformServiceBeamVersion should be "
+              + "provided to override a transform using the transform service");
+    }
 
-      for (String transformId : transformsToOverride) {
-        pipeline =
-            updateTransformViaTransformService(pipeline, transformId, expansionServiceEndpoint);
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    Endpoints.ApiServiceDescriptor expansionServiceEndpoint =
+        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(serviceAddress).build();
+
+    for (String transformId : transformsToOverride) {
+      pipeline =
+          updateTransformViaTransformService(pipeline, transformId, expansionServiceEndpoint);
     }
 
     if (service != null) {
-      try {
-        service.shutdown();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      service.shutdown();
     }
 
     return pipeline;
@@ -153,41 +140,24 @@ public class TransformUpgrader implements AutoCloseable {
           RunnerApi.Pipeline runnerAPIpipeline,
           String transformId,
           Endpoints.ApiServiceDescriptor transformServiceEndpoint)
-          throws Exception {
+          throws IOException {
     PTransform transformToUpgrade =
         runnerAPIpipeline.getComponents().getTransformsMap().get(transformId);
     if (transformToUpgrade == null) {
-      throw new Exception("Could not find a transform with the ID " + transformId);
+      throw new IllegalArgumentException("Could not find a transform with the ID " + transformId);
     }
 
     ByteString configRowBytes =
         transformToUpgrade.getAnnotationsOrThrow(PTransformTranslation.CONFIG_ROW_KEY);
     ByteString configRowSchemaBytes =
         transformToUpgrade.getAnnotationsOrThrow(PTransformTranslation.CONFIG_ROW_SCHEMA_KEY);
-    SchemaApi.Schema configRowSchemaProto;
-    try {
-      configRowSchemaProto =
-          (SchemaApi.Schema)
-              new ObjectInputStream(new ByteArrayInputStream(configRowSchemaBytes.toByteArray()))
-                  .readObject();
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-
-    Row configRow =
-        RowCoder.of(SchemaTranslation.schemaFromProto(configRowSchemaProto))
-            .decode(new ByteArrayInputStream(configRowBytes.toByteArray()));
-    ByteStringOutputStream outputStream = new ByteStringOutputStream();
-    try {
-      RowCoder.of(configRow.getSchema()).encode(configRow, outputStream);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    SchemaApi.Schema configRowSchemaProto =
+        SchemaApi.Schema.parseFrom(configRowSchemaBytes.toByteArray());
 
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()
             .setSchema(configRowSchemaProto)
-            .setPayload(outputStream.toByteString())
+            .setPayload(configRowBytes)
             .build();
 
     RunnerApi.PTransform.Builder ptransformBuilder =
@@ -219,7 +189,7 @@ public class TransformUpgrader implements AutoCloseable {
         clientFactory.getExpansionServiceClient(transformServiceEndpoint).expand(request);
 
     if (!Strings.isNullOrEmpty(response.getError())) {
-      throw new IOException(String.format("expansion service error: %s", response.getError()));
+      throw new RuntimeException(String.format("expansion service error: %s", response.getError()));
     }
 
     Map<String, RunnerApi.Environment> newEnvironmentsWithDependencies =
@@ -243,8 +213,8 @@ public class TransformUpgrader implements AutoCloseable {
 
     RunnerApi.Components.Builder newComponentsBuilder = expandedComponents.toBuilder();
 
-    // Some transforms may refer to already overridden transform as one of their input. We record
-    // such occurrences and correct them by referring to the upgraded transform instead.
+    // We record transforms that consume outputs of the old transform and update them to consume
+    // outputs of the new (upgraded) transform.
     Collection<String> oldOutputs = transformToUpgrade.getOutputsMap().values();
     Map<String, String> inputReplacements = new HashMap<>();
     if (transformToUpgrade.getOutputsMap().size() == 1) {
@@ -254,14 +224,14 @@ public class TransformUpgrader implements AutoCloseable {
     } else {
       for (Map.Entry<String, String> entry : transformToUpgrade.getOutputsMap().entrySet()) {
         if (expandedTransform.getOutputsMap().keySet().contains(entry.getKey())) {
-          throw new Exception(
+          throw new IllegalArgumentException(
               "Original transform did not have an output with tag "
                   + entry.getKey()
                   + " but upgraded transform did.");
         }
         String newOutput = expandedTransform.getOutputsMap().get(entry.getKey());
         if (newOutput == null) {
-          throw new Exception(
+          throw new IllegalArgumentException(
               "Could not find an output with tag "
                   + entry.getKey()
                   + " for the transform "
@@ -270,8 +240,6 @@ public class TransformUpgrader implements AutoCloseable {
         inputReplacements.put(entry.getValue(), newOutput);
       }
     }
-
-    String newTransformId = transformId + "_upgraded";
 
     // The list of obsolete (overridden) transforms that should be removed from the pipeline
     // produced by this method.
@@ -305,42 +273,18 @@ public class TransformUpgrader implements AutoCloseable {
                         transformBuilder.clearInputs();
                         transformBuilder.putAllInputs(updatedInputsMap);
                       }
-
-                      // Fix sub-transforms
-                      if (entry.getValue().getSubtransformsList().contains(transformId)) {
-                        List<String> updatedSubTransforms =
-                            entry.getValue().getSubtransformsList().stream()
-                                .map(
-                                    subtransformId -> {
-                                      return subtransformId.equals(transformId)
-                                          ? newTransformId
-                                          : subtransformId;
-                                    })
-                                .collect(Collectors.toList());
-                        transformBuilder.clearSubtransforms();
-                        transformBuilder.addAllSubtransforms(updatedSubTransforms);
-                      }
-
                       return transformBuilder.build();
                     }));
 
     newComponentsBuilder.clearTransforms();
     newComponentsBuilder.putAllTransforms(updatedExpandedTransformMap);
-    newComponentsBuilder.putTransforms(newTransformId, expandedTransform);
-
-    // We fix the root in case the overridden transform was one of the roots.
-    List<String> rootTransformIds =
-        runnerAPIpipeline.getRootTransformIdsList().stream()
-            .map(id -> id.equals(transformId) ? newTransformId : id)
-            .collect(Collectors.toList());
+    newComponentsBuilder.putTransforms(transformId, expandedTransform);
 
     RunnerApi.Pipeline.Builder newRunnerAPIPipelineBuilder = runnerAPIpipeline.toBuilder();
     newRunnerAPIPipelineBuilder.clearComponents();
     newRunnerAPIPipelineBuilder.setComponents(newComponentsBuilder.build());
 
     newRunnerAPIPipelineBuilder.addAllRequirements(expandedRequirements);
-    newRunnerAPIPipelineBuilder.clearRootTransformIds();
-    newRunnerAPIPipelineBuilder.addAllRootTransformIds(rootTransformIds);
 
     return newRunnerAPIPipelineBuilder.build();
   }

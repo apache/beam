@@ -24,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
@@ -166,12 +168,24 @@ public class TransformUpgraderTest {
           RunnerApi.Components.Builder responseComponents = request.getComponents().toBuilder();
           RunnerApi.PTransform transformToUpgrade =
               request.getComponents().getTransformsMap().get("TransformUpgraderTest-TestTransform");
-          if (transformToUpgrade == null) {
+          ByteString alreadyUpgraded = ByteString.empty();
+          try {
+            alreadyUpgraded = transformToUpgrade.getAnnotationsOrThrow("already_upgraded");
+          } catch (Exception e) {
+            // Ignore
+          }
+          if (!alreadyUpgraded.isEmpty()) {
             transformToUpgrade =
                 request
                     .getComponents()
                     .getTransformsMap()
                     .get("TransformUpgraderTest-TestTransform2");
+          }
+          if (!transformToUpgrade
+              .getSpec()
+              .getUrn()
+              .equals(request.getTransform().getSpec().getUrn())) {
+            throw new RuntimeException("Could not find a valid transform to upgrade");
           }
 
           Integer oldParam;
@@ -184,7 +198,6 @@ public class TransformUpgraderTest {
             throw new RuntimeException(e);
           }
 
-          System.out.println("Oldparam: " + oldParam);
           RunnerApi.PTransform.Builder upgradedTransform = transformToUpgrade.toBuilder();
           FunctionSpec.Builder specBuilder = upgradedTransform.getSpecBuilder();
 
@@ -199,6 +212,9 @@ public class TransformUpgraderTest {
           }
 
           upgradedTransform.setSpec(specBuilder.build());
+          upgradedTransform.putAnnotations(
+              "already_upgraded",
+              ByteString.copyFrom("dummyvalue".getBytes(Charset.defaultCharset())));
 
           response =
               ExpansionApi.ExpansionResponse.newBuilder()
@@ -239,8 +255,6 @@ public class TransformUpgraderTest {
     }
 
     assertEquals(Integer.valueOf(expectedValue), updatedParam);
-
-    System.out.println("Updated param: " + updatedParam);
   }
 
   @Test
@@ -267,7 +281,7 @@ public class TransformUpgraderTest {
         upgradedPipelineProto
             .getComponents()
             .getTransformsMap()
-            .get("TransformUpgraderTest-TestTransform_upgraded");
+            .get("TransformUpgraderTest-TestTransform");
 
     validateTestParam(upgradedTransform, 4);
   }
@@ -301,14 +315,14 @@ public class TransformUpgraderTest {
         upgradedPipelineProto
             .getComponents()
             .getTransformsMap()
-            .get("TransformUpgraderTest-TestTransform_upgraded");
+            .get("TransformUpgraderTest-TestTransform");
     validateTestParam(upgradedTransform1, 4);
 
     RunnerApi.PTransform upgradedTransform2 =
         upgradedPipelineProto
             .getComponents()
             .getTransformsMap()
-            .get("TransformUpgraderTest-TestTransform2_upgraded");
+            .get("TransformUpgraderTest-TestTransform2");
     validateTestParam(upgradedTransform2, 4);
   }
 
@@ -342,14 +356,14 @@ public class TransformUpgraderTest {
         upgradedPipelineProto
             .getComponents()
             .getTransformsMap()
-            .get("TransformUpgraderTest-TestTransform_upgraded");
+            .get("TransformUpgraderTest-TestTransform");
     validateTestParam(upgradedTransform1, 4);
 
     RunnerApi.PTransform upgradedTransform2 =
         upgradedPipelineProto
             .getComponents()
             .getTransformsMap()
-            .get("TransformUpgraderTest-TestTransform2_upgraded");
+            .get("TransformUpgraderTest-TestTransform2");
     validateTestParam(upgradedTransform2, 4);
   }
 }
