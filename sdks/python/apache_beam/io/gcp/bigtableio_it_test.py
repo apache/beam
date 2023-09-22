@@ -144,9 +144,9 @@ class TestReadFromBigTableIT(unittest.TestCase):
 
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_PORT'),
+#     "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestWriteToBigtableXlangIT(unittest.TestCase):
   # These are integration tests for the cross-language write transform.
@@ -158,7 +158,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.project = cls.test_pipeline.get_option('project')
     cls.args = cls.test_pipeline.get_full_options_as_args()
-    cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
+    cls.expansion_service = None  #('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     instance_id = '%s-%s-%s' % (
         cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
@@ -262,7 +262,10 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     # time.time() we set when creating this test case
     self.assertTrue(
         row2_col1_no_timestamp.timestamp < actual_row2.find_cells(
-            'col_fam', b'col-no-timestamp')[0].timestamp)
+            'col_fam', b'col-no-timestamp')[0].timestamp,
+        msg="Expected cell with unset timestamp to have ingestion time attached, "
+        f"but was {actual_row2.find_cells('col_fam', b'col-no-timestamp')[0].timestamp}"
+    )
 
   def test_delete_cells_mutation(self):
     col_fam = self.table.column_family('col_fam')
