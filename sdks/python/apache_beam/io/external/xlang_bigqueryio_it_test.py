@@ -30,13 +30,12 @@ import pytest
 from hamcrest.core import assert_that as hamcrest_assert
 
 import apache_beam as beam
+from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where bigquery library is not available.
@@ -100,13 +99,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   ALL_TYPES_SCHEMA = (
       "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
       "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
-  _RUNNER = ""
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
-    _RUNNER = PipelineOptions(self.args).get_all_options()['runner']
 
     self.bigquery_client = BigQueryWrapper()
     self.dataset_id = '%s_%s_%s' % (
@@ -247,7 +244,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
-  def run_streaming(self, table_name, num_streams=0, use_at_least_once=False):
+  def run_streaming(
+      self, table_name, auto_sharding=False, use_at_least_once=False):
     elements = self.ELEMENTS.copy()
     schema = self.ALL_TYPES_SCHEMA
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
@@ -262,42 +260,32 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         streaming=True,
         allow_unsafe_triggers=True)
 
-    auto_sharding = (num_streams == 0)
     with beam.Pipeline(argv=args) as p:
       _ = (
           p
-          | PeriodicImpulse(0, 4, 1)
-          | beam.Map(lambda t: elements[t])
+          | GenerateSequence(
+              start=0, stop=4, expansion_service=self.expansion_service)
+          | beam.Map(lambda x: elements[x])
           | beam.io.WriteToBigQuery(
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
-              triggering_frequency=1,
               with_auto_sharding=auto_sharding,
-              num_storage_api_streams=num_streams,
               use_at_least_once=use_at_least_once,
               expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
-  @unittest.skipUnless(
-      "dataflowrunner" in _RUNNER.lower(),
-      "The exactly-once route has the requirement "
-      "`beam:requirement:pardo:on_window_expiration:v1`, "
-      "which is currently only supported by the Dataflow runner.")
-  def test_streaming_with_fixed_num_streams(self):
-    table = 'streaming_fixed_num_streams'
-    self.run_streaming(table_name=table, num_streams=4)
-
-  @unittest.skip(
-      "Streaming to the Storage Write API sink with autosharding is broken "
-      "with Dataflow Runner V2.")
-  def test_streaming_with_auto_sharding(self):
-    table = 'streaming_with_auto_sharding'
+  def test_streaming(self):
+    table = 'streaming'
     self.run_streaming(table_name=table)
 
   def test_streaming_with_at_least_once(self):
-    table = 'streaming_with_at_least_once'
+    table = 'streaming'
     self.run_streaming(table_name=table, use_at_least_once=True)
+
+  def test_streaming_with_auto_sharding(self):
+    table = 'streaming_with_auto_sharding'
+    self.run_streaming(table_name=table, auto_sharding=True)
 
 
 if __name__ == '__main__':
