@@ -26,6 +26,7 @@ implementations of the same transforms, the configs must be kept in sync.
 import os
 from typing import Any
 from typing import Iterable
+from typing import List
 from typing import Mapping
 from typing import Optional
 
