@@ -51,16 +51,20 @@ public class TransformUpgrader implements AutoCloseable {
 
   private ExpansionServiceClientFactory clientFactory;
 
-  private static final ExpansionServiceClientFactory DEFAULT =
-      DefaultExpansionServiceClientFactory.create(
-          endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
+  private TransformUpgrader() {
+    // Creating a default 'ExpansionServiceClientFactory' instance per 'TransformUpgrader' instance
+    // so that each instance can maintain a set of live channels and close them independently.
+    clientFactory =
+        DefaultExpansionServiceClientFactory.create(
+            endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
+  }
 
   private TransformUpgrader(ExpansionServiceClientFactory clientFactory) {
     this.clientFactory = clientFactory;
   }
 
   public static TransformUpgrader of() {
-    return new TransformUpgrader(DEFAULT);
+    return new TransformUpgrader();
   }
 
   @VisibleForTesting
