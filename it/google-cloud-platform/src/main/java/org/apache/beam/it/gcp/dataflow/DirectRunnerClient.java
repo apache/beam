@@ -53,8 +53,8 @@ public class DirectRunnerClient implements PipelineLauncher {
     this.mainClass = builder.getMainClass();
   }
 
-  public static Builder builder(Class<?> mainClass) {
-    return new Builder(mainClass);
+  public static DirectRunnerClient.Builder builder(Class<?> mainClass) {
+    return new DirectRunnerClient.Builder(mainClass);
   }
 
   @Override
@@ -172,7 +172,7 @@ public class DirectRunnerClient implements PipelineLauncher {
       return mainClass;
     }
 
-    public Builder setCredentials(Credentials value) {
+    public DirectRunnerClient.Builder setCredentials(Credentials value) {
       credentials = value;
       return this;
     }

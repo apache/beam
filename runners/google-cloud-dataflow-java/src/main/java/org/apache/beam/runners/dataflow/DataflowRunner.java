@@ -1755,7 +1755,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.isEnableStreamingEngine(),
         "Runner determined sharding not available in Dataflow for GroupIntoBatches for"
             + " non-Streaming-Engine jobs. In order to use runner determined sharding, please use"
-            + " --streaming --enable_streaming_engine");
+            + " --streaming --experiments=enable_streaming_engine");
     pCollectionsPreservedKeys.add(pcol);
     pcollectionsRequiringAutoSharding.add(pcol);
   }

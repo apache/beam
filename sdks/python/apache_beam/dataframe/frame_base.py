@@ -674,11 +674,19 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
     if removed_args:
       defaults_to_populate -= set(removed_args)
 
+    # In pandas 2, many methods rely on the default copy=None
+    # to mean that copy is the value of copy_on_write. Since
+    # copy_on_write will always be true for Beam, just fill it
+    # in here. In pandas 1, the default was True anyway.
+    if 'copy' in arg_to_default and arg_to_default['copy'] is None:
+      arg_to_default['copy'] = True
+
     @functools.wraps(func)
     def wrapper(**kwargs):
       for name in defaults_to_populate:
         if name not in kwargs:
           kwargs[name] = arg_to_default[name]
+
       return func(**kwargs)
 
     return wrapper

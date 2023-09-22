@@ -28,10 +28,36 @@ import os
 import yaml
 
 import apache_beam as beam
+import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
+from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.yaml import yaml_provider
+
+
+def read_from_text(path: str):
+  # TODO(yaml): Consider passing the filename and offset, possibly even
+  # by default.
+  return beam_io.ReadFromText(path) | beam.Map(lambda s: beam.Row(line=s))
+
+
+@beam.ptransform_fn
+def write_to_text(pcoll, path: str):
+  try:
+    field_names = [
+        name for name, _ in named_fields_from_element_type(pcoll.element_type)
+    ]
+  except Exception as exn:
+    raise ValueError(
+        "WriteToText requires an input schema with exactly one field.") from exn
+  if len(field_names) != 1:
+    raise ValueError(
+        "WriteToText requires an input schema with exactly one field, got %s" %
+        field_names)
+  sole_field_name, = field_names
+  return pcoll | beam.Map(
+      lambda x: str(getattr(x, sole_field_name))) | beam.io.WriteToText(path)
 
 
 def read_from_bigquery(

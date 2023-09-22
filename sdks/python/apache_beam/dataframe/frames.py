@@ -4931,9 +4931,9 @@ class _DeferredILoc(object):
 
 
 class _DeferredStringMethods(frame_base.DeferredBase):
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
+  @frame_base.populate_defaults(pd.Series.str)
   def cat(self, others, join, **kwargs):
     """If defined, ``others`` must be a :class:`DeferredSeries` or a ``list`` of
     ``DeferredSeries``."""
@@ -4973,8 +4973,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
   def repeat(self, repeats):
     """``repeats`` must be an ``int`` or a :class:`DeferredSeries`. Lists are
     not supported because they make this operation order-sensitive."""
@@ -5011,8 +5011,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise TypeError("str.repeat(repeats=) value must be an int or a "
                       f"DeferredSeries (encountered {type(repeats)}).")
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
   def get_dummies(self, **kwargs):
     """
     Series must be categorical dtype. Please cast to ``CategoricalDtype``
@@ -5094,9 +5094,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
+  @frame_base.populate_defaults(pd.Series.str)
   def split(self, **kwargs):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
@@ -5105,9 +5105,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     """
     return self._split_helper(rsplit=False, **kwargs)
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
+  @frame_base.populate_defaults(pd.Series.str)
   def rsplit(self, **kwargs):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
@@ -5185,17 +5185,17 @@ def make_str_func(method):
   return func
 
 for method in ELEMENTWISE_STRING_METHODS:
-  if not hasattr(pd.core.strings.StringMethods, method):
+  if not hasattr(pd.Series.str, method):
     # older versions (1.0.x) don't support some of these methods
     continue
   setattr(_DeferredStringMethods,
           method,
           frame_base._elementwise_method(make_str_func(method),
                                          name=method,
-                                         base=pd.core.strings.StringMethods))
+                                         base=pd.Series.str))
 
 for method in NON_ELEMENTWISE_STRING_METHODS:
-  if not hasattr(pd.core.strings.StringMethods, method):
+  if not hasattr(pd.Series.str, method):
     # older versions (1.0.x) don't support some of these methods
     continue
   setattr(_DeferredStringMethods,
@@ -5203,7 +5203,7 @@ for method in NON_ELEMENTWISE_STRING_METHODS:
           frame_base._proxy_method(
               make_str_func(method),
               name=method,
-              base=pd.core.strings.StringMethods,
+              base=pd.Series.str,
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Singleton()))
 
@@ -5377,11 +5377,12 @@ ELEMENTWISE_DATETIME_PROPERTIES = [
   'second',
   'time',
   'timetz',
-  'week',
   'weekday',
-  'weekofyear',
   'year',
 ]
+# Pandas 2 removed these.
+if PD_VERSION < (2, 0):
+  ELEMENTWISE_DATETIME_PROPERTIES += ['week', 'weekofyear']
 
 for method in ELEMENTWISE_DATETIME_PROPERTIES:
   setattr(_DeferredDatetimeMethods,
