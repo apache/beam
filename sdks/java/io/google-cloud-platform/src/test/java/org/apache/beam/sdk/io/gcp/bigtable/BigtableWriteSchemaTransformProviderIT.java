@@ -103,7 +103,7 @@ public class BigtableWriteSchemaTransformProviderIT {
   public void setup() throws Exception {
     BigtableTestOptions options =
         TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    projectId = "google.com:clouddfe"; // options.as(GcpOptions.class).getProject();
+    projectId = options.as(GcpOptions.class).getProject();
     instanceId = options.getInstanceId();
 
     BigtableDataSettings settings =
@@ -203,8 +203,11 @@ public class BigtableWriteSchemaTransformProviderIT {
             .collect(Collectors.toList());
     assertEquals(2, cellsColA.size());
     assertEquals(2, cellsColC.size());
+    // Bigtable keeps cell history ordered by descending timestamp
     assertEquals("new-val-1-a", cellsColA.get(0).getValue().toStringUtf8());
     assertEquals("new-val-1-c", cellsColC.get(0).getValue().toStringUtf8());
+    assertEquals("val-1-a", cellsColA.get(1).getValue().toStringUtf8());
+    assertEquals("val-1-c", cellsColC.get(1).getValue().toStringUtf8());
   }
 
   @Test
