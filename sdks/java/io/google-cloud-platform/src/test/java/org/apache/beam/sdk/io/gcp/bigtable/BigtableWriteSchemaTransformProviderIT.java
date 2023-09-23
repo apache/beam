@@ -36,7 +36,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -104,7 +103,7 @@ public class BigtableWriteSchemaTransformProviderIT {
   public void setup() throws Exception {
     BigtableTestOptions options =
         TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    projectId = options.as(GcpOptions.class).getProject();
+    projectId = "google.com:clouddfe"; // options.as(GcpOptions.class).getProject();
     instanceId = options.getInstanceId();
 
     BigtableDataSettings settings =
@@ -154,8 +153,8 @@ public class BigtableWriteSchemaTransformProviderIT {
   public void testSetMutationsExistingColumn() {
     RowMutation rowMutation =
         RowMutation.create(tableId, "key-1")
-            .setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a")
-            .setCell(COLUMN_FAMILY_NAME_2, "col_c", "val-1-c");
+            .setCell(COLUMN_FAMILY_NAME_1, "col_a", 1000, "val-1-a")
+            .setCell(COLUMN_FAMILY_NAME_2, "col_c", 1000, "val-1-c");
     dataClient.mutateRow(rowMutation);
 
     List<Map<String, byte[]>> mutations = new ArrayList<>();
@@ -165,13 +164,15 @@ public class BigtableWriteSchemaTransformProviderIT {
             "type", "SetCell".getBytes(StandardCharsets.UTF_8),
             "value", "new-val-1-a".getBytes(StandardCharsets.UTF_8),
             "column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
+            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8),
+            "timestamp_micros", Longs.toByteArray(2000)));
     mutations.add(
         ImmutableMap.of(
             "type", "SetCell".getBytes(StandardCharsets.UTF_8),
             "value", "new-val-1-c".getBytes(StandardCharsets.UTF_8),
             "column_qualifier", "col_c".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8)));
+            "family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8),
+            "timestamp_micros", Longs.toByteArray(2000)));
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -202,10 +203,8 @@ public class BigtableWriteSchemaTransformProviderIT {
             .collect(Collectors.toList());
     assertEquals(2, cellsColA.size());
     assertEquals(2, cellsColC.size());
-    System.out.println(cellsColA);
-    System.out.println(cellsColC);
-    assertEquals("new-val-1-a", cellsColA.get(1).getValue().toStringUtf8());
-    assertEquals("new-val-1-c", cellsColC.get(1).getValue().toStringUtf8());
+    assertEquals("new-val-1-a", cellsColA.get(0).getValue().toStringUtf8());
+    assertEquals("new-val-1-c", cellsColC.get(0).getValue().toStringUtf8());
   }
 
   @Test
