@@ -116,6 +116,10 @@ class WordCountIT(unittest.TestCase):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
 
+    if (test_pipeline.get_option('machine_type') == 't2a-standard-1'
+        and 'prebuild_sdk_container_engine' in opts):
+      pytest.skip('prebuild_sdk_container_engine not supported on ARM')
+
     # Set extra options to the pipeline for test purpose
     test_output = '/'.join([
         test_pipeline.get_option('output'),
