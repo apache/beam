@@ -83,6 +83,7 @@ For more information on changes in 2.50.0, check out the [detailed release notes
 
 * Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 * Python Pipelines using BigQuery IO or `orjson` dependency might experience segmentation faults or get stuck: [#28318](https://github.com/apache/beam/issues/28318).
+* Python SDK's cross-language Bigtable sink mishandles records that don't have explicit timestamps set: [#28632](https://github.com/apache/beam/issues/28632)
 
 
 ## List of Contributors

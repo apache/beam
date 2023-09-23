@@ -51,7 +51,7 @@ For more information on changes in 2.49.0, check out the [detailed release notes
 ### Known Issues
 
 * Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
-
+* Python SDK's cross-language Bigtable sink mishandles records that don't have explicit timestamps set: [#28632](https://github.com/apache/beam/issues/28632)
 
 ## List of Contributors
 
