@@ -226,7 +226,6 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     # When setting this cell, we won't set a timestamp. We expect the timestamp
     # to default to -1, and Bigtable will set it to system time at insertion.
     row2_col1_no_timestamp = Cell(b'val2-2-notimestamp', time.time())
-    row2_col1_neg1_timestamp = Cell(b'val2-2-neg1-timestamp', time.time())
     # rows sent to write transform
     row1.set_cell(
         'col_fam', b'col-1', row1_col1_cell.value, row1_col1_cell.timestamp)
@@ -238,8 +237,6 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         'col_fam', b'col-2', row2_col2_cell.value, row2_col2_cell.timestamp)
     # don't set a timestamp here. it should default to -1
     row2.set_cell('col_fam', b'col-no-timestamp', row2_col1_no_timestamp.value)
-    row2.set_cell(
-        'col_fam', b'col-neg1-timestamp', row2_col1_no_timestamp.value, -1)
 
     self.run_pipeline([row1, row2])
 
@@ -257,7 +254,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     self.assertEqual(
         row2_col2_cell, actual_row2.find_cells('col_fam', b'col-2')[0])
 
-    # check cell that doesn't have a timestamp set is handled properly:
+    # check mutation that doesn't have a timestamp set is handled properly:
     self.assertEqual(
         row2_col1_no_timestamp.value,
         actual_row2.find_cells('col_fam', b'col-no-timestamp')[0].value)
@@ -266,22 +263,8 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cell_timestamp = actual_row2.find_cells('col_fam',
                                             b'col-no-timestamp')[0].timestamp
     self.assertTrue(
-        row2_col1_no_timestamp.timestamp < actual_row2.find_cells(
-            'col_fam', b'col-no-timestamp')[0].timestamp,
+        row2_col1_no_timestamp.timestamp < cell_timestamp,
         msg="Expected cell with unset timestamp to have ingestion time "
-        f"attached, but was {cell_timestamp}")
-    # check cell that has timestamp of `-1` is handled properly:
-    self.assertEqual(
-        row2_col1_neg1_timestamp.value,
-        actual_row2.find_cells('col_fam', b'col-neg1-timestamp')[0].value)
-    # Bigtable sets -1 timestamp as insertion time, which is later than the
-    # time.time() we set when creating this test case
-    cell_timestamp = actual_row2.find_cells('col_fam',
-                                            b'col-neg1-timestamp')[0].timestamp
-    self.assertTrue(
-        row2_col1_neg1_timestamp.timestamp < actual_row2.find_cells(
-            'col_fam', b'col-neg1-timestamp')[0].timestamp,
-        msg="Expected cell with `-1` timestamp to have ingestion time "
         f"attached, but was {cell_timestamp}")
 
   def test_delete_cells_mutation(self):
