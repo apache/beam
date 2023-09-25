@@ -2262,6 +2262,10 @@ class _PValueWithErrors(object):
   def element_type(self):
     return self._pcoll.element_type
 
+  @element_type.setter
+  def element_type(self, value):
+    self._pcoll.element_type = value
+
   def main_output_tag(self):
     return self._exception_handling_args.get('main_tag', 'good')
 
@@ -2272,17 +2276,24 @@ class _PValueWithErrors(object):
     return self.apply(transform)
 
   def apply(self, transform):
-    result = self._pcoll | transform.with_exception_handling(
-        **self._exception_handling_args)
-    if result[self.main_output_tag()].element_type == typehints.Any:
-      result[self.main_output_tag()].element_type = transform.infer_output_type(
-          self._pcoll.element_type)
-    # TODO(BEAM-18957): Add support for tagged type hints.
-    result[self.error_output_tag()].element_type = typehints.Any
-    return _PValueWithErrors(
-        result[self.main_output_tag()],
-        self._exception_handling_args,
-        self._upstream_errors + (result[self.error_output_tag()], ))
+    if hasattr(transform, 'with_exception_handling'):
+      result = self._pcoll | transform.with_exception_handling(
+          **self._exception_handling_args)
+      if result[self.main_output_tag()].element_type == typehints.Any:
+        result[
+            self.main_output_tag()].element_type = transform.infer_output_type(
+                self._pcoll.element_type)
+      # TODO(BEAM-18957): Add support for tagged type hints.
+      result[self.error_output_tag()].element_type = typehints.Any
+      return _PValueWithErrors(
+          result[self.main_output_tag()],
+          self._exception_handling_args,
+          self._upstream_errors + (result[self.error_output_tag()], ))
+    else:
+      return _PValueWithErrors(
+          self._pcoll | transform,
+          self._exception_handling_args,
+          self._upstream_errors)
 
   def accumulated_errors(self):
     if len(self._upstream_errors) == 1:
@@ -2316,6 +2327,10 @@ class _MaybePValueWithErrors(object):
   @property
   def element_type(self):
     return self._pvalue.element_type
+
+  @element_type.setter
+  def element_type(self, value):
+    self._pvalue.element_type = value
 
   def __or__(self, transform):
     return self.apply(transform)
