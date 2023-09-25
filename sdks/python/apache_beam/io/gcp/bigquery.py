@@ -1869,6 +1869,7 @@ class WriteToBigQuery(PTransform):
       # TODO(https://github.com/apache/beam/issues/20712): Switch the default
       # when the feature is mature.
       with_auto_sharding=False,
+      num_storage_api_streams=0,
       ignore_unknown_columns=False,
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
@@ -2018,6 +2019,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         determined number of shards to write to BigQuery. This can be used for
         all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
         applicable to unbounded input.
+      num_storage_api_streams: Specifies the number of write streams that the
+        Storage API sink will use. This parameter is only applicable when
+        writing unbounded data.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -2060,6 +2064,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.use_at_least_once = use_at_least_once
     self.expansion_service = expansion_service
     self.with_auto_sharding = with_auto_sharding
+    self._num_storage_api_streams = num_storage_api_streams
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
@@ -2259,6 +2264,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               triggering_frequency=triggering_frequency,
               use_at_least_once=self.use_at_least_once,
               with_auto_sharding=self.with_auto_sharding,
+              num_storage_api_streams=self._num_storage_api_streams,
               expansion_service=self.expansion_service))
 
       if is_rows:
@@ -2521,6 +2527,7 @@ class StorageWriteToBigQuery(PTransform):
       triggering_frequency=0,
       use_at_least_once=False,
       with_auto_sharding=False,
+      num_storage_api_streams=0,
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
 
@@ -2558,6 +2565,7 @@ class StorageWriteToBigQuery(PTransform):
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
+    self._num_storage_api_streams = num_storage_api_streams
     self._expansion_service = (
         expansion_service or _default_io_expansion_service())
     self.schematransform_config = SchemaAwareExternalTransform.discover_config(
@@ -2569,6 +2577,7 @@ class StorageWriteToBigQuery(PTransform):
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
         autoSharding=self._with_auto_sharding,
+        numStreams=self._num_storage_api_streams,
         createDisposition=self._create_disposition,
         table=self._table,
         triggeringFrequencySeconds=self._triggering_frequency,
