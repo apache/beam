@@ -19,7 +19,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 0,12 * * *'
+    - cron: '10 1/13 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,6 +47,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  beam_PerformanceTests_AvroIOIT_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_AvroIOIT:
@@ -69,12 +70,15 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Prepare config
-        id: set_config
-        shell: bash
-        run: |
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/performance-tests-job-configs/config_AvroIOIT.txt | tr '\n' ' ')
-          echo "prepared_config=$CURCONFIG" >> $GITHUB_OUTPUT
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: performance
+          test-language: java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_AvroIOIT.txt
+          arguments: |
+            --filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
       - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -84,4 +88,4 @@ jobs:
             --info \
             -Dfilesystem=gcs \
             -DintegrationTestRunner=dataflow \
-            -DintegrationTestPipelineOptions='[${{ steps.set_config.outputs.prepared_config }}"--filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/"]' \
+            -DintegrationTestPipelineOptions='[${{ env.beam_PerformanceTests_AvroIOIT_test_arguments_1 }}]' \
