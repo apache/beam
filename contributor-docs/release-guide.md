@@ -231,9 +231,12 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
 
 #### Update base image dependencies for Python container images
 
-Tracked in Github issue https://github.com/apache/beam/issues/27944
+The Python base container images have static pinned `requirements.txt` that are
+designed to be compatible with our dependency constraints but also not cause
+runtime installs to occur, which slow things down immensely.
 
-See instructions at: https://s.apache.org/beam-python-requirements-generate
+Follow the instructions at
+https://s.apache.org/beam-python-requirements-generate
 
 Ideally, do the update at least a week before the release cut, so that any issues
 related to the update have time to surface.
