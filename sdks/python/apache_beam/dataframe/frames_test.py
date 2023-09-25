@@ -193,6 +193,9 @@ class _AbstractFrameTest(unittest.TestCase):
         if expected.index.is_unique:
           expected = expected.sort_index()
           actual = actual.sort_index()
+        elif isinstance(expected, pd.Series):
+          expected = expected.sort_values()
+          actual = actual.sort_values()
         else:
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
@@ -694,6 +697,8 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
+    # Ensure we don't drop rows due to nan values in unused columns.
+    self._run_test(lambda df: df.value_counts('num_wings'), df)
 
     if PD_VERSION >= (1, 3):
       # dropna=False is new in pandas 1.3
@@ -1832,8 +1837,8 @@ class GroupByTest(_AbstractFrameTest):
     df = GROUPBY_DF
 
     self._run_test(
-        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
-            lambda x: x),
+        lambda df: df[['foo', 'group', 'bar']].groupby(
+            'group', group_keys=False).apply(lambda x: x),
         df)
 
   def test_groupby_transform(self):
@@ -1931,6 +1936,8 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  @unittest.skipIf(
+      PD_VERSION >= (2, 0), "dtypes on groups is deprecated in Pandas 2.")
   def test_groupby_dtypes(self):
     self._run_test(
         lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
@@ -2154,6 +2161,7 @@ class AggregationTest(_AbstractFrameTest):
             level=1, numeric_only=True),
         GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
@@ -2176,6 +2184,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.two.mean(skipna=True), df)
     self._run_test(lambda df: df.three.mean(skipna=True), df)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_dataframe_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
@@ -2984,7 +2993,7 @@ class DocstringTest(unittest.TestCase):
       (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
-      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames._DeferredStringMethods, pd.Series.str),
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),

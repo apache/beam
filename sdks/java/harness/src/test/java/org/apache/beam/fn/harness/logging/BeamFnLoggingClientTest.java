@@ -38,6 +38,7 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -95,6 +96,7 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("Message")
+          .setTransformId("ptransformId")
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
           .setLogLocation("LoggerName")
@@ -104,6 +106,7 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("testMdcValue:Message")
+          .setTransformId("ptransformId")
           .setCustomData(
               Struct.newBuilder()
                   .putFields(
@@ -117,6 +120,7 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.WARN)
           .setMessage("MessageWithException")
+          .setTransformId("errorPtransformId")
           .setTrace(getStackTraceAsString(TEST_RECORD_WITH_EXCEPTION.getThrown()))
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
@@ -126,7 +130,16 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testLogging() throws Exception {
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), null);
+    ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
+    ExecutionStateSampler.ExecutionState state =
+        stateTracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+    state.activate();
+
     BeamFnLoggingMDC.setInstructionId("instruction-1");
+    BeamFnLoggingMDC.setStateTracker(stateTracker);
+
     AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
@@ -188,7 +201,14 @@ public class BeamFnLoggingClientTest {
       rootLogger.log(FILTERED_RECORD);
       // Should not be filtered because the default log level override for ConfiguredLogger is DEBUG
       configuredLogger.log(TEST_RECORD);
+
+      // Simulate an exception. This sets an internal error state where the PTransform should come
+      // from.
+      ExecutionStateSampler.ExecutionState errorState =
+          stateTracker.create("shortId", "errorPtransformId", "errorPtransformIdName", "process");
+      errorState.activate();
       configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
+      errorState.deactivate();
 
       // Ensure that configuring a custom formatter on the logging handler will be honored.
       for (Handler handler : rootLogger.getHandlers()) {
