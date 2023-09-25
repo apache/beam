@@ -49,7 +49,7 @@ class MockLoggingHandler(logging.Handler):
 
 
 @unittest.skipIf(gauth is None, 'Google Auth dependencies are not installed')
-class MyTestCase(unittest.TestCase):
+class AuthTest(unittest.TestCase):
   @mock.patch('google.auth.default')
   def test_auth_with_retrys(self, unused_mock_arg):
     pipeline_options = PipelineOptions()
@@ -70,6 +70,12 @@ class MyTestCase(unittest.TestCase):
     google_auth_mock = mock.MagicMock()
     gauth.default = google_auth_mock
     google_auth_mock.side_effect = side_effect
+
+    # _Credentials caches the actual credentials.
+    # This resets it for idempotent tests.
+    if auth._Credentials._credentials_init:
+      auth._Credentials._credentials_init = False
+      auth._Credentials._credentials = None
 
     returned_credentials = auth.get_service_credentials(pipeline_options)
 
@@ -93,6 +99,12 @@ class MyTestCase(unittest.TestCase):
     retry_auth_mock = mock.MagicMock()
     auth._Credentials._get_credentials_with_retrys = retry_auth_mock
     retry_auth_mock.side_effect = raise_
+
+    # _Credentials caches the actual credentials.
+    # This resets it for idempotent tests.
+    if auth._Credentials._credentials_init:
+      auth._Credentials._credentials_init = False
+      auth._Credentials._credentials = None
 
     returned_credentials = auth.get_service_credentials(pipeline_options)
 
