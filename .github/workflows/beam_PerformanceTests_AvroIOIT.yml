@@ -13,28 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit BeamMetrics Publish
+name: Performance Tests AvroIOIT
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ['.github/workflows/beam_PostCommit_BeamMetrics_Publish.yml']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '24 2 * * *'
+    - cron: '10 1/13 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -44,29 +40,28 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
   cancel-in-progress: true
-
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  beam_PerformanceTests_AvroIOIT_test_arguments_1: ''
 
 jobs:
-  beam_PostCommit_BeamMetrics_Publish:
+  beam_PerformanceTests_AvroIOIT:
     if: |
-      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Beam Metrics Deployment'
+      github.event.comment.body == 'Run Java AvroIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PostCommit_BeamMetrics_Publish"]
-        job_phrase: ["Run Beam Metrics Deployment"]
+        job_name: ["beam_PerformanceTests_AvroIOIT"]
+        job_phrase: ["Run Java AvroIO Performance Test"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -75,20 +70,22 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
         with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - name: Setup credential helper
-        run: |
-          gcloud auth configure-docker
-      - name: Install gcloud Kubectl
-        run: gcloud components install kubectl
-      - name: run Beam Metrics deployment script
+          test-type: performance
+          test-language: java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_AvroIOIT.txt
+          arguments: |
+            --filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
+      - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :beam-test-infra-metrics:getClusterCredentials :beam-test-infra-metrics:deploy
+          gradle-command: :sdks:java:io:file-based-io-tests:integrationTest
           arguments: |
-            -PKUBE_CONFIG_PATH='$HOME/.kube/config'
+            --tests org.apache.beam.sdk.io.avro.AvroIOIT \
+            --info \
+            -Dfilesystem=gcs \
+            -DintegrationTestRunner=dataflow \
+            -DintegrationTestPipelineOptions='[${{ env.beam_PerformanceTests_AvroIOIT_test_arguments_1 }}]' \

@@ -71,4 +71,3 @@ runs:
       post: |
         echo "Post Cleanup"
         kubectl delete namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
-    
