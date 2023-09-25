@@ -159,8 +159,9 @@ func main() {
 		cp = append(cp, filepath.Join(dir, filepath.FromSlash(name)))
 	}
 
+	var setRecommendedMaxXmx = strings.Contains(options, "set_recommended_max_xmx")
 	args := []string{
-		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
+		"-Xmx" + strconv.FormatUint(heapSizeLimit(info, setRecommendedMaxXmx), 10),
 		// ParallelGC the most adequate for high throughput and lower CPU utilization
 		// It is the default GC in Java 8, but not on newer versions
 		"-XX:+UseParallelGC",
@@ -266,9 +267,14 @@ func makePipelineOptionsFile(options string) error {
 // it returns 70% of the physical memory on the machine. If it cannot determine
 // that value, it returns 1GB. This is an imperfect heuristic. It aims to
 // ensure there is memory for non-heap use and other overhead, while also not
-// underutilizing the machine.
-func heapSizeLimit(info *fnpb.ProvisionInfo) uint64 {
-	if size, err := syscallx.PhysicalMemorySize(); err == nil {
+// underutilizing the machine. if set_recommended_max_xmx experiment is enabled, 
+// sets xmx to 32G. Under 32G JVM enables CompressedOops. CompressedOops 
+// utilizes memory more efficiently, and has positive impact on GC performance 
+// and cache hit rate.
+func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
+	if setRecommendedMaxXmx {
+		return 32 << 30
+	} else if size, err := syscallx.PhysicalMemorySize(); err == nil {
 		return (size * 70) / 100
 	}
 	return 1 << 30

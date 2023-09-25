@@ -38,11 +38,11 @@ package integration
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
-	"os"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -140,6 +140,8 @@ var portableFilters = []string{
 }
 
 var prismFilters = []string{
+	// The prism runner does not yet support Java's CoGBK.
+	"TestXLang_CoGroupBy",
 	// The prism runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// The trigger and pane tests uses TestStream

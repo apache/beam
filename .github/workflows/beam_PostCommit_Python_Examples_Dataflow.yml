@@ -62,26 +62,18 @@ jobs:
         job_name: ["beam_PostCommit_Python_Examples_Dataflow"]
         job_phrase: ["Run Python Examples_Dataflow"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
+          java-version: 8
           python-version: 3.11
-      - name: Install Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '8'
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
       - name: Run examplesPostCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

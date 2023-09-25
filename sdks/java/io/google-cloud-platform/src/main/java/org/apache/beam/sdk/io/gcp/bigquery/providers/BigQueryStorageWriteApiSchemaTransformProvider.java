@@ -176,6 +176,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             !Strings.isNullOrEmpty(this.getErrorHandling().getOutput()),
             invalidConfigMessage + "Output must not be empty if error handling specified.");
       }
+
+      if (this.getAutoSharding() != null && this.getAutoSharding()) {
+        checkArgument(
+            this.getNumStreams() == 0,
+            invalidConfigMessage
+                + "Cannot set a fixed number of streams when auto-sharding is enabled. Please pick only one of the two options.");
+      }
     }
 
     /**
@@ -218,10 +225,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public abstract Boolean getUseAtLeastOnceSemantics();
 
     @SchemaFieldDescription(
-        "This option enables using a dynamically determined number of shards to write to "
+        "This option enables using a dynamically determined number of Storage Write API streams to write to "
             + "BigQuery. Only applicable to unbounded data.")
     @Nullable
     public abstract Boolean getAutoSharding();
+
+    @SchemaFieldDescription(
+        "Specifies the number of write streams that the Storage API sink will use. "
+            + "This parameter is only applicable when writing unbounded data.")
+    @Nullable
+    public abstract Integer getNumStreams();
 
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
     @Nullable
@@ -242,6 +255,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
 
       public abstract Builder setAutoSharding(Boolean autoSharding);
+
+      public abstract Builder setNumStreams(Integer numStreams);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
@@ -321,13 +336,19 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
-        write =
-            write.withTriggeringFrequency(
-                (triggeringFrequency == null || triggeringFrequency <= 0)
-                    ? DEFAULT_TRIGGERING_FREQUENCY
-                    : Duration.standardSeconds(triggeringFrequency));
-        // use default value true for autoSharding if not configured for STORAGE_WRITE_API
-        if (autoSharding == null || autoSharding) {
+        Integer numStreams = configuration.getNumStreams();
+        // Triggering frequency is only applicable for exactly-once
+        if (!configuration.getUseAtLeastOnceSemantics()) {
+          write =
+              write.withTriggeringFrequency(
+                  (triggeringFrequency == null || triggeringFrequency <= 0)
+                      ? DEFAULT_TRIGGERING_FREQUENCY
+                      : Duration.standardSeconds(triggeringFrequency));
+        }
+        // set num streams if specified, otherwise default to autoSharding
+        if (numStreams > 0) {
+          write = write.withNumStorageWriteApiStreams(numStreams);
+        } else if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();
         }
       }

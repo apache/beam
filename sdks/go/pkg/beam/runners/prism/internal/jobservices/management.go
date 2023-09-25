@@ -93,14 +93,18 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		return nil, err
 	}
 	var errs []error
-	check := func(feature string, got, want any) {
-		if got != want {
-			err := unimplementedError{
-				feature: feature,
-				value:   got,
+	check := func(feature string, got any, wants ...any) {
+		for _, want := range wants {
+			if got == want {
+				return
 			}
-			errs = append(errs, err)
 		}
+
+		err := unimplementedError{
+			feature: feature,
+			value:   got,
+		}
+		errs = append(errs, err)
 	}
 
 	// Inspect Transforms for unsupported features.
@@ -114,6 +118,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
+			urns.TransformCombineGlobally,      // Used by Java SDK
+			urns.TransformCombineGroupedValues, // Used by Java SDK
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
@@ -154,7 +160,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
 		if !bypassedWindowingStrategies[wsID] {
-			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
+			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
 			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
 			// Non nil triggers should fail.
 			if ws.GetTrigger().GetDefault() == nil {

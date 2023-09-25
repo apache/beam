@@ -72,22 +72,18 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Typescript PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{matrix.job_phrase}}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-39: false
-          requires-go: false
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
+          python-version: 3.8
+          java-version: 8
       - name: run typescriptPreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
