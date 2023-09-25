@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+#Action used to trigger a failed check re-run within a PR using a comment. Add this action to your workflow with an if condition 
+#to check if the comment is present 
+#If the check is failed this will trigger it again. If its not failed a new instance of workflow will run which will not show in the status box or checks tab in the PR and can be found in the actions tab https://github.com/apache/beam/actions
+
+name: "Setup Kuberenetes Access"
+description: Sets up kuberenetes access in gcp for the current workflow
+inputs:
+  cluster_name:
+    description: "Name of the cluster to be created"
+    required: true
+    default: "io-datastores"
+  k8s_namespace:
+    description: "Name of the namespace to be created"
+    required: true
+  cluster_zone:
+    description: "Zone of the cluster to be created"
+    required: true
+    default: "us-central1-a"
+
+
+runs:
+  using: composite
+  steps:
+  - name: Check if inputs were provided
+    shell: bash
+    run: | 
+      if [ -z "${{ inputs.k8s_namespace }}" ]; then
+        echo "Kubernetes namespace not provided"
+        exit 1
+      fi
+  - name: replace '_' with '-' in namespace
+    shell: bash
+    id: replace_namespace
+    run: |
+      TEST_NAMESPACE=$(echo "${{ inputs.k8s_namespace }}" | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+      echo TEST_NAMESPACE=$TEST_NAMESPACE >> $GITHUB_OUTPUT
+  - name: Get the kubeconfig using gcloud
+    shell: bash
+    run: |
+      gcloud container clusters get-credentials ${{ inputs.cluster_name }} --zone ${{ inputs.cluster_zone }} --project apache-beam-testing
+  - name: Create namespace
+    shell: bash
+    run: | 
+      kubectl create namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
+  - name: Set default namespace
+    shell: bash
+    run: |
+      kubectl config set-context --current --namespace=${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
+  - name: Post cleanup
+    uses: pyTooling/Actions/with-post-step@v0.4.6
+    with:
+      main: echo "Post Cleanup"
+      post: |
+        echo "Post Cleanup"
+        kubectl delete namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
