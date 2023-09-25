@@ -257,8 +257,13 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+  try:
+    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
+  except (TypeError, ValueError) as exn:
+    if is_expr(keep):
+      raise ValueError("Can only use expressions on a schema'd input.") from exn
+    input_schema = {}  # unused
 
-  input_schema = dict(named_fields_from_element_type(pcoll.element_type))
   if isinstance(keep, str) and keep in input_schema:
     keep_fn = lambda row: getattr(row, keep)
   else:
@@ -273,7 +278,7 @@ def is_expr(v):
 def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
   try:
     input_schema = dict(named_fields_from_element_type(pcoll.element_type))
-  except ValueError as exn:
+  except (TypeError, ValueError) as exn:
     if drop:
       raise ValueError("Can only drop fields on a schema'd input.") from exn
     if append:
