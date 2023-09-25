@@ -496,6 +496,7 @@ tasks.register("pythonFormatterPreCommit") {
 
 tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitArmIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
@@ -509,6 +510,7 @@ tasks.register("python38PostCommit") {
 
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitArmIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
@@ -519,6 +521,7 @@ tasks.register("python39PostCommit") {
 
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitArmIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
@@ -526,6 +529,7 @@ tasks.register("python310PostCommit") {
 
 tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitArmIT")
   dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")

@@ -78,6 +78,7 @@ KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cry
 SUITE=""
 COLLECT_MARKERS=
 REQUIREMENTS_FILE=""
+ARCH=""
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -163,6 +164,11 @@ case $key in
       shift # past argument
       shift # past value
       ;;
+    --arch)
+      ARCH="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -232,6 +238,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --streaming if provided
   if [[ "$STREAMING" = true ]]; then
     opts+=("--streaming")
+  fi
+
+  if [[ "$ARCH" == "ARM" ]]; then
+    opts+=("--machine_type=t2a-standard-1")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
