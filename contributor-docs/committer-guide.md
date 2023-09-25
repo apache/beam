@@ -1,6 +1,3 @@
----
-title: "Beam Committer Guide"
----
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,26 +22,36 @@ and covers Beam's guidelines for reviewing and merging code.
 
 The review process aims for:
 
-* Review iterations should be efficient, timely and of quality (avoid tiny or out-of-context changes or huge mega-changes)
-* Support efficiency of authoring (don't want to wait on a review for a tiny bit because GitHub makes it very hard to stack up reviews in sequence / don't want to have major changes blocked because of difficulty of review)
-* Ease of first-time contribution (encourage to follow [contribution guildelines](/contribute/#contributing-code)
-  but committer may absorb some extra effort for new contributors)
-* Pull requests and commit messages establish a clear history with purpose and origin of changes
-* Ability to perform a granular rollback, if necessary (also see [policies](/contribute/postcommits-policies/))
+ - Review iterations should be efficient, timely and of quality (avoid tiny or
+   out-of-context changes or huge mega-changes)
+ - Support efficiency of authoring (don't want to wait on a review for a tiny
+   bit because GitHub makes it very hard to stack up reviews in sequence /
+   don't want to have major changes blocked because of difficulty of review)
+ - Ease of first-time contribution (encourage to follow [contribution
+   guildelines](/contribute/#contributing-code) but committer may absorb some
+   extra effort for new contributors)
+ - Pull requests and commit messages establish a clear history with purpose and
+   origin of changes
+ - Ability to perform a granular rollback, if necessary (also see
+   [policies](/contribute/postcommits-policies/))
 
 Granularity of changes:
 
-* We prefer small independent, incremental PRs with descriptive, isolated commits. Each commit is a single clear change
-* It is OK to keep separate commits for different logical pieces of the code, if they make reviewing and revisiting code easier
-* Making commits isolated is a good practice, authors should be able to relatively easily split the PR upon reviewer's request
-* Generally, every commit should compile and pass tests.
-* Avoid keeping in history formatting messages such as checkstyle or spotless fixes.  Squash such commits with previous one.
+ - We prefer small independent, incremental PRs with descriptive, isolated
+   commits. Each commit is a single clear change
+ - It is OK to keep separate commits for different logical pieces of the code,
+   if they make reviewing and revisiting code easier
+ - Making commits isolated is a good practice, authors should be able to
+   relatively easily split the PR upon reviewer's request
+ - Generally, every commit should compile and pass tests.
+ - Avoid keeping in history formatting messages such as checkstyle or spotless
+   fixes.  Squash such commits with previous one.
 
 ## Always get to LGTM ("Looks good to me!")
 
 After a pull request goes through rounds of reviews and revisions, it will
-become ready for merge. A reviewer signals their approval either
-by GitHub "approval" or by a comment such as "Looks good to me!" (LGTM).
+become ready for merge. A reviewer signals their approval either by GitHub
+"approval" or by a comment such as "Looks good to me!" (LGTM).
 
  - If the author of the pull request is not a committer, a committer must be
    the one to approve the change.
@@ -55,9 +62,10 @@ by GitHub "approval" or by a comment such as "Looks good to me!" (LGTM).
 Once a pull request is approved, any committer can merge it.
 
 Exceptions to this rule are rare and made on a case-by-case basis. A committer
-may use their discretion for situations such as build breaks. In this case, you
-should still seek a review on the pull request!  A common acronym you may see
-is "TBR" -- "to be reviewed".
+may use their discretion for situations such as when the build is broken on the
+main branch, blocking all code contributions. In this case, you should still
+seek a review on the pull request!  A common acronym you may see is "TBR" --
+"to be reviewed".
 
 **Always go through a pull request, even if you won’t wait for the code
 review.** Committers should never commit anything without going through a pull
@@ -98,30 +106,33 @@ complete. However, the pull request may have a collection of review-related
 commits that are not meaningful to preserve in the history. The reviewer should
 give the LGTM and then request that the author of the pull request rebase,
 squash, split, etc, the commits, so that the history is most useful:
-* Favor commits that do just one thing. The commit is the smallest unit of easy
-rollback; it is easy to roll back many commits, or a whole pull request, but
-harder to roll back part of a commit.
-* Commit messages should be descriptive and should reference the issue number that they address.
-It should later not be necessary to find a merge or first PR commit to find out what caused a change.
-* Pull request descriptions should contain a link to the issue being addressed by the changes.
-* `CHANGES.md` file should be updated with noteworthy changes (e.g. new features, backward
-incompatible changes, dependency changes, etc.).
-* Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
+
+ - Favor commits that do just one thing. The commit is the smallest unit of
+   easy rollback; it is easy to roll back many commits, or a whole pull
+   request, but harder to roll back part of a commit.
+ - Commit messages should be descriptive and should reference the issue number
+   that they address.  It should later not be necessary to find a merge commit or
+   first PR commit to find out what caused a change.
+ - Pull request descriptions should contain a link to the issue being addressed by the changes.
+ - `CHANGES.md` file should be updated with noteworthy changes (e.g. new features, backward
+   incompatible changes, dependency changes, etc.).
+ - Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
 
 ## Merging it!
 
 While it is preferred that authors squash commits after review is complete,
-there may be situations where it is more practical for the committer to handle this
-(such as when the action to be taken is obvious or the author isn't available).
-The committer may use the "Squash and merge" option in Github (or modify the PR commits in other ways).
-The committer is ultimately responsible and we "trust the committer's judgment"!
+there may be situations where it is more practical for the committer to handle
+this (such as when the action to be taken is obvious or the author isn't
+available).  The committer may use the "Squash and merge" option in Github (or
+modify the PR commits in other ways).  The committer is ultimately responsible
+and we "trust the committer's judgment"!
 
 After all the tests pass, there should be a green merge button at the bottom of
 the pull request. There are multiple choices. Unless you want to squash commits
-as part of the merge (see above) you should choose "Merge pull
-request" and ensure "Create a merge commit" is selected from the drop down.
-This preserves the commit history and adds a merge
-commit, so be sure the commit history has been curated appropriately.
+as part of the merge (see above) you should choose "Merge pull request" and
+ensure "Create a merge commit" is selected from the drop down.  This preserves
+the commit history and adds a merge commit, so be sure the commit history has
+been curated appropriately.
 
 Do _not_ use the default GitHub commit message, which looks like this:
 
@@ -137,8 +148,9 @@ If you have comments to add, put them in the body of the commit message.
 
 ## Seed jobs
 
-As a committer, you can now run seed jobs! These are used to update our Jenkins configuration
-and can be run to test PRs modifying Groovy files before they are merged.
+As a committer, you can now run seed jobs! These are used to update our Jenkins
+configuration and can be run to test PRs modifying Groovy files before they are
+merged.
 
 To make sure you have these permissions, put up a PR adding yourself to
 https://github.com/apache/beam/blob/master/.test-infra/jenkins/Committers.groovy
