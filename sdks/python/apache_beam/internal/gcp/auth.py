@@ -111,6 +111,9 @@ if _GOOGLE_AUTH_AVAILABLE:
       """Delegate attribute access to underlying google-auth credentials."""
       return getattr(self._google_auth_credentials, attr)
 
+    def get_google_auth_credentials(self):
+      return self._google_auth_credentials
+
 
 class _Credentials(object):
   _credentials_lock = threading.Lock()
@@ -119,7 +122,7 @@ class _Credentials(object):
 
   @classmethod
   def get_service_credentials(cls, pipeline_options):
-    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+    # type: (PipelineOptions) -> Optional[_ApitoolsCredentialsAdapter]
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -139,7 +142,7 @@ class _Credentials(object):
 
   @staticmethod
   def _get_service_credentials(pipeline_options):
-    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+    # type: (PipelineOptions) -> Optional[_ApitoolsCredentialsAdapter]
     if not _GOOGLE_AUTH_AVAILABLE:
       _LOGGER.warning(
           'Unable to find default credentials because the google-auth library '
