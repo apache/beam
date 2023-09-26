@@ -112,13 +112,14 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_it_with_use_sibling_sdk_workers(self):
     self._run_wordcount_it(wordcount.run, experiment='use_sibling_sdk_workers')
 
-  @pytest.mark.it_dataflow_arm
-  def test_wordcount_fnapi_it_arm(self):
-    self._run_wordcount_it(wordcount.run, machine_type='t2a-standard-1')
-
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
+
+    if (test_pipeline.get_option('machine_type') == 't2a-standard-1' and
+        'prebuild_sdk_container_engine' in opts):
+      # TODO(https://github.com/apache/beam/issues/28340)
+      pytest.skip('prebuild_sdk_container_engine not supported on ARM')
 
     # Set extra options to the pipeline for test purpose
     test_output = '/'.join([
