@@ -417,7 +417,7 @@ task vertexAIInferenceTest {
       def argMap = [
           "test_opts": testOpts,
           "suite": "VertexAITests-df-py${pythonVersionSuffix}",
-          "collect": "uses_vertex_ai and it_postcommit" ,
+          "collect": "vertex_ai_postcommit" ,
           "runner": "TestDataflowRunner",
           "requirements_file": "$requirementsFile"
       ]
