@@ -38,7 +38,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -421,18 +420,18 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 }
 
 func logSubmissionEnvDependencies(ctx context.Context, logger *tools.Logger, dir string) error {
-	logger.Log(ctx, fnexecution_v1.LogEntry_Severity_DEBUG, "Logging submission environment dependencies:")
+	logger.Printf(ctx, "Logging submission environment dependencies:")
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
-	logger.Log(ctx, fnexecution_v1.LogEntry_Severity_DEBUG, string(content))
+	logger.Printf(ctx, string(content))
 	return nil
 }
 
 func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
-	logger.Log(ctx, fnexecution_v1.LogEntry_Severity_DEBUG, "Logging runtime dependencies:")
+	logger.Printf(ctx, "Logging runtime dependencies:")
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
