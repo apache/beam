@@ -79,6 +79,7 @@ See the &lt;a href="/get-started/downloads/#2500-2023-08-30">download page&lt;/a
 &lt;ul>
 &lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
 &lt;li>Python Pipelines using BigQuery IO or &lt;code>orjson&lt;/code> dependency might experience segmentation faults or get stuck: &lt;a href="https://github.com/apache/beam/issues/28318">#28318&lt;/a>.&lt;/li>
+&lt;li>Python SDK&amp;rsquo;s cross-language Bigtable sink mishandles records that don&amp;rsquo;t have an explicit timestamp set: &lt;a href="https://github.com/apache/beam/issues/28632">#28632&lt;/a>. To avoid this issue, set explicit timestamps for all records before writing to Bigtable.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.50.0 release. Thank you to all contributors!&lt;/p>
@@ -197,6 +198,7 @@ See the &lt;a href="/get-started/downloads/#2490-2023-07-17">download page&lt;/a
 &lt;h3 id="known-issues">Known Issues&lt;/h3>
 &lt;ul>
 &lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
+&lt;li>Python SDK&amp;rsquo;s cross-language Bigtable sink mishandles records that don&amp;rsquo;t have an explicit timestamp set: &lt;a href="https://github.com/apache/beam/issues/28632">#28632&lt;/a>. To avoid this issue, set explicit timestamps for all records before writing to Bigtable.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.49.0 release. Thank you to all contributors!&lt;/p>
