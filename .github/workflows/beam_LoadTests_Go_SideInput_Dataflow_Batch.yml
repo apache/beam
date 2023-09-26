@@ -69,18 +69,16 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Prepare configs
-        #Reads config files, excludes comments, appends current date to the job_name parameter
-        id: set_configs
-        shell: bash
-        run: |
-          CURDATE=$(date '+%m%d%H%M%S' --utc)
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_SideInput_Go_Batch_Dataflow_First_Iterable.txt | tr '\n' ' ')
-          CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-sideinput-3-/load-tests-go-dataflow-batch-sideinput-3-$CURDATE}")
-          echo "prepared_config_1=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_SideInput_Go_Batch_Dataflow_Iterable.txt | tr '\n' ' ')
-          CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-sideinput-4-/load-tests-go-dataflow-batch-sideinput-4-$CURDATE}")
-          echo "prepared_config_2=$CURCONFIG" >> $GITHUB_OUTPUT
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: go
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_SideInput_Go_Batch_Dataflow_First_Iterable.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_SideInput_Go_Batch_Dataflow_Iterable.txt
+          arguments: |
+            --job_name=load-tests-go-dataflow-batch-sideinput-$(date '+%m%d%H%M%S' --utc)
       - name: run SideInput Dataflow Batch Go Load Test 1 (first iterable)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -88,7 +86,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=sideinput \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_SideInput_Dataflow_Batch_test_arguments_1 }}' \
       - name: run SideInput Dataflow Batch Go Load Test 2 (iterable)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -96,4 +94,4 @@ jobs:
           arguments: |
             -PloadTest.mainClass=sideinput \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}'
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_SideInput_Dataflow_Batch_test_arguments_2 }}'
