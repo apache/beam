@@ -79,6 +79,12 @@ class AuthTest(unittest.TestCase):
 
     returned_credentials = auth.get_service_credentials(pipeline_options)
 
+    # _Credentials caches the actual credentials.
+    # This resets it for idempotent tests.
+    if auth._Credentials._credentials_init:
+      auth._Credentials._credentials_init = False
+      auth._Credentials._credentials = None
+
     self.assertEqual('creds', returned_credentials._google_auth_credentials)
 
   @mock.patch(
@@ -115,6 +121,12 @@ class AuthTest(unittest.TestCase):
         'needed to access GCP resources.'
     ],
                      loggerHandler.messages.get('warning'))
+
+    # _Credentials caches the actual credentials.
+    # This resets it for idempotent tests.
+    if auth._Credentials._credentials_init:
+      auth._Credentials._credentials_init = False
+      auth._Credentials._credentials = None
 
     auth._LOGGER.removeHandler(loggerHandler)
 
