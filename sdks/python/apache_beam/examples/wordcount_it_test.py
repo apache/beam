@@ -118,6 +118,7 @@ class WordCountIT(unittest.TestCase):
 
     if (test_pipeline.get_option('machine_type') == 't2a-standard-1' and
         'prebuild_sdk_container_engine' in opts):
+      # TODO(https://github.com/apache/beam/issues/28340)
       pytest.skip('prebuild_sdk_container_engine not supported on ARM')
 
     # Set extra options to the pipeline for test purpose
