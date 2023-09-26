@@ -234,6 +234,8 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
 The Python base container images have static pinned `requirements.txt` that are
 designed to be compatible with our dependency constraints but also not cause
 runtime installs to occur, which slow things down immensely.
+These need to be updated at least once per release cycle to avoid
+out of date dependencies.
 
 Follow the instructions at
 https://s.apache.org/beam-python-requirements-generate
