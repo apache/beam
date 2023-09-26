@@ -1,4 +1,3 @@
-###############################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -14,20 +13,17 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 # limitations under the License.
-###############################################################################
-"--runner=DataflowRunner",
-"--project=apache-beam-testing",
-"--tempRoot=gs://temp-storage-for-perf-tests",
-"--bigQueryDataset=beam_performance",
-"--bigQueryTable=many_files_textioit_results",
-"--influxMeasurement=many_files_textioit_results",
-"--reportGcsPerformanceMetrics=true",
-"--gcsPerformanceMetrics=true",
-"--numberOfRecords=25000000",
-"--expectedHash=f8453256ccf861e8a312c125dfe0e436",
-"--datasetSize=1062290000",
-"--numberOfShards=1000",
-"--numWorkers=5",
-"--autoscalingAlgorithm=NONE",
-"--influxDatabase=beam_test_metrics",
-"--influxHost=http://10.128.0.96:8086",
+
+--runner=DataflowRunner
+--tempRoot=gs://temp-storage-for-perf-tests
+--bigQueryDataset=beam_performance
+--bigQueryTable=many_files_textioit_hdfs_results
+--influxMeasurement=many_files_textioit_hdfs_results
+--reportGcsPerformanceMetrics=true
+--gcsPerformanceMetrics=true
+--numberOfRecords=25000000
+--expectedHash=f8453256ccf861e8a312c125dfe0e436
+--datasetSize=1062290000
+--numberOfShards=1000
+--numWorkers=5
+--autoscalingAlgorithm=NONE
