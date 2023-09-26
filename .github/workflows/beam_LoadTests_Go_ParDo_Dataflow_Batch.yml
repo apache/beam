@@ -69,19 +69,18 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Prepare configs
-        #Reads config files, excludes comments, appends current date to the job_name parameter
-        id: set_configs
-        shell: bash
-        run: |
-          CURDATE=$(date '+%m%d%H%M%S' --utc)
-          CONFIG_ARR=('config_ParDo_Go_Batch_10_Iterations.txt' 'config_ParDo_Go_Batch_200_Iterations.txt' 'config_ParDo_Go_Batch_10_Counters.txt' 'config_ParDo_Go_Batch_100_Counters.txt')
-          for INDEX in ${!CONFIG_ARR[@]}
-          do
-            CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/${CONFIG_ARR[INDEX]} | tr '\n' ' ')
-            CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-pardo-$((INDEX + 1))-/load-tests-go-dataflow-batch-pardo-$((INDEX + 1))-$CURDATE}")
-            echo "prepared_config_$((INDEX + 1))=$CURCONFIG" >> $GITHUB_OUTPUT
-          done
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: go
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Go_Batch_100_Counters.txt
+          arguments: |
+            --job_name=load-tests-go-dataflow-batch-pardo-$(date '+%m%d%H%M%S' --utc)
       - name: run ParDo Dataflow Batch Go Load Test 1 (10 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -89,7 +88,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=pardo \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_ParDo_Dataflow_Batch_test_arguments_1 }}' \
       - name: run ParDo Dataflow Batch Go Load Test 2 (200 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -97,7 +96,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=pardo \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_ParDo_Dataflow_Batch_test_arguments_2 }}' \
       - name: run ParDo Dataflow Batch Go Load Test 3 (10 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -105,7 +104,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=pardo \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_3 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_ParDo_Dataflow_Batch_test_arguments_3 }}' \
       - name: run ParDo Dataflow Batch Go Load Test 4 (100 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -113,4 +112,4 @@ jobs:
           arguments: |
             -PloadTest.mainClass=pardo \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_4 }}'
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_ParDo_Dataflow_Batch_test_arguments_4 }}'
