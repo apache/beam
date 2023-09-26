@@ -1,0 +1,140 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Load Tests GBK Dataflow Batch Go
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '40 23 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+jobs:
+  beam_LoadTests_Go_GBK_Dataflow_Batch:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Load Tests Go GBK Dataflow Batch'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 720
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_LoadTests_Go_GBK_Dataflow_Batch"]
+        job_phrase: ["Run Load Tests Go GBK Dataflow Batch"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Prepare configs
+        #Reads config files, excludes comments, appends current date to the job_name parameter
+        id: set_configs
+        shell: bash
+        run: |
+          CURDATE=$(date '+%m%d%H%M%S' --utc)
+          CONFIG_ARR=('config_GBK_Go_Batch_10b.txt' 'config_GBK_Go_Batch_100b.txt' 'config_GBK_Go_Batch_100b.txt' 'config_GBK_Go_Batch_Fanout_4.txt' 'config_GBK_Go_Batch_Fanout_8.txt' 'config_GBK_Go_Batch_Reiteration_10KB.txt', 'config_GBK_Go_Batch_Reiteration_2MB.txt')
+          for INDEX in ${!CONFIG_ARR[@]}
+          do
+            CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/${CONFIG_ARR[INDEX]} | tr '\n' ' ')
+            CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-gbk-$((INDEX + 1))-/load-tests-go-dataflow-batch-gbk-$((INDEX + 1))-$CURDATE}")
+            echo "prepared_config_$((INDEX + 1))=$CURCONFIG" >> $GITHUB_OUTPUT
+          done
+      - name: run GBK Dataflow Batch Go Load Test 1 (10 b records)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
+      - name: run GBK Dataflow Batch Go Load Test 2 (100 b records)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}' \
+      - name: run GBK Dataflow Batch Go Load Test 3 (100 kb records)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_3 }}' \
+      - name: run GBK Dataflow Batch Go Load Test 4 (fanout 4)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_4 }}' \
+      - name: run GBK Dataflow Batch Go Load Test 5 (fanout 8)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_5 }}' \
+      - name: run GBK Dataflow Batch Go Load Test 6 (reiterate 4 times 10 kb)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_6 }}' \
+      - name: run GBK Dataflow Batch Go Load Test 7 (reiterate 4 times 2 mb)
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:go:test:load:run
+          arguments: |
+            -PloadTest.mainClass=group_by_key \
+            -Prunner=DataflowRunner \
+            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_7 }}'

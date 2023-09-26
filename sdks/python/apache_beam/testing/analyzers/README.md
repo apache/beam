@@ -43,9 +43,8 @@ please follow the below structure.
 ```
 # the test_1 must be a unique id.
 test_1:
-  test_name: Pytorch image classification on 50k images of size 224 x 224 with resnet 152
+  test_description: Pytorch image classification on 50k images of size 224 x 224 with resnet 152
   test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
-  source: big_query
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
@@ -58,7 +57,7 @@ test_1:
 
 **NOTE**: `test_target` is optional. It is used for identifying the test that was causing the regression.
 
-**Note**: If the source is **BigQuery**, the `metrics_dataset`, `metrics_table`, `project` and `metric_name` should match with the values defined for performance/load tests.
+**Note**: By default, the tool fetches metrics from BigQuery tables. `metrics_dataset`, `metrics_table`, `project` and `metric_name` should match with the values defined for performance/load tests.
 The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
 to fill up the values required to fetch the data from source.
 

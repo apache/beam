@@ -52,7 +52,7 @@ jobs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -73,15 +73,15 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-38: false
-          requires-py-39: false
+          java-version: 8
+          go-version: 1.21
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -132,16 +132,15 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          requires-py-38: false
-          requires-py-39: false
-
+          java-version: 8
+          go-version: 1.21
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -176,15 +175,15 @@ jobs:
       )
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Setup self-hosted
-        uses: ./.github/actions/setup-self-hosted-action
-        with: 
-          requires-py-38: false
-          requires-py-39: false
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 8
+          go-version: 1.21
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

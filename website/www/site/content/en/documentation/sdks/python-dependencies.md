@@ -32,7 +32,7 @@ Dependencies for your Beam SDK version are listed in `setup.py` in the Beam repo
     https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/python/setup.py
     ```
 
-    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="ttps://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
+    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
 
 
 2. Review the core dependency list under `REQUIRED_PACKAGES`.

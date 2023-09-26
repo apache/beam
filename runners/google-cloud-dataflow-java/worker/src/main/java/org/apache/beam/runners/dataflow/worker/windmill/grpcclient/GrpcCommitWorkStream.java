@@ -17,16 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -37,7 +38,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +57,8 @@ final class GrpcCommitWorkStream
   private final int streamingRpcBatchLimit;
 
   private GrpcCommitWorkStream(
-      CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub,
+      Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
+          startCommitWorkRpcFn,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
@@ -66,10 +68,7 @@ final class GrpcCommitWorkStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
     super(
-        responseObserver ->
-            stub.withDeadlineAfter(
-                    AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
-                .commitWorkStream(responseObserver),
+        startCommitWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
@@ -83,7 +82,8 @@ final class GrpcCommitWorkStream
   }
 
   static GrpcCommitWorkStream create(
-      CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub,
+      Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
+          startCommitWorkRpcFn,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
@@ -94,7 +94,7 @@ final class GrpcCommitWorkStream
       int streamingRpcBatchLimit) {
     GrpcCommitWorkStream commitWorkStream =
         new GrpcCommitWorkStream(
-            stub,
+            startCommitWorkRpcFn,
             backoff,
             streamObserverFactory,
             streamRegistry,
@@ -252,7 +252,7 @@ final class GrpcCommitWorkStream
   }
 
   private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
-    Preconditions.checkNotNull(pendingRequest.computation);
+    checkNotNull(pendingRequest.computation);
     final ByteString serializedCommit = pendingRequest.request.toByteString();
 
     synchronized (this) {
@@ -306,8 +306,13 @@ final class GrpcCommitWorkStream
 
   private class Batcher {
 
-    final Map<Long, PendingRequest> queue = new HashMap<>();
-    long queuedBytes = 0;
+    private final Map<Long, PendingRequest> queue;
+    private long queuedBytes;
+
+    private Batcher() {
+      this.queuedBytes = 0;
+      this.queue = new HashMap<>();
+    }
 
     boolean canAccept(PendingRequest request) {
       return queue.isEmpty()

@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import logging
 import sys
 import threading
 import traceback
@@ -80,6 +81,8 @@ IMPULSE_VALUE_CODER_IMPL = coders.WindowedValueCoder(
 
 ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
     GlobalWindows.windowed_value(b''))
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class NameContext(object):
@@ -1538,6 +1541,7 @@ class DoFnRunner:
 
     new_exn = new_exn.with_traceback(tb)
     self._maybe_sample_exception(exc_info, windowed_value)
+    _LOGGER.exception(new_exn)
     raise new_exn
 
 

@@ -22,31 +22,33 @@ limitations under the License. See accompanying LICENSE file.
 </head>
 
 <body>
-  <main>
-    <header>
-      <a class="logo" href="/">Jobs Console - Beam Prism</a>
-    </header>
-    <section class="container">
-      {{ if .Error}}{{.Error}}{{end}}
-      <table class="main-table">
-        <thead>
-          <td>ID</td>
-          <td>Name</td>
-          <td>State</td>
-        </thead>
-        {{ range .Jobs }}
-        <tr>
-          <td><a href="job/{{ .JobId }}">{{ .JobId }}</a></td>
-          <td>{{ .JobName }}</td>
-          <td>{{ .State }}</td>
-        </tr>
-        {{ else }}
-        <tr>
-          <td>No jobs have been run.</td>
-        </tr>
-        {{ end }}
-      </table>
-    </section>
+  <main id="page-container">
+    <div id="content-wrap">
+      <header>
+        <a class="logo" href="/">Jobs Console - Beam Prism</a>
+      </header>
+      <section class="container">
+        {{ if .Error}}{{.Error}}{{end}}
+        <table class="main-table">
+          <thead>
+            <td>ID</td>
+            <td>Name</td>
+            <td>State</td>
+          </thead>
+          {{ range .Jobs }}
+          <tr>
+            <td><a href="job/{{ .JobId }}">{{ .JobId }}</a></td>
+            <td>{{ .JobName }}</td>
+            <td>{{ .State }}</td>
+          </tr>
+          {{ else }}
+          <tr>
+            <td>No jobs have been run.</td>
+          </tr>
+          {{ end }}
+        </table>
+      </section>
+    </div>
     <footer>
       <a class="logo" href="debugz">debugz</a>
     </footer>
