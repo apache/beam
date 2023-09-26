@@ -1,3 +1,19 @@
+Run PythonDocs PreCommit
+Run PythonLint PreCommit
+Run RAT PreCommit
+Run Spotless PreCommit
+Run Website PreCommit
+Run Website_Stage_GCS PreCommit
+Run Whitespace PreCommit
+Run PythonFormatter PreCommit
+Run Kotlin_Examples PreCommit
+Run Go PreCommit
+Run GoPortable PreCommit
+Run Typescript PreCommit
+Run CommunityMetrics PreCommit
+Run Java_Flink_Versions PreCommit
+Run Java examples on Dataflow
+Run It_Framework PreCommit
 Run Go PostCommit Dataflow ARM
 Run Java_Examples_Dataflow_ARM PostCommit 8
 Run Java_Examples_Dataflow_ARM PostCommit 11
