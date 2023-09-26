@@ -42,7 +42,6 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -248,12 +247,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     PCollectionTuple writeRecordsResult =
         input.apply(
             "Write Records",
-            ParDo.of(
-                    new WriteRecordsDoFn(
-                        operationName,
-                        streamIdleTime,
-                        splitSize,
-                        maxRequestSize))
+            ParDo.of(new WriteRecordsDoFn(operationName, streamIdleTime, splitSize, maxRequestSize))
                 .withSideInputs(dynamicDestinations.getSideInputs())
                 .withOutputTags(flushTag, tupleTagList));
 
@@ -341,10 +335,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private final long maxRequestSize;
 
     public WriteRecordsDoFn(
-        String operationName,
-        Duration streamIdleTime,
-        long splitSize,
-        long maxRequestSize) {
+        String operationName, Duration streamIdleTime, long splitSize, long maxRequestSize) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.streamIdleTime = streamIdleTime;
       this.splitSize = splitSize;

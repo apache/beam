@@ -27,9 +27,9 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.text.ParseException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,8 +38,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-
-import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
@@ -49,7 +47,6 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -90,9 +87,9 @@ import org.slf4j.LoggerFactory;
  * options. See the cases in `getOptions()` for examples.
  *
  * <p>This also includes the option of testing the sink's retry resilience by setting the
- * `crashIntervalSeconds` System property. This intentionally fails the worker or
- * work item periodically and expects the sink to recover appropriately.
- * Note: Metrics are not published when this is used.
+ * `crashIntervalSeconds` System property. This intentionally fails the worker or work item
+ * periodically and expects the sink to recover appropriately. Note: Metrics are not published when
+ * this is used.
  */
 public class BigQueryStreamingLT extends IOLoadTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStreamingLT.class);
@@ -139,7 +136,9 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       config.toBuilder().setExpectedTable(expectedTable).build();
     }
 
-    crashIntervalSeconds = Integer.parseInt(TestProperties.getProperty("crashIntervalSeconds", "-1", TestProperties.Type.PROPERTY));
+    crashIntervalSeconds =
+        Integer.parseInt(
+            TestProperties.getProperty("crashIntervalSeconds", "-1", TestProperties.Type.PROPERTY));
   }
 
   @AfterClass
@@ -249,7 +248,6 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
         config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())
             && crashIntervalSeconds <= 0;
 
-
     String expectedTable = config.getExpectedTable();
     GenerateTableRow genRow =
         new GenerateTableRow(config.getNumFields(), config.getByteSizePerField());
@@ -332,7 +330,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               .apply("Reshuffle fanout", Reshuffle.viaRandomKey());
     }
 
-    BigQueryIO.Write<Long> storageWriteTransform = BigQueryIO.<Long>write()
+    BigQueryIO.Write<Long> storageWriteTransform =
+        BigQueryIO.<Long>write()
             .to(destTable)
             .withFormatFunction(genRow)
             .withMethod(writeMethod)
@@ -342,8 +341,12 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
 
     // If a crash interval is specified, use our crashing service implementation
     if (crashIntervalSeconds > 0) {
-      LOG.info("A crash interval of {} seconds has been set. The Storage API sink will periodically crash.", crashIntervalSeconds);
-      storageWriteTransform = storageWriteTransform.withTestServices(new CrashingBigQueryServices(crashIntervalSeconds));
+      LOG.info(
+          "A crash interval of {} seconds has been set. The Storage API sink will periodically crash.",
+          crashIntervalSeconds);
+      storageWriteTransform =
+          storageWriteTransform.withTestServices(
+              new CrashingBigQueryServices(crashIntervalSeconds));
     }
     source.apply(storageWriteTransform);
 
@@ -387,7 +390,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       try {
         exportMetricsToBigQuery(storageApiInfo, getMetrics(storageApiInfo, metricsConfig));
       } catch (Exception e) {
-        // Just log the error. Don't re-throw because we have accuracy checks that are more important below
+        // Just log the error. Don't re-throw because we have accuracy checks that are more
+        // important below
         LOG.error("Encountered an error while exporting metrics to BigQuery:\n{}", e);
       }
     }
@@ -418,9 +422,11 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
   // it returns a dataset service implementation that periodically crashes on flush()
   private static class CrashingBigQueryServices extends BigQueryServicesImpl {
     public final Integer crashIntervalSeconds;
+
     public CrashingBigQueryServices(Integer crashIntervalSeconds) {
       this.crashIntervalSeconds = crashIntervalSeconds;
     }
+
     @Override
     public DatasetService getDatasetService(BigQueryOptions options) {
       return new CrashingDatasetService(options);
@@ -436,7 +442,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       // We choose flush() to host the crash logic because it's called frequently during
       // the span of a Storage Write API pipeline
       @Override
-      public ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset) throws IOException, InterruptedException {
+      public ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)
+          throws IOException, InterruptedException {
         maybeCrash();
         return super.flush(streamName, flushOffset);
       }
@@ -458,7 +465,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               // Other half crash the entire worker, which fails all work items on this worker
               if (ThreadLocalRandom.current().nextBoolean()) {
                 throw new RuntimeException(
-                        "Throwing a random exception! This is for testing retry resilience.");
+                    "Throwing a random exception! This is for testing retry resilience.");
               } else {
                 LOG.error("Crashing this worker! This is for testing retry resilience.");
                 System.exit(0);
