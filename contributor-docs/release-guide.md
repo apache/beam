@@ -240,10 +240,14 @@ related to the update have time to surface.
 
 #### Update Go version used for container builds
 
-Tracked in Github issue https://github.com/apache/beam/issues/27897
+Go makes security patch releases of their tooling. Ideally, we upgrade as soon
+as possible, but it is also good to ensure we are up to date for each release.
 
-Ideally, do the update at least a week before the release cut, so that any issues
-related to the update have time to surface.
+This potentially affects container bootloader security, and at the least can cause
+false positives when an default-configuration scanner is pointed at our containers.
+
+ - [ ] See if https://go.dev/doc/devel/release has a newer release. Update throughout
+       Beam. See example at https://github.com/apache/beam/pull/27900/files
 
 #### Update the Java BOM
 
