@@ -33,9 +33,10 @@ from typing import Optional
 import pandas as pd
 
 from apache_beam.testing.analyzers import constants
+from apache_beam.testing.analyzers.perf_analysis_utils import MetricsFetcher
 from apache_beam.testing.analyzers.perf_analysis_utils import GitHubIssueMetaData
+from apache_beam.testing.analyzers.perf_analysis_utils import BigQueryMetricsFetcher
 from apache_beam.testing.analyzers.perf_analysis_utils import create_performance_alert
-from apache_beam.testing.analyzers.perf_analysis_utils import fetch_metric_data
 from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
 from apache_beam.testing.analyzers.perf_analysis_utils import get_existing_issues_data
 from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
@@ -43,10 +44,10 @@ from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import publish_issue_metadata_to_big_query
 from apache_beam.testing.analyzers.perf_analysis_utils import read_test_config
 from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
-from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 
 
-def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
+def run_change_point_analysis(
+    params, test_name, big_query_metrics_fetcher: MetricsFetcher):
   """
   Args:
    params: Dict containing parameters to run change point analysis.
@@ -74,9 +75,11 @@ def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
   if 'num_runs_in_change_point_window' in params:
     num_runs_in_change_point_window = params['num_runs_in_change_point_window']
 
-  metric_values, timestamps = fetch_metric_data(
-    params=params,
-    big_query_metrics_fetcher=big_query_metrics_fetcher
+  metric_values, timestamps = big_query_metrics_fetcher.fetch_metric_data(
+    project=params['project'],
+    metrics_dataset=params['metrics_dataset'],
+    metrics_table=params['metrics_table'],
+    metric_name=params['metric_name']
   )
 
   change_point_index = find_latest_change_point_index(
@@ -149,7 +152,9 @@ def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
   return is_alert
 
 
-def run(config_file_path: Optional[str] = None) -> None:
+def run(
+    config_file_path: Optional[str] = None,
+    big_query_metrics_fetcher: Optional[MetricsFetcher] = None) -> None:
   """
   run is the entry point to run change point analysis on test metric
   data, which is read from config file, and if there is a performance
@@ -169,7 +174,8 @@ def run(config_file_path: Optional[str] = None) -> None:
 
   tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
 
-  big_query_metrics_fetcher = BigQueryMetricsFetcher()
+  if not big_query_metrics_fetcher:
+    big_query_metrics_fetcher = BigQueryMetricsFetcher()
 
   for test_name, params in tests_config.items():
     run_change_point_analysis(

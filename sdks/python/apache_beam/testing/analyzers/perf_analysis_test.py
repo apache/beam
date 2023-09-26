@@ -32,6 +32,7 @@ try:
   from apache_beam.io.filesystems import FileSystems
   from apache_beam.testing.analyzers import constants
   from apache_beam.testing.analyzers import github_issues_utils
+  from apache_beam.testing.analyzers.perf_analysis_utils import BigQueryMetricsFetcher
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
@@ -45,14 +46,14 @@ except ImportError as e:
 
 
 # mock methods.
-def get_fake_data_with_no_change_point(**kwargs):
+def get_fake_data_with_no_change_point(*args, **kwargs):
   num_samples = 20
   metric_values = [1] * num_samples
   timestamps = list(range(num_samples))
   return metric_values, timestamps
 
 
-def get_fake_data_with_change_point(**kwargs):
+def get_fake_data_with_change_point(*args, **kwargs):
   # change point will be at index 13.
   num_samples = 20
   metric_values = [0] * 12 + [3] + [4] * 7
@@ -151,18 +152,20 @@ class TestChangePointAnalysis(unittest.TestCase):
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertFalse(is_alert)
 
-  @mock.patch(
-      'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
+  @mock.patch.object(
+      BigQueryMetricsFetcher,
+      'fetch_metric_data',
       get_fake_data_with_no_change_point)
   def test_no_alerts_when_no_change_points(self):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
         test_name=self.test_id,
-        big_query_metrics_fetcher=None)
+        big_query_metrics_fetcher=BigQueryMetricsFetcher())
     self.assertFalse(is_alert)
 
-  @mock.patch(
-      'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
+  @mock.patch.object(
+      BigQueryMetricsFetcher,
+      'fetch_metric_data',
       get_fake_data_with_change_point)
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.get_existing_issues_data',
@@ -179,11 +182,12 @@ class TestChangePointAnalysis(unittest.TestCase):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
         test_name=self.test_id,
-        big_query_metrics_fetcher=None)
+        big_query_metrics_fetcher=BigQueryMetricsFetcher())
     self.assertTrue(is_alert)
 
-  @mock.patch(
-      'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
+  @mock.patch.object(
+      BigQueryMetricsFetcher,
+      'fetch_metric_data',
       get_fake_data_with_change_point)
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.get_existing_issues_data',
@@ -199,7 +203,7 @@ class TestChangePointAnalysis(unittest.TestCase):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
         test_name=self.test_id,
-        big_query_metrics_fetcher=None)
+        big_query_metrics_fetcher=BigQueryMetricsFetcher())
     self.assertFalse(is_alert)
 
   def test_change_point_has_anomaly_marker_in_gh_description(self):
