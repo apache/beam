@@ -33,6 +33,7 @@ import com.google.cloud.bigtable.admin.v2.models.AppProfile;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.MultiClusterRoutingPolicy;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.RoutingPolicy;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.SingleClusterRoutingPolicy;
+import com.google.cloud.bigtable.admin.v2.models.Cluster;
 import com.google.cloud.bigtable.admin.v2.models.CreateAppProfileRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateInstanceRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
@@ -54,6 +55,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.commons.lang3.StringUtils;
@@ -93,6 +96,8 @@ public class BigtableResourceManager implements ResourceManager {
   private final Set<String> cdcEnabledTables;
 
   private boolean hasInstance;
+  private List<BigtableResourceManagerCluster> clusters;
+
   private final boolean usingStaticInstance;
 
   private BigtableResourceManager(Builder builder) throws IOException {
@@ -111,6 +116,7 @@ public class BigtableResourceManager implements ResourceManager {
     this.createdTables = new ArrayList<>();
     this.createdAppProfiles = new ArrayList<>();
     this.cdcEnabledTables = new HashSet<>();
+    this.clusters = new ArrayList<>();
 
     // Check if RM was configured to use static Bigtable instance.
     if (builder.useStaticInstance) {
@@ -189,12 +195,12 @@ public class BigtableResourceManager implements ResourceManager {
   /**
    * Creates a Bigtable instance in which all clusters, nodes and tables will exist.
    *
-   * @param clusters Collection of BigtableResourceManagerCluster objects to associate with the
-   *     given Bigtable instance.
+   * @param clusters List of BigtableResourceManagerCluster objects to associate with the given
+   *     Bigtable instance.
    * @throws BigtableResourceManagerException if there is an error creating the instance in
    *     Bigtable.
    */
-  public synchronized void createInstance(Iterable<BigtableResourceManagerCluster> clusters)
+  public synchronized void createInstance(List<BigtableResourceManagerCluster> clusters)
       throws BigtableResourceManagerException {
 
     // Check to see if instance already exists, and throw error if it does
@@ -223,6 +229,7 @@ public class BigtableResourceManager implements ResourceManager {
           "Failed to create instance " + instanceId + ".", e);
     }
     hasInstance = true;
+    this.clusters = clusters;
 
     LOG.info("Successfully created instance {}.", instanceId);
   }
@@ -542,6 +549,32 @@ public class BigtableResourceManager implements ResourceManager {
     LOG.info("Loaded {} rows from {}.{}", tableRows.size(), instanceId, tableId);
 
     return tableRows;
+  }
+
+  /** Get all the cluster names of the current instance. */
+  public List<String> getClusterNames() {
+    return StreamSupport.stream(getClusters().spliterator(), false)
+        .map(BigtableResourceManagerCluster::clusterId)
+        .collect(Collectors.toList());
+  }
+
+  private Iterable<BigtableResourceManagerCluster> getClusters() {
+    if (usingStaticInstance && this.clusters.isEmpty()) {
+      try (BigtableInstanceAdminClient instanceAdminClient =
+          bigtableResourceManagerClientFactory.bigtableInstanceAdminClient()) {
+        List<BigtableResourceManagerCluster> managedClusters = new ArrayList<>();
+        for (Cluster cluster : instanceAdminClient.listClusters(instanceId)) {
+          managedClusters.add(
+              BigtableResourceManagerCluster.create(
+                  cluster.getId(),
+                  cluster.getZone(),
+                  cluster.getServeNodes(),
+                  cluster.getStorageType()));
+        }
+        this.clusters = managedClusters;
+      }
+    }
+    return this.clusters;
   }
 
   /**

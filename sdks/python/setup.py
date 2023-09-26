@@ -230,7 +230,7 @@ if __name__ == '__main__':
                             language_level=3),
       install_requires=[
           'crcmod>=1.7,<2.0',
-          'orjson<4.0',
+          'orjson>=3.9.7,<4',
           # Dill doesn't have forwards-compatibility guarantees within minor
           # version. Pickles created with a new version of dill may not unpickle
           # using older version of dill. It is best to use the same version of
@@ -247,6 +247,7 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
+          'js2py>=0.74,<1',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update build-requirements.txt as well.
@@ -254,12 +255,17 @@ if __name__ == '__main__':
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
-          # use a tighter upper bound in protobuf dependency
-          # to make sure the minor version at job submission
+          # 1. Use a tighter upper bound in protobuf dependency to make sure
+          # the minor version at job submission
           # does not exceed the minor version at runtime.
           # To avoid depending on an old dependency, update the minor version on
           # every Beam release, see: https://github.com/apache/beam/issues/25590
-          'protobuf>=3.20.3,<4.24.0',
+
+          # 2. Allow latest protobuf 3 version as a courtesy to some customers.
+          #
+          # 3. Exclude protobuf 4 versions that leak memory, see:
+          # https://github.com/apache/beam/issues/28246
+          'protobuf>=3.20.3,<4.25.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.0,!=4.24.1,!=4.24.2',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',

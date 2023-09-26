@@ -40,7 +40,7 @@ _EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:launcher:build'
 
 class TransformServiceLauncher(object):
   _DEFAULT_PROJECT_NAME = 'apache.beam.transform.service'
-  _DEFAULT_START_WAIT_TIMEOUT = 25000
+  _DEFAULT_START_WAIT_TIMEOUT = 50000
 
   _launchers = {}  # type: ignore
 

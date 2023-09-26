@@ -29,6 +29,7 @@ import (
 type Server struct {
 	jobpb.UnimplementedJobServiceServer
 	jobpb.UnimplementedArtifactStagingServiceServer
+	jobpb.UnimplementedArtifactRetrievalServiceServer
 	fnpb.UnimplementedProvisionServiceServer
 
 	// Server management
@@ -42,6 +43,9 @@ type Server struct {
 
 	// execute defines how a job is executed.
 	execute func(*Job)
+
+	// Artifact hack
+	artifacts map[string][]byte
 }
 
 // NewServer acquires the indicated port.
@@ -60,6 +64,7 @@ func NewServer(port int, execute func(*Job)) *Server {
 	s.server = grpc.NewServer(opts...)
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
+	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
 	return s
 }
 
