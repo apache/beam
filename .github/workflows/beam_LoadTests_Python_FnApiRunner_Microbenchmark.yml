@@ -73,13 +73,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
-      - name: Prepare config
-        #Reads config file, excludes comments
-        id: set_config
-        shell: bash
-        run: |
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_FnApiRunner_Python_Microbenchmark.txt | tr '\n' ' ')
-          echo "prepared_config=$CURCONFIG" >> $GITHUB_OUTPUT
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: python
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_FnApiRunner_Python_Microbenchmark.txt
       - name: run FnApiRunner Microbenchmark Python Load Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -88,4 +88,4 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.load_tests.microbenchmarks_test \
             -Prunner=DirectRunner \
             -PpythonVersion=3.8 \
-            '-PloadTest.args=${{ steps.set_config.outputs.prepared_config }}'
+            '-PloadTest.args=${{ env.beam_LoadTests_Python_FnApiRunner_Microbenchmark_test_arguments_1 }}'
