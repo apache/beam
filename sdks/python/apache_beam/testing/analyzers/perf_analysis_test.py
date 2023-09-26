@@ -159,7 +159,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_no_alerts_when_no_change_points(self):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_name=self.test_id,
+        test_id=self.test_id,
         big_query_metrics_fetcher=BigQueryMetricsFetcher())
     self.assertFalse(is_alert)
 
@@ -181,7 +181,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_alert_on_data_with_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_name=self.test_id,
+        test_id=self.test_id,
         big_query_metrics_fetcher=BigQueryMetricsFetcher())
     self.assertTrue(is_alert)
 
@@ -202,7 +202,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   def test_alert_on_data_with_reported_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
-        test_name=self.test_id,
+        test_id=self.test_id,
         big_query_metrics_fetcher=BigQueryMetricsFetcher())
     self.assertFalse(is_alert)
 
@@ -212,7 +212,8 @@ class TestChangePointAnalysis(unittest.TestCase):
     change_point_index = find_latest_change_point_index(metric_values)
 
     description = github_issues_utils.get_issue_description(
-        test_name=self.test_id,
+        test_id=self.test_id,
+        test_name=self.params.get('test_name', None),
         test_description=self.params['test_description'],
         metric_name=self.params['metric_name'],
         metric_values=metric_values,

@@ -23,7 +23,6 @@
 import argparse
 import logging
 import os
-import uuid
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -47,7 +46,7 @@ from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 
 
 def run_change_point_analysis(
-    params, test_name, big_query_metrics_fetcher: MetricsFetcher):
+    params, test_id, big_query_metrics_fetcher: MetricsFetcher):
   """
   Args:
    params: Dict containing parameters to run change point analysis.
@@ -57,13 +56,20 @@ def run_change_point_analysis(
   Returns:
      bool indicating if a change point is observed and alerted on GitHub.
   """
-  logging.info("Running change point analysis for test %s" % test_name)
+  logging.info("Running change point analysis for test ID %s" % test_id)
   if not validate_config(params.keys()):
     raise ValueError(
         f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
-        f"are specified for the {test_name}")
+        f"are specified for the {test_id}")
 
   metric_name = params['metric_name']
+
+  # test_name will be used to query a single test from
+  # multiple tests in a single BQ table. Right now, the default
+  # assumption is that all the test have an individual BQ table
+  # but this might not be case for other tests(such as IO tests where
+  # a single BQ tables stores all the data)
+  test_name = params.get('test_name', None)
 
   min_runs_between_change_points = (
       constants._DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS)
@@ -85,7 +91,7 @@ def run_change_point_analysis(
   change_point_index = find_latest_change_point_index(
       metric_values=metric_values)
   if not change_point_index:
-    logging.info("Change point is not detected for the test %s" % test_name)
+    logging.info("Change point is not detected for the test ID %s" % test_id)
     return False
   # since timestamps are ordered in ascending order and
   # num_runs_in_change_point_window refers to the latest runs,
@@ -95,11 +101,11 @@ def run_change_point_analysis(
   if not is_change_point_in_valid_window(num_runs_in_change_point_window,
                                          latest_change_point_run):
     logging.info(
-        'Performance regression/improvement found for the test: %s. '
+        'Performance regression/improvement found for the test ID: %s. '
         'on metric %s. Since the change point run %s '
         'lies outside the num_runs_in_change_point_window distance: %s, '
         'alert is not raised.' % (
-            test_name,
+            test_id,
             metric_name,
             latest_change_point_run + 1,
             num_runs_in_change_point_window))
@@ -127,20 +133,21 @@ def run_change_point_analysis(
         min_runs_between_change_points=min_runs_between_change_points)
   if is_alert:
     issue_number, issue_url = create_performance_alert(
-    metric_name, test_name, timestamps,
+    metric_name, test_id, timestamps,
     metric_values, change_point_index,
     params.get('labels', None),
     last_reported_issue_number,
     test_description = params.get('test_description', None),
+    test_name = test_name
     )
 
     issue_metadata = GitHubIssueMetaData(
         issue_timestamp=pd.Timestamp(
             datetime.now().replace(tzinfo=timezone.utc)),
         # BQ doesn't allow '.' in table name
-        test_name=test_name.replace('.', '_'),
+        test_id=test_id.replace('.', '_'),
+        test_name=test_name,
         metric_name=metric_name,
-        test_id=uuid.uuid4().hex,
         change_point=metric_values[change_point_index],
         issue_number=issue_number,
         issue_url=issue_url,
@@ -177,10 +184,10 @@ def run(
   if not big_query_metrics_fetcher:
     big_query_metrics_fetcher = BigQueryMetricsFetcher()
 
-  for test_name, params in tests_config.items():
+  for test_id, params in tests_config.items():
     run_change_point_analysis(
         params=params,
-        test_name=test_name,
+        test_id=test_id,
         big_query_metrics_fetcher=big_query_metrics_fetcher)
 
 

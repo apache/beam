@@ -34,7 +34,7 @@ except KeyError as e:
       'A Github Personal Access token is required '
       'to create Github Issues.')
 
-_GITHUB_REPO_OWNER = os.environ.get('REPO_OWNER', 'AnandInguva')
+_GITHUB_REPO_OWNER = os.environ.get('REPO_OWNER', 'apache')
 _GITHUB_REPO_NAME = os.environ.get('REPO_NAME', 'beam')
 # Adding GitHub Rest API version to the header to maintain version stability.
 # For more information, please look at
@@ -140,7 +140,8 @@ def add_awaiting_triage_label(issue_number: int):
 
 
 def get_issue_description(
-    test_name: str,
+    test_id: str,
+    test_name: Optional[str],
     metric_name: str,
     timestamps: List[pd.Timestamp],
     metric_values: List,
@@ -167,10 +168,13 @@ def get_issue_description(
 
   description = []
 
-  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_name, metric_name))
+  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_id, metric_name))
 
-  description.append(("`Test description:` " +
-                      f'{test_description}') if test_description else '')
+  if test_name:
+    description.append(("`test_name:` " + f'{test_name}'))
+
+  if test_description:
+    description.append(("`Test description:` " + f'{test_description}'))
 
   description.append('```')
 

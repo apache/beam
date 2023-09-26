@@ -59,7 +59,7 @@ def is_change_point_in_valid_window(
   return num_runs_in_change_point_window > latest_change_point_run
 
 
-def get_existing_issues_data(table_name: str, ) -> Optional[pd.DataFrame]:
+def get_existing_issues_data(table_name: str) -> Optional[pd.DataFrame]:
   """
   Finds the most recent GitHub issue created for the test_name.
   If no table found with name=test_name, return (None, None)
@@ -148,7 +148,7 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
 
 def publish_issue_metadata_to_big_query(issue_metadata, table_name):
   """
-  Published issue_metadata to BigQuery with table name=test_name.
+  Published issue_metadata to BigQuery with table name.
   """
   bq_metrics_publisher = BigQueryMetricsPublisher(
       project_name=constants._BQ_PROJECT_NAME,
@@ -163,18 +163,21 @@ def publish_issue_metadata_to_big_query(issue_metadata, table_name):
 
 def create_performance_alert(
     metric_name: str,
-    test_name: str,
+    test_id: str,
     timestamps: List[pd.Timestamp],
     metric_values: List[Union[int, float]],
     change_point_index: int,
     labels: List[str],
     existing_issue_number: Optional[int],
-    test_description: Optional[str] = None) -> Tuple[int, str]:
+    test_description: Optional[str] = None,
+    test_name: Optional[str] = None,
+) -> Tuple[int, str]:
   """
   Creates performance alert on GitHub issues and returns GitHub issue
   number and issue URL.
   """
   description = github_issues_utils.get_issue_description(
+      test_id=test_id,
       test_name=test_name,
       test_description=test_description,
       metric_name=metric_name,
@@ -186,7 +189,7 @@ def create_performance_alert(
 
   issue_number, issue_url = github_issues_utils.report_change_point_on_issues(
         title=github_issues_utils._ISSUE_TITLE_TEMPLATE.format(
-          test_name, metric_name
+          test_id, metric_name
         ),
         description=description,
         labels=labels,
@@ -231,8 +234,12 @@ def filter_change_points_by_median_threshold(
 class MetricsFetcher:
   @abc.abstractmethod
   def fetch_metric_data(
-      self, project, metrics_dataset, metrics_table,
-      metric_name) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+      self,
+      project,
+      metrics_dataset,
+      metrics_table,
+      metric_name,
+      test_name=None) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
     """
     Define schema and fetch the timestamp values and metric values
     from BigQuery.
@@ -245,8 +252,14 @@ class BigQueryMetricsFetcher:
     self.query = query
 
   def fetch_metric_data(
-      self, *, project, metrics_dataset, metrics_table,
-      metric_name) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+      self,
+      *,
+      project,
+      metrics_dataset,
+      metrics_table,
+      metric_name,
+      test_name=None,
+  ) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
     """
     Args:
     params: Dict containing keys required to fetch data from a data source.
