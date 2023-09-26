@@ -116,6 +116,8 @@ class AuthTest(unittest.TestCase):
     ],
                      loggerHandler.messages.get('warning'))
 
+    auth._LOGGER.removeHandler(loggerHandler)
+
 
 if __name__ == '__main__':
   unittest.main()
