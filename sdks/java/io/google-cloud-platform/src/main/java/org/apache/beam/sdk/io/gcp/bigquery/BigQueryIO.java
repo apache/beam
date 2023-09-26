@@ -3252,7 +3252,7 @@ public class BigQueryIO {
         checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
-          LOG.warn("Storage API triggering frequency" + error);
+          LOG.warn("Setting a triggering frequency" + error);
         }
         if (getStorageApiNumStreams(bqOptions) != 0) {
           LOG.warn("Setting the number of Storage API streams" + error);
@@ -3269,7 +3269,7 @@ public class BigQueryIO {
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
       } else if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
-        LOG.warn("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
+        LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
       }
       if (getRowMutationInformationFn() != null) {
         checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
