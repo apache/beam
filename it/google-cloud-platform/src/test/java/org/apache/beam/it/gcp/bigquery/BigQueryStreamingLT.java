@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSpec;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -29,12 +30,16 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
+
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
@@ -44,6 +49,8 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -82,10 +89,10 @@ import org.slf4j.LoggerFactory;
  * <p>The throughput, length of test (in minutes), and data shape can be changed via pipeline
  * options. See the cases in `getOptions()` for examples.
  *
- * <p>This also includes the option of testing the sink's retry resilience by setting
- * `crashStorageApiWriteEverySeconds` in BigQueryOptions. This intentionally fails the worker or
- * work item periodically and expects the sink to recover appropriately. Note: This should not be
- * used when publishing performance metrics.
+ * <p>This also includes the option of testing the sink's retry resilience by setting the
+ * `crashIntervalSeconds` System property. This intentionally fails the worker or
+ * work item periodically and expects the sink to recover appropriately.
+ * Note: Metrics are not published when this is used.
  */
 public class BigQueryStreamingLT extends IOLoadTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStreamingLT.class);
@@ -95,6 +102,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
       "storage_api_sink_load_test_" + System.nanoTime();
 
   private TestConfiguration config;
+  private Integer crashIntervalSeconds;
 
   @Rule public final transient TestPipeline fileLoadsPipeline = TestPipeline.create();
   @Rule public final transient TestPipeline storageApiPipeline = TestPipeline.create();
@@ -130,6 +138,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     if (!Strings.isNullOrEmpty(expectedTable)) {
       config.toBuilder().setExpectedTable(expectedTable).build();
     }
+
+    crashIntervalSeconds = Integer.parseInt(TestProperties.getProperty("crashIntervalSeconds", "-1", TestProperties.Type.PROPERTY));
   }
 
   @AfterClass
@@ -237,10 +247,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     // this signifies a performance test, and so we publish metrics to a BigQuery dataset
     boolean publishMetrics =
         config.getRunner().equalsIgnoreCase(DataflowRunner.class.getSimpleName())
-            && TestPipeline.testingPipelineOptions()
-                    .as(BigQueryOptions.class)
-                    .getCrashStorageApiSinkEverySeconds()
-                <= 0;
+            && crashIntervalSeconds <= 0;
+
 
     String expectedTable = config.getExpectedTable();
     GenerateTableRow genRow =
@@ -263,7 +271,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               "Write to source of truth",
               BigQueryIO.<Long>write()
                   .to(expectedTable)
-                  .withFormatFunction(genRow::apply)
+                  .withFormatFunction(genRow)
                   .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                   .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
                   .withSchema(schema));
@@ -324,14 +332,20 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               .apply("Reshuffle fanout", Reshuffle.viaRandomKey());
     }
 
-    source.apply(
-        BigQueryIO.<Long>write()
+    BigQueryIO.Write<Long> storageWriteTransform = BigQueryIO.<Long>write()
             .to(destTable)
-            .withFormatFunction(genRow::apply)
+            .withFormatFunction(genRow)
             .withMethod(writeMethod)
             .withTriggeringFrequency(Duration.standardSeconds(1))
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-            .withSchema(schema));
+            .withSchema(schema);
+
+    // If a crash interval is specified, use our crashing service implementation
+    if (crashIntervalSeconds > 0) {
+      LOG.info("A crash interval of {} seconds has been set. The Storage API sink will periodically crash.", crashIntervalSeconds);
+      storageWriteTransform = storageWriteTransform.withTestServices(new CrashingBigQueryServices(crashIntervalSeconds));
+    }
+    source.apply(storageWriteTransform);
 
     // If we're publishing metrics, launch pipeline via Dataflow launcher utils and export metrics
     if (publishMetrics) {
@@ -397,6 +411,62 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     // check non-duplication for STORAGE_WRITE_API
     if (writeMethod == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
       checkNonDuplication(destTable, expectedTable, totalRows);
+    }
+  }
+
+  // A BigQueryServices class that is almost identical to BigQueryServicesImpl, except that
+  // it returns a dataset service implementation that periodically crashes on flush()
+  private static class CrashingBigQueryServices extends BigQueryServicesImpl {
+    public final Integer crashIntervalSeconds;
+    public CrashingBigQueryServices(Integer crashIntervalSeconds) {
+      this.crashIntervalSeconds = crashIntervalSeconds;
+    }
+    @Override
+    public DatasetService getDatasetService(BigQueryOptions options) {
+      return new CrashingDatasetService(options);
+    }
+
+    private class CrashingDatasetService extends BigQueryServicesImpl.DatasetServiceImpl {
+      private Instant lastCrash;
+
+      public CrashingDatasetService(BigQueryOptions bqOptions) {
+        super(bqOptions);
+      }
+
+      // We choose flush() to host the crash logic because it's called frequently during
+      // the span of a Storage Write API pipeline
+      @Override
+      public ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset) throws IOException, InterruptedException {
+        maybeCrash();
+        return super.flush(streamName, flushOffset);
+      }
+
+      // When specified, crash when the interval is met by:
+      // throwing an exception (failed work item) or
+      // performing a System exit (worker failure)
+      private void maybeCrash() {
+        if (crashIntervalSeconds != -1) {
+          Instant last = lastCrash;
+          if (last == null) {
+            lastCrash = Instant.now();
+          } else if (Instant.now().isAfter(last.plusSeconds(crashIntervalSeconds))) {
+            lastCrash = Instant.now();
+
+            // Only crash 30% of the time (this is arbitrary)
+            if (ThreadLocalRandom.current().nextInt(100) < 30) {
+              // Half the time throw an exception (which fails this specific work item)
+              // Other half crash the entire worker, which fails all work items on this worker
+              if (ThreadLocalRandom.current().nextBoolean()) {
+                throw new RuntimeException(
+                        "Throwing a random exception! This is for testing retry resilience.");
+              } else {
+                LOG.error("Crashing this worker! This is for testing retry resilience.");
+                System.exit(0);
+              }
+            }
+          }
+        }
+      }
     }
   }
 

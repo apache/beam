@@ -135,8 +135,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
-  public static volatile @Nullable Instant lastCrash = null;
-
   // Context passed into RetryManager for each call.
   class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
     final ShardedKey<DestinationT> key;
@@ -240,7 +238,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
-    final long crashIntervalSeconds = bigQueryOptions.getCrashStorageApiSinkEverySeconds();
 
     String operationName = input.getName() + "/" + getName();
     TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
@@ -256,8 +253,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         operationName,
                         streamIdleTime,
                         splitSize,
-                        maxRequestSize,
-                        crashIntervalSeconds))
+                        maxRequestSize))
                 .withSideInputs(dynamicDestinations.getSideInputs())
                 .withOutputTags(flushTag, tupleTagList));
 
@@ -343,19 +339,16 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private final Duration streamIdleTime;
     private final long splitSize;
     private final long maxRequestSize;
-    private final long crashIntervalSeconds;
 
     public WriteRecordsDoFn(
         String operationName,
         Duration streamIdleTime,
         long splitSize,
-        long maxRequestSize,
-        long crashIntervalSeconds) {
+        long maxRequestSize) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.streamIdleTime = streamIdleTime;
       this.splitSize = splitSize;
       this.maxRequestSize = maxRequestSize;
-      this.crashIntervalSeconds = crashIntervalSeconds;
     }
 
     @StartBundle
@@ -803,7 +796,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       }
 
       if (numAppends > 0) {
-        maybeCrash();
         initializeContexts.accept(contexts, false);
         try {
           retryManager.run(true);
@@ -846,32 +838,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         appendLatencyDistribution.update(timeElapsed.toMillis());
       }
       idleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
-    }
-
-    // Intended for testing purposes only. When specified, crash when the interval is met
-    // by throwing an exception (failed work item) or performing a System exit (worker failure)
-    private void maybeCrash() {
-      if (crashIntervalSeconds != -1) {
-        Instant last = lastCrash;
-        if (last == null) {
-          lastCrash = Instant.now();
-        } else if (Instant.now().isAfter(last.plusSeconds(crashIntervalSeconds))) {
-          lastCrash = Instant.now();
-
-          // Only crash 30% of the time (this is arbitrary)
-          if (ThreadLocalRandom.current().nextInt(100) < 30) {
-            // Half the time throw an exception (which fails this specific work item)
-            // Other half crash the entire worker, which fails all work items on this worker
-            if (ThreadLocalRandom.current().nextBoolean()) {
-              throw new RuntimeException(
-                  "Throwing a random exception! This is for testing retry resilience.");
-            } else {
-              LOG.error("Crashing this worker! This is for testing retry resilience.");
-              System.exit(0);
-            }
-          }
-        }
-      }
     }
 
     // called by the idleTimer and window-expiration handlers.

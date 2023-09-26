@@ -154,7 +154,7 @@ import org.slf4j.LoggerFactory;
   "nullness", // TODO(https://github.com/apache/beam/issues/20506)
   "keyfor"
 })
-class BigQueryServicesImpl implements BigQueryServices {
+public class BigQueryServicesImpl implements BigQueryServices {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
   // The maximum number of retries to execute a BigQuery RPC.
@@ -549,7 +549,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   @VisibleForTesting
-  static class DatasetServiceImpl implements DatasetService {
+  public static class DatasetServiceImpl implements DatasetService {
     // Backoff: 200ms * 1.5 ^ n, n=[1,5]
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
@@ -610,7 +610,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.executor = null;
     }
 
-    private DatasetServiceImpl(BigQueryOptions bqOptions) {
+    public DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = newBigQueryClient(bqOptions).build();
       this.newWriteClient = newBigQueryWriteClient(bqOptions);
