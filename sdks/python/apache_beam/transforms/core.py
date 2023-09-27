@@ -1423,6 +1423,8 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
+    if len(source_code)==0:
+      return None
     for line in source_code.split("\n"):
       if line.lstrip().startswith("yield ") or line.lstrip().startswith(
           "yield("):
@@ -1430,8 +1432,12 @@ def _check_fn_use_yield_and_return(fn):
       if line.lstrip().startswith("return ") or line.lstrip().startswith(
           "return("):
         has_return = True
+      if line.lstrip().startswith("return None"):
+        return None
       if has_yield and has_return:
         return True
+    if not has_return and not has_yield:
+      return None
     return False
   except Exception as e:
     _LOGGER.debug(str(e))
@@ -1484,8 +1490,13 @@ class ParDo(PTransformWithSideInputs):
           'Using yield and return in the process method '
           'of %s can lead to unexpected behavior, see:'
           'https://github.com/apache/beam/issues/22969.',
-          self.fn.__class__)
+          self.fn.__class__)  
 
+    elif _check_fn_use_yield_and_return(self.fn.process) is None:
+      _LOGGER.warning(
+          'no iterator is returned by the process method in %s',
+          self.fn.__class__)  
+       
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
     self._signature = DoFnSignature(self.fn)
