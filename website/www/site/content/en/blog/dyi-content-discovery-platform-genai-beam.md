@@ -1,4 +1,4 @@
-# DIY Content Discovery Platform with GenAI and Apache Beam
+# DIY GenAI Content Discovery Platform with Apache Beam
 
 ## Introduction
 
