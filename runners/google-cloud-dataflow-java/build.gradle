@@ -622,24 +622,13 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
-task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
+task examplesJavaRunnerV2PreCommit(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  dependsOn buildAndPushDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-  ])
-
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
-  // this postCommit integration test excludes them.
-  include '**/*IT.class'
-  exclude '**/WordCountIT.class'
-  exclude '**/WindowedWordCountIT.class'
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
@@ -652,7 +641,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // examplesJavaRunnerV2PreCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.
   include '**/*IT.class'
   exclude '**/WordCountIT.class'
@@ -710,7 +699,6 @@ task postCommit {
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
   dependsOn googleCloudPlatformLegacyWorkerKmsIntegrationTest
-  dependsOn examplesJavaLegacyWorkerIntegrationTest
   dependsOn coreSDKJavaLegacyWorkerIntegrationTest
 }
 
@@ -718,7 +706,6 @@ task postCommitRunnerV2 {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner V2."
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
-  dependsOn examplesJavaRunnerV2IntegrationTest
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
 

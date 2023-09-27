@@ -1837,8 +1837,8 @@ class GroupByTest(_AbstractFrameTest):
     df = GROUPBY_DF
 
     self._run_test(
-        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
-            lambda x: x),
+        lambda df: df[['foo', 'group', 'bar']].groupby(
+            'group', group_keys=False).apply(lambda x: x),
         df)
 
   def test_groupby_transform(self):
@@ -1936,6 +1936,8 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  @unittest.skipIf(
+      PD_VERSION >= (2, 0), "dtypes on groups is deprecated in Pandas 2.")
   def test_groupby_dtypes(self):
     self._run_test(
         lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
@@ -2159,6 +2161,7 @@ class AggregationTest(_AbstractFrameTest):
             level=1, numeric_only=True),
         GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
@@ -2181,6 +2184,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.two.mean(skipna=True), df)
     self._run_test(lambda df: df.three.mean(skipna=True), df)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_dataframe_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(

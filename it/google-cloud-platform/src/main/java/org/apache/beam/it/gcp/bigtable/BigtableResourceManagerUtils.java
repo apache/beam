@@ -21,6 +21,7 @@ import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateResou
 
 import com.google.cloud.bigtable.admin.v2.models.StorageType;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
@@ -51,9 +52,9 @@ public final class BigtableResourceManagerUtils {
    * @param zone the zone/region that the cluster will be deployed to.
    * @param numNodes the number of nodes that the cluster will contain.
    * @param storageType the type of storage to configure the cluster with (SSD or HDD).
-   * @return Collection containing a single BigtableResourceManagerCluster object.
+   * @return List containing a single BigtableResourceManagerCluster object.
    */
-  static Iterable<BigtableResourceManagerCluster> generateDefaultClusters(
+  static List<BigtableResourceManagerCluster> generateDefaultClusters(
       String baseString, String zone, int numNodes, StorageType storageType) {
 
     String clusterId =

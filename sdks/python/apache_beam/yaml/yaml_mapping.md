@@ -131,7 +131,7 @@ Currently, in addition to Python, SQL expressions are supported as well
 
 Sometimes it may be desirable to emit more (or less) than one record for each
 input record.  This can be accomplished by mapping to an iterable type and
-noting that the specific field should be exploded, e.g.
+following the mapping with an Explode operation, e.g.
 
 ```
 - type: MapToFields
@@ -140,7 +140,9 @@ noting that the specific field should be exploded, e.g.
     fields:
       new_col: "[col1.upper(), col1.lower(), col1.title()]"
       another_col: "col2 + col3"
-    explode: new_col
+- type: Explode
+  config:
+    fields: new_col
 ```
 
 will result in three output records for every input record.
@@ -155,7 +157,9 @@ product over all fields should be taken. For example
     fields:
       new_col: "[col1.upper(), col1.lower(), col1.title()]"
       another_col: "[col2 - 1, col2, col2 + 1]"
-    explode: [new_col, another_col]
+- type: Explode
+  config:
+    fields: [new_col, another_col]
     cross_product: true
 ```
 
@@ -168,38 +172,27 @@ will emit nine records whereas
     fields:
       new_col: "[col1.upper(), col1.lower(), col1.title()]"
       another_col: "[col2 - 1, col2, col2 + 1]"
-    explode: [new_col, another_col]
+- type: Explode
+  config:
+    fields: [new_col, another_col]
     cross_product: false
 ```
 
 will only emit three.
 
-If one is only exploding existing fields, a simpler `Explode` transform may be
-used instead
+The `Explode` operation can be used on its own if the field in question is
+already an iterable type.
 
 ```
 - type: Explode
   config:
-    explode: [col1]
+    fields: [col1]
 ```
 
 ## Filtering
 
 Sometimes it can be desirable to only keep records that satisfy a certain
-criteria. This can be accomplished by specifying a keep parameter, e.g.
-
-```
-- type: MapToFields
-  config:
-    language: python
-    fields:
-      new_col: "col1.upper()"
-      another_col: "col2 + col3"
-    keep: "col2 > 0"
-```
-
-Like explode, there is a simpler `Filter` transform useful when no mapping is
-being done
+criteria. This can be accomplished with a `Filter` transform, e.g.
 
 ```
 - type: Filter
