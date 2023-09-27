@@ -85,14 +85,11 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Parameterized.Parameter
-  public boolean useDataStreamForBatch;
+  @Parameterized.Parameter public boolean useDataStreamForBatch;
 
   @Parameterized.Parameters(name = "UseDataStreamForBatch = {0}")
   public static Collection<Object[]> useDataStreamForBatchJobValues() {
-    return Arrays.asList(new Object[][] {
-        {false}, {true}
-    });
+    return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
   private FlinkPipelineOptions getDefaultPipelineOptions() {
@@ -193,7 +190,8 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
     shouldUsePreparedFilesOnRemoteStreamEnvironment(false);
   }
 
-  public void shouldUsePreparedFilesOnRemoteStreamEnvironment(boolean streamingMode) throws Exception {
+  public void shouldUsePreparedFilesOnRemoteStreamEnvironment(boolean streamingMode)
+      throws Exception {
     FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("clusterAddress");
@@ -206,7 +204,8 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
     List<URL> jarFiles;
     if (streamingMode || options.getUseDataStreamForBatch()) {
-      StreamExecutionEnvironment streamExecutionEnvironment = flinkEnv.getStreamExecutionEnvironment();
+      StreamExecutionEnvironment streamExecutionEnvironment =
+          flinkEnv.getStreamExecutionEnvironment();
       assertThat(streamExecutionEnvironment, instanceOf(RemoteStreamEnvironment.class));
       jarFiles = getJars(streamExecutionEnvironment);
     } else {
