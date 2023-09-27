@@ -463,17 +463,8 @@ public class ParDoTranslation {
     return getMainOutputTag(getParDoPayload(application));
   }
 
-  public static TupleTagList getAdditionalOutputTags(AppliedPTransform<?, ?, ?> application)
+  public static TupleTagList getAdditionalOutputTags(RunnerApi.PTransform protoTransform)
       throws IOException {
-    PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof ParDo.MultiOutput) {
-      return ((ParDo.MultiOutput<?, ?>) transform).getAdditionalOutputTags();
-    }
-
-    RunnerApi.PTransform protoTransform =
-        PTransformTranslation.toProto(
-            application, SdkComponents.create(application.getPipeline().getOptions()));
-
     ParDoPayload payload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
     TupleTag<?> mainOutputTag = getMainOutputTag(payload);
     Set<String> outputTags =
@@ -485,6 +476,20 @@ public class ParDoTranslation {
       additionalOutputTags.add(new TupleTag<>(outputTag));
     }
     return TupleTagList.of(additionalOutputTags);
+  }
+
+  public static TupleTagList getAdditionalOutputTags(AppliedPTransform<?, ?, ?> application)
+      throws IOException {
+    PTransform<?, ?> transform = application.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      return ((ParDo.MultiOutput<?, ?>) transform).getAdditionalOutputTags();
+    }
+
+    RunnerApi.PTransform protoTransform =
+        PTransformTranslation.toProto(
+            application, SdkComponents.create(application.getPipeline().getOptions()));
+
+    return getAdditionalOutputTags(protoTransform);
   }
 
   public static Map<TupleTag<?>, Coder<?>> getOutputCoders(AppliedPTransform<?, ?, ?> application) {

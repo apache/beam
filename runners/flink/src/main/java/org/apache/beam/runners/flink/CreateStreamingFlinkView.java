@@ -36,7 +36,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class CreateStreamingFlinkView<ElemT, ViewT>
+public class CreateStreamingFlinkView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
   private final PCollectionView<ViewT> view;
 
