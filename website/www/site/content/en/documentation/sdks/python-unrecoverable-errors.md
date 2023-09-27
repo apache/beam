@@ -20,8 +20,8 @@ limitations under the License.
 
 ## What is an Unrecoverable Error?
 
-An unrecoverable error is an issue at job start-up time that will 
-prevent a job from ever running successfully, usually due to some kind 
+An unrecoverable error is an issue at job start-up time that will
+prevent a job from ever running successfully, usually due to some kind
 of misconfiguration. Solving these issues when they occur is key to
 successfully running a Beam Python pipeline.
 
