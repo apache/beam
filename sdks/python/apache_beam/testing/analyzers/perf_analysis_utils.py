@@ -247,10 +247,6 @@ class MetricsFetcher:
 
 
 class BigQueryMetricsFetcher:
-  def __init__(self, query: Optional[str] = None):
-    self.client = bigquery.Client()
-    self.query = query
-
   def fetch_metric_data(
       self,
       *,
@@ -268,16 +264,15 @@ class BigQueryMetricsFetcher:
       of metric_values and list of timestamps. Both are sorted in ascending
       order wrt timestamps.
     """
-    if not self.query:
-      self.query = f"""
+    query = f"""
           SELECT *
           FROM {project}.{metrics_dataset}.{metrics_table}
           WHERE CONTAINS_SUBSTR(({load_test_metrics_utils.METRICS_TYPE_LABEL}), '{metric_name}')
           ORDER BY {load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL} DESC
           LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
         """
-    # metric_data: pd.DataFrame = self.fetch(query=query)
-    query_job = self.client.query(query=self.query)
+    client = bigquery.Client()
+    query_job = client.query(query=query)
     metric_data = query_job.result().to_dataframe()
     metric_data.sort_values(
         by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL], inplace=True)
