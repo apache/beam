@@ -20,7 +20,12 @@ import argparse
 import yaml
 
 import apache_beam as beam
+from apache_beam.typehints.schemas import LogicalType
+from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_transform
+
+# Workaround for https://github.com/apache/beam/issues/28151.
+LogicalType.register_logical_type(MillisInstant)
 
 
 def _configure_parser(argv):
@@ -57,11 +62,14 @@ def run(argv=None):
   with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
       pipeline_args,
       pickle_library='cloudpickle',
-      **pipeline_spec.get('options', {}))) as p:
+      **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
+          'options', {})))) as p:
     print("Building pipeline...")
     yaml_transform.expand_pipeline(p, pipeline_spec)
     print("Running pipeline...")
 
 
 if __name__ == '__main__':
+  import logging
+  logging.getLogger().setLevel(logging.INFO)
   run()

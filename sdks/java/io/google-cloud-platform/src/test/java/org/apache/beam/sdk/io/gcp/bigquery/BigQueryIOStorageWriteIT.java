@@ -33,9 +33,16 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -81,11 +88,32 @@ public class BigQueryIOStorageWriteIT {
     }
   }
 
-  private GenerateSequence stream(int rowCount) {
-    int timestampIntervalInMilliseconds = 10;
-    return GenerateSequence.from(0)
-        .to(rowCount)
-        .withRate(1, Duration.millis(timestampIntervalInMilliseconds));
+  static class UnboundedStream extends PTransform<PBegin, PCollection<Long>> {
+
+    private final int rowCount;
+
+    public UnboundedStream(int rowCount) {
+      this.rowCount = rowCount;
+    }
+
+    @Override
+    public PCollection<Long> expand(PBegin input) {
+      int timestampIntervalInMillis = 10;
+      PeriodicImpulse impulse =
+          PeriodicImpulse.create()
+              .stopAfter(Duration.millis((long) timestampIntervalInMillis * rowCount - 1))
+              .withInterval(Duration.millis(timestampIntervalInMillis));
+      return input
+          .apply(impulse)
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<Instant, Long>() {
+                    @Override
+                    public Long apply(Instant input) {
+                      return input.getMillis();
+                    }
+                  }));
+    }
   }
 
   private void runBigQueryIOStorageWritePipeline(
@@ -102,7 +130,9 @@ public class BigQueryIOStorageWriteIT {
                     new TableFieldSchema().setName("str").setType("STRING")));
 
     Pipeline p = Pipeline.create(bqOptions);
-    p.apply("Input", isStreaming ? stream(rowCount) : GenerateSequence.from(0).to(rowCount))
+    p.apply(
+            "Input",
+            isStreaming ? new UnboundedStream(rowCount) : GenerateSequence.from(0).to(rowCount))
         .apply("GenerateMessage", ParDo.of(new FillRowFn()))
         .apply(
             "WriteToBQ",

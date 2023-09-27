@@ -443,6 +443,10 @@ tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
+tasks.register("goPrismPreCommit") {
+  dependsOn(":sdks:go:test:prismValidatesRunner")
+}
+
 tasks.register("goPostCommitDataflowARM") {
   dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
 }
@@ -553,6 +557,7 @@ tasks.register("communityMetricsProber") {
 tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
+  dependsOn(":runners:google-cloud-dataflow-java:examplesJavaRunnerV2PreCommit")
 }
 
 tasks.register("whitespacePreCommit") {

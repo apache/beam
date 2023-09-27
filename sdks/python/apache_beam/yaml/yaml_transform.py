@@ -22,8 +22,11 @@ import os
 import pprint
 import re
 import uuid
+from typing import Any
 from typing import Iterable
+from typing import List
 from typing import Mapping
+from typing import Set
 
 import yaml
 from yaml.loader import SafeLoader
@@ -71,6 +74,28 @@ def memoize_method(func):
 def only_element(xs):
   x, = xs
   return x
+
+
+# These allow a user to explicitly pass no input to a transform (i.e. use it
+# as a root transform) without an error even if the transform is not known to
+# handle it.
+def explicitly_empty():
+  return {'__explicitly_empty__': None}
+
+
+def is_explicitly_empty(io):
+  return io == explicitly_empty()
+
+
+def is_empty(io):
+  return not io or is_explicitly_empty(io)
+
+
+def empty_if_explicitly_empty(io):
+  if is_explicitly_empty(io):
+    return {}
+  else:
+    return io
 
 
 class SafeLineLoader(SafeLoader):
@@ -162,13 +187,31 @@ class LightweightScope(object):
 
 class Scope(LightweightScope):
   """To look up PCollections (typically outputs of prior transforms) by name."""
-  def __init__(self, root, inputs, transforms, providers, input_providers):
+  def __init__(
+      self,
+      root,
+      inputs: Mapping[str, Any],
+      transforms: Iterable[dict],
+      providers: Mapping[str, Iterable[yaml_provider.Provider]],
+      input_providers: Iterable[yaml_provider.Provider]):
     super().__init__(transforms)
     self.root = root
     self._inputs = inputs
     self.providers = providers
-    self._seen_names = set()
+    self._seen_names: Set[str] = set()
     self.input_providers = input_providers
+    self._all_followers = None
+
+  def followers(self, transform_name):
+    if self._all_followers is None:
+      self._all_followers = collections.defaultdict(list)
+      # TODO(yaml): Also trace through outputs and composites.
+      for transform in self._transforms:
+        if transform['type'] != 'composite':
+          for input in empty_if_explicitly_empty(transform['input']).values():
+            transform_id, _ = self.get_transform_id_and_output_name(input)
+            self._all_followers[transform_id].append(transform['__uuid__'])
+    return self._all_followers[self.get_transform_id(transform_name)]
 
   def compute_all(self):
     for transform_id in self._transforms_by_uuid.keys():
@@ -208,6 +251,77 @@ class Scope(LightweightScope):
   def compute_outputs(self, transform_id):
     return expand_transform(self._transforms_by_uuid[transform_id], self)
 
+  def best_provider(
+      self, t, input_providers: yaml_provider.Iterable[yaml_provider.Provider]):
+    if isinstance(t, dict):
+      spec = t
+    else:
+      spec = self._transforms_by_uuid[self.get_transform_id(t)]
+    possible_providers = [
+        p for p in self.providers[spec['type']] if p.available()
+    ]
+    if not possible_providers:
+      raise ValueError(
+          'No available provider for type %r at %s' %
+          (spec['type'], identify_object(spec)))
+    # From here on, we have the invariant that possible_providers is not empty.
+
+    # Only one possible provider, no need to rank further.
+    if len(possible_providers) == 1:
+      return possible_providers[0]
+
+    def best_matches(
+        possible_providers: Iterable[yaml_provider.Provider],
+        adjacent_provider_options: Iterable[Iterable[yaml_provider.Provider]]
+    ) -> List[yaml_provider.Provider]:
+      """Given a set of possible providers, and a set of providers for each
+      adjacent transform, returns the top possible providers as ranked by
+      affinity to the adjacent transforms' providers.
+      """
+      providers_by_score = collections.defaultdict(list)
+      for p in possible_providers:
+        # The sum of the affinity of the best provider
+        # for each adjacent transform.
+        providers_by_score[sum(
+            max(p.affinity(ap) for ap in apo)
+            for apo in adjacent_provider_options)].append(p)
+      return providers_by_score[max(providers_by_score.keys())]
+
+    # If there are any inputs, prefer to match them.
+    if input_providers:
+      possible_providers = best_matches(
+          possible_providers, [[p] for p in input_providers])
+
+    # Without __uuid__ we can't find downstream operations.
+    if '__uuid__' not in spec:
+      return possible_providers[0]
+
+    # Match against downstream transforms, continuing until there is no tie
+    # or we run out of downstream transforms.
+    if len(possible_providers) > 1:
+      adjacent_transforms = list(self.followers(spec['__uuid__']))
+      while adjacent_transforms:
+        # This is a list of all possible providers for each adjacent transform.
+        adjacent_provider_options = [[
+            p for p in self.providers[self._transforms_by_uuid[t]['type']]
+            if p.available()
+        ] for t in adjacent_transforms]
+        if any(not apo for apo in adjacent_provider_options):
+          # One of the transforms had no available providers.
+          # We will throw an error later, doesn't matter what we return.
+          break
+        # Filter down the set of possible providers to the best ones.
+        possible_providers = best_matches(
+            possible_providers, adjacent_provider_options)
+        # If we are down to one option, no need to go further.
+        if len(possible_providers) == 1:
+          break
+        # Go downstream one more step.
+        adjacent_transforms = sum(
+            [list(self.followers(t)) for t in adjacent_transforms], [])
+
+    return possible_providers[0]
+
   # A method on scope as providers may be scoped...
   def create_ptransform(self, spec, input_pcolls):
     if 'type' not in spec:
@@ -225,25 +339,19 @@ class Scope(LightweightScope):
         providers_by_input[pcoll] for pcoll in input_pcolls
         if pcoll in providers_by_input
     ]
-
-    def provider_score(p):
-      return sum(p.affinity(o) for o in input_providers)
-
-    for provider in sorted(self.providers.get(spec['type']),
-                           key=provider_score,
-                           reverse=True):
-      if provider.available():
-        break
-    else:
-      raise ValueError(
-          'No available provider for type %r at %s' %
-          (spec['type'], identify_object(spec)))
+    provider = self.best_provider(spec, input_providers)
 
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     if not isinstance(config, dict):
       raise ValueError(
           'Config for transform at %s must be a mapping.' %
           identify_object(spec))
+
+    if (not input_pcolls and not is_explicitly_empty(spec.get('input', {})) and
+        provider.requires_inputs(spec['type'], config)):
+      raise ValueError(
+          f'Missing inputs for transform at {identify_object(spec)}')
+
     try:
       # pylint: disable=undefined-loop-variable
       ptransform = provider.create_transform(
@@ -293,8 +401,11 @@ class Scope(LightweightScope):
     if 'name' in spec:
       name = spec['name']
       strictness += 1
-    else:
+    elif 'ExternalTransform' not in ptransform.label:
+      # The label may have interesting information.
       name = ptransform.label
+    else:
+      name = spec['type']
     if name in self._seen_names:
       if strictness >= 2:
         raise ValueError(f'Duplicate name at {identify_object(spec)}: {name}')
@@ -319,7 +430,7 @@ def expand_leaf_transform(spec, scope):
   spec = normalize_inputs_outputs(spec)
   inputs_dict = {
       key: scope.get_pcollection(value)
-      for (key, value) in spec['input'].items()
+      for (key, value) in empty_if_explicitly_empty(spec['input']).items()
   }
   input_type = spec.get('input_type', 'default')
   if input_type == 'list':
@@ -349,6 +460,8 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
+  elif outputs is None:
+    return {}
   else:
     raise ValueError(
         f'Transform {identify_object(spec)} returned an unexpected type '
@@ -359,10 +472,10 @@ def expand_composite_transform(spec, scope):
   spec = normalize_inputs_outputs(normalize_source_sink(spec))
 
   inner_scope = Scope(
-      scope.root, {
+      scope.root,
+      {
           key: scope.get_pcollection(value)
-          for key,
-          value in spec['input'].items()
+          for (key, value) in empty_if_explicitly_empty(spec['input']).items()
       },
       spec['transforms'],
       yaml_provider.merge_providers(
@@ -387,8 +500,7 @@ def expand_composite_transform(spec, scope):
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
         key: scope.get_pcollection(value)
-        for key,
-        value in spec['input'].items()
+        for (key, value) in empty_if_explicitly_empty(spec['input']).items()
     } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
 
 
@@ -413,15 +525,29 @@ def chain_as_composite(spec):
   composite_spec = normalize_inputs_outputs(spec)
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
-    if any(io in transform for io in ('input', 'output', 'input', 'output')):
-      raise ValueError(
-          f'Transform {identify_object(transform)} is part of a chain, '
-          'must have implicit inputs and outputs.')
+    if any(io in transform for io in ('input', 'output')):
+      if (ix == 0 and 'input' in transform and 'output' not in transform and
+          is_explicitly_empty(transform['input'])):
+        # This is OK as source clause sets an explicitly empty input.
+        pass
+      else:
+        raise ValueError(
+            f'Transform {identify_object(transform)} is part of a chain, '
+            'must have implicit inputs and outputs.')
     if ix == 0:
-      transform['input'] = {key: key for key in composite_spec['input'].keys()}
+      if is_explicitly_empty(transform.get('input', None)):
+        pass
+      elif is_explicitly_empty(composite_spec['input']):
+        transform['input'] = composite_spec['input']
+      else:
+        transform['input'] = {
+            key: key
+            for key in composite_spec['input'].keys()
+        }
     else:
       transform['input'] = new_transforms[-1]['__uuid__']
     new_transforms.append(transform)
+  new_transforms.extend(spec.get('extra_transforms', []))
   composite_spec['transforms'] = new_transforms
 
   last_transform = new_transforms[-1]['__uuid__']
@@ -470,6 +596,8 @@ def normalize_source_sink(spec):
   spec = dict(spec)
   spec['transforms'] = list(spec.get('transforms', []))
   if 'source' in spec:
+    if 'input' not in spec['source']:
+      spec['source']['input'] = explicitly_empty()
     spec['transforms'].insert(0, spec.pop('source'))
   if 'sink' in spec:
     spec['transforms'].append(spec.pop('sink'))
@@ -479,6 +607,13 @@ def normalize_source_sink(spec):
 def preprocess_source_sink(spec):
   if spec['type'] in ('chain', 'composite'):
     return normalize_source_sink(spec)
+  else:
+    return spec
+
+
+def tag_explicit_inputs(spec):
+  if 'input' in spec and not SafeLineLoader.strip_metadata(spec['input']):
+    return dict(spec, input=explicitly_empty())
   else:
     return spec
 
@@ -506,14 +641,19 @@ def identify_object(spec):
 
 
 def extract_name(spec):
-  if 'name' in spec:
-    return spec['name']
-  elif 'id' in spec:
-    return spec['id']
-  elif 'type' in spec:
-    return spec['type']
-  elif len(spec) == 1:
-    return extract_name(next(iter(spec.values())))
+  if isinstance(spec, dict):
+    if 'name' in spec:
+      return spec['name']
+    elif 'id' in spec:
+      return spec['id']
+    elif 'type' in spec:
+      return spec['type']
+    elif len(spec) == 1:
+      return extract_name(next(iter(spec.values())))
+    else:
+      return ''
+  elif isinstance(spec, str):
+    return spec
   else:
     return ''
 
@@ -522,7 +662,7 @@ def push_windowing_to_roots(spec):
   scope = LightweightScope(spec['transforms'])
   consumed_outputs_by_transform = collections.defaultdict(set)
   for transform in spec['transforms']:
-    for _, input_ref in transform['input'].items():
+    for _, input_ref in empty_if_explicitly_empty(transform['input']).items():
       try:
         transform_id, output = scope.get_transform_id_and_output_name(input_ref)
         consumed_outputs_by_transform[transform_id].add(output)
@@ -531,7 +671,7 @@ def push_windowing_to_roots(spec):
         pass
 
   for transform in spec['transforms']:
-    if not transform['input'] and 'windowing' not in transform:
+    if is_empty(transform['input']) and 'windowing' not in transform:
       transform['windowing'] = spec['windowing']
       transform['__consumed_outputs'] = consumed_outputs_by_transform[
           transform['__uuid__']]
@@ -558,7 +698,7 @@ def preprocess_windowing(spec):
     spec = push_windowing_to_roots(spec)
 
   windowing = spec.pop('windowing')
-  if spec['input']:
+  if not is_empty(spec['input']):
     # Apply the windowing to all inputs by wrapping it in a transform that
     # first applies windowing and then applies the original transform.
     original_inputs = spec['input']
@@ -598,7 +738,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{out}]',
         'windowing': windowing,
-        'input': modified_spec['__uuid__'] + ('.' + out if out else ''),
+        'input': {
+            'input': modified_spec['__uuid__'] + ('.' + out if out else '')
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for out in consumed_outputs]
@@ -687,7 +829,7 @@ def ensure_errors_consumed(spec):
           raise ValueError(
               f'Missing output in error_handling of {identify_object(t)}')
         to_handle[t['__uuid__'], config['error_handling']['output']] = t
-      for _, input in t['input'].items():
+      for _, input in empty_if_explicitly_empty(t['input']).items():
         if input not in spec['input']:
           consumed.add(scope.get_transform_id_and_output_name(input))
     for error_pcoll, t in to_handle.items():
@@ -718,21 +860,49 @@ def ensure_config(spec):
   return spec
 
 
-def preprocess(spec, verbose=False):
+def preprocess(spec, verbose=False, known_transforms=None):
   if verbose:
     pprint.pprint(spec)
 
   def apply(phase, spec):
     spec = phase(spec)
-    if spec['type'] in {'composite', 'chain'}:
+    if spec['type'] in {'composite', 'chain'} and 'transforms' in spec:
       spec = dict(
           spec, transforms=[apply(phase, t) for t in spec['transforms']])
     return spec
 
+  if known_transforms:
+    known_transforms = set(known_transforms).union(['chain', 'composite'])
+
+  def ensure_transforms_have_providers(spec):
+    if known_transforms:
+      if spec['type'] not in known_transforms:
+        raise ValueError(
+            'Unknown type or missing provider '
+            f'for type {spec["type"]} for {identify_object(spec)}')
+    return spec
+
+  def preprocess_langauges(spec):
+    if spec['type'] in ('Filter', 'MapToFields'):
+      language = spec.get('config', {}).get('language', 'generic')
+      new_type = spec['type'] + '-' + language
+      if known_transforms and new_type not in known_transforms:
+        if language == 'generic':
+          raise ValueError(f'Missing language for {identify_object(spec)}')
+        else:
+          raise ValueError(
+              f'Unknown language {language} for {identify_object(spec)}')
+      return dict(spec, type=new_type, name=spec.get('name', spec['type']))
+    else:
+      return spec
+
   for phase in [
       ensure_transforms_have_types,
+      preprocess_langauges,
+      ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
+      tag_explicit_inputs,
       normalize_inputs_outputs,
       preprocess_flattened_inputs,
       ensure_errors_consumed,
@@ -752,14 +922,15 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
+    if isinstance(providers, dict):
+      providers = {
+          key: yaml_provider.as_provider_list(key, value)
+          for (key, value) in providers.items()
+      }
     # TODO(BEAM-26941): Validate as a transform.
-    self._spec = preprocess(spec)
     self._providers = yaml_provider.merge_providers(
-        {
-            key: yaml_provider.as_provider_list(key, value)
-            for (key, value) in providers.items()
-        },
-        yaml_provider.standard_providers())
+        providers, yaml_provider.standard_providers())
+    self._spec = preprocess(spec, known_transforms=self._providers.keys())
 
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):

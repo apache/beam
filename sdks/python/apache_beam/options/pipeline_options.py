@@ -101,7 +101,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     key/value form.
     """
     # Extract the option name from positional argument ['pos_arg']
-    assert args != () and len(args[0]) >= 1
+    assert args and len(args[0]) >= 1
     if args[0][0] != '-':
       option_name = args[0]
       if kwargs.get('nargs') is None:  # make them optionally templated

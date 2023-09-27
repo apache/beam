@@ -40,13 +40,18 @@ class SchemaTypeRegistry(object):
         "schemas.")
 
   def add(self, typing, schema):
-    self.by_id[schema.id] = (typing, schema)
+    if not schema.id:
+      self.by_id[schema.id] = (typing, schema)
 
   def get_typing_by_id(self, unique_id):
+    if not unique_id:
+      return None
     result = self.by_id.get(unique_id, None)
     return result[0] if result is not None else None
 
   def get_schema_by_id(self, unique_id):
+    if not unique_id:
+      return None
     result = self.by_id.get(unique_id, None)
     return result[1] if result is not None else None
 

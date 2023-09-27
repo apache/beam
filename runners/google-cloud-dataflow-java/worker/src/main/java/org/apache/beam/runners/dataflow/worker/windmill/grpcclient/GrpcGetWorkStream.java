@@ -23,12 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
@@ -40,6 +39,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkSt
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream.WorkItemReceiver;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +58,10 @@ final class GrpcGetWorkStream
   private final AtomicLong inflightBytes;
 
   private GrpcGetWorkStream(
-      CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub,
+      Function<
+              StreamObserver<StreamingGetWorkResponseChunk>,
+              StreamObserver<StreamingGetWorkRequest>>
+          startGetWorkRpcFn,
       GetWorkRequest request,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
@@ -67,14 +70,7 @@ final class GrpcGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
-        responseObserver ->
-            stub.withDeadlineAfter(
-                    AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
-                .getWorkStream(responseObserver),
-        backoff,
-        streamObserverFactory,
-        streamRegistry,
-        logEveryNStreamFailures);
+        startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.receiver = receiver;
@@ -84,7 +80,10 @@ final class GrpcGetWorkStream
   }
 
   static GrpcGetWorkStream create(
-      CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub,
+      Function<
+              StreamObserver<StreamingGetWorkResponseChunk>,
+              StreamObserver<StreamingGetWorkRequest>>
+          startGetWorkRpcFn,
       GetWorkRequest request,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
@@ -94,7 +93,7 @@ final class GrpcGetWorkStream
       WorkItemReceiver receiver) {
     GrpcGetWorkStream getWorkStream =
         new GrpcGetWorkStream(
-            stub,
+            startGetWorkRpcFn,
             request,
             backoff,
             streamObserverFactory,

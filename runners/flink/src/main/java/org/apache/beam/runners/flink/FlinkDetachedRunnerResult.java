@@ -92,7 +92,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
     long start = System.currentTimeMillis();
     long durationInMillis = duration.getMillis();
     State state = State.UNKNOWN;
-    while ((System.currentTimeMillis() - start) < durationInMillis) {
+    while (durationInMillis < 1 || (System.currentTimeMillis() - start) < durationInMillis) {
       state = getState();
       if (state.isTerminal()) {
         return state;

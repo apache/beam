@@ -1,0 +1,138 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: PostCommit Python Nexmark Direct
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  cancel-in-progress: true
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  GRADLE_JAVA_COMMAND_ARGUMENTS: |
+    --manageResources=false
+    --monitorJobs=true
+    --bigQueryTable=nexmark
+    --bigQueryDataset=nexmark
+    --project=apache-beam-testing
+    --resourceNameMode=QUERY_RUNNER_AND_MODE
+    --exportSummaryToBigQuery=true
+    --tempLocation=gs://temp-storage-for-perf-tests/nexmark
+    --influxDatabase=beam_test_metrics
+    --influxHost=http://10.128.0.96:8086
+    --baseInfluxMeasurement=nexmark
+    --exportSummaryToInfluxDB=true
+    --influxRetentionPolicy=forever
+    --suite=SMOKE
+    --enforceEncodability=true
+    --enforceImmutability=true
+    --runner=DirectRunner
+    --numEvents=100000
+  GRADLE_PYTHON_COMMAND_ARGUMENTS: |
+    --monitor_jobs
+    --big_query_table=nexmark
+    --big_query_dataset=nexmark
+    --project=apache-beam-testing
+    --resource_name_mode=QUERY_RUNNER_AND_MODE
+    --export_summary_to_big_query
+    --temp_location=gs://temp-storage-for-perf-tests/nexmark
+    --influx_database=beam_test_metrics
+    --influx_host=http://10.128.0.96:8086
+    --base_influx_measurement=nexmark
+    --export_summary_to_influx_db
+    --influx_retention_policy=forever
+    --suite=SMOKE
+    --enforce_encodability
+    --enforce_immutability
+    --runner=DirectRunner
+    --num_events=100000
+
+jobs:
+  beam_PostCommit_Python_Nexmark_Direct:
+    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: [beam_PostCommit_Python_Nexmark_Direct]
+        job_phrase: [Run Python Direct Runner Nexmark Tests]
+        # Query numbers are listed explicitly due to issues with Python Nexmark Query:
+        # query = 1     - https://github.com/apache/beam/issues/24678
+        # query = 4,6,9 - https://github.com/apache/beam/issues/24679
+        # query = 12    - https://github.com/apache/beam/issues/24680
+        query: [0, 2, 3, 5, 7, 8, 10, 11]
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.comment.body == 'Run Python Direct Runner Nexmark Tests'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: run Java Testing Nexmark (query ${{ matrix.query }})
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:testing:nexmark:run
+          arguments: |
+            -Pnexmark.runner=:runners:direct-java \
+            "-Pnexmark.args=${{ env.GRADLE_JAVA_COMMAND_ARGUMENTS }} \
+            --query=${{ matrix.query }} \
+            --generateEventFilePathPrefix=gs://temp-storage-for-perf-tests/nexmark/eventFiles/beam_PostCommit_Python_Nexmark_Direct/query${{ matrix.query }}-" \
+      - name: run Python Testing Benchmarks Nexmark (query ${{ matrix.query }})
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:benchmarks:nexmark:run
+          arguments: |
+            -PpythonVersion=3.8 \
+            "-Pnexmark.args=${{ env.GRADLE_PYTHON_COMMAND_ARGUMENTS }} \
+            --query=${{ matrix.query }} \
+            --input=gs://temp-storage-for-perf-tests/nexmark/eventFiles/beam_PostCommit_Python_Nexmark_Direct/query${{ matrix.query }}-\*"

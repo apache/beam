@@ -35,7 +35,7 @@ jobs:
 
     steps:
       # Pin to master so users can't do anything malicious on their own branch and run it here.
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: 'master'
       - name: Setup Node
