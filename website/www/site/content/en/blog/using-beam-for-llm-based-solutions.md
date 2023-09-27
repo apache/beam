@@ -1,17 +1,14 @@
 # Scalable data ingestion for LLM based solutions 
 
-
 ## Introduction
 
-Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information. This blog post discusses how to build a DIY starter architecture, based on large language models (LLMs), to extract meaningful information from your assets, making it available through a simple natural language query.
+Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information which sometimes is hard to find or discover. This blog post discusses how to build a DIY starter architecture, based on near real time ingestion processing and large language models (LLMs) to extract meaningful information from your assets, making it available through a simple natural language query.
+
+Building a near real time processing pipeline for content ingestion may sound as a very involved endeavor, and it can be; we will be making use of powerful constructs exposed as part of Apache Beam to remove the complexities of interacting with content sources and destinations, error handling, all while maintaining a good degree of resiliency and scalability. 
 
 One common use case for LLMs is content extraction and summarization of dispersed information stored in many different places. This can be especially helpful for organizations that need to quickly find relevant information disseminated in multiple documents written across the years. This information may reside in many different formats, all containing important information that can become harder and harder to access or discover over time. Moreover, these documents are often too long and complex to read and understand quickly. LLMs can be used to process content in these documents, making it easier for people to find the information they need and, if necessary, dive into the content once they know where the information really is.
 
-There are some other managed Google Cloud solutions that can achieve this type of functionality  like  [Gen App Builder Enterprise Search](https://cloud.google.com/enterprise-search) which can be used to quickly develop complete solutions based on Generative AI and LLM technologies.
-
-
 This article walks through a custom scalable solution for data extraction, ingestion, and storage. It demonstrates how to kickstart the development of a LLM-based solution using Google Cloud products and its Generative AI offerings. The platform is designed to be simple to use, scalable, and flexible, and can be used as a starting point for further expansion or experimentation.
-
 
 ### High Level Flow 
 
@@ -207,7 +204,7 @@ The solution aims to make the interactions for ingesting and querying the platfo
 
 ### Example Interactions
 
-Once the platform is deployed in a GCP project, a simple way to interact with the services is through the use of a web client, curl is a good example. Also, since the endpoints are authenticated, a client needs to include its credentials in the request header to have it access granted.
+Once the platform is deployed in a GCP project, a simple way to interact with the services is through the use of a web client, curl is a good example. Also, since the endpoints are authenticated, a client needs to include its credentials in the request header to have its access granted.
 
 Here is an example of an interaction for content ingestion: 
 
