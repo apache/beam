@@ -1,4 +1,4 @@
-# Scalable data ingestion for LLM based solutions 
+# DIY Content Discovery Platform with Generative AI and Apache Beam
 
 ## Introduction
 
