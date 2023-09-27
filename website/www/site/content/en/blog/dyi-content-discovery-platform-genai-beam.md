@@ -1,4 +1,4 @@
-# DIY Content Discovery Platform with Generative AI and Apache Beam
+# DIY Content Discovery Platform with GenAI and Apache Beam
 
 ## Introduction
 
@@ -48,13 +48,9 @@ Given the multiple components in play, we will be diving down to explain how the
 
 The following diagram shows all of the components that the platform integrates to capture documents for ingestion and resolve user query requests, also all the dependencies existing between the different components of the solution and the GCP services in use.
 
-
-
-<p id="gdcalert2" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image2.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert3">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image2.png "image_tooltip")
-
+<img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/cdp-arch.png"
+    alt="Solutions Architecture">
 
 As seen in the diagram, the context-extraction component is the central aspect in charge of retrieving the document’s content, also their semantic meaning from the embedding’s model and storing the relevant data (chunks text content, chunks embeddings, JSON-L content) in the persistent storage systems for later use. PubSub resources are the glue between the streaming pipeline and the asynchronous processing, capturing the user ingestion requests, retries from potential errors from the ingestion pipeline (like the cases on where documents have been sent for ingestion but the permission has not been granted yet, triggering a retry after some minutes) and content refresh events (periodically the pipeline will scan the ingested documents, review the latest editions and define if a content refresh should be triggered). 
 
@@ -69,9 +65,9 @@ Next, we detail what GCP products and services are used for the solution, and in
 
 **CloudRun:** The solution's service entry points are deployed and automatically scaled by CloudRun. 
 
-**Cloud PubSub:** We use a topic and subscription to queue all the ingestion requests (for Google Drive or self contained content) and deliver them to the pipeline decoupling this way the service clients. 
+**Cloud PubSub:** We use a topic and subscription to queue all the ingestion requests (for Google Drive or self-contained content) and deliver them to the pipeline decoupling this way the service clients. 
 
-**Cloud Dataflow:** We implemented a multi-language, streaming Apache Beam pipeline in charge of processing all the ingestion requests seen as events from the PubSub subscription. The pipeline extracts content from Google Docs, Google Drive URLs or self contained binary encoded text content, and produces content chunks that will be sent to one of Vertex AI foundational models for its embedding representation. Later on, all the document’s embeddings and chunks are sent to Vertex AI Vector Search and Cloud BigTable for indexing and rapid access. Finally, all the ingested documentation is stored also in GCS in JSON-L format, which can be used to fine-tune the Vertex AI models improving their responses for the given context. Dataflow is a perfect match to run the Apache Beam pipeline in streaming mode, minimizing the ops needed to scale the resources in case of having a burst on ingestion requests and keeping the latency of such ingestions in the sub-minute space.
+**Cloud Dataflow:** We implemented a multi-language, streaming Apache Beam pipeline in charge of processing all the ingestion requests seen as events from the PubSub subscription. The pipeline extracts content from Google Docs, Google Drive URLs or self-contained binary encoded text content, and produces content chunks that will be sent to one of Vertex AI foundational models for its embedding representation. Later on, all the document’s embeddings and chunks are sent to Vertex AI Vector Search and Cloud BigTable for indexing and rapid access. Finally, all the ingested documentation is stored also in GCS in JSON-L format, which can be used to fine-tune the Vertex AI models improving their responses for the given context. Dataflow is a perfect match to run the Apache Beam pipeline in streaming mode, minimizing the ops needed to scale the resources in case of having a burst on ingestion requests and keeping the latency of such ingestions in the sub-minute space.
 
 **Vertex AI - Vector Search:** [Vector Search](https://cloud.google.com/vertex-ai/docs/matching-engine/overview) is a high-performance, low-latency vector database. These vector databases are often called vector similarity search or approximate nearest neighbor (ANN) services. We use a Vector Search Index to store all the ingested documents embeddings as a meaning representation. These embeddings are indexed by chunk and document id. Later on, these identifiers can be used to contextualize the user queries and enrich the requests made to a LLM by providing knowledge extracted directly from the document’s content mappings stored on BigTable (using the same chunk-document identifiers). 
 
@@ -104,9 +100,9 @@ The pipeline was implemented using a multi-language approach, with the main comp
 
 #### Content Extraction
 
-The content extraction component is in charge of reviewing the ingestion request payload and deciding (given the event properties) if it will need to retrieve the content from the event itself (self contained content, text based document binary encoded) or retrieve it from Google Drive. 
+The content extraction component is in charge of reviewing the ingestion request payload and deciding (given the event properties) if it will need to retrieve the content from the event itself (self-contained content, text based document binary encoded) or retrieve it from Google Drive. 
 
-In case of a self contained document, the pipeline will extract the document id and format the document in paragraphs for later embedding processing. 
+In case of a self-contained document, the pipeline will extract the document id and format the document in paragraphs for later embedding processing. 
 
 When in need of retrieval from Google Drive, the pipeline will inspect if the provided URL in the event refers to a Google Drive folder or a single file format (supported formats are Documents, Spreadsheets and Presentations). In the case of a folder, the pipeline will crawl the folder’s content recursively extracting all the files for the supported formats, in case of a single document will just return that one. 
 
