@@ -36,16 +36,11 @@ This article walks through a custom scalable solution for data extraction, inges
 
 From a high level, content uptake and query interactions are completely separated. An external content owner should be able to send documents (stored in Google Docs or just in binary text format) and expect a tracking id for the ingestion request. The ingestion process then will grab the document’s content and create chunks (configurable in size) and with each document chunks generate embeddings. These embeddings represent the content semantics, represented in a vector of 768 dimensions. Given the document identifier (provided at ingestion time) and the chunk identifier we can store these embeddings into a Vector DB for later semantic matching. This process is central to later contextualizing user inquiries.
 
-
-
-<p id="gdcalert1" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image1.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert2">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image1.png "image_tooltip")
-
+<img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/cdp-highlevel.png"
+    alt="Content Discovery Platform Overview">
 
 The query resolution process does not depend directly on information ingestion. It is expected the user would receive relevant answers based on the content that was ingested until the moment the query was requested, but even in the case of having no content stored in the platform the platform should return an answer stating exactly that. In general, the query resolution process should first generate embeddings from the query content and previously existing context (like previous exchanges with the platform), then match these embeddings with all the existing embedding vectors stored from the content, and in case of having positive matches, retrieve the plain text content represented by the content embeddings. Finally with the textual representation of the query and the textual representation of the matched content, the platform will formulate a request to the LLM to provide a final answer of the original user query
-
 
 ## Solution’s Components
 
@@ -60,11 +55,9 @@ The intent is to rely, as much as possible, on the low-ops capabilities of the s
 
 These components work together to provide a comprehensive and simple implementation for a content discovery platform.
 
-
 ## Architecture Design
 
 Given the multiple components in play, we will be diving down to explain how the different components interact to resolve the two main use cases of the platform.
-
 
 ### Component’s Dependencies 
 
@@ -72,12 +65,11 @@ The following diagram shows all of the components that the platform integrates t
 
 <img class="center-block"
     src="/images/blog/dyi-cdp-genai-beam/cdp-arch.png"
-    alt="Content Discovery Platform Overview">
+    alt="Content Discovery Platform Interactions">
 
 As seen in the diagram, the context-extraction component is the central aspect in charge of retrieving the document’s content, also their semantic meaning from the embedding’s model and storing the relevant data (chunks text content, chunks embeddings, JSON-L content) in the persistent storage systems for later use. PubSub resources are the glue between the streaming pipeline and the asynchronous processing, capturing the user ingestion requests, retries from potential errors from the ingestion pipeline (like the cases on where documents have been sent for ingestion but the permission has not been granted yet, triggering a retry after some minutes) and content refresh events (periodically the pipeline will scan the ingested documents, review the latest editions and define if a content refresh should be triggered). 
 
 Also, CloudRun plays the important role of exposing the services, which will interact with the many different storage systems in use to resolve the user query requests. For example, capturing the semantic meaning from the user’s query by interacting with the embedding’s model, finding near matches from the Vertex AI Vector Search (formerly Matching Engine),which stores the embedding vectors from the ingested document’s content, retrieving the text content from BigTable to contextualize finally the request to the VertexAI Text-Bison and Chat-Bison models for a final response to the user’s originary query. 
-
 
 ### Specific GCP products
 
@@ -101,11 +93,9 @@ Next, we detail what GCP products and services are used for the solution, and in
 
 **Vertex AI - Text Chat Model:** [Chat-bison](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/text-chat) is the PaLM 2 LLM that excels at language understanding, language generation, and conversations. This chat model is fine-tuned to conduct natural multi-turn conversations, and is ideal for text tasks about code that require back-and-forth interactions. We use this LLM to provide answers to the queries made by users of the solution, including the conversation history between both parties and enriching the model’s context with the content stored in the solution.
 
-
 ### Extraction Pipeline
 
 The content extraction pipeline is the platform's centerpiece. It takes care of handling content ingestion requests, extracting documents content and computing embeddings from that content, to finally store the data in specialized storage systems that will be used in the query service components for rapid access.
-
 
 #### High Level View
 
@@ -113,16 +103,23 @@ As previously mentioned the pipeline is implemented using [Apache Beam](https://
 
 By using Apache Beam and Dataflow we can ensure minimal latency (sub minute processing times), low ops (no need to manually scale up or down the pipeline when traffic spikes occur with time, worker recycle, updates, etc.) and with high level of observability (clear and abundant performance metrics are available).  
 
+<img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-1.png"
+    alt="Apache Beam Pipeline">
+
 On a high level, the pipeline separates the extraction, computing, error handling and storage responsibilities on different components or PTransforms. As seen in the diagram, the messages are read from a PubSub subscription and immediately afterwards are included in the window definition (1 minute window in this case) before the content extraction.
 
 Each of those PTransforms can be expanded to reveal more details regarding the underlying stages for the implementation. We will dive into each in the following sections. 
 
 The pipeline was implemented using a multi-language approach, with the main components written in the Java language (JDK version 17) and those related with the embeddings computations implemented in Python (version 3.11) since the Vertex AI API clients are available for this language.
 
-
 #### Content Extraction
 
 The content extraction component is in charge of reviewing the ingestion request payload and deciding (given the event properties) if it will need to retrieve the content from the event itself (self-contained content, text based document binary encoded) or retrieve it from Google Drive. 
+
+<img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-2-extractcontent.png"
+    alt="Pipeline's Content Extraction">
 
 In case of a self-contained document, the pipeline will extract the document id and format the document in paragraphs for later embedding processing. 
 
@@ -130,27 +127,21 @@ When in need of retrieval from Google Drive, the pipeline will inspect if the pr
 
 Finally, with all the file references retrieved from the ingestion request, textual content is extracted from the files (no image support implemented for this PoC). That content will also be passed to the embedding processing stages including the document’s identifier and the content as paragraphs.
 
-
 #### Error Handling
 
 On every stage of the content extraction process multiple errors can be encountered, malformed ingestion requests, non-conformant URLs, lack of permissions for Drive resources, lack of permissions for File data retrieval.
 
 In all those cases a dedicated component will capture those potential errors and define, given the nature of the error, if the event should be retrieved or sent to a dead letter GCS bucket for later inspection. 
 
-
-
-<p id="gdcalert3" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image3.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert4">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image3.png "image_tooltip")
-
+<img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-3-errorhandling.png"
+    alt="Pipeline's Error Handling">
 
 The final errors, or those which won’t be retried, are those errors related with bad request formats (the event itself or the properties content, like malformed or wrong URLs). 
 
 The retryable errors are those related with content access and lack of permissions. A request may have been resolved faster than the manual process of providing the right permissions to the Service Account that runs the pipeline to access the resources included in the ingestion request (Google Drive folders or files). In case of detecting a retryable error, the pipeline will hold the retry for 10 minutes before re-sending the message to the upstream PubSub topic; each error is retried at most 5 times before being sent to the dead letter GCS bucket. 
 
 In all cases of events ending on the dead letter destination, the inspection and re-processing must be manual.
-
 
 #### Process Embeddings
 
@@ -160,29 +151,26 @@ Before computing the content’s embeddings we decided to introduce a Reshuffle 
 
 The pipeline will then chunk the content in configurable sizes and also configurable overlapping, good parameters are hard to get for generic effective data extraction, so we opted to use smaller chunks with small overlapping factor as the default setting to favor diversity on the document results (at least that’s what we see from the empirical results obtained).
 
-  
-
-<p id="gdcalert4" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image4.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert5">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image4.png "image_tooltip")
-
-
-<p id="gdcalert5" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image5.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert6">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image5.png "image_tooltip")
-
+<p class="center-block">
+  <img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-4-processembeddings1.png"
+    alt="Embeddings Processing">
+  <img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-4-processembeddings2.png"
+    alt="Embeddings Processing">
+</p>  
 
 Once the embeddings are retrieved from the embeddings Vertex AI LLM, we will consolidate them again avoiding repetition of this step in case of downstream errors. 
-
 
 #### Content Storage
 
 Once the embeddings are computed for the content chunks extracted from the ingested documents, we need to store the vectors in a searchable storage and also the textual content that correlates with those embeddings. We will be using the embeddings vectors as a semantic match later from the query service, and the textual content that corresponds to those embeddings for LLM context as a way to improve and guide the response expectations.
 
-With that in mind is that in mind we split the consolidated embeddings into 3 paths, one that stores the vectors into Vertex AI Vector Search (using simple REST calls), another storing the textual content into BigTable (for low latency retrieval after semantic matching) and the final one as a potential clean up of content refresh or re ingestion (more on that later). The three paths are using the ingested document identifier as the correlating data on the actions, this key is formed by the document name (in case of available), the document identifier and the chunk sequence number. The reason for using identifiers for the chunk comes behind the idea of subsequent updates. An increase in the content will generate a larger number of chunks, and upserting all the chunks will enable always fresh data; on the contrary, a decrease in content will generate a smaller chunk count for the document’s content, this number difference can be used to delete the remaining orphan indexed chunks (from content no longer existing in the latest version of the document). 
+<img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-5-storecontent.png"
+    alt="Content Storage">
 
+With that in mind is that in mind we split the consolidated embeddings into 3 paths, one that stores the vectors into Vertex AI Vector Search (using simple REST calls), another storing the textual content into BigTable (for low latency retrieval after semantic matching) and the final one as a potential clean up of content refresh or re ingestion (more on that later). The three paths are using the ingested document identifier as the correlating data on the actions, this key is formed by the document name (in case of available), the document identifier and the chunk sequence number. The reason for using identifiers for the chunk comes behind the idea of subsequent updates. An increase in the content will generate a larger number of chunks, and upserting all the chunks will enable always fresh data; on the contrary, a decrease in content will generate a smaller chunk count for the document’s content, this number difference can be used to delete the remaining orphan indexed chunks (from content no longer existing in the latest version of the document). 
 
 #### Content Refresh
 
@@ -190,42 +178,31 @@ The last pipeline component is the simplest conceptually. After the documents fr
 
 In case of needing to update the document’s content, we can simply send an ingestion request to the upstream PubSub topic and let the pipeline run its course for this new event. Since we are taking care of upserting embeddings and cleaning up those that no longer exist, we should be capable of taking care of the majority of the additions (as long those are text updates).
 
-
-
-<p id="gdcalert6" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image6.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert7">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image6.png "image_tooltip")
-
-
-<p id="gdcalert7" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image7.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert8">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image7.png "image_tooltip")
-
-
-<p id="gdcalert8" ><span style="color: red; font-weight: bold">>>>>  GDC alert: inline image link here (to images/image8.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert9">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>> </span></p>
-
-
-![alt_text](images/image8.png "image_tooltip")
-
+<p class="center-block">
+  <img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-6-refresh1.png"
+    alt="Content Refresh">
+  <img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-6-refresh2.png"
+    alt="Content Refresh">
+  <img class="center-block"
+    src="/images/blog/dyi-cdp-genai-beam/pipeline-6-refresh3.png"
+    alt="Content Refresh">
+</p> 
 
 This task could be performed as a separate job, possibly one that is periodically scheduled in batch form. This would result in lower costs, a separate error domain, and more predictable auto scaling behavior. However, for the purposes of this demonstration, it is simpler to have a single job.
 
 Next, we will be focusing on how the solution interacts with external clients for ingestion and content discovery use cases.
 
-
 ## Interaction Design
 
 The solution aims to make the interactions for ingesting and querying the platform as simple as possible. Also, since the ingestion part may imply interacting with several services and imply retries or content refresh, we decided to make both separated and asynchronous, freeing the external users of blocking themselves while waiting for requests resolutions. 
-
 
 ### Example Interactions
 
 Once the platform is deployed in a GCP project, a simple way to interact with the services is through the use of a web client, curl is a good example. Also, since the endpoints are authenticated, a client needs to include its credentials in the request header to have its access granted.
 
 Here is an example of an interaction for content ingestion: 
-
 
 ```
 $ > curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $(gcloud auth print-identity-token)" https://<service-address>/ingest/content/gdrive -d $'{"url":"https://drive.google.com/drive/folders/somefolderid"}' | jq .
@@ -236,11 +213,9 @@ $ > curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $
 }
 ```
 
-
 In this case, after the ingestion request has been sent to the PubSub topic for processing, the service will return the tracking identifier, which maps with the PubSub message identifier. Note the provided URL can be one of a Google Doc or a Google Drive folder, in the later case the ingestion process will crawl the folder’s content recursively to retrieve all the contained documents and their contents. 
 
 Next, an example of a content query interaction, very similar to the previous one:
-
 
 ```
 $ > curl -X POST \
@@ -275,11 +250,9 @@ $ > curl -X POST \
 }
 ```
 
-
 The platform will answer the request with a textual response from the LLM and include as well information about the categorization, citation metadata and source links (if available) of the content used to generate the response (this are for example, Google Docs links of the documents previously ingested by the platform). 
 
 When interacting with the services, a good query will generally return good results, the clearer the query the easier it will be to contextualize its meaning and more accurate information will be sent to the LLMs to retrieve answers. But having to include all the details of the query context in a phrase on every exchange with the service can be very cumbersome and difficult. For that case the platform can use a provided session identifier that will be used to store all the previous exchanges between a user and the platform. This should help the implementation to better contextualize the initial query embeddings matching and even provide more concise contextual information in the model requests. Here is an example of a contextual exchange: 
-
 
 ```
 $ > curl -X POST \
@@ -335,9 +308,7 @@ $ > curl -X POST \
 }
 ```
 
-
 **Usage Tip:** in case of abruptly changing topics, sometimes is better to use a new session identifier.
-
 
 ### Deployment
 
@@ -345,8 +316,9 @@ As part of the platform solution, there are a set of scripts that help with the 
 
 Also, in case of wanting to focus only on the deployment of specific components other scripts have been included to help with those specific tasks (build the solution, deploy the infrastructure, deploy the pipeline, deploy the services, etc.).
 
-The provided solution is clearly not production ready. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples (service account and domain based access). Also we didn’t dive into the observability aspects (which Dataflow, CloudRun and API Gateway services cover in abundance), version update processes, consolidated logging and alerts for performance or consumption/efficiency. These topics may be covered in a subsequent blog post.
+### Solution's Notes
 
+The provided solution is clearly not production ready. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples (service account and domain based access). Also we didn’t dive into the observability aspects (which Dataflow, CloudRun and API Gateway services cover in abundance), version update processes, consolidated logging and alerts for performance or consumption/efficiency. These topics may be covered in a subsequent blog post.
 
 ### Source Code Notes
 
@@ -355,5 +327,4 @@ The source code for the content discovery platform can be found available in [Gi
 
 ## Use our examples
 
-This article discusses the use of Generative AI and LLM-based services to improve, automate, and add creativity to existing solutions that deal with information and data. It then describes a common use case for a content discovery platform using Google Cloud Platform services. The main goal of the use case is to exemplify how to use the available technologies and services together, serve as a quick start reference, and ease the learning curve for LLM and Generative AI capabilities, simplifying their adoption for production use cases. The code [repository](https://github.com/prodriguezdefino/content-dicovery-platform-gcp) should serve as a starting point to understand how to resolve the integration challenges and the interaction examples that build rich context for LLM requests, or resolve streaming ingestion and semantic matching, looking to really take advantage of near real time Generative AI use cases. Contributors
-
+This article discusses the use of Generative AI and LLM-based services to improve, automate, and add creativity to existing solutions that deal with information and data. It then describes a common use case for a content discovery platform using Google Cloud Platform services. The main goal of the use case is to exemplify how to use the available technologies and services together, serve as a quick start reference, and ease the learning curve for LLM and Generative AI capabilities, simplifying their adoption for production use cases. The code [repository](https://github.com/prodriguezdefino/content-dicovery-platform-gcp) should serve as a starting point to understand how to resolve the integration challenges and the interaction examples that build rich context for LLM requests, or resolve streaming ingestion and semantic matching, looking to really take advantage of near real time Generative AI use cases. 
