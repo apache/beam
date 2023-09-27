@@ -50,7 +50,7 @@ The following diagram shows all of the components that the platform integrates t
 
 <img class="center-block"
     src="/images/blog/dyi-cdp-genai-beam/cdp-arch.png"
-    alt="Solutions Architecture">
+    alt="Content Discovery Platform Overview">
 
 As seen in the diagram, the context-extraction component is the central aspect in charge of retrieving the document’s content, also their semantic meaning from the embedding’s model and storing the relevant data (chunks text content, chunks embeddings, JSON-L content) in the persistent storage systems for later use. PubSub resources are the glue between the streaming pipeline and the asynchronous processing, capturing the user ingestion requests, retries from potential errors from the ingestion pipeline (like the cases on where documents have been sent for ingestion but the permission has not been granted yet, triggering a retry after some minutes) and content refresh events (periodically the pipeline will scan the ingested documents, review the latest editions and define if a content refresh should be triggered). 
 
