@@ -28,14 +28,7 @@ import org.apache.flink.metrics.MetricGroup;
  * @see FlinkMetricContainer
  */
 public class FlinkMetricContainerWithoutAccumulator extends FlinkMetricContainerBase {
-  private final MetricGroup metricGroup;
-
   public FlinkMetricContainerWithoutAccumulator(MetricGroup metricGroup) {
-    this.metricGroup = metricGroup;
-  }
-
-  @Override
-  protected MetricGroup getMetricGroup() {
-    return metricGroup;
+    super(metricGroup);
   }
 }

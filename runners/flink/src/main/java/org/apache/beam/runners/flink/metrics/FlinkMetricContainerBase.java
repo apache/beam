@@ -56,15 +56,19 @@ abstract class FlinkMetricContainerBase {
   private final Map<String, Counter> flinkCounterCache;
   private final Map<String, FlinkDistributionGauge> flinkDistributionGaugeCache;
   private final Map<String, FlinkGauge> flinkGaugeCache;
+  private final MetricGroup metricGroup;
 
-  public FlinkMetricContainerBase() {
+  public FlinkMetricContainerBase(MetricGroup metricGroup) {
     this.flinkCounterCache = new HashMap<>();
     this.flinkDistributionGaugeCache = new HashMap<>();
     this.flinkGaugeCache = new HashMap<>();
     this.metricsContainers = new MetricsContainerStepMap();
+    this.metricGroup = metricGroup;
   }
 
-  protected abstract MetricGroup getMetricGroup();
+  public MetricGroup getMetricGroup() {
+    return metricGroup;
+  }
 
   public MetricsContainerImpl getMetricsContainer(String stepName) {
     return metricsContainers.getContainer(stepName);

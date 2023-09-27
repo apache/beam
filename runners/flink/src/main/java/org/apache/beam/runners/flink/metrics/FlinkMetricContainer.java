@@ -21,7 +21,6 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.metrics.MetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +65,4 @@ public class FlinkMetricContainer extends FlinkMetricContainerBase {
     metricsAccumulator.add(metricsContainers);
   }
 
-  @Override
-  protected MetricGroup getMetricGroup() {
-    return runtimeContext.getMetricGroup();
-  }
 }
