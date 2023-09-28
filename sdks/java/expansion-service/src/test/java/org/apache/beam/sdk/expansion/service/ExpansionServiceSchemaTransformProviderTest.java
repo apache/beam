@@ -458,7 +458,6 @@ public class ExpansionServiceSchemaTransformProviderTest {
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
-    ;
 
     ExternalTransforms.SchemaTransformPayload payload =
         ExternalTransforms.SchemaTransformPayload.newBuilder()
