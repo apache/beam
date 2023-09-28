@@ -141,6 +141,7 @@ public class FhirIOSearchIT {
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
     // Verify that none of the result resource sets are empty sets, using both getResources methods.
+    System.gc();
     PCollection<KV<String, JsonArray>> keyedResources = result.getKeyedResources();
     PAssert.that(keyedResources)
         .satisfies(
@@ -173,6 +174,7 @@ public class FhirIOSearchIT {
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
     // Verify that none of the result resource sets are empty sets, using both getResources methods.
+    System.gc();
     PCollection<JsonArray> resources = result.getResources();
     PAssert.that(resources)
         .satisfies(
