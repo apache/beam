@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests ParDo Dataflow Streaming Java
+name: LoadTests Java ParDo Dataflow Streaming
 
 on:
   issue_comment:
@@ -47,6 +47,10 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  beam_LoadTests_Java_ParDo_Dataflow_Streaming_test_arguments_1: ''
+  beam_LoadTests_Java_ParDo_Dataflow_Streaming_test_arguments_2: ''
+  beam_LoadTests_Java_ParDo_Dataflow_Streaming_test_arguments_3: ''
+  beam_LoadTests_Java_ParDo_Dataflow_Streaming_test_arguments_4: ''
 
 jobs:
   beam_LoadTests_Java_ParDo_Dataflow_Streaming:
@@ -75,10 +79,10 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Java_Dataflow_Streaming_10_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Java_Dataflow_Streaming_200_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Java_Dataflow_Streaming_10_counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_ParDo_Java_Dataflow_Streaming_100_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_Streaming_10_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_Streaming_200_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_Streaming_10_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_Streaming_100_counters.txt
       - name: run ParDo Dataflow Streaming Java Load Test 1 (10 times)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
