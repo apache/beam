@@ -35,16 +35,13 @@ update already created GitHub issue or ignore performance alert by not creating 
 
 ## Config file structure
 
-The config file defines the structure to run change point analysis on a given test. To add a test to the config file,
+The yaml defines the structure to run change point analysis on a given test. To add a test config to the yaml file,
 please follow the below structure.
 
-**NOTE**: The Change point analysis only supports reading the metric data from Big Query for now.
+**NOTE**: The Change point analysis only supports reading the metric data from `BigQuery` only.
 
 ```
-# the test_1 must be a unique id.
-test_1:
-  test_description: Pytorch image classification on 50k images of size 224 x 224 with resnet 152
-  test_target: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
+test_1: # a unique id for each test config.
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
@@ -56,6 +53,8 @@ test_1:
 ```
 
 #### Optional Parameters:
+
+These are the optional parameters that can be added to the test config in addition to the parameters mentioned above.
 
 - `test_target`: Identifies the test responsible for the regression.
 
@@ -80,11 +79,13 @@ setting `num_runs_in_change_point_window=7` will achieve it.
 
 ## Register a test for performance alerts
 
-If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the
-config file.
+If a new test needs to be registered for the performance alerting tool,
+
+- You can either add it to the config file that is already present.
+- You can define your own yaml file and call the [perf_analysis.run()](https://github.com/apache/beam/blob/a46bc12a256dcaa3ae2cc9e5d6fdcaa82b59738b/sdks/python/apache_beam/testing/analyzers/perf_analysis.py#L152) method.
 
 
-### Integrating the Perf Alert Tool with a Custom BigQuery Schema
+## Integrating the Perf Alert Tool with a Custom BigQuery Schema
 
 By default, the Perf Alert Tool retrieves metrics from the `apache-beam-testing` BigQuery projects. All performance and load tests within Beam utilize a standard [schema](https://github.com/apache/beam/blob/a7e12db9b5977c4a7b13554605c0300389a3d6da/sdks/python/apache_beam/testing/load_tests/load_test_metrics_utils.py#L70) for metrics publication. The tool inherently recognizes and operates with this schema when extracting metrics from BigQuery tables.
 
@@ -98,6 +99,15 @@ perf_analysis.run(config_file_path, my_metrics_fetcher)
 ```
 
 ``Note``: The metrics and timestamps should be sorted based on the timestamps values in ascending order.
+
+### Configuring GitHub Parameters
+
+Out of the box, the performance alert tool targets the `apache/beam` repository when raising issues. If you wish to utilize this tool for another repository, you'll need to pre-set a couple of environment variables:
+
+- `REPO_OWNER`: Represents the owner of the repository. (e.g., `apache`)
+- `REPO_NAME`: Specifies the repository name itself. (e.g., `beam`)
+
+Before initiating the tool, also ensure that the `GITHUB_TOKEN` is set to an authenticated GitHub token. This permits the tool to generate GitHub issues whenever performance alerts arise.
 
 ## Triage performance alert issues
 
