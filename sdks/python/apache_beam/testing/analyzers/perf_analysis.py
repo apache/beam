@@ -85,7 +85,8 @@ def run_change_point_analysis(
     project=params['project'],
     metrics_dataset=params['metrics_dataset'],
     metrics_table=params['metrics_table'],
-    metric_name=params['metric_name']
+    metric_name=params['metric_name'],
+    test_name=test_name
   )
 
   change_point_index = find_latest_change_point_index(
