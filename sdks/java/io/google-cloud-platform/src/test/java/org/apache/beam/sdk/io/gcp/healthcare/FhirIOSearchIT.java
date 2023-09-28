@@ -35,6 +35,7 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.aws2.schemas.Sample;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -137,8 +138,7 @@ public class FhirIOSearchIT {
     FhirIO.Search.Result result =
         searchConfigs
             .apply(FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId))
-            .Sample
-            .any(10);
+            .apply(Sample.any(10));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
@@ -172,8 +172,7 @@ public class FhirIOSearchIT {
                 (FhirIO.Search<List<Integer>>)
                     FhirIO.searchResourcesWithGenericParameters(
                         healthcareDataset + "/fhirStores/" + fhirStoreId))
-            .Sample
-            .any(10);
+            .apply(Sample.any(10));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
