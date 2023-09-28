@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Unrecoverable Errors in Beam Python
+# <a id="unrecoverable-errors-python"></a>Unrecoverable Errors in Beam Python
 
 ## <a id="what-is-an-unrecoverable-error"></a>What is an Unrecoverable Error?
 
