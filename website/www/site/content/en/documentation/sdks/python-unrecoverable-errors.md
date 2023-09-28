@@ -16,25 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# <a id="unrecoverable-errors-python"></a>Unrecoverable Errors in Beam Python
+# Unrecoverable Errors in Beam Python
 
-## <a id="what-is-an-unrecoverable-error"></a>What is an Unrecoverable Error?
+## What is an Unrecoverable Error?
 
 An unrecoverable error is an issue at job start-up time that will
 prevent a job from ever running successfully, usually due to some kind
 of misconfiguration. Solving these issues when they occur is key to
 successfully running a Beam Python pipeline.
 
-## <a id="common-unrecoverable-errors"></a>Common Unrecoverable Errors
+## Common Unrecoverable Errors
 
-### <a id="python-version-mismatch"></a>Job Submission/Runtime Python Version Mismatch
+### Job Submission/Runtime Python Version Mismatch
 
 If the Python version used for job submission does not match the
 Python version used to build the worker container, the job will not
 execute. Ensure that the Python version being used for job submission
 and the container Python version match.
 
-### <a id="dependency-resolution-failures"></a>PIP Dependency Resolution Failures
+### PIP Dependency Resolution Failures
 
 During worker start-up, dependencies are checked and installed in
 the worker container before accepting work. If a pipeline requires
