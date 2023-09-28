@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests GBK Flink Batch Go
+name: LoadTests Go GBK Flink Batch
 
 on:
   issue_comment:
@@ -57,6 +57,12 @@ env:
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.15_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-loadtests-go-gbk-flink-batch-${{ github.run_id }}
+  beam_LoadTests_Go_GBK_Flink_Batch_test_arguments_1: ''
+  beam_LoadTests_Go_GBK_Flink_Batch_test_arguments_2: ''
+  beam_LoadTests_Go_GBK_Flink_Batch_test_arguments_3: ''
+  beam_LoadTests_Go_GBK_Flink_Batch_test_arguments_4: ''
+  beam_LoadTests_Go_GBK_Flink_Batch_test_arguments_5: ''
+  beam_LoadTests_Go_GBK_Flink_Batch_test_arguments_6: ''
 
 jobs:
   beam_LoadTests_Go_GBK_Flink_Batch:
@@ -85,19 +91,19 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_GBK_Flink_Go_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_GBK_Flink_Go_Batch_100b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_GBK_Flink_Go_Batch_100kb.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_GBK_Flink_Go_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_GBK_Flink_Go_Batch_Fanout_8.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_GBK_Flink_Go_Batch_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_100b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_100kb.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_Reiteration_10KB.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-gbk-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5
         run: |
-          cd ./.test-infra/dataproc; ./flink_cluster.sh create
+          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       - name: run GBK Flink Batch Go Load Test 1 (10 b records)
         timeout-minutes: 120
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -138,7 +144,7 @@ jobs:
         env:
           FLINK_NUM_WORKERS: 16
         run: |
-          cd ./.test-infra/dataproc; ./flink_cluster.sh restart
+          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh restart
       - name: run GBK Flink Batch Go Load Test 4 (fanout 4)
         timeout-minutes: 120
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -160,4 +166,4 @@ jobs:
       - name: Teardown Flink
         if: always()
         run: |
-          ./.test-infra/dataproc/flink_cluster.sh delete
+          ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
