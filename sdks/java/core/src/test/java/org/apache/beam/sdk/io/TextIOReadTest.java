@@ -111,6 +111,7 @@ import org.junit.runners.Parameterized;
 /** Tests for {@link TextIO.Read}. */
 @RunWith(Enclosed.class)
 public class TextIOReadTest {
+
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();
   private static final List<String> TINY =
@@ -276,6 +277,7 @@ public class TextIOReadTest {
   /** Tests for reading from different size of files with various Compression. */
   @RunWith(Parameterized.class)
   public static class CompressedReadTest {
+
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
 
@@ -345,9 +347,56 @@ public class TextIOReadTest {
     }
   }
 
+  @RunWith(Parameterized.class)
+  public static class ReadWithSkipHeaderLinesTest {
+
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TestPipeline p = TestPipeline.create();
+
+    @Parameterized.Parameters(name = "{index}: {1}")
+    public static Iterable<Object[]> data() {
+      return ImmutableList.<Object[]>builder()
+          .add(new Object[] {TINY, 1, TINY.subList(1, TINY.size())})
+          .add(new Object[] {TINY, 2, TINY.subList(2, TINY.size())})
+          .add(new Object[] {TINY, 3, TINY.subList(3, TINY.size())})
+          .build();
+    }
+
+    @Parameterized.Parameter(0)
+    public List<String> lines;
+
+    @Parameterized.Parameter(1)
+    public int skipHeaderLines;
+
+    @Parameterized.Parameter(2)
+    public List<String> expected;
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadWithSkipHeaderLines() throws Exception {
+      File tmpFile = tempFolder.newFile();
+      String filename = tmpFile.getPath();
+
+      try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+        for (String elem : lines) {
+          byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
+          String line = new String(encodedElem, Charsets.UTF_8);
+          writer.println(line);
+        }
+      }
+
+      TextIO.Read read = TextIO.read().from(filename).withSkipHeaderLines(skipHeaderLines);
+      PCollection<String> output = p.apply(read);
+
+      PAssert.that(output).containsInAnyOrder(expected);
+      p.run();
+    }
+  }
+
   /** Tests for reading files with various delimiters. */
   @RunWith(Parameterized.class)
   public static class ReadWithDefaultDelimiterTest {
+
     private static final ImmutableList<String> EXPECTED = ImmutableList.of("asdf", "hjkl", "xyz");
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -447,6 +496,7 @@ public class TextIOReadTest {
   /** Tests for reading files with various delimiters. */
   @RunWith(Parameterized.class)
   public static class ReadWithCustomDelimiterTest {
+
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Parameterized.Parameters(name = "{index}: {0}")
@@ -537,6 +587,7 @@ public class TextIOReadTest {
   /** Tests for some basic operations in {@link TextIO.Read}. */
   @RunWith(JUnit4.class)
   public static class BasicIOTest {
+
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
 
@@ -633,6 +684,7 @@ public class TextIOReadTest {
 
     /** Options for testing. */
     public interface RuntimeTestOptions extends PipelineOptions {
+
       ValueProvider<String> getInput();
 
       void setInput(ValueProvider<String> value);
@@ -1035,6 +1087,7 @@ public class TextIOReadTest {
   /** Tests for TextSource class. */
   @RunWith(JUnit4.class)
   public static class TextSourceTest {
+
     @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
     @Test
@@ -1121,6 +1174,7 @@ public class TextIOReadTest {
     /** A transform that reads CSV file records. */
     private static class TextFileReadTransform
         extends PTransform<PCollection<String>, PCollection<String>> {
+
       public TextFileReadTransform() {}
 
       @Override

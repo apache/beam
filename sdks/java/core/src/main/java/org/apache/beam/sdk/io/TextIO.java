@@ -181,6 +181,7 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TextIO {
+
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
   /**
@@ -192,6 +193,7 @@ public class TextIO {
         .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
+        .setSkipHeaderLines(0)
         .build();
   }
 
@@ -283,6 +285,8 @@ public class TextIO {
 
     abstract Compression getCompression();
 
+    abstract int getSkipHeaderLines();
+
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
@@ -290,6 +294,7 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
@@ -297,6 +302,8 @@ public class TextIO {
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
 
       abstract Builder setCompression(Compression compression);
+
+      abstract Builder setSkipHeaderLines(int skipHeaderLines);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
 
@@ -389,6 +396,17 @@ public class TextIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    /**
+     * Sets the number of lines to skip from the beginning of the file.
+     *
+     * <p>This disables split file reading and may cause performance degradation.
+     */
+    public Read withSkipHeaderLines(int skipHeaderLines) {
+      checkArgument(
+          skipHeaderLines > 0, "skipHeaderLines should be > 0, but was %s", skipHeaderLines);
+      return toBuilder().setSkipHeaderLines(skipHeaderLines).build();
+    }
+
     /** Set the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
     public Read withDelimiter(byte[] delimiter) {
       checkArgument(delimiter != null, "delimiter can not be null");
@@ -431,6 +449,7 @@ public class TextIO {
               new TextSource(
                   getFilepattern(),
                   getMatchConfiguration().getEmptyMatchTreatment(),
+                  getSkipHeaderLines(),
                   getDelimiter()))
           .withCompression(getCompression());
     }
@@ -444,6 +463,10 @@ public class TextIO {
                   .withLabel("Compression Type"))
           .addIfNotNull(DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"))
           .include("matchConfiguration", getMatchConfiguration())
+          .addIfNotDefault(
+              DisplayData.item("skipHeaderLines", getSkipHeaderLines())
+                  .withLabel("Skip Header Lines"),
+              0)
           .addIfNotNull(
               DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
                   .withLabel("Custom delimiter to split records"));
@@ -461,6 +484,7 @@ public class TextIO {
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
+
     abstract MatchConfiguration getMatchConfiguration();
 
     abstract Compression getCompression();
@@ -472,6 +496,7 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
 
       abstract Builder setCompression(Compression compression);
@@ -555,6 +580,7 @@ public class TextIO {
   @AutoValue
   public abstract static class ReadFiles
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<String>> {
+
     abstract long getDesiredBundleSizeBytes();
 
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
@@ -564,6 +590,7 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
@@ -601,6 +628,7 @@ public class TextIO {
 
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
+
       private byte[] delimiter;
 
       private CreateTextSourceFn(byte[] delimiter) {
@@ -681,6 +709,7 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder<UserT, DestinationT> {
+
       abstract Builder<UserT, DestinationT> setFilenamePrefix(
           @Nullable ValueProvider<ResourceId> filenamePrefix);
 
@@ -1085,6 +1114,7 @@ public class TextIO {
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
   public static class Write extends PTransform<PCollection<String>, PDone> {
+
     @VisibleForTesting TypedWrite<String, ?> inner;
 
     Write() {
@@ -1308,6 +1338,7 @@ public class TextIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setHeader(String header);
 
       abstract Builder setFooter(String footer);
