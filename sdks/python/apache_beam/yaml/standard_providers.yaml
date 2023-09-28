@@ -24,3 +24,5 @@
     version: BEAM_VERSION
   transforms:
      Sql: 'beam:external:java:sql:v1'
+     MapToFields-java: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
+     MapToFields-generic: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
