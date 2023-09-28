@@ -41,7 +41,7 @@ public class DataflowSystemMetrics {
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
     TIME_AT_MAX_ACTIVE_THREADS("dataflow_time_at_max_active_threads"),
     ACTIVE_THREADS("dataflow_active_threads"),
-    MAX_ACTIVE_THREADS("dataflow_max_active_threads"),
+    TOTAL_ALLOCATED_THREADS("dataflow_total_allocated_threads"),
     WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
     MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 

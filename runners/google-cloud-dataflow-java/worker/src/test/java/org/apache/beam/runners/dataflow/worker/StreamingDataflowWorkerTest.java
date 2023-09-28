@@ -3023,10 +3023,8 @@ public class StreamingDataflowWorkerTest {
     assertTrue(computationState.activateWork(key1Shard1, m1));
     synchronized (m1) {
       executor.execute(m1, m1.getWorkItem().getSerializedSize());
-      LOG.info("[chengedward] waiting on thread start m1]");
       m1.wait();
     }
-    LOG.info("[chengedward] thread started m1]");
     assertEquals(2, executor.activeCount());
 
     assertTrue(computationState.activateWork(key1Shard1, m2));

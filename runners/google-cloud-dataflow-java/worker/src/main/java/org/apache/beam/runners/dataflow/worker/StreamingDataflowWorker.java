@@ -435,7 +435,7 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> javaHarnessMaxMemory;
   private final Counter<Long, Long> timeAtMaxActiveThreads;
   private final Counter<Integer, Integer> activeThreads;
-  private final Counter<Integer, Integer> maxActiveThreads;
+  private final Counter<Integer, Integer> totalAllocatedThreads;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private final Counter<Integer, Integer> memoryThrashing;
   private ScheduledExecutorService refreshWorkTimer;
@@ -619,9 +619,9 @@ public class StreamingDataflowWorker {
             StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName());
     this.activeThreads =
         pendingCumulativeCounters.intSum(StreamingSystemCounterNames.ACTIVE_THREADS.counterName());
-    this.maxActiveThreads =
+    this.totalAllocatedThreads =
         pendingCumulativeCounters.intSum(
-            StreamingSystemCounterNames.MAX_ACTIVE_THREADS.counterName());
+            StreamingSystemCounterNames.TOTAL_ALLOCATED_THREADS.counterName());
     this.windmillMaxObservedWorkItemCommitBytes =
         pendingCumulativeCounters.intMax(
             StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
@@ -2036,8 +2036,8 @@ public class StreamingDataflowWorker {
     timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());
     activeThreads.getAndReset();
     activeThreads.addValue(workUnitExecutor.activeCount());
-    maxActiveThreads.getAndReset();
-    maxActiveThreads.addValue(chooseMaximumNumberOfThreads());
+    totalAllocatedThreads.getAndReset();
+    totalAllocatedThreads.addValue(chooseMaximumNumberOfThreads());
   }
 
   @VisibleForTesting
