@@ -84,26 +84,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link FileIO}.
- */
+/** Tests for {@link FileIO}. */
 @RunWith(Enclosed.class)
 public class FileIOTest implements Serializable {
 
   @RunWith(JUnit4.class)
   public static class FileIOMatchTest {
 
-    @Rule
-    public transient TestPipeline p = TestPipeline.create();
+    @Rule public transient TestPipeline p = TestPipeline.create();
 
-    @Rule
-    public transient TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
+    @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-    @Rule
-    public transient Timeout globalTimeout = Timeout.seconds(1200);
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
 
     @Test
     @Category(NeedsRunner.class)
@@ -230,9 +224,7 @@ public class FileIOTest implements Serializable {
       p.run();
     }
 
-    /**
-     * DoFn that copy test files from source to watch path.
-     */
+    /** DoFn that copy test files from source to watch path. */
     private static class CopyFilesFn
         extends DoFn<KV<String, MatchResult.Metadata>, MatchResult.Metadata> {
 
@@ -246,8 +238,8 @@ public class FileIOTest implements Serializable {
       private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
-      public void processElement(ProcessContext context,
-          @StateId("count") ValueState<Integer> count)
+      public void processElement(
+          ProcessContext context, @StateId("count") ValueState<Integer> count)
           throws IOException, InterruptedException {
         int current = firstNonNull(count.read(), 0);
         // unpack value as output
@@ -328,7 +320,7 @@ public class FileIOTest implements Serializable {
       Files.copy(
           sourcePath.resolve("first"),
           watchPath.resolve("first"),
-          new StandardCopyOption[]{StandardCopyOption.COPY_ATTRIBUTES});
+          new StandardCopyOption[] {StandardCopyOption.COPY_ATTRIBUTES});
 
       // using matchMetadata outputs to trigger file copy on-the-fly
       matchMetadata =
@@ -346,14 +338,16 @@ public class FileIOTest implements Serializable {
       assertEquals(PCollection.IsBounded.UNBOUNDED, matchUpdatedMetadata.isBounded());
       assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllUpdatedMetadata.isBounded());
 
-      // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
+      // We fetch lastModifiedTime from the files in the "source" directory to avoid a race
+      // condition
       // with the writer thread.
       List<MatchResult.Metadata> expectedMatchNew =
           Arrays.asList(
               metadata(
                   watchPath.resolve("first"), 42, lastModifiedMillis(sourcePath.resolve("first"))),
               metadata(
-                  watchPath.resolve("second"), 37,
+                  watchPath.resolve("second"),
+                  37,
                   lastModifiedMillis(sourcePath.resolve("second"))),
               metadata(
                   watchPath.resolve("third"), 99, lastModifiedMillis(sourcePath.resolve("third"))));
@@ -399,11 +393,9 @@ public class FileIOTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class FileIOReadTest {
 
-    @Rule
-    public transient TestPipeline p = TestPipeline.create();
+    @Rule public transient TestPipeline p = TestPipeline.create();
 
-    @Rule
-    public transient TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Test
     @Category(NeedsRunner.class)
@@ -417,8 +409,8 @@ public class FileIOTest implements Serializable {
         writer.write("Hello world");
       }
 
-      PCollection<MatchResult.Metadata> matches = p.apply("Match",
-          FileIO.match().filepattern(path));
+      PCollection<MatchResult.Metadata> matches =
+          p.apply("Match", FileIO.match().filepattern(path));
       PCollection<FileIO.ReadableFile> decompressedAuto =
           matches.apply("Read AUTO", FileIO.readMatches().withCompression(Compression.AUTO));
       PCollection<FileIO.ReadableFile> decompressedDefault =
@@ -477,22 +469,20 @@ public class FileIOTest implements Serializable {
   @RunWith(Parameterized.class)
   public static class FileIOReadWithSkipLinesTest {
 
-    @Rule
-    public transient TestPipeline p = TestPipeline.create();
+    @Rule public transient TestPipeline p = TestPipeline.create();
 
-    @Rule
-    public transient TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
     private static final String INPUT = "Hello world\nApache Beam\nData Processing";
 
     @Parameterized.Parameters(name = "skipLines {1}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[]{INPUT, 0, "Hello world\nApache Beam\nData Processing"})
-          .add(new Object[]{INPUT, 1, "Apache Beam\nData Processing"})
-          .add(new Object[]{INPUT, 2, "Data Processing"})
-          .add(new Object[]{INPUT, 3, ""})
-          .add(new Object[]{INPUT, 4, ""})
+          .add(new Object[] {INPUT, 0, "Hello world\nApache Beam\nData Processing"})
+          .add(new Object[] {INPUT, 1, "Apache Beam\nData Processing"})
+          .add(new Object[] {INPUT, 2, "Data Processing"})
+          .add(new Object[] {INPUT, 3, ""})
+          .add(new Object[] {INPUT, 4, ""})
           .build();
     }
 
@@ -511,12 +501,12 @@ public class FileIOTest implements Serializable {
       final String path = tmpFolder.newFile("file").getAbsolutePath();
       Files.write(new File(path).toPath(), input.getBytes(Charsets.UTF_8));
 
-      PCollection<String> c = p.apply("Match", FileIO.match().filepattern(path))
-          .apply("readMatches", FileIO.readMatches())
-          .apply("readWithSkipLines", ParDo.of(new ReadWithSkipLinesFn(skipLines)));
+      PCollection<String> c =
+          p.apply("Match", FileIO.match().filepattern(path))
+              .apply("readMatches", FileIO.readMatches())
+              .apply("readWithSkipLines", ParDo.of(new ReadWithSkipLinesFn(skipLines)));
 
-      PAssert.that(c)
-          .containsInAnyOrder(expected);
+      PAssert.that(c).containsInAnyOrder(expected);
 
       p.run();
     }
@@ -541,11 +531,9 @@ public class FileIOTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class FileIOWriteTest {
 
-    @Rule
-    public transient TestPipeline p = TestPipeline.create();
+    @Rule public transient TestPipeline p = TestPipeline.create();
 
-    @Rule
-    public transient TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Test
     public void testFilenameFnResolution() throws Exception {
