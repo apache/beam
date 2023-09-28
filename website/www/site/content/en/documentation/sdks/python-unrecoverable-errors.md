@@ -37,11 +37,14 @@ and the container Python version match.
 ### PIP Dependency Resolution Failures
 
 During worker start-up, dependencies are checked and installed in
-the worker container before accepting work. If there’s an issue during
-this process (e.g. a dependency version cannot be found) the worker
-will restart and try again up to four times before outright failing.
-Ensure that dependency versions provided in your requirements.txt file
-exist and can be installed locally before submitting jobs.
+the worker container before accepting work. If a pipeline requires
+additional dependencies not already present in the runtime environment,
+they are installed here. If there’s an issue during this process
+(e.g. a dependency version cannot be found, or a worker cannot
+connect to PyPI) the worker will fail and may try to restart
+depending on the runner. Ensure that dependency versions provided in
+your requirements.txt file exist and can be installed locally before
+submitting jobs.
 
 ### Dependency Verision Mismatches
 
@@ -54,3 +57,4 @@ often has `AttributeError` logged in debug mode. Ensure that the required
 dependencies at runtime and in the submission environment are the same
 along with their versions. For better visibility, debug logs are added
 specifying the dependencies at both stages starting in Beam 2.52.0.
+For more information, see: https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#control-dependencies
