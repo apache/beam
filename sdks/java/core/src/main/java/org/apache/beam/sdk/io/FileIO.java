@@ -83,15 +83,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * General-purpose transforms for working with files: listing files (matching), reading and writing.
+ * General-purpose transforms for working with files: listing files (matching), reading and
+ * writing.
  *
  * <h2>Matching filepatterns</h2>
  *
  * <p>{@link #match} and {@link #matchAll} match filepatterns (respectively either a single
- * filepattern or a {@link PCollection} thereof) and return the files that match them as {@link
- * PCollection PCollections} of {@link MatchResult.Metadata}. Configuration options for them are in
- * {@link MatchConfiguration} and include features such as treatment of filepatterns that don't
- * match anything and continuous incremental matching of filepatterns (watching for new files).
+ * filepattern or a {@link PCollection} thereof) and return the files that match them as
+ * {@link PCollection PCollections} of {@link MatchResult.Metadata}. Configuration options for them
+ * are in {@link MatchConfiguration} and include features such as treatment of filepatterns that
+ * don't match anything and continuous incremental matching of filepatterns (watching for new
+ * files).
  *
  * <h3>Example: Watching a single filepattern for new files</h3>
  *
@@ -108,9 +110,9 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Example: Matching a PCollection of filepatterns arriving from Kafka</h3>
  *
- * <p>This example reads filepatterns from Kafka and matches each one as it arrives, producing again
- * an unbounded {@code PCollection<Metadata>}, and failing in case the filepattern doesn't match
- * anything.
+ * <p>This example reads filepatterns from Kafka and matches each one as it arrives, producing
+ * again an unbounded {@code PCollection<Metadata>}, and failing in case the filepattern doesn't
+ * match anything.
  *
  * <pre>{@code
  * PCollection<String> filepatterns = p.apply(KafkaIO.read()...);
@@ -309,9 +311,10 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FileIO {
+
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 
   /**
@@ -319,12 +322,13 @@ public class FileIO {
    * resources (both files and directories) as {@link MatchResult.Metadata}.
    *
    * <p>By default, matches the filepattern once and produces a bounded {@link PCollection}. To
-   * continuously watch the filepattern for new matches, use {@link MatchAll#continuously(Duration,
-   * TerminationCondition)} - this will produce an unbounded {@link PCollection}.
+   * continuously watch the filepattern for new matches, use
+   * {@link MatchAll#continuously(Duration, TerminationCondition)} - this will produce an unbounded
+   * {@link PCollection}.
    *
    * <p>By default, a filepattern matching no resources is treated according to {@link
-   * EmptyMatchTreatment#DISALLOW}. To configure this behavior, use {@link
-   * Match#withEmptyMatchTreatment}.
+   * EmptyMatchTreatment#DISALLOW}. To configure this behavior, use
+   * {@link Match#withEmptyMatchTreatment}.
    *
    * <p>Returned {@link MatchResult.Metadata} are deduplicated by filename. For example, if this
    * transform observes a file with the same name several times with different metadata (e.g.
@@ -344,8 +348,8 @@ public class FileIO {
    * multiple filepatterns, it will be produced multiple times.
    *
    * <p>By default, a filepattern matching no resources is treated according to {@link
-   * EmptyMatchTreatment#ALLOW_IF_WILDCARD}. To configure this behavior, use {@link
-   * MatchAll#withEmptyMatchTreatment}.
+   * EmptyMatchTreatment#ALLOW_IF_WILDCARD}. To configure this behavior, use
+   * {@link MatchAll#withEmptyMatchTreatment}.
    */
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
@@ -364,7 +368,9 @@ public class FileIO {
         .build();
   }
 
-  /** Writes elements to files using a {@link Sink}. See class-level documentation. */
+  /**
+   * Writes elements to files using a {@link Sink}. See class-level documentation.
+   */
   public static <InputT> Write<Void, InputT> write() {
     return new AutoValue_FileIO_Write.Builder<Void, InputT>()
         .setDynamic(false)
@@ -387,8 +393,11 @@ public class FileIO {
         .build();
   }
 
-  /** A utility class for accessing a potentially compressed file. */
+  /**
+   * A utility class for accessing a potentially compressed file.
+   */
   public static final class ReadableFile {
+
     private final MatchResult.Metadata metadata;
     private final Compression compression;
 
@@ -397,12 +406,16 @@ public class FileIO {
       this.compression = compression;
     }
 
-    /** Returns the {@link MatchResult.Metadata} of the file. */
+    /**
+     * Returns the {@link MatchResult.Metadata} of the file.
+     */
     public MatchResult.Metadata getMetadata() {
       return metadata;
     }
 
-    /** Returns the method with which this file will be decompressed in {@link #open}. */
+    /**
+     * Returns the method with which this file will be decompressed in {@link #open}.
+     */
     public Compression getCompression() {
       return compression;
     }
@@ -427,16 +440,36 @@ public class FileIO {
       return (SeekableByteChannel) open();
     }
 
-    /** Returns the full contents of the file as bytes. */
-    public byte[] readFullyAsBytes() throws IOException {
+    /**
+     * Returns the contents of the file as bytes with skipping {@code skipLines}.
+     */
+    public byte[] readFullyAsBytes(int skipLines) throws IOException {
       try (InputStream stream = Channels.newInputStream(open())) {
+        int count = 0;
+        int r;
+        while ((count < skipLines) && ((r = stream.read()) != -1)) {
+          if (r == '\n') {
+            count++;
+          }
+        }
+
         return StreamUtils.getBytesWithoutClosing(stream);
       }
     }
 
-    /** Returns the full contents of the file as a {@link String} decoded as UTF-8. */
+    /**
+     * Returns the full contents of the file as a {@link String} decoded as UTF-8.
+     */
     public String readFullyAsUTF8String() throws IOException {
-      return new String(readFullyAsBytes(), StandardCharsets.UTF_8);
+      return new String(readFullyAsBytes(0), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Returns the contents of the file as {@link String} decoded as UTF-8 with skipping
+     * {@code skipLines}.
+     */
+    public String readFullyAsUTF8String(int skipLines) throws IOException {
+      return new String(readFullyAsBytes(skipLines), StandardCharsets.UTF_8);
     }
 
     @Override
@@ -468,7 +501,10 @@ public class FileIO {
    */
   @AutoValue
   public abstract static class MatchConfiguration implements HasDisplayData, Serializable {
-    /** Creates a {@link MatchConfiguration} with the given {@link EmptyMatchTreatment}. */
+
+    /**
+     * Creates a {@link MatchConfiguration} with the given {@link EmptyMatchTreatment}.
+     */
     public static MatchConfiguration create(EmptyMatchTreatment emptyMatchTreatment) {
       return new AutoValue_FileIO_MatchConfiguration.Builder()
           .setEmptyMatchTreatment(emptyMatchTreatment)
@@ -488,6 +524,7 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
 
       abstract Builder setMatchUpdatedFiles(boolean matchUpdatedFiles);
@@ -499,7 +536,9 @@ public class FileIO {
       abstract MatchConfiguration build();
     }
 
-    /** Sets the {@link EmptyMatchTreatment}. */
+    /**
+     * Sets the {@link EmptyMatchTreatment}.
+     */
     public MatchConfiguration withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
       return toBuilder().setEmptyMatchTreatment(treatment).build();
     }
@@ -509,8 +548,8 @@ public class FileIO {
      * condition is reached, where the input to the condition is the filepattern.
      *
      * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change, with
-     * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
-     * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
+     * the watching frequency given by the {@code interval}. The pipeline will throw a
+     * {@code RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
      * timestamp metadata is not available with the IO connector.
      *
      * <p>Matching continuously scales poorly, as it is stateful, and requires storing file ids in
@@ -558,7 +597,9 @@ public class FileIO {
     }
   }
 
-  /** Implementation of {@link #match}. */
+  /**
+   * Implementation of {@link #match}.
+   */
   @AutoValue
   public abstract static class Match extends PTransform<PBegin, PCollection<MatchResult.Metadata>> {
 
@@ -570,6 +611,7 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder setConfiguration(MatchConfiguration configuration);
@@ -577,22 +619,30 @@ public class FileIO {
       abstract Match build();
     }
 
-    /** Matches the given filepattern. */
+    /**
+     * Matches the given filepattern.
+     */
     public Match filepattern(String filepattern) {
       return this.filepattern(StaticValueProvider.of(filepattern));
     }
 
-    /** Like {@link #filepattern(String)} but using a {@link ValueProvider}. */
+    /**
+     * Like {@link #filepattern(String)} but using a {@link ValueProvider}.
+     */
     public Match filepattern(ValueProvider<String> filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
     }
 
-    /** Sets the {@link MatchConfiguration}. */
+    /**
+     * Sets the {@link MatchConfiguration}.
+     */
     public Match withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
     }
 
-    /** See {@link MatchConfiguration#withEmptyMatchTreatment(EmptyMatchTreatment)}. */
+    /**
+     * See {@link MatchConfiguration#withEmptyMatchTreatment(EmptyMatchTreatment)}.
+     */
     public Match withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
     }
@@ -639,32 +689,42 @@ public class FileIO {
     }
   }
 
-  /** Implementation of {@link #matchAll}. */
+  /**
+   * Implementation of {@link #matchAll}.
+   */
   @AutoValue
   public abstract static class MatchAll
       extends PTransform<PCollection<String>, PCollection<MatchResult.Metadata>> {
+
     abstract MatchConfiguration getConfiguration();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
       abstract MatchAll build();
     }
 
-    /** Like {@link Match#withConfiguration}. */
+    /**
+     * Like {@link Match#withConfiguration}.
+     */
     public MatchAll withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
     }
 
-    /** Like {@link Match#withEmptyMatchTreatment}. */
+    /**
+     * Like {@link Match#withEmptyMatchTreatment}.
+     */
     public MatchAll withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    /** Like {@link Match#continuously(Duration, TerminationCondition, boolean)}. */
+    /**
+     * Like {@link Match#continuously(Duration, TerminationCondition, boolean)}.
+     */
     public MatchAll continuously(
         Duration pollInterval,
         TerminationCondition<String, ?> terminationCondition,
@@ -673,7 +733,9 @@ public class FileIO {
           getConfiguration().continuously(pollInterval, terminationCondition, matchUpdatedFiles));
     }
 
-    /** Like {@link Match#continuously(Duration, TerminationCondition)}. */
+    /**
+     * Like {@link Match#continuously(Duration, TerminationCondition)}.
+     */
     public MatchAll continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return continuously(pollInterval, terminationCondition, false);
@@ -707,7 +769,9 @@ public class FileIO {
       builder.include("configuration", getConfiguration());
     }
 
-    /** Helper function creating a watch transform based on outputKeyFn. */
+    /**
+     * Helper function creating a watch transform based on outputKeyFn.
+     */
     private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
         SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
       return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
@@ -716,6 +780,7 @@ public class FileIO {
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
+
       private final EmptyMatchTreatment emptyMatchTreatment;
 
       public MatchFn(EmptyMatchTreatment emptyMatchTreatment) {
@@ -734,6 +799,7 @@ public class FileIO {
     }
 
     private static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
+
       @Override
       public Watch.Growth.PollResult<MatchResult.Metadata> apply(String element, Context c)
           throws Exception {
@@ -746,6 +812,7 @@ public class FileIO {
 
     private static class ExtractFilenameFn
         implements SerializableFunction<MatchResult.Metadata, String> {
+
       @Override
       public String apply(MatchResult.Metadata input) {
         return input.resourceId().toString();
@@ -754,6 +821,7 @@ public class FileIO {
 
     private static class ExtractFilenameAndLastUpdateFn
         implements SerializableFunction<MatchResult.Metadata, KV<String, Long>> {
+
       @Override
       public KV<String, Long> apply(MatchResult.Metadata input) throws RuntimeException {
         long timestamp = input.lastModifiedMillis();
@@ -765,11 +833,16 @@ public class FileIO {
     }
   }
 
-  /** Implementation of {@link #readMatches}. */
+  /**
+   * Implementation of {@link #readMatches}.
+   */
   @AutoValue
   public abstract static class ReadMatches
       extends PTransform<PCollection<MatchResult.Metadata>, PCollection<ReadableFile>> {
-    /** Enum to control how directories are handled. */
+
+    /**
+     * Enum to control how directories are handled.
+     */
     public enum DirectoryTreatment {
       SKIP,
       PROHIBIT
@@ -783,6 +856,7 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setCompression(Compression compression);
 
       abstract Builder setDirectoryTreatment(DirectoryTreatment directoryTreatment);
@@ -790,15 +864,17 @@ public class FileIO {
       abstract ReadMatches build();
     }
 
-    /** Reads files using the given {@link Compression}. Default is {@link Compression#AUTO}. */
+    /**
+     * Reads files using the given {@link Compression}. Default is {@link Compression#AUTO}.
+     */
     public ReadMatches withCompression(Compression compression) {
       checkArgument(compression != null, "compression can not be null");
       return toBuilder().setCompression(compression).build();
     }
 
     /**
-     * Controls how to handle directories in the input {@link PCollection}. Default is {@link
-     * DirectoryTreatment#SKIP}.
+     * Controls how to handle directories in the input {@link PCollection}. Default is
+     * {@link DirectoryTreatment#SKIP}.
      */
     public ReadMatches withDirectoryTreatment(DirectoryTreatment directoryTreatment) {
       checkArgument(directoryTreatment != null, "directoryTreatment can not be null");
@@ -818,10 +894,10 @@ public class FileIO {
 
     /**
      * @return True if metadata is a directory and directory Treatment is SKIP.
-     * @throws java.lang.IllegalArgumentException if metadata is a directory and directoryTreatment
-     *     is Prohibited.
+     * @throws java.lang.IllegalArgumentException      if metadata is a directory and
+     *                                                 directoryTreatment is Prohibited.
      * @throws java.lang.UnsupportedOperationException if metadata is a directory and
-     *     directoryTreatment is not SKIP or PROHIBIT.
+     *                                                 directoryTreatment is not SKIP or PROHIBIT.
      */
     static boolean shouldSkipDirectory(
         MatchResult.Metadata metadata, DirectoryTreatment directoryTreatment) {
@@ -843,8 +919,8 @@ public class FileIO {
     }
 
     /**
-     * Converts metadata to readableFile. Make sure {@link
-     * #shouldSkipDirectory(org.apache.beam.sdk.io.fs.MatchResult.Metadata,
+     * Converts metadata to readableFile. Make sure
+     * {@link #shouldSkipDirectory(org.apache.beam.sdk.io.fs.MatchResult.Metadata,
      * org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment)} returns false before using.
      */
     static ReadableFile matchToReadableFile(
@@ -866,6 +942,7 @@ public class FileIO {
     }
 
     private static class ToReadableFileFn extends DoFn<MatchResult.Metadata, ReadableFile> {
+
       private final ReadMatches spec;
 
       private ToReadableFileFn(ReadMatches spec) {
@@ -884,17 +961,21 @@ public class FileIO {
   }
 
   /**
-   * Specifies how to write elements to individual files in {@link FileIO#write} and {@link
-   * FileIO#writeDynamic}. A new instance of {@link Sink} is created for every file being written.
+   * Specifies how to write elements to individual files in {@link FileIO#write} and
+   * {@link FileIO#writeDynamic}. A new instance of {@link Sink} is created for every file being
+   * written.
    */
   public interface Sink<ElementT> extends Serializable {
+
     /**
      * Initializes writing to the given channel. Will be invoked once on a given {@link Sink}
      * instance.
      */
     void open(WritableByteChannel channel) throws IOException;
 
-    /** Appends a single element to the file. May be invoked zero or more times. */
+    /**
+     * Appends a single element to the file. May be invoked zero or more times.
+     */
     void write(ElementT element) throws IOException;
 
     /**
@@ -904,12 +985,18 @@ public class FileIO {
     void flush() throws IOException;
   }
 
-  /** Implementation of {@link #write} and {@link #writeDynamic}. */
+  /**
+   * Implementation of {@link #write} and {@link #writeDynamic}.
+   */
   @AutoValue
   public abstract static class Write<DestinationT, UserT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
-    /** A policy for generating names for shard files. */
+
+    /**
+     * A policy for generating names for shard files.
+     */
     public interface FileNaming extends Serializable {
+
       /**
        * Generates the filename. MUST use each argument and return different values for each
        * combination of the arguments.
@@ -929,7 +1016,8 @@ public class FileIO {
     /**
      * Defines a default {@link FileNaming} which will use the prefix and suffix supplied to create
      * a name based on the window, pane, number of shards, shard index, and compression. Removes
-     * window when in the {@link GlobalWindow} and pane info when it is the only firing of the pane.
+     * window when in the {@link GlobalWindow} and pane info when it is the only firing of the
+     * pane.
      */
     public static FileNaming defaultNaming(
         final ValueProvider<String> prefix, final ValueProvider<String> suffix) {
@@ -1020,6 +1108,7 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder<DestinationT, UserT> {
+
       abstract Builder<DestinationT, UserT> setDynamic(boolean dynamic);
 
       abstract Builder<DestinationT, UserT> setSinkFn(Contextful<Fn<DestinationT, Sink<?>>> sink);
@@ -1065,13 +1154,17 @@ public class FileIO {
       abstract Write<DestinationT, UserT> build();
     }
 
-    /** Specifies how to partition elements into groups ("destinations"). */
+    /**
+     * Specifies how to partition elements into groups ("destinations").
+     */
     public Write<DestinationT, UserT> by(SerializableFunction<UserT, DestinationT> destinationFn) {
       checkArgument(destinationFn != null, "destinationFn can not be null");
       return by(fn(destinationFn));
     }
 
-    /** Like {@link #by}, but with access to context such as side inputs. */
+    /**
+     * Like {@link #by}, but with access to context such as side inputs.
+     */
     public Write<DestinationT, UserT> by(Contextful<Fn<UserT, DestinationT>> destinationFn) {
       checkArgument(destinationFn != null, "destinationFn can not be null");
       return toBuilder().setDestinationFn(destinationFn).build();
@@ -1090,7 +1183,9 @@ public class FileIO {
       return toBuilder().setSinkFn((Contextful) sinkFn).setOutputFn(outputFn).build();
     }
 
-    /** Like {@link #via(Contextful, Contextful)}, but uses the same sink for all destinations. */
+    /**
+     * Like {@link #via(Contextful, Contextful)}, but uses the same sink for all destinations.
+     */
     public <OutputT> Write<DestinationT, UserT> via(
         Contextful<Fn<UserT, OutputT>> outputFn, final Sink<OutputT> sink) {
       checkArgument(sink != null, "sink can not be null");
@@ -1111,7 +1206,9 @@ public class FileIO {
           .build();
     }
 
-    /** Like {@link #via(Contextful)}, but uses the same {@link Sink} for all destinations. */
+    /**
+     * Like {@link #via(Contextful)}, but uses the same {@link Sink} for all destinations.
+     */
     public Write<DestinationT, UserT> via(Sink<UserT> sink) {
       checkArgument(sink != null, "sink can not be null");
       return via(fn(SerializableFunctions.clonesOf(sink)));
@@ -1119,15 +1216,17 @@ public class FileIO {
 
     /**
      * Specifies a common directory for all generated files. A temporary generated sub-directory of
-     * this directory will be used as the temp directory, unless overridden by {@link
-     * #withTempDirectory}.
+     * this directory will be used as the temp directory, unless overridden by
+     * {@link #withTempDirectory}.
      */
     public Write<DestinationT, UserT> to(String directory) {
       checkArgument(directory != null, "directory can not be null");
       return to(StaticValueProvider.of(directory));
     }
 
-    /** Like {@link #to(String)} but with a {@link ValueProvider}. */
+    /**
+     * Like {@link #to(String)} but with a {@link ValueProvider}.
+     */
     public Write<DestinationT, UserT> to(ValueProvider<String> directory) {
       checkArgument(directory != null, "directory can not be null");
       return toBuilder().setOutputDirectory(directory).build();
@@ -1142,7 +1241,9 @@ public class FileIO {
       return withPrefix(StaticValueProvider.of(prefix));
     }
 
-    /** Like {@link #withPrefix(String)} but with a {@link ValueProvider}. */
+    /**
+     * Like {@link #withPrefix(String)} but with a {@link ValueProvider}.
+     */
     public Write<DestinationT, UserT> withPrefix(ValueProvider<String> prefix) {
       checkArgument(prefix != null, "prefix can not be null");
       return toBuilder().setFilenamePrefix(prefix).build();
@@ -1157,7 +1258,9 @@ public class FileIO {
       return withSuffix(StaticValueProvider.of(suffix));
     }
 
-    /** Like {@link #withSuffix(String)} but with a {@link ValueProvider}. */
+    /**
+     * Like {@link #withSuffix(String)} but with a {@link ValueProvider}.
+     */
     public Write<DestinationT, UserT> withSuffix(ValueProvider<String> suffix) {
       checkArgument(suffix != null, "suffix can not be null");
       return toBuilder().setFilenameSuffix(suffix).build();
@@ -1200,13 +1303,17 @@ public class FileIO {
       return toBuilder().setFileNamingFn(namingFn).build();
     }
 
-    /** Specifies a directory into which all temporary files will be placed. */
+    /**
+     * Specifies a directory into which all temporary files will be placed.
+     */
     public Write<DestinationT, UserT> withTempDirectory(String tempDirectory) {
       checkArgument(tempDirectory != null, "tempDirectory can not be null");
       return withTempDirectory(StaticValueProvider.of(tempDirectory));
     }
 
-    /** Like {@link #withTempDirectory(String)}. */
+    /**
+     * Like {@link #withTempDirectory(String)}.
+     */
     public Write<DestinationT, UserT> withTempDirectory(ValueProvider<String> tempDirectory) {
       checkArgument(tempDirectory != null, "tempDirectory can not be null");
       return toBuilder().setTempDirectory(tempDirectory).build();
@@ -1233,8 +1340,8 @@ public class FileIO {
     }
 
     /**
-     * Specifies a {@link Coder} for the destination type, if it can not be inferred from {@link
-     * #by}.
+     * Specifies a {@link Coder} for the destination type, if it can not be inferred from
+     * {@link #by}.
      */
     public Write<DestinationT, UserT> withDestinationCoder(Coder<DestinationT> destinationCoder) {
       checkArgument(destinationCoder != null, "destinationCoder can not be null");
@@ -1276,14 +1383,16 @@ public class FileIO {
      * window with the default trigger.
      *
      * @deprecated Avoid usage of this method: its effects are complex and it will be removed in
-     *     future versions of Beam. Right now it exists for compatibility with {@link WriteFiles}.
+     * future versions of Beam. Right now it exists for compatibility with {@link WriteFiles}.
      */
     @Deprecated
     public Write<DestinationT, UserT> withIgnoreWindowing() {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
-    /** See {@link WriteFiles#withNoSpilling()}. */
+    /**
+     * See {@link WriteFiles#withNoSpilling()}.
+     */
     public Write<DestinationT, UserT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
     }
@@ -1418,6 +1527,7 @@ public class FileIO {
 
     private static class ViaFileBasedSink<UserT, DestinationT, OutputT>
         extends FileBasedSink<UserT, DestinationT, OutputT> {
+
       private final Write<DestinationT, UserT> spec;
 
       private ViaFileBasedSink(Write<DestinationT, UserT> spec) {
@@ -1472,6 +1582,7 @@ public class FileIO {
 
       private static class DynamicDestinationsAdapter<UserT, DestinationT, OutputT>
           extends DynamicDestinations<UserT, DestinationT, OutputT> {
+
         private final Write<DestinationT, UserT> spec;
         private transient Fn.@Nullable Context context;
 
