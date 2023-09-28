@@ -261,14 +261,17 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
 
   outputs.upToDateWhen { false }
 
+  // export and direct read
   include '**/BigQueryToTableIT.class'
   include '**/BigQueryIOJsonIT.class'
   include '**/BigQueryIOStorageReadTableRowIT.class'
+  // storage write api
   include '**/StorageApiDirectWriteProtosIT.class'
   include '**/StorageApiSinkFailedRowsIT.class'
   include '**/StorageApiSinkRowUpdateIT.class'
   include '**/StorageApiSinkSchemaUpdateIT.class'
   include '**/TableRowToStorageApiProtoIT.class'
+  // file loads
   include '**/BigQuerySchemaUpdateOptionsIT.class'
   include '**/BigQueryTimePartitioningClusteringIT.class'
   include '**/FileLoadsStreamingIT.class'

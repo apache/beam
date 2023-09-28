@@ -127,15 +127,15 @@ public class StorageApiSinkSchemaUpdateIT {
 
   private final Random randomGenerator = new Random();
 
+  // used when test suite specifies a particular GCP location for BigQuery operations
+  private static String bigQueryLocation;
+
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    LOG.info("Creating dataset {}.", BIG_QUERY_DATASET_ID);
-    BQ_CLIENT.createNewDataset(
-        PROJECT,
-        BIG_QUERY_DATASET_ID,
-        null,
-        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
+    bigQueryLocation =
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation();
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, bigQueryLocation);
   }
 
   @AfterClass
@@ -463,7 +463,8 @@ public class StorageApiSinkSchemaUpdateIT {
                 String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM [%s]", tableSpec),
                 PROJECT,
                 true,
-                false));
+                false,
+                bigQueryLocation));
 
     int distinctCount = Integer.parseInt((String) queryResponse.get("f0_"));
     int totalCount = Integer.parseInt((String) queryResponse.get("f1_"));
