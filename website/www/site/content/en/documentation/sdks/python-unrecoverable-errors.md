@@ -27,8 +27,30 @@ successfully running a Beam Python pipeline.
 
 ## Common Unrecoverable Errors
 
-| Error | Explanation | Troubleshooting |
-|---|---|---|
-| Job Submission/Runtime Python Version Mismatch | If the Python version used for job submission does not match the Python version used to build the worker container, the job will not execute. | Ensure that the Python version being used for job submission and the container Python version match. |
-| PIP Dependency Resolution Failures | During worker start-up, dependencies are checked and installed in the worker container before accepting work. If there’s an issue during this process (e.g. a dependency version cannot be found) the worker will restart and try again up to four times before outright failing. | Ensure that dependency versions provided in your requirements.txt file exist and can be installed locally before submitting jobs. |
-| Dependency Version Mismatches | When additional dependencies like torch, transformers, etc are not specified via requirements_file or preinstalled with a custom container then the worker may go into a restart loop trying to install dependencies again up to 4 times and finally fail. There is a debug log specifying `ModuleNotFoundError`. Similar outcome is observed when there is a dependency mismatch that often has `AttributeError` logged in debug mode. | Ensure that the required dependencies at runtime and in the submission environment are the same along with their versions. For better visibility, debug logs are added specifying the dependencies at both stages from Beam 2.52.0 |
+### Job Submission/Runtime Python Version Mismatch
+
+If the Python version used for job submission does not match the
+Python version used to build the worker container, the job will not
+execute. Ensure that the Python version being used for job submission
+and the container Python version match.
+
+### PIP Dependency Resolution Failures
+
+During worker start-up, dependencies are checked and installed in
+the worker container before accepting work. If there’s an issue during
+this process (e.g. a dependency version cannot be found) the worker
+will restart and try again up to four times before outright failing.
+Ensure that dependency versions provided in your requirements.txt file
+exist and can be installed locally before submitting jobs.
+
+### Dependency Verision Mismatches
+
+When additional dependencies like torch, transformers, etc are not
+specified via requirements_file or preinstalled with a custom container
+then the worker may go into a restart loop trying to install dependencies
+again up to 4 times and finally fail. There is a debug log specifying `ModuleNotFoundError`.
+A similar outcome is observed when there is a dependency mismatch that
+often has `AttributeError` logged in debug mode. Ensure that the required
+dependencies at runtime and in the submission environment are the same
+along with their versions. For better visibility, debug logs are added
+specifying the dependencies at both stages starting in Beam 2.52.0.
