@@ -695,7 +695,7 @@ public class BigtableIO {
           boolean exists = getServiceFactory().checkTableExists(config, options, tableId);
           checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          throw new IllegalArgumentException(e);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -1127,7 +1127,7 @@ public class BigtableIO {
           boolean exists = factory.checkTableExists(config, options, tableId);
           checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          throw new IllegalArgumentException(e);
+          throw new RuntimeException(e);
         }
       }
     }
