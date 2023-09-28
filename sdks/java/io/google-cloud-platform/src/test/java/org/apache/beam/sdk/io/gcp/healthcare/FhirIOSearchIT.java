@@ -35,6 +35,7 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.aws2.schemas.Sample;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -133,10 +134,10 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of()))).apply(Sample.any(10));
+            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
         searchConfigs.apply(
-            FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
+            FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId)).Sample.any(10);
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
@@ -163,12 +164,12 @@ public class FhirIOSearchIT {
     PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
             Create.of(genericParametersInput)
-                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of())))).apply(Sample.any(10));
+                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             (FhirIO.Search<List<Integer>>)
                 FhirIO.searchResourcesWithGenericParameters(
-                    healthcareDataset + "/fhirStores/" + fhirStoreId));
+                    healthcareDataset + "/fhirStores/" + fhirStoreId)).Sample.any(10);
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
@@ -179,7 +180,6 @@ public class FhirIOSearchIT {
             input -> {
               for (JsonArray resource : input) {
                 assertNotEquals(0, resource.size());
-                System.gc();
               }
               return null;
             });
