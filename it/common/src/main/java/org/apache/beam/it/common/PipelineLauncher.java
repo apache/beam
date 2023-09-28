@@ -191,7 +191,6 @@ public interface PipelineLauncher {
       private Map<String, String> parameters;
       private Sdk sdk;
       private String executable;
-
       private String requirementsFile;
       private Pipeline pipeline;
 
