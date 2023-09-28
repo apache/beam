@@ -42,7 +42,7 @@ try:
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
   from apache_beam.testing.load_tests import load_test_metrics_utils
 except ImportError as e:
-  analysis = None  # type: ignore
+  raise unittest.SkipTest('Missing dependencies to run perf analysis tests.')
 
 
 # mock methods.
@@ -70,10 +70,6 @@ def get_existing_issue_data(**kwargs):
   }])
 
 
-@unittest.skipIf(
-    analysis is None,
-    'Missing dependencies. '
-    'Test dependencies are missing for the Analyzer.')
 class TestChangePointAnalysis(unittest.TestCase):
   def setUp(self) -> None:
     self.single_change_point_series = [0] * 10 + [1] * 10
