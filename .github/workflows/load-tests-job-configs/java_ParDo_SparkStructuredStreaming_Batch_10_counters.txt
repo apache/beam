@@ -12,16 +12,15 @@
 #  distributed under the License is distributed on an "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
-# limitations under the License.
+#  limitations under the License.
 
---appName=load_tests_Java_SparkStructuredStreaming_batch_Combine_3
+--appName=load_tests_Java_SparkStructuredStreaming_batch_ParDo_3
 --tempLocation=gs://temp-storage-for-perf-tests/loadtests
---influxMeasurement=java_batch_combine_3
+--influxMeasurement=java_batch_pardo_3
 --publishToInfluxDB=true
---sourceOptions={"numRecords":2500000,"keySizeBytes":10,"valueSizeBytes":90}
---fanout=8
+--sourceOptions={"numRecords":20000000,"keySizeBytes":10,"valueSizeBytes":90}
 --iterations=1
---topCount=20
---perKeyCombiner=TOP_LARGEST
+--numberOfCounters=1
+--numberOfCounterOperations=10
 --streaming=false
 --runner=SparkStructuredStreamingRunner
