@@ -47,7 +47,6 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_Compressed_TextIOIT_HDFS_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_Compressed_TextIOIT_HDFS:
@@ -87,6 +86,7 @@ jobs:
           kubectl wait svc/hadoop --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
           loadbalancer_IP=$(kubectl get svc hadoop -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo hadoop_IP=$loadbalancer_IP >> $GITHUB_OUTPUT
+# The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
