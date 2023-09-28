@@ -460,6 +460,8 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
+  elif outputs is None:
+    return {}
   else:
     raise ValueError(
         f'Transform {identify_object(spec)} returned an unexpected type '
@@ -876,11 +878,27 @@ def preprocess(spec, verbose=False, known_transforms=None):
     if known_transforms:
       if spec['type'] not in known_transforms:
         raise ValueError(
-            f'Unknown type or missing provider for {identify_object(spec)}')
+            'Unknown type or missing provider '
+            f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
+
+  def preprocess_langauges(spec):
+    if spec['type'] in ('Filter', 'MapToFields'):
+      language = spec.get('config', {}).get('language', 'generic')
+      new_type = spec['type'] + '-' + language
+      if known_transforms and new_type not in known_transforms:
+        if language == 'generic':
+          raise ValueError(f'Missing language for {identify_object(spec)}')
+        else:
+          raise ValueError(
+              f'Unknown language {language} for {identify_object(spec)}')
+      return dict(spec, type=new_type, name=spec.get('name', spec['type']))
+    else:
+      return spec
 
   for phase in [
       ensure_transforms_have_types,
+      preprocess_langauges,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
@@ -904,13 +922,14 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
+    if isinstance(providers, dict):
+      providers = {
+          key: yaml_provider.as_provider_list(key, value)
+          for (key, value) in providers.items()
+      }
     # TODO(BEAM-26941): Validate as a transform.
     self._providers = yaml_provider.merge_providers(
-        {
-            key: yaml_provider.as_provider_list(key, value)
-            for (key, value) in providers.items()
-        },
-        yaml_provider.standard_providers())
+        providers, yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
 
   def expand(self, pcolls):

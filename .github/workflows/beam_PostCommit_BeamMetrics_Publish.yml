@@ -22,6 +22,8 @@ on:
     paths: ['.github/workflows/beam_PostCommit_BeamMetrics_Publish.yml']
   issue_comment:
     types: [created]
+  schedule:
+    - cron: '24 2 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

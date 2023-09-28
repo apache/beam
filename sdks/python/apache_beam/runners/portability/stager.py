@@ -594,11 +594,9 @@ class Stager(object):
             '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
       if os.path.basename(package).endswith('.whl'):
         _LOGGER.warning(
-            'The .whl package "%s" is provided in --extra_package. '
-            'This functionality is not officially supported. Since wheel '
-            'packages are binary distributions, this package must be '
-            'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).' % package)
+            'The .whl package "%s" provided in --extra_package '
+            'must be binary-compatible with the worker runtime environment.' %
+            package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):

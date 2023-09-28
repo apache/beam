@@ -128,8 +128,9 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
 
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
+  include '**/*IT.class'
+  // TODO(https://github.com/apache/beam/issues/20593): test times out.
+  exclude '**/FhirIOReadIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest

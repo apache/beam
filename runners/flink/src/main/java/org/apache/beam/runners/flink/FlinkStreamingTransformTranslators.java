@@ -1446,7 +1446,7 @@ class FlinkStreamingTransformTranslators {
     private CreateStreamingFlinkViewPayloadTranslator() {}
 
     @Override
-    public String getUrn(CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?> transform) {
+    public String getUrn() {
       return CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN;
     }
   }

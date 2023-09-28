@@ -96,7 +96,7 @@ public class BigtableResourceManager implements ResourceManager {
   private final Set<String> cdcEnabledTables;
 
   private boolean hasInstance;
-  private Iterable<BigtableResourceManagerCluster> clusters;
+  private List<BigtableResourceManagerCluster> clusters;
 
   private final boolean usingStaticInstance;
 
@@ -195,12 +195,12 @@ public class BigtableResourceManager implements ResourceManager {
   /**
    * Creates a Bigtable instance in which all clusters, nodes and tables will exist.
    *
-   * @param clusters Collection of BigtableResourceManagerCluster objects to associate with the
-   *     given Bigtable instance.
+   * @param clusters List of BigtableResourceManagerCluster objects to associate with the given
+   *     Bigtable instance.
    * @throws BigtableResourceManagerException if there is an error creating the instance in
    *     Bigtable.
    */
-  public synchronized void createInstance(Iterable<BigtableResourceManagerCluster> clusters)
+  public synchronized void createInstance(List<BigtableResourceManagerCluster> clusters)
       throws BigtableResourceManagerException {
 
     // Check to see if instance already exists, and throw error if it does
@@ -559,7 +559,7 @@ public class BigtableResourceManager implements ResourceManager {
   }
 
   private Iterable<BigtableResourceManagerCluster> getClusters() {
-    if (usingStaticInstance && this.clusters == null) {
+    if (usingStaticInstance && this.clusters.isEmpty()) {
       try (BigtableInstanceAdminClient instanceAdminClient =
           bigtableResourceManagerClientFactory.bigtableInstanceAdminClient()) {
         List<BigtableResourceManagerCluster> managedClusters = new ArrayList<>();

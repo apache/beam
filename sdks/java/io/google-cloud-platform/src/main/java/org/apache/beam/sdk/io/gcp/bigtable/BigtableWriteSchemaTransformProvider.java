@@ -179,12 +179,13 @@ public class BigtableWriteSchemaTransformProvider
                     .setColumnQualifier(
                         ByteString.copyFrom(ofNullable(mutation.get("column_qualifier")).get()))
                     .setFamilyNameBytes(
-                        ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()));
-            if (mutation.containsKey("timestamp_micros")) {
-              setMutation =
-                  setMutation.setTimestampMicros(
-                      Longs.fromByteArray(ofNullable(mutation.get("timestamp_micros")).get()));
-            }
+                        ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()))
+                    // Use timestamp if provided, else default to -1 (current Bigtable server time)
+                    .setTimestampMicros(
+                        mutation.containsKey("timestamp_micros")
+                            ? Longs.fromByteArray(
+                                ofNullable(mutation.get("timestamp_micros")).get())
+                            : -1);
             bigtableMutation = Mutation.newBuilder().setSetCell(setMutation.build()).build();
             break;
           case "DeleteFromColumn":
