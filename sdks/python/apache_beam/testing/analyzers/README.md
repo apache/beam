@@ -55,11 +55,15 @@ test_1:
   num_runs_in_change_point_window: 30 # optional parameter
 ```
 
-**NOTE**: `test_target` is optional. It is used for identifying the test that was causing the regression.
+#### Optional Parameters:
 
-**Note**: By default, the tool fetches metrics from BigQuery tables. `metrics_dataset`, `metrics_table`, `project` and `metric_name` should match with the values defined for performance/load tests.
-The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
-to fill up the values required to fetch the data from source.
+- `test_target`: Identifies the test responsible for the regression.
+
+- `test_description`: Provides a brief overview of the test's function.
+
+- `test_name`: Denotes the name of the test as stored in the BigQuery table.
+
+**Note**: The tool, by default, pulls metrics from BigQuery tables. Ensure that the values for `metrics_dataset`, `metrics_table`, `project`, and `metric_name` align with those defined for performance/load tests. The provided example utilizes this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30) to populate the necessary values for data retrieval.
 
 ### Different ways to avoid false positive change points
 
@@ -78,6 +82,22 @@ setting `num_runs_in_change_point_window=7` will achieve it.
 
 If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the
 config file.
+
+
+### Integrating the Perf Alert Tool with a Custom BigQuery Schema
+
+By default, the Perf Alert Tool retrieves metrics from the `apache-beam-testing` BigQuery projects. All performance and load tests within Beam utilize a standard [schema](https://github.com/apache/beam/blob/a7e12db9b5977c4a7b13554605c0300389a3d6da/sdks/python/apache_beam/testing/load_tests/load_test_metrics_utils.py#L70) for metrics publication. The tool inherently recognizes and operates with this schema when extracting metrics from BigQuery tables.
+
+To fetch the data from a BigQuery dataset that is not a default setting of the Apache Beam's setting, One can inherit the `MetricsFetcher` class and implement the abstract method `fetch_metric_data`. This method should return a tuple of desired metric values and timestamps of the metric values of when it was published.
+
+```
+from apache_beam.testing.analyzers import perf_analysis
+config_file_path = <path_to_config_file>
+my_metric_fetcher = MyMetricsFetcher() # inherited from MetricsFetcher
+perf_analysis.run(config_file_path, my_metrics_fetcher)
+```
+
+``Note``: The metrics and timestamps should be sorted based on the timestamps values in ascending order.
 
 ## Triage performance alert issues
 
