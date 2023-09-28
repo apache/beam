@@ -235,6 +235,7 @@ class TestChangePointAnalysis(unittest.TestCase):
     metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL].tolist()
     change_points = find_change_points(metric_values)
     self.assertEqual(change_points[0], 20)
+    self.assertEqual(change_points[0], 20)
 
     # filter the noise.
     valid_points = filter_change_points_by_median_threshold(
