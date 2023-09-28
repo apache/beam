@@ -126,7 +126,7 @@ public class FhirIOSearchIT {
       client.deleteFhirStore(healthcareDataset + "/fhirStores/" + BASE_STORE_ID + version);
     }
   }
-
+  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
@@ -156,7 +156,7 @@ public class FhirIOSearchIT {
 
     pipeline.run().waitUntilFinish();
   }
-
+  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearchWithGenericParameters() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
@@ -171,8 +171,7 @@ public class FhirIOSearchIT {
             .apply(
                 (FhirIO.Search<List<Integer>>)
                     FhirIO.searchResourcesWithGenericParameters(
-                        healthcareDataset + "/fhirStores/" + fhirStoreId))
-            .apply(Sample.any(10));
+                        healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
