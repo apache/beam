@@ -29,6 +29,7 @@ dependencies {
   // :sdks:java:core and transitive dependencies
   provided project(path: ":model:pipeline", configuration: "shadow")
   provided project(path: ":sdks:java:core", configuration: "shadow")
+  provided project(path: ":sdks:java:transform-service:launcher", configuration: "shadow")
   provided library.java.joda_time
   provided library.java.slf4j_api
   provided library.java.vendored_grpc_1_54_0
@@ -80,6 +81,7 @@ dependencies {
   implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   implementation project(":sdks:java:fn-execution")
+  permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
