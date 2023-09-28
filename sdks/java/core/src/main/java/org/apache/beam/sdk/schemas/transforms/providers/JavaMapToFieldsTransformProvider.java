@@ -174,7 +174,7 @@ public class JavaMapToFieldsTransformProvider
       }
       for (Map.Entry<String, JavaRowUdf.Configuration> entry :
           configuration.getFields().entrySet()) {
-        if ("generic".equals(configuration.getLanguage())) {
+        if (!"java".equals(configuration.getLanguage())) {
           String expr = entry.getValue().getExpression();
           if (expr == null || !inputSchema.hasField(expr)) {
             throw new IllegalArgumentException(

@@ -18,15 +18,26 @@
 package org.apache.beam.sdk.schemas.transforms.providers;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.security.SecureClassLoader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.FileObject;
@@ -36,8 +47,38 @@ import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class StringCompiler {
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
+  private static final Supplier<String> classpathSupplier =
+      Suppliers.memoize(
+          () -> {
+            List<String> cp = new ArrayList<>();
+            cp.add(System.getProperty("java.class.path"));
+            // Javac doesn't properly handle manifest classpath spec.
+            ClassLoader cl = StringCompiler.class.getClassLoader();
+            if (cl == null) cl = ClassLoader.getSystemClassLoader();
+            if (cl instanceof URLClassLoader) {
+              for (URL url : ((URLClassLoader) cl).getURLs()) {
+                try {
+                  ZipFile zipFile = new ZipFile(new File(url.getFile()));
+                  ZipEntry manifestEntry = zipFile.getEntry("META-INF/MANIFEST.MF");
+                  if (manifestEntry != null) {
+                    Manifest manifest = new Manifest(zipFile.getInputStream(manifestEntry));
+                    cp.add(manifest.getMainAttributes().getValue(Attributes.Name.CLASS_PATH));
+                  }
+                } catch (IOException exn) {
+                  throw new RuntimeException(exn);
+                }
+              }
+            }
+            return String.join(System.getProperty("path.separator"), cp);
+          });
+
   public static class CompileException extends Exception {
     private final DiagnosticCollector<?> diagnostics;
 
@@ -63,7 +104,7 @@ public class StringCompiler {
             null,
             fileManager,
             diagnostics,
-            null,
+            ImmutableList.of("-classpath", classpathSupplier.get()),
             null,
             Collections.singletonList(new InMemoryFileManager.InputJavaFileObject(name, source)));
     boolean result = task.call();
