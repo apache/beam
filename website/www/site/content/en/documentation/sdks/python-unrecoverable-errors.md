@@ -46,7 +46,7 @@ depending on the runner. Ensure that dependency versions provided in
 your requirements.txt file exist and can be installed locally before
 submitting jobs.
 
-### Dependency Verision Mismatches
+### Dependency Version Mismatches
 
 When additional dependencies like torch, transformers, etc are not
 specified via requirements_file or preinstalled with a custom container
