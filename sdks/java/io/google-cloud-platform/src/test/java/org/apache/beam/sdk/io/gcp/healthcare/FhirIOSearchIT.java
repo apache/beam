@@ -126,6 +126,7 @@ public class FhirIOSearchIT {
       client.deleteFhirStore(healthcareDataset + "/fhirStores/" + BASE_STORE_ID + version);
     }
   }
+
   @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearch() {
@@ -156,6 +157,7 @@ public class FhirIOSearchIT {
 
     pipeline.run().waitUntilFinish();
   }
+
   @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearchWithGenericParameters() {
