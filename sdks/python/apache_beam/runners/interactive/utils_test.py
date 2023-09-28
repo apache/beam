@@ -46,22 +46,27 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 # Protect against environments where apitools library is not available.
 try:
-  from google.cloud.exceptions import BadRequest, NotFound
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpNotFoundError
 except ImportError:
   _http_error_imported = False
+  HttpError = ValueError
+  HttpNotFoundError = ValueError
 else:
   _http_error_imported = True
 
 
-class MockStorageClient():
-  def __init__(self):
-    pass
-
-  def get_bucket(self, path):
+class MockBuckets():
+  def Get(self, path):
     if path == 'test-bucket-not-found':
-      raise NotFound('Bucket not found')
+      raise HttpNotFoundError({'status': 404}, {}, '')
     elif path == 'test-bucket-not-verified':
-      raise BadRequest('Request faulty')
+      raise HttpError({'status': 400}, {}, '')
+
+
+class MockStorageClient():
+  def __init__(self, buckets=MockBuckets()):
+    self.buckets = buckets
 
 
 class Record(NamedTuple):
@@ -348,21 +353,29 @@ class GeneralUtilTest(unittest.TestCase):
     self.assertIs(getattr(main_session, name, None), value)
 
 
-@patch('google.cloud.storage.Client', return_value=MockStorageClient())
+@patch(
+    'apache_beam.io.gcp.internal.clients.storage.StorageV1',
+    return_value=MockStorageClient())
 @unittest.skipIf(not _http_error_imported, 'http errors are not imported.')
 class GCSUtilsTest(unittest.TestCase):
-  @patch('google.cloud.storage.Client.get_bucket')
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-found')
   def test_assert_bucket_exists_not_found(self, mock_response, mock_client):
     with self.assertRaises(ValueError):
-      utils.assert_bucket_exists('test-bucket-not-found')
+      utils.assert_bucket_exists('')
 
-  @patch('google.cloud.storage.Client.get_bucket')
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-verified')
   def test_assert_bucket_exists_not_verified(self, mock_response, mock_client):
     from apache_beam.runners.interactive.utils import _LOGGER
     with self.assertLogs(_LOGGER, level='WARNING'):
-      utils.assert_bucket_exists('test-bucket-not-verified')
+      utils.assert_bucket_exists('')
 
-  @patch('google.cloud.storage.Client.get_bucket')
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-found')
   def test_assert_bucket_exists_found(self, mock_response, mock_client):
     utils.assert_bucket_exists('')
 

@@ -53,12 +53,6 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.52.0] - Unreleased
-
-## I/Os
-
-* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
-
 # [2.51.0] - Unreleased
 
 ## Highlights
