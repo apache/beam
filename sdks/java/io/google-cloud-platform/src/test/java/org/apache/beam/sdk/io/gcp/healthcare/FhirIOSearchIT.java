@@ -35,7 +35,6 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.aws2.schemas.Sample;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -137,9 +136,8 @@ public class FhirIOSearchIT {
         pipeline.apply(
             Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
-        searchConfigs
-            .apply(FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId))
-            .apply(Sample.any(10));
+        searchConfigs.apply(
+            FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
@@ -169,11 +167,10 @@ public class FhirIOSearchIT {
             Create.of(genericParametersInput)
                 .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
     FhirIO.Search.Result result =
-        searchConfigs
-            .apply(
-                (FhirIO.Search<List<Integer>>)
-                    FhirIO.searchResourcesWithGenericParameters(
-                        healthcareDataset + "/fhirStores/" + fhirStoreId));
+        searchConfigs.apply(
+            (FhirIO.Search<List<Integer>>)
+                FhirIO.searchResourcesWithGenericParameters(
+                    healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
