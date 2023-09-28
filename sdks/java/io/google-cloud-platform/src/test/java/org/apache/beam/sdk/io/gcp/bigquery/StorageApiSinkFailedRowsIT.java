@@ -219,21 +219,14 @@ public class StorageApiSinkFailedRowsIT {
 
   private void assertGoodRowsWritten(String tableSpec, Iterable<TableRow> goodRows)
       throws IOException, InterruptedException {
-    TableRow queryResponse;
-    try {
-      queryResponse =
-              Iterables.getOnlyElement(
-                      BQ_CLIENT.queryUnflattened(
-                              String.format("SELECT COUNT(*) FROM %s", tableSpec),
-                              PROJECT,
-                              true,
-                              true,
-                              bigQueryLocation));
-    } catch (IOException | InterruptedException e) {
-      LOG.error("exception: {}", e);
-      LOG.debug("exception: {}", e);
-      throw e;
-    }
+    TableRow queryResponse =
+        Iterables.getOnlyElement(
+            BQ_CLIENT.queryUnflattened(
+                String.format("SELECT COUNT(*) FROM `%s`", tableSpec),
+                PROJECT,
+                true,
+                true,
+                bigQueryLocation));
     int numRowsWritten = Integer.parseInt((String) queryResponse.get("f0_"));
     if (useAtLeastOnce) {
       assertThat(numRowsWritten, Matchers.greaterThanOrEqualTo(Iterables.size(goodRows)));

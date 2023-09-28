@@ -319,7 +319,9 @@ public class BigqueryClient {
 
     createNewDataset(projectId, temporaryDatasetId, null, location);
     createNewTable(
-        projectId, temporaryDatasetId, new Table().setTableReference(tempTableReference));
+        projectId,
+        temporaryDatasetId,
+        new Table().setTableReference(tempTableReference).setLocation(location));
 
     JobConfigurationQuery jcQuery =
         new JobConfigurationQuery()
@@ -340,6 +342,7 @@ public class BigqueryClient {
           bqClient
               .jobs()
               .getQueryResults(projectId, insertedJob.getJobReference().getJobId())
+              .setLocation(location)
               .execute();
 
     } while (!qResponse.getJobComplete());
