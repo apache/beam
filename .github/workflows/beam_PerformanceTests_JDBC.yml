@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PerformanceTests BiqQueryIO Read Python
+name: PerformanceTests JDBC
 
 on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '30 1,13 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,21 +47,21 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_BiqQueryIO_Read_Python_test_arguments_1: ''
+  beam_PerformanceTests_JDBC_test_arguments_1: ''
 
 jobs:
-  beam_PerformanceTests_BiqQueryIO_Read_Python:
+  beam_PerformanceTests_JDBC:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run BigQueryIO Read Performance Test Python'
+      github.event.comment.body == 'Run Java JdbcIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 240
+    timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PerformanceTests_BiqQueryIO_Read_Python"]
-        job_phrase: ["Run BigQueryIO Read Performance Test Python"]
+        job_name: ["beam_PerformanceTests_JDBC"]
+        job_phrase: ["Run Java JdbcIO Performance Test"]
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
@@ -70,25 +70,40 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+      - name: Authenticate on GCP
+        id: auth
+        uses: google-github-actions/auth@v1
         with:
-          python-version: 3.8
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Set k8s access
+        uses: ./.github/actions/setup-k8s-access
+        with:
+          cluster_name: io-datastores
+          k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
+      - name: Install Postgres for dev
+        id: postgres_for_dev
+        run: |
+          kubectl apply -f ${{ github.workspace }}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml
+          kubectl wait svc/postgres-for-dev --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
+          loadbalancer_ip=$(kubectl get svc postgres-for-dev -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "pfd_ip=$loadbalancer_ip" >> $GITHUB_OUTPUT
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
-          test-type: load
-          test-language: python
+          test-type: performance
+          test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/biqQueryIO_Read_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/JDBC.txt
           arguments: |
-            --job_name=performance-tests-bqio-read-python-10gb$(date '+%m%d%H%M%S' --utc)
-      - name: Run BigQueryIO Read Performance Test Python
+            --postgresServerName=${{ steps.postgres_for_dev.outputs.pfd_ip }}
+      - name: Run Java JdbcIO Performance Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          gradle-command: :sdks:java:io:jdbc:integrationTest
           arguments: |
-            -PloadTest.mainClass=apache_beam.io.gcp.bigquery_read_perf_test \
-            -PpythonVersion=3.8 \
-            -Prunner=DataflowRunner \
-            '-PloadTest.args=${{env.beam_PerformanceTests_BiqQueryIO_Read_Python_test_arguments_1}}'
+            --tests org.apache.beam.sdk.io.jdbc.JdbcIOIT \
+            --info \
+            -Dfilesystem=hdfs \
+            -DintegrationTestRunner=dataflow \
+            -DintegrationTestPipelineOptions='[${{env.beam_PerformanceTests_JDBC_test_arguments_1}}]'
