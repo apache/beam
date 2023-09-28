@@ -271,6 +271,7 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   include '**/TableRowToStorageApiProtoIT.class'
   include '**/BigQuerySchemaUpdateOptionsIT.class'
   include '**/BigQueryTimePartitioningClusteringIT.class'
+  include '**/FileLoadsStreamingIT.class'
 
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath

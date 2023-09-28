@@ -292,6 +292,21 @@ public class BigqueryClient {
   public List<TableRow> queryUnflattened(
       String query, String projectId, boolean typed, boolean useStandardSql)
       throws IOException, InterruptedException {
+    return queryUnflattened(query, projectId, typed, useStandardSql, null);
+  }
+
+  /**
+   * Performs a query without flattening results. May choose a location to perform this operation
+   * in.
+   */
+  @Nonnull
+  public List<TableRow> queryUnflattened(
+      String query,
+      String projectId,
+      boolean typed,
+      boolean useStandardSql,
+      @Nullable String location)
+      throws IOException, InterruptedException {
     Random rnd = new Random(System.currentTimeMillis());
     String temporaryDatasetId =
         String.format("_dataflow_temporary_dataset_%s_%s", System.nanoTime(), rnd.nextInt(1000000));
@@ -302,7 +317,7 @@ public class BigqueryClient {
             .setDatasetId(temporaryDatasetId)
             .setTableId(temporaryTableId);
 
-    createNewDataset(projectId, temporaryDatasetId);
+    createNewDataset(projectId, temporaryDatasetId, null, location);
     createNewTable(
         projectId, temporaryDatasetId, new Table().setTableReference(tempTableReference));
 
