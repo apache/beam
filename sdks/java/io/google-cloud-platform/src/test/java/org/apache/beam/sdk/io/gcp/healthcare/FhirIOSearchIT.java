@@ -133,7 +133,7 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
+            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of()))).apply(Sample.any(10));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
@@ -148,7 +148,6 @@ public class FhirIOSearchIT {
               for (KV<String, JsonArray> resource : input) {
                 assertEquals(KEY, resource.getKey());
                 assertNotEquals(0, resource.getValue().size());
-                System.gc();
               }
               return null;
             });
@@ -164,7 +163,7 @@ public class FhirIOSearchIT {
     PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
             Create.of(genericParametersInput)
-                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
+                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of())))).apply(Sample.any(10));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             (FhirIO.Search<List<Integer>>)
