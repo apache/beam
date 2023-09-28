@@ -2677,6 +2677,7 @@ public class StreamingDataflowWorkerTest {
       exit = true;
     }
   }
+
   @Test
   public void testActiveWork() throws Exception {
     BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
@@ -2925,7 +2926,7 @@ public class StreamingDataflowWorkerTest {
     m1.stop();
     executor.shutdown();
   }
-  
+
   @Test
   public void testExceptionInvalidatesCache() throws Exception {
     // We'll need to force the system to limit bundles to one message at a time.
