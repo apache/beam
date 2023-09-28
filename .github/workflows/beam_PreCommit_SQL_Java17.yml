@@ -111,7 +111,7 @@ jobs:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'

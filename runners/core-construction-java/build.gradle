@@ -55,6 +55,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:extensions:avro")
   implementation project(path: ":sdks:java:fn-execution")
+  implementation project(path: ":sdks:java:transform-service:launcher")
   implementation library.java.vendored_grpc_1_54_0
   implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.classgraph

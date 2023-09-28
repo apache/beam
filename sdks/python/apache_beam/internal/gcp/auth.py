@@ -26,6 +26,7 @@ from typing import Optional
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import retry
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
@@ -111,6 +112,9 @@ if _GOOGLE_AUTH_AVAILABLE:
       """Delegate attribute access to underlying google-auth credentials."""
       return getattr(self._google_auth_credentials, attr)
 
+    def get_google_auth_credentials(self):
+      return self._google_auth_credentials
+
 
 class _Credentials(object):
   _credentials_lock = threading.Lock()
@@ -119,7 +123,7 @@ class _Credentials(object):
 
   @classmethod
   def get_service_credentials(cls, pipeline_options):
-    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+    # type: (PipelineOptions) -> Optional[_ApitoolsCredentialsAdapter]
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -139,7 +143,7 @@ class _Credentials(object):
 
   @staticmethod
   def _get_service_credentials(pipeline_options):
-    # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+    # type: (PipelineOptions) -> Optional[_ApitoolsCredentialsAdapter]
     if not _GOOGLE_AUTH_AVAILABLE:
       _LOGGER.warning(
           'Unable to find default credentials because the google-auth library '
@@ -149,8 +153,7 @@ class _Credentials(object):
 
     try:
       # pylint: disable=c-extension-no-member
-      credentials, _ = google.auth.default(
-          scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
+      credentials = _Credentials._get_credentials_with_retrys(pipeline_options)
       credentials = _Credentials._add_impersonation_credentials(
           credentials, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
@@ -161,9 +164,17 @@ class _Credentials(object):
     except Exception as e:
       _LOGGER.warning(
           'Unable to find default credentials to use: %s\n'
-          'Connecting anonymously.',
+          'Connecting anonymously. This is expected if no '
+          'credentials are needed to access GCP resources.',
           e)
       return None
+
+  @staticmethod
+  @retry.with_exponential_backoff(num_retries=4, initial_delay_secs=2)
+  def _get_credentials_with_retrys(pipeline_options):
+    credentials, _ = google.auth.default(
+      scopes=pipeline_options.view_as(GoogleCloudOptions).gcp_oauth_scopes)
+    return credentials
 
   @staticmethod
   def _add_impersonation_credentials(credentials, pipeline_options):
