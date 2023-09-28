@@ -154,7 +154,7 @@ public class ReadTranslation {
     private UnboundedReadPayloadTranslator() {}
 
     @Override
-    public String getUrn(SplittableParDo.PrimitiveUnboundedRead<?> transform) {
+    public String getUrn() {
       return PTransformTranslation.READ_TRANSFORM_URN;
     }
 
@@ -181,7 +181,7 @@ public class ReadTranslation {
     private BoundedReadPayloadTranslator() {}
 
     @Override
-    public String getUrn(SplittableParDo.PrimitiveBoundedRead<?> transform) {
+    public String getUrn() {
       return PTransformTranslation.READ_TRANSFORM_URN;
     }
 
