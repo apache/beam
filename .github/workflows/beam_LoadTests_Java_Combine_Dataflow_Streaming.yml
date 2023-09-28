@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests Combine Dataflow Streaming Java
+name: LoadTests Java Combine Dataflow Streaming
 
 on:
   issue_comment:
@@ -47,6 +47,9 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  beam_LoadTests_Java_Combine_Dataflow_Streaming_test_arguments_1: ''
+  beam_LoadTests_Java_Combine_Dataflow_Streaming_test_arguments_2: ''
+  beam_LoadTests_Java_Combine_Dataflow_Streaming_test_arguments_3: ''
 
 jobs:
   beam_LoadTests_Java_Combine_Dataflow_Streaming:
@@ -75,9 +78,9 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Streaming_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Streaming_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Streaming_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Streaming_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Streaming_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Streaming_Fanout_8.txt
       - name: run Combine Dataflow Streaming Java Load Test 1 (10 b records)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
