@@ -24,27 +24,27 @@ limitations under the License.
 
 ## Introduction
 
-Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information which sometimes is hard to find or discover. This blog post discusses how to build a DIY starter architecture, based on near real time ingestion processing and large language models (LLMs) to extract meaningful information from your assets, making it available through a simple natural language query.
+Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information which sometimes is hard to find or discover. This blog post discusses how to build a DIY starter architecture, based on near real time ingestion processing and large language models (LLMs) to extract meaningful information from your assets, making it available and discoverable through a simple natural language query.
 
-Building a near real time processing pipeline for content ingestion may sound as a very involved endeavor, and it can be; we will be making use of powerful constructs exposed as part of Apache Beam to remove the complexities of interacting with content sources and destinations, error handling, all while maintaining a good degree of resiliency and scalability. 
+Building a near real time processing pipeline for content ingestion may sound as a very involved endeavor, and it can be. To alliviate this task Apache Beam framework exposes a set of powerful constructs to remove the complexities of interacting with a variety of content sources and destinations, error handling, clarity, modularity, all while maintaining a good degree of resiliency and scalability with minimal effort. An Apache Beam streaming pipeline should be able to connect to the many components of a solution to quickly process document's content ingestion requests, making the information available in few seconds after the ingestion request was triggered.
 
 One common use case for LLMs is content extraction and summarization of dispersed information stored in many different places. This can be especially helpful for organizations that need to quickly find relevant information disseminated in multiple documents written across the years. This information may reside in many different formats, all containing important information that can become harder and harder to access or discover over time. Moreover, these documents are often too long and complex to read and understand quickly. LLMs can be used to process content in these documents, making it easier for people to find the information they need and, if necessary, dive into the content once they know where the information really is.
 
-This article walks through a custom scalable solution for data extraction, ingestion, and storage. It demonstrates how to kickstart the development of a LLM-based solution using Google Cloud products and its Generative AI offerings. The platform is designed to be simple to use, scalable, and flexible, and can be used as a starting point for further expansion or experimentation.
+This article walks through a custom scalable solution for data extraction, content ingestion, and storage. It demonstrates how to kickstart the development of a LLM-based solution using Google Cloud Platform (GCP) products and its Generative AI offerings. The platform is designed to be simple to use, scalable, and flexible, and can be used as a starting point for further expansion or experimentation.
 
 ### High Level Flow 
 
-From a high level, content uptake and query interactions are completely separated. An external content owner should be able to send documents (stored in Google Docs or just in binary text format) and expect a tracking id for the ingestion request. The ingestion process then will grab the document’s content and create chunks (configurable in size) and with each document chunks generate embeddings. These embeddings represent the content semantics, represented in a vector of 768 dimensions. Given the document identifier (provided at ingestion time) and the chunk identifier we can store these embeddings into a Vector DB for later semantic matching. This process is central to later contextualizing user inquiries.
+From a high level perspective, content uptake and query interactions are completely separated. An external content owner should be able to send documents (stored in Google Docs or just in binary text format) and expect a tracking id for the ingestion request. The ingestion process then will grab the document’s content and create chunks (configurable in size) and with each document chunks generate embeddings. These embeddings represent the content semantics, in the form of a vector of 768 dimensions. Given the document identifier (provided at ingestion time) and the chunk identifier we can store these embeddings into a Vector DB for later semantic matching. This process is central to later contextualizing user inquiries.
 
 <img class="center-block"
     src="/images/blog/dyi-cdp-genai-beam/cdp-highlevel.png"
     alt="Content Discovery Platform Overview">
 
-The query resolution process does not depend directly on information ingestion. It is expected the user would receive relevant answers based on the content that was ingested until the moment the query was requested, but even in the case of having no content stored in the platform the platform should return an answer stating exactly that. In general, the query resolution process should first generate embeddings from the query content and previously existing context (like previous exchanges with the platform), then match these embeddings with all the existing embedding vectors stored from the content, and in case of having positive matches, retrieve the plain text content represented by the content embeddings. Finally with the textual representation of the query and the textual representation of the matched content, the platform will formulate a request to the LLM to provide a final answer of the original user query
+The query resolution process does not depend directly on information ingestion. It is expected for the user to receive relevant answers based on the content that was ingested until the moment the query was requested, but even in the case of having no relevant content stored in the platform the platform should return an answer stating exactly that. In general, the query resolution process should first generate embeddings from the query content and previously existing context (like previous exchanges with the platform), then match these embeddings with all the existing embedding vectors stored from the content, and in case of having positive matches, retrieve the plain text content represented by the content embeddings. Finally with the textual representation of the query and the textual representation of the matched content, the platform will formulate a request to the LLM to provide a final answer to the original user inquiry.
 
 ## Solution’s Components
 
-The intent is to rely, as much as possible, on the low-ops capabilities of the services and to create a set of features that are highly scalable. At a high level, the solution can be separated into 2 main components, the service layer and the content ingestion pipeline. The service’s layer acts as the entry point for document’s ingestion and user queries, it’s a simple set of REST resources exposed through CloudRun and implemented using [Quarkus](https://quarkus.io/) and the client libraries to access other services (VertexAI Models, BigTable and PubSub). In the case of the content ingestion pipeline we have:
+The intent is to rely, as much as possible, on the low-ops capabilities of the GCP services and to create a set of features that are highly scalable. At a high level, the solution can be separated into 2 main components, the service layer and the content ingestion pipeline. The service’s layer acts as the entry point for document’s ingestion and user queries, it’s a simple set of REST resources exposed through CloudRun and implemented using [Quarkus](https://quarkus.io/) and the client libraries to access other services (VertexAI Models, BigTable and PubSub). In the case of the content ingestion pipeline we have:
 
 *   A streaming pipeline that captures user content from wherever it resides.
 *   A process that extracts meaning from this content as a set of multi-dimensional vectors (text embeddings).
@@ -99,7 +99,7 @@ The content extraction pipeline is the platform's centerpiece. It takes care of 
 
 #### High Level View
 
-As previously mentioned the pipeline is implemented using [Apache Beam](https://beam.apache.org/) framework and runs in streaming fashion on [Dataflow](https://cloud.google.com/dataflow) service. 
+As previously mentioned the pipeline is implemented using Apache Beam framework and runs in streaming fashion on GCP's [Dataflow](https://cloud.google.com/dataflow) service. 
 
 By using Apache Beam and Dataflow we can ensure minimal latency (sub minute processing times), low ops (no need to manually scale up or down the pipeline when traffic spikes occur with time, worker recycle, updates, etc.) and with high level of observability (clear and abundant performance metrics are available).  
 
@@ -107,7 +107,7 @@ By using Apache Beam and Dataflow we can ensure minimal latency (sub minute proc
     src="/images/blog/dyi-cdp-genai-beam/pipeline-1.png"
     alt="Apache Beam Pipeline">
 
-On a high level, the pipeline separates the extraction, computing, error handling and storage responsibilities on different components or PTransforms. As seen in the diagram, the messages are read from a PubSub subscription and immediately afterwards are included in the window definition (1 minute window in this case) before the content extraction.
+On a high level, the pipeline separates the extraction, computing, error handling and storage responsibilities on different components or PTransforms. As seen in the diagram, the messages are read from a PubSub subscription and immediately afterwards are included in the window definition before the content extraction.
 
 Each of those PTransforms can be expanded to reveal more details regarding the underlying stages for the implementation. We will dive into each in the following sections. 
 
@@ -131,17 +131,17 @@ Finally, with all the file references retrieved from the ingestion request, text
 
 On every stage of the content extraction process multiple errors can be encountered, malformed ingestion requests, non-conformant URLs, lack of permissions for Drive resources, lack of permissions for File data retrieval.
 
-In all those cases a dedicated component will capture those potential errors and define, given the nature of the error, if the event should be retrieved or sent to a dead letter GCS bucket for later inspection. 
+In all those cases a dedicated component will capture those potential errors and define, given the nature of the error, if the event should be retried or sent to a dead letter GCS bucket for later inspection. 
 
 <img class="center-block"
     src="/images/blog/dyi-cdp-genai-beam/pipeline-3-errorhandling.png"
     alt="Pipeline's Error Handling">
 
-The final errors, or those which won’t be retried, are those errors related with bad request formats (the event itself or the properties content, like malformed or wrong URLs). 
+The final errors, or those which won’t be retried, are those errors related with bad request formats (the event itself or the properties content, like malformed or wrong URLs, etc.). 
 
 The retryable errors are those related with content access and lack of permissions. A request may have been resolved faster than the manual process of providing the right permissions to the Service Account that runs the pipeline to access the resources included in the ingestion request (Google Drive folders or files). In case of detecting a retryable error, the pipeline will hold the retry for 10 minutes before re-sending the message to the upstream PubSub topic; each error is retried at most 5 times before being sent to the dead letter GCS bucket. 
 
-In all cases of events ending on the dead letter destination, the inspection and re-processing must be manual.
+In all cases of events ending on the dead letter destination, the inspection and re-processing must be done in a manual process.
 
 #### Process Embeddings
 
@@ -149,7 +149,7 @@ Once the content has been extracted from the request, or captured from Google Dr
 
 Before computing the content’s embeddings we decided to introduce a Reshuffle step, making the output consistent to downstream stages, with the idea of avoiding the content extraction step being repeated in case of errors. This should avoid putting pressure on existing access quotas on Google Drive related APIs.
 
-The pipeline will then chunk the content in configurable sizes and also configurable overlapping, good parameters are hard to get for generic effective data extraction, so we opted to use smaller chunks with small overlapping factor as the default setting to favor diversity on the document results (at least that’s what we see from the empirical results obtained).
+The pipeline will then chunk the content in configurable sizes and also configurable overlapping, good parameters are hard to get for generic effective data extraction, so we opted to use smaller chunks with small overlapping factor as the default settings to favor diversity on the document results (at least that’s what we see from the empirical results obtained).
 
 <p class="center-block">
   <img class="center-block"
@@ -160,7 +160,7 @@ The pipeline will then chunk the content in configurable sizes and also configur
     alt="Embeddings Processing">
 </p>  
 
-Once the embeddings are retrieved from the embeddings Vertex AI LLM, we will consolidate them again avoiding repetition of this step in case of downstream errors. 
+Once the embeddings vectors are retrieved from the embeddings Vertex AI LLM, we will consolidate them again avoiding repetition of this step in case of downstream errors. 
 
 #### Content Storage
 
@@ -174,9 +174,9 @@ With that in mind is that in mind we split the consolidated embeddings into 3 pa
 
 #### Content Refresh
 
-The last pipeline component is the simplest conceptually. After the documents from Google Drive gets ingested an external user can produce updates in them, causing the indexed content to become out of date. We implemented a simple periodic process, inside the same streaming pipeline, that will take care of the review of already ingested documents and see if there are content updates needed. We use a GenerateSequence transform to produce a periodic impulse (every 6 hours by default), that will trigger a scan on BigTable retrieving all the ingested document identifiers. Given those identifiers we can then query Google Drive for the latest update timestamp of each document and use that marker to decide if an update is needed. 
+The last pipeline component is the simplest, at least conceptually. After the documents from Google Drive gets ingested, an external user can produce updates in them, causing the indexed content to become out of date. We implemented a simple periodic process, inside the same streaming pipeline, that will take care of the review of already ingested documents and see if there are content updates needed. We use a GenerateSequence transform to produce a periodic impulse (every 6 hours by default), that will trigger a scan on BigTable retrieving all the ingested document identifiers. Given those identifiers we can then query Google Drive for the latest update timestamp of each document and use that marker to decide if an update is needed. 
 
-In case of needing to update the document’s content, we can simply send an ingestion request to the upstream PubSub topic and let the pipeline run its course for this new event. Since we are taking care of upserting embeddings and cleaning up those that no longer exist, we should be capable of taking care of the majority of the additions (as long those are text updates).
+In case of needing to update the document’s content, we can simply send an ingestion request to the upstream PubSub topic and let the pipeline run its course for this new event. Since we are taking care of upserting embeddings and cleaning up those that no longer exist, we should be capable of taking care of the majority of the additions (as long those are text updates, image based content is not being processed as of now).
 
 <p class="center-block">
   <img class="center-block"
@@ -318,13 +318,12 @@ Also, in case of wanting to focus only on the deployment of specific components 
 
 ### Solution's Notes
 
-The provided solution is clearly not production ready. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples (service account and domain based access). Also we didn’t dive into the observability aspects (which Dataflow, CloudRun and API Gateway services cover in abundance), version update processes, consolidated logging and alerts for performance or consumption/efficiency. These topics may be covered in a subsequent blog post.
+The provided solution is clearly not production ready, but it can serve as a kickstarter for similar use cases or for learning purposes. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples (service account and domain based access). The solution does not propagate the existing ACLs of the ingested content, so all the users that have access to the service endpoints will have access to summarizations of the ingested content from those original documents. Also we didn’t dive into the observability aspects (which Dataflow, CloudRun and API Gateway services cover in abundance), version update processes, consolidated logging and alerts for performance or consumption/efficiency. These topics may be covered in a subsequent blog post.
 
 ### Source Code Notes
 
 The source code for the content discovery platform can be found available in [Github](https://github.com/prodriguezdefino/content-dicovery-platform-gcp), and can be quickly deployed in any GCP service for a test run. The repository includes source code for the integration services, the multi-language ingestion pipeline, and the deployment automation for all its components through Terraform. Consider that deployment may take up to 90 minutes to create and configure all the needed resources. Also some additional documentation regarding the deployment requisites and some example REST interactions can be found in the repository README file. 
 
-
-## Use our examples
+## Recap
 
 This article discusses the use of Generative AI and LLM-based services to improve, automate, and add creativity to existing solutions that deal with information and data. It then describes a common use case for a content discovery platform using Google Cloud Platform services. The main goal of the use case is to exemplify how to use the available technologies and services together, serve as a quick start reference, and ease the learning curve for LLM and Generative AI capabilities, simplifying their adoption for production use cases. The code [repository](https://github.com/prodriguezdefino/content-dicovery-platform-gcp) should serve as a starting point to understand how to resolve the integration challenges and the interaction examples that build rich context for LLM requests, or resolve streaming ingestion and semantic matching, looking to really take advantage of near real time Generative AI use cases. 
