@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cvs.providers;
+package org.apache.beam.sdk.io.csv.providers;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -110,7 +110,7 @@ public class CsvWriteTransformProvider
     }
   }
 
-  /** A {@link SchemaTransform} for {@link CsvIO#write} */
+  /** A {@link SchemaTransform} for {@link CsvIO#write}. */
   protected static class CsvWriteTransform extends SchemaTransform {
 
     private final CsvWriteConfiguration configuration;
