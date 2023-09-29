@@ -29,10 +29,6 @@ plugins {
   id 'net.linguica.maven-settings'
 }
 
-def isRelease(Project project) {
-  return project.hasProperty('isRelease')
-}
-
 ext {
   mavenJavaDir = "$project.buildDir/publications/mavenJava"
   mavenJavaBomOutputFile = file(mavenJavaDir + "/pom-default.xml")
@@ -135,7 +131,7 @@ afterEvaluate {
   }
 
   // Only sign artifacts if we are performing a release
-  if (isRelease(project) && !project.hasProperty('noSigning')) {
+  if (project.isRelease && !project.hasProperty('noSigning')) {
     apply plugin: "signing"
     signing {
       useGpgCmd()

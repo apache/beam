@@ -84,7 +84,7 @@ jobs:
       - name: Configure git
         run: git config credential.helper store
       - name: Stage Java Artifacts into Maven
-        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel
+        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} --no-daemon --no-parallel
         
       
   stage_java_source:
@@ -190,7 +190,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
-        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
+        run: ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
 
 
   beam_site_pr:
@@ -253,7 +253,7 @@ jobs:
       - name: Build Java Docs
         working-directory: beam
         run: |
-            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+            ./gradlew :sdks:java:javadoc:aggregateJavadoc --no-daemon --no-parallel
       - name: Consolidate Release Docs to beam-site branch with symlinks
         working-directory: beam-site
         run: |

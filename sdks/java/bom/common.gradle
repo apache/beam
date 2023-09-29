@@ -27,10 +27,6 @@ javaPlatform {
     allowDependencies()
 }
 
-def isRelease(Project project) {
-    return project.hasProperty('isRelease')
-}
-
 publishing {
     publications {
         mavenJava(MavenPublication) {
@@ -122,7 +118,7 @@ publishing {
 }
 
 // Only sign artifacts if we are performing a release
-if (isRelease(project) && !project.hasProperty('noSigning')) {
+if (project.isRelease && !project.hasProperty('noSigning')) {
     apply plugin: "signing"
     signing {
         useGpgCmd()

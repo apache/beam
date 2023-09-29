@@ -72,7 +72,6 @@ fi
 if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   # Fixing a release version
   sed -i -e "s/version=.*/version=$TARGET_VERSION/" gradle.properties
-  sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}'/" sdks/python/apache_beam/version.py
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"$TARGET_VERSION\"/" sdks/go/pkg/beam/core/core.go
@@ -80,11 +79,9 @@ if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
 else
   # For snapshot version:
   #   Java/gradle appends -SNAPSHOT
-  #   In the Gradle plugin, the -SNAPSHOT is dynamic so we don't add it here
   #   Python appends .dev
   #   The Dataflow container remains unchanged as in this case it is beam-master-<date> form
   sed -i -e "s/version=.*/version=$TARGET_VERSION-SNAPSHOT/" gradle.properties
-  sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}.dev'/" sdks/python/apache_beam/version.py
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION.dev/" gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"${TARGET_VERSION}.dev\"/" sdks/go/pkg/beam/core/core.go
@@ -93,7 +90,6 @@ fi
 
 if [[ "$GIT_ADD" == yes ]] ; then
   git add gradle.properties
-  git add buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   git add sdks/python/apache_beam/version.py
   git add sdks/go/pkg/beam/core/core.go
   git add runners/google-cloud-dataflow-java/build.gradle

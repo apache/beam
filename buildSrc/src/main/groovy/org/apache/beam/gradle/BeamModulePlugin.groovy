@@ -427,9 +427,6 @@ class BeamModulePlugin implements Plugin<Project> {
     String collectMarker
   }
 
-  def isRelease(Project project) {
-    return parseBooleanProperty(project, 'isRelease');
-  }
   /**
    * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
    */
@@ -488,12 +485,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
-    // Automatically use the official release version if we are performing a release
-    // otherwise append '-SNAPSHOT'
-    project.version = '2.52.0'
-    if (!isRelease(project)) {
-      project.version += '-SNAPSHOT'
-    }
+    project.ext.isRelease = !project.version.endsWith('-SNAPSHOT')
 
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
@@ -548,7 +540,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.containerArchitectures = {
-      if (isRelease(project)) {
+      if (project.isRelease) {
         // Ensure we always publish the expected containers.
         return ["amd64", "arm64"];
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
@@ -959,10 +951,10 @@ class BeamModulePlugin implements Plugin<Project> {
         url "file://${project.rootProject.projectDir}/testPublication/"
       }
       maven {
-        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+        url(project.properties['distMgmtSnapshotsUrl'] ?: project.isRelease
             ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
             : 'https://repository.apache.org/content/repositories/snapshots')
-        name(project.properties['distMgmtServerId'] ?: isRelease(project)
+        name(project.properties['distMgmtServerId'] ?: project.isRelease
             ? 'apache.releases.https' : 'apache.snapshots.https')
         // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
@@ -1736,7 +1728,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.includeInJavaBom = configuration.publish
       project.ext.exportJavadoc = configuration.exportJavadoc
 
-      if ((isRelease(project) || project.hasProperty('publishing')) &&
+      if ((project.isRelease || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
 
@@ -2006,7 +1998,7 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
         // Only sign artifacts if we are performing a release
-        if (isRelease(project) && !project.hasProperty('noSigning')) {
+        if (project.isRelease && !project.hasProperty('noSigning')) {
           project.apply plugin: "signing"
           project.signing {
             useGpgCmd()

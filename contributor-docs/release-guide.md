@@ -430,7 +430,7 @@ versions to run Python tests. See Python installation tips in [Developer Wiki](h
 
   3.  Run build command
       ```
-      ./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
+      ./gradlew build --no-parallel --scan --stacktrace --continue
       ```
 
       To speed things up locally you might want to omit `--no-parallel`. You can also omit `--continue`

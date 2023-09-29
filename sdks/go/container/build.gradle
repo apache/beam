@@ -28,7 +28,7 @@ goBuild {
 }
 
 def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
-def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+def pushContainers = project.rootProject.isRelease || project.rootProject.hasProperty("push-containers")
 
 docker {
   name containerImageName(
@@ -40,7 +40,7 @@ docker {
   tags containerImageTags()
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                     project.rootProject.hasProperty(["isRelease"])])
+                     project.rootProject.isRelease])
   buildx useBuildx
   platform(*project.containerPlatforms())
   load useBuildx && !pushContainers

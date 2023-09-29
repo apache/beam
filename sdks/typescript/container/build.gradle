@@ -44,7 +44,7 @@ def copyDockerfileDependencies = tasks.register("copyDockerfileDependencies", Co
 }
 
 def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
-def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+def pushContainers = project.rootProject.isRelease || project.rootProject.hasProperty("push-containers")
 
 docker {
   name containerImageName(
