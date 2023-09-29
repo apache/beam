@@ -109,7 +109,7 @@ public class JsonWriteTransformProvider
     }
   }
 
-  /** A {@link SchemaTransform} for {@link JsonIO#write} */
+  /** A {@link SchemaTransform} for {@link JsonIO#write}. */
   protected static class JsonWriteTransform extends SchemaTransform {
 
     private final JsonWriteConfiguration configuration;
