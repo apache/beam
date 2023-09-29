@@ -21,7 +21,14 @@ import groovy.json.JsonOutput
 plugins {
   id 'org.apache.beam.module'
 }
-javaVersion="1.11"
+
+// overwrite javaVersion before applyJavaNature
+if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  javaVersion = '1.17'
+} else {
+  javaVersion = '1.11'
+}
+
 applyJavaNature(
   exportJavadoc: false,
   publish: false,
@@ -33,30 +40,15 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
 ext.summary = "E2E test for Java 9 modules"
 
-// Java 17 needs compileJava to add-exports and add-opens for error prone
-if (project.hasProperty("compileAndRunTestsWithJava17")) {
-  def java17Home = project.findProperty("java17Home")
-  project.tasks.withType(JavaCompile) {
+// direct compileJava to use specified java version.
+project.tasks.compileJava {
+  if (project.hasProperty("compileAndRunTestsWithJava11")) {
     options.fork = true
-    options.forkOptions.javaHome = java17Home as File
-    options.compilerArgs += ['-Xlint:-path']
-    options.compilerArgs.addAll(['--release', '17'])
-    // Error prone requires some packages to be exported/opened for Java 17
-    // Disabling checks since this property is only used for Jenkins tests
-    // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-    options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-    options.forkOptions.jvmArgs += [
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-    ]
+    options.forkOptions.javaHome = project.findProperty("java11Home") as File
+  } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+    options.fork = true
+    options.forkOptions.javaHome = project.findProperty("java17Home") as File
+    setJava17Options(options)
   }
 }
 
