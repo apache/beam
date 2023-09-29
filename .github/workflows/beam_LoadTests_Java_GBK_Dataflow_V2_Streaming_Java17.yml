@@ -165,4 +165,4 @@ jobs:
             -Prunner.version=V2 \
             -PcompileAndRunTestsWithJava17 \
             -Pjava17Home=$JAVA_HOME_17_X64 \
-            '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java17_test_arguments_7 }}'
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Streaming_Java17_test_arguments_7 }}'
