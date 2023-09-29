@@ -57,8 +57,6 @@ env:
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.15_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-loadtests-go-sideinput-flink-batch-${{ github.run_id }}
-  beam_LoadTests_Go_SideInput_Flink_Batch_test_arguments_1: ''
-  beam_LoadTests_Go_SideInput_Flink_Batch_test_arguments_2: ''
 
 jobs:
   beam_LoadTests_Go_SideInput_Flink_Batch:
@@ -96,6 +94,7 @@ jobs:
           FLINK_NUM_WORKERS: 10
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run SideInput Flink Batch Go Load Test 1 (first iterable)
         timeout-minutes: 240
         uses: ./.github/actions/gradle-command-self-hosted-action
