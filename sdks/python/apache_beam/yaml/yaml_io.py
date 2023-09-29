@@ -23,12 +23,16 @@ Note that in the case that they overlap with other (likely Java)
 implementations of the same transforms, the configs must be kept in sync.
 """
 
+import json
 import os
 from typing import Any
+from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Mapping
 from typing import Optional
+from typing import Tuple
 
 import yaml
 
@@ -131,18 +135,25 @@ def write_to_bigquery(
   return WriteToBigQueryHandlingErrors()
 
 
-def _create_parser(format, schema):
+def _create_parser(
+    format,
+    schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
   if format == 'raw':
     if schema:
       raise ValueError('raw format does not take a schema')
     return (
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
+  elif format == 'json':
+    beam_schema = json_schema_to_beam_schema(schema)
+    return beam_schema, json_parser(beam_schema)
   else:
     raise ValueError(f'Unknown format: {format}')
 
 
-def _create_formatter(format, schema, beam_schema):
+def _create_formatter(
+    format, schema: Any,
+    beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
   if format == 'raw':
     if schema:
       raise ValueError('raw format does not take a schema')
@@ -150,8 +161,151 @@ def _create_formatter(format, schema, beam_schema):
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
     return lambda row: getattr(row, field_names[0])
+  elif format == 'json':
+    return json_formater(beam_schema)
   else:
     raise ValueError(f'Unknown format: {format}')
+
+
+# Move all these to json_utils?
+def json_schema_to_beam_schema(
+    json_schema: Dict[str, Any]) -> schema_pb2.Schema:
+  def maybe_nullable(beam_type, nullable):
+    if nullable:
+      beam_type.nullable = True
+    return beam_type
+
+  json_type = json_schema.get('type', None)
+  if json_type != 'object':
+    raise ValueError('Expected object type, got {json_type}.')
+  if 'properties' not in json_schema:
+    # Technically this is a valid (vacuous) schema, but as it's not generally
+    # meaningful, throw an informative error instead.
+    # (We could add a flag to allow this degenerate case.)
+    raise ValueError('Missing properties for {json_schema}.')
+  required = set(json_schema.get('required', []))
+  return schema_pb2.Schema(
+      fields=[
+          schemas.schema_field(
+              name,
+              maybe_nullable(json_type_to_beam_type(t), name not in required))
+          for (name, t) in json_schema['properties'].items()
+      ])
+
+
+JSON_ATOMIC_TYPES_TO_BEAM = {
+    'boolean': schema_pb2.BOOLEAN,
+    'integer': schema_pb2.INT64,
+    'number': schema_pb2.DOUBLE,
+    'string': schema_pb2.STRING,
+}
+
+
+def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
+  if not isinstance(json_type, dict) or 'type' not in json_type:
+    raise ValueError(f'Malformed type {json_type}.')
+  type_name = json_type['type']
+  if type_name in JSON_ATOMIC_TYPES_TO_BEAM:
+    return schema_pb2.FieldType(
+        atomic_type=JSON_ATOMIC_TYPES_TO_BEAM[type_name])
+  elif type_name == 'array':
+    return schema_pb2.FieldType(
+        array_type=schema_pb2.ArrayType(
+            element_type=json_type_to_beam_type(json_type['items'])))
+  elif type_name == 'object':
+    if 'properties' in json_type:
+      return schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=json_schema_to_beam_schema(json_type)))
+    elif 'additionalProperties' in json_type:
+      return schema_pb2.FieldType(
+          map_type=schema_pb2.MapType(
+              key_type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+              value_type=json_type_to_beam_type(
+                  json_type['additionalProperties'])))
+    else:
+      raise ValueError(
+          f'Object type must have either properties or additionalProperties, '
+          f'got {json_type}.')
+  else:
+    raise ValueError(f'Unable to convert {json_type} to a Beam schema.')
+
+
+def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
+  type_info = beam_type.WhichOneof("type_info")
+  if type_info == "atomic_type":
+    return lambda value: value
+  elif type_info == "array_type":
+    element_converter = json_to_row(beam_type.array_type.element_type)
+    return lambda value: [element_converter(e) for e in value]
+  elif type_info == "iterable_type":
+    element_converter = json_to_row(beam_type.iterable_type.element_type)
+    return lambda value: [element_converter(e) for e in value]
+  elif type_info == "map_type":
+    if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
+      raise TypeError(
+          f'Only strings allowd as map keys when converting from JSON, '
+          f'found {beam_type}')
+    value_converter = json_to_row(beam_type.map_type.value_type)
+    return lambda value: {k: value_converter(v) for (k, v) in value.items()}
+  elif type_info == "row_type":
+    converters = {
+        field.name: json_to_row(field.type)
+        for field in beam_type.row_type.schema.fields
+    }
+    return lambda value: beam.Row(
+        **
+        {name: convert(value[name])
+         for (name, convert) in converters.items()})
+  elif type_info == "logical_type":
+    return lambda value: value
+  else:
+    raise ValueError(f"Unrecognized type_info: {type_info!r}")
+
+
+def json_parser(beam_schema: schema_pb2.Schema) -> Callable[[bytes], beam.Row]:
+  to_row = json_to_row(
+      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
+  return lambda s: to_row(json.loads(s))
+
+
+def row_to_json(beam_type):
+  type_info = beam_type.WhichOneof("type_info")
+  if type_info == "atomic_type":
+    return lambda value: value
+  elif type_info == "array_type":
+    element_converter = row_to_json(beam_type.array_type.element_type)
+    return lambda value: [element_converter(e) for e in value]
+  elif type_info == "iterable_type":
+    element_converter = row_to_json(beam_type.iterable_type.element_type)
+    return lambda value: [element_converter(e) for e in value]
+  elif type_info == "map_type":
+    if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
+      raise TypeError(
+          f'Only strings allowd as map keys when converting to JSON, '
+          f'found {beam_type}')
+    value_converter = row_to_json(beam_type.map_type.value_type)
+    return lambda value: {k: value_converter(v) for (k, v) in value.items()}
+  elif type_info == "row_type":
+    converters = {
+        field.name: row_to_json(field.type)
+        for field in beam_type.row_type.schema.fields
+    }
+    return lambda row: {
+        name: convert(getattr(row, name))
+        for (name, convert) in converters.items()
+    }
+  elif type_info == "logical_type":
+    return lambda value: value
+  else:
+    raise ValueError(f"Unrecognized type_info: {type_info!r}")
+
+
+def json_formater(
+    beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
+  convert = row_to_json(
+      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
+  return lambda row: json.dumps(convert(row), sort_keys=True).encode('utf-8')
 
 
 @beam.ptransform_fn
