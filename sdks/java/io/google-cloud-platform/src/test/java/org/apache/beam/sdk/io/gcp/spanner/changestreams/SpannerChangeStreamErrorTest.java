@@ -32,8 +32,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNull;
 
-import java.util.List;
-import java.util.ArrayList;
 import com.google.api.gax.grpc.testing.MockServiceHelper;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.Timestamp;
@@ -54,7 +52,9 @@ import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
 import io.grpc.Status;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -70,7 +70,6 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -190,7 +189,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
-  
+
   @Test
   // Error code UNKNOWN is not retried.
   public void testUnknownExceptionDoesNotRetry() {
@@ -217,7 +216,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
-  
+
   @Test
   // Error code RESOURCE_EXHAUSTED is retried repeatedly.
   public void testResourceExhaustedRetry() {
@@ -244,7 +243,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
-  
+
   @Test
   public void testResourceExhaustedRetryWithDefaultSettings() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -262,7 +261,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
             .withProjectId(TEST_PROJECT)
             .withInstanceId(TEST_INSTANCE)
             .withDatabaseId(TEST_DATABASE);
-    
+
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
@@ -321,7 +320,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
-  
+
   @Test
   public void testInvalidRecordReceivedWithDefaultSettings() {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
@@ -346,16 +345,23 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockInvalidChangeStreamRecordReceived(startTimestamp, endTimestamp);
 
     try {
-       final SpannerConfig changeStreamConfig =
-        SpannerConfig.create()
-            .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
-            .withIsLocalChannelProvider(StaticValueProvider.of(true))
-            .withCommitRetrySettings(null)
-            .withExecuteStreamingSqlRetrySettings(null)
-            .withProjectId(TEST_PROJECT)
-            .withInstanceId(TEST_INSTANCE)
-            .withDatabaseId(TEST_DATABASE);
-      
+      RetrySettings quickRetrySettings =
+          RetrySettings.newBuilder()
+              .setInitialRetryDelay(org.threeten.bp.Duration.ofMillis(250))
+              .setMaxRetryDelay(org.threeten.bp.Duration.ofSeconds(1))
+              .setRetryDelayMultiplier(5)
+              .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(1))
+              .build();
+      final SpannerConfig changeStreamConfig =
+          SpannerConfig.create()
+              .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
+              .withIsLocalChannelProvider(StaticValueProvider.of(true))
+              .withCommitRetrySettings(quickRetrySettings)
+              .withExecuteStreamingSqlRetrySettings(null)
+              .withProjectId(TEST_PROJECT)
+              .withInstanceId(TEST_INSTANCE)
+              .withDatabaseId(TEST_DATABASE);
+
       pipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(changeStreamConfig)
@@ -368,6 +374,8 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     } finally {
       thrown.expect(PipelineExecutionException.class);
       thrown.expectMessage("Field not found");
+      assertThat(
+          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(0));
     }
   }
 
@@ -538,12 +546,14 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockSpannerService.putStatementResult(
         StatementResult.query(tableExistsStatement, tableExistsResultSet));
   }
-  
-  private ResultSet mockchangePartitionState(Timestamp startTimestamp, Timestamp after3Seconds, String state) {
+
+  private ResultSet mockchangePartitionState(
+      Timestamp startTimestamp, Timestamp after3Seconds, String state) {
     List<String> tokens = new ArrayList<>();
     tokens.add("Parent0");
     Statement getPartitionStatement =
-        Statement.newBuilder("SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@partitionTokens) AND State = @state")
+        Statement.newBuilder(
+                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@partitionTokens) AND State = @state")
             .bind("partitionTokens")
             .toStringArray(tokens)
             .bind("state")
