@@ -97,10 +97,6 @@ class DataflowRunner(PipelineRunner):
   def is_fnapi_compatible(self):
     return False
 
-  def apply(self, transform, input, options):
-    _check_and_add_missing_options(options)
-    return super().apply(transform, input, options)
-
   @staticmethod
   def poll_for_job_completion(
       runner, result, duration, state_update_callback=None):
@@ -495,10 +491,6 @@ class DataflowRunner(PipelineRunner):
       return coders.WindowedValueCoder(
           coders.registry.get_coder(typehint), window_coder=window_coder)
     return coders.registry.get_coder(typehint)
-
-  # TODO(srohde): Remove this after internal usages have been removed.
-  def apply_GroupByKey(self, transform, pcoll, options):
-    return transform.expand(pcoll)
 
   def _verify_gbk_coders(self, transform, pcoll):
     # Infer coder of parent.
