@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -474,7 +474,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       }
 
       private boolean advance() throws IOException {
-        checkArgument(!closed, "advance() call on closed %s", getClass().getName());
+        checkState(!closed, "advance() call on closed %s", getClass().getName());
         if (readerDone) {
           return false;
         }
@@ -514,7 +514,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       }
 
       Checkpoint<T> getCheckpointMark() {
-        checkArgument(!closed, "getCheckpointMark() call on closed %s", getClass().getName());
+        checkState(!closed, "getCheckpointMark() call on closed %s", getClass().getName());
         if (reader == null) {
           // Reader hasn't started, checkpoint the residualSource.
           return new Checkpoint<>(null /* residualElements */, residualSource);
