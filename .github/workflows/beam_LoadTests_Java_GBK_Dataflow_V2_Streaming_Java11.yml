@@ -22,7 +22,7 @@ on:
     - cron: '50 8 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: write
@@ -73,7 +73,6 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: 11
-# The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -87,6 +86,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/Java_GBK_Dataflow_V2_Streaming_Java11_fanout_8_times_with_2GB_10-byte_records_total.txt
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/Java_GBK_Dataflow_V2_Streaming_Java11_reiterate_4_times_10kB_values.txt
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/Java_GBK_Dataflow_V2_Streaming_Java11_reiterate_4_times_2MB_values.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Load test 2GB of 10B records
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
