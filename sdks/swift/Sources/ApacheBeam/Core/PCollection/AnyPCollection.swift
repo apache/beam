@@ -79,11 +79,14 @@ public struct AnyPCollection: PCollectionProtocol, PipelineMember {
     var roots: [PCollection<Never>] {
         rootsClosure(collection)
     }
-    
-    func of<Of>(_ type: Of.Type) -> PCollection<Of> {
-        return collection as! PCollection<Of>
+
+    func of<Of>(_: Of.Type) -> PCollection<Of>? {
+        if let ret = collection as? PCollection<Of> {
+            return ret
+        } else {
+            return nil
+        }
     }
-    
 }
 
 extension AnyPCollection: Hashable {

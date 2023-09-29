@@ -21,15 +21,15 @@ import XCTest
 
 /// Simple composite. Interesting the type resolution in composites doesn't work as well as other things? Not sure why that is. Not a huge deal.
 public struct FixtureWordCount: PTransform {
-    
-    @PValue
-    var pipeline: PipelineRoot = .empty()
-    
-    
+
     let fixtures: [String]
-    public init(fixtures: [String]) {
+
+    @PValue
+    var pipeline : PipelineRoot
+    
+    public init(fixtures:[String]) {
         self.fixtures = fixtures
-    }
+    } 
 
     public var expand: some PTransform {
         let (contents, errors) = pipeline

@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-public struct NamedCollectionPTransform<Of>: _PrimitivePTransform {
+public struct NamedCollectionPTransform: _PrimitivePTransform {
     let name: String
-    let collection: PCollection<Of>
+    let collection: AnyPCollection
 }
 
 /// Captures a PCollection and gives it a name so it can be referenced
@@ -30,12 +30,10 @@ public struct Tag<Of>: PTransform {
         self.fn = fn
     }
 
-    public var expand: NamedCollectionPTransform<Of> {
-        NamedCollectionPTransform(name: name, collection: fn())
+    public var expand: NamedCollectionPTransform {
+        NamedCollectionPTransform(name: name, collection: AnyPCollection(fn()))
     }
 }
 
 /// Convenience mapping for more readable composites
 public typealias Output = Tag
-
-

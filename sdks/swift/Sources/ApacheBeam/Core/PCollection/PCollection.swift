@@ -39,7 +39,6 @@ public protocol PCollectionProtocol {
 
     @discardableResult
     func apply(_ transform: PipelineTransform) -> PipelineTransform
-    
 }
 
 public final class PCollection<Of>: PCollectionProtocol {
@@ -94,6 +93,6 @@ extension PCollection: PipelineMember {
 
 public extension PCollection {
     static func empty() -> PCollection<Of> {
-        return PCollection<Of>()
+        PCollection<Of>()
     }
 }

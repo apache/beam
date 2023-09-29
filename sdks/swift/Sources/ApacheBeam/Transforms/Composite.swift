@@ -17,9 +17,10 @@
  */
 
 public extension PCollection {
-    
-    func apply<T:PTransform>(_ transform: T) {
-        
+    func apply<T:PTransform>(_ transform: T) -> T.Expansion {
+        let mirror = Mirror(reflecting: transform)
+        for child in mirror.children {
+        }
+        return transform.expand
     }
-    
 }

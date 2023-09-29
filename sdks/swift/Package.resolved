@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/awslabs/aws-sdk-swift.git",
       "state" : {
-        "revision" : "14cfdb636d918e589f1b053e43acc118e75af5ce",
-        "version" : "0.23.0"
+        "revision" : "3f0372fb67f1460d15bf1f8c2cc794cce582712f",
+        "version" : "0.25.0"
       }
     },
     {
@@ -37,15 +37,6 @@
       }
     },
     {
-      "identity" : "duckdb-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/duckdb/duckdb-swift",
-      "state" : {
-        "revision" : "439899503fa15a06d931947e9d055baaf6a9dd89",
-        "version" : "0.8.1"
-      }
-    },
-    {
       "identity" : "google-auth-library-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/googleapis/google-auth-library-swift",
@@ -64,21 +55,12 @@
       }
     },
     {
-      "identity" : "pythonkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pvieito/PythonKit.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "060e1c8b0d14e4d241b3623fdbe83d0e3c81a993"
-      }
-    },
-    {
       "identity" : "smithy-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/awslabs/smithy-swift",
+      "location" : "https://github.com/smithy-lang/smithy-swift",
       "state" : {
-        "revision" : "f277bd61b9a869a6a4a4b4a0e808240147713f7f",
-        "version" : "0.27.0"
+        "revision" : "94b319e7f7f48c43eb5d69e2d929f39d1a39fb32",
+        "version" : "0.29.0"
       }
     },
     {
@@ -133,15 +115,6 @@
       "state" : {
         "revision" : "32e8d724467f8fe623624570367e3d50c5638e46",
         "version" : "1.5.2"
-      }
-    },
-    {
-      "identity" : "swift-metrics",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-metrics.git",
-      "state" : {
-        "revision" : "971ba26378ab69c43737ee7ba967a896cb74c0d1",
-        "version" : "2.4.1"
       }
     },
     {

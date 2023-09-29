@@ -52,16 +52,14 @@ public func neverExpand(_ type: String) -> Never {
 }
 
 public extension ParentPTransform {
-    
-    func pcollection(named:String) throws -> AnyPCollection {
-        throw ApacheBeamError.runtimeError("No collection named \(named) in this PTransform's expansion.")
-    }
-    
-    func pcollection<Of>(of:Of.Type) throws -> PCollection<Of> {
-        throw ApacheBeamError.runtimeError("No collection of type \(Of.self) in  this PTransform's expansion.")
-    }
-    
-    func pcollection<Of>(named:String,of:Of.Type) throws -> PCollection<Of> {
-        throw ApacheBeamError.runtimeError("No collection of type \(Of.self) named \(named) in this PTransform's expansion/")
+    subscript(pcollection: String) -> AnyPCollection? {
+        for child in children {
+            if let named = child.transform as? NamedCollectionPTransform {
+                if named.name == pcollection {
+                    return named.collection
+                }
+            }
+        }
+        return nil
     }
 }

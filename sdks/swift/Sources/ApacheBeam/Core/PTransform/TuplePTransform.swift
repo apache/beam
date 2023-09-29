@@ -34,5 +34,4 @@ public struct TuplePTransform<T>: _PrimitivePTransform {
         value = (t0, t1)
         _children = [AnyPTransform(t0), AnyPTransform(t1)]
     }
-    
 }
