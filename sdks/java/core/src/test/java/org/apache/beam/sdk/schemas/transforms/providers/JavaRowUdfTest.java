@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.transforms.providers;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.net.MalformedURLException;
 import java.util.function.Function;
@@ -27,7 +27,7 @@ import org.junit.Test;
 
 public class JavaRowUdfTest {
 
-  public final Schema TEST_SCHEMA =
+  public static final Schema TEST_SCHEMA =
       Schema.of(
           Schema.Field.of("anInt32", Schema.FieldType.INT32).withNullable(true),
           Schema.Field.of("anInt64", Schema.FieldType.INT64).withNullable(true),
