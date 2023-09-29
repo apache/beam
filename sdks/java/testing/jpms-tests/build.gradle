@@ -21,7 +21,14 @@ import groovy.json.JsonOutput
 plugins {
   id 'org.apache.beam.module'
 }
-javaVersion="1.11"
+
+// overwrite javaVersion before applyJavaNature
+if (project.hasProperty("compileAndRunTestsWithJava11")) {
+  javaVersion = '1.11'
+} else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  javaVersion = '1.17'
+}
+
 applyJavaNature(
   exportJavadoc: false,
   publish: false,
@@ -32,6 +39,18 @@ enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
 ext.summary = "E2E test for Java 9 modules"
+
+// direct compileJava to use specified java version.
+project.tasks.compileJava {
+  if (project.hasProperty("compileAndRunTestsWithJava11")) {
+    options.fork = true
+    options.forkOptions.javaHome = project.findProperty("java11Home") as File
+  } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+    options.fork = true
+    options.forkOptions.javaHome = project.findProperty("java17Home") as File
+    setJava17Options(options)
+  }
+}
 
 /*
  * List of runners to run integration tests on.

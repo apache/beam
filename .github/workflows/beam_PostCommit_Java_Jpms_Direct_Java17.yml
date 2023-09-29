@@ -75,7 +75,7 @@ jobs:
           distribution: 'temurin'
           java-version: |
             17
-            11
+            8
       - name: run PostCommit Java Jpms Direct Java17 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
