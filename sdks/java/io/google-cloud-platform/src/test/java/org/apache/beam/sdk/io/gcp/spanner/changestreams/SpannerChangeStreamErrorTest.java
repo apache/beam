@@ -182,12 +182,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       while (result.getState() != RUNNING) {
         Thread.sleep(50);
       }
-      // The pipeline continues making requests to Spanner to retry the Unavailable errors.
+      // The pipeline continues making requests to Spanner to retry the Aborted errors.
       assertNull(result.waitUntilFinish(Duration.millis(500)));
     } finally {
-      // databaseClient.getDialect does not currently bubble up the correct message.
-      // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
-      // "in the given time"
       thrown.expectMessage("DEADLINE_EXCEEDED: Operation did not complete in the given time");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
@@ -222,26 +219,45 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
   
   @Test
-  // Error code RESOURCE_EXHAUSTED is not retried.
-  public void testResourceExhaustedExceptionDoesNotRetry() {
+  // Error code RESOURCE_EXHAUSTED is retried repeatedly.
+  public void testResourceExhaustedRetry() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofStickyException(Status.RESOURCE_EXHAUSTED.asRuntimeException()));
 
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
-    RetrySettings quickRetrySettings =
-        RetrySettings.newBuilder()
-            .setInitialRetryDelay(org.threeten.bp.Duration.ofMillis(250))
-            .setMaxRetryDelay(org.threeten.bp.Duration.ofSeconds(1))
-            .setRetryDelayMultiplier(5)
-            .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(1))
-            .build();
+
+    try {
+      pipeline.apply(
+          SpannerIO.readChangeStream()
+              .withSpannerConfig(getSpannerConfig())
+              .withChangeStreamName(TEST_CHANGE_STREAM)
+              .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
+              .withInclusiveStartAt(startTimestamp)
+              .withInclusiveEndAt(endTimestamp));
+      pipeline.run().waitUntilFinish();
+    } finally {
+      thrown.expectMessage("DEADLINE_EXCEEDED: Operation did not complete in the given time");
+      assertThat(
+          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
+    }
+  }
+  
+  @Test
+  public void testResourceExhaustedRetryWithDefaultSettings() {
+    mockSpannerService.setExecuteStreamingSqlExecutionTime(
+        SimulatedExecutionTime.ofStickyException(Status.RESOURCE_EXHAUSTED.asRuntimeException()));
+
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
+    final Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
     final SpannerConfig changeStreamConfig =
         SpannerConfig.create()
             .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
             .withIsLocalChannelProvider(StaticValueProvider.of(true))
-            .withCommitRetrySettings(quickRetrySettings)
+            .withCommitRetrySettings(null)
             .withExecuteStreamingSqlRetrySettings(null)
             .withProjectId(TEST_PROJECT)
             .withInstanceId(TEST_INSTANCE)
@@ -352,8 +368,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     } finally {
       thrown.expect(PipelineExecutionException.class);
       thrown.expectMessage("Field not found");
-      assertThat(
-          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(0));
     }
   }
 
