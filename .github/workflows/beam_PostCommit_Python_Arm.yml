@@ -54,7 +54,7 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 240
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
