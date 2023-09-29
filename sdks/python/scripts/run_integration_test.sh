@@ -249,8 +249,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
   if [[ "$ARCH" == "ARM" ]]; then
     opts+=("--machine_type=t2a-standard-1")
 
-    IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
-    IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}_sdk"
+    IMAGE_NAME="beam_python${PY_VERSION}_sdk"
     opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
   fi
 
