@@ -32,9 +32,9 @@ from typing import Optional
 import pandas as pd
 
 from apache_beam.testing.analyzers import constants
-from apache_beam.testing.analyzers.perf_analysis_utils import MetricsFetcher
-from apache_beam.testing.analyzers.perf_analysis_utils import GitHubIssueMetaData
 from apache_beam.testing.analyzers.perf_analysis_utils import BigQueryMetricsFetcher
+from apache_beam.testing.analyzers.perf_analysis_utils import GitHubIssueMetaData
+from apache_beam.testing.analyzers.perf_analysis_utils import MetricsFetcher
 from apache_beam.testing.analyzers.perf_analysis_utils import create_performance_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
 from apache_beam.testing.analyzers.perf_analysis_utils import get_existing_issues_data
@@ -116,8 +116,7 @@ def run_change_point_analysis(
   last_reported_issue_number = None
   issue_metadata_table_name = f'{params.get("metrics_table")}_{metric_name}'
   existing_issue_data = get_existing_issues_data(
-      table_name=issue_metadata_table_name,
-      big_query_metrics_fetcher=big_query_metrics_fetcher)
+      table_name=issue_metadata_table_name)
 
   if existing_issue_data is not None:
     existing_issue_timestamps = existing_issue_data[
@@ -183,7 +182,7 @@ def run(
   tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
 
   if not big_query_metrics_fetcher:
-    big_query_metrics_fetcher = BigQueryMetricsFetcher()
+    big_query_metrics_fetcher: MetricsFetcher = BigQueryMetricsFetcher()
 
   for test_id, params in tests_config.items():
     run_change_point_analysis(

@@ -241,8 +241,8 @@ class MetricsFetcher:
       metric_name,
       test_name=None) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
     """
-    Define schema and fetch the timestamp values and metric values
-    from BigQuery.
+    Define SQL query and fetch the timestamp values and metric values
+    from BigQuery tables.
     """
 
 
