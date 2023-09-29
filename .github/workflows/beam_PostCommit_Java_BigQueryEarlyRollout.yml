@@ -53,8 +53,7 @@ env:
 jobs:
   beam_PostCommit_Java_BigQueryEarlyRollout:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}})
-#    runs-on: [self-hosted, ubuntu-20.04, main]
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
       matrix:
