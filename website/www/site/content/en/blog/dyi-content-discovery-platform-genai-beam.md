@@ -6,7 +6,7 @@ categories:
   - blog
 authors:
   - prodriguezdefino
-  - nams113
+  - namita sharma
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ limitations under the License.
 
 Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information which sometimes is hard to find or discover. This blog post discusses how to build a DIY starter architecture, based on near real time ingestion processing and large language models (LLMs) to extract meaningful information from your assets, making it available and discoverable through a simple natural language query.
 
-Building a near real time processing pipeline for content ingestion may sound as a very involved endeavor, and it can be. To alliviate this task Apache Beam framework exposes a set of powerful constructs to remove the complexities of interacting with a variety of content sources and destinations, error handling, clarity, modularity, all while maintaining a good degree of resiliency and scalability with minimal effort. An Apache Beam streaming pipeline should be able to connect to the many components of a solution to quickly process document's content ingestion requests, making the information available in few seconds after the ingestion request was triggered.
+Building a near real time processing pipeline for content ingestion may seem like a very complex task, and it can be. To alliviate this task Apache Beam framework exposes a set of powerful constructs to remove the complexities of interacting with a variety of content sources and destinations, error handling, clarity, modularity, all while maintaining a good degree of resiliency and scalability with minimal effort. An Apache Beam streaming pipeline should be able to connect to the many components of a solution to quickly process document's content ingestion requests, making the information available in few seconds after the ingestion request was triggered.
 
 One common use case for LLMs is content extraction and summarization of dispersed information stored in many different places. This can be especially helpful for organizations that need to quickly find relevant information disseminated in multiple documents written across the years. This information may reside in many different formats, all containing important information that can become harder and harder to access or discover over time. Moreover, these documents are often too long and complex to read and understand quickly. LLMs can be used to process content in these documents, making it easier for people to find the information they need and, if necessary, dive into the content once they know where the information really is.
 
