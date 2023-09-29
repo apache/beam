@@ -96,6 +96,7 @@ public class JavaMapToFieldsTransformProvider
     public abstract Map<String, JavaRowUdf.Configuration> getFields();
 
     @Nullable
+    @SuppressWarnings("all")
     public abstract ErrorHandling getError_handling();
 
     public static Builder builder() {
@@ -113,6 +114,7 @@ public class JavaMapToFieldsTransformProvider
 
       public abstract Builder setFields(Map<String, JavaRowUdf.Configuration> fields);
 
+      @SuppressWarnings("all")
       public abstract Builder setError_handling(ErrorHandling error_handling);
 
       public abstract Configuration build();

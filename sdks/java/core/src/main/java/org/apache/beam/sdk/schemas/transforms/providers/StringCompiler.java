@@ -61,7 +61,9 @@ public class StringCompiler {
             cp.add(System.getProperty("java.class.path"));
             // Javac doesn't properly handle manifest classpath spec.
             ClassLoader cl = StringCompiler.class.getClassLoader();
-            if (cl == null) cl = ClassLoader.getSystemClassLoader();
+            if (cl == null) {
+              cl = ClassLoader.getSystemClassLoader();
+            }
             if (cl instanceof URLClassLoader) {
               for (URL url : ((URLClassLoader) cl).getURLs()) {
                 try {
