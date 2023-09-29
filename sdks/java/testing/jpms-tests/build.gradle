@@ -23,10 +23,10 @@ plugins {
 }
 
 // overwrite javaVersion before applyJavaNature
-if (project.hasProperty("compileAndRunTestsWithJava11")) {
-  javaVersion = '1.11'
-} else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+if (project.hasProperty("compileAndRunTestsWithJava17")) {
   javaVersion = '1.17'
+} else {
+  javaVersion = '1.11'
 }
 
 applyJavaNature(
