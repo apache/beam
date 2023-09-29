@@ -18,10 +18,10 @@
 name: PostCommit Python Arm
 
 on:
-  # issue_comment:
-  #   types: [created]
-  # schedule:
-  #   - cron: '0 */6 * * *'
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -54,7 +54,7 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 360
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
