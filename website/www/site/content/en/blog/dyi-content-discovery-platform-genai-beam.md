@@ -34,7 +34,7 @@ Building a near real-time processing pipeline for content ingestion might seem l
 
 LLMs are often used to extract content and summarize information stored in many different places. Organizations can use LLMs to quickly find relevant information disseminated in multiple documents written across the years. The information might be in different formats, or the documents might be too long and complex to read and understand quickly. Use LLMs to process this content to make it easier for people to find the information that they need.
 
-This article walks through a custom scalable solution for data extraction, content ingestion, and storage. It demonstrates how to kickstart the development of a LLM-based solution using Google Cloud Platform (GCP) products and its Generative AI offerings. The platform is designed to be simple to use, scalable, and flexible, and can be used as a starting point for further expansion or experimentation.
+Follow the steps in this guide to create a custom scalable solution for data extraction, content ingestion, and storage. Learn how to kickstart the development of a LLM-based solution using Google Cloud products and generative AI offerings. Google Cloud is designed to be simple to use, scalable, and flexible, so you can use it as a starting point for further expansion or experimentation.
 
 ### High Level Flow 
 
