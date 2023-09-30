@@ -227,6 +227,15 @@ def option_from_runner_api(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
 
 
+def schema_field(
+    name: str, field_type: Union[schema_pb2.FieldType,
+                                 type]) -> schema_pb2.Field:
+  return schema_pb2.Field(
+      name=name,
+      type=field_type if isinstance(field_type, schema_pb2.FieldType) else
+      typing_to_runner_api(field_type))
+
+
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry

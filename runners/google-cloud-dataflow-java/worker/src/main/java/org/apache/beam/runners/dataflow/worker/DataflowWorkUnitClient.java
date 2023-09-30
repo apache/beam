@@ -39,13 +39,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
@@ -87,7 +87,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
   }
 
   /**
-   * Gets a {@link WorkItem} from the Dataflow service, or returns {@link Optional#absent()} if no
+   * Gets a {@link WorkItem} from the Dataflow service, or returns {@link Optional#empty()} if no
    * work was found.
    *
    * <p>If work is returned, the calling thread should call reportWorkItemStatus after completing it
@@ -116,11 +116,11 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     if (!workItem.isPresent()) {
       // Normal case, this means that the response contained no work, i.e. no work is available
       // at this time.
-      return Optional.absent();
+      return Optional.empty();
     }
-    if (workItem.isPresent() && workItem.get().getId() == null) {
-      logger.debug("Discarding invalid work item {}", workItem.orNull());
-      return Optional.absent();
+    if (workItem.get().getId() == null) {
+      logger.debug("Discarding invalid work item {}", workItem.get());
+      return Optional.empty();
     }
 
     WorkItem work = workItem.get();
@@ -148,7 +148,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
 
   /**
    * Gets a global streaming config {@link WorkItem} from the Dataflow service, or returns {@link
-   * Optional#absent()} if no work was found.
+   * Optional#empty()} if no work was found.
    */
   @Override
   public Optional<WorkItem> getGlobalStreamingConfigWorkItem() throws IOException {
@@ -158,7 +158,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
 
   /**
    * Gets a streaming config {@link WorkItem} for the given computation from the Dataflow service,
-   * or returns {@link Optional#absent()} if no work was found.
+   * or returns {@link Optional#empty()} if no work was found.
    */
   @Override
   public Optional<WorkItem> getStreamingConfigWorkItem(String computationId) throws IOException {
@@ -197,7 +197,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     List<WorkItem> workItems = response.getWorkItems();
     if (workItems == null || workItems.isEmpty()) {
       // We didn't lease any work.
-      return Optional.absent();
+      return Optional.empty();
     } else if (workItems.size() > 1) {
       throw new IOException(
           "This version of the SDK expects no more than one work item from the service: "

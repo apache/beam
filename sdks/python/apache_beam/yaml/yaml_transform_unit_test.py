@@ -20,7 +20,6 @@ import unittest
 import yaml
 
 import apache_beam as beam
-from apache_beam import PCollection
 from apache_beam.yaml import YamlTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import InlineProvider
@@ -30,7 +29,6 @@ from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
-from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import extract_name
 from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
@@ -201,12 +199,10 @@ class MainTest(unittest.TestCase):
         type: composite
         input: elements
         transforms:
-          - type: PyMap
+          - type: LogForTesting
             input: input
-            config:
-              fn: 'lambda x: x*x'
         output:
-          PyMap
+          LogForTesting
         '''
       elements = p | beam.Create(range(3))
       scope, spec = self.get_scope_by_spec(p, spec,
@@ -954,43 +950,6 @@ class MainTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r"Missing output.*"):
       ensure_errors_consumed(spec)
 
-  def test_expand_pipeline_with_string_spec(self):
-    with new_pipeline() as p:
-      spec = '''
-        pipeline:
-          type: chain
-          transforms:
-            - type: Create
-              config:
-                elements: [1,2,3]
-            - type: PyMap
-              config:
-                fn: 'lambda x: x*x'
-      '''
-      result = expand_pipeline(p, spec)
-
-      self.assertIsInstance(result, PCollection)
-      self.assertEqual(str(result), 'PCollection[Map(lambda x: x*x).None]')
-
-  def test_expand_pipeline_with_spec(self):
-    with new_pipeline() as p:
-      spec = '''
-        pipeline:
-          type: chain
-          transforms:
-            - type: Create
-              config:
-                elements: [1,2,3]
-            - type: PyMap
-              config:
-                fn: 'lambda x: x*x'
-      '''
-      spec = yaml.load(spec, Loader=SafeLineLoader)
-      result = expand_pipeline(p, spec)
-
-      self.assertIsInstance(result, PCollection)
-      self.assertEqual(str(result), 'PCollection[Map(lambda x: x*x).None]')
-
   def test_only_element(self):
     self.assertEqual(only_element((1, )), 1)
 
@@ -1007,13 +966,13 @@ class YamlTransformTest(unittest.TestCase):
         transforms:
           - type: Create
             elements: [1,2,3]
-          - type: PyMap
-            fn: 'lambda x: x*x'
+          - type: LogForTesting
       '''
     result = YamlTransform(spec, providers_dict)
     self.assertIn('p1', result._providers)  # check for custom providers
     self.assertIn('p2', result._providers)  # check for custom providers
-    self.assertIn('PyMap', result._providers)  # check for standard provider
+    self.assertIn(
+        'LogForTesting', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
 
   def test_init_with_dict(self):
@@ -1023,13 +982,12 @@ class YamlTransformTest(unittest.TestCase):
           - type: Create
             config:
               elements: [1,2,3]
-          - type: PyMap
-            config:
-              fn: 'lambda x: x*x'
+          - type: LogForTesting
       '''
     spec = yaml.load(spec, Loader=SafeLineLoader)
     result = YamlTransform(spec)
-    self.assertIn('PyMap', result._providers)  # check for standard provider
+    self.assertIn(
+        'LogForTesting', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
 
 
