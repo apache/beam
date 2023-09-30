@@ -44,7 +44,7 @@ From a high level perspective, content uptake and query interactions are complet
 
 The query resolution process does not depend directly on information ingestion. It is expected for the user to receive relevant answers based on the content that was ingested until the moment the query was requested, but even in the case of having no relevant content stored in the platform the platform should return an answer stating exactly that. In general, the query resolution process should first generate embeddings from the query content and previously existing context (like previous exchanges with the platform), then match these embeddings with all the existing embedding vectors stored from the content, and in case of having positive matches, retrieve the plain text content represented by the content embeddings. Finally with the textual representation of the query and the textual representation of the matched content, the platform will formulate a request to the LLM to provide a final answer to the original user inquiry.
 
-## Solution’s Components
+## Components of the solution
 
 The intent is to rely, as much as possible, on the low-ops capabilities of the GCP services and to create a set of features that are highly scalable. At a high level, the solution can be separated into 2 main components, the service layer and the content ingestion pipeline. The service’s layer acts as the entry point for document’s ingestion and user queries, it’s a simple set of REST resources exposed through CloudRun and implemented using [Quarkus](https://quarkus.io/) and the client libraries to access other services (VertexAI Models, BigTable and PubSub). In the case of the content ingestion pipeline we have:
 
