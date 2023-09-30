@@ -322,7 +322,7 @@ Also, in case of wanting to focus only on the deployment of specific components 
 
 ### Solution's Notes
 
-The provided solution is clearly not production ready, but it can serve as a kickstarter for similar use cases or for learning purposes. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples (service account and domain based access). The solution does not propagate the existing ACLs of the ingested content, so all the users that have access to the service endpoints will have access to summarizations of the ingested content from those original documents. Also we didn’t dive into the observability aspects (which Dataflow, CloudRun and API Gateway services cover in abundance), version update processes, consolidated logging and alerts for performance or consumption/efficiency. These topics may be covered in a subsequent blog post.
+This solution is designed to serve as an example for learning purposes. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples. The solution doesn't propagate the existing access control lists (ACLs) of the ingested content. As a result, all users that have access to the service endpoints have access to summarizations of the ingested content from those original documents.
 
 ### Notes about the source code
 
