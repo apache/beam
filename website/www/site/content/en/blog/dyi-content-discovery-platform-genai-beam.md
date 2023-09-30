@@ -324,7 +324,7 @@ Also, in case of wanting to focus only on the deployment of specific components 
 
 The provided solution is clearly not production ready, but it can serve as a kickstarter for similar use cases or for learning purposes. Many of the configuration values for the extraction pipeline and security restrictions are provided only as examples (service account and domain based access). The solution does not propagate the existing ACLs of the ingested content, so all the users that have access to the service endpoints will have access to summarizations of the ingested content from those original documents. Also we didn’t dive into the observability aspects (which Dataflow, CloudRun and API Gateway services cover in abundance), version update processes, consolidated logging and alerts for performance or consumption/efficiency. These topics may be covered in a subsequent blog post.
 
-### Source Code Notes
+### Notes about the source code
 
 The source code for the content discovery platform can be found available in [Github](https://github.com/prodriguezdefino/content-dicovery-platform-gcp), and can be quickly deployed in any GCP service for a test run. The repository includes source code for the integration services, the multi-language ingestion pipeline, and the deployment automation for all its components through Terraform. Consider that deployment may take up to 90 minutes to create and configure all the needed resources. Also some additional documentation regarding the deployment requisites and some example REST interactions can be found in the repository README file. 
 
