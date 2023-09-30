@@ -73,7 +73,7 @@ As seen in the diagram, the context-extraction component is the central aspect i
 
 Also, CloudRun plays the important role of exposing the services, which will interact with the many different storage systems in use to resolve the user query requests. For example, capturing the semantic meaning from the user’s query by interacting with the embedding’s model, finding near matches from the Vertex AI Vector Search (formerly Matching Engine),which stores the embedding vectors from the ingested document’s content, retrieving the text content from BigTable to contextualize finally the request to the VertexAI Text-Bison and Chat-Bison models for a final response to the user’s originary query.
 
-### Specific GCP products
+### Google Cloud products
 
 Next, we detail what GCP products and services are used for the solution, and in each case what role they play.
 
