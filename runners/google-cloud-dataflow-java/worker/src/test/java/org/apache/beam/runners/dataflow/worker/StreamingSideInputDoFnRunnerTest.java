@@ -39,7 +39,7 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.dataflow.worker.StateFetcher.SideInputState;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
