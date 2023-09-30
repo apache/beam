@@ -53,6 +53,13 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.52.0] - Unreleased
+
+## Breaking Changes
+
+* `upload_graph` is not needed since the graph now is uploaded automatically when it is larger than 10MB for Java SDK ([PR#28621](https://github.com/apache/beam/pull/28621).
+
+
 # [2.51.0] - Unreleased
 
 ## Highlights
