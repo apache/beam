@@ -23,7 +23,6 @@ import static java.util.UUID.randomUUID
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-
 import java.util.logging.Logger
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
