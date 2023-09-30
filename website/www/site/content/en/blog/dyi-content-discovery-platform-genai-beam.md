@@ -24,7 +24,7 @@ limitations under the License.
 
 ## Introduction
 
-Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information which sometimes is hard to find or discover. This blog post discusses how to build a DIY starter architecture, based on near real time ingestion processing and large language models (LLMs) to extract meaningful information from your assets, making it available and discoverable through a simple natural language query.
+Your digital assets, such as documents, PDFs, spreadsheets, and presentations, contain a wealth of valuable information, but sometimes it's hard to find what you're looking for. This blog post explains how to build a DIY starter architecture, based on near real-time ingestion processing and large language models (LLMs), to extract meaningful information from your assets. The model makes the information available and discoverable through a simple natural language query.
 
 Building a near real time processing pipeline for content ingestion may seem like a very complex task, and it can be. To alliviate this task Apache Beam framework exposes a set of powerful constructs to remove the complexities of interacting with a variety of content sources and destinations, error handling, clarity, modularity, all while maintaining a good degree of resiliency and scalability with minimal effort. An Apache Beam streaming pipeline should be able to connect to the many components of a solution to quickly process document's content ingestion requests, making the information available in few seconds after the ingestion request was triggered.
 
