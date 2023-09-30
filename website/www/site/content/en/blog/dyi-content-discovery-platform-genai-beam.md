@@ -326,7 +326,7 @@ The provided solution is clearly not production ready, but it can serve as a kic
 
 ### Notes about the source code
 
-The source code for the content discovery platform can be found available in [Github](https://github.com/prodriguezdefino/content-dicovery-platform-gcp), and can be quickly deployed in any GCP service for a test run. The repository includes source code for the integration services, the multi-language ingestion pipeline, and the deployment automation for all its components through Terraform. Consider that deployment may take up to 90 minutes to create and configure all the needed resources. Also some additional documentation regarding the deployment requisites and some example REST interactions can be found in the repository README file. 
+The source code for the content discovery platform is available in [Github](https://github.com/prodriguezdefino/content-dicovery-platform-gcp). You can run it in any Google Cloud project. The repository includes the source code for the integration services, the multi-language ingestion pipeline, and the deployment automation through Terraform. If you deploy this example, it might take up to 90 minutes to create and configure all the needed resources. The README file contains additional documentation about the deployment prerequisites and example REST interactions.
 
 ## Recap
 
