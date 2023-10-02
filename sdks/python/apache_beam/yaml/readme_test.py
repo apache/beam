@@ -32,6 +32,7 @@ from yaml.loader import SafeLoader
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
+from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
@@ -85,13 +86,16 @@ class FakeSql(beam.PTransform):
             typ, = [t for t in typ.__args__ if t is not type(None)]
       return name, typ
 
-    output_schema = [
-        guess_name_and_type(expr) for expr in m.group(1).split(',')
-    ]
-    output_element = beam.Row(**{name: typ() for name, typ in output_schema})
-    return next(iter(inputs.values())) | beam.Map(
-        lambda _: output_element).with_output_types(
-            trivial_inference.instance_to_type(output_element))
+    if m.group(1) == '*':
+      return inputs['PCOLLECTION'] | beam.Filter(lambda _: True)
+    else:
+      output_schema = [
+          guess_name_and_type(expr) for expr in m.group(1).split(',')
+      ]
+      output_element = beam.Row(**{name: typ() for name, typ in output_schema})
+      return next(iter(inputs.values())) | beam.Map(
+          lambda _: output_element).with_output_types(
+              trivial_inference.instance_to_type(output_element))
 
 
 class FakeReadFromPubSub(beam.PTransform):
@@ -204,12 +208,13 @@ def create_test_method(test_type, test_name, test_yaml):
         ]
         options['render_leaf_composite_nodes'] = ['.*']
       test_provider = TestProvider(TEST_TRANSFORMS)
+      test_sql_mapping_provider = yaml_mapping.SqlMappingProvider(test_provider)
       p = beam.Pipeline(options=PipelineOptions(**options))
       yaml_transform.expand_pipeline(
           p,
           modified_yaml,
-          {t: test_provider
-           for t in test_provider.provided_transforms()})
+          yaml_provider.merge_providers(
+              [test_provider, test_sql_mapping_provider]))
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()

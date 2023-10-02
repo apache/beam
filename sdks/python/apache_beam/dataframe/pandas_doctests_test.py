@@ -164,6 +164,9 @@ class DoctestTest(unittest.TestCase):
                 '   key=lambda x: np.argsort(index_natsorted(df["time"]))\n'
                 ')'
             ],
+            # TODO(https://github.com/apache/beam/issues/28559): Re-enable when
+            # bug is fixed.
+            'pandas.core.generic.NDFrame.xs': ['*'],
             **skip_writes
         })
     self.assertEqual(result.failed, 0)
@@ -296,13 +299,19 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.value_counts': [
               'df.value_counts(dropna=False)'
             ],
+
+            'pandas.core.frame.DataFrame.to_timestamp': ['*']
         },
         skip={
-            # DataFrame construction from a dictionary and
-            # Series requires using the len() function, which
-            # is a non-deferred operation that we do not allow
+            # DataFrame construction from a dictionary, Series, or other
+            # DataFrame requires using the len() function, which is a
+            # non-deferred operation that we do not allow
             'pandas.core.frame.DataFrame': [
                 'pd.DataFrame(data=d, index=[0, 1, 2, 3])',
+                'df = pd.DataFrame(data=ser, index=["a", "c"])',
+                'df',
+                'df2 = pd.DataFrame(data=df1, index=["a", "c"])',
+                'df2',
             ],
             # s2 created with reindex
             'pandas.core.frame.DataFrame.dot': [
@@ -361,15 +370,17 @@ class DoctestTest(unittest.TestCase):
             # actually raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
             # Expected to raise a ValueError, but we raise NotImplementedError
+            # pylint: disable=line-too-long
             'pandas.core.frame.DataFrame.pivot': [
                 "df.pivot(index='foo', columns='bar', values='baz')",
                 "df.pivot(index='foo', columns='bar')['baz']",
                 "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
-                # pylint: disable=line-too-long
                 'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
-                # pylint: disable=line-too-long
-                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")',
+                'df.pivot(index="lev1", columns=["lev2", "lev3"], values="values")',
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"], values="values")',
             ],
+            # pylint: enable=line-too-long
             'pandas.core.frame.DataFrame.append': [
                 'df',
                 # pylint: disable=line-too-long
@@ -511,6 +522,8 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
             ],
+            'pandas.core.series.Series.to_period': ['*'],
+            'pandas.core.series.Series.to_timestamp': ['*'],
         },
         skip={
             # Relies on setting values with iloc
@@ -535,6 +548,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.idxmin': ['s.idxmin()'],
             'pandas.core.series.Series.idxmax': ['s.idxmax()'],
             'pandas.core.series.Series.duplicated': ['*'],
+            # Relies on setting index.
+            'pandas.core.series.Series.rename_axis': ['*'],
             'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
@@ -710,6 +725,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.rolling': ['*'],
         },
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.first': ['*'],
@@ -764,16 +780,21 @@ class DoctestTest(unittest.TestCase):
                 'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
+                'df.groupby("key").fillna(method="ffill")',
+                'df.groupby("key").fillna(method="bfill")',
+                'df.groupby("key").fillna(method="ffill", limit=1)',
             ],
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
                 'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
+            'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
         },
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
@@ -794,14 +815,6 @@ class DoctestTest(unittest.TestCase):
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
-            'pandas.core.groupby.generic.SeriesGroupBy.transform': [
-                # Dropping invalid columns during a transform is unsupported.
-                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
-            ],
-            'pandas.core.groupby.generic.DataFrameGroupBy.transform': [
-                # Dropping invalid columns during a transform is unsupported.
-                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
-            ],
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
@@ -811,7 +824,24 @@ class DoctestTest(unittest.TestCase):
                 # pylint: disable=line-too-long
                 "df.groupby('gender', as_index=False).value_counts(normalize=True)",
             ],
-        })
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.SeriesGroupBy.fillna': ['*'],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.DataFrameGroupBy.fillna': ['*'],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.SeriesGroupBy.take': ['*'],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.DataFrameGroupBy.take': ['*'],
+            # Named aggregation not supported yet.
+            'pandas.core.groupby.generic.NamedAgg': [
+                'df.groupby("key").agg(result_a=agg_a, result_1=agg_1)'
+            ],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
+        },
+    )
     self.assertEqual(result.failed, 0)
 
   def test_top_level(self):
@@ -843,7 +873,6 @@ class DoctestTest(unittest.TestCase):
             'pivot_table': ['*'],
             'qcut': ['*'],
             'reset_option': ['*'],
-            'set_eng_float_format': ['*'],
             'set_option': ['*'],
             'to_numeric': ['*'],
             'to_timedelta': ['*'],

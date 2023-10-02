@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -46,15 +47,14 @@ func RunPipeline(j *jobservices.Job) {
 	// here, we only want and need the go one, operating
 	// in loopback mode.
 	envs := j.Pipeline.GetComponents().GetEnvironments()
-	if len(envs) != 1 {
-		j.Failed(fmt.Errorf("unable to execute multi-environment pipelines;\npipeline has environments: %+v", envs))
-		return
-	}
-	env, _ := getOnlyPair(envs)
-	wk, err := makeWorker(env, j)
-	if err != nil {
-		j.Failed(err)
-		return
+	wks := map[string]*worker.W{}
+	for envID := range envs {
+		wk, err := makeWorker(envID, j)
+		if err != nil {
+			j.Failed(err)
+			return
+		}
+		wks[envID] = wk
 	}
 	// When this function exits, we cancel the context to clear
 	// any related job resources.
@@ -65,14 +65,11 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("running " + j.String())
 	j.Running()
 
-	if err := executePipeline(j.RootCtx, wk, j); err != nil {
+	if err := executePipeline(j.RootCtx, wks, j); err != nil {
 		j.Failed(err)
 		return
 	}
 	j.SendMsg("pipeline completed " + j.String())
-
-	// Stop the worker.
-	wk.Stop()
 
 	j.SendMsg("terminating " + j.String())
 	j.Done()
@@ -81,17 +78,21 @@ func RunPipeline(j *jobservices.Job) {
 // makeWorker creates a worker for that environment.
 func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
 	wk := worker.New(j.String()+"_"+env, env)
+
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
+	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
 	wk.ArtifactEndpoint = j.ArtifactEndpoint()
+
 	go wk.Serve()
+
 	if err := runEnvironment(j.RootCtx, j, env, wk); err != nil {
 		return nil, fmt.Errorf("failed to start environment %v for job %v: %w", env, j, err)
 	}
 	// Check for connection succeeding after we've created the environment successfully.
 	timeout := 1 * time.Minute
 	time.AfterFunc(timeout, func() {
-		if wk.Connected() {
+		if wk.Connected() || wk.Stopped() {
 			return
 		}
 		err := fmt.Errorf("prism %v didn't get control connection to %v after %v", wk, wk.Endpoint(), timeout)
@@ -111,7 +112,7 @@ type processor struct {
 	transformExecuters map[string]transformExecuter
 }
 
-func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) error {
+func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservices.Job) error {
 	pipeline := j.Pipeline
 	comps := proto.Clone(pipeline.GetComponents()).(*pipepb.Components)
 
@@ -154,7 +155,12 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 	// TODO move this loop and code into the preprocessor instead.
 	stages := map[string]*stage{}
 	var impulses []string
-	for _, stage := range topo {
+
+	// Inialize the "dataservice cache" to support side inputs.
+	// TODO(https://github.com/apache/beam/issues/28543), remove this concept.
+	ds := &worker.DataService{}
+
+	for i, stage := range topo {
 		tid := stage.transforms[0]
 		t := ts[tid]
 		urn := t.GetSpec().GetUrn()
@@ -165,11 +171,11 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 		if stage.exe != nil {
 			stage.envID = stage.exe.ExecuteWith(t)
 		}
-		stage.ID = wk.NextStage()
+		stage.ID = fmt.Sprintf("stage-%03d", i)
+		wk := wks[stage.envID]
 
 		switch stage.envID {
 		case "": // Runner Transforms
-
 			var onlyOut string
 			for _, out := range t.GetOutputs() {
 				onlyOut = out
@@ -228,10 +234,8 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 				em.AddStage(stage.ID, inputs, nil, []string{getOnlyValue(t.GetOutputs())})
 			}
 			stages[stage.ID] = stage
-			wk.Descriptors[stage.ID] = stage.desc
 		case wk.Env:
-			// Great! this is for this environment. // Broken abstraction.
-			if err := buildDescriptor(stage, comps, wk); err != nil {
+			if err := buildDescriptor(stage, comps, wk, ds); err != nil {
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
@@ -255,7 +259,12 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 	maxParallelism := make(chan struct{}, 8)
 	// Execute stages here
 	bundleFailed := make(chan error)
-	bundles := em.Bundles(ctx, wk.NextInst)
+
+	var instID uint64
+	bundles := em.Bundles(ctx, func() string {
+		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+	})
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -269,7 +278,8 @@ func executePipeline(ctx context.Context, wk *worker.W, j *jobservices.Job) erro
 			go func(rb engine.RunBundle) {
 				defer func() { <-maxParallelism }()
 				s := stages[rb.StageID]
-				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
+				wk := wks[s.envID]
+				if err := s.Execute(ctx, j, wk, ds, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
 					em.FailBundle(rb)
 					bundleFailed <- err

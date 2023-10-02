@@ -17,9 +17,11 @@
 import re
 import unittest
 import warnings
+from typing import Dict
 
 import numpy as np
 import pandas as pd
+import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -43,6 +45,10 @@ GROUPBY_DF = pd.DataFrame({
     'bool': [i % 17 == 0 for i in range(100)],
     'str': [str(i) for i in range(100)],
 })
+
+if PD_VERSION < (2, 0):
+  # All these are things that are fixed in the Pandas 2 transition.
+  pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
 
 def _get_deferred_args(*args):
@@ -187,6 +193,9 @@ class _AbstractFrameTest(unittest.TestCase):
         if expected.index.is_unique:
           expected = expected.sort_index()
           actual = actual.sort_index()
+        elif isinstance(expected, pd.Series):
+          expected = expected.sort_values()
+          actual = actual.sort_values()
         else:
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
@@ -688,6 +697,8 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
+    # Ensure we don't drop rows due to nan values in unused columns.
+    self._run_test(lambda df: df.value_counts('num_wings'), df)
 
     if PD_VERSION >= (1, 3):
       # dropna=False is new in pandas 1.3
@@ -1634,6 +1645,30 @@ class DeferredFrameTest(_AbstractFrameTest):
 # https://github.com/pandas-dev/pandas/issues/40139
 ALL_GROUPING_AGGREGATIONS = sorted(
     set(frames.ALL_AGGREGATIONS) - set(('kurt', 'kurtosis')))
+AGGREGATIONS_WHERE_NUMERIC_ONLY_DEFAULTS_TO_TRUE_IN_PANDAS_1 = set(
+    frames.ALL_AGGREGATIONS) - set((
+        'nunique',
+        'size',
+        'count',
+        'idxmin',
+        'idxmax',
+        'mode',
+        'rank',
+        'all',
+        'any',
+        'describe'))
+
+
+def numeric_only_kwargs_for_pandas_2(agg_type: str) -> Dict[str, bool]:
+  """Get proper arguments for numeric_only.
+
+  Behavior for numeric_only in these methods changed in Pandas 2 to default
+  to False instead of True, so explicitly make it True in Pandas 2."""
+  if PD_VERSION >= (2, 0) and (
+      agg_type in AGGREGATIONS_WHERE_NUMERIC_ONLY_DEFAULTS_TO_TRUE_IN_PANDAS_1):
+    return {'numeric_only': True}
+  else:
+    return {}
 
 
 class GroupByTest(_AbstractFrameTest):
@@ -1650,8 +1685,9 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
+    kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
     self._run_test(
-        lambda df: df.groupby('group').agg(agg_type),
+        lambda df: df.groupby('group').agg(agg_type, **kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1661,8 +1697,10 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
+    kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
     self._run_test(
-        lambda df: getattr(df[df.foo > 30].groupby('group'), agg_type)(),
+        lambda df: getattr(df[df.foo > 30].groupby('group'), agg_type)
+        (**kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1673,8 +1711,9 @@ class GroupByTest(_AbstractFrameTest):
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
 
+    kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
     self._run_test(
-        lambda df: getattr(df.groupby('group'), agg_type)(),
+        lambda df: getattr(df.groupby('group'), agg_type)(**kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1685,8 +1724,10 @@ class GroupByTest(_AbstractFrameTest):
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
 
+    kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
     self._run_test(
-        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)(),
+        lambda df: getattr(df[df.foo > 40].groupby(df.group), agg_type)
+        (**kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1717,12 +1758,15 @@ class GroupByTest(_AbstractFrameTest):
           "https://github.com/apache/beam/issues/20895: "
           "SeriesGroupBy.{corr, cov} do not raise the expected error.")
 
-    self._run_test(lambda df: getattr(df.groupby('group').foo, agg_type)(), df)
-    self._run_test(lambda df: getattr(df.groupby('group').bar, agg_type)(), df)
+    kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
     self._run_test(
-        lambda df: getattr(df.groupby('group')['foo'], agg_type)(), df)
+        lambda df: getattr(df.groupby('group').foo, agg_type)(**kwargs), df)
     self._run_test(
-        lambda df: getattr(df.groupby('group')['bar'], agg_type)(), df)
+        lambda df: getattr(df.groupby('group').bar, agg_type)(**kwargs), df)
+    self._run_test(
+        lambda df: getattr(df.groupby('group')['foo'], agg_type)(**kwargs), df)
+    self._run_test(
+        lambda df: getattr(df.groupby('group')['bar'], agg_type)(**kwargs), df)
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_groupby_project_dataframe(self, agg_type):
@@ -1730,8 +1774,10 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
+    kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
     self._run_test(
-        lambda df: getattr(df.groupby('group')[['bar', 'baz']], agg_type)(),
+        lambda df: getattr(df.groupby('group')[['bar', 'baz']], agg_type)
+        (**kwargs),
         GROUPBY_DF,
         check_proxy=False)
 
@@ -1760,9 +1806,10 @@ class GroupByTest(_AbstractFrameTest):
 
   def test_groupby_callable(self):
     df = GROUPBY_DF
-
-    self._run_test(lambda df: df.groupby(lambda x: x % 2).foo.sum(), df)
-    self._run_test(lambda df: df.groupby(lambda x: x % 5).median(), df)
+    kwargs = numeric_only_kwargs_for_pandas_2('sum')
+    self._run_test(lambda df: df.groupby(lambda x: x % 2).foo.sum(**kwargs), df)
+    kwargs = numeric_only_kwargs_for_pandas_2('median')
+    self._run_test(lambda df: df.groupby(lambda x: x % 5).median(**kwargs), df)
 
   def test_groupby_apply(self):
     df = GROUPBY_DF
@@ -1790,8 +1837,8 @@ class GroupByTest(_AbstractFrameTest):
     df = GROUPBY_DF
 
     self._run_test(
-        lambda df: df[['foo', 'group', 'bar']].groupby('group').apply(
-            lambda x: x),
+        lambda df: df[['foo', 'group', 'bar']].groupby(
+            'group', group_keys=False).apply(lambda x: x),
         df)
 
   def test_groupby_transform(self):
@@ -1817,8 +1864,9 @@ class GroupByTest(_AbstractFrameTest):
 
   def test_groupby_pipe(self):
     df = GROUPBY_DF
-
-    self._run_test(lambda df: df.groupby('group').pipe(lambda x: x.sum()), df)
+    kwargs = numeric_only_kwargs_for_pandas_2('sum')
+    self._run_test(
+        lambda df: df.groupby('group').pipe(lambda x: x.sum(**kwargs)), df)
     self._run_test(
         lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
     self._run_test(
@@ -1888,6 +1936,8 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  @unittest.skipIf(
+      PD_VERSION >= (2, 0), "dtypes on groups is deprecated in Pandas 2.")
   def test_groupby_dtypes(self):
     self._run_test(
         lambda df: df.groupby('group').dtypes, GROUPBY_DF, check_proxy=False)
@@ -1900,14 +1950,14 @@ class GroupByTest(_AbstractFrameTest):
       self.skipTest(
           "https://github.com/apache/beam/issues/20967: proxy generation of "
           "DataFrameGroupBy.describe fails in pandas < 1.2")
+
+    def agg(df, group_by):
+      kwargs = numeric_only_kwargs_for_pandas_2(agg_type)
+      return df[df.foo > 40].groupby(group_by).agg(agg_type, **kwargs)
+
+    self._run_test(lambda df: agg(df, df.group), GROUPBY_DF, check_proxy=False)
     self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.group).agg(agg_type),
-        GROUPBY_DF,
-        check_proxy=False)
-    self._run_test(
-        lambda df: df[df.foo > 40].groupby(df.foo % 3).agg(agg_type),
-        GROUPBY_DF,
-        check_proxy=False)
+        lambda df: agg(df, df.foo % 3), GROUPBY_DF, check_proxy=False)
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_series_groupby_series(self, agg_type):
@@ -2111,6 +2161,7 @@ class AggregationTest(_AbstractFrameTest):
             level=1, numeric_only=True),
         GROUPBY_DF)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
@@ -2133,6 +2184,7 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.two.mean(skipna=True), df)
     self._run_test(lambda df: df.three.mean(skipna=True), df)
 
+  @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_dataframe_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
@@ -2941,7 +2993,7 @@ class DocstringTest(unittest.TestCase):
       (frames.DeferredDataFrame, pd.DataFrame),
       (frames.DeferredSeries, pd.Series),
       #(frames._DeferredIndex, pd.Index),
-      (frames._DeferredStringMethods, pd.core.strings.StringMethods),
+      (frames._DeferredStringMethods, pd.Series.str),
       (
           frames._DeferredCategoricalMethods,
           pd.core.arrays.categorical.CategoricalAccessor),

@@ -71,13 +71,16 @@ public class KafkaResourceManager extends TestContainerResourceManager<GenericCo
   private final String connectionString;
   private final boolean usingStaticTopic;
 
-  private KafkaResourceManager(Builder builder) {
+  private KafkaResourceManager(KafkaResourceManager.Builder builder) {
     this(null, new DefaultKafkaContainer(builder), builder);
   }
 
   @VisibleForTesting
   @SuppressWarnings("nullness")
-  KafkaResourceManager(@Nullable AdminClient client, KafkaContainer container, Builder builder) {
+  KafkaResourceManager(
+      @Nullable AdminClient client,
+      KafkaContainer container,
+      KafkaResourceManager.Builder builder) {
     super(container, builder);
 
     this.usingStaticTopic = builder.topicNames.size() > 0;
@@ -102,8 +105,8 @@ public class KafkaResourceManager extends TestContainerResourceManager<GenericCo
             : AdminClient.create(ImmutableMap.of("bootstrap.servers", this.connectionString));
   }
 
-  public static Builder builder(String testId) {
-    return new Builder(testId);
+  public static KafkaResourceManager.Builder builder(String testId) {
+    return new KafkaResourceManager.Builder(testId);
   }
 
   /** Returns the kafka bootstrap server connection string. */

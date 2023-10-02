@@ -147,7 +147,7 @@ Here’s a list of things you can do to get started contributing:
   <tr>
     <td>Test a release candidate</td>
     <td>
-      Anybody can <a href="/contribute/release-guide/">propose a release</a> via the dev@beam.apache.org mailing list. Try Apache Beam releases in your projects, vote for release candidates, inform the community about the results and any issues found via <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a>. Learn more about how to validate a Beam release <a href="/blog/validate-beam-release/">here</a>.
+      Anybody can <a href="https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md">propose a release</a> via the dev@beam.apache.org mailing list. Try Apache Beam releases in your projects, vote for release candidates, inform the community about the results and any issues found via <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a>. Learn more about how to validate a Beam release <a href="/blog/validate-beam-release/">here</a>.
     </td>
   </tr>
   <tr>

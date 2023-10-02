@@ -45,6 +45,7 @@ class WordCountIT(unittest.TestCase):
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
   @pytest.mark.it_postcommit
+  @pytest.mark.it_validatescontainer
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
@@ -89,11 +90,6 @@ class WordCountIT(unittest.TestCase):
       with auth._Credentials._credentials_lock:
         auth._Credentials._credentials_init = False
 
-  @pytest.mark.it_postcommit
-  @pytest.mark.it_validatescontainer
-  def test_wordcount_fnapi_it(self):
-    self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
-
   @pytest.mark.it_validatescontainer
   def test_wordcount_it_with_prebuilt_sdk_container_local_docker(self):
     self._run_wordcount_it(
@@ -108,17 +104,14 @@ class WordCountIT(unittest.TestCase):
         experiment='beam_fn_api',
         prebuild_sdk_container_engine='cloud_build')
 
-  @pytest.mark.it_validatescontainer
-  def test_wordcount_it_with_use_sibling_sdk_workers(self):
-    self._run_wordcount_it(wordcount.run, experiment='use_sibling_sdk_workers')
-
-  @pytest.mark.it_dataflow_arm
-  def test_wordcount_fnapi_it_arm(self):
-    self._run_wordcount_it(wordcount.run, machine_type='t2a-standard-1')
-
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
+
+    if (test_pipeline.get_option('machine_type') == 't2a-standard-1' and
+        'prebuild_sdk_container_engine' in opts):
+      # TODO(https://github.com/apache/beam/issues/28340)
+      pytest.skip('prebuild_sdk_container_engine not supported on ARM')
 
     # Set extra options to the pipeline for test purpose
     test_output = '/'.join([

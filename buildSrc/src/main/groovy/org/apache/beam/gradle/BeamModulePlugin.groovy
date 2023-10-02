@@ -491,7 +491,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.51.0'
+    project.version = '2.52.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -708,7 +708,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
-        flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
+        flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.4",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
