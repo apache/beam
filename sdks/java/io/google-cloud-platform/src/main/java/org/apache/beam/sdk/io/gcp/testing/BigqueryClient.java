@@ -296,8 +296,8 @@ public class BigqueryClient {
   }
 
   /**
-   * Performs a query without flattening results. May choose a location to perform this operation
-   * in.
+   * Performs a query without flattening results. May choose a location (GCP region) to perform this
+   * operation in.
    */
   @Nonnull
   public List<TableRow> queryUnflattened(
@@ -416,7 +416,9 @@ public class BigqueryClient {
     createNewDataset(projectId, datasetId, defaultTableExpirationMs, null);
   }
 
-  /** Creates a new dataset with defaultTableExpirationMs and in a specified location. */
+  /**
+   * Creates a new dataset with defaultTableExpirationMs and in a specified location (GCP region).
+   */
   public void createNewDataset(
       String projectId,
       String datasetId,

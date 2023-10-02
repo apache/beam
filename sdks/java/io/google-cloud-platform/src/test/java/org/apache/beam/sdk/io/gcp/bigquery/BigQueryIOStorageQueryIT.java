@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_EARLY_ROLLOUT_REGION;
+
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -56,7 +58,7 @@ public class BigQueryIOStorageQueryIT {
       TestPipeline.testingPipelineOptions()
               .as(TestBigQueryOptions.class)
               .getBigQueryLocation()
-              .equals("us-east7")
+              .equals(BIGQUERY_EARLY_ROLLOUT_REGION)
           ? "big_query_storage_day0"
           : "big_query_storage";
   private static final String TABLE_PREFIX = "storage_read_";
