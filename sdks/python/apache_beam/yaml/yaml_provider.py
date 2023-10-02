@@ -170,7 +170,7 @@ class ExternalProvider(Provider):
 
   def requires_inputs(self, typ, args):
     if self._urns[typ] in self.schema_transforms():
-      return bool(self.schema_transforms()[self._urns[type]].inputs)
+      return bool(self.schema_transforms()[self._urns[typ]].inputs)
     else:
       return super().requires_inputs(typ, args)
 
