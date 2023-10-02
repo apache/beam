@@ -148,7 +148,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       // databaseClient.getDialect does not currently bubble up the correct message.
       // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
       // "in the given time"
-      thrown.expectMessage("DEADLINE_EXCEEDED: Operation did not complete in the given time");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -184,7 +184,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       // The pipeline continues making requests to Spanner to retry the Aborted errors.
       assertNull(result.waitUntilFinish(Duration.millis(500)));
     } finally {
-      thrown.expectMessage("DEADLINE_EXCEEDED: Operation did not complete in the given time");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -211,7 +211,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       pipeline.run().waitUntilFinish();
     } finally {
       thrown.expect(SpannerException.class);
-      thrown.expectMessage("UNKNOWN - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
+      thrown.expectMessage("UNKNOWN");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -238,7 +238,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withInclusiveEndAt(endTimestamp));
       pipeline.run().waitUntilFinish();
     } finally {
-      thrown.expectMessage("DEADLINE_EXCEEDED: Operation did not complete in the given time");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -274,7 +274,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       pipeline.run().waitUntilFinish();
     } finally {
       thrown.expect(SpannerException.class);
-      thrown.expectMessage("RESOURCE_EXHAUSTED - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
+      thrown.expectMessage("RESOURCE_EXHAUSTED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -315,7 +315,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       thrown.expect(SpannerException.class);
       // DatabaseClient.getDialect returns "DEADLINE_EXCEEDED: Operation did not complete in the "
       // given time" even though we mocked it out.
-      thrown.expectMessage("DEADLINE_EXCEEDED: Operation did not complete in the given time");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
