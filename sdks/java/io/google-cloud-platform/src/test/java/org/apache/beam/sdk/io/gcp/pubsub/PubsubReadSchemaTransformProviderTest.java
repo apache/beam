@@ -46,6 +46,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -159,6 +161,36 @@ public class PubsubReadSchemaTransformProviderTest {
                             .setFormat("AVRO")
                             .build())));
     p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadRaw() throws IOException {
+    PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
+
+    Schema rawSchema = Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
+    byte[] payload = "some payload".getBytes(Charsets.UTF_8);
+
+    try (PubsubTestClientFactory clientFactory =
+        clientFactory(ImmutableList.of(incomingMessageOf(payload, CLOCK.currentTimeMillis())))) {
+      PubsubReadSchemaTransformConfiguration config =
+          PubsubReadSchemaTransformConfiguration.builder()
+              .setFormat("RAW")
+              .setSchema("")
+              .setSubscription(SUBSCRIPTION)
+              .setClientFactory(clientFactory)
+              .setClock(CLOCK)
+              .build();
+      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      PCollectionRowTuple reads = begin.apply(transform);
+
+      PAssert.that(reads.get("output"))
+          .containsInAnyOrder(
+              ImmutableList.of(Row.withSchema(rawSchema).addValue(payload).build()));
+
+      p.run().waitUntilFinish();
+    } catch (Exception e) {
+      throw e;
+    }
   }
 
   @Test

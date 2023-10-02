@@ -63,7 +63,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 public class PubsubReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubReadSchemaTransformConfiguration> {
 
-  public static final String VALID_FORMATS_STR = "AVRO,JSON";
+  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -89,34 +89,40 @@ public class PubsubReadSchemaTransformProvider
           "To read from Pubsub, a subscription name or a topic name must be provided. Not both.");
     }
 
-    if ((Strings.isNullOrEmpty(configuration.getSchema())
-            && !Strings.isNullOrEmpty(configuration.getFormat()))
-        || (!Strings.isNullOrEmpty(configuration.getSchema())
-            && Strings.isNullOrEmpty(configuration.getFormat()))) {
-      throw new IllegalArgumentException(
-          "A schema was provided without a data format (or viceversa). Please provide "
-              + "both of these parameters to read from Pubsub, or if you would like to use the Pubsub schema service,"
-              + " please leave both of these blank.");
+    if (!"RAW".equals(configuration.getFormat())) {
+      if ((Strings.isNullOrEmpty(configuration.getSchema())
+              && !Strings.isNullOrEmpty(configuration.getFormat()))
+          || (!Strings.isNullOrEmpty(configuration.getSchema())
+              && Strings.isNullOrEmpty(configuration.getFormat()))) {
+        throw new IllegalArgumentException(
+            "A schema was provided without a data format (or viceversa). Please provide "
+                + "both of these parameters to read from Pubsub, or if you would like to use the Pubsub schema service,"
+                + " please leave both of these blank.");
+      }
     }
 
     Schema beamSchema;
     SerializableFunction<byte[], Row> valueMapper;
 
-    if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
+    String format =
+        configuration.getFormat() == null ? null : configuration.getFormat().toUpperCase();
+    if (Objects.equals(format, "RAW")) {
+      beamSchema = Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
+      valueMapper = input -> Row.withSchema(beamSchema).addValue(input).build();
+    } else if (Objects.equals(format, "JSON")) {
+      beamSchema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema());
+      valueMapper = JsonUtils.getJsonBytesToRowFunction(beamSchema);
+    } else if (Objects.equals(format, "AVRO")) {
+      beamSchema =
+          AvroUtils.toBeamSchema(
+              new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
+      valueMapper = AvroUtils.getAvroBytesToRowFunction(beamSchema);
+    } else {
       throw new IllegalArgumentException(
           String.format(
               "Format %s not supported. Only supported formats are %s",
               configuration.getFormat(), VALID_FORMATS_STR));
     }
-    beamSchema =
-        Objects.equals(configuration.getFormat(), "JSON")
-            ? JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema())
-            : AvroUtils.toBeamSchema(
-                new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
-    valueMapper =
-        Objects.equals(configuration.getFormat(), "JSON")
-            ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
-            : AvroUtils.getAvroBytesToRowFunction(beamSchema);
 
     PubsubReadSchemaTransform transform =
         new PubsubReadSchemaTransform(

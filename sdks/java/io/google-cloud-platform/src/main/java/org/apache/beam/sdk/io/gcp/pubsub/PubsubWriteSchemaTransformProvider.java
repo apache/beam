@@ -19,8 +19,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -56,7 +58,7 @@ public class PubsubWriteSchemaTransformProvider
   public static final TupleTag<PubsubMessage> OUTPUT_TAG = new TupleTag<PubsubMessage>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
 
-  public static final String VALID_FORMATS_STR = "AVRO,JSON";
+  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -88,7 +90,7 @@ public class PubsubWriteSchemaTransformProvider
 
   @Override
   public SchemaTransform from(PubsubWriteSchemaTransformConfiguration configuration) {
-    if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
+    if (!VALID_DATA_FORMATS.contains(configuration.getFormat().toUpperCase())) {
       throw new IllegalArgumentException(
           String.format(
               "Format %s not supported. Only supported formats are %s",
@@ -113,10 +115,35 @@ public class PubsubWriteSchemaTransformProvider
               .addStringField("error")
               .addNullableRowField("row", input.get("input").getSchema())
               .build();
-      SerializableFunction<Row, byte[]> fn =
-          format.equals("AVRO")
-              ? AvroUtils.getRowToAvroBytesFunction(input.get("input").getSchema())
-              : JsonUtils.getRowToJsonBytesFunction(input.get("input").getSchema());
+
+      Schema beamSchema = input.get("input").getSchema();
+      SerializableFunction<Row, byte[]> fn;
+      if (Objects.equals(format, "RAW")) {
+        if (beamSchema.getFieldCount() != 1) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Raw output only supported for single-field schemas, got %s", beamSchema));
+        }
+        if (beamSchema.getField(0).getType().equals(Schema.FieldType.BYTES)) {
+          fn = row -> row.getBytes(0);
+        } else if (beamSchema.getField(0).getType().equals(Schema.FieldType.STRING)) {
+          fn = row -> row.getString(0).getBytes(StandardCharsets.UTF_8);
+        } else {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Raw output only supports bytes and string fields, got %s",
+                  beamSchema.getField(0)));
+        }
+      } else if (Objects.equals(format, "JSON")) {
+        fn = JsonUtils.getRowToJsonBytesFunction(beamSchema);
+      } else if (Objects.equals(format, "AVRO")) {
+        fn = AvroUtils.getRowToAvroBytesFunction(beamSchema);
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Format %s not supported. Only supported formats are %s",
+                format, VALID_FORMATS_STR));
+      }
 
       PCollectionTuple outputTuple =
           input
