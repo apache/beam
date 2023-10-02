@@ -60,6 +60,26 @@ public abstract class PubsubReadSchemaTransformConfiguration {
           + "For JSON data, this is a schema defined with JSON-schema syntax (https://json-schema.org/).")
   public abstract String getSchema();
 
+  @SchemaFieldDescription(
+      "When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub message attributes, "
+          + "specifies the name of the attribute containing the unique identifier. "
+          + "The value of the attribute can be any string that uniquely identifies this record. "
+          + "Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream. "
+          + "If idAttribute is not provided, Beam cannot guarantee that no duplicate data will be delivered, "
+          + "and deduplication of the stream will be strictly best effort.")
+  public abstract String getIdAttribute();
+
+  @SchemaFieldDescription(
+      "Specifies the name of the attribute that contains the timestamp, if any. "
+          + "The timestamp value is expected to be represented in the attribute as either "
+          + "(1) a numerical value representing the number of milliseconds since the Unix epoch. "
+          + "For example, if using the Joda time classes, "
+          + "Instant.getMillis() returns the correct value for this attribute."
+          + " or (2) a String in RFC 3339 format. For example, 2015-10-29T23:41:41.123Z. "
+          + "The sub-second component of the timestamp is optional, and digits beyond the first three "
+          + "(i.e., time units smaller than milliseconds) will be ignored.")
+  public abstract String getTimestampAttribute();
+
   // Used for testing only.
   public abstract @Nullable PubsubTestClientFactory getClientFactory();
 
@@ -79,6 +99,10 @@ public abstract class PubsubReadSchemaTransformConfiguration {
     public abstract Builder setFormat(String format);
 
     public abstract Builder setSchema(String schema);
+
+    public abstract Builder setIdAttribute(String schema);
+
+    public abstract Builder setTimestampAttribute(String schema);
 
     // Used for testing only.
     public abstract Builder setClientFactory(@Nullable PubsubTestClientFactory clientFactory);

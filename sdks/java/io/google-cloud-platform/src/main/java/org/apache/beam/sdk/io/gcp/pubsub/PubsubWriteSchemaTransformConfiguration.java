@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
@@ -41,6 +42,16 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
       "The name of the topic to write data to. " + "Format: projects/${PROJECT}/topics/${TOPIC}")
   public abstract String getTopic();
 
+  @SchemaFieldDescription(
+      "If set, will set an attribute for each Cloud Pub/Sub message with the given name and a unique value. "
+          + "This attribute can then be used in a ReadFromPubSub PTransform to deduplicate messages.")
+  public abstract @Nullable String getIdAttribute();
+
+  @SchemaFieldDescription(
+      "If set, will set an attribute for each Cloud Pub/Sub message with the given name and the message's "
+          + "publish time as the value.")
+  public abstract @Nullable String getTimestampAttribute();
+
   public static Builder builder() {
     return new AutoValue_PubsubWriteSchemaTransformConfiguration.Builder();
   }
@@ -50,6 +61,10 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
     public abstract Builder setFormat(String format);
 
     public abstract Builder setTopic(String topic);
+
+    public abstract Builder setIdAttribute(String idAttribute);
+
+    public abstract Builder setTimestampAttribute(String timestampAttribute);
 
     public abstract PubsubWriteSchemaTransformConfiguration build();
   }

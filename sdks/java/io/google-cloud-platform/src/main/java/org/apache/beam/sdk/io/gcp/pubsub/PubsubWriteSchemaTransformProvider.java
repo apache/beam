@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -96,16 +97,14 @@ public class PubsubWriteSchemaTransformProvider
               "Format %s not supported. Only supported formats are %s",
               configuration.getFormat(), VALID_FORMATS_STR));
     }
-    return new PubsubWriteSchemaTransform(configuration.getTopic(), configuration.getFormat());
+    return new PubsubWriteSchemaTransform(configuration);
   }
 
   private static class PubsubWriteSchemaTransform extends SchemaTransform implements Serializable {
-    final String topic;
-    final String format;
+    final PubsubWriteSchemaTransformConfiguration configuration;
 
-    PubsubWriteSchemaTransform(String topic, String format) {
-      this.topic = topic;
-      this.format = format;
+    PubsubWriteSchemaTransform(PubsubWriteSchemaTransformConfiguration configuration) {
+      this.configuration = configuration;
     }
 
     @Override
@@ -116,6 +115,7 @@ public class PubsubWriteSchemaTransformProvider
               .addNullableRowField("row", input.get("input").getSchema())
               .build();
 
+      String format = configuration.getFormat();
       Schema beamSchema = input.get("input").getSchema();
       SerializableFunction<Row, byte[]> fn;
       if (Objects.equals(format, "RAW")) {
@@ -152,7 +152,15 @@ public class PubsubWriteSchemaTransformProvider
                   ParDo.of(new ErrorFn(fn, errorSchema))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      outputTuple.get(OUTPUT_TAG).apply(PubsubIO.writeMessages().to(topic));
+      PubsubIO.Write<PubsubMessage> writeTransform =
+          PubsubIO.writeMessages().to(configuration.getTopic());
+      if (!Strings.isNullOrEmpty(configuration.getIdAttribute())) {
+        writeTransform = writeTransform.withIdAttribute(configuration.getIdAttribute());
+      }
+      if (!Strings.isNullOrEmpty(configuration.getTimestampAttribute())) {
+        writeTransform = writeTransform.withIdAttribute(configuration.getTimestampAttribute());
+      }
+      outputTuple.get(OUTPUT_TAG).apply(writeTransform);
 
       return PCollectionRowTuple.of("errors", outputTuple.get(ERROR_TAG).setRowSchema(errorSchema));
     }

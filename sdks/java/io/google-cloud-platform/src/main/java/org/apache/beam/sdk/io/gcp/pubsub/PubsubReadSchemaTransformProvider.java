@@ -35,8 +35,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -125,8 +123,7 @@ public class PubsubReadSchemaTransformProvider
     }
 
     PubsubReadSchemaTransform transform =
-        new PubsubReadSchemaTransform(
-            configuration.getTopic(), configuration.getSubscription(), beamSchema, valueMapper);
+        new PubsubReadSchemaTransform(configuration, beamSchema, valueMapper);
 
     if (configuration.getClientFactory() != null) {
       transform.setClientFactory(configuration.getClientFactory());
@@ -141,18 +138,15 @@ public class PubsubReadSchemaTransformProvider
   private static class PubsubReadSchemaTransform extends SchemaTransform implements Serializable {
     final Schema beamSchema;
     final SerializableFunction<byte[], Row> valueMapper;
-    final @Nullable String topic;
-    final @Nullable String subscription;
+    final PubsubReadSchemaTransformConfiguration configuration;
     @Nullable PubsubTestClientFactory clientFactory;
     @Nullable Clock clock;
 
     PubsubReadSchemaTransform(
-        @Nullable String topic,
-        @Nullable String subscription,
+        PubsubReadSchemaTransformConfiguration configuration,
         Schema beamSchema,
         SerializableFunction<byte[], Row> valueMapper) {
-      this.topic = topic;
-      this.subscription = subscription;
+      this.configuration = configuration;
       this.beamSchema = beamSchema;
       this.valueMapper = valueMapper;
     }
@@ -201,10 +195,10 @@ public class PubsubReadSchemaTransformProvider
     @SuppressWarnings("nullness")
     PubsubIO.Read<PubsubMessage> buildPubsubRead() {
       PubsubIO.Read<PubsubMessage> pubsubRead = PubsubIO.readMessages();
-      if (!Strings.isNullOrEmpty(topic)) {
-        pubsubRead = pubsubRead.fromTopic(topic);
+      if (!Strings.isNullOrEmpty(configuration.getTopic())) {
+        pubsubRead = pubsubRead.fromTopic(configuration.getTopic());
       } else {
-        pubsubRead = pubsubRead.fromSubscription(subscription);
+        pubsubRead = pubsubRead.fromSubscription(configuration.getSubscription());
       }
       if (clientFactory != null && clock != null) {
         pubsubRead = pubsubRead.withClientFactory(clientFactory);
@@ -212,6 +206,12 @@ public class PubsubReadSchemaTransformProvider
       } else if (clientFactory != null || clock != null) {
         throw new IllegalArgumentException(
             "Both PubsubTestClientFactory and Clock need to be specified for testing, but only one is provided");
+      }
+      if (!Strings.isNullOrEmpty(configuration.getIdAttribute())) {
+        pubsubRead = pubsubRead.withIdAttribute(configuration.getIdAttribute());
+      }
+      if (!Strings.isNullOrEmpty(configuration.getTimestampAttribute())) {
+        pubsubRead = pubsubRead.withTimestampAttribute(configuration.getTimestampAttribute());
       }
       return pubsubRead;
     }
