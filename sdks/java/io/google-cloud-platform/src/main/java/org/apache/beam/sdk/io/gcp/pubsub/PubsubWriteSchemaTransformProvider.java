@@ -18,12 +18,16 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -69,18 +73,54 @@ public class PubsubWriteSchemaTransformProvider
   }
 
   public static class ErrorFn extends DoFn<Row, PubsubMessage> {
-    private SerializableFunction<Row, byte[]> valueMapper;
-    private Schema errorSchema;
+    private final SerializableFunction<Row, byte[]> valueMapper;
+    private final @Nullable Set<String> attributes;
+    private final @Nullable String attributesMap;
+    private final Schema payloadSchema;
+    private final Schema errorSchema;
 
-    ErrorFn(SerializableFunction<Row, byte[]> valueMapper, Schema errorSchema) {
+    ErrorFn(
+        SerializableFunction<Row, byte[]> valueMapper,
+        @Nullable List<String> attributes,
+        @Nullable String attributesMap,
+        Schema payloadSchema,
+        Schema errorSchema) {
       this.valueMapper = valueMapper;
+      this.attributes = attributes == null ? null : ImmutableSet.copyOf(attributes);
+      this.attributesMap = attributesMap;
+      this.payloadSchema = payloadSchema;
       this.errorSchema = errorSchema;
     }
 
     @ProcessElement
     public void processElement(@Element Row row, MultiOutputReceiver receiver) {
       try {
-        receiver.get(OUTPUT_TAG).output(new PubsubMessage(valueMapper.apply(row), null));
+        Row payloadRow;
+        Map<String, String> messageAttributes = null;
+        if (attributes == null && attributesMap == null) {
+          payloadRow = row;
+        } else {
+          Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
+          messageAttributes = new HashMap<>();
+          List<Schema.Field> fields = row.getSchema().getFields();
+          for (int ix = 0; ix < fields.size(); ix++) {
+            String name = fields.get(ix).getName();
+            if (attributes != null && attributes.contains(name)) {
+              messageAttributes.put(name, row.getValue(ix));
+            } else if (name.equals(attributesMap)) {
+              Map<String, String> attrs = row.<String, String>getMap(ix);
+              if (attrs != null) {
+                messageAttributes.putAll(attrs);
+              }
+            } else {
+              payloadRowBuilder.addValue(row.getValue(ix));
+            }
+          }
+          payloadRow = payloadRowBuilder.build();
+        }
+        receiver
+            .get(OUTPUT_TAG)
+            .output(new PubsubMessage(valueMapper.apply(payloadRow), messageAttributes));
       } catch (Exception e) {
         receiver
             .get(ERROR_TAG)
@@ -108,6 +148,9 @@ public class PubsubWriteSchemaTransformProvider
     }
 
     @Override
+    @SuppressWarnings({
+      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    })
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       final Schema errorSchema =
           Schema.builder()
@@ -117,27 +160,40 @@ public class PubsubWriteSchemaTransformProvider
 
       String format = configuration.getFormat();
       Schema beamSchema = input.get("input").getSchema();
+      Schema payloadSchema;
+      if (configuration.getAttributes() == null && configuration.getAttributesMap() == null) {
+        payloadSchema = beamSchema;
+      } else {
+        Schema.Builder payloadSchemaBuilder = Schema.builder();
+        for (Schema.Field f : beamSchema.getFields()) {
+          if (!configuration.getAttributes().contains(f.getName())
+              && !f.getName().equals(configuration.getAttributesMap())) {
+            payloadSchemaBuilder.addField(f);
+          }
+        }
+        payloadSchema = payloadSchemaBuilder.build();
+      }
       SerializableFunction<Row, byte[]> fn;
       if (Objects.equals(format, "RAW")) {
-        if (beamSchema.getFieldCount() != 1) {
+        if (payloadSchema.getFieldCount() != 1) {
           throw new IllegalArgumentException(
               String.format(
-                  "Raw output only supported for single-field schemas, got %s", beamSchema));
+                  "Raw output only supported for single-field schemas, got %s", payloadSchema));
         }
-        if (beamSchema.getField(0).getType().equals(Schema.FieldType.BYTES)) {
+        if (payloadSchema.getField(0).getType().equals(Schema.FieldType.BYTES)) {
           fn = row -> row.getBytes(0);
-        } else if (beamSchema.getField(0).getType().equals(Schema.FieldType.STRING)) {
+        } else if (payloadSchema.getField(0).getType().equals(Schema.FieldType.STRING)) {
           fn = row -> row.getString(0).getBytes(StandardCharsets.UTF_8);
         } else {
           throw new IllegalArgumentException(
               String.format(
                   "Raw output only supports bytes and string fields, got %s",
-                  beamSchema.getField(0)));
+                  payloadSchema.getField(0)));
         }
       } else if (Objects.equals(format, "JSON")) {
-        fn = JsonUtils.getRowToJsonBytesFunction(beamSchema);
+        fn = JsonUtils.getRowToJsonBytesFunction(payloadSchema);
       } else if (Objects.equals(format, "AVRO")) {
-        fn = AvroUtils.getRowToAvroBytesFunction(beamSchema);
+        fn = AvroUtils.getRowToAvroBytesFunction(payloadSchema);
       } else {
         throw new IllegalArgumentException(
             String.format(
@@ -149,7 +205,13 @@ public class PubsubWriteSchemaTransformProvider
           input
               .get("input")
               .apply(
-                  ParDo.of(new ErrorFn(fn, errorSchema))
+                  ParDo.of(
+                          new ErrorFn(
+                              fn,
+                              configuration.getAttributes(),
+                              configuration.getAttributesMap(),
+                              payloadSchema,
+                              errorSchema))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       PubsubIO.Write<PubsubMessage> writeTransform =

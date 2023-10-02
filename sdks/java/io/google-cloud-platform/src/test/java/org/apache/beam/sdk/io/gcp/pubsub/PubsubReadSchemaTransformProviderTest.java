@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.PipelineResult;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -194,6 +196,58 @@ public class PubsubReadSchemaTransformProviderTest {
   }
 
   @Test
+  public void testReadAttributes() throws IOException {
+    PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
+
+    Schema.builder()
+        .addByteArrayField("payload")
+        .addStringField("attr")
+        .addMapField("attrMap", Schema.FieldType.STRING, Schema.FieldType.STRING)
+        .build();
+
+    Schema rawSchema =
+        Schema.builder()
+            .addByteArrayField("payload")
+            .addStringField("attr")
+            .addMapField("attrMap", Schema.FieldType.STRING, Schema.FieldType.STRING)
+            .build();
+    byte[] payload = "some payload".getBytes(Charsets.UTF_8);
+    String attr = "attr value";
+
+    try (PubsubTestClientFactory clientFactory =
+        clientFactory(
+            ImmutableList.of(
+                incomingMessageOf(
+                    payload, CLOCK.currentTimeMillis(), ImmutableMap.of("attr", attr))))) {
+      PubsubReadSchemaTransformConfiguration config =
+          PubsubReadSchemaTransformConfiguration.builder()
+              .setFormat("RAW")
+              .setSchema("")
+              .setSubscription(SUBSCRIPTION)
+              .setAttributes(ImmutableList.of("attr"))
+              .setAttributesMap("attrMap")
+              .setClientFactory(clientFactory)
+              .setClock(CLOCK)
+              .build();
+      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      PCollectionRowTuple reads = begin.apply(transform);
+
+      PAssert.that(reads.get("output"))
+          .containsInAnyOrder(
+              ImmutableList.of(
+                  Row.withSchema(rawSchema)
+                      .addValue(payload)
+                      .addValue(attr)
+                      .addValue(ImmutableMap.of("attr", attr))
+                      .build()));
+
+      p.run().waitUntilFinish();
+    } catch (Exception e) {
+      throw e;
+    }
+  }
+
+  @Test
   public void testReadAvro() throws IOException {
     PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
 
@@ -285,12 +339,18 @@ public class PubsubReadSchemaTransformProviderTest {
 
   private static PubsubClient.IncomingMessage incomingMessageOf(
       byte[] bytes, long millisSinceEpoch) {
+    return incomingMessageOf(bytes, millisSinceEpoch, ImmutableMap.of());
+  }
+
+  private static PubsubClient.IncomingMessage incomingMessageOf(
+      byte[] bytes, long millisSinceEpoch, Map<String, String> attributes) {
     int nanos = Long.valueOf(millisSinceEpoch).intValue() * 1000;
     Timestamp timestamp = Timestamp.newBuilder().setNanos(nanos).build();
     return PubsubClient.IncomingMessage.of(
         com.google.pubsub.v1.PubsubMessage.newBuilder()
             .setData(ByteString.copyFrom(bytes))
             .setPublishTime(timestamp)
+            .putAllAttributes(attributes)
             .build(),
         millisSinceEpoch,
         0,
@@ -300,6 +360,7 @@ public class PubsubReadSchemaTransformProviderTest {
 
   private static PubsubTestClient.PubsubTestClientFactory clientFactory(
       List<PubsubClient.IncomingMessage> messages) {
+    System.out.println("messages " + messages);
     return PubsubTestClient.createFactoryForPull(
         CLOCK, PubsubClient.subscriptionPathFromPath(SUBSCRIPTION), 60, messages);
   }

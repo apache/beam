@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -43,6 +44,14 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
   public abstract String getTopic();
 
   @SchemaFieldDescription(
+      "The set of fields to write as PubSub attributes instead of part of the payload.")
+  public abstract @Nullable List<String> getAttributes();
+
+  @SchemaFieldDescription(
+      "A map field to write as PubSub attributes instead of part of the payload.")
+  public abstract @Nullable String getAttributesMap();
+
+  @SchemaFieldDescription(
       "If set, will set an attribute for each Cloud Pub/Sub message with the given name and a unique value. "
           + "This attribute can then be used in a ReadFromPubSub PTransform to deduplicate messages.")
   public abstract @Nullable String getIdAttribute();
@@ -62,9 +71,13 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
 
     public abstract Builder setTopic(String topic);
 
-    public abstract Builder setIdAttribute(String idAttribute);
+    public abstract Builder setAttributes(@Nullable List<String> attributes);
 
-    public abstract Builder setTimestampAttribute(String timestampAttribute);
+    public abstract Builder setAttributesMap(@Nullable String attributesMap);
+
+    public abstract Builder setIdAttribute(@Nullable String idAttribute);
+
+    public abstract Builder setTimestampAttribute(@Nullable String timestampAttribute);
 
     public abstract PubsubWriteSchemaTransformConfiguration build();
   }

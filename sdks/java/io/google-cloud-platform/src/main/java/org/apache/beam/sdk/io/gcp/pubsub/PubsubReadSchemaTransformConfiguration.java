@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -61,13 +62,21 @@ public abstract class PubsubReadSchemaTransformConfiguration {
   public abstract String getSchema();
 
   @SchemaFieldDescription(
+      "Any additional pubsub attributes that should be populated as String fields in the ouptut rows.")
+  public abstract @Nullable List<String> getAttributes();
+
+  @SchemaFieldDescription(
+      "Any additional field that should be populated with the full set of PubSub attributes.")
+  public abstract @Nullable String getAttributesMap();
+
+  @SchemaFieldDescription(
       "When reading from Cloud Pub/Sub where unique record identifiers are provided as Pub/Sub message attributes, "
           + "specifies the name of the attribute containing the unique identifier. "
           + "The value of the attribute can be any string that uniquely identifies this record. "
           + "Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream. "
           + "If idAttribute is not provided, Beam cannot guarantee that no duplicate data will be delivered, "
           + "and deduplication of the stream will be strictly best effort.")
-  public abstract String getIdAttribute();
+  public abstract @Nullable String getIdAttribute();
 
   @SchemaFieldDescription(
       "Specifies the name of the attribute that contains the timestamp, if any. "
@@ -78,7 +87,7 @@ public abstract class PubsubReadSchemaTransformConfiguration {
           + " or (2) a String in RFC 3339 format. For example, 2015-10-29T23:41:41.123Z. "
           + "The sub-second component of the timestamp is optional, and digits beyond the first three "
           + "(i.e., time units smaller than milliseconds) will be ignored.")
-  public abstract String getTimestampAttribute();
+  public abstract @Nullable String getTimestampAttribute();
 
   // Used for testing only.
   public abstract @Nullable PubsubTestClientFactory getClientFactory();
@@ -100,9 +109,13 @@ public abstract class PubsubReadSchemaTransformConfiguration {
 
     public abstract Builder setSchema(String schema);
 
-    public abstract Builder setIdAttribute(String schema);
+    public abstract Builder setAttributes(@Nullable List<String> attributes);
 
-    public abstract Builder setTimestampAttribute(String schema);
+    public abstract Builder setAttributesMap(@Nullable String attributesMap);
+
+    public abstract Builder setIdAttribute(@Nullable String schema);
+
+    public abstract Builder setTimestampAttribute(@Nullable String schema);
 
     // Used for testing only.
     public abstract Builder setClientFactory(@Nullable PubsubTestClientFactory clientFactory);

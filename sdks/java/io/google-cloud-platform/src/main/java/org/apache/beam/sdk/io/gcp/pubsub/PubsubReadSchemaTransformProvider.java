@@ -99,22 +99,22 @@ public class PubsubReadSchemaTransformProvider
       }
     }
 
-    Schema beamSchema;
-    SerializableFunction<byte[], Row> valueMapper;
+    Schema payloadSchema;
+    SerializableFunction<byte[], Row> payloadMapper;
 
     String format =
         configuration.getFormat() == null ? null : configuration.getFormat().toUpperCase();
     if (Objects.equals(format, "RAW")) {
-      beamSchema = Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
-      valueMapper = input -> Row.withSchema(beamSchema).addValue(input).build();
+      payloadSchema = Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
+      payloadMapper = input -> Row.withSchema(payloadSchema).addValue(input).build();
     } else if (Objects.equals(format, "JSON")) {
-      beamSchema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema());
-      valueMapper = JsonUtils.getJsonBytesToRowFunction(beamSchema);
+      payloadSchema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema());
+      payloadMapper = JsonUtils.getJsonBytesToRowFunction(payloadSchema);
     } else if (Objects.equals(format, "AVRO")) {
-      beamSchema =
+      payloadSchema =
           AvroUtils.toBeamSchema(
               new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
-      valueMapper = AvroUtils.getAvroBytesToRowFunction(beamSchema);
+      payloadMapper = AvroUtils.getAvroBytesToRowFunction(payloadSchema);
     } else {
       throw new IllegalArgumentException(
           String.format(
@@ -123,7 +123,7 @@ public class PubsubReadSchemaTransformProvider
     }
 
     PubsubReadSchemaTransform transform =
-        new PubsubReadSchemaTransform(configuration, beamSchema, valueMapper);
+        new PubsubReadSchemaTransform(configuration, payloadSchema, payloadMapper);
 
     if (configuration.getClientFactory() != null) {
       transform.setClientFactory(configuration.getClientFactory());
@@ -144,28 +144,81 @@ public class PubsubReadSchemaTransformProvider
 
     PubsubReadSchemaTransform(
         PubsubReadSchemaTransformConfiguration configuration,
-        Schema beamSchema,
+        Schema payloadSchema,
         SerializableFunction<byte[], Row> valueMapper) {
       this.configuration = configuration;
-      this.beamSchema = beamSchema;
+      Schema outputSchema;
+      List<String> attributes = configuration.getAttributes();
+      String attributesMap = configuration.getAttributesMap();
+      if (attributes == null && attributesMap == null) {
+        outputSchema = payloadSchema;
+      } else {
+        Schema.Builder outputSchemaBuilder = Schema.builder();
+        outputSchemaBuilder.addFields(payloadSchema.getFields());
+        if (attributes != null) {
+          for (String attribute : attributes) {
+            outputSchemaBuilder.addStringField(attribute);
+          }
+        }
+        if (attributesMap != null) {
+          outputSchemaBuilder.addMapField(
+              attributesMap, Schema.FieldType.STRING, Schema.FieldType.STRING);
+        }
+        outputSchema = outputSchemaBuilder.build();
+      }
+      this.beamSchema = outputSchema;
       this.valueMapper = valueMapper;
     }
 
     private static class ErrorCounterFn extends DoFn<PubsubMessage, Row> {
-      private Counter pubsubErrorCounter;
+      private final Counter pubsubErrorCounter;
       private Long errorsInBundle = 0L;
-      private SerializableFunction<byte[], Row> valueMapper;
+      private final SerializableFunction<byte[], Row> valueMapper;
+      private final @Nullable List<String> attributes;
+      private final @Nullable String attributesMap;
+      private final Schema outputSchema;
 
-      ErrorCounterFn(String name, SerializableFunction<byte[], Row> valueMapper) {
+      ErrorCounterFn(
+          String name,
+          SerializableFunction<byte[], Row> valueMapper,
+          @Nullable List<String> attributes,
+          @Nullable String attributesMap,
+          Schema outputSchema) {
         this.pubsubErrorCounter = Metrics.counter(PubsubReadSchemaTransformProvider.class, name);
         this.valueMapper = valueMapper;
+        this.attributes = attributes;
+        this.attributesMap = attributesMap;
+        this.outputSchema = outputSchema;
       }
 
       @ProcessElement
       public void process(@DoFn.Element PubsubMessage message, MultiOutputReceiver receiver) {
 
         try {
-          receiver.get(OUTPUT_TAG).output(valueMapper.apply(message.getPayload()));
+          Row payloadRow = valueMapper.apply(message.getPayload());
+          Row outputRow;
+          if (attributes == null && attributesMap == null) {
+            outputRow = payloadRow;
+          } else {
+            Row.Builder rowBuilder = Row.withSchema(outputSchema);
+            // @SuppressWarnings("nullness")
+            List<@Nullable Object> payloadValues = payloadRow.getValues();
+            if (payloadValues != null) {
+              rowBuilder.addValues(payloadValues);
+            }
+            if (attributes != null) {
+              for (String attribute : attributes) {
+                System.out.println(
+                    "attribute " + attribute + " " + message.getAttribute(attribute));
+                rowBuilder.addValue(message.getAttribute(attribute));
+              }
+            }
+            if (attributesMap != null) {
+              rowBuilder.addValue(message.getAttributeMap());
+            }
+            outputRow = rowBuilder.build();
+          }
+          receiver.get(OUTPUT_TAG).output(outputRow);
         } catch (Exception e) {
           errorsInBundle += 1;
           receiver
@@ -174,6 +227,7 @@ public class PubsubReadSchemaTransformProvider
                   Row.withSchema(ERROR_SCHEMA)
                       .addValues(e.toString(), message.getPayload())
                       .build());
+          throw new RuntimeException(e);
         }
       }
 
@@ -194,7 +248,10 @@ public class PubsubReadSchemaTransformProvider
 
     @SuppressWarnings("nullness")
     PubsubIO.Read<PubsubMessage> buildPubsubRead() {
-      PubsubIO.Read<PubsubMessage> pubsubRead = PubsubIO.readMessages();
+      PubsubIO.Read<PubsubMessage> pubsubRead =
+          (configuration.getAttributes() == null && configuration.getAttributesMap() == null)
+              ? PubsubIO.readMessages()
+              : PubsubIO.readMessagesWithAttributes();
       if (!Strings.isNullOrEmpty(configuration.getTopic())) {
         pubsubRead = pubsubRead.fromTopic(configuration.getTopic());
       } else {
@@ -225,7 +282,13 @@ public class PubsubReadSchemaTransformProvider
               .getPipeline()
               .apply(pubsubRead)
               .apply(
-                  ParDo.of(new ErrorCounterFn("PubSub-read-error-counter", valueMapper))
+                  ParDo.of(
+                          new ErrorCounterFn(
+                              "PubSub-read-error-counter",
+                              valueMapper,
+                              configuration.getAttributes(),
+                              configuration.getAttributesMap(),
+                              beamSchema))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       return PCollectionRowTuple.of(
