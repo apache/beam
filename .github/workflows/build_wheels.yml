@@ -234,6 +234,7 @@ jobs:
         os_python: [
           {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
           {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": "macos-latest-xlarge", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
           {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
@@ -322,7 +323,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest, windows-latest]
+        os : [ubuntu-latest, macos-latest, macos-latest-xlarge, windows-latest]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v3
