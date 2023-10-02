@@ -86,6 +86,9 @@ def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
     logging.info("Change point is not detected for the test %s" % test_name)
     return False
   # Remove the change points that are at the edges of the data.
+  # https://github.com/apache/beam/issues/28757
+  # Remove this workaround once we have a good solution to deal
+  # with the edge change points.
   if is_edge_change_point(change_point_index,
                           len(metric_values),
                           constants._EDGE_SEGMENT_SIZE):
