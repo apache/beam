@@ -255,6 +255,16 @@ class ShardReadersPool {
     return getMinTimestamp(ShardRecordsIterator::getLatestRecordTimestamp);
   }
 
+  Instant getEventTimestamp(KinesisRecord record) {
+    ImmutableList<ShardRecordsIterator> shardRecordsIterators =
+        shardIteratorsMap.get().values().asList();
+
+    if (shardRecordsIterators.isEmpty()) {
+      return null;
+    }
+    return shardRecordsIterators.get(0).getEventTime(record);
+  }
+
   private Instant getMinTimestamp(Function<ShardRecordsIterator, Instant> timestampExtractor) {
     return minTimestamp(shardIteratorsMap.get().values().stream().map(timestampExtractor));
   }

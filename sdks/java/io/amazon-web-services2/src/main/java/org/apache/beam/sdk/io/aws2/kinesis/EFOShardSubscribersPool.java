@@ -331,6 +331,15 @@ class EFOShardSubscribersPool {
     return minTimestamp(state.values().stream().map(ShardState::getWatermark));
   }
 
+  Instant getEventTimestamp(KinesisRecord record) {
+    List<ShardState> sharedStates = new ArrayList<>(state.values());
+
+    if (sharedStates.isEmpty()) {
+      return null;
+    }
+    return sharedStates.get(0).getEventTime(record);
+  }
+
   /** This is assumed to be never called before {@link #start} is called. */
   KinesisReaderCheckpoint getCheckpointMark() {
     List<ShardCheckpoint> checkpoints = new ArrayList<>(state.size());
@@ -420,6 +429,10 @@ class EFOShardSubscribersPool {
 
     Instant getWatermark() {
       return watermarkPolicy.getWatermark();
+    }
+
+    Instant getEventTime(KinesisRecord record) {
+      return watermarkPolicy.getTimestamp(record);
     }
 
     /**

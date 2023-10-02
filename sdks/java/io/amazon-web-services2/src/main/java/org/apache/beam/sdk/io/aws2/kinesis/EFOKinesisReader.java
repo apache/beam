@@ -88,7 +88,11 @@ class EFOKinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public Instant getCurrentTimestamp() throws NoSuchElementException {
-    return getOrThrow().getApproximateArrivalTimestamp();
+    Instant timestamp = shardSubscribersPool.getEventTimestamp(getOrThrow());
+    if (timestamp == null) {
+      return getOrThrow().getApproximateArrivalTimestamp();
+    }
+    return timestamp;
   }
 
   @Override

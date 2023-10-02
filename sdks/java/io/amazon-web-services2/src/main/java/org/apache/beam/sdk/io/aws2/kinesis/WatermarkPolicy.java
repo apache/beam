@@ -26,4 +26,6 @@ public interface WatermarkPolicy extends Serializable {
   Instant getWatermark();
 
   void update(KinesisRecord record);
+
+  Instant getTimestamp(KinesisRecord record);
 }

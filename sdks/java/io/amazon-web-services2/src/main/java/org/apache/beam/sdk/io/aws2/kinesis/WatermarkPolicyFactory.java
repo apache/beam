@@ -90,6 +90,11 @@ public interface WatermarkPolicyFactory extends Serializable {
     public void update(KinesisRecord record) {
       watermarkPolicy.update(record);
     }
+
+    @Override
+    public Instant getTimestamp(KinesisRecord record) {
+      return watermarkPolicy.getWatermark();
+    }
   }
 
   /**
@@ -135,6 +140,11 @@ public interface WatermarkPolicyFactory extends Serializable {
               .setLastUpdateTime(Instant.now())
               .build();
     }
+
+    @Override
+    public Instant getTimestamp(KinesisRecord record) {
+      return watermarkParameters.getTimestampFn().apply(record);
+    }
   }
 
   /** Watermark policy where the processing time is used as the event time. */
@@ -147,6 +157,11 @@ public interface WatermarkPolicyFactory extends Serializable {
     @Override
     public void update(KinesisRecord record) {
       // do nothing
+    }
+
+    @Override
+    public Instant getTimestamp(KinesisRecord record) {
+      return Instant.now();
     }
   }
 }

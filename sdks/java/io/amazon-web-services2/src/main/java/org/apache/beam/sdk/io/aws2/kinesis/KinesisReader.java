@@ -106,14 +106,19 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * Returns the approximate time that the current record was inserted into the stream. It is not
+   * Returns the the event timestamp. If event time is not extracted from the records it return 
+   * approximate time that the current record was inserted into the stream. It is not
    * guaranteed to be accurate - this could lead to mark some records as "late" even if they were
    * not. Beware of this when setting {@link
    * org.apache.beam.sdk.values.WindowingStrategy#withAllowedLateness}
    */
   @Override
   public Instant getCurrentTimestamp() throws NoSuchElementException {
-    return currentRecord.get().getApproximateArrivalTimestamp();
+    Instant timestamp = shardReadersPool.getEventTimestamp(currentRecord.get());
+    if (timestamp == null) {
+      return currentRecord.get().getApproximateArrivalTimestamp();
+    }
+    return timestamp;
   }
 
   @Override
