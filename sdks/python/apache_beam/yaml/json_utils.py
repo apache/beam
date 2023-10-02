@@ -27,7 +27,6 @@ import apache_beam as beam
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
 
-
 JSON_ATOMIC_TYPES_TO_BEAM = {
     'boolean': schema_pb2.BOOLEAN,
     'integer': schema_pb2.INT64,
