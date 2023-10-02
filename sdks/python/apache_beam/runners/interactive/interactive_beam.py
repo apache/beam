@@ -35,7 +35,6 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
-import warnings
 from datetime import timedelta
 from typing import Dict
 from typing import List
