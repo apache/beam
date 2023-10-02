@@ -496,11 +496,6 @@ class Clusters:
       dcm = self.pipelines.pop(p, None)
       if dcm:
         dcm.pipelines.remove(p)
-        warnings.filterwarnings(
-            'ignore',
-            'options is deprecated since First stable release. References to '
-            '<pipeline>.options will not be supported',
-            category=DeprecationWarning)
         p_flink_options = p.options.view_as(FlinkRunnerOptions)
         p_flink_options.flink_master = '[auto]'
         p_flink_options.flink_version = None

@@ -235,10 +235,6 @@ class Pipeline(object):
 
 
   @property  # type: ignore[misc]  # decorated property not supported
-  @deprecated(
-      since='First stable release',
-      extra_message='References to <pipeline>.options'
-      ' will not be supported')
   def options(self):
     # type: () -> PipelineOptions
     return self._options
