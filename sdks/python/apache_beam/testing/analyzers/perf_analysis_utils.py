@@ -253,3 +253,17 @@ def filter_change_points_by_median_threshold(
     if relative_change > threshold:
       valid_change_points.append(idx)
   return valid_change_points
+
+
+def is_edge_change_point(
+    change_point_index,
+    data_size,
+    edge_segment_size=constants._EDGE_SEGMENT_SIZE):
+  """
+  Removes the change points that are at the edges of the data.
+  Args:
+    change_point_index: Index of the change point.
+    data_size: Size of the data.
+    edge_segment_size: Size of the edge segment.
+  """
+  return change_point_index > data_size - edge_segment_size
