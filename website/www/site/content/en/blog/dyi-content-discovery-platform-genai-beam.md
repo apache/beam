@@ -34,36 +34,36 @@ LLMs are often used to extract content and summarize information stored in many 
 
 Follow the steps in this guide to create a custom scalable solution for data extraction, content ingestion, and storage. Learn how to kickstart the development of a LLM-based solution using Google Cloud products and generative AI offerings. Google Cloud is designed to be simple to use, scalable, and flexible, so you can use it as a starting point for further expansion or experimentation.
 
-### High Level Flow
+### High-level Flow
 
-From a high level perspective, content uptake and query interactions are completely separated. An external content owner should be able to send documents (stored in Google Docs or just in binary text format) and expect a tracking id for the ingestion request. The ingestion process then will grab the document’s content and create chunks (configurable in size) and with each document chunks generate embeddings. These embeddings represent the content semantics, in the form of a vector of 768 dimensions. Given the document identifier (provided at ingestion time) and the chunk identifier we can store these embeddings into a Vector DB for later semantic matching. This process is central to later contextualizing user inquiries.
+In this workflow, content uptake and query interactions are completely separated. An external content owner can send documents stored in Google Docs or in a binary text format and receive a tracking ID for the ingestion request. The ingestion process gets the content of the document and creates chunks that are configurable in size. Each document chunk is used to generate embeddings. These embeddings represent the content semantics, in the form of a vector of 768 dimensions. Given the document identifier and the chunk identifier, you can store the embeddings in a Vector database for semantic matching. This process is central to contextualizing user inquiries.
 
 <img class="center-block"
     src="/images/blog/dyi-cdp-genai-beam/cdp-highlevel.png"
     alt="Content Discovery Platform Overview">
 
-The query resolution process does not depend directly on information ingestion. It is expected for the user to receive relevant answers based on the content that was ingested until the moment the query was requested, but even in the case of having no relevant content stored in the platform the platform should return an answer stating exactly that. In general, the query resolution process should first generate embeddings from the query content and previously existing context (like previous exchanges with the platform), then match these embeddings with all the existing embedding vectors stored from the content, and in case of having positive matches, retrieve the plain text content represented by the content embeddings. Finally with the textual representation of the query and the textual representation of the matched content, the platform will formulate a request to the LLM to provide a final answer to the original user inquiry.
+The query resolution process doesn't depend directly on information ingestion. The user receives relevant answers based on the content ingested until the moment of the query request. Even if the platform doesn't have any relevant content stored, the platform returns an answer stating that it doesn't have relevant content. Therefore, the query resolution process first generates embeddings from the query content and from the previously existing context, like previous exchanges with the platform, then matches these embeddings with the existing embedding vectors stored from the content. When the platform has positive matches, it retrieves the plain-text content represented by the content embeddings. Finally, by using the textual representation of the query and the textual representation of the matched content, the platform formulates a request to the LLM to provide a final answer to the original user inquiry.
 
 ## Components of the solution
 
-The intent is to rely, as much as possible, on the low-ops capabilities of the GCP services and to create a set of features that are highly scalable. At a high level, the solution can be separated into 2 main components, the service layer and the content ingestion pipeline. The service’s layer acts as the entry point for document’s ingestion and user queries, it’s a simple set of REST resources exposed through CloudRun and implemented using [Quarkus](https://quarkus.io/) and the client libraries to access other services (VertexAI Models, BigTable and PubSub). In the case of the content ingestion pipeline we have:
+Use the low-ops capabilities of the Google Cloud services to create a set of highly scalable features. You can separate the solution into two main components: the service layer and the content ingestion pipeline. The service layer acts as the entry point for document ingestion and user queries. It’s a simple set of REST resources exposed through Cloud Run and implemented by using [Quarkus](https://quarkus.io/) and the client libraries to access other services (Vertex AI models, Cloud Bigtable and Pub/Sub). The content ingestion pipeline includes the following components:
 
 *   A streaming pipeline that captures user content from wherever it resides.
 *   A process that extracts meaning from this content as a set of multi-dimensional vectors (text embeddings).
 *   A storage system that simplifies context matching between knowledge content and user inquiries (a Vector Database).
-*   Another storage system that maps knowledge representation with the actual content forming the aggregated context of the inquiry.
+*   Another storage system that maps knowledge representation with the actual content, forming the aggregated context of the inquiry.
 *   A model capable of understanding the aggregated context and, through prompt engineering, delivering meaningful answers.
-*   HTTP and GRPC based services.
+*   HTTP and gRPC-based services.
 
-These components work together to provide a comprehensive and simple implementation for a content discovery platform.
+Together, these components provide a comprehensive and simple implementation for a content discovery platform.
 
-## Architecture Design
+## Workflow Architecture
 
-Given the multiple components in play, we will be diving down to explain how the different components interact to resolve the two main use cases of the platform.
+This section explains how the different components interact.
 
-### Component’s Dependencies
+### Dependencies of the components
 
-The following diagram shows all of the components that the platform integrates to capture documents for ingestion and resolve user query requests, also all the dependencies existing between the different components of the solution and the GCP services in use.
+The following diagram shows all of the components that the platform integrates with. It also shows all of the dependencies that exist between the components of the solution and the Google Cloud services.
 
 <img class="center-block"
     src="/images/blog/dyi-cdp-genai-beam/cdp-arch.png"
@@ -71,19 +71,28 @@ The following diagram shows all of the components that the platform integrates t
 
 As seen in the diagram, the context-extraction component is the central aspect in charge of retrieving the document’s content, also their semantic meaning from the embedding’s model and storing the relevant data (chunks text content, chunks embeddings, JSON-L content) in the persistent storage systems for later use. PubSub resources are the glue between the streaming pipeline and the asynchronous processing, capturing the user ingestion requests, retries from potential errors from the ingestion pipeline (like the cases on where documents have been sent for ingestion but the permission has not been granted yet, triggering a retry after some minutes) and content refresh events (periodically the pipeline will scan the ingested documents, review the latest editions and define if a content refresh should be triggered).
 
-Also, CloudRun plays the important role of exposing the services, which will interact with the many different storage systems in use to resolve the user query requests. For example, capturing the semantic meaning from the user’s query by interacting with the embedding’s model, finding near matches from the Vertex AI Vector Search (formerly Matching Engine),which stores the embedding vectors from the ingested document’s content, retrieving the text content from BigTable to contextualize finally the request to the VertexAI Text-Bison and Chat-Bison models for a final response to the user’s originary query.
+The context-extraction component retrieves the content of the documents, diving it in chunks. It also computes embeddings, using the LLM interaction, from the extracted content. Then it stores the relevant data (chunks text content, chunks embeddings, JSON-L content) in the persistent storage systems for later use. Pub/Sub resources connect the streaming pipeline and the asynchronous processing, capturing the following actions:
+- user ingestion requests
+- retries from errors from the ingestion pipeline, such as when documents are sent for ingestion but access permissions are missing
+- content refresh events (periodically the pipeline scans the ingested documents, reviews the latest editions, and decides whether to trigger a content refresh)
+
+Also, CloudRun plays an important role exposing the services, interacting with many Google Cloud services to resolve the user query or ingestion requests. For example, while resolving a query request the service will:
+- Request the computation of embeddings from the user’s query by interacting with the embeddings model
+- Find near neighbor matches from the Vertex AI Vector Search (formerly Matching Engine) using the query embeddings representation
+- Retrieve the text content from BigTable for those matched vectors, using their identifier, in order contextualize a LLM prompt
+- And finally create a request to the VertexAI Chat-Bison model, generating the response the system will delivery to the user’s query.
 
 ### Google Cloud products
 
-Next, we detail what GCP products and services are used for the solution, and in each case what role they play.
+This section describes the Google Cloud products and services used in the solution and what purpose they serve.
 
-**CloudBuild:** All container images (services and pipelines) are built directly from source code using CloudBuild. This simplifies code distribution during the solution's deployment.
+**Cloud Build:** All container images, including services and pipelines, are built directly from source code by using Cloud Build. Using Cloud Build simplifies code distribution during the deployment of the solution.
 
 **CloudRun:** The solution's service entry points are deployed and automatically scaled by CloudRun.
 
-**Cloud PubSub:** We use a topic and subscription to queue all the ingestion requests (for Google Drive or self-contained content) and deliver them to the pipeline decoupling this way the service clients.
+**Pub/Sub:** A Pub/Sub topic and subscription queue all of the ingestion requests for Google Drive or self-contained content and deliver the requests to the pipeline.
 
-**Cloud Dataflow:** We implemented a multi-language, streaming Apache Beam pipeline in charge of processing all the ingestion requests seen as events from the PubSub subscription. The pipeline extracts content from Google Docs, Google Drive URLs or self-contained binary encoded text content, and produces content chunks that will be sent to one of Vertex AI foundational models for its embedding representation. Later on, all the document’s embeddings and chunks are sent to Vertex AI Vector Search and Cloud BigTable for indexing and rapid access. Finally, all the ingested documentation is stored also in GCS in JSON-L format, which can be used to fine-tune the Vertex AI models improving their responses for the given context. Dataflow is a perfect match to run the Apache Beam pipeline in streaming mode, minimizing the ops needed to scale the resources in case of having a burst on ingestion requests and keeping the latency of such ingestions in the sub-minute space.
+**Dataflow:** A multi-language, streaming Apache Beam pipeline processes the ingestion requests. These requests are sent to the pipeline from the Pub/Sub subscription. The pipeline extracts content from Google Docs, Google Drive URLs, and self-contained binary encoded text content. It then produces content chunks. These chunks are sent to one of the Vertex AI foundational models for the embedding representation. The embeddings and chunks from the documents are sent to Vertex AI Vector Search and to Cloud Bigtable for indexing and rapid access. Finally, the ingested documentation is stored in Google Cloud Storage in JSON-L format, which can be used to fine-tune the Vertex AI models. By using Dataflow to run the Apache Beam streaming pipeline, you minimize the ops needed to scale resources. If you have a burst on ingestion requests, Dataflow can keep the latency less than a minute.
 
 **Vertex AI - Vector Search:** [Vector Search](https://cloud.google.com/vertex-ai/docs/matching-engine/overview) is a high-performance, low-latency vector database. These vector databases are often called vector similarity search or approximate nearest neighbor (ANN) services. We use a Vector Search Index to store all the ingested documents embeddings as a meaning representation. These embeddings are indexed by chunk and document id. Later on, these identifiers can be used to contextualize the user queries and enrich the requests made to a LLM by providing knowledge extracted directly from the document’s content mappings stored on BigTable (using the same chunk-document identifiers).
 
@@ -163,6 +172,8 @@ The pipeline will then chunk the content in configurable sizes and also configur
 </p>
 
 Once the embeddings vectors are retrieved from the embeddings Vertex AI LLM, we will consolidate them again avoiding repetition of this step in case of downstream errors.
+
+Worth to notice that this pipeline is interacting directly with Vertex AI models using the client SDKs, Apache Beam already provides supports for this interactions through the RunInference PTransform (see an example [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/vertex_ai_llm_text_classification.py)).
 
 #### Content Storage
 
