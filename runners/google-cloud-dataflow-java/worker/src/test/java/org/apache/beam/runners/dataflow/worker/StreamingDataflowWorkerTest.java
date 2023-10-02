@@ -291,7 +291,7 @@ public class StreamingDataflowWorkerTest {
         Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
         Instant::now,
         Collections.emptyList(),
-        work -> {});
+        processWorkFn);
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -2645,39 +2645,6 @@ public class StreamingDataflowWorkerTest {
     assertThat(finalizeTracker, contains(0));
   }
 
-  private static class MockWork extends StreamingDataflowWorker.Work {
-
-    public MockWork(long workToken) {
-      super(
-          Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-          Instant::now,
-          Collections.emptyList());
-    }
-
-    @Override
-    public void run() {}
-  }
-
-  private static class MockActiveWork extends StreamingDataflowWorker.Work {
-    // exit must be volatile so changes to it are reflected in the run function
-    public static volatile boolean exit;
-
-    public MockActiveWork(long workToken) {
-      super(
-          Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-          Instant::now,
-          Collections.emptyList());
-      exit = false;
-    }
-
-    @Override
-    public void run() {}
-
-    public void stop() {
-      exit = true;
-    }
-  }
-
   @Test
   public void testActiveWork() throws Exception {
     BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
@@ -2826,6 +2793,8 @@ public class StreamingDataflowWorkerTest {
     executor.shutdown();
   }
 
+  volatile boolean stop = false;
+
   @Test
   public void testActiveThreadMetric() throws Exception {
     int maxThreads = 5;
@@ -2844,8 +2813,8 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build());
 
-    StreamingDataflowWorker.ComputationState computationState =
-        new StreamingDataflowWorker.ComputationState(
+    ComputationState computationState =
+        new ComputationState(
             "computation",
             defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
             executor,
@@ -2854,76 +2823,46 @@ public class StreamingDataflowWorkerTest {
 
     ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
 
-    // real work
-    MockActiveWork m1 =
-        new MockActiveWork(1) {
-          @Override
-          public void run() {
-            synchronized (this) {
-              this.notify();
-            }
-            int count = 0;
-            while (!exit) {
-              count += 1;
-            }
-            Thread.currentThread().interrupt();
+    Consumer<Work> sleepProcessWorkFn =
+        unused -> {
+          synchronized (this) {
+            this.notify();
+          }
+          int count = 0;
+          while (!stop) {
+            count += 1;
           }
         };
 
-    // idle work
-    MockWork m2 =
-        new MockWork(2) {
-          @Override
-          public void run() {
-            synchronized (this) {
-              this.notify();
-            }
-            try {
-              Thread.sleep(2000);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            }
-          }
-        };
+    Work m2 = createMockWork(2, sleepProcessWorkFn);
 
-    // idle work
-    MockWork m3 =
-        new MockWork(3) {
-          @Override
-          public void run() {
-            synchronized (this) {
-              this.notify();
-            }
-            try {
-              Thread.sleep(2000);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            }
-          }
-        };
+    Work m3 = createMockWork(3, sleepProcessWorkFn);
+
+    Work m4 = createMockWork(4, sleepProcessWorkFn);
     assertEquals(0, executor.activeCount());
 
-    assertTrue(computationState.activateWork(key1Shard1, m1));
-    synchronized (m1) {
-      executor.execute(m1, m1.getWorkItem().getSerializedSize());
-      m1.wait();
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    synchronized (this) {
+      executor.execute(m2, m2.getWorkItem().getSerializedSize());
+      this.wait();
+      // Seems current executor executes the initial work item twice
+      this.wait();
     }
     assertEquals(2, executor.activeCount());
 
-    assertTrue(computationState.activateWork(key1Shard1, m2));
     assertTrue(computationState.activateWork(key1Shard1, m3));
-    synchronized (m2) {
-      executor.execute(m2, m2.getWorkItem().getSerializedSize());
-      m2.wait();
-    }
-    synchronized (m3) {
+    assertTrue(computationState.activateWork(key1Shard1, m4));
+    synchronized (this) {
       executor.execute(m3, m3.getWorkItem().getSerializedSize());
-      m3.wait();
+      this.wait();
     }
-    // this.wait();
+    assertEquals(3, executor.activeCount());
+    synchronized (this) {
+      executor.execute(m4, m4.getWorkItem().getSerializedSize());
+      this.wait();
+    }
     assertEquals(4, executor.activeCount());
-
-    m1.stop();
+    stop = true;
     executor.shutdown();
   }
 
