@@ -849,6 +849,22 @@ class Stager(object):
 
   @staticmethod
   def _create_stage_submission_env_dependencies(temp_dir):
+    """Create and stage a file with list of dependencies installed in the
+    submission environment.
+
+    This staged file is used at runtime to compare the dependencies in the
+    runtime environment. This allows runners to warn users about any potential
+    dependency mismatches and help debug issues related to
+    environment mismatches.
+
+    Args:
+      temp_dir: path to temporary location where the file should be
+        downloaded.
+
+    Returns:
+      A list of ArtifactInformation of local file path that will be staged to
+      the staging location.
+    """
     try:
       local_dependency_file_path = os.path.join(
           temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILE)
@@ -860,6 +876,9 @@ class Stager(object):
           Stager._create_file_stage_to_artifact(
               local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE)
       ]
-    except Exception:
-      _LOGGER.debug("couldn't stage dependencies from submission environment")
+    except Exception as e:
+      _LOGGER.warning(
+          "Couldn't stage a list of installed dependencies in "
+          "submission environment. Got exception: %s",
+          e)
       return []

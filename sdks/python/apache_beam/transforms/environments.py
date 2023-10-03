@@ -124,9 +124,9 @@ class Environment(object):
         dict(resource_hints) if resource_hints else {})
 
   def __eq__(self, other):
-    # don't compare artifacts since they have different hashes in their names.
     return (
-        self.__class__ == other.__class__
+        self.__class__ == other.__class__ and
+        self._artifacts == other._artifacts
         # Assuming that we don't have instances of the same Environment subclass
         # with different set of capabilities.
         and self._resource_hints == other._resource_hints)
