@@ -203,7 +203,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """
     Returns:
-       kwargs suitable for beam.BatchElements.
+       kwargs suitable for beam.GroupIntoBatches.
     """
     return {}
 
@@ -1119,7 +1119,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
         # batching DoFn APIs.
-        | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
+        | beam.GroupIntoBatches(**self._model_handler.batch_elements_kwargs()))
 
     run_inference_pardo = beam.ParDo(
         _RunInferenceDoFn(
