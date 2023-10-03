@@ -39,7 +39,6 @@ from apache_beam.testing.analyzers.perf_analysis_utils import fetch_metric_data
 from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
 from apache_beam.testing.analyzers.perf_analysis_utils import get_existing_issues_data
 from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
-from apache_beam.testing.analyzers.perf_analysis_utils import is_edge_change_point
 from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import publish_issue_metadata_to_big_query
 from apache_beam.testing.analyzers.perf_analysis_utils import read_test_config
@@ -85,20 +84,6 @@ def run_change_point_analysis(params, test_name, big_query_metrics_fetcher):
   if not change_point_index:
     logging.info("Change point is not detected for the test %s" % test_name)
     return False
-  # Remove the change points that are at the edges of the data.
-  # https://github.com/apache/beam/issues/28757
-  # Remove this workaround once we have a good solution to deal
-  # with the edge change points.
-  if is_edge_change_point(change_point_index,
-                          len(metric_values),
-                          constants._EDGE_SEGMENT_SIZE):
-    logging.info(
-        'The change point %s is located at the edge of the data with an edge '
-        'segment size of %s. This change point will be ignored for now, '
-        'awaiting additional data. Should the change point persist after '
-        'gathering more data, an alert will be raised.' %
-        (change_point_index, constants._EDGE_SEGMENT_SIZE))
-    return None
   # since timestamps are ordered in ascending order and
   # num_runs_in_change_point_window refers to the latest runs,
   # latest_change_point_run can help determine if the change point

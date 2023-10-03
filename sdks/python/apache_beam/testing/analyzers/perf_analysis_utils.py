@@ -170,7 +170,22 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
   if not change_points_indices:
     return None
   change_points_indices.sort()
-  return change_points_indices[-1]
+  # Remove the change points that are at the edges of the data.
+  # https://github.com/apache/beam/issues/28757
+  # Remove this workaround once we have a good solution to deal
+  # with the edge change points.
+  change_point_index = change_points_indices[-1]
+  if is_edge_change_point(change_point_index,
+                          len(metric_values),
+                          constants._EDGE_SEGMENT_SIZE):
+    logging.info(
+        'The change point %s is located at the edge of the data with an edge '
+        'segment size of %s. This change point will be ignored for now, '
+        'awaiting additional data. Should the change point persist after '
+        'gathering more data, an alert will be raised.' %
+        (change_point_index, constants._EDGE_SEGMENT_SIZE))
+    return None
+  return change_point_index
 
 
 def publish_issue_metadata_to_big_query(issue_metadata, table_name):

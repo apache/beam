@@ -249,6 +249,8 @@ class TestChangePointAnalysis(unittest.TestCase):
 
     self.assertEqual(is_edge_change_point(change_points[0], len(data)), True)
 
+    self.assertEqual(find_latest_change_point_index(data), None)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
