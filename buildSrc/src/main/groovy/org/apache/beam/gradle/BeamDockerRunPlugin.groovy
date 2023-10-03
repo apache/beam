@@ -22,8 +22,8 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.Exec
 
 /**
- * A gradle plyg-in handling 'docker run' command. Originally replicated from
- * com.palantir.docker-run plugin.
+ * A gradle plug-in handling 'docker run' command. Originally replicated from
+ * <a href="https://github.com/palantir/gradle-docker">com.palantir.docker-run</a> plugin.
  */
 class BeamDockerRunPlugin implements Plugin<Project> {
 

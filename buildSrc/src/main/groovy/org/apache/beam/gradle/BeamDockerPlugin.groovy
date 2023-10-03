@@ -31,8 +31,8 @@ import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
 
 /**
- * A gradle plyg-in interacting with docker. Originally replicated from
- * com.palantir.docker plugin.
+ * A gradle plug-in interacting with docker. Originally replicated from
+ * <a href="https://github.com/palantir/gradle-docker">com.palantir.docker</a> plugin.
  */
 class BeamDockerPlugin implements Plugin<Project> {
   private static final Logger logger = Logging.getLogger(BeamDockerPlugin.class)
