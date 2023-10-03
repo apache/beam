@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -39,6 +41,8 @@ public class SerializableConfiguration implements Externalizable {
 
   private transient Configuration conf;
 
+  private transient byte[] serializationCache;
+
   public SerializableConfiguration() {}
 
   public SerializableConfiguration(Configuration conf) {
@@ -49,17 +53,30 @@ public class SerializableConfiguration implements Externalizable {
   }
 
   public Configuration get() {
+    if (serializationCache != null) {
+      serializationCache = null;
+    }
     return conf;
   }
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
+    if (serializationCache == null) {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+      try (DataOutputStream dos = new DataOutputStream(baos)) {
+        conf.write(dos);
+        serializationCache = baos.toByteArray();
+      }
+    }
     out.writeUTF(conf.getClass().getCanonicalName());
-    conf.write(out);
+    out.write(serializationCache);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    if (serializationCache != null) {
+      serializationCache = null;
+    }
     String className = in.readUTF();
     try {
       conf =
