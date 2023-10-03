@@ -137,8 +137,7 @@ public class BigQueryTimePartitioningClusteringIT {
 
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
-      return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName), null, TIME_PARTITIONING, CLUSTERING);
+      return new TableDestination(tableName, null, TIME_PARTITIONING, CLUSTERING);
     }
 
     @Override
@@ -203,6 +202,7 @@ public class BigQueryTimePartitioningClusteringIT {
   @Test
   public void testE2EBigQueryClusteringTableFunction() throws Exception {
     String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
+    String destination = String.format("%s.%s", DATASET_NAME, tableName);
 
     Pipeline p = Pipeline.create(options);
 
@@ -212,11 +212,7 @@ public class BigQueryTimePartitioningClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(
                     (ValueInSingleWindow<TableRow> vsw) ->
-                        new TableDestination(
-                            String.format("%s.%s", DATASET_NAME, tableName),
-                            null,
-                            TIME_PARTITIONING,
-                            CLUSTERING))
+                        new TableDestination(destination, null, TIME_PARTITIONING, CLUSTERING))
                 .withClustering()
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -233,6 +229,7 @@ public class BigQueryTimePartitioningClusteringIT {
   public void testE2EBigQueryClusteringDynamicDestinations() throws Exception {
     String tableName =
         "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+    String destination = String.format("%s.%s", DATASET_NAME, tableName);
 
     Pipeline p = Pipeline.create(options);
 
@@ -240,7 +237,7 @@ public class BigQueryTimePartitioningClusteringIT {
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(new ClusteredDestinations(tableName))
+                .to(new ClusteredDestinations(destination))
                 .withClustering()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
