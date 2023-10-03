@@ -86,6 +86,7 @@
 * Fixed exception chaining issue in GCS connector (Python) ([#26769](https://github.com/apache/beam/issues/26769#issuecomment-1700422615)).
 * Fixed streaming inserts exception handling, GoogleAPICallErrors are now retried according to retry strategy and routed to failed rows where appropriate rather than causing a pipeline error (Python) ([#21080](https://github.com/apache/beam/issues/21080)).
 * Fixed a bug in Python SDK's cross-language Bigtable sink that mishandled records that don't have an explicit timestamp set: [#28632](https://github.com/apache/beam/issues/28632).
+* Fixed "Desired bundle size 0 bytes must be greater than 0" in BigtableSource when you have more cores than bytes to read [#28793](https://github.com/apache/beam/issues/28793).
 
 
 ## Security Fixes
