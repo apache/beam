@@ -178,21 +178,26 @@ public class PubsubReadSchemaTransformProvider
       private final @Nullable String attributesMap;
       private final Schema outputSchema;
 
+      final boolean useErrorOutput;
+
       ErrorCounterFn(
           String name,
           SerializableFunction<byte[], Row> valueMapper,
           @Nullable List<String> attributes,
           @Nullable String attributesMap,
-          Schema outputSchema) {
+          Schema outputSchema,
+          boolean useErrorOutput) {
         this.pubsubErrorCounter = Metrics.counter(PubsubReadSchemaTransformProvider.class, name);
         this.valueMapper = valueMapper;
         this.attributes = attributes;
         this.attributesMap = attributesMap;
         this.outputSchema = outputSchema;
+        this.useErrorOutput = useErrorOutput;
       }
 
       @ProcessElement
-      public void process(@DoFn.Element PubsubMessage message, MultiOutputReceiver receiver) {
+      public void process(@DoFn.Element PubsubMessage message, MultiOutputReceiver receiver)
+          throws Exception {
 
         try {
           Row payloadRow = valueMapper.apply(message.getPayload());
@@ -201,7 +206,6 @@ public class PubsubReadSchemaTransformProvider
             outputRow = payloadRow;
           } else {
             Row.Builder rowBuilder = Row.withSchema(outputSchema);
-            // @SuppressWarnings("nullness")
             List<@Nullable Object> payloadValues = payloadRow.getValues();
             if (payloadValues != null) {
               rowBuilder.addValues(payloadValues);
@@ -221,13 +225,16 @@ public class PubsubReadSchemaTransformProvider
           receiver.get(OUTPUT_TAG).output(outputRow);
         } catch (Exception e) {
           errorsInBundle += 1;
-          receiver
-              .get(ERROR_TAG)
-              .output(
-                  Row.withSchema(ERROR_SCHEMA)
-                      .addValues(e.toString(), message.getPayload())
-                      .build());
-          throw new RuntimeException(e);
+          if (useErrorOutput) {
+            receiver
+                .get(ERROR_TAG)
+                .output(
+                    Row.withSchema(ERROR_SCHEMA)
+                        .addValues(e.toString(), message.getPayload())
+                        .build());
+          } else {
+            throw e;
+          }
         }
       }
 
@@ -276,6 +283,11 @@ public class PubsubReadSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PubsubIO.Read<PubsubMessage> pubsubRead = buildPubsubRead();
+      @SuppressWarnings("nullness")
+      String errorOutput =
+          configuration.getErrorHandling() == null
+              ? null
+              : configuration.getErrorHandling().getOutput();
 
       PCollectionTuple outputTuple =
           input
@@ -288,14 +300,18 @@ public class PubsubReadSchemaTransformProvider
                               valueMapper,
                               configuration.getAttributes(),
                               configuration.getAttributesMap(),
-                              beamSchema))
+                              beamSchema,
+                              errorOutput != null))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+      outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema);
+      outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
 
-      return PCollectionRowTuple.of(
-          "output",
-          outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
-          "errors",
-          outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
+      PCollectionRowTuple result = PCollectionRowTuple.of("output", outputTuple.get(OUTPUT_TAG));
+      if (errorOutput == null) {
+        return result;
+      } else {
+        return result.and(errorOutput, outputTuple.get(ERROR_TAG));
+      }
     }
   }
 

@@ -281,6 +281,10 @@ public class PubsubReadSchemaTransformProviderTest {
               .setFormat("AVRO")
               .setSchema(SCHEMA)
               .setSubscription(SUBSCRIPTION)
+              .setErrorHandling(
+                  PubsubReadSchemaTransformConfiguration.ErrorHandling.builder()
+                      .setOutput("errors")
+                      .build())
               .setClientFactory(clientFactory)
               .setClock(CLOCK)
               .build();

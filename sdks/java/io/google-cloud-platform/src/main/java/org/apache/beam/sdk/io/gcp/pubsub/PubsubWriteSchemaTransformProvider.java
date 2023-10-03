@@ -78,22 +78,25 @@ public class PubsubWriteSchemaTransformProvider
     private final @Nullable String attributesMap;
     private final Schema payloadSchema;
     private final Schema errorSchema;
+    private final boolean useErrorOutput;
 
     ErrorFn(
         SerializableFunction<Row, byte[]> valueMapper,
         @Nullable List<String> attributes,
         @Nullable String attributesMap,
         Schema payloadSchema,
-        Schema errorSchema) {
+        Schema errorSchema,
+        boolean useErrorOutput) {
       this.valueMapper = valueMapper;
       this.attributes = attributes == null ? null : ImmutableSet.copyOf(attributes);
       this.attributesMap = attributesMap;
       this.payloadSchema = payloadSchema;
       this.errorSchema = errorSchema;
+      this.useErrorOutput = useErrorOutput;
     }
 
     @ProcessElement
-    public void processElement(@Element Row row, MultiOutputReceiver receiver) {
+    public void processElement(@Element Row row, MultiOutputReceiver receiver) throws Exception {
       try {
         Row payloadRow;
         Map<String, String> messageAttributes = null;
@@ -122,9 +125,13 @@ public class PubsubWriteSchemaTransformProvider
             .get(OUTPUT_TAG)
             .output(new PubsubMessage(valueMapper.apply(payloadRow), messageAttributes));
       } catch (Exception e) {
-        receiver
-            .get(ERROR_TAG)
-            .output(Row.withSchema(errorSchema).addValues(e.toString(), row).build());
+        if (useErrorOutput) {
+          receiver
+              .get(ERROR_TAG)
+              .output(Row.withSchema(errorSchema).addValues(e.toString(), row).build());
+        } else {
+          throw e;
+        }
       }
     }
   }
@@ -152,6 +159,12 @@ public class PubsubWriteSchemaTransformProvider
       "nullness" // TODO(https://github.com/apache/beam/issues/20497)
     })
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      @SuppressWarnings("nullness")
+      String errorOutput =
+          configuration.getErrorHandling() == null
+              ? null
+              : configuration.getErrorHandling().getOutput();
+
       final Schema errorSchema =
           Schema.builder()
               .addStringField("error")
@@ -211,7 +224,8 @@ public class PubsubWriteSchemaTransformProvider
                               configuration.getAttributes(),
                               configuration.getAttributesMap(),
                               payloadSchema,
-                              errorSchema))
+                              errorSchema,
+                              errorOutput != null))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       PubsubIO.Write<PubsubMessage> writeTransform =
@@ -223,8 +237,14 @@ public class PubsubWriteSchemaTransformProvider
         writeTransform = writeTransform.withIdAttribute(configuration.getTimestampAttribute());
       }
       outputTuple.get(OUTPUT_TAG).apply(writeTransform);
+      outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
 
-      return PCollectionRowTuple.of("errors", outputTuple.get(ERROR_TAG).setRowSchema(errorSchema));
+      if (errorOutput == null) {
+        return PCollectionRowTuple.empty(input.getPipeline());
+      } else {
+        return PCollectionRowTuple.of(
+            errorOutput, outputTuple.get(ERROR_TAG).setRowSchema(errorSchema));
+      }
     }
   }
 

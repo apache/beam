@@ -61,6 +61,27 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
           + "publish time as the value.")
   public abstract @Nullable String getTimestampAttribute();
 
+  @SchemaFieldDescription("Specifies how to handle errors.")
+  public abstract @Nullable ErrorHandling getErrorHandling();
+
+  @AutoValue
+  public abstract static class ErrorHandling {
+    @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
+    public abstract String getOutput();
+
+    public static PubsubWriteSchemaTransformConfiguration.ErrorHandling.Builder builder() {
+      return new AutoValue_PubsubWriteSchemaTransformConfiguration_ErrorHandling.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract PubsubWriteSchemaTransformConfiguration.ErrorHandling.Builder setOutput(
+          String output);
+
+      public abstract PubsubWriteSchemaTransformConfiguration.ErrorHandling build();
+    }
+  }
+
   public static Builder builder() {
     return new AutoValue_PubsubWriteSchemaTransformConfiguration.Builder();
   }
@@ -78,6 +99,8 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
     public abstract Builder setIdAttribute(@Nullable String idAttribute);
 
     public abstract Builder setTimestampAttribute(@Nullable String timestampAttribute);
+
+    public abstract Builder setErrorHandling(@Nullable ErrorHandling errorHandling);
 
     public abstract PubsubWriteSchemaTransformConfiguration build();
   }
