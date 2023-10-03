@@ -1114,8 +1114,13 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     if self._watch_model_pattern:
       self._model_metadata_pcoll = self._get_model_metadata_pcoll(
           pcoll.pipeline)
-
-    batched_elements_pcoll = (
+      
+    if self._model_handler.batch_elements_kwargs() == {}:
+      batched_elements_pcoll = (
+        pcoll
+        | beam.BatchElements())
+    else:
+      batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
         # batching DoFn APIs.
