@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Performance BigQueryIO Read Python
+name: PerformanceTests BiqQueryIO Read Python
 
 on:
   issue_comment:
@@ -47,6 +47,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  beam_PerformanceTests_BiqQueryIO_Read_Python_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_BiqQueryIO_Read_Python:
@@ -69,24 +70,20 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.8'
-      # This code block prepares configuration data for a task.
-      - name: Prepare config
-        id: set_config
-        shell: bash
-        run: |
-          # Capture the current date and time in a specific format
-          CURDATE=$(date '+%m%d%H%M%S' --utc)
-          # Reads the configurations file and exclude lines starting with # and then remove line breaks
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/performance-tests-job-configs/config_PerformanceTests_BiqQueryIO_Read_Python.txt | tr '\n' ' ')
-          # Appends the value of CURDATE to the original configuration
-          CONFIGWITHDATE=$(echo "${CURCONFIG/bqio_read_python_/bqio_read_python_$CURDATE}")
-          # Assigns $CONFIGWITHDATE to a variable named prepared_config
-          echo "prepared_config=$CONFIGWITHDATE" >> $GITHUB_OUTPUT
-      - name: run BigQueryIO Read Python Performance Test
+          python-version: 3.8
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: python
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/biqQueryIO_Read_Python.txt
+          arguments: |
+            --job_name=performance-tests-bqio-read-python-10gb$(date '+%m%d%H%M%S' --utc)
+      - name: Run BigQueryIO Read Performance Test Python
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -94,4 +91,4 @@ jobs:
             -PloadTest.mainClass=apache_beam.io.gcp.bigquery_read_perf_test \
             -PpythonVersion=3.8 \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{steps.set_config.outputs.prepared_config}}'
+            '-PloadTest.args=${{env.beam_PerformanceTests_BiqQueryIO_Read_Python_test_arguments_1}}'

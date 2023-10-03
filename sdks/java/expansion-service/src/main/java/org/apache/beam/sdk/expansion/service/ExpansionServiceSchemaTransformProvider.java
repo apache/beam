@@ -129,8 +129,7 @@ public class ExpansionServiceSchemaTransformProvider
     Row configRow;
     try {
       configRow =
-          RowCoder.of(provider.configurationSchema())
-              .decode(payload.getConfigurationRow().newInput());
+          RowCoder.of(configSchemaFromRequest).decode(payload.getConfigurationRow().newInput());
     } catch (IOException e) {
       throw new RuntimeException("Error decoding payload", e);
     }

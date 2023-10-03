@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Performance BigQueryIO Write Python Batch
+name: PerformanceTests BiqQueryIO Write Python Batch
 
 on:
   issue_comment:
@@ -47,6 +47,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  beam_PerformanceTests_BiqQueryIO_Write_Python_Batch_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_BiqQueryIO_Write_Python_Batch:
@@ -69,23 +70,19 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.8'
-      # This code block prepares configuration data for a task.
-      - name: Prepare config
-        id: set_config
-        shell: bash
-        run: |
-          # capture the current date and time in a specific format
-          CURDATE=$(date '+%m%d%H%M%S' --utc)
-          # reads the configurations file and exclude lines starting with # and then remove line breaks
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/performance-tests-job-configs/config_PerformanceTests_BiqQueryIO_Write_Python.txt | tr '\n' ' ')
-          # appends the value of CURDATE to the original configuration
-          CONFIGWITHDATE=$(echo "${CURCONFIG/bqio_write_python_/bqio_write_python_$CURDATE}")
-          # assigns $CONFIGWITHDATE to a variable named prepared_config
-          echo "prepared_config=$CONFIGWITHDATE" >> $GITHUB_OUTPUT
+          python-version: 3.8
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: python
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/biqQueryIO_Write_Python_Batch.txt
+          arguments: |
+            --job_name=performance-tests-bqio-write-python-batch-10gb$(date '+%m%d%H%M%S' --utc)
       - name: run BigQueryIO Write Batch Python Performance Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -94,4 +91,4 @@ jobs:
             -PloadTest.mainClass=apache_beam.io.gcp.bigquery_write_perf_test \
             -PpythonVersion=3.8 \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{steps.set_config.outputs.prepared_config}}'
+            '-PloadTest.args=${{env.beam_PerformanceTests_BiqQueryIO_Write_Python_Batch_test_arguments_1}}'
