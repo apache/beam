@@ -16,8 +16,6 @@
 name: Publish Beam SDK Snapshots
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
@@ -40,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -52,8 +50,7 @@ jobs:
   beam_Publish_Beam_SDK_Snapshots:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      github.event.comment.body == 'Publish Beam SDK Snapshots'
+      github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.container_task }})
@@ -61,7 +58,7 @@ jobs:
       fail-fast: false
       matrix:
         job_name: ["beam_Publish_Beam_SDK_Snapshots"]
-        job_phrase: ["Publish Beam SDK Snapshots"]
+        job_phrase: ["N/A"]
         container_task: ["go:container", "java:container:java8", "java:container:java11", "java:container:java17", "python:container:py38", "python:container:py39", "python:container:py310", "python:container:py311"]
     steps:
       - uses: actions/checkout@v3
