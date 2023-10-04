@@ -1127,6 +1127,16 @@ class WorkerOptions(PipelineOptions):
         dest='min_cpu_platform',
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.')
+    parser.add_argument(
+        '--state_cache_size',
+        '--state_cache_size_mb',
+        dest='state_cache_size',
+        type=int,
+        default=None,
+        help=(
+            'Size of the state cache in MB. Default is 100MB.'
+            'State cache is per process and is shared between all threads '
+            'within the process.'))
 
   def validate(self, validator):
     errors = []
