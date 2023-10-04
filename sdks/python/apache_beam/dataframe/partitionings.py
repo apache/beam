@@ -134,7 +134,15 @@ class Index(Partitioning):
       # hash.
       # Apply consistent order within dataframe with sort_index()
       # Also drops any empty dataframes.
-      return sorted((df.sort_index() for df in dfs if len(df)),
+
+      # This is a workaround for
+      # https://github.com/pandas-dev/pandas/issues/55379.
+      # Since this is just for checking, performance shouldn't be an issue.
+      def sort_index(df):
+        df.index = df.index.sort_values()
+        return df
+
+      return sorted((sort_index(df) for df in dfs if len(df)),
                     key=lambda df: sum(self._hash_index(df)))
 
     dfs = apply_consistent_order(dfs)
