@@ -63,8 +63,9 @@ def sparkTestProperties(overrides = [:]) {
 
 
 def sparkTestJvmArgs() {
-  // run tests with Java 17 using -PcompileAndRunTestsWithJava17 -Pjava17Home=???
-  if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  // run tests with Java 17 using -PtestJavaVersion=17 -Pjava17Home=???
+  if (project.hasProperty('testJavaVersion') &&
+          project.getProperty('testJavaVersion') in ['17', '21']) {
     return [
       "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
       // add-opens below required for Kryo FieldSerializer / SparkRunnerKryoRegistratorTest

@@ -43,24 +43,15 @@ dependencies {
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }
 
-task verifyJavaVersion(type: Test) {
-  filter {
-    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8'
-    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava11'
-    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs11'
-  }
-  doLast {
-    println 'Java verified'
-  }
-}
-
-task verifyJavaVersion17(type: Test) {
-  filter {
-    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8'
-    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava17'
-    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs17'
-  }
-  doLast {
-    println 'Java verified'
+['11', '17', '21'].each {
+  tasks.create(name: "verifyJavaVersion${it}", type: Test) {
+    filter {
+      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8"
+      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava${it}"
+      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs${it}"
+    }
+    doLast {
+      println 'Java verified'
+    }
   }
 }

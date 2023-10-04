@@ -50,7 +50,7 @@ builder.build {
       switches '-PdisableSpotlessCheck=true'
       switches '-PdisableCheckStyle=true'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
-      switches '-PcompileAndRunTestsWithJava11'
+      switches '-PtestJavaVersion=11'
       switches "-Pjava11Home=${properties.JAVA_11_HOME}"
       properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
