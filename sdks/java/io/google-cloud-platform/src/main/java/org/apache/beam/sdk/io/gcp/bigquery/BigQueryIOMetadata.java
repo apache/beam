@@ -32,8 +32,8 @@ final class BigQueryIOMetadata {
 
   private @Nullable String beamWorkerId;
 
-  private BigQueryIOMetadata(@Nullable String beamJobId, @Nullable String beamJobName,
-      @Nullable String beamWorkerId) {
+  private BigQueryIOMetadata(
+      @Nullable String beamJobId, @Nullable String beamJobName, @Nullable String beamWorkerId) {
     this.beamJobId = beamJobId;
     this.beamJobName = beamJobName;
     this.beamWorkerId = beamWorkerId;
