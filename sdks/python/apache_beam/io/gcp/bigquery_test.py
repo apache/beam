@@ -431,14 +431,16 @@ class TestReadFromBigQuery(unittest.TestCase):
                   response={'status': 403}, content="quotaExceeded", url="")
           ],
           expected_retries=2),
-      # first two attempts returns a 403 rateLimitExceeded error, third attempt passes
+      # first attempts returns a 403 rateLimitExceeded error,
+      # second attempt returns a 408 timeout error,
+      # third attempt passes
       param(
           responses=[
               HttpForbiddenError(
                   response={'status': 403}, content="rateLimitExceeded",
                   url=""),
               HttpForbiddenError(
-                  response={'status': 403}, content="rateLimitExceeded", url="")
+                  response={'status': 408}, content="timeout", url="")
           ],
           expected_retries=2),
   ])
