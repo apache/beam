@@ -448,8 +448,6 @@ class TestReadFromBigQuery(unittest.TestCase):
     class DummyTable:
       class DummySchema:
         fields = []
-
-      # this attribute is call on inside estimate_size
       numBytes = 5
       schema = DummySchema()
 
@@ -512,8 +510,6 @@ class TestReadFromBigQuery(unittest.TestCase):
     class DummyTable:
       class DummySchema:
         fields = []
-
-      # this attribute is call on inside estimate_size
       numBytes = 5
       schema = DummySchema()
 
