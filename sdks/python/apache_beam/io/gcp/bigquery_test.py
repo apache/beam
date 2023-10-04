@@ -422,27 +422,45 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
-      # first two attempts return a 403 quotaExceeded error, third attempt passes
-      param(
-          responses=[
-              HttpForbiddenError(
-                  response={'status': 403}, content="quotaExceeded", url=""),
-              HttpForbiddenError(
-                  response={'status': 403}, content="quotaExceeded", url="")
-          ],
-          expected_retries=2),
-      # first attempts returns a 403 rateLimitExceeded error,
-      # second attempt returns a 408 timeout error,
+      # first attempt returns a Http 403 error with bad contents and will retry
+      # second attempt returns a Http 408 error,
       # third attempt passes
       param(
           responses=[
               HttpForbiddenError(
-                  response={'status': 403}, content="rateLimitExceeded",
-                  url=""),
+                  response={'status': 403}, content="bad contents", url=""),
               HttpForbiddenError(
-                  response={'status': 408}, content="timeout", url="")
+                  response={'status': 408}, content="bad contents", url="")
           ],
           expected_retries=2),
+      # first attempts returns a 403 rateLimitExceeded error
+      # second attempt returns a 403 quotaExceeded error
+      # third attempt returns a Http 403 quotaExceeded error
+      # fourth attempt passes
+      param(
+          responses=[
+              exceptions.Forbidden(
+                  "some message",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )),
+              exceptions.Forbidden(
+                  "some message",
+                  errors=({
+                      "message": "transient", "reason": "quotaExceeded"
+                  }, )),
+              HttpForbiddenError(
+                  response={'status': 403},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient", "reason": "quotaExceeded"
+                          }]
+                      }
+                  },
+                  url=""),
+          ],
+          expected_retries=3),
   ])
   def test_get_table_transient_exception(self, responses, expected_retries):
     class DummyTable:
@@ -485,15 +503,33 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertEqual(expected_retries, mock_get_table.call_count - 2)
 
   @parameterized.expand([
-      # first attempt returns a non-transient error and fails.
-      # second attempt doesn't even get reached.
+      # first attempt returns a Http 403 with transient reason and retries
+      # second attempt returns a Http 403 with non-transient reason and fails
       param(
           responses=[
-              HttpError(response={'status': 400}, content="invalid", url=""),
-              HttpError(response={'status': 400}, content="invalid", url="")
+              HttpForbiddenError(
+                  response={'status': 403},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient", "reason": "quotaExceeded"
+                          }]
+                      }
+                  },
+                  url=""),
+              HttpForbiddenError(
+                  response={'status': 403},
+                  content={
+                      "error": {
+                          "errors": [{
+                              "message": "transient", "reason": "accessDenied"
+                          }]
+                      }
+                  },
+                  url="")
           ],
-          expected_retries=0),
-      # first attempt returns a transient  error and retries
+          expected_retries=1),
+      # first attempt returns a transient 403 error and retries
       # second attempt returns a non-transient error and fails
       param(
           responses=[
@@ -503,6 +539,25 @@ class TestReadFromBigQuery(unittest.TestCase):
               HttpError(response={'status': 400}, content="invalid", url="")
           ],
           expected_retries=1),
+      # first attempt returns a transient 403 error and retries
+      # second attempt returns a 403 error with bad contents and retries
+      # third attempt returns a 403 with non-transient reason and fails
+      param(
+          responses=[
+              exceptions.Forbidden(
+                  "some error",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )),
+              HttpError(
+                  response={'status': 403}, content="bad contents", url=""),
+              exceptions.Forbidden(
+                  "some error",
+                  errors=({
+                      "message": "transient", "reason": "accessDenied"
+                  }, )),
+          ],
+          expected_retries=2),
   ])
   def test_get_table_non_transient_exception(self, responses, expected_retries):
     class DummyTable:
