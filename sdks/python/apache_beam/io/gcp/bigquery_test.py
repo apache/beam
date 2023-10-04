@@ -448,6 +448,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     class DummyTable:
       class DummySchema:
         fields = []
+
       numBytes = 5
       schema = DummySchema()
 
@@ -488,21 +489,18 @@ class TestReadFromBigQuery(unittest.TestCase):
       # second attempt doesn't even get reached.
       param(
           responses=[
-              HttpForbiddenError(
-                  response={'status': 400}, content="invalid", url=""),
-              HttpForbiddenError(
-                  response={'status': 400}, content="invalid", url="")
+              HttpError(response={'status': 400}, content="invalid", url=""),
+              HttpError(response={'status': 400}, content="invalid", url="")
           ],
           expected_retries=0),
       # first attempt returns a transient  error and retries
       # second attempt returns a non-transient error and fails
       param(
           responses=[
-              HttpForbiddenError(
+              HttpError(
                   response={'status': 403}, content="rateLimitExceeded",
                   url=""),
-              HttpForbiddenError(
-                  response={'status': 400}, content="invalid", url="")
+              HttpError(response={'status': 400}, content="invalid", url="")
           ],
           expected_retries=1),
   ])
@@ -510,6 +508,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     class DummyTable:
       class DummySchema:
         fields = []
+
       numBytes = 5
       schema = DummySchema()
 
