@@ -35,7 +35,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class GetWorkTimingInfosTracker {
+public class GetWorkTimingInfosTracker {
 
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkTimingInfosTracker.class);
 
@@ -45,7 +45,7 @@ class GetWorkTimingInfosTracker {
   private Instant workItemLastChunkReceivedByWorkerTime;
   private @Nullable LatencyAttribution workItemCreationLatency;
 
-  GetWorkTimingInfosTracker(MillisProvider clock) {
+  public GetWorkTimingInfosTracker(MillisProvider clock) {
     this.aggregatedGetWorkStreamLatencies = new EnumMap<>(State.class);
     this.clock = clock;
     this.workItemCreationEndTime = Instant.EPOCH;
@@ -126,7 +126,7 @@ class GetWorkTimingInfosTracker {
     workItemLastChunkReceivedByWorkerTime = now;
   }
 
-  List<LatencyAttribution> getLatencyAttributions() {
+  public List<LatencyAttribution> getLatencyAttributions() {
     if (workItemCreationLatency == null && aggregatedGetWorkStreamLatencies.isEmpty()) {
       return Collections.emptyList();
     }
