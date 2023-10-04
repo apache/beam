@@ -22,7 +22,7 @@ on:
   push:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/build_runner_image.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
 env:

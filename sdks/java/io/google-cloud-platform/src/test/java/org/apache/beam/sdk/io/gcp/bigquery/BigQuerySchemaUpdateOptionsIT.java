@@ -87,7 +87,11 @@ public class BigQuerySchemaUpdateOptionsIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(
+        project,
+        BIG_QUERY_DATASET_ID,
+        null,
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
   }
 
   @AfterClass
