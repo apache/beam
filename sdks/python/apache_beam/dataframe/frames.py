@@ -1388,7 +1388,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     Only the default, ``method=None``, is allowed."""
     if level is not None:
       raise NotImplementedError('per-level align')
-    if method is not None:
+    if method is not None and method != lib.no_default:
       raise frame_base.WontImplementError(
           f"align(method={method!r}) is not supported because it is "
           "order sensitive. Only align(method=None) is supported.",
@@ -2580,7 +2580,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "align(copy=False) is not supported because it might be an inplace "
           "operation depending on the data. Please prefer the default "
           "align(copy=True).")
-    if method is not None:
+    if method is not None and method != lib.no_default:
       raise frame_base.WontImplementError(
           f"align(method={method!r}) is not supported because it is "
           "order sensitive. Only align(method=None) is supported.",
