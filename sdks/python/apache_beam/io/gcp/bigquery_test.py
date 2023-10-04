@@ -43,6 +43,7 @@ import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
@@ -83,6 +84,7 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 try:
   from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
   from google.cloud import bigquery as gcp_bigquery
   from google.api_core import exceptions
 except ImportError:
@@ -418,6 +420,135 @@ class TestReadFromBigQuery(unittest.TestCase):
 
     mock_insert.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      # first two attempts return a 403 quotaExceeded error, third attempt passes
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 403}, content="quotaExceeded", url=""),
+              HttpForbiddenError(
+                  response={'status': 403}, content="quotaExceeded", url="")
+          ],
+          expected_retries=2),
+      # first two attempts returns a 403 rateLimitExceeded error, third attempt passes
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 403}, content="rateLimitExceeded",
+                  url=""),
+              HttpForbiddenError(
+                  response={'status': 403}, content="rateLimitExceeded", url="")
+          ],
+          expected_retries=2),
+  ])
+  def test_get_table_transient_exception(self, responses, expected_retries):
+    class DummyTable:
+      class DummySchema:
+        fields = []
+
+      # this attribute is call on inside estimate_size
+      numBytes = 5
+      schema = DummySchema()
+
+    with mock.patch('time.sleep'), \
+            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get') as mock_get_table, \
+            mock.patch.object(BigQueryWrapper,
+                              'wait_for_bq_job'), \
+            mock.patch.object(BigQueryWrapper,
+                              'perform_extract_job'), \
+            mock.patch.object(FileSystems,
+                              'match'), \
+            mock.patch.object(FileSystems,
+                              'delete'), \
+            beam.Pipeline() as p:
+      call_counter = 0
+
+      def store_callback(unused_request):
+        nonlocal call_counter
+        if call_counter < len(responses):
+          exception = responses[call_counter]
+          call_counter += 1
+          raise exception
+        else:
+          call_counter += 1
+          return DummyTable()
+
+      mock_get_table.side_effect = store_callback
+      _ = p | beam.io.ReadFromBigQuery(
+          table="project.dataset.table", gcs_location="gs://some_bucket")
+
+    # ReadFromBigQuery export mode calls get_table() twice. Once to get
+    # metadata (numBytes), and once to retrieve the table's schema
+    # Any additional calls are retries
+    self.assertEqual(expected_retries, mock_get_table.call_count - 2)
+
+  @parameterized.expand([
+      # first attempt returns a non-transient error and fails.
+      # second attempt doesn't even get reached.
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 400}, content="invalid", url=""),
+              HttpForbiddenError(
+                  response={'status': 400}, content="invalid", url="")
+          ],
+          expected_retries=0),
+      # first attempt returns a transient  error and retries
+      # second attempt returns a non-transient error and fails
+      param(
+          responses=[
+              HttpForbiddenError(
+                  response={'status': 403}, content="rateLimitExceeded",
+                  url=""),
+              HttpForbiddenError(
+                  response={'status': 400}, content="invalid", url="")
+          ],
+          expected_retries=1),
+  ])
+  def test_get_table_non_transient_exception(self, responses, expected_retries):
+    class DummyTable:
+      class DummySchema:
+        fields = []
+
+      # this attribute is call on inside estimate_size
+      numBytes = 5
+      schema = DummySchema()
+
+    with mock.patch('time.sleep'), \
+            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get') as mock_get_table, \
+            mock.patch.object(BigQueryWrapper,
+                              'wait_for_bq_job'), \
+            mock.patch.object(BigQueryWrapper,
+                              'perform_extract_job'), \
+            mock.patch.object(FileSystems,
+                              'match'), \
+            mock.patch.object(FileSystems,
+                              'delete'), \
+            self.assertRaises(Exception), \
+            beam.Pipeline() as p:
+      call_counter = 0
+
+      def store_callback(unused_request):
+        nonlocal call_counter
+        if call_counter < len(responses):
+          exception = responses[call_counter]
+          call_counter += 1
+          raise exception
+        else:
+          call_counter += 1
+          return DummyTable()
+
+      mock_get_table.side_effect = store_callback
+      _ = p | beam.io.ReadFromBigQuery(
+          table="project.dataset.table", gcs_location="gs://some_bucket")
+
+    # ReadFromBigQuery export mode calls get_table() twice. Once to get
+    # metadata (numBytes), and once to retrieve the table's schema
+    # However, the second call is never reached because this test will always
+    # fail before it does so
+    # After the first call, any additional calls are retries
+    self.assertEqual(expected_retries, mock_get_table.call_count - 1)
 
   @parameterized.expand([
       param(
