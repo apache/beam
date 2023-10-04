@@ -62,11 +62,11 @@ else:
 _LOGGER = logging.getLogger(__name__)
 _RETRYABLE_REASONS = ["rateLimitExceeded", "quotaExceeded", "internalError", "backendError"]
 _RETRYABLE_TYPES = (
-  exceptions.TooManyRequests,
-  exceptions.InternalServerError,
-  exceptions.BadGateway,
-  exceptions.ServiceUnavailable,
-  exceptions.DeadlineExceeded,
+  exceptions.TooManyRequests if exceptions else None,
+  exceptions.InternalServerError if exceptions else None,
+  exceptions.BadGateway if exceptions else None,
+  exceptions.ServiceUnavailable if exceptions else None,
+  exceptions.DeadlineExceeded if exceptions else None,
   requests.exceptions.ConnectionError,
   requests.exceptions.Timeout,
   ConnectionError
