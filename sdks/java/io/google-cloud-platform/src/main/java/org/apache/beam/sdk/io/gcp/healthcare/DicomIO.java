@@ -17,26 +17,33 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.HealthcareIOError.SCHEMA_FOR_STRING_RESOURCE_TYPE;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1.model.Operation;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.healthcare.DicomIO.Deidentify.Result;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -45,13 +52,12 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /**
  * The DicomIO connectors allows Beam pipelines to make calls to the Dicom API of the Google Cloud
@@ -76,9 +82,7 @@ public class DicomIO {
   static final String BASE_METRIC_PREFIX = "dicomio/";
 
   public static Deidentify deidentify(
-      String sourceDicomStore,
-      String destinationDicomStore,
-      DeidentifyConfig deidConfig) {
+      String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidConfig) {
     return new Deidentify(sourceDicomStore, destinationDicomStore, deidConfig);
   }
 
@@ -240,36 +244,39 @@ public class DicomIO {
    */
 
   /** Deidentify DICOM resources from a DICOM store to a destination DICOM store. */
-    public static class Deidentify extends PTransform<PBegin, Result> {
-    private static final TupleTag<Operation> OUTPUT = new TupleTag<Operation>(){};
-    private static final TupleTag<HealthcareIOError<String>> FAILURE = new TupleTag<HealthcareIOError<String>>(){};
+  public static class Deidentify extends PTransform<@NonNull PBegin, @NonNull Result> {
+    private static final Gson GSON = new Gson();
+    private static final TupleTag<Operation> OUTPUT = new TupleTag<Operation>() {};
+
+    private static final TupleTag<HealthcareIOError<String>> FAILURE =
+        new TupleTag<HealthcareIOError<String>>() {};
     private final @NonNull String sourceDicomStore;
     private final @NonNull String destinationDicomStore;
-    private final @NonNull DeidentifyConfig deidConfig;
+    private final @NonNull String deidentifyConfigJson;
+
 
     public Deidentify(
         @NonNull String sourceDicomStore,
         @NonNull String destinationDicomStore,
-        @NonNull DeidentifyConfig deidConfig) {
+        @NonNull DeidentifyConfig deidentifyConfig) {
       this.sourceDicomStore = sourceDicomStore;
       this.destinationDicomStore = destinationDicomStore;
-      this.deidConfig = deidConfig;
+      this.deidentifyConfigJson = GSON.toJson(deidentifyConfig);
     }
 
     @Override
-    @SuppressWarnings("SameNameButDifferent")
-    public Result expand(PBegin input) {
-      PCollectionTuple pct = input
-        .apply("impulse", Impulse.create())
-        .apply(
-            DeidentifyFn.class.getSimpleName(),
-            ParDo.of(new DeidentifyFn(this)).withOutputTags(
-                OUTPUT, TupleTagList.of(FAILURE)
-            ));
+    public @NonNull Result expand(PBegin input) {
+      PCollectionTuple pct =
+          input
+              .apply("impulse", Impulse.create())
+              .apply(
+                  DeidentifyFn.class.getSimpleName(),
+                  ParDo.of(new DeidentifyFn(this))
+                      .withOutputTags(OUTPUT, TupleTagList.of(FAILURE)));
       return new Result(pct);
     }
 
-    public static class LroCounters {
+    private static class LroCounters {
       private static final Counter DEIDENTIFY_OPERATION_SUCCESS =
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_success_count");
@@ -277,65 +284,72 @@ public class DicomIO {
           Metrics.counter(
               DeidentifyFn.class, BASE_METRIC_PREFIX + "deidentify_operation_failure_count");
     }
-    public static class Result implements POutput{
+
+    public static class Result implements POutput {
       private final Pipeline pipeline;
       private final PCollection<Operation> output;
       private final PCollection<HealthcareIOError<String>> error;
-      Result(PCollectionTuple pct){
+
+      Result(PCollectionTuple pct) {
         this.pipeline = pct.getPipeline();
-        this.output = pct.get(OUTPUT);
-        this.error = pct.get(FAILURE);
+        this.output = pct.get(OUTPUT).setCoder(OperationCoder.of());
+        this.error = pct.get(FAILURE).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()))
+            .setSchema(SCHEMA_FOR_STRING_RESOURCE_TYPE);
       }
-      public PCollection<Operation> getOperation(){
+
+      public PCollection<Operation> getOperation() {
         return output;
       }
-      public PCollection<HealthcareIOError<String>> getError(){
+
+      public PCollection<HealthcareIOError<String>> getError() {
         return error;
       }
+
       @Override
-      public Pipeline getPipeline(){
+      public Pipeline getPipeline() {
         return pipeline;
       }
+
       @Override
-      public Map<TupleTag<?>, PValue> expand(){
+      public Map<TupleTag<?>, PValue> expand() {
         return ImmutableMap.of(
             OUTPUT, output,
-            FAILURE, error
-        );
+            FAILURE, error);
       }
+
       @Override
       public void finishSpecifyingOutput(
-          String transformName, PInput input, PTransform<?, ?> transform
-      ){}
+          String transformName, PInput input, PTransform<?, ?> transform) {}
     }
     /** A function that schedules a deidentify operation and monitors the status. */
-    // Corrections:
-    // when instantiating DoFn
-    // private static final TupleTag<String> SUCCESS = new TupleTag<String>(){};
-    // try catch the IO exceptions
     private static class DeidentifyFn extends DoFn<byte[], Operation> {
 
-      private static final Gson GSON = new Gson();
 
       private transient @MonotonicNonNull HttpHealthcareApiClient dicomStore;
-      private final Deidentify spec; 
+      private transient @MonotonicNonNull DeidentifyConfig deidentifyConfig;
+      private final Deidentify spec;
 
-      DeidentifyFn(Deidentify spec){
+      DeidentifyFn(Deidentify spec) {
         this.spec = spec;
       }
 
       @Setup
-      public void instantiateHealthcareClient() throws IOException {
+      public void setup() throws IOException {
         this.dicomStore = new HttpHealthcareApiClient();
+        this.deidentifyConfig = GSON.fromJson(spec.deidentifyConfigJson, DeidentifyConfig.class);
       }
 
       @ProcessElement
-      public void deidentify(MultiOutputReceiver receiver) {
-        HttpHealthcareApiClient safeClient = checkStateNotNull(dicomStore);
+      public void process(MultiOutputReceiver receiver) {
+        HttpHealthcareApiClient safeClient = checkStateNotNull(this.dicomStore);
+        DeidentifyConfig safeConfig = checkStateNotNull(this.deidentifyConfig);
         try {
-          Operation operation = safeClient.deidentifyDicomStore(spec.sourceDicomStore, spec.destinationDicomStore, spec.deidConfig);
-          if (operation==null){
-            throw new NullPointerException("Operation is null after De-identify Dicom Store operation.");
+          Operation operation =
+              safeClient.deidentifyDicomStore(
+                  spec.sourceDicomStore, spec.destinationDicomStore, safeConfig);
+          if (operation == null) {
+            throw new NullPointerException(
+                "Operation is null after De-identify Dicom Store operation.");
           }
           Operation safeOperation = checkStateNotNull(operation);
           LroCounters.DEIDENTIFY_OPERATION_SUCCESS.inc();
@@ -345,10 +359,31 @@ public class DicomIO {
           JsonObject sourceObject = new JsonObject();
           sourceObject.addProperty("source_dicom_store", spec.sourceDicomStore);
           sourceObject.addProperty("destination_dicom_store", spec.destinationDicomStore);
-          sourceObject.addProperty("deid_config", GSON.toJson(spec.deidConfig));
+          sourceObject.addProperty("deidentify_config", spec.deidentifyConfigJson);
           String source = GSON.toJson(sourceObject);
           receiver.get(FAILURE).output(HealthcareIOError.of(source, e));
         }
+      }
+    }
+    static class OperationCoder extends CustomCoder<Operation>{
+      static OperationCoder of(){
+        return new OperationCoder();
+      }
+
+      private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+      @Override
+      public void encode(Operation value,
+           OutputStream outStream)
+          throws CoderException, IOException {
+        String json = GSON.toJson(value);
+        STRING_CODER.encode(json, outStream);
+      }
+
+      @Override
+      public Operation decode( InputStream inStream)
+          throws CoderException, IOException {
+        String json = STRING_CODER.decode(inStream);
+        return GSON.fromJson(json, Operation.class);
       }
     }
   }

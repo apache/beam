@@ -18,18 +18,46 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import java.util.Optional;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.apache.beam.sdk.schemas.JavaBeanSchema;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaProvider;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
+import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 
 /** Class for capturing errors on IO operations on Google Cloud Healthcare APIs resources. */
 @DefaultCoder(HealthcareIOErrorCoder.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class HealthcareIOError<T> {
+  private static final String DATA_RESOURCE = "data_resource";
+  private static final String ERROR_MESSAGE = "error_message";
+  private static final String STACK_TRACE = "stack_trace";
+  private static final String OBSERVED_TIME = "observed_time";
+  private static final String STATUS_CODE = "status_code";
+
+  // TODO (GH ISSUE): Hard coding schema due to JavaBeanSchema error.
+
+  static Schema SCHEMA_FOR_STRING_RESOURCE_TYPE = Schema.of(
+      Field.of(DATA_RESOURCE, FieldType.STRING),
+      Field.of(ERROR_MESSAGE, FieldType.STRING),
+      Field.of(STACK_TRACE, FieldType.STRING),
+      Field.of(OBSERVED_TIME, FieldType.logicalType(new DateTime())),
+      Field.of(STATUS_CODE, FieldType.INT32)
+  );
   private T dataResource;
   private String errorMessage;
   private String stackTrace;
@@ -76,7 +104,7 @@ public class HealthcareIOError<T> {
   }
 
   static <T> HealthcareIOError<T> of(T dataResource, Exception error) {
-    String msg = error.getMessage();
+    String msg = Optional.ofNullable(error.getMessage()).orElse("");
     String stackTrace = Throwables.getStackTraceAsString(error);
     Integer statusCode = null;
 
@@ -86,5 +114,28 @@ public class HealthcareIOError<T> {
       statusCode = ((HealthcareHttpException) error).getStatusCode();
     }
     return new HealthcareIOError<>(dataResource, msg, stackTrace, null, statusCode);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof HealthcareIOError)) {
+      return false;
+    }
+    HealthcareIOError<?> that = (HealthcareIOError<?>) o;
+    return statusCode == that.statusCode && Objects.equal(dataResource,
+        that.dataResource) && Objects.equal(errorMessage, that.errorMessage)
+        && Objects.equal(stackTrace, that.stackTrace)
+        && Objects.equal(observedTime, that.observedTime);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(dataResource, errorMessage, stackTrace, observedTime, statusCode);
   }
 }
