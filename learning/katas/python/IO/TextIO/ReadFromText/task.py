@@ -20,7 +20,7 @@
 #   multifile: true
 #   files:
 #     - name: countries.txt
-#   context_line: 33
+#   context_line: 35
 #   categories:
 #     - IO
 #   complexity: BASIC

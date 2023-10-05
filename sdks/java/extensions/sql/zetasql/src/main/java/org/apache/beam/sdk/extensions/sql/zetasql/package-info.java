@@ -17,7 +17,4 @@
  */
 
 /** ZetaSQL Dialect package. */
-@Experimental
 package org.apache.beam.sdk.extensions.sql.zetasql;
-
-import org.apache.beam.sdk.annotations.Experimental;

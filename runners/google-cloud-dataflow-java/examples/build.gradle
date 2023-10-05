@@ -53,10 +53,24 @@ def dataflowWorkerImpersonationServiceAccount = project.findProperty('dataflowWo
 def impersonationTempRoot = project.findProperty('gcpImpersonationTempRoot') ?: 'gs://impersonation-test-bucket/tmproot'
 
 
+/*
+ * Set common configurations for test tasks.
+ *
+ * @param dataflowWorkerJar (required) the path te dataflow worker Jar.
+ * @param gcsTempRoot gcs temp root
+ * @additionalOptions additional options
+ * @workerHarnessContainerImage worker harness container image
+ * @param runWordCount
+ *     "only" - only run wordcount;
+ *     "exclude" - run example without wordcount;
+ *     "include" - run full example
+ */
 def commonConfig = { Map args ->
     if (!args.dataflowWorkerJar) {
         throw new GradleException("Dataflow integration test configuration requires dataflowWorkerJar parameter")
     }
+
+    def runWordCount = args?.runWordCount ?: 'only'
 
     def actualDataflowWorkerJar = args.dataflowWorkerJar
     def actualWorkerHarnessContainerImage = args.workerHarnessContainerImage ?: ''
@@ -66,8 +80,16 @@ def commonConfig = { Map args ->
    // return the preevaluated configuration closure
    return {
        testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-       include "**/WordCountIT.class"
-       include "**/WindowedWordCountIT.class"
+       if (runWordCount == 'only') {
+           include "**/WordCountIT.class"
+           include "**/WindowedWordCountIT.class"
+       } else {
+           include "**/IT.class"
+           if (runWordCount == 'exclude') {
+               exclude "**/WordCountIT.class"
+               exclude "**/WindowedWordCountIT.class"
+           }
+       }
        forkEvery 1
        maxParallelForks 4
 
@@ -115,11 +137,21 @@ task verifyFnApiWorker(type: Test) {
   }
 }
 
+task postCommitLegacyWorker(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'exclude')
+}
+
+task javaPostCommit() {
+    dependsOn postCommitLegacyWorker
+}
+
 task postCommitLegacyWorkerJava11(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   systemProperty "java.specification.version", "11"
-  with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
+  with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
 
 task java11PostCommit() {
@@ -130,7 +162,7 @@ task postCommitLegacyWorkerJava17(type: Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
     systemProperty "java.specification.version", "17"
-    with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
+    with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
 
 task java17PostCommit() {

@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Instant;
 
 /**
@@ -28,7 +26,6 @@ import org.joda.time.Instant;
  *
  * <p>This is a distinguished class to make it easy for runners to optimize for this common case.
  */
-@Experimental(Kind.TRIGGER)
 public class DefaultTrigger extends Trigger {
 
   private DefaultTrigger() {

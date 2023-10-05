@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.state;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.transforms.Combine;
  *
  * @param <StateT> The type of state being described.
  */
-@Experimental(Kind.STATE)
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
   public static final boolean DEFAULT_USES_RESHUFFLE = true;

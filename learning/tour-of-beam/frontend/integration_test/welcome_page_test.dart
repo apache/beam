@@ -52,18 +52,7 @@ Future<void> _checkSdksLoadedCorrectly(WidgetTester wt) async {
     );
   }
 
-  // Until we select an SDK the dropdown is not shown.
-  expect(
-    find.sdkDropdown(),
-    findsNothing,
-  );
-
-  var button = wt.widget<ElevatedButton>(find.startTourButton());
-  expect(button.onPressed, isNull); // Verify it is disabled.
-
-  await wt.tapAndSettle(find.outlinedButtonWithText(sdks[0].title));
-
-  button = wt.widget<ElevatedButton>(find.startTourButton());
+  final button = wt.widget<ElevatedButton>(find.startTourButton());
   expect(button.onPressed, isNotNull); // Verify it is enabled.
 
   await wt.tapAndSettle(find.sdkDropdown());
@@ -105,16 +94,12 @@ void _checkModulesDisplayed() {
   final appNotifier = GetIt.instance.get<AppNotifier>();
   final sdkId = appNotifier.sdk;
 
-  if (sdkId == null) {
-    throw Exception('sdkId is null');
-  }
-
   final contentTree = contentTreeCache.getContentTree(sdkId);
   if (contentTree == null) {
     throw Exception('contentTree is null');
   }
 
-  for (final module in contentTree.modules) {
+  for (final module in contentTree.nodes) {
     expect(find.text(module.title), findsOneWidget);
   }
 }

@@ -49,8 +49,6 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
 
-# AfterCount is experimental. No backwards compatibility guarantees.
-
 __all__ = [
     'AccumulationMode',
     'TriggerFn',
@@ -373,10 +371,7 @@ class DefaultTrigger(TriggerFn):
 
 
 class AfterProcessingTime(TriggerFn):
-  """Fire exactly once after a specified delay from processing time.
-
-  AfterProcessingTime is experimental. No backwards compatibility guarantees.
-  """
+  """Fire exactly once after a specified delay from processing time."""
 
   STATE_TAG = _SetStateTag('has_timer')
 
@@ -650,10 +645,7 @@ class AfterWatermark(TriggerFn):
 
 
 class AfterCount(TriggerFn):
-  """Fire when there are at least count elements in this window pane.
-
-  AfterCount is experimental. No backwards compatibility guarantees.
-  """
+  """Fire when there are at least count elements in this window pane."""
 
   COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
 

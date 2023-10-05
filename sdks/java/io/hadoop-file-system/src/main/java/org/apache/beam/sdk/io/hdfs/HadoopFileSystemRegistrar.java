@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.net.URI;
@@ -28,21 +28,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.hadoop.conf.Configuration;
 
 /** {@link AutoService} registrar for the {@link HadoopFileSystem}. */
 @AutoService(FileSystemRegistrar.class)
-@Experimental(Kind.FILESYSTEM)
 public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
-  private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs");
+  private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs", "viewfs");
 
   // Using hard-coded value to avoid incompatibility between HDFS client
   // (org.apache.hadoop:hadoop-dfs-client) version 2.7's DFSConfigKeys and version 2.8's

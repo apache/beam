@@ -20,7 +20,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:playground_components/src/exceptions/example_loading_exception.dart';
 
 import 'common.dart';
 import 'examples_loader_test.mocks.dart';
@@ -33,6 +32,8 @@ void main() async {
   final setExampleFalse = <String>[];
   final setEmptyIfNotExistsTrue = <Sdk>[];
   final setEmptyIfNotExistsFalse = <Sdk>[];
+
+  await PlaygroundComponents.ensureInitialized();
 
   setUp(() {
     setExampleTrue.clear();
@@ -122,7 +123,6 @@ void main() async {
 
       group('Error.', () {
         test('Load empty example instead', () async {
-          Exception? thrown;
           const descriptor = ExamplesLoadingDescriptor(
             descriptors: [
               TestExampleLoadingDescriptor(Sdk.go, succeed: false),
@@ -131,13 +131,8 @@ void main() async {
             initialSdk: Sdk.python,
           );
 
-          try {
-            await examplesLoader.loadIfNew(descriptor);
-          } on ExampleLoadingException catch (ex) {
-            thrown = ex;
-          }
+          await examplesLoader.loadIfNew(descriptor);
 
-          expect(thrown, isA<Exception>());
           expect(setEmptyIfNotExistsTrue, [Sdk.python]);
           expect(setEmptyIfNotExistsFalse, [Sdk.go]);
         });

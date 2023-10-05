@@ -135,6 +135,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
         // TODO (https://github.com/apache/beam/issues/20397)
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
       }
 
       testFilter = {

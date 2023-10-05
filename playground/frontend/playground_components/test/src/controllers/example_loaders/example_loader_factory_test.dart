@@ -60,4 +60,7 @@ class _UnregisteredDescriptor extends ExampleLoadingDescriptor {
 
   @override
   Map<String, dynamic> toJson() => throw UnimplementedError();
+
+  @override
+  bool get isSerializableToUrl => true;
 }

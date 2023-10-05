@@ -38,7 +38,8 @@ def jobs = [
       input_options        : '\'{' +
       '"num_records": 25000000,' +
       '"key_size": 9,' +
-      '"value_size": 21}\'',
+      '"value_size": 21,' +
+      '"algorithm": "lcg"}\'',
       dataset_size         : '1050000000',
       num_workers          : '5',
       autoscaling_algorithm: 'NONE'

@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,6 +32,8 @@ import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.Iterator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
@@ -42,8 +42,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ReadChangeStream
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableDao;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.SizeEstimator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
@@ -58,7 +57,7 @@ import org.junit.Test;
 public class ReadChangeStreamPartitionDoFnTest {
   private ChangeStreamDao changeStreamDao;
   private MetadataTableDao metadataTableDao;
-  private SizeEstimator<KV<ByteString, ChangeStreamMutation>> sizeEstimator;
+  private CoderSizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator;
   private ReadChangeStreamPartitionDoFn doFn;
 
   @Before
@@ -74,40 +73,51 @@ public class ReadChangeStreamPartitionDoFnTest {
     ActionFactory actionFactory = mock(ActionFactory.class);
     ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
 
-    sizeEstimator = mock(SizeEstimator.class);
-    BytesThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator =
-        new BytesThroughputEstimator<>(
-            ReadChangeStreamPartitionDoFn.THROUGHPUT_ESTIMATION_WINDOW_SECONDS, sizeEstimator, 1);
-    ChangeStreamAction changeStreamAction = new ChangeStreamAction(metrics, throughputEstimator);
+    sizeEstimator = mock(CoderSizeEstimator.class);
+    ChangeStreamAction changeStreamAction = new ChangeStreamAction(metrics);
     ReadChangeStreamPartitionAction readChangeStreamPartitionAction =
         new ReadChangeStreamPartitionAction(
-            metadataTableDao, changeStreamDao, metrics, changeStreamAction, heartbeatDuration);
-    when(actionFactory.changeStreamAction(metrics, throughputEstimator))
-        .thenReturn(changeStreamAction);
+            metadataTableDao,
+            changeStreamDao,
+            metrics,
+            changeStreamAction,
+            heartbeatDuration,
+            sizeEstimator);
+    when(actionFactory.changeStreamAction(metrics)).thenReturn(changeStreamAction);
     when(actionFactory.readChangeStreamPartitionAction(
-            metadataTableDao, changeStreamDao, metrics, changeStreamAction, heartbeatDuration))
+            metadataTableDao,
+            changeStreamDao,
+            metrics,
+            changeStreamAction,
+            heartbeatDuration,
+            sizeEstimator))
         .thenReturn(readChangeStreamPartitionAction);
 
-    doFn = new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
-    doFn.setThroughputEstimator(throughputEstimator);
+    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics);
+    doFn.setSizeEstimator(sizeEstimator);
   }
 
   @Test
   public void testProcessElementAndGetSize() throws IOException, InterruptedException {
     long watermarkLag = 10;
-    Instant tenSecondsAgo =
-        Instant.now().minus(org.joda.time.Duration.standardSeconds(watermarkLag));
+    Instant tenSecondsAgo = Instant.now().minus(Duration.standardSeconds(watermarkLag));
     Range.ByteStringRange partitionRange = Range.ByteStringRange.create("", "");
     ChangeStreamContinuationToken testToken =
         ChangeStreamContinuationToken.create(partitionRange, "test");
     PartitionRecord partition =
-        new PartitionRecord(partitionRange, tenSecondsAgo, "uid-a", tenSecondsAgo);
+        new PartitionRecord(
+            partitionRange,
+            tenSecondsAgo,
+            "uid-a",
+            tenSecondsAgo,
+            Collections.emptyList(),
+            Instant.now().plus(Duration.standardSeconds(60)));
     long mutationSize = 100L;
     when(sizeEstimator.sizeOf(any())).thenReturn(mutationSize);
     ReadChangeStreamPartitionProgressTracker restrictionTracker =
         mock(ReadChangeStreamPartitionProgressTracker.class);
     when(restrictionTracker.currentRestriction()).thenReturn(new StreamProgress());
-    DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver =
+    DoFn.OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver =
         mock(DoFn.OutputReceiver.class);
     ManualWatermarkEstimator<Instant> watermarkEstimator = mock(ManualWatermarkEstimator.class);
     doFn.setup();
@@ -119,14 +129,13 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(mockMutation.getToken()).thenReturn(testToken.getToken());
     when(mockMutation.getCommitTimestamp()).thenReturn(toThreetenInstant(tenSecondsAgo));
 
-    when(metadataTableDao.lockPartition(any(), any())).thenReturn(true);
+    when(metadataTableDao.lockAndRecordPartition(any())).thenReturn(true);
     ServerStream<ChangeStreamRecord> mockStream = mock(ServerStream.class);
     Iterator<ChangeStreamRecord> mockResponses = mock(Iterator.class);
     when(mockResponses.hasNext()).thenReturn(true, true, true);
     when(mockResponses.next()).thenReturn(mockMutation, mockMutation, mockMutation);
     when(mockStream.iterator()).thenReturn(mockResponses);
-    when(changeStreamDao.readChangeStreamPartition(
-            anyObject(), anyObject(), anyObject(), anyBoolean()))
+    when(changeStreamDao.readChangeStreamPartition(any(), any(), any(), any()))
         .thenReturn(mockStream);
 
     when(watermarkEstimator.getState()).thenReturn(tenSecondsAgo);
@@ -134,10 +143,43 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(restrictionTracker.tryClaim(any())).thenReturn(true, true, false);
 
     doFn.processElement(partition, restrictionTracker, receiver, watermarkEstimator);
-    double sizeEstimate = doFn.getSize(new StreamProgress(testToken, tenSecondsAgo));
+    double sizeEstimate =
+        doFn.getSize(
+            new StreamProgress(
+                testToken, tenSecondsAgo, BigDecimal.valueOf(20), Instant.now(), false));
     // we should have output 2 100B mutations in the past 10s
     long bytesPerSecond = (mutationSize * 2) / 10;
-    assertEquals(sizeEstimate, bytesPerSecond * watermarkLag, .1d);
+    assertEquals(sizeEstimate, bytesPerSecond * watermarkLag, 10);
     verify(receiver, times(2)).outputWithTimestamp(KV.of(rowKey, mockMutation), Instant.EPOCH);
+  }
+
+  @Test
+  public void testGetSizeCantBeNegative() throws IOException {
+    long mutationSize = 100L;
+    when(sizeEstimator.sizeOf(any())).thenReturn(mutationSize);
+    Range.ByteStringRange partitionRange = Range.ByteStringRange.create("", "");
+    ChangeStreamContinuationToken testToken =
+        ChangeStreamContinuationToken.create(partitionRange, "test");
+    doFn.setup();
+
+    double mutationEstimate =
+        doFn.getSize(
+            new StreamProgress(
+                testToken,
+                Instant.now().plus(Duration.standardMinutes(10)),
+                BigDecimal.valueOf(1000),
+                Instant.now().plus(Duration.standardMinutes(10)),
+                false));
+    assertEquals(0, mutationEstimate, 0);
+
+    double heartbeatEstimate =
+        doFn.getSize(
+            new StreamProgress(
+                testToken,
+                Instant.now().plus(Duration.standardMinutes(10)),
+                BigDecimal.valueOf(1000),
+                Instant.now().plus(Duration.standardMinutes(10)),
+                true));
+    assertEquals(0, heartbeatEstimate, 0);
   }
 }

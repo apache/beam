@@ -60,16 +60,16 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.create();
 
         // Create the Pipeline object with the options we defined above
-        Pipeline p = Pipeline.create(options);
-        PCollection<String> rides = p.apply(TextIO.read().from("gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv"));
+        Pipeline pipeline = Pipeline.create(options);
+        PCollection<String> input = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv"));
 
-        PCollection<Double> rideTolalAmounts = rides.apply(ParDo.of(new ExtractTaxiRideCostFn()));
+        PCollection<Double> rideTolalAmounts = input.apply(ParDo.of(new ExtractTaxiRideCostFn()));
         final PTransform<PCollection<Double>, PCollection<Iterable<Double>>> sample = Sample.fixedSizeGlobally(10);
         PCollection<Double> rideAmounts = rideTolalAmounts.apply(sample)
                 .apply(Flatten.iterables())
                 .apply("Log amounts", ParDo.of(new LogDouble()));
 
-        p.run().waitUntilFinish();
+        pipeline.run().waitUntilFinish();
 
     }
 

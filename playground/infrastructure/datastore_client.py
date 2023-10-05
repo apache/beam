@@ -222,8 +222,8 @@ class DatastoreClient:
 
     def _make_example_id(self, origin: Origin, sdk: SdkEnum, name: str):
         # ToB examples (and other related entities: snippets, files, pc_objects)
-        # have origin prefix in a key
-        if origin == Origin.TB_EXAMPLES:
+        # and Beam Documentation examples have origin prefix in a key
+        if origin == Origin.TB_EXAMPLES or origin == Origin.PG_BEAMDOC:
             return config.DatastoreProps.KEY_NAME_DELIMITER.join(
                 [
                     origin,

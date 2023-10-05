@@ -221,8 +221,8 @@ func (s *queryFn) Setup() error {
 	return nil
 }
 
-func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) bool, emit func(beam.X)) error {
-	client, err := f.newClientFunc(ctx, f.Project)
+func (s *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) bool, emit func(beam.X)) error {
+	client, err := s.newClientFunc(ctx, s.Project)
 	if err != nil {
 		return err
 	}
@@ -238,13 +238,13 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) 
 	}
 
 	// lookup type
-	t, ok := runtime.LookupType(f.Type)
+	t, ok := runtime.LookupType(s.Type)
 	if !ok {
-		return errors.Errorf("No type registered %s", f.Type)
+		return errors.Errorf("No type registered %s", s.Type)
 	}
 
 	// Translate BoundedQuery to datastore.Query
-	dq := datastore.NewQuery(f.Kind)
+	dq := datastore.NewQuery(s.Kind)
 	if q.Start != nil {
 		dq = dq.Filter("__key__ >=", q.Start)
 	}

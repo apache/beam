@@ -303,11 +303,15 @@ public class StreamingWriteTables<ElementT>
         deterministicRecordIdFn);
   }
 
+  public <TupleTagT> TupleTag<TupleTagT> getFailedRowsTupleTag() {
+    return new TupleTag<>(FAILED_INSERTS_TAG_ID);
+  }
+
   @Override
   public WriteResult expand(PCollection<KV<TableDestination, ElementT>> input) {
     Preconditions.checkStateNotNull(elementCoder);
     if (extendedErrorInfo) {
-      TupleTag<BigQueryInsertError> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
+      TupleTag<BigQueryInsertError> failedInsertsTag = getFailedRowsTupleTag();
       PCollectionTuple result =
           writeAndGetErrors(
               input,
@@ -321,7 +325,7 @@ public class StreamingWriteTables<ElementT>
           failedInserts,
           propagateSuccessful ? result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG) : null);
     } else {
-      TupleTag<TableRow> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
+      TupleTag<TableRow> failedInsertsTag = getFailedRowsTupleTag();
       PCollectionTuple result =
           writeAndGetErrors(
               input,

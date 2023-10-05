@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-RegExp pipelineOptionsRegExp =
-    RegExp(r'''--([A-z0-9]*)\s+([A-z0-9\/\"\'\*\-\:\;\.]*)''');
+RegExp pipelineOptionsRegExp = RegExp(r'--(\S+)\s+(\S+)');
 
 const keyValueGroupCount = 2;
 
@@ -43,13 +42,13 @@ Map<String, String>? parsePipelineOptions(String pipelineOptions) {
   if (hasError) {
     return null;
   }
-  for (var match in matches) {
+  for (final match in matches) {
     final key = getGroupValue(match, 1);
     final value = getGroupValue(match, 2);
     result[key] = value;
   }
   var optionsCopy = pipelineOptions;
-  for (var element in result.entries) {
+  for (final element in result.entries) {
     optionsCopy = optionsCopy.replaceAll('--${element.key}', '');
     optionsCopy = optionsCopy.replaceAll(element.value, '');
   }

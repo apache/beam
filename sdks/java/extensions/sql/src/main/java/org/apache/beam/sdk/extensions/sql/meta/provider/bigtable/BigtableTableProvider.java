@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -69,7 +68,6 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * </pre>
  */
 @Internal
-@Experimental
 @AutoService(TableProvider.class)
 public class BigtableTableProvider extends InMemoryMetaTableProvider {
 

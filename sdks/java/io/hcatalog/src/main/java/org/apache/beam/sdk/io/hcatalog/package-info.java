@@ -25,8 +25,4 @@
  * to CVE-2021-44228. We strongly encourage users to pin a non-vulnerable version of log4j when
  * using this package. See <a href="https://github.com/apache/beam/issues/21426">Issue #21426</a>.
  */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.hcatalog;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

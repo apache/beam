@@ -42,7 +42,7 @@ class NewExampleButton extends StatelessWidget {
           PlaygroundComponents.analyticsService.sendUnawaited(
             const NewExampleAnalyticsEvent(),
           );
-          unawaited(launchUrl(Uri.parse('/')));
+          unawaited(launchUrl(Uri.parse(BeamLinks.newExample)));
         },
       ),
     );

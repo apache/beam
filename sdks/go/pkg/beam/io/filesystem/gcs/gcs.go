@@ -31,7 +31,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 func init() {
@@ -46,11 +45,11 @@ type fs struct {
 // default credentials. If it fails, it falls back to unauthenticated
 // access.
 func New(ctx context.Context) filesystem.Interface {
-	client, err := storage.NewClient(ctx, option.WithScopes(storage.ScopeReadWrite))
+	client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
 		log.Warnf(ctx, "Warning: falling back to unauthenticated GCS access: %v", err)
 
-		client, err = storage.NewClient(ctx, option.WithoutAuthentication())
+		client, err = gcsx.NewUnauthenticatedClient(ctx)
 		if err != nil {
 			panic(errors.Wrapf(err, "failed to create GCS client"))
 		}

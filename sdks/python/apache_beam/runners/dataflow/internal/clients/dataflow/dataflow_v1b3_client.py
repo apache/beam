@@ -15,7 +15,12 @@ class DataflowV1b3(base_api.BaseApiClient):
   MTLS_BASE_URL = 'https://dataflow.mtls.googleapis.com/'
 
   _PACKAGE = 'dataflow'
-  _SCOPES = ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/compute', 'https://www.googleapis.com/auth/compute.readonly', 'https://www.googleapis.com/auth/userinfo.email']
+  _SCOPES = [
+      'https://www.googleapis.com/auth/cloud-platform',
+      'https://www.googleapis.com/auth/compute',
+      'https://www.googleapis.com/auth/compute.readonly',
+      'https://www.googleapis.com/auth/userinfo.email'
+  ]
   _VERSION = 'v1b3'
   _CLIENT_ID = '1042881264118.apps.googleusercontent.com'
   _CLIENT_SECRET = 'x_Tw5K8nnjoRAqULM9PFAC2b'
@@ -24,17 +29,29 @@ class DataflowV1b3(base_api.BaseApiClient):
   _URL_VERSION = 'v1b3'
   _API_KEY = None
 
-  def __init__(self, url='', credentials=None,
-               get_credentials=True, http=None, model=None,
-               log_request=False, log_response=False,
-               credentials_args=None, default_global_params=None,
-               additional_http_headers=None, response_encoding=None):
+  def __init__(
+      self,
+      url='',
+      credentials=None,
+      get_credentials=True,
+      http=None,
+      model=None,
+      log_request=False,
+      log_response=False,
+      credentials_args=None,
+      default_global_params=None,
+      additional_http_headers=None,
+      response_encoding=None):
     """Create a new dataflow handle."""
     url = url or self.BASE_URL
     super(DataflowV1b3, self).__init__(
-        url, credentials=credentials,
-        get_credentials=get_credentials, http=http, model=model,
-        log_request=log_request, log_response=log_response,
+        url,
+        credentials=credentials,
+        get_credentials=get_credentials,
+        http=http,
+        model=model,
+        log_request=log_request,
+        log_response=log_response,
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers,
@@ -43,16 +60,24 @@ class DataflowV1b3(base_api.BaseApiClient):
     self.projects_jobs_messages = self.ProjectsJobsMessagesService(self)
     self.projects_jobs_workItems = self.ProjectsJobsWorkItemsService(self)
     self.projects_jobs = self.ProjectsJobsService(self)
-    self.projects_locations_flexTemplates = self.ProjectsLocationsFlexTemplatesService(self)
-    self.projects_locations_jobs_debug = self.ProjectsLocationsJobsDebugService(self)
-    self.projects_locations_jobs_messages = self.ProjectsLocationsJobsMessagesService(self)
-    self.projects_locations_jobs_snapshots = self.ProjectsLocationsJobsSnapshotsService(self)
-    self.projects_locations_jobs_stages = self.ProjectsLocationsJobsStagesService(self)
-    self.projects_locations_jobs_workItems = self.ProjectsLocationsJobsWorkItemsService(self)
+    self.projects_locations_flexTemplates = self.ProjectsLocationsFlexTemplatesService(
+        self)
+    self.projects_locations_jobs_debug = self.ProjectsLocationsJobsDebugService(
+        self)
+    self.projects_locations_jobs_messages = self.ProjectsLocationsJobsMessagesService(
+        self)
+    self.projects_locations_jobs_snapshots = self.ProjectsLocationsJobsSnapshotsService(
+        self)
+    self.projects_locations_jobs_stages = self.ProjectsLocationsJobsStagesService(
+        self)
+    self.projects_locations_jobs_workItems = self.ProjectsLocationsJobsWorkItemsService(
+        self)
     self.projects_locations_jobs = self.ProjectsLocationsJobsService(self)
-    self.projects_locations_snapshots = self.ProjectsLocationsSnapshotsService(self)
+    self.projects_locations_snapshots = self.ProjectsLocationsSnapshotsService(
+        self)
     self.projects_locations_sql = self.ProjectsLocationsSqlService(self)
-    self.projects_locations_templates = self.ProjectsLocationsTemplatesService(self)
+    self.projects_locations_templates = self.ProjectsLocationsTemplatesService(
+        self)
     self.projects_locations = self.ProjectsLocationsService(self)
     self.projects_snapshots = self.ProjectsSnapshotsService(self)
     self.projects_templates = self.ProjectsTemplatesService(self)
@@ -65,8 +90,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsJobsDebugService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def GetConfig(self, request, global_params=None):
       r"""Get encoded debug configuration for component. Not cacheable.
@@ -78,8 +102,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (GetDebugConfigResponse) The response message.
       """
       config = self.GetMethodConfig('GetConfig')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetConfig.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -104,8 +127,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (SendDebugCaptureResponse) The response message.
       """
       config = self.GetMethodConfig('SendCapture')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     SendCapture.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -113,7 +135,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'jobId'],
         path_params=['jobId', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/jobs/{jobId}/debug/sendCapture',
+        relative_path=
+        'v1b3/projects/{projectId}/jobs/{jobId}/debug/sendCapture',
         request_field='sendDebugCaptureRequest',
         request_type_name='DataflowProjectsJobsDebugSendCaptureRequest',
         response_type_name='SendDebugCaptureResponse',
@@ -127,8 +150,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsJobsMessagesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def List(self, request, global_params=None):
       r"""Request the job status. To request the status of a job, we recommend using `projects.locations.jobs.messages.list` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.messages.list` is not recommended, as you can only request the status of jobs that are running in `us-central1`.
@@ -140,15 +162,21 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListJobMessagesResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
         method_id='dataflow.projects.jobs.messages.list',
         ordered_params=['projectId', 'jobId'],
         path_params=['jobId', 'projectId'],
-        query_params=['endTime', 'location', 'minimumImportance', 'pageSize', 'pageToken', 'startTime'],
+        query_params=[
+            'endTime',
+            'location',
+            'minimumImportance',
+            'pageSize',
+            'pageToken',
+            'startTime'
+        ],
         relative_path='v1b3/projects/{projectId}/jobs/{jobId}/messages',
         request_field='',
         request_type_name='DataflowProjectsJobsMessagesListRequest',
@@ -163,8 +191,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsJobsWorkItemsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Lease(self, request, global_params=None):
       r"""Leases a dataflow WorkItem to run.
@@ -176,8 +203,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (LeaseWorkItemResponse) The response message.
       """
       config = self.GetMethodConfig('Lease')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Lease.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -202,8 +228,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ReportWorkItemStatusResponse) The response message.
       """
       config = self.GetMethodConfig('ReportStatus')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     ReportStatus.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -211,7 +236,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'jobId'],
         path_params=['jobId', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/jobs/{jobId}/workItems:reportStatus',
+        relative_path=
+        'v1b3/projects/{projectId}/jobs/{jobId}/workItems:reportStatus',
         request_field='reportWorkItemStatusRequest',
         request_type_name='DataflowProjectsJobsWorkItemsReportStatusRequest',
         response_type_name='ReportWorkItemStatusResponse',
@@ -225,8 +251,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsJobsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Aggregated(self, request, global_params=None):
       r"""List the jobs of a project across all regions.
@@ -238,8 +263,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListJobsResponse) The response message.
       """
       config = self.GetMethodConfig('Aggregated')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Aggregated.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -264,8 +288,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Create')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Create.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -290,8 +313,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -316,8 +338,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (JobMetrics) The response message.
       """
       config = self.GetMethodConfig('GetMetrics')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetMetrics.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -342,8 +363,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListJobsResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -368,8 +388,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Snapshot) The response message.
       """
       config = self.GetMethodConfig('Snapshot')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Snapshot.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -394,8 +413,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Update')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Update.method_config = lambda: base_api.ApiMethodInfo(
         http_method='PUT',
@@ -416,9 +434,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_flexTemplates'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsFlexTemplatesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsFlexTemplatesService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def Launch(self, request, global_params=None):
       r"""Launch a job with a FlexTemplate.
@@ -430,8 +448,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (LaunchFlexTemplateResponse) The response message.
       """
       config = self.GetMethodConfig('Launch')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Launch.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -439,7 +456,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/flexTemplates:launch',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/flexTemplates:launch',
         request_field='launchFlexTemplateRequest',
         request_type_name='DataflowProjectsLocationsFlexTemplatesLaunchRequest',
         response_type_name='LaunchFlexTemplateResponse',
@@ -452,9 +470,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_debug'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsDebugService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsJobsDebugService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def GetConfig(self, request, global_params=None):
       r"""Get encoded debug configuration for component. Not cacheable.
@@ -466,8 +484,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (GetDebugConfigResponse) The response message.
       """
       config = self.GetMethodConfig('GetConfig')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetConfig.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -475,7 +492,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/debug/getConfig',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/debug/getConfig',
         request_field='getDebugConfigRequest',
         request_type_name='DataflowProjectsLocationsJobsDebugGetConfigRequest',
         response_type_name='GetDebugConfigResponse',
@@ -492,8 +510,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (SendDebugCaptureResponse) The response message.
       """
       config = self.GetMethodConfig('SendCapture')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     SendCapture.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -501,9 +518,11 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/debug/sendCapture',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/debug/sendCapture',
         request_field='sendDebugCaptureRequest',
-        request_type_name='DataflowProjectsLocationsJobsDebugSendCaptureRequest',
+        request_type_name=
+        'DataflowProjectsLocationsJobsDebugSendCaptureRequest',
         response_type_name='SendDebugCaptureResponse',
         supports_download=False,
     )
@@ -514,9 +533,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_messages'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsMessagesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsJobsMessagesService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def List(self, request, global_params=None):
       r"""Request the job status. To request the status of a job, we recommend using `projects.locations.jobs.messages.list` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.messages.list` is not recommended, as you can only request the status of jobs that are running in `us-central1`.
@@ -528,16 +547,17 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListJobMessagesResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
         method_id='dataflow.projects.locations.jobs.messages.list',
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
-        query_params=['endTime', 'minimumImportance', 'pageSize', 'pageToken', 'startTime'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/messages',
+        query_params=
+        ['endTime', 'minimumImportance', 'pageSize', 'pageToken', 'startTime'],
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/messages',
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsMessagesListRequest',
         response_type_name='ListJobMessagesResponse',
@@ -550,9 +570,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_snapshots'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsSnapshotsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsJobsSnapshotsService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def List(self, request, global_params=None):
       r"""Lists snapshots.
@@ -564,8 +584,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListSnapshotsResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -573,7 +592,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/snapshots',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/snapshots',
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsSnapshotsListRequest',
         response_type_name='ListSnapshotsResponse',
@@ -586,12 +606,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_stages'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsStagesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsJobsStagesService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def GetExecutionDetails(self, request, global_params=None):
-      r"""Request detailed information about the execution status of a stage of the job. EXPERIMENTAL. This API is subject to change or removal without notice.
+      r"""Request detailed information about the execution status of a stage of the job.
 
       Args:
         request: (DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest) input message
@@ -600,8 +620,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (StageExecutionDetails) The response message.
       """
       config = self.GetMethodConfig('GetExecutionDetails')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetExecutionDetails.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -609,9 +628,11 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId', 'stageId'],
         path_params=['jobId', 'location', 'projectId', 'stageId'],
         query_params=['endTime', 'pageSize', 'pageToken', 'startTime'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/stages/{stageId}/executionDetails',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/stages/{stageId}/executionDetails',
         request_field='',
-        request_type_name='DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest',
+        request_type_name=
+        'DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest',
         response_type_name='StageExecutionDetails',
         supports_download=False,
     )
@@ -622,9 +643,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_workItems'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsWorkItemsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsJobsWorkItemsService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def Lease(self, request, global_params=None):
       r"""Leases a dataflow WorkItem to run.
@@ -636,8 +657,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (LeaseWorkItemResponse) The response message.
       """
       config = self.GetMethodConfig('Lease')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Lease.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -645,7 +665,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/workItems:lease',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/workItems:lease',
         request_field='leaseWorkItemRequest',
         request_type_name='DataflowProjectsLocationsJobsWorkItemsLeaseRequest',
         response_type_name='LeaseWorkItemResponse',
@@ -662,8 +683,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ReportWorkItemStatusResponse) The response message.
       """
       config = self.GetMethodConfig('ReportStatus')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     ReportStatus.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -671,9 +691,11 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/workItems:reportStatus',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/workItems:reportStatus',
         request_field='reportWorkItemStatusRequest',
-        request_type_name='DataflowProjectsLocationsJobsWorkItemsReportStatusRequest',
+        request_type_name=
+        'DataflowProjectsLocationsJobsWorkItemsReportStatusRequest',
         response_type_name='ReportWorkItemStatusResponse',
         supports_download=False,
     )
@@ -685,8 +707,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsLocationsJobsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Create(self, request, global_params=None):
       r"""Creates a Cloud Dataflow job. To create a job, we recommend using `projects.locations.jobs.create` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.create` is not recommended, as your job will always start in `us-central1`.
@@ -698,8 +719,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Create')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Create.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -724,8 +744,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -733,7 +752,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=['view'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}',
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsGetRequest',
         response_type_name='Job',
@@ -741,7 +761,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     )
 
     def GetExecutionDetails(self, request, global_params=None):
-      r"""Request detailed information about the execution status of the job. EXPERIMENTAL. This API is subject to change or removal without notice.
+      r"""Request detailed information about the execution status of the job.
 
       Args:
         request: (DataflowProjectsLocationsJobsGetExecutionDetailsRequest) input message
@@ -750,8 +770,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (JobExecutionDetails) The response message.
       """
       config = self.GetMethodConfig('GetExecutionDetails')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetExecutionDetails.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -759,9 +778,11 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=['pageSize', 'pageToken'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/executionDetails',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/executionDetails',
         request_field='',
-        request_type_name='DataflowProjectsLocationsJobsGetExecutionDetailsRequest',
+        request_type_name=
+        'DataflowProjectsLocationsJobsGetExecutionDetailsRequest',
         response_type_name='JobExecutionDetails',
         supports_download=False,
     )
@@ -776,8 +797,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (JobMetrics) The response message.
       """
       config = self.GetMethodConfig('GetMetrics')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetMetrics.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -785,7 +805,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=['startTime'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/metrics',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}/metrics',
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsGetMetricsRequest',
         response_type_name='JobMetrics',
@@ -802,8 +823,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListJobsResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -828,8 +848,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Snapshot) The response message.
       """
       config = self.GetMethodConfig('Snapshot')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Snapshot.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -837,7 +856,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}:snapshot',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}:snapshot',
         request_field='snapshotJobRequest',
         request_type_name='DataflowProjectsLocationsJobsSnapshotRequest',
         response_type_name='Snapshot',
@@ -854,8 +874,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Update')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Update.method_config = lambda: base_api.ApiMethodInfo(
         http_method='PUT',
@@ -863,7 +882,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'jobId'],
         path_params=['jobId', 'location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/jobs/{jobId}',
         request_field='job',
         request_type_name='DataflowProjectsLocationsJobsUpdateRequest',
         response_type_name='Job',
@@ -876,9 +896,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_snapshots'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsSnapshotsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsSnapshotsService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes a snapshot.
@@ -890,8 +910,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (DeleteSnapshotResponse) The response message.
       """
       config = self.GetMethodConfig('Delete')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Delete.method_config = lambda: base_api.ApiMethodInfo(
         http_method='DELETE',
@@ -899,7 +918,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'snapshotId'],
         path_params=['location', 'projectId', 'snapshotId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/snapshots/{snapshotId}',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/snapshots/{snapshotId}',
         request_field='',
         request_type_name='DataflowProjectsLocationsSnapshotsDeleteRequest',
         response_type_name='DeleteSnapshotResponse',
@@ -916,8 +936,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Snapshot) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -925,7 +944,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location', 'snapshotId'],
         path_params=['location', 'projectId', 'snapshotId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/snapshots/{snapshotId}',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/snapshots/{snapshotId}',
         request_field='',
         request_type_name='DataflowProjectsLocationsSnapshotsGetRequest',
         response_type_name='Snapshot',
@@ -942,8 +962,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListSnapshotsResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -951,7 +970,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=['jobId'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/snapshots',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/snapshots',
         request_field='',
         request_type_name='DataflowProjectsLocationsSnapshotsListRequest',
         response_type_name='ListSnapshotsResponse',
@@ -965,8 +985,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsLocationsSqlService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Validate(self, request, global_params=None):
       r"""Validates a GoogleSQL query for Cloud Dataflow syntax. Will always confirm the given query parses correctly, and if able to look up schema information from DataCatalog, will validate that the query analyzes properly as well.
@@ -978,8 +997,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ValidateResponse) The response message.
       """
       config = self.GetMethodConfig('Validate')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Validate.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -987,7 +1005,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=['query'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/sql:validate',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/sql:validate',
         request_field='',
         request_type_name='DataflowProjectsLocationsSqlValidateRequest',
         response_type_name='ValidateResponse',
@@ -1000,9 +1019,9 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_templates'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsTemplatesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super(DataflowV1b3.ProjectsLocationsTemplatesService,
+            self).__init__(client)
+      self._upload_configs = {}
 
     def Create(self, request, global_params=None):
       r"""Creates a Cloud Dataflow job from a template.
@@ -1014,8 +1033,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Create')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Create.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -1023,7 +1041,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/templates',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/templates',
         request_field='createJobFromTemplateRequest',
         request_type_name='DataflowProjectsLocationsTemplatesCreateRequest',
         response_type_name='Job',
@@ -1040,8 +1059,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (GetTemplateResponse) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -1049,7 +1067,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=['gcsPath', 'view'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/templates:get',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/templates:get',
         request_field='',
         request_type_name='DataflowProjectsLocationsTemplatesGetRequest',
         response_type_name='GetTemplateResponse',
@@ -1066,16 +1085,21 @@ class DataflowV1b3(base_api.BaseApiClient):
         (LaunchTemplateResponse) The response message.
       """
       config = self.GetMethodConfig('Launch')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Launch.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
         method_id='dataflow.projects.locations.templates.launch',
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
-        query_params=['dynamicTemplate_gcsPath', 'dynamicTemplate_stagingLocation', 'gcsPath', 'validateOnly'],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/templates:launch',
+        query_params=[
+            'dynamicTemplate_gcsPath',
+            'dynamicTemplate_stagingLocation',
+            'gcsPath',
+            'validateOnly'
+        ],
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/templates:launch',
         request_field='launchTemplateParameters',
         request_type_name='DataflowProjectsLocationsTemplatesLaunchRequest',
         response_type_name='LaunchTemplateResponse',
@@ -1089,8 +1113,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsLocationsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def WorkerMessages(self, request, global_params=None):
       r"""Send a worker_message to the service.
@@ -1102,8 +1125,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (SendWorkerMessagesResponse) The response message.
       """
       config = self.GetMethodConfig('WorkerMessages')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     WorkerMessages.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -1111,7 +1133,8 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=[],
-        relative_path='v1b3/projects/{projectId}/locations/{location}/WorkerMessages',
+        relative_path=
+        'v1b3/projects/{projectId}/locations/{location}/WorkerMessages',
         request_field='sendWorkerMessagesRequest',
         request_type_name='DataflowProjectsLocationsWorkerMessagesRequest',
         response_type_name='SendWorkerMessagesResponse',
@@ -1125,8 +1148,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsSnapshotsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Get(self, request, global_params=None):
       r"""Gets information about a snapshot.
@@ -1138,8 +1160,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Snapshot) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -1164,8 +1185,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (ListSnapshotsResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -1187,8 +1207,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsTemplatesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Create(self, request, global_params=None):
       r"""Creates a Cloud Dataflow job from a template.
@@ -1200,8 +1219,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Create')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Create.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -1226,8 +1244,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (GetTemplateResponse) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -1252,15 +1269,20 @@ class DataflowV1b3(base_api.BaseApiClient):
         (LaunchTemplateResponse) The response message.
       """
       config = self.GetMethodConfig('Launch')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Launch.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
         method_id='dataflow.projects.templates.launch',
         ordered_params=['projectId'],
         path_params=['projectId'],
-        query_params=['dynamicTemplate_gcsPath', 'dynamicTemplate_stagingLocation', 'gcsPath', 'location', 'validateOnly'],
+        query_params=[
+            'dynamicTemplate_gcsPath',
+            'dynamicTemplate_stagingLocation',
+            'gcsPath',
+            'location',
+            'validateOnly'
+        ],
         relative_path='v1b3/projects/{projectId}/templates:launch',
         request_field='launchTemplateParameters',
         request_type_name='DataflowProjectsTemplatesLaunchRequest',
@@ -1275,8 +1297,7 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def __init__(self, client):
       super(DataflowV1b3.ProjectsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def DeleteSnapshots(self, request, global_params=None):
       r"""Deletes a snapshot.
@@ -1288,8 +1309,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (DeleteSnapshotResponse) The response message.
       """
       config = self.GetMethodConfig('DeleteSnapshots')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     DeleteSnapshots.method_config = lambda: base_api.ApiMethodInfo(
         http_method='DELETE',
@@ -1314,8 +1334,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         (SendWorkerMessagesResponse) The response message.
       """
       config = self.GetMethodConfig('WorkerMessages')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     WorkerMessages.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',

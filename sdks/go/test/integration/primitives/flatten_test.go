@@ -24,10 +24,10 @@ import (
 
 func TestFlatten(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, Flatten())
+	ptest.BuildAndRun(t, Flatten)
 }
 
 func TestFlattenDup(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, FlattenDup())
+	ptest.BuildAndRun(t, FlattenDup)
 }

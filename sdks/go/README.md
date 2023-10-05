@@ -131,6 +131,7 @@ Executing all unit tests for the SDK is possible from the `<beam root>\sdks\go` 
 To test your change as Jenkins would execute it from a PR, from the
 beam root directory, run:
  * `./gradlew :sdks:go:goTest` executes the unit tests.
+ * `./gradlew :sdks:go:test:prismValidatesRunner` validates the SDK against the Go Prism runner as a stand alone binary, with containers.
  * `./gradlew :sdks:go:test:ulrValidatesRunner` validates the SDK against the Portable Python runner.
  * `./gradlew :sdks:go:test:flinkValidatesRunner` validates the SDK against the Flink runner.
 

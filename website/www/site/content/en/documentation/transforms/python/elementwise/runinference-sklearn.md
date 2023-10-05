@@ -33,9 +33,9 @@ The following examples demonstrate how to to create pipelines that use the Beam 
 
 In this example, we create a pipeline that uses an SKlearn RunInference transform on unkeyed data.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_sklearn_unkeyed_model_handler.py"
   class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" sklearn_unkeyed_model_handler >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_sklearn_unkeyed_model_handler.py" sklearn_unkeyed_model_handler >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -50,9 +50,9 @@ Output:
 
 In this example, we create a pipeline that uses an SKlearn RunInference transform on keyed data.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_sklearn_keyed_model_handler.py"
   class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference.py" sklearn_keyed_model_handler >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/runinference_sklearn_keyed_model_handler.py" sklearn_keyed_model_handler >}}
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}

@@ -22,9 +22,9 @@ import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 
-import com.alibaba.fastjson.JSON;
 import java.util.Arrays;
 import java.util.Collection;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -100,7 +100,8 @@ public class BigtableFilterTest {
         .comment(name + " table")
         .schema(BASIC_SCHEMA)
         .properties(
-            JSON.parseObject("{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
+            TableUtils.parseProperties(
+                "{ " + PUSH_DOWN_OPTION + ": " + "\"" + options.toString() + "\" }"))
         .type("test")
         .build();
   }

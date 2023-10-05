@@ -29,8 +29,8 @@ import (
 
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/linkedin/goavro"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/linkedin/goavro/v2"
 )
 
 const (

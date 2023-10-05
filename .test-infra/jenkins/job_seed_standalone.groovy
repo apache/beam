@@ -73,8 +73,8 @@ job('beam_SeedJob_Standalone') {
   }
 
   triggers {
-    // Run once per day
-    cron('0 */5 * * *')
+    // Run every six hours, alternate job_00_seed has same freq
+    cron('H 3,9,15,21 * * *')
 
     githubPullRequest {
       admins(['asfbot'])
@@ -104,18 +104,6 @@ job('beam_SeedJob_Standalone') {
   }
 
   steps {
-    shell {
-      command("""
-        ( cd .test-infra/jenkins/committers_list_generator &&
-        python3.8 -m venv ve3 && source ./ve3/bin/activate &&
-        pip install --retries 10 --upgrade pip setuptools wheel &&
-        pip install --retries 10 -r requirements.txt &&
-        python main.py -o .. &&
-        deactivate ) ||
-        { echo "ERROR: Failed to fetch committers"; exit 3; }
-      """)
-      unstableReturn(3)
-    }
     dsl {
       // A list or a glob of other groovy files to process.
       external('.test-infra/jenkins/job_*.groovy')

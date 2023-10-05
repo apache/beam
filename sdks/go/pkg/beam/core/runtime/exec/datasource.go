@@ -83,8 +83,7 @@ func (n *DataSource) ID() UnitID {
 
 // Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
-	// TODO(https://github.com/apache/beam/issues/23043) - Reenable single iteration or more fully rip this out.
-	safeToSingleIterate := false
+	safeToSingleIterate := true
 	switch n.Out.(type) {
 	case *Expand, *Multiplex:
 		// CoGBK Expands aren't safe, as they may re-iterate the GBK stream.
@@ -263,10 +262,8 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 		}
 	},
 		func(bcr *byteCountReader, ptransformID, timerFamilyID string) error {
-
-			if fn, ok := n.OnTimerTransforms[ptransformID].Fn.OnTimerFn(); ok {
-				_, err := n.OnTimerTransforms[ptransformID].InvokeTimerFn(ctx, fn, timerFamilyID, bcr)
-				if err != nil {
+			if node, ok := n.OnTimerTransforms[ptransformID]; ok {
+				if err := node.ProcessTimers(timerFamilyID, bcr); err != nil {
 					log.Warnf(ctx, "expected transform %v to have an OnTimer method attached to handle"+
 						"Timer Family ID: %v callback, but it did not. Please file an issue with Apache Beam"+
 						"if you have defined OnTimer method with reproducible code at https://github.com/apache/beam/issues", ptransformID, timerFamilyID)

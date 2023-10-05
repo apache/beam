@@ -31,7 +31,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -44,7 +43,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> type of element coder can handle
  */
-@Experimental
 public class KryoCoder<T> extends CustomCoder<T> {
 
   /**
@@ -201,10 +199,10 @@ public class KryoCoder<T> extends CustomCoder<T> {
     outputChunked.setOutputStream(outStream);
     try {
       kryoState.getKryo().writeClassAndObject(outputChunked, value);
-      outputChunked.endChunks();
+      outputChunked.endChunk();
       outputChunked.flush();
     } catch (KryoException e) {
-      outputChunked.clear();
+      outputChunked.reset();
       if (e.getCause() instanceof EOFException) {
         throw (EOFException) e.getCause();
       }
@@ -286,7 +284,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
   @Override
   public boolean equals(@Nullable Object other) {
     if (other != null && getClass().equals(other.getClass())) {
-      return instanceId.equals(((KryoCoder) other).instanceId);
+      return instanceId.equals(((KryoCoder<?>) other).instanceId);
     }
     return false;
   }

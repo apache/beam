@@ -18,61 +18,67 @@ package logger
 import (
 	"fmt"
 	"log"
+	"os"
 )
 
 // StdHandler represents standard 'log' package that logs to stderr
 type StdHandler struct {
+	stdoutLog *log.Logger
+	stderrLog *log.Logger
 }
 
 // NewStdHandler creates StdHandler
 func NewStdHandler() *StdHandler {
-	return &StdHandler{}
+	return &StdHandler{
+		stdoutLog: log.New(os.Stdout, "", log.LstdFlags),
+		stderrLog: log.New(os.Stderr, "", log.LstdFlags),
+	}
 }
 
 func (h StdHandler) Info(args ...interface{}) {
-	h.logMessage(INFO, args...)
+	logMessage(h.stdoutLog, INFO, args...)
 }
 
 func (h StdHandler) Infof(format string, args ...interface{}) {
-	h.logMessage(INFO, fmt.Sprintf(format, args...))
+	logMessage(h.stdoutLog, INFO, fmt.Sprintf(format, args...))
 }
 
 func (h StdHandler) Warn(args ...interface{}) {
-	h.logMessage(WARN, args...)
+	logMessage(h.stdoutLog, WARN, args...)
 }
 
 func (h StdHandler) Warnf(format string, args ...interface{}) {
-	h.logMessage(WARN, fmt.Sprintf(format, args...))
+	logMessage(h.stdoutLog, WARN, fmt.Sprintf(format, args...))
 }
 
 func (h StdHandler) Error(args ...interface{}) {
-	h.logMessage(ERROR, args...)
+	logMessage(h.stderrLog, ERROR, args...)
 }
 
 func (h StdHandler) Errorf(format string, args ...interface{}) {
-	h.logMessage(ERROR, fmt.Sprintf(format, args...))
+	logMessage(h.stderrLog, ERROR, fmt.Sprintf(format, args...))
 }
 
 func (h StdHandler) Debug(args ...interface{}) {
-	h.logMessage(DEBUG, args...)
+	logMessage(h.stdoutLog, DEBUG, args...)
 }
 
 func (h StdHandler) Debugf(format string, args ...interface{}) {
-	h.logMessage(DEBUG, fmt.Sprintf(format, args...))
+	logMessage(h.stdoutLog, DEBUG, fmt.Sprintf(format, args...))
 }
 
 func (h StdHandler) Fatal(args ...interface{}) {
 	args = append([]interface{}{FATAL}, args...)
-	log.Fatalln(args...)
+	h.stderrLog.Fatalln(args...)
 }
 
 func (h StdHandler) Fatalf(format string, args ...interface{}) {
 	args = append([]interface{}{FATAL}, fmt.Sprintf(format, args...))
-	log.Fatalln(args...)
+	h.stderrLog.Fatalln(args...)
 }
 
 // logMessage logs a message at level severity.
-func (h StdHandler) logMessage(severity Severity, args ...interface{}) {
+func logMessage(logger *log.Logger, severity Severity, args ...interface{}) {
 	args = append([]interface{}{severity}, args...)
-	log.Println(args...)
+	logger.Println(args...)
 }

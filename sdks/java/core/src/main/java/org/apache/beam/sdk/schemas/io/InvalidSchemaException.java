@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** Exception thrown when the schema for a {@link SchemaIO} is invalid. */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public class InvalidSchemaException extends IllegalArgumentException {
   public InvalidSchemaException(String msg) {
     super(msg);

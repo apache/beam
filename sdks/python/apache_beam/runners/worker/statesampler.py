@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 # pytype: skip-file
 
 import contextlib

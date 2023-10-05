@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 from io import StringIO
@@ -28,7 +29,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-from . import pardo
+from . import pardo_dofn
+from . import pardo_dofn_methods
+from . import pardo_dofn_params
 
 
 def check_plants(actual):
@@ -80,20 +83,24 @@ teardown
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.pardo.print', str)
+    'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.pardo_dofn_params.print',
+    str)
 class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
-    pardo.pardo_dofn(check_plants)
+    pardo_dofn.pardo_dofn(check_plants)
 
   def test_pardo_dofn_params(self):
-    pardo.pardo_dofn_params(check_dofn_params)
+    pardo_dofn_params.pardo_dofn_params(check_dofn_params)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch('sys.stdout', new_callable=StringIO)
 class ParDoStdoutTest(unittest.TestCase):
   def test_pardo_dofn_methods(self, mock_stdout):
-    expected = pardo.pardo_dofn_methods(check_dofn_methods)
+    expected = pardo_dofn_methods.pardo_dofn_methods(check_dofn_methods)
     actual = mock_stdout.getvalue().splitlines()
 
     # For the stdout, check the ordering of the methods, not of the elements.

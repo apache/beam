@@ -2,7 +2,6 @@
   "sdks" : [
    {"id": "java", "title": "Java"},
    {"id": "python", "title": "Python"},
-   {"id": "go", "title": "Go"},
-   {"id": "scio", "title": "SCIO"}
+   {"id": "go", "title": "Go"}
   ]
 }

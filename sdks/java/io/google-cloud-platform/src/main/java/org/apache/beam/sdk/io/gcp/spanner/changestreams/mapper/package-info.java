@@ -20,7 +20,4 @@
  * Mapping related functionality, such as from {@link com.google.cloud.spanner.ResultSet}s to Change
  * Stream models.
  */
-@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
-
-import org.apache.beam.sdk.annotations.Experimental;

@@ -29,14 +29,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
-//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
-//go:generate starcgen --package=top
-//go:generate go fmt
-
 func init() {
-	beam.RegisterDoFn(reflect.TypeOf((*combineFn)(nil)))
+	register.Combiner3[accum, beam.T, []beam.T]((*combineFn)(nil))
 }
 
 var (
@@ -157,10 +154,13 @@ func accumEnc() func(accum) ([]byte, error) {
 		panic(err)
 	}
 	return func(a accum) ([]byte, error) {
-		if a.enc == nil {
-			return nil, errors.Errorf("top.accum: element encoder unspecified")
+		if len(a.list) > 0 && a.enc == nil {
+			return nil, errors.Errorf("top.accum: element encoder unspecified with non-zero elements: %v data available", len(a.data))
 		}
 		var values [][]byte
+		if len(a.list) == 0 && len(a.data) > 0 {
+			values = a.data
+		}
 		for _, value := range a.list {
 			var buf bytes.Buffer
 			if err := a.enc.Encode(value, &buf); err != nil {
@@ -168,7 +168,6 @@ func accumEnc() func(accum) ([]byte, error) {
 			}
 			values = append(values, buf.Bytes())
 		}
-		a.list = nil
 
 		var buf bytes.Buffer
 		if err := coder.WriteSimpleRowHeader(1, &buf); err != nil {

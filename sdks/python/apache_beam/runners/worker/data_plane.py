@@ -59,8 +59,6 @@ if TYPE_CHECKING:
 else:
   OutputStream = type(coder_impl.create_OutputStream())
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB

@@ -57,6 +57,9 @@ var (
 	// SDK transforms.
 	TransformParDo                = ptUrn(pipepb.StandardPTransforms_PAR_DO)
 	TransformCombinePerKey        = ctUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY)
+	TransformCombineGlobally      = ctUrn(pipepb.StandardPTransforms_COMBINE_GLOBALLY)
+	TransformReshuffle            = ctUrn(pipepb.StandardPTransforms_RESHUFFLE)
+	TransformCombineGroupedValues = cmbtUrn(pipepb.StandardPTransforms_COMBINE_GROUPED_VALUES)
 	TransformPreCombine           = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_PRECOMBINE)
 	TransformMerge                = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_MERGE_ACCUMULATORS)
 	TransformExtract              = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_EXTRACT_OUTPUTS)
@@ -69,6 +72,12 @@ var (
 	TransformAssignWindows = ptUrn(pipepb.StandardPTransforms_ASSIGN_WINDOWS)
 	TransformMapWindows    = ptUrn(pipepb.StandardPTransforms_MAP_WINDOWS)
 	TransformMergeWindows  = ptUrn(pipepb.StandardPTransforms_MERGE_WINDOWS)
+
+	// Testing
+	TransformTestStream = ptUrn(pipepb.StandardPTransforms_TEST_STREAM)
+
+	// Debugging
+	TransformToString = ptUrn(pipepb.StandardPTransforms_TO_STRING)
 
 	// Undocumented Urns
 	GoDoFn          = "beam:go:transform:dofn:v1" // Only used for Go DoFn.

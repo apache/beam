@@ -32,7 +32,16 @@ class BigqueryV2(base_api.BaseApiClient):
   MTLS_BASE_URL = 'https://www.mtls.googleapis.com/bigquery/v2/'
 
   _PACKAGE = 'bigquery'
-  _SCOPES = ['https://www.googleapis.com/auth/bigquery', 'https://www.googleapis.com/auth/bigquery.insertdata', 'https://www.googleapis.com/auth/bigquery.readonly', 'https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/cloud-platform.read-only', 'https://www.googleapis.com/auth/devstorage.full_control', 'https://www.googleapis.com/auth/devstorage.read_only', 'https://www.googleapis.com/auth/devstorage.read_write']
+  _SCOPES = [
+      'https://www.googleapis.com/auth/bigquery',
+      'https://www.googleapis.com/auth/bigquery.insertdata',
+      'https://www.googleapis.com/auth/bigquery.readonly',
+      'https://www.googleapis.com/auth/cloud-platform',
+      'https://www.googleapis.com/auth/cloud-platform.read-only',
+      'https://www.googleapis.com/auth/devstorage.full_control',
+      'https://www.googleapis.com/auth/devstorage.read_only',
+      'https://www.googleapis.com/auth/devstorage.read_write'
+  ]
   _VERSION = 'v2'
   _CLIENT_ID = '1042881264118.apps.googleusercontent.com'
   _CLIENT_SECRET = 'x_Tw5K8nnjoRAqULM9PFAC2b'
@@ -41,17 +50,29 @@ class BigqueryV2(base_api.BaseApiClient):
   _URL_VERSION = 'v2'
   _API_KEY = None
 
-  def __init__(self, url='', credentials=None,
-               get_credentials=True, http=None, model=None,
-               log_request=False, log_response=False,
-               credentials_args=None, default_global_params=None,
-               additional_http_headers=None, response_encoding=None):
+  def __init__(
+      self,
+      url='',
+      credentials=None,
+      get_credentials=True,
+      http=None,
+      model=None,
+      log_request=False,
+      log_response=False,
+      credentials_args=None,
+      default_global_params=None,
+      additional_http_headers=None,
+      response_encoding=None):
     """Create a new bigquery handle."""
     url = url or self.BASE_URL
     super().__init__(
-        url, credentials=credentials,
-        get_credentials=get_credentials, http=http, model=model,
-        log_request=log_request, log_response=log_response,
+        url,
+        credentials=credentials,
+        get_credentials=get_credentials,
+        http=http,
+        model=model,
+        log_request=log_request,
+        log_response=log_response,
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers,
@@ -72,8 +93,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the dataset specified by the datasetId value. Before you can delete a dataset, you must delete all its tables, either manually or by specifying deleteContents. Immediately after deletion, you can create another dataset with the same name.
@@ -85,8 +105,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (BigqueryDatasetsDeleteResponse) The response message.
       """
       config = self.GetMethodConfig('Delete')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Delete.method_config = lambda: base_api.ApiMethodInfo(
         http_method='DELETE',
@@ -111,8 +130,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Dataset) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -137,8 +155,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Dataset) The response message.
       """
       config = self.GetMethodConfig('Insert')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Insert.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -163,8 +180,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (DatasetList) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -189,8 +205,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Dataset) The response message.
       """
       config = self.GetMethodConfig('Patch')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Patch.method_config = lambda: base_api.ApiMethodInfo(
         http_method='PATCH',
@@ -215,8 +230,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Dataset) The response message.
       """
       config = self.GetMethodConfig('Update')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Update.method_config = lambda: base_api.ApiMethodInfo(
         http_method='PUT',
@@ -243,11 +257,12 @@ class BigqueryV2(base_api.BaseApiClient):
               accept=['*/*'],
               max_size=None,
               resumable_multipart=True,
-              resumable_path='/resumable/upload/bigquery/v2/projects/{projectId}/jobs',
+              resumable_path=
+              '/resumable/upload/bigquery/v2/projects/{projectId}/jobs',
               simple_multipart=True,
               simple_path='/upload/bigquery/v2/projects/{projectId}/jobs',
           ),
-          }
+      }
 
     def Cancel(self, request, global_params=None):
       r"""Requests that a job be cancelled. This call will return immediately, and the client will need to poll for the job status to see if the cancel completed successfully. Cancelled jobs may still incur costs.
@@ -259,8 +274,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (JobCancelResponse) The response message.
       """
       config = self.GetMethodConfig('Cancel')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Cancel.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -285,8 +299,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -311,15 +324,15 @@ class BigqueryV2(base_api.BaseApiClient):
         (GetQueryResultsResponse) The response message.
       """
       config = self.GetMethodConfig('GetQueryResults')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetQueryResults.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
         method_id='bigquery.jobs.getQueryResults',
         ordered_params=['projectId', 'jobId'],
         path_params=['jobId', 'projectId'],
-        query_params=['location', 'maxResults', 'pageToken', 'startIndex', 'timeoutMs'],
+        query_params=
+        ['location', 'maxResults', 'pageToken', 'startIndex', 'timeoutMs'],
         relative_path='projects/{projectId}/queries/{jobId}',
         request_field='',
         request_type_name='BigqueryJobsGetQueryResultsRequest',
@@ -341,8 +354,11 @@ class BigqueryV2(base_api.BaseApiClient):
       config = self.GetMethodConfig('Insert')
       upload_config = self.GetUploadConfig('Insert')
       return self._RunMethod(
-          config, request, global_params=global_params,
-          upload=upload, upload_config=upload_config)
+          config,
+          request,
+          global_params=global_params,
+          upload=upload,
+          upload_config=upload_config)
 
     Insert.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -367,15 +383,23 @@ class BigqueryV2(base_api.BaseApiClient):
         (JobList) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
         method_id='bigquery.jobs.list',
         ordered_params=['projectId'],
         path_params=['projectId'],
-        query_params=['allUsers', 'maxCreationTime', 'maxResults', 'minCreationTime', 'pageToken', 'parentJobId', 'projection', 'stateFilter'],
+        query_params=[
+            'allUsers',
+            'maxCreationTime',
+            'maxResults',
+            'minCreationTime',
+            'pageToken',
+            'parentJobId',
+            'projection',
+            'stateFilter'
+        ],
         relative_path='projects/{projectId}/jobs',
         request_field='',
         request_type_name='BigqueryJobsListRequest',
@@ -393,8 +417,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (QueryResponse) The response message.
       """
       config = self.GetMethodConfig('Query')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Query.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -416,8 +439,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the model specified by modelId from the dataset.
@@ -429,17 +451,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (BigqueryModelsDeleteResponse) The response message.
       """
       config = self.GetMethodConfig('Delete')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Delete.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
         http_method='DELETE',
         method_id='bigquery.models.delete',
         ordered_params=['projectId', 'datasetId', 'modelId'],
         path_params=['datasetId', 'modelId', 'projectId'],
         query_params=[],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
         request_field='',
         request_type_name='BigqueryModelsDeleteRequest',
         response_type_name='BigqueryModelsDeleteResponse',
@@ -456,17 +479,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (Model) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
         http_method='GET',
         method_id='bigquery.models.get',
         ordered_params=['projectId', 'datasetId', 'modelId'],
         path_params=['datasetId', 'modelId', 'projectId'],
         query_params=[],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
         request_field='',
         request_type_name='BigqueryModelsGetRequest',
         response_type_name='Model',
@@ -483,8 +507,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (ListModelsResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         flat_path='projects/{projectsId}/datasets/{datasetsId}/models',
@@ -510,17 +533,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (Model) The response message.
       """
       config = self.GetMethodConfig('Patch')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Patch.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
         http_method='PATCH',
         method_id='bigquery.models.patch',
         ordered_params=['projectId', 'datasetId', 'modelId'],
         path_params=['datasetId', 'modelId', 'projectId'],
         query_params=[],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
         request_field='model',
         request_type_name='BigqueryModelsPatchRequest',
         response_type_name='Model',
@@ -534,8 +558,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def GetServiceAccount(self, request, global_params=None):
       r"""Returns the email address of the service account for your project used for interactions with Google Cloud KMS.
@@ -547,8 +570,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (GetServiceAccountResponse) The response message.
       """
       config = self.GetMethodConfig('GetServiceAccount')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetServiceAccount.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -573,8 +595,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (ProjectList) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -596,8 +617,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the routine specified by routineId from the dataset.
@@ -609,17 +629,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (BigqueryRoutinesDeleteResponse) The response message.
       """
       config = self.GetMethodConfig('Delete')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Delete.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
         http_method='DELETE',
         method_id='bigquery.routines.delete',
         ordered_params=['projectId', 'datasetId', 'routineId'],
         path_params=['datasetId', 'projectId', 'routineId'],
         query_params=[],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
         request_field='',
         request_type_name='BigqueryRoutinesDeleteRequest',
         response_type_name='BigqueryRoutinesDeleteResponse',
@@ -636,17 +657,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (Routine) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
         http_method='GET',
         method_id='bigquery.routines.get',
         ordered_params=['projectId', 'datasetId', 'routineId'],
         path_params=['datasetId', 'projectId', 'routineId'],
         query_params=['readMask'],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
         request_field='',
         request_type_name='BigqueryRoutinesGetRequest',
         response_type_name='Routine',
@@ -663,8 +685,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Routine) The response message.
       """
       config = self.GetMethodConfig('Insert')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Insert.method_config = lambda: base_api.ApiMethodInfo(
         flat_path='projects/{projectsId}/datasets/{datasetsId}/routines',
@@ -690,8 +711,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (ListRoutinesResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         flat_path='projects/{projectsId}/datasets/{datasetsId}/routines',
@@ -717,17 +737,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (Routine) The response message.
       """
       config = self.GetMethodConfig('Update')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Update.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
         http_method='PUT',
         method_id='bigquery.routines.update',
         ordered_params=['projectId', 'datasetId', 'routineId'],
         path_params=['datasetId', 'projectId', 'routineId'],
         query_params=[],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
         request_field='routine',
         request_type_name='BigqueryRoutinesUpdateRequest',
         response_type_name='Routine',
@@ -741,8 +762,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def List(self, request, global_params=None):
       r"""Lists all row access policies on the specified table.
@@ -754,17 +774,18 @@ class BigqueryV2(base_api.BaseApiClient):
         (ListRowAccessPoliciesResponse) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}/rowAccessPolicies',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}/rowAccessPolicies',
         http_method='GET',
         method_id='bigquery.rowAccessPolicies.list',
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
         query_params=['pageSize', 'pageToken'],
-        relative_path='projects/{+projectId}/datasets/{+datasetId}/tables/{+tableId}/rowAccessPolicies',
+        relative_path=
+        'projects/{+projectId}/datasets/{+datasetId}/tables/{+tableId}/rowAccessPolicies',
         request_field='',
         request_type_name='BigqueryRowAccessPoliciesListRequest',
         response_type_name='ListRowAccessPoliciesResponse',
@@ -778,8 +799,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def InsertAll(self, request, global_params=None):
       r"""Streams data into BigQuery one record at a time without needing to run a load job. Requires the WRITER dataset role.
@@ -791,8 +811,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (TableDataInsertAllResponse) The response message.
       """
       config = self.GetMethodConfig('InsertAll')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     InsertAll.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -800,7 +819,8 @@ class BigqueryV2(base_api.BaseApiClient):
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
         query_params=[],
-        relative_path='projects/{projectId}/datasets/{datasetId}/tables/{tableId}/insertAll',
+        relative_path=
+        'projects/{projectId}/datasets/{datasetId}/tables/{tableId}/insertAll',
         request_field='tableDataInsertAllRequest',
         request_type_name='BigqueryTabledataInsertAllRequest',
         response_type_name='TableDataInsertAllResponse',
@@ -817,16 +837,17 @@ class BigqueryV2(base_api.BaseApiClient):
         (TableDataList) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
         method_id='bigquery.tabledata.list',
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
-        query_params=['maxResults', 'pageToken', 'selectedFields', 'startIndex'],
-        relative_path='projects/{projectId}/datasets/{datasetId}/tables/{tableId}/data',
+        query_params=
+        ['maxResults', 'pageToken', 'selectedFields', 'startIndex'],
+        relative_path=
+        'projects/{projectId}/datasets/{datasetId}/tables/{tableId}/data',
         request_field='',
         request_type_name='BigqueryTabledataListRequest',
         response_type_name='TableDataList',
@@ -840,8 +861,7 @@ class BigqueryV2(base_api.BaseApiClient):
 
     def __init__(self, client):
       super().__init__(client)
-      self._upload_configs = {
-          }
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the table specified by tableId from the dataset. If the table contains data, all the data will be deleted.
@@ -853,8 +873,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (BigqueryTablesDeleteResponse) The response message.
       """
       config = self.GetMethodConfig('Delete')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Delete.method_config = lambda: base_api.ApiMethodInfo(
         http_method='DELETE',
@@ -862,7 +881,8 @@ class BigqueryV2(base_api.BaseApiClient):
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
         query_params=[],
-        relative_path='projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
+        relative_path=
+        'projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
         request_field='',
         request_type_name='BigqueryTablesDeleteRequest',
         response_type_name='BigqueryTablesDeleteResponse',
@@ -879,8 +899,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Table) The response message.
       """
       config = self.GetMethodConfig('Get')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Get.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -888,7 +907,8 @@ class BigqueryV2(base_api.BaseApiClient):
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
         query_params=['selectedFields'],
-        relative_path='projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
+        relative_path=
+        'projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
         request_field='',
         request_type_name='BigqueryTablesGetRequest',
         response_type_name='Table',
@@ -905,11 +925,11 @@ class BigqueryV2(base_api.BaseApiClient):
         (Policy) The response message.
       """
       config = self.GetMethodConfig('GetIamPolicy')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     GetIamPolicy.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}:getIamPolicy',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}:getIamPolicy',
         http_method='POST',
         method_id='bigquery.tables.getIamPolicy',
         ordered_params=['resource'],
@@ -932,8 +952,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Table) The response message.
       """
       config = self.GetMethodConfig('Insert')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Insert.method_config = lambda: base_api.ApiMethodInfo(
         http_method='POST',
@@ -958,8 +977,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (TableList) The response message.
       """
       config = self.GetMethodConfig('List')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     List.method_config = lambda: base_api.ApiMethodInfo(
         http_method='GET',
@@ -984,8 +1002,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Table) The response message.
       """
       config = self.GetMethodConfig('Patch')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Patch.method_config = lambda: base_api.ApiMethodInfo(
         http_method='PATCH',
@@ -993,7 +1010,8 @@ class BigqueryV2(base_api.BaseApiClient):
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
         query_params=[],
-        relative_path='projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
+        relative_path=
+        'projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
         request_field='table',
         request_type_name='BigqueryTablesPatchRequest',
         response_type_name='Table',
@@ -1010,11 +1028,11 @@ class BigqueryV2(base_api.BaseApiClient):
         (Policy) The response message.
       """
       config = self.GetMethodConfig('SetIamPolicy')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     SetIamPolicy.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}:setIamPolicy',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}:setIamPolicy',
         http_method='POST',
         method_id='bigquery.tables.setIamPolicy',
         ordered_params=['resource'],
@@ -1037,11 +1055,11 @@ class BigqueryV2(base_api.BaseApiClient):
         (TestIamPermissionsResponse) The response message.
       """
       config = self.GetMethodConfig('TestIamPermissions')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     TestIamPermissions.method_config = lambda: base_api.ApiMethodInfo(
-        flat_path='projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}:testIamPermissions',
+        flat_path=
+        'projects/{projectsId}/datasets/{datasetsId}/tables/{tablesId}:testIamPermissions',
         http_method='POST',
         method_id='bigquery.tables.testIamPermissions',
         ordered_params=['resource'],
@@ -1064,8 +1082,7 @@ class BigqueryV2(base_api.BaseApiClient):
         (Table) The response message.
       """
       config = self.GetMethodConfig('Update')
-      return self._RunMethod(
-          config, request, global_params=global_params)
+      return self._RunMethod(config, request, global_params=global_params)
 
     Update.method_config = lambda: base_api.ApiMethodInfo(
         http_method='PUT',
@@ -1073,7 +1090,8 @@ class BigqueryV2(base_api.BaseApiClient):
         ordered_params=['projectId', 'datasetId', 'tableId'],
         path_params=['datasetId', 'projectId', 'tableId'],
         query_params=[],
-        relative_path='projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
+        relative_path=
+        'projects/{projectId}/datasets/{datasetId}/tables/{tableId}',
         request_field='table',
         request_type_name='BigqueryTablesUpdateRequest',
         response_type_name='Table',

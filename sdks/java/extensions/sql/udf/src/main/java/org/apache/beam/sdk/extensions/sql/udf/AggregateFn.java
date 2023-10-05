@@ -25,9 +25,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>AggregateFn contains a subset of the functionality of {@code
  * org.apache.beam.sdk.transforms.Combine.CombineFn}.
  *
- * <p>AggregateFn is <strong>experimental</strong>. Compatibility is not guaranteed across Beam
- * versions.
- *
  * @param <InputT> type of input values
  * @param <AccumT> type of mutable accumulator values
  * @param <OutputT> type of output values

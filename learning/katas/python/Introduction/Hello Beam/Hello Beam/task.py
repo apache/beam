@@ -20,11 +20,10 @@
 #   multifile: false
 #   context_line: 30
 #   categories:
-#     - Testing
 #     - Quickstart
 #   complexity: BASIC
 #   tags:
-#     - hellobeam
+#     - pipeline
 
 import apache_beam as beam
 

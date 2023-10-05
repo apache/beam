@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Instant;
 
-@Experimental(Kind.TIMERS)
 public interface TimerMap {
 
   void set(String timerId, Instant absoluteTime);

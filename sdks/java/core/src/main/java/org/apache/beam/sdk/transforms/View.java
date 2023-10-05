@@ -391,7 +391,6 @@ public class View {
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-
       Combine.Globally<T, T> singletonCombine =
           Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
       if (!hasDefault) {

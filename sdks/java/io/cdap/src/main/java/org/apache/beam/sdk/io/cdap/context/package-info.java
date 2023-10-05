@@ -17,8 +17,4 @@
  */
 
 /** Context for CDAP classes. */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.cdap.context;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

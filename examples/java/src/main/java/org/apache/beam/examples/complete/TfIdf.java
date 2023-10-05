@@ -23,7 +23,7 @@ package org.apache.beam.examples.complete;
 //     GCS prefix.
 //   multifile: true
 //   pipeline_options: --output output.txt
-//   context_line: 97
+//   context_line: 447
 //   categories:
 //     - Combiners
 //     - Options
@@ -73,7 +73,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

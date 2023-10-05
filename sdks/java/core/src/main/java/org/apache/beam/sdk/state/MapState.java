@@ -20,8 +20,6 @@ package org.apache.beam.sdk.state;
 import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A {@link ReadableState} cell mapping keys to values.
@@ -32,7 +30,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
-@Experimental(Kind.STATE)
 public interface MapState<K, V> extends State {
 
   /**

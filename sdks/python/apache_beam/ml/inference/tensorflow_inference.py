@@ -56,7 +56,15 @@ class ModelType(enum.Enum):
 
 
 def _load_model(model_uri, custom_weights, load_model_args):
-  model = tf.keras.models.load_model(hub.resolve(model_uri), **load_model_args)
+  try:
+    model = tf.keras.models.load_model(
+        hub.resolve(model_uri), **load_model_args)
+  except Exception as e:
+    raise ValueError(
+        "Unable to load the TensorFlow model: {exception}. Make sure you've \
+        saved the model with TF2 format. Check out the list of TF2 Models on \
+        TensorFlow Hub - https://tfhub.dev/s?subtype=module,placeholder&tf-version=tf2."  # pylint: disable=line-too-long
+        .format(exception=e))
   if custom_weights:
     model.load_weights(custom_weights)
   return model
@@ -100,6 +108,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       load_model_args: Optional[Dict[str, Any]] = None,
       custom_weights: str = "",
       inference_fn: TensorInferenceFn = default_numpy_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -121,6 +132,10 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        large_model: set to true if your model is large enough to run into
+          memory pressure if you load multiple copies. Given a model that
+          consumes N memory and a machine with W cores and M memory, you should
+          set this to True if N*W > M.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -134,6 +149,12 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args
     self._custom_weights = custom_weights
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._large_model = large_model
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -143,6 +164,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
             "Callable create_model_fn must be passed"
             "with ModelType.SAVED_WEIGHTS")
       return _load_model_from_weights(self._create_model_fn, self._model_uri)
+
     return _load_model(
         self._model_uri, self._custom_weights, self._load_model_args)
 
@@ -193,6 +215,12 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
 
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
+
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
@@ -205,6 +233,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       load_model_args: Optional[Dict[str, Any]] = None,
       custom_weights: str = "",
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -227,6 +258,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        large_model: set to true if your model is large enough to run into
+          memory pressure if you load multiple copies. Given a model that
+          consumes N memory and a machine with W cores and M memory, you should
+          set this to True if N*W > M.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -240,6 +275,12 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args
     self._custom_weights = custom_weights
+    self._batching_kwargs = {}
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
+    self._large_model = large_model
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
@@ -299,3 +340,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     pass
+
+  def batch_elements_kwargs(self):
+    return self._batching_kwargs
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

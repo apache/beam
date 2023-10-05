@@ -19,7 +19,7 @@
 //   name: TextIO
 //   description: TextIO example.
 //   multifile: false
-//   context_line: 46
+//   context_line: 51
 //   categories:
 //     - Quickstart
 //   complexity: BASIC
@@ -51,9 +51,9 @@ func less(a, b string) bool{
 func main() {
     p, s := beam.NewPipelineWithRoot()
 
-    file := Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
+    input := Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
-    lines := getLines(s, file)
+    lines := getLines(s, input)
     fixedSizeLines := top.Largest(s,lines,10,less)
     output(s, "Lines: ", fixedSizeLines)
 

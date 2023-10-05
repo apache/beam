@@ -38,8 +38,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -49,7 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -83,7 +81,6 @@ public class TestBigQuery implements TestRule {
    *
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
-  @Experimental(Kind.SCHEMAS)
   public static TestBigQuery create(Schema tableSchema) {
     return new TestBigQuery(
         TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class), tableSchema);
@@ -214,7 +211,6 @@ public class TestBigQuery implements TestRule {
     return table.getTableReference();
   }
 
-  @Experimental(Kind.SCHEMAS)
   @RequiresNonNull("table")
   public TableDataInsertAllResponse insertRows(Schema rowSchema, Row... rows) throws IOException {
     Table table = this.table;
@@ -242,14 +238,12 @@ public class TestBigQuery implements TestRule {
    * <p>Current implementation only supports flat {@link Row Rows} and target {@link Schema Schemas}
    * with {@link FieldType#STRING} fields only.
    */
-  @Experimental(Kind.SCHEMAS)
   public List<Row> getFlatJsonRows(Schema rowSchema) {
     Bigquery bq = newBigQueryClient(pipelineOptions);
     Preconditions.checkStateNotNull(this.table);
     return bqRowsToBeamRows(getSchema(bq), getTableRows(bq), rowSchema);
   }
 
-  @Experimental(Kind.SCHEMAS)
   public RowsAssertion assertThatAllRows(Schema rowSchema) {
     return new RowsAssertion(rowSchema);
   }
@@ -360,7 +354,6 @@ public class TestBigQuery implements TestRule {
   }
 
   /** Interface for creating a polling eventual assertion. */
-  @Experimental(Kind.SCHEMAS)
   public class RowsAssertion {
     private final Schema rowSchema;
 

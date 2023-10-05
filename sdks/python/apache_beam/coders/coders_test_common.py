@@ -121,7 +121,7 @@ class CodersTest(unittest.TestCase):
       -1,
       1.5,
       b'str\0str',
-      u'unicode\0\u0101',
+      'unicode\0\u0101',
       (),
       (1, 2, 3),
       [],
@@ -387,16 +387,6 @@ class CodersTest(unittest.TestCase):
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
-    # Verify cloud object representation
-    self.assertEqual({
-        '@type': 'kind:pair',
-        'is_pair_like': True,
-        'component_encodings': [
-            coders.VarIntCoder().as_cloud_object(),
-            coders.BytesCoder().as_cloud_object()
-        ],
-    },
-                     kv_coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(b'\x04abc', kv_coder.encode((4, b'abc')))
     # Test unnested
@@ -407,7 +397,7 @@ class CodersTest(unittest.TestCase):
             coders.TupleCoder((coders.PickleCoder(), coders.VarIntCoder())),
             coders.StrUtf8Coder(),
             coders.BooleanCoder())), ((1, 2), 'a', True),
-        ((-2, 5), u'a\u0101' * 100, False), ((300, 1), 'abc\0' * 5, True))
+        ((-2, 5), 'a\u0101' * 100, False), ((300, 1), 'abc\0' * 5, True))
 
   def test_tuple_sequence_coder(self):
     int_tuple_coder = coders.TupleSequenceCoder(coders.VarIntCoder())
@@ -420,17 +410,10 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.Base64PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
 
   def test_utf8_coder(self):
-    self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
+    self.check_coder(coders.StrUtf8Coder(), 'a', 'ab\u00FF', '\u0101\0')
 
   def test_iterable_coder(self):
     iterable_coder = coders.IterableCoder(coders.VarIntCoder())
-    # Verify cloud object representation
-    self.assertEqual({
-        '@type': 'kind:stream',
-        'is_stream_like': True,
-        'component_encodings': [coders.VarIntCoder().as_cloud_object()]
-    },
-                     iterable_coder.as_cloud_object())
     # Test unnested
     self.check_coder(iterable_coder, [1], [-1, 0, 100])
     # Test nested
@@ -507,16 +490,6 @@ class CodersTest(unittest.TestCase):
   def test_windowed_value_coder(self):
     coder = coders.WindowedValueCoder(
         coders.VarIntCoder(), coders.GlobalWindowCoder())
-    # Verify cloud object representation
-    self.assertEqual({
-        '@type': 'kind:windowed_value',
-        'is_wrapper': True,
-        'component_encodings': [
-            coders.VarIntCoder().as_cloud_object(),
-            coders.GlobalWindowCoder().as_cloud_object(),
-        ],
-    },
-                     coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(
         b'\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
@@ -604,10 +577,10 @@ class CodersTest(unittest.TestCase):
     ma = test_message.MessageA()
     mab = ma.field2.add()
     mab.field1 = True
-    ma.field1 = u'hello world'
+    ma.field1 = 'hello world'
 
     mb = test_message.MessageA()
-    mb.field1 = u'beam'
+    mb.field1 = 'beam'
 
     proto_coder = coders.ProtoCoder(ma.__class__)
     self.check_coder(proto_coder, ma)
@@ -618,8 +591,6 @@ class CodersTest(unittest.TestCase):
   def test_global_window_coder(self):
     coder = coders.GlobalWindowCoder()
     value = window.GlobalWindow()
-    # Verify cloud object representation
-    self.assertEqual({'@type': 'kind:global_window'}, coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(b'', coder.encode(value))
     self.assertEqual(value, coder.decode(b''))
@@ -630,12 +601,6 @@ class CodersTest(unittest.TestCase):
 
   def test_length_prefix_coder(self):
     coder = coders.LengthPrefixCoder(coders.BytesCoder())
-    # Verify cloud object representation
-    self.assertEqual({
-        '@type': 'kind:length_prefix',
-        'component_encodings': [coders.BytesCoder().as_cloud_object()]
-    },
-                     coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(b'\x00', coder.encode(b''))
     self.assertEqual(b'\x01a', coder.encode(b'a'))
@@ -666,7 +631,7 @@ class CodersTest(unittest.TestCase):
 
     # Test nested tuple observable.
     coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
-    value = (u'123', observ)
+    value = ('123', observ)
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
         [(observ, elem_coder.get_impl())])
@@ -725,12 +690,6 @@ class CodersTest(unittest.TestCase):
 
     for key, bytes_repr, key_coder in key_and_coders:
       coder = coders.ShardedKeyCoder(key_coder)
-      # Verify cloud object representation
-      self.assertEqual({
-          '@type': 'kind:sharded_key',
-          'component_encodings': [key_coder.as_cloud_object()]
-      },
-                       coder.as_cloud_object())
 
       # Test str repr
       self.assertEqual('%s' % coder, 'ShardedKeyCoder[%s]' % key_coder)

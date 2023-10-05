@@ -95,11 +95,11 @@ List<Uri> _getBackendUrlOptions(String node) {
   }
 
   final currentHost = Uri.base.host;
-  final nodeUriFromCurrentHost = Uri.base.replace(
+  final nodeUriFromCurrentHost = Uri(
+    scheme: Uri.base.scheme,
     host: '$node.$currentHost',
-    path: '',
-    queryParameters: {},
-  ).removeFragment();
+    port: Uri.base.port,
+  );
 
   return {
     nodeUriFromCurrentHost.toString(),

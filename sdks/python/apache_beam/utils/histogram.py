@@ -25,9 +25,6 @@ _LOGGER = logging.getLogger(__name__)
 
 class Histogram(object):
   """A histogram that supports estimated percentile with linear interpolation.
-
-  This class is considered experimental and may break or receive backwards-
-  incompatible changes in future versions of the Apache Beam SDK.
   """
   def __init__(self, bucket_type):
     self._lock = threading.Lock()

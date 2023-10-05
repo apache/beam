@@ -22,8 +22,6 @@ import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -35,7 +33,6 @@ import org.apache.beam.sdk.util.InstanceBuilder;
  * @see S3FileSystemSchemeRegistrar
  */
 @AutoValue
-@Experimental(Kind.FILESYSTEM)
 public abstract class S3FileSystemConfiguration {
   public static final int MINIMUM_UPLOAD_BUFFER_SIZE_BYTES =
       S3Options.S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES;

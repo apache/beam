@@ -47,7 +47,7 @@ func GetLivenessFunction() func(writer http.ResponseWriter, request *http.Reques
 // GetReadinessFunction returns the function that checks the readiness of the server to process a new code processing request
 func GetReadinessFunction(envs *environment.Environment) func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		if checkNumOfTheParallelJobs(envs.ApplicationEnvs.WorkingDir(), envs.BeamSdkEnvs.NumOfParallelJobs()) {
+		if CheckNumOfTheParallelJobs(envs.ApplicationEnvs.WorkingDir(), envs.BeamSdkEnvs.NumOfParallelJobs()) {
 			writer.WriteHeader(http.StatusOK)
 		} else {
 			writer.WriteHeader(http.StatusLocked)
@@ -55,13 +55,13 @@ func GetReadinessFunction(envs *environment.Environment) func(writer http.Respon
 	}
 }
 
-// checkNumOfTheParallelJobs checks the number of currently working code executions.
+// CheckNumOfTheParallelJobs checks the number of currently working code executions.
 //
 //	It counts by the number of the /path/to/workingDir/executableFiles/{pipelineId} folders.
 //
 // If it is equals or more than numOfParallelJobs, then returns false.
 // If it is less than numOfParallelJobs, then returns true.
-func checkNumOfTheParallelJobs(workingDir string, numOfParallelJobs int) bool {
+func CheckNumOfTheParallelJobs(workingDir string, numOfParallelJobs int) bool {
 	baseFileFolder := filepath.Join(workingDir, executableFiles)
 	_, err := os.Stat(baseFileFolder)
 	if os.IsNotExist(err) {

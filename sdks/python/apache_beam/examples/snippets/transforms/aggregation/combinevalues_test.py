@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -25,7 +26,13 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import combinevalues
+from . import combinevalues_combinefn
+from . import combinevalues_function
+from . import combinevalues_lambda
+from . import combinevalues_multiple_arguments
+from . import combinevalues_side_inputs_dict
+from . import combinevalues_side_inputs_iter
+from . import combinevalues_side_inputs_singleton
 
 
 def check_total(actual):
@@ -67,29 +74,52 @@ def check_percentages_per_season(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.combinevalues.print',
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_function.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_lambda.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_multiple_arguments.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_side_inputs_singleton.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_side_inputs_iter.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_side_inputs_dict.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.combinevalues_combinefn.print',
     str)
 class CombineValuesTest(unittest.TestCase):
   def test_combinevalues_function(self):
-    combinevalues.combinevalues_function(check_saturated_total)
+    combinevalues_function.combinevalues_function(check_saturated_total)
 
   def test_combinevalues_lambda(self):
-    combinevalues.combinevalues_lambda(check_saturated_total)
+    combinevalues_lambda.combinevalues_lambda(check_saturated_total)
 
   def test_combinevalues_multiple_arguments(self):
-    combinevalues.combinevalues_multiple_arguments(check_saturated_total)
+    combinevalues_multiple_arguments.combinevalues_multiple_arguments(
+        check_saturated_total)
 
   def test_combinevalues_side_inputs_singleton(self):
-    combinevalues.combinevalues_side_inputs_singleton(check_saturated_total)
+    combinevalues_side_inputs_singleton.combinevalues_side_inputs_singleton(
+        check_saturated_total)
 
   def test_combinevalues_side_inputs_iter(self):
-    combinevalues.combinevalues_side_inputs_iter(check_bounded_total)
+    combinevalues_side_inputs_iter.combinevalues_side_inputs_iter(
+        check_bounded_total)
 
   def test_combinevalues_side_inputs_dict(self):
-    combinevalues.combinevalues_side_inputs_dict(check_bounded_total)
+    combinevalues_side_inputs_dict.combinevalues_side_inputs_dict(
+        check_bounded_total)
 
   def test_combinevalues_combinefn(self):
-    combinevalues.combinevalues_combinefn(check_percentages_per_season)
+    combinevalues_combinefn.combinevalues_combinefn(
+        check_percentages_per_season)
 
 
 if __name__ == '__main__':

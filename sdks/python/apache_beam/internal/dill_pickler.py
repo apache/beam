@@ -46,7 +46,7 @@ import dill
 
 settings = {'dill_byref': None}
 
-if sys.version_info >= (3, 11) and dill.__version__ == "0.3.1.1":
+if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
   # Let's make dill 0.3.1.1 support Python 3.11.
 
   # The following function is based on 'save_code' from 'dill'

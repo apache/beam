@@ -27,7 +27,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSch
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Utility methods to resolve a table, given a top-level Calcite schema and a table path. */
 @SuppressWarnings({

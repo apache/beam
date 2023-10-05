@@ -24,7 +24,7 @@ package org.apache.beam.examples.complete;
 //     each month.
 //   multifile: true
 //   pipeline_options: --output output.txt
-//   context_line: 84
+//   context_line: 236
 //   categories:
 //     - Combiners
 //     - Options
@@ -61,7 +61,7 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ComparisonChain;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

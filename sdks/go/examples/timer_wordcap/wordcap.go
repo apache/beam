@@ -21,15 +21,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -62,21 +59,7 @@ func NewStateful() *Stateful {
 	}
 }
 
-func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, tp timers.Provider, key, timerKey, timerTag string, emit func(string, string)) {
-	switch timerKey {
-	case "outputState":
-		log.Infof(ctx, "Timer outputState fired on stateful for element: %v.", key)
-		s.OutputState.Set(tp, ts.ToTime().Add(5*time.Second), timers.WithTag("1"))
-		switch timerTag {
-		case "1":
-			s.OutputState.Clear(tp)
-			log.Infof(ctx, "Timer with tag 1 fired on outputState stateful DoFn.")
-			emit(timerKey, timerTag)
-		}
-	}
-}
-
-func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, emit func(string, string)) error {
+func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, _ func(beam.EventTime, string, string)) error {
 	s.ElementBag.Add(sp, word)
 	s.MinTime.Add(sp, int64(ts))
 
@@ -85,23 +68,77 @@ func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp sta
 		return err
 	}
 	if !ok {
-		toFire = int64(mtime.Now().Add(1 * time.Minute))
+		toFire = int64(time.Now().Add(30 * time.Second).UnixMilli())
 	}
 	minTime, _, err := s.MinTime.Read(sp)
 	if err != nil {
 		return err
 	}
 
-	s.OutputState.Set(tp, time.UnixMilli(toFire), timers.WithOutputTimestamp(time.UnixMilli(minTime)), timers.WithTag(word))
+	s.OutputState.Set(tp, time.UnixMilli(toFire), timers.WithOutputTimestamp(time.UnixMilli(minTime)))
+	// A timer can be set with independent to fire with independant string tags.
+	s.OutputState.Set(tp, time.UnixMilli(toFire), timers.WithTag(word), timers.WithOutputTimestamp(time.UnixMilli(minTime)))
 	s.TimerTime.Write(sp, toFire)
-
 	return nil
 }
 
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(beam.EventTime, string, string)) {
+	log.Infof(ctx, "Timer fired for key %q, for family %q and tag %q", key, timer.Family, timer.Tag)
+
+	const tag = "emit" // Tags can be arbitrary strings, but we're associating behavior with this tag in this method.
+
+	// Check which timer has fired.
+	switch timer.Family {
+	case s.OutputState.Family:
+		switch timer.Tag {
+		case "":
+			// Timers can be set within the OnTimer method.
+			// In this case the emit tag timer to fire in 5 seconds.
+			s.OutputState.Set(tp, ts.ToTime().Add(5*time.Second), timers.WithTag(tag))
+		case tag:
+			// When the emit tag fires, read the batched data.
+			es, ok, err := s.ElementBag.Read(sp)
+			if err != nil {
+				log.Errorf(ctx, "error reading ElementBag: %v", err)
+				return
+			}
+			if !ok {
+				log.Infof(ctx, "No elements in bag.")
+				return
+			}
+			minTime, _, err := s.MinTime.Read(sp)
+			if err != nil {
+				log.Errorf(ctx, "error reading ElementBag: %v", err)
+				return
+			}
+			log.Infof(ctx, "Emitting %d elements", len(es))
+			for _, word := range es {
+				emit(beam.EventTime(minTime), key, word)
+			}
+			// Clean up the state that has been evicted.
+			s.ElementBag.Clear(sp)
+			s.MinTime.Clear(sp)
+			s.OutputState.ClearTag(tp, tag) // Clean up the fired timer tag. (Temporary workaround for a runner bug.)
+		}
+	}
+}
+
 func init() {
-	register.DoFn7x1[context.Context, beam.EventTime, state.Provider, timers.Provider, string, string, func(string, string), error](&Stateful{})
-	register.Emitter2[string, string]()
+	register.DoFn7x1[context.Context, beam.EventTime, state.Provider, timers.Provider, string, string, func(beam.EventTime, string, string), error](&Stateful{})
+	register.Emitter3[beam.EventTime, string, string]()
 	register.Emitter2[beam.EventTime, int64]()
+	register.Function1x2(toKeyedString)
+}
+
+func generateSequence(s beam.Scope, now time.Time, duration, interval time.Duration) beam.PCollection {
+	s = s.Scope("generateSequence")
+	def := beam.Create(s, periodic.NewSequenceDefinition(now, now.Add(duration), interval))
+	seq := periodic.Sequence(s, def)
+	return seq
+}
+
+func toKeyedString(b int64) (string, string) {
+	return "test", fmt.Sprintf("%03d", b)
 }
 
 func main() {
@@ -110,26 +147,11 @@ func main() {
 
 	ctx := context.Background()
 
-	p := beam.NewPipeline()
-	s := p.Root()
+	p, s := beam.NewPipelineWithRoot()
 
-	out := periodic.Impulse(s, time.Now(), time.Now().Add(5*time.Minute), 5*time.Second, true)
+	out := generateSequence(s, time.Now(), 1*time.Minute, 5*time.Second)
 
-	intOut := beam.ParDo(s, func(b []byte) int64 {
-		var val int64
-		buf := bytes.NewReader(b)
-		binary.Read(buf, binary.BigEndian, &val)
-		return val
-	}, out)
-
-	str := beam.ParDo(s, func(b int64) string {
-		return fmt.Sprintf("%03d", b)
-	}, intOut)
-
-	keyed := beam.ParDo(s, func(ctx context.Context, ts beam.EventTime, s string) (string, string) {
-		return "test", s
-	}, str)
-
+	keyed := beam.ParDo(s, toKeyedString, out)
 	timed := beam.ParDo(s, NewStateful(), keyed)
 	debug.Printf(s, "post stateful: %v", timed)
 

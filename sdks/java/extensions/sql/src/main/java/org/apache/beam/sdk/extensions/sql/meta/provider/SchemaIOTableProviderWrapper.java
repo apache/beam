@@ -19,11 +19,10 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
-import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
@@ -47,11 +46,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** A general {@link TableProvider} for IOs for consumption by Beam SQL. */
 @Internal
-@Experimental
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -68,7 +66,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
-    JSONObject tableProperties = tableDefinition.getProperties();
+    ObjectNode tableProperties = tableDefinition.getProperties();
 
     try {
       RowJson.RowJsonDeserializer deserializer =
@@ -86,8 +84,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     } catch (InvalidConfigurationException | InvalidSchemaException e) {
       throw new InvalidTableException(e.getMessage());
     } catch (JsonProcessingException e) {
-      throw new AssertionError(
-          "Failed to re-parse TBLPROPERTIES JSON " + tableProperties.toString());
+      throw new AssertionError("Failed to re-parse TBLPROPERTIES JSON " + tableProperties);
     }
   }
 

@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 /** Defines serializers / deserializers for AWS. */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.kinesis.serde;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

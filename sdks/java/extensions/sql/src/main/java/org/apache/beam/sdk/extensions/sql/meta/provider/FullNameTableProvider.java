@@ -22,7 +22,6 @@ import static java.util.stream.Collectors.toList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
@@ -33,7 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Base class for table providers that look up table metadata using full table names, instead of
  * querying it by parts of the name separately.
  */
-@Experimental
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

@@ -15,18 +15,6 @@
 
 package beam_test
 
-// beam-playground:
-//   name: CombineTest
-//   description: Unit-test for the Combine example.
-//   multifile: false
-//   context_line: 34
-//   categories:
-//     - Combiners
-//   complexity: BASIC
-//   tags:
-//     - combine
-//     - test
-
 import (
 	"reflect"
 	"testing"

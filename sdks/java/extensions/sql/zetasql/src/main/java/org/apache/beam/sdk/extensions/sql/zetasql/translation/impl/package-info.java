@@ -21,7 +21,4 @@
  *
  * <p>Used only by {@link org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel}.
  */
-@Experimental
 package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
-
-import org.apache.beam.sdk.annotations.Experimental;

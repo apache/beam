@@ -16,7 +16,4 @@
  * limitations under the License.
  */
 /** Transforms for reading from Files with contextual Information. */
-@Experimental(Experimental.Kind.UNSPECIFIED)
 package org.apache.beam.sdk.io.contextualtextio;
-
-import org.apache.beam.sdk.annotations.Experimental;

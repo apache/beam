@@ -26,7 +26,6 @@ from apitools.base.protorpclite import messages as _messages
 from apitools.base.py import encoding
 from apitools.base.py import extra_types
 
-
 package = 'bigquery'
 
 
@@ -81,7 +80,6 @@ class Argument(_messages.Message):
     name: Optional. The name of this argument. Can be absent for function
       return argument.
   """
-
   class ArgumentKindValueValuesEnum(_messages.Enum):
     r"""Optional. Defaults to FIXED_TYPE.
 
@@ -165,7 +163,6 @@ class ArimaForecastingMetrics(_messages.Message):
     timeSeriesId: Id to differentiate different time series for the large-
       scale case.
   """
-
   class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
     r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
 
@@ -186,11 +183,14 @@ class ArimaForecastingMetrics(_messages.Message):
     QUARTERLY = 5
     YEARLY = 6
 
-  arimaFittingMetrics = _messages.MessageField('ArimaFittingMetrics', 1, repeated=True)
-  arimaSingleModelForecastingMetrics = _messages.MessageField('ArimaSingleModelForecastingMetrics', 2, repeated=True)
+  arimaFittingMetrics = _messages.MessageField(
+      'ArimaFittingMetrics', 1, repeated=True)
+  arimaSingleModelForecastingMetrics = _messages.MessageField(
+      'ArimaSingleModelForecastingMetrics', 2, repeated=True)
   hasDrift = _messages.BooleanField(3, repeated=True)
   nonSeasonalOrder = _messages.MessageField('ArimaOrder', 4, repeated=True)
-  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 5, repeated=True)
+  seasonalPeriods = _messages.EnumField(
+      'SeasonalPeriodsValueListEntryValuesEnum', 5, repeated=True)
   timeSeriesId = _messages.StringField(6, repeated=True)
 
 
@@ -210,7 +210,6 @@ class ArimaModelInfo(_messages.Message):
       supported for one time series.
     timeSeriesId: The id to indicate different time series.
   """
-
   class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
     r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
 
@@ -235,7 +234,8 @@ class ArimaModelInfo(_messages.Message):
   arimaFittingMetrics = _messages.MessageField('ArimaFittingMetrics', 2)
   hasDrift = _messages.BooleanField(3)
   nonSeasonalOrder = _messages.MessageField('ArimaOrder', 4)
-  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 5, repeated=True)
+  seasonalPeriods = _messages.EnumField(
+      'SeasonalPeriodsValueListEntryValuesEnum', 5, repeated=True)
   timeSeriesId = _messages.StringField(6)
 
 
@@ -266,7 +266,6 @@ class ArimaResult(_messages.Message):
     seasonalPeriods: Seasonal periods. Repeated because multiple periods are
       supported for one time series.
   """
-
   class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
     r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
 
@@ -288,7 +287,8 @@ class ArimaResult(_messages.Message):
     YEARLY = 6
 
   arimaModelInfo = _messages.MessageField('ArimaModelInfo', 1, repeated=True)
-  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 2, repeated=True)
+  seasonalPeriods = _messages.EnumField(
+      'SeasonalPeriodsValueListEntryValuesEnum', 2, repeated=True)
 
 
 class ArimaSingleModelForecastingMetrics(_messages.Message):
@@ -306,7 +306,6 @@ class ArimaSingleModelForecastingMetrics(_messages.Message):
       supported for one time series.
     timeSeriesId: The id to indicate different time series.
   """
-
   class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
     r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
 
@@ -330,7 +329,8 @@ class ArimaSingleModelForecastingMetrics(_messages.Message):
   arimaFittingMetrics = _messages.MessageField('ArimaFittingMetrics', 1)
   hasDrift = _messages.BooleanField(2)
   nonSeasonalOrder = _messages.MessageField('ArimaOrder', 3)
-  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 4, repeated=True)
+  seasonalPeriods = _messages.EnumField(
+      'SeasonalPeriodsValueListEntryValuesEnum', 4, repeated=True)
   timeSeriesId = _messages.StringField(5)
 
 
@@ -378,7 +378,6 @@ class AuditLogConfig(_messages.Message):
       this type of permission. Follows the same format of Binding.members.
     logType: The log type that this config enables.
   """
-
   class LogTypeValueValuesEnum(_messages.Enum):
     r"""The log type that this config enables.
 
@@ -604,7 +603,6 @@ class BigqueryJobsListRequest(_messages.Message):
     projection: Restrict information returned to a set of selected fields
     stateFilter: Filter for job state
   """
-
   class ProjectionValueValuesEnum(_messages.Enum):
     r"""Restrict information returned to a set of selected fields
 
@@ -635,7 +633,8 @@ class BigqueryJobsListRequest(_messages.Message):
   parentJobId = _messages.StringField(6)
   projectId = _messages.StringField(7, required=True)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 8)
-  stateFilter = _messages.EnumField('StateFilterValueValuesEnum', 9, repeated=True)
+  stateFilter = _messages.EnumField(
+      'StateFilterValueValuesEnum', 9, repeated=True)
 
 
 class BigqueryJobsQueryRequest(_messages.Message):
@@ -865,7 +864,8 @@ class BigqueryTabledataInsertAllRequest(_messages.Message):
 
   datasetId = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
-  tableDataInsertAllRequest = _messages.MessageField('TableDataInsertAllRequest', 3)
+  tableDataInsertAllRequest = _messages.MessageField(
+      'TableDataInsertAllRequest', 3)
   tableId = _messages.StringField(4, required=True)
 
 
@@ -1017,7 +1017,8 @@ class BigqueryTablesTestIamPermissionsRequest(_messages.Message):
   """
 
   resource = _messages.StringField(1, required=True)
-  testIamPermissionsRequest = _messages.MessageField('TestIamPermissionsRequest', 2)
+  testIamPermissionsRequest = _messages.MessageField(
+      'TestIamPermissionsRequest', 2)
 
 
 class BigqueryTablesUpdateRequest(_messages.Message):
@@ -1136,7 +1137,8 @@ class BigtableOptions(_messages.Message):
       necessary. The default value is false.
   """
 
-  columnFamilies = _messages.MessageField('BigtableColumnFamily', 1, repeated=True)
+  columnFamilies = _messages.MessageField(
+      'BigtableColumnFamily', 1, repeated=True)
   ignoreUnspecifiedColumnFamilies = _messages.BooleanField(2)
   readRowkeyAsString = _messages.BooleanField(3)
 
@@ -1151,8 +1153,10 @@ class BinaryClassificationMetrics(_messages.Message):
     positiveLabel: Label representing the positive class.
   """
 
-  aggregateClassificationMetrics = _messages.MessageField('AggregateClassificationMetrics', 1)
-  binaryConfusionMatrixList = _messages.MessageField('BinaryConfusionMatrix', 2, repeated=True)
+  aggregateClassificationMetrics = _messages.MessageField(
+      'AggregateClassificationMetrics', 1)
+  binaryConfusionMatrixList = _messages.MessageField(
+      'BinaryConfusionMatrix', 2, repeated=True)
   negativeLabel = _messages.StringField(3)
   positiveLabel = _messages.StringField(4)
 
@@ -1291,7 +1295,6 @@ class BqmlTrainingRun(_messages.Message):
       option not explicitly specified in the input query will be copied from
       the previous training run.
   """
-
   class TrainingOptionsValue(_messages.Message):
     r"""[Output-only, Beta] Training options used by this training run. These
     options are mutable for subsequent training runs. Default values are
@@ -1322,7 +1325,8 @@ class BqmlTrainingRun(_messages.Message):
     minRelProgress = _messages.FloatField(8)
     warmStart = _messages.BooleanField(9)
 
-  iterationResults = _messages.MessageField('BqmlIterationResult', 1, repeated=True)
+  iterationResults = _messages.MessageField(
+      'BqmlIterationResult', 1, repeated=True)
   startTime = _message_types.DateTimeField(2)
   state = _messages.StringField(3)
   trainingOptions = _messages.MessageField('TrainingOptionsValue', 4)
@@ -1570,7 +1574,6 @@ class Dataset(_messages.Message):
     selfLink: [Output-only] A URL that can be used to access the resource
       again. You can use this URL in Get or Update requests to the resource.
   """
-
   class AccessValueListEntry(_messages.Message):
     r"""A AccessValueListEntry object.
 
@@ -1632,7 +1635,6 @@ class Dataset(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -1644,12 +1646,14 @@ class Dataset(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   access = _messages.MessageField('AccessValueListEntry', 1, repeated=True)
   creationTime = _messages.IntegerField(2)
   datasetReference = _messages.MessageField('DatasetReference', 3)
-  defaultEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 4)
+  defaultEncryptionConfiguration = _messages.MessageField(
+      'EncryptionConfiguration', 4)
   defaultPartitionExpirationMs = _messages.IntegerField(5)
   defaultTableExpirationMs = _messages.IntegerField(6)
   description = _messages.StringField(7)
@@ -1682,7 +1686,6 @@ class DatasetList(_messages.Message):
     nextPageToken: A token that can be used to request the next results page.
       This property is omitted on the final results page.
   """
-
   class DatasetsValueListEntry(_messages.Message):
     r"""A DatasetsValueListEntry object.
 
@@ -1701,7 +1704,6 @@ class DatasetList(_messages.Message):
         organize and group your datasets.
       location: The geographic location where the data resides.
     """
-
     @encoding.MapUnrecognizedFields('additionalProperties')
     class LabelsValue(_messages.Message):
       r"""The labels associated with this dataset. You can use these to
@@ -1713,7 +1715,6 @@ class DatasetList(_messages.Message):
       Fields:
         additionalProperties: Additional properties of type LabelsValue
       """
-
       class AdditionalProperty(_messages.Message):
         r"""An additional property for a LabelsValue object.
 
@@ -1725,7 +1726,8 @@ class DatasetList(_messages.Message):
         key = _messages.StringField(1)
         value = _messages.StringField(2)
 
-      additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+      additionalProperties = _messages.MessageField(
+          'AdditionalProperty', 1, repeated=True)
 
     datasetReference = _messages.MessageField('DatasetReference', 1)
     friendlyName = _messages.StringField(2)
@@ -1779,7 +1781,6 @@ class DestinationTableProperties(_messages.Message):
       labels are different than the current labels are provided, the job will
       fail.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
     r"""[Optional] The labels associated with this table. You can use these to
@@ -1793,7 +1794,6 @@ class DestinationTableProperties(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -1805,7 +1805,8 @@ class DestinationTableProperties(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   description = _messages.StringField(1)
   friendlyName = _messages.StringField(2)
@@ -1874,9 +1875,11 @@ class EvaluationMetrics(_messages.Message):
   """
 
   arimaForecastingMetrics = _messages.MessageField('ArimaForecastingMetrics', 1)
-  binaryClassificationMetrics = _messages.MessageField('BinaryClassificationMetrics', 2)
+  binaryClassificationMetrics = _messages.MessageField(
+      'BinaryClassificationMetrics', 2)
   clusteringMetrics = _messages.MessageField('ClusteringMetrics', 3)
-  multiClassClassificationMetrics = _messages.MessageField('MultiClassClassificationMetrics', 4)
+  multiClassClassificationMetrics = _messages.MessageField(
+      'MultiClassClassificationMetrics', 4)
   rankingMetrics = _messages.MessageField('RankingMetrics', 5)
   regressionMetrics = _messages.MessageField('RegressionMetrics', 6)
 
@@ -2127,7 +2130,8 @@ class GetPolicyOptions(_messages.Message):
       policies).
   """
 
-  requestedPolicyVersion = _messages.IntegerField(1, variant=_messages.Variant.INT32)
+  requestedPolicyVersion = _messages.IntegerField(
+      1, variant=_messages.Variant.INT32)
 
 
 class GetQueryResultsResponse(_messages.Message):
@@ -2361,7 +2365,6 @@ class JobConfiguration(_messages.Message):
     load: [Pick one] Configures a load job.
     query: [Pick one] Configures a query job.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
     r"""The labels associated with this job. You can use these to organize and
@@ -2377,7 +2380,6 @@ class JobConfiguration(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -2389,7 +2391,8 @@ class JobConfiguration(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   copy = _messages.MessageField('JobConfigurationTableCopy', 1)
   dryRun = _messages.BooleanField(2)
@@ -2598,12 +2601,15 @@ class JobConfigurationLoad(_messages.Message):
   clustering = _messages.MessageField('Clustering', 4)
   createDisposition = _messages.StringField(5)
   decimalTargetTypes = _messages.StringField(6, repeated=True)
-  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 7)
+  destinationEncryptionConfiguration = _messages.MessageField(
+      'EncryptionConfiguration', 7)
   destinationTable = _messages.MessageField('TableReference', 8)
-  destinationTableProperties = _messages.MessageField('DestinationTableProperties', 9)
+  destinationTableProperties = _messages.MessageField(
+      'DestinationTableProperties', 9)
   encoding = _messages.StringField(10)
   fieldDelimiter = _messages.StringField(11)
-  hivePartitioningOptions = _messages.MessageField('HivePartitioningOptions', 12)
+  hivePartitioningOptions = _messages.MessageField(
+      'HivePartitioningOptions', 12)
   ignoreUnknownValues = _messages.BooleanField(13)
   maxBadRecords = _messages.IntegerField(14, variant=_messages.Variant.INT32)
   nullMarker = _messages.StringField(15)
@@ -2722,7 +2728,6 @@ class JobConfigurationQuery(_messages.Message):
       to complete the job successfully. Creation, truncation and append
       actions occur as one atomic update upon job completion.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TableDefinitionsValue(_messages.Message):
     r"""[Optional] If querying an external data source outside of BigQuery,
@@ -2738,7 +2743,6 @@ class JobConfigurationQuery(_messages.Message):
       additionalProperties: Additional properties of type
         TableDefinitionsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a TableDefinitionsValue object.
 
@@ -2750,17 +2754,21 @@ class JobConfigurationQuery(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('ExternalDataConfiguration', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   allowLargeResults = _messages.BooleanField(1, default=False)
   clustering = _messages.MessageField('Clustering', 2)
-  connectionProperties = _messages.MessageField('ConnectionProperty', 3, repeated=True)
+  connectionProperties = _messages.MessageField(
+      'ConnectionProperty', 3, repeated=True)
   createDisposition = _messages.StringField(4)
   defaultDataset = _messages.MessageField('DatasetReference', 5)
-  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 6)
+  destinationEncryptionConfiguration = _messages.MessageField(
+      'EncryptionConfiguration', 6)
   destinationTable = _messages.MessageField('TableReference', 7)
   flattenResults = _messages.BooleanField(8, default=True)
-  maximumBillingTier = _messages.IntegerField(9, variant=_messages.Variant.INT32, default=1)
+  maximumBillingTier = _messages.IntegerField(
+      9, variant=_messages.Variant.INT32, default=1)
   maximumBytesBilled = _messages.IntegerField(10)
   parameterMode = _messages.StringField(11)
   preserveNulls = _messages.BooleanField(12)
@@ -2773,7 +2781,8 @@ class JobConfigurationQuery(_messages.Message):
   timePartitioning = _messages.MessageField('TimePartitioning', 19)
   useLegacySql = _messages.BooleanField(20, default=True)
   useQueryCache = _messages.BooleanField(21, default=True)
-  userDefinedFunctionResources = _messages.MessageField('UserDefinedFunctionResource', 22, repeated=True)
+  userDefinedFunctionResources = _messages.MessageField(
+      'UserDefinedFunctionResource', 22, repeated=True)
   writeDisposition = _messages.StringField(23)
 
 
@@ -2808,7 +2817,8 @@ class JobConfigurationTableCopy(_messages.Message):
   """
 
   createDisposition = _messages.StringField(1)
-  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 2)
+  destinationEncryptionConfiguration = _messages.MessageField(
+      'EncryptionConfiguration', 2)
   destinationExpirationTime = _messages.MessageField('extra_types.JsonValue', 3)
   destinationTable = _messages.MessageField('TableReference', 4)
   operationType = _messages.StringField(5)
@@ -2829,7 +2839,6 @@ class JobList(_messages.Message):
     kind: The resource type of the response.
     nextPageToken: A token to request the next page of results.
   """
-
   class JobsValueListEntry(_messages.Message):
     r"""A JobsValueListEntry object.
 
@@ -2920,7 +2929,6 @@ class JobStatistics(_messages.Message):
     transactionInfoTemplate: [Output-only] [Alpha] Information of the multi-
       statement transaction if this job is part of one.
   """
-
   class ReservationUsageValueListEntry(_messages.Message):
     r"""A ReservationUsageValueListEntry object.
 
@@ -2943,9 +2951,11 @@ class JobStatistics(_messages.Message):
   parentJobId = _messages.StringField(7)
   query = _messages.MessageField('JobStatistics2', 8)
   quotaDeferments = _messages.StringField(9, repeated=True)
-  reservationUsage = _messages.MessageField('ReservationUsageValueListEntry', 10, repeated=True)
+  reservationUsage = _messages.MessageField(
+      'ReservationUsageValueListEntry', 10, repeated=True)
   reservation_id = _messages.StringField(11)
-  rowLevelSecurityStatistics = _messages.MessageField('RowLevelSecurityStatistics', 12)
+  rowLevelSecurityStatistics = _messages.MessageField(
+      'RowLevelSecurityStatistics', 12)
   scriptStatistics = _messages.MessageField('ScriptStatistics', 13)
   startTime = _messages.IntegerField(14)
   totalBytesProcessed = _messages.IntegerField(15)
@@ -3032,7 +3042,6 @@ class JobStatistics2(_messages.Message):
     undeclaredQueryParameters: Standard SQL only: list of undeclared query
       parameters detected during a dry run validation.
   """
-
   class ReservationUsageValueListEntry(_messages.Message):
     r"""A ReservationUsageValueListEntry object.
 
@@ -3051,17 +3060,21 @@ class JobStatistics2(_messages.Message):
   ddlAffectedRowAccessPolicyCount = _messages.IntegerField(3)
   ddlOperationPerformed = _messages.StringField(4)
   ddlTargetRoutine = _messages.MessageField('RoutineReference', 5)
-  ddlTargetRowAccessPolicy = _messages.MessageField('RowAccessPolicyReference', 6)
+  ddlTargetRowAccessPolicy = _messages.MessageField(
+      'RowAccessPolicyReference', 6)
   ddlTargetTable = _messages.MessageField('TableReference', 7)
   estimatedBytesProcessed = _messages.IntegerField(8)
   modelTraining = _messages.MessageField('BigQueryModelTraining', 9)
-  modelTrainingCurrentIteration = _messages.IntegerField(10, variant=_messages.Variant.INT32)
+  modelTrainingCurrentIteration = _messages.IntegerField(
+      10, variant=_messages.Variant.INT32)
   modelTrainingExpectedTotalIteration = _messages.IntegerField(11)
   numDmlAffectedRows = _messages.IntegerField(12)
   queryPlan = _messages.MessageField('ExplainQueryStage', 13, repeated=True)
-  referencedRoutines = _messages.MessageField('RoutineReference', 14, repeated=True)
+  referencedRoutines = _messages.MessageField(
+      'RoutineReference', 14, repeated=True)
   referencedTables = _messages.MessageField('TableReference', 15, repeated=True)
-  reservationUsage = _messages.MessageField('ReservationUsageValueListEntry', 16, repeated=True)
+  reservationUsage = _messages.MessageField(
+      'ReservationUsageValueListEntry', 16, repeated=True)
   schema = _messages.MessageField('TableSchema', 17)
   statementType = _messages.StringField(18)
   timeline = _messages.MessageField('QueryTimelineSample', 19, repeated=True)
@@ -3070,7 +3083,8 @@ class JobStatistics2(_messages.Message):
   totalBytesProcessedAccuracy = _messages.StringField(22)
   totalPartitionsProcessed = _messages.IntegerField(23)
   totalSlotMs = _messages.IntegerField(24)
-  undeclaredQueryParameters = _messages.MessageField('QueryParameter', 25, repeated=True)
+  undeclaredQueryParameters = _messages.MessageField(
+      'QueryParameter', 25, repeated=True)
 
 
 class JobStatistics3(_messages.Message):
@@ -3141,7 +3155,6 @@ class JsonObject(_messages.Message):
   Fields:
     additionalProperties: Additional properties of type JsonObject
   """
-
   class AdditionalProperty(_messages.Message):
     r"""An additional property for a JsonObject object.
 
@@ -3153,7 +3166,8 @@ class JsonObject(_messages.Message):
     key = _messages.StringField(1)
     value = _messages.MessageField('JsonValue', 2)
 
-  additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+  additionalProperties = _messages.MessageField(
+      'AdditionalProperty', 1, repeated=True)
 
 
 JsonValue = extra_types.JsonValue
@@ -3197,7 +3211,8 @@ class ListRowAccessPoliciesResponse(_messages.Message):
   """
 
   nextPageToken = _messages.StringField(1)
-  rowAccessPolicies = _messages.MessageField('RowAccessPolicy', 2, repeated=True)
+  rowAccessPolicies = _messages.MessageField(
+      'RowAccessPolicy', 2, repeated=True)
 
 
 class LocationMetadata(_messages.Message):
@@ -3284,7 +3299,6 @@ class Model(_messages.Message):
     trainingRuns: Output only. Information for all training runs in increasing
       order of start_time.
   """
-
   class ModelTypeValueValuesEnum(_messages.Enum):
     r"""Output only. Type of the model resource.
 
@@ -3332,7 +3346,6 @@ class Model(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -3344,7 +3357,8 @@ class Model(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   creationTime = _messages.IntegerField(1)
   description = _messages.StringField(2)
@@ -3381,7 +3395,6 @@ class ModelDefinition(_messages.Message):
       training runs for the model if warm start is used or if a user decides
       to continue a previously cancelled query.
   """
-
   class ModelOptionsValue(_messages.Message):
     r"""[Output-only, Beta] Model options used for the first training run.
     These options are immutable for subsequent training runs. Default values
@@ -3425,8 +3438,10 @@ class MultiClassClassificationMetrics(_messages.Message):
     confusionMatrixList: Confusion matrix at different thresholds.
   """
 
-  aggregateClassificationMetrics = _messages.MessageField('AggregateClassificationMetrics', 1)
-  confusionMatrixList = _messages.MessageField('ConfusionMatrix', 2, repeated=True)
+  aggregateClassificationMetrics = _messages.MessageField(
+      'AggregateClassificationMetrics', 1)
+  confusionMatrixList = _messages.MessageField(
+      'ConfusionMatrix', 2, repeated=True)
 
 
 class Policy(_messages.Message):
@@ -3514,7 +3529,6 @@ class ProjectList(_messages.Message):
     projects: Projects to which you have at least READ access.
     totalItems: The total number of projects in the list.
   """
-
   class ProjectsValueListEntry(_messages.Message):
     r"""A ProjectsValueListEntry object.
 
@@ -3578,7 +3592,6 @@ class QueryParameterType(_messages.Message):
       if this is a struct.
     type: [Required] The top level type of this field.
   """
-
   class StructTypesValueListEntry(_messages.Message):
     r"""A StructTypesValueListEntry object.
 
@@ -3593,7 +3606,8 @@ class QueryParameterType(_messages.Message):
     type = _messages.MessageField('QueryParameterType', 3)
 
   arrayType = _messages.MessageField('QueryParameterType', 1)
-  structTypes = _messages.MessageField('StructTypesValueListEntry', 2, repeated=True)
+  structTypes = _messages.MessageField(
+      'StructTypesValueListEntry', 2, repeated=True)
   type = _messages.StringField(3)
 
 
@@ -3610,7 +3624,6 @@ class QueryParameterValue(_messages.Message):
       type's declaration.
     value: [Optional] The value of this value, if a simple scalar type.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class StructValuesValue(_messages.Message):
     r"""[Optional] The struct field values, in order of the struct type's
@@ -3623,7 +3636,6 @@ class QueryParameterValue(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type StructValuesValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a StructValuesValue object.
 
@@ -3635,7 +3647,8 @@ class QueryParameterValue(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.MessageField('QueryParameterValue', 2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   arrayValues = _messages.MessageField('QueryParameterValue', 1, repeated=True)
   structValues = _messages.MessageField('StructValuesValue', 2)
@@ -3728,7 +3741,6 @@ class QueryRequest(_messages.Message):
       cache. The query cache is a best-effort cache that will be flushed
       whenever tables in the query are modified. The default value is true.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
     r"""The labels associated with this job. You can use these to organize and
@@ -3744,7 +3756,6 @@ class QueryRequest(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -3756,9 +3767,11 @@ class QueryRequest(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
-  connectionProperties = _messages.MessageField('ConnectionProperty', 1, repeated=True)
+  connectionProperties = _messages.MessageField(
+      'ConnectionProperty', 1, repeated=True)
   defaultDataset = _messages.MessageField('DatasetReference', 2)
   dryRun = _messages.BooleanField(3)
   kind = _messages.StringField(4, default='bigquery#queryRequest')
@@ -3859,7 +3872,6 @@ class RangePartitioning(_messages.Message):
     range: [TrustedTester] [Required] Defines the ranges for range
       partitioning.
   """
-
   class RangeValue(_messages.Message):
     r"""[TrustedTester] [Required] Defines the ranges for range partitioning.
 
@@ -3974,7 +3986,6 @@ class Routine(_messages.Message):
     routineReference: Required. Reference describing the ID of this routine.
     routineType: Required. The type of routine.
   """
-
   class DeterminismLevelValueValuesEnum(_messages.Enum):
     r"""Optional. [Experimental] The determinism level of the JavaScript UDF
     if defined.
@@ -4082,7 +4093,8 @@ class RowAccessPolicy(_messages.Message):
   etag = _messages.StringField(2)
   filterPredicate = _messages.StringField(3)
   lastModifiedTime = _messages.StringField(4)
-  rowAccessPolicyReference = _messages.MessageField('RowAccessPolicyReference', 5)
+  rowAccessPolicyReference = _messages.MessageField(
+      'RowAccessPolicyReference', 5)
 
 
 class RowAccessPolicyReference(_messages.Message):
@@ -4202,7 +4214,6 @@ class StandardQueryParameters(_messages.Message):
       requests.
     userIp: Deprecated. Please use quotaUser instead.
   """
-
   class AltValueValuesEnum(_messages.Enum):
     r"""Data format for the response.
 
@@ -4239,7 +4250,6 @@ class StandardSqlDataType(_messages.Message):
     typeKind: Required. The top level type of this field. Can be any standard
       SQL data type (e.g., "INT64", "DATE", "ARRAY").
   """
-
   class TypeKindValueValuesEnum(_messages.Enum):
     r"""Required. The top level type of this field. Can be any standard SQL
     data type (e.g., "INT64", "DATE", "ARRAY").
@@ -4414,7 +4424,6 @@ class Table(_messages.Message):
       is TABLE.
     view: [Optional] The view definition.
   """
-
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
     r"""The labels associated with this table. You can use these to organize
@@ -4430,7 +4439,6 @@ class Table(_messages.Message):
     Fields:
       additionalProperties: Additional properties of type LabelsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelsValue object.
 
@@ -4442,7 +4450,8 @@ class Table(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.StringField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   clustering = _messages.MessageField('Clustering', 1)
   creationTime = _messages.IntegerField(2)
@@ -4450,12 +4459,14 @@ class Table(_messages.Message):
   encryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 4)
   etag = _messages.StringField(5)
   expirationTime = _messages.IntegerField(6)
-  externalDataConfiguration = _messages.MessageField('ExternalDataConfiguration', 7)
+  externalDataConfiguration = _messages.MessageField(
+      'ExternalDataConfiguration', 7)
   friendlyName = _messages.StringField(8)
   id = _messages.StringField(9)
   kind = _messages.StringField(10, default='bigquery#table')
   labels = _messages.MessageField('LabelsValue', 11)
-  lastModifiedTime = _messages.IntegerField(12, variant=_messages.Variant.UINT64)
+  lastModifiedTime = _messages.IntegerField(
+      12, variant=_messages.Variant.UINT64)
   location = _messages.StringField(13)
   materializedView = _messages.MessageField('MaterializedViewDefinition', 14)
   model = _messages.MessageField('ModelDefinition', 15)
@@ -4507,7 +4518,6 @@ class TableDataInsertAllRequest(_messages.Message):
       https://cloud.google.com/bigquery/streaming-data-into-bigquery#template-
       tables for considerations when working with templates tables.
   """
-
   class RowsValueListEntry(_messages.Message):
     r"""A RowsValueListEntry object.
 
@@ -4539,7 +4549,6 @@ class TableDataInsertAllResponse(_messages.Message):
     insertErrors: An array of errors for rows that were not inserted.
     kind: The resource type of the response.
   """
-
   class InsertErrorsValueListEntry(_messages.Message):
     r"""A InsertErrorsValueListEntry object.
 
@@ -4551,7 +4560,8 @@ class TableDataInsertAllResponse(_messages.Message):
     errors = _messages.MessageField('ErrorProto', 1, repeated=True)
     index = _messages.IntegerField(2, variant=_messages.Variant.UINT32)
 
-  insertErrors = _messages.MessageField('InsertErrorsValueListEntry', 1, repeated=True)
+  insertErrors = _messages.MessageField(
+      'InsertErrorsValueListEntry', 1, repeated=True)
   kind = _messages.StringField(2, default='bigquery#tableDataInsertAllResponse')
 
 
@@ -4602,7 +4612,6 @@ class TableFieldSchema(_messages.Message):
       (where RECORD indicates that the field contains a nested schema) or
       STRUCT (same as RECORD).
   """
-
   class CategoriesValue(_messages.Message):
     r"""[Optional] The categories attached to this field, used for field-level
     access control.
@@ -4648,7 +4657,6 @@ class TableList(_messages.Message):
     tables: Tables in the requested dataset.
     totalItems: The total number of tables in the dataset.
   """
-
   class TablesValueListEntry(_messages.Message):
     r"""A TablesValueListEntry object.
 
@@ -4679,7 +4687,6 @@ class TableList(_messages.Message):
       type: The type of table. Possible values are: TABLE, VIEW.
       view: Additional details for a view.
     """
-
     @encoding.MapUnrecognizedFields('additionalProperties')
     class LabelsValue(_messages.Message):
       r"""The labels associated with this table. You can use these to organize
@@ -4691,7 +4698,6 @@ class TableList(_messages.Message):
       Fields:
         additionalProperties: Additional properties of type LabelsValue
       """
-
       class AdditionalProperty(_messages.Message):
         r"""An additional property for a LabelsValue object.
 
@@ -4703,7 +4709,8 @@ class TableList(_messages.Message):
         key = _messages.StringField(1)
         value = _messages.StringField(2)
 
-      additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+      additionalProperties = _messages.MessageField(
+          'AdditionalProperty', 1, repeated=True)
 
     class ViewValue(_messages.Message):
       r"""Additional details for a view.
@@ -4931,7 +4938,6 @@ class TrainingOptions(_messages.Message):
       type is specified.
     warmStart: Whether to train a model from the last checkpoint.
   """
-
   class DataFrequencyValueValuesEnum(_messages.Enum):
     r"""The data frequency of a time series.
 
@@ -5211,7 +5217,6 @@ class TrainingOptions(_messages.Message):
       additionalProperties: Additional properties of type
         LabelClassWeightsValue
     """
-
     class AdditionalProperty(_messages.Message):
       r"""An additional property for a LabelClassWeightsValue object.
 
@@ -5223,7 +5228,8 @@ class TrainingOptions(_messages.Message):
       key = _messages.StringField(1)
       value = _messages.FloatField(2)
 
-    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+    additionalProperties = _messages.MessageField(
+        'AdditionalProperty', 1, repeated=True)
 
   autoArima = _messages.BooleanField(1)
   autoArimaMaxOrder = _messages.IntegerField(2)
@@ -5244,12 +5250,14 @@ class TrainingOptions(_messages.Message):
   inputLabelColumns = _messages.StringField(17, repeated=True)
   itemColumn = _messages.StringField(18)
   kmeansInitializationColumn = _messages.StringField(19)
-  kmeansInitializationMethod = _messages.EnumField('KmeansInitializationMethodValueValuesEnum', 20)
+  kmeansInitializationMethod = _messages.EnumField(
+      'KmeansInitializationMethodValueValuesEnum', 20)
   l1Regularization = _messages.FloatField(21)
   l2Regularization = _messages.FloatField(22)
   labelClassWeights = _messages.MessageField('LabelClassWeightsValue', 23)
   learnRate = _messages.FloatField(24)
-  learnRateStrategy = _messages.EnumField('LearnRateStrategyValueValuesEnum', 25)
+  learnRateStrategy = _messages.EnumField(
+      'LearnRateStrategyValueValuesEnum', 25)
   lossType = _messages.EnumField('LossTypeValueValuesEnum', 26)
   maxIterations = _messages.IntegerField(27)
   maxTreeDepth = _messages.IntegerField(28)
@@ -5259,7 +5267,8 @@ class TrainingOptions(_messages.Message):
   nonSeasonalOrder = _messages.MessageField('ArimaOrder', 32)
   numClusters = _messages.IntegerField(33)
   numFactors = _messages.IntegerField(34)
-  optimizationStrategy = _messages.EnumField('OptimizationStrategyValueValuesEnum', 35)
+  optimizationStrategy = _messages.EnumField(
+      'OptimizationStrategyValueValuesEnum', 35)
   preserveInputStructs = _messages.BooleanField(36)
   subsample = _messages.FloatField(37)
   timeSeriesDataColumn = _messages.StringField(38)
@@ -5289,7 +5298,8 @@ class TrainingRun(_messages.Message):
 
   dataSplitResult = _messages.MessageField('DataSplitResult', 1)
   evaluationMetrics = _messages.MessageField('EvaluationMetrics', 2)
-  globalExplanations = _messages.MessageField('GlobalExplanation', 3, repeated=True)
+  globalExplanations = _messages.MessageField(
+      'GlobalExplanation', 3, repeated=True)
   results = _messages.MessageField('IterationResult', 4, repeated=True)
   startTime = _messages.StringField(5)
   trainingOptions = _messages.MessageField('TrainingOptions', 6)
@@ -5342,6 +5352,5 @@ class ViewDefinition(_messages.Message):
 
   query = _messages.StringField(1)
   useLegacySql = _messages.BooleanField(2)
-  userDefinedFunctionResources = _messages.MessageField('UserDefinedFunctionResource', 3, repeated=True)
-
-
+  userDefinedFunctionResources = _messages.MessageField(
+      'UserDefinedFunctionResource', 3, repeated=True)

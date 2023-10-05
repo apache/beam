@@ -30,6 +30,7 @@ May also be used to filter based on an inequality with a given value based
 on the natural ordering of the element.
 
 ## Examples
+
 **Example 1**: Filtering with a predicate
 
 {{< highlight java >}}
@@ -52,6 +53,12 @@ PCollection<Long> bigNumbers = numbers.apply(Filter.greaterThan(3));
 PCollection<Long> smallNumbers = numbers.apply(Filter.lessThanEq(3));
 {{< /highlight >}}
 Other variants include `Filter.greaterThanEq`, `Filter.lessThan` and `Filter.equal`.
+
+**Example 3**: Filtering with lambda
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Filter" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [FlatMapElements](/documentation/transforms/java/elementwise/flatmapelements) behaves the same as `Map`, but for

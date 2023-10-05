@@ -23,6 +23,7 @@ import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
 import '../../models/sdk.dart';
 import '../../util/pipeline_options.dart';
+import '../../util/run_with_retry.dart';
 import '../dataset_grpc_extension.dart';
 import '../models/check_status_response.dart';
 import '../models/output_response.dart';
@@ -91,6 +92,14 @@ class GrpcCodeClient implements CodeClient {
 
   @override
   Future<CheckStatusResponse> checkStatus(
+    String pipelineUuid,
+  ) async {
+    return runWithRetry(
+      () => _checkStatusWithRetry(pipelineUuid),
+    );
+  }
+
+  Future<CheckStatusResponse> _checkStatusWithRetry(
     String pipelineUuid,
   ) async {
     final response = await _runSafely(
@@ -204,10 +213,12 @@ class GrpcCodeClient implements CodeClient {
     try {
       return await invoke();
     } on GrpcError catch (error) {
-      // Internet unavailable issue also returns unknown code error, 
-      // so message was overwritten.
-      if (error.code == StatusCode.unknown) {
-        throw RunCodeError(message: 'errors.unknownError'.tr());
+      switch (error.code) {
+        case StatusCode.unknown:
+          // The default can be misleading for this.
+          throw RunCodeError(message: 'errors.unknownError'.tr());
+        case StatusCode.resourceExhausted:
+          throw RunCodeResourceExhaustedError(message: error.message);
       }
       throw RunCodeError(message: error.message);
     } on Exception catch (_) {
@@ -250,6 +261,7 @@ class GrpcCodeClient implements CodeClient {
       case grpc.Status.STATUS_EXECUTING:
         return RunCodeStatus.executing;
       case grpc.Status.STATUS_CANCELED:
+        return RunCodeStatus.cancelled;
       case grpc.Status.STATUS_FINISHED:
         return RunCodeStatus.finished;
       case grpc.Status.STATUS_COMPILE_ERROR:

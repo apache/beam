@@ -19,8 +19,6 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -28,7 +26,6 @@ import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.values.Row;
 
 /** A set of {@link LogicalType} classes to represent protocol buffer types. */
-@Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

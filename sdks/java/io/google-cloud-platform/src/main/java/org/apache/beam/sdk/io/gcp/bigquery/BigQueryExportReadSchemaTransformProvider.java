@@ -21,21 +21,18 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
@@ -49,7 +46,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryExportReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryExportReadSchemaTransformConfiguration> {
@@ -98,33 +94,13 @@ public class BigQueryExportReadSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQueryExportReadSchemaTransformConfiguration}.
    */
-  private static class BigQueryExportSchemaTransform implements SchemaTransform {
-    private final BigQueryExportReadSchemaTransformConfiguration configuration;
-
-    BigQueryExportSchemaTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  /**
-   * An implementation of {@link PTransform} for BigQuery read jobs configured using {@link
-   * BigQueryExportReadSchemaTransformConfiguration}.
-   */
-  static class PCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final BigQueryExportReadSchemaTransformConfiguration configuration;
-
+  protected static class BigQueryExportSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
+    private final BigQueryExportReadSchemaTransformConfiguration configuration;
+
+    BigQueryExportSchemaTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

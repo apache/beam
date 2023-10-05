@@ -17,6 +17,20 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
+
+# beam-playground:
+#   name: KvSwap
+#   description: Demonstration of KvSwap transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 40
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - pairs
 
 
 def kvswap(test=None):
@@ -38,3 +52,7 @@ def kvswap(test=None):
     # [END kvswap]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  kvswap()

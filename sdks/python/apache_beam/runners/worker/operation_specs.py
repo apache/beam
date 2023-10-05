@@ -27,8 +27,6 @@ import collections
 
 from apache_beam import coders
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 
 def build_worker_instruction(*args):
   """Create an object representing a ParallelInstruction protobuf.

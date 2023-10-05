@@ -59,9 +59,10 @@ Run Portable_Python PreCommit
 Run PostCommit_Java_Dataflow
 Run PostCommit_Java_DataflowV2
 Run PostCommit_Java_Hadoop_Versions
-Run Python 3.7 PostCommit
 Run Python 3.8 PostCommit
 Run Python 3.9 PostCommit
+Run Python 3.10 PostCommit
+Run Python 3.11 PostCommit
 Run Python Dataflow V2 ValidatesRunner
 Run Python Dataflow ValidatesContainer
 Run Python Dataflow ValidatesRunner

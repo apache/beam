@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 
 /**
  * {@link AutoService} registrar for the {@link S3FileSystem}.
@@ -39,7 +37,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
  * S3FileSystemSchemeRegistrar}.
  */
 @AutoService(FileSystemRegistrar.class)
-@Experimental(Kind.FILESYSTEM)
 public class S3FileSystemRegistrar implements FileSystemRegistrar {
 
   @Override

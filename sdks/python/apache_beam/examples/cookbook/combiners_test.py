@@ -25,18 +25,6 @@ checked directly on the last PCollection produced.
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: CombinersTest
-#   description: Unit-test to showcase combiners.
-#   multifile: false
-#   context_line: 47
-#   categories:
-#     - Combiners
-#   complexity: MEDIUM
-#   tags:
-#     - combine
-#     - test
-
 import logging
 import unittest
 

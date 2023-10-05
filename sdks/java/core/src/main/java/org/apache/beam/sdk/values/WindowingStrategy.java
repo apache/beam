@@ -19,8 +19,6 @@ package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -31,8 +29,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.Window.OnTimeBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -48,17 +46,11 @@ import org.joda.time.Duration;
 @Internal
 public class WindowingStrategy<T, W extends BoundedWindow> implements Serializable {
 
-  /**
-   * The accumulation modes that can be used with windowing.
-   *
-   * <p>Experimental {@link AccumulationMode.RETRACTING_FIRED_PANES} for enabling retractions in
-   * pipelines. There is no backwards-compatibility guarantees.
-   */
+  /** The accumulation modes that can be used with windowing. */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
     ACCUMULATING_FIRED_PANES,
-    // RETRACTING_FIRED_PANES is experimental. There is no backwards-compatibility guarantees.
-    @Experimental
+    // RETRACTING_FIRED_PANES has unclear and incomplete semantics and should not be used.
     RETRACTING_FIRED_PANES,
   }
 
@@ -307,7 +299,6 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         alreadyMerged);
   }
 
-  @Experimental(Kind.OUTPUT_TIME)
   public WindowingStrategy<T, W> withTimestampCombiner(TimestampCombiner timestampCombiner) {
 
     return new WindowingStrategy<>(

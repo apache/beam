@@ -38,6 +38,7 @@ package integration
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -68,6 +69,8 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
+	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
@@ -113,6 +116,8 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
+	"TestSpannerIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The portable runner does not support pipeline drain for SDF.
@@ -134,12 +139,47 @@ var portableFilters = []string{
 	"TestSetStateClear",
 }
 
+var prismFilters = []string{
+	// The prism runner does not yet support Java's CoGBK.
+	"TestXLang_CoGroupBy",
+	// The prism runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger and pane tests uses TestStream
+	"TestTrigger.*",
+	"TestPanes",
+
+	// TODO(https://github.com/apache/beam/issues/21058): Xlang ios don't yet work on prism.
+	"TestKafkaIO.*",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
+	// The prism runner does not support pipeline drain for SDF.
+	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
+	// The prism runner does not support user state.
+	"TestValueState",
+	"TestValueStateWindowed",
+	"TestValueStateClear",
+	"TestBagState",
+	"TestBagStateClear",
+	"TestCombiningState",
+	"TestMapState",
+	"TestMapStateClear",
+	"TestSetState",
+	"TestSetStateClear",
+}
+
 var flinkFilters = []string{
 	// TODO(https://github.com/apache/beam/issues/20723): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
+	"TestSpannerIO.*",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
@@ -168,6 +208,8 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
+	"TestSpannerIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The samza runner does not support pipeline drain for SDF.
@@ -205,6 +247,8 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
+	"TestSpannerIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
 	// The spark runner does not support pipeline drain for SDF.
@@ -235,6 +279,7 @@ var dataflowFilters = []string{
 	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	"TestSpannerIO.*",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
@@ -243,6 +288,8 @@ var dataflowFilters = []string{
 	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
+	// Can't handle the test spanner container or access a local spanner.
+	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
 }
@@ -255,6 +302,12 @@ var dataflowFilters = []string{
 func CheckFilters(t *testing.T) {
 	if !ptest.MainCalled() {
 		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
+	}
+
+	// TODO(https://github.com/apache/beam/issues/28227): Grant github-actions service account permission to healthcare.fhirStores.create.
+	var user = os.Getenv("USER")
+	if user == "github-actions" {
+		dataflowFilters = append(dataflowFilters, "TestFhirIO.*")
 	}
 
 	// Check for sickbaying first.
@@ -274,7 +327,6 @@ func CheckFilters(t *testing.T) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
-
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner
@@ -284,6 +336,8 @@ func CheckFilters(t *testing.T) {
 	switch runner {
 	case "direct", "DirectRunner":
 		filters = directFilters
+	case "prism", "PrismRunner":
+		filters = prismFilters
 	case "portable", "PortableRunner":
 		filters = portableFilters
 	case "flink", "FlinkRunner":

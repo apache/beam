@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.doPartitionsOverlap;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getIntersectingPartition;
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingAndOverlappingPartitionsFromKeySpace;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingPartitionsFrom;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getMissingPartitionsFromEntireKeySpace;
+import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.getOverlappingPartitions;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.isValidPartition;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.partitionsToString;
 import static org.junit.Assert.assertEquals;
@@ -29,6 +31,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
+import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,24 +44,13 @@ import org.junit.runners.JUnit4;
 public class ByteStringRangeHelperTest {
 
   @Test
-  public void testParentIsEntireKeySpaceIsSuperSet() {
-    List<ByteStringRange> parentPartitions = new ArrayList<>();
-    ByteStringRange partition = ByteStringRange.create("", "");
-    parentPartitions.add(partition);
-
-    ByteStringRange childPartition = ByteStringRange.create("A", "B");
-
-    assertTrue(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
-  }
-
-  @Test
   public void testChildIsEntireKeySpaceParentIsLeftSubSet() {
     List<ByteStringRange> parentPartitions = new ArrayList<>();
     ByteStringRange partition = ByteStringRange.create("", "n");
     parentPartitions.add(partition);
 
     ByteStringRange childPartition = ByteStringRange.create("", "");
-    assertFalse(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
@@ -68,11 +60,11 @@ public class ByteStringRangeHelperTest {
     parentPartitions.add(partition);
 
     ByteStringRange childPartition = ByteStringRange.create("", "");
-    assertFalse(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testChildIsEntireKeySpaceParentIsSuperSet() {
+  public void testChildIsEntireKeySpaceParentCoverKeySpace() {
     List<ByteStringRange> parentPartitions = new ArrayList<>();
     ByteStringRange partition1 = ByteStringRange.create("", "n");
     ByteStringRange partition2 = ByteStringRange.create("n", "");
@@ -80,81 +72,81 @@ public class ByteStringRangeHelperTest {
     parentPartitions.add(partition2);
 
     ByteStringRange childPartition = ByteStringRange.create("", "");
-    assertTrue(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertTrue(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testParentKeySpaceStartsBeforeAndEndAfterChildIsSuperSet() {
+  public void testParentKeySpaceStartsBeforeAndEndAfterChildDoesNotCoverKeySpace() {
     List<ByteStringRange> parentPartitions = new ArrayList<>();
     ByteStringRange partition = ByteStringRange.create("A", "B");
     parentPartitions.add(partition);
 
     ByteStringRange childPartition = ByteStringRange.create("AA", "AB");
 
-    assertTrue(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testParentStartKeyIsAfterChildStartKeyIsNotSuperSet() {
+  public void testParentStartKeyIsAfterChildStartKeyDoesNotCoverKeySpace() {
     List<ByteStringRange> parentPartitions = new ArrayList<>();
     ByteStringRange partition = ByteStringRange.create("AA", "B");
     parentPartitions.add(partition);
 
     ByteStringRange childPartition = ByteStringRange.create("A", "AB");
 
-    assertFalse(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testParentEndKeyIsBeforeChildEndKeyIsNotSuperSet() {
+  public void testParentEndKeyIsBeforeChildEndKeyDoesNotCoverKeySpace() {
     List<ByteStringRange> parentPartitions = new ArrayList<>();
     ByteStringRange partition = ByteStringRange.create("A", "B");
     parentPartitions.add(partition);
 
     ByteStringRange childPartition = ByteStringRange.create("AA", "BA");
 
-    assertFalse(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testParentIsSameAsChildIsSuperSet() {
+  public void testParentIsSameAsChildCoverKeySpace() {
     List<ByteStringRange> parentPartitions = new ArrayList<>();
     ByteStringRange partition = ByteStringRange.create("A", "B");
     parentPartitions.add(partition);
 
     ByteStringRange childPartition = ByteStringRange.create("A", "B");
 
-    assertTrue(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertTrue(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testParentIsMissingPartitionIsNotSuperSet() {
+  public void testParentIsMissingPartitionDoesNotCoverKeySpace() {
     ByteStringRange partition1 = ByteStringRange.create("A", "B");
     ByteStringRange partition2 = ByteStringRange.create("C", "Z");
     List<ByteStringRange> parentPartitions = Arrays.asList(partition1, partition2);
 
     ByteStringRange childPartition = ByteStringRange.create("A", "Z");
 
-    assertFalse(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testParentHasOverlapIsSuperSet() {
+  public void testParentHasOverlapDoesNotCoverKeySpace() {
     ByteStringRange partition1 = ByteStringRange.create("A", "C");
     ByteStringRange partition2 = ByteStringRange.create("B", "Z");
     List<ByteStringRange> parentPartitions = Arrays.asList(partition1, partition2);
 
     ByteStringRange childPartition = ByteStringRange.create("A", "Z");
 
-    assertTrue(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
-  public void testEmptyParentsIsNotSuperset() {
+  public void testEmptyParentsDoesNotCoverKeySpace() {
     List<ByteStringRange> parentPartitions = Collections.emptyList();
     ByteStringRange childPartition = ByteStringRange.create("", "");
 
-    assertFalse(ByteStringRangeHelper.isSuperset(parentPartitions, childPartition));
+    assertFalse(ByteStringRangeHelper.coverSameKeySpace(parentPartitions, childPartition));
   }
 
   @Test
@@ -181,81 +173,144 @@ public class ByteStringRangeHelperTest {
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceEmptyPartition() {
+  public void testGetMissingPartitionsEmptyPartition() {
     List<ByteStringRange> partitions = new ArrayList<>();
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(
-        Collections.singletonList(ByteStringRange.create("", "")), missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("A"), ByteString.copyFromUtf8("B"));
+    assertEquals(Collections.singletonList(ByteStringRange.create("A", "B")), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceSinglePartition() {
+  public void testGetMissingPartitionFromPartitions() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(ByteStringRange.create("A", "B"), ByteStringRange.create("C", "D"));
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("A"), ByteString.copyFromUtf8("D"));
+    assertEquals(Collections.singletonList(ByteStringRange.create("B", "C")), missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromOverlappingStart() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(ByteStringRange.create("A", "C"), ByteStringRange.create("E", "F"));
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("B"), ByteString.copyFromUtf8("G"));
+    assertEquals(
+        Arrays.asList(ByteStringRange.create("C", "E"), ByteStringRange.create("F", "G")),
+        missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromOverlappingEnd() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(ByteStringRange.create("A", "C"), ByteStringRange.create("E", "G"));
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("A"), ByteString.copyFromUtf8("F"));
+    assertEquals(Collections.singletonList(ByteStringRange.create("C", "E")), missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromOverlappingPartitions() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(ByteStringRange.create("A", "C"), ByteStringRange.create("B", "G"));
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("A"), ByteString.copyFromUtf8("F"));
+    assertEquals(Collections.emptyList(), missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromPartitionsOutsideRange() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(ByteStringRange.create("A", "B"), ByteStringRange.create("C", "D"));
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("G"), ByteString.copyFromUtf8("H"));
+    assertEquals(Collections.singletonList(ByteStringRange.create("G", "H")), missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromPartitionsPartiallyOutsideRange() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(ByteStringRange.create("A", "B"), ByteStringRange.create("D", "E"));
+    List<ByteStringRange> missingPartitions =
+        getMissingPartitionsFrom(
+            partitions, ByteString.copyFromUtf8("C"), ByteString.copyFromUtf8("H"));
+    assertEquals(
+        Arrays.asList(ByteStringRange.create("C", "D"), ByteStringRange.create("E", "H")),
+        missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromKeySpaceEmptyPartition() {
+    List<ByteStringRange> partitions = new ArrayList<>();
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.singletonList(ByteStringRange.create("", "")), missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromKeySpaceSinglePartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "");
     List<ByteStringRange> partitions = Collections.singletonList(partition1);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(Collections.emptyList(), missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.emptyList(), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceNoMissingPartition() {
+  public void testGetMissingPartitionsFromKeySpaceNoMissingPartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "A");
     ByteStringRange partition2 = ByteStringRange.create("A", "B");
     ByteStringRange partition3 = ByteStringRange.create("B", "");
     List<ByteStringRange> partitions = Arrays.asList(partition1, partition2, partition3);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(Collections.emptyList(), missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.emptyList(), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceMissingStartPartition() {
+  public void testGetMissingPartitionsFromKeySpaceMissingStartPartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "A");
     ByteStringRange partition2 = ByteStringRange.create("A", "B");
     ByteStringRange partition3 = ByteStringRange.create("B", "");
     List<ByteStringRange> partitions = Arrays.asList(partition2, partition3);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(Collections.singletonList(partition1), missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.singletonList(partition1), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceMissingEndPartition() {
+  public void testGetMissingPartitionsFromKeySpaceMissingEndPartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "A");
     ByteStringRange partition2 = ByteStringRange.create("A", "B");
     ByteStringRange partition3 = ByteStringRange.create("B", "");
     List<ByteStringRange> partitions = Arrays.asList(partition1, partition2);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(Collections.singletonList(partition3), missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.singletonList(partition3), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceMissingMiddlePartition() {
+  public void testGetMissingPartitionsFromKeySpaceMissingMiddlePartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "A");
     ByteStringRange partition2 = ByteStringRange.create("A", "B");
     ByteStringRange partition3 = ByteStringRange.create("B", "");
     List<ByteStringRange> partitions = Arrays.asList(partition1, partition3);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(Collections.singletonList(partition2), missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.singletonList(partition2), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceOverlapPartition() {
+  public void testGetMissingPartitionsFromKeySpaceOverlapPartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "B");
     ByteStringRange partition2 = ByteStringRange.create("A", "");
     List<ByteStringRange> partitions = Arrays.asList(partition1, partition2);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(
-        Collections.singletonList(ByteStringRange.create("B", "A")),
-        missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.emptyList(), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionFromKeySpaceOverlapAndMissingPartition() {
+  public void testGetMissingPartitionsFromKeySpaceOverlapAndMissingPartition() {
     ByteStringRange partition1 = ByteStringRange.create("", "B");
     ByteStringRange partition2 = ByteStringRange.create("C", "D");
     ByteStringRange partition3 = ByteStringRange.create("A", "C");
@@ -263,25 +318,88 @@ public class ByteStringRangeHelperTest {
     ByteStringRange partition5 = ByteStringRange.create("C", "E");
     List<ByteStringRange> partitions =
         Arrays.asList(partition1, partition2, partition3, partition4, partition5);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(
-        Arrays.asList(ByteStringRange.create("B", "A"), ByteStringRange.create("D", "C")),
-        missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.emptyList(), missingPartitions);
   }
 
   @Test
-  public void testGetMissingAndOverlappingPartitionsFromKeySpaceOverlapWithOpenEndKey() {
+  public void testGetMissingPartitionsFromKeySpaceOverlapWithOpenEndKey() {
     ByteStringRange fullKeySpace = ByteStringRange.create("", "");
     ByteStringRange partialKeySpace = ByteStringRange.create("n", "");
     List<ByteStringRange> partitions = Arrays.asList(fullKeySpace, partialKeySpace);
-    // TODO come up with a better way to differentiate missing with start key "" and overlapping
-    // with end key ""
-    ByteStringRange overlappingPartition = ByteStringRange.create("", "n");
-    List<ByteStringRange> expectedOverlapping = Collections.singletonList(overlappingPartition);
-    List<ByteStringRange> missingAndOverlappingPartitions =
-        getMissingAndOverlappingPartitionsFromKeySpace(partitions);
-    assertEquals(expectedOverlapping, missingAndOverlappingPartitions);
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.emptyList(), missingPartitions);
+  }
+
+  @Test
+  public void testGetMissingPartitionsFromEntireKeySpaceWithOverlappingPartitions() {
+    List<ByteStringRange> partitions =
+        Arrays.asList(
+            ByteStringRange.create("", "A"),
+            ByteStringRange.create("B", "C"),
+            ByteStringRange.create("A", "D"),
+            ByteStringRange.create("D", ""));
+    List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
+    assertEquals(Collections.emptyList(), missingPartitions);
+  }
+
+  @Test
+  public void testGetOverlappingPartitionsFromKeySpaceEmptyPartition() {
+    List<ByteStringRange> partitions = new ArrayList<>();
+    List<ByteStringRange> overlappingPartitions = getOverlappingPartitions(partitions);
+    assertEquals(Collections.emptyList(), overlappingPartitions);
+  }
+
+  @Test
+  public void testGetOverlappingPartitionsSinglePartition() {
+    ByteStringRange partition1 = ByteStringRange.create("", "");
+    List<ByteStringRange> partitions = Collections.singletonList(partition1);
+    List<ByteStringRange> overlappingPartitions = getOverlappingPartitions(partitions);
+    assertEquals(Collections.emptyList(), overlappingPartitions);
+  }
+
+  @Test
+  public void testGetOverlappingPartitionsNoMissingPartition() {
+    ByteStringRange partition1 = ByteStringRange.create("", "A");
+    ByteStringRange partition2 = ByteStringRange.create("A", "B");
+    ByteStringRange partition3 = ByteStringRange.create("B", "");
+    List<ByteStringRange> partitions = Arrays.asList(partition1, partition2, partition3);
+    List<ByteStringRange> overlappingPartitions = getOverlappingPartitions(partitions);
+    assertEquals(Collections.emptyList(), overlappingPartitions);
+  }
+
+  @Test
+  public void testGetOverlappingPartitionsOverlapPartition() {
+    ByteStringRange partition1 = ByteStringRange.create("", "B");
+    ByteStringRange partition2 = ByteStringRange.create("A", "");
+    List<ByteStringRange> partitions = Arrays.asList(partition1, partition2);
+    List<ByteStringRange> overlappingPartitions = getOverlappingPartitions(partitions);
+    assertEquals(
+        Collections.singletonList(ByteStringRange.create("A", "B")), overlappingPartitions);
+  }
+
+  @Test
+  public void testGetOverlappingPartitionsOverlapAndMissingPartition() {
+    ByteStringRange partition1 = ByteStringRange.create("", "B");
+    ByteStringRange partition2 = ByteStringRange.create("C", "D");
+    ByteStringRange partition3 = ByteStringRange.create("A", "C");
+    ByteStringRange partition4 = ByteStringRange.create("E", "");
+    ByteStringRange partition5 = ByteStringRange.create("C", "E");
+    List<ByteStringRange> partitions =
+        Arrays.asList(partition1, partition2, partition3, partition4, partition5);
+    List<ByteStringRange> overlappingPartitions = getOverlappingPartitions(partitions);
+    assertEquals(
+        Arrays.asList(ByteStringRange.create("A", "B"), ByteStringRange.create("C", "D")),
+        overlappingPartitions);
+  }
+
+  @Test
+  public void testGetOverlappingPartitions() {
+    ByteStringRange fullKeySpace = ByteStringRange.create("", "");
+    ByteStringRange partialKeySpace = ByteStringRange.create("n", "");
+    List<ByteStringRange> partitions = Arrays.asList(fullKeySpace, partialKeySpace);
+    List<ByteStringRange> overlappingPartitions = getOverlappingPartitions(partitions);
+    assertEquals(Collections.singletonList(ByteStringRange.create("n", "")), overlappingPartitions);
   }
 
   @Test

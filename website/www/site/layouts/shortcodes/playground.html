@@ -77,13 +77,10 @@ See playground_snippet for all supported options.
 
     {{ $snippets := printf "%s%s%s" "[" (delimit $snippetsList ",") "]" }}
     {{ $editable := 1 }}{{ if isset .Params "editable" }}{{ $editable = index .Params "editable" }}{{ end }}
-    <div class="code-snippet code-snippet-playground">
-        <iframe
-            src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
-            width="100%"
-            height="{{ .Get "height" }}"
-            class="playground"
-            allow="clipboard-write"
-        ></iframe>
-    </div>
+    <div
+        class="code-snippet code-snippet-playground"
+        data-src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
+        data-width="100%"
+        data-height="{{ .Get "height" }}"
+    ></div>
 </div>

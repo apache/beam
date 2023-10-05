@@ -24,11 +24,11 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeResolver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.Invokable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.Parameter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeResolver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

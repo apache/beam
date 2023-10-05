@@ -15,10 +15,7 @@
 # limitations under the License.
 #
 
-"""User-facing interfaces for the Beam State and Timer APIs.
-
-Experimental; no backwards-compatibility guarantees.
-"""
+"""User-facing interfaces for the Beam State and Timer APIs."""
 
 # pytype: skip-file
 # mypy: disallow-untyped-defs

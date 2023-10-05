@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.schemas.io.payloads;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 public final class PayloadSerializers {
   private PayloadSerializers() {}
 

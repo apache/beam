@@ -22,9 +22,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.Range;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -40,7 +42,8 @@ public class ReadChangeStreamPartitionProgressTrackerTest {
     ChangeStreamContinuationToken changeStreamContinuationToken =
         ChangeStreamContinuationToken.create(Range.ByteStringRange.create("a", "b"), "1234");
     final StreamProgress streamProgress2 =
-        new StreamProgress(changeStreamContinuationToken, Instant.now());
+        new StreamProgress(
+            changeStreamContinuationToken, Instant.now(), BigDecimal.ONE, Instant.now(), false);
     assertTrue(tracker.tryClaim(streamProgress2));
     assertEquals(streamProgress2, tracker.currentRestriction());
     assertEquals(
@@ -54,7 +57,7 @@ public class ReadChangeStreamPartitionProgressTrackerTest {
         tracker.currentRestriction().getEstimatedLowWatermark());
     try {
       tracker.checkDone();
-      assertFalse("Should not reach here because checkDone should have thrown an exception", false);
+      fail("Should not reach here because checkDone should have thrown an exception");
     } catch (IllegalStateException e) {
       assertTrue("There's more work to be done. CheckDone threw an exception", true);
     }
@@ -98,6 +101,6 @@ public class ReadChangeStreamPartitionProgressTrackerTest {
     streamProgress.setFailToLock(false);
     ReadChangeStreamPartitionProgressTracker tracker =
         new ReadChangeStreamPartitionProgressTracker(streamProgress);
-    assertThrows(java.lang.IllegalStateException.class, tracker::checkDone);
+    assertThrows(IllegalStateException.class, tracker::checkDone);
   }
 }

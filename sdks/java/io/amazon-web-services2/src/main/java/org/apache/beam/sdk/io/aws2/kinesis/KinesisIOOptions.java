@@ -37,16 +37,14 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * PipelineOptions for {@link KinesisIO}.
@@ -75,7 +73,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * org.apache.beam.sdk.io.UnboundedSource#createReader(PipelineOptions,
  * UnboundedSource.CheckpointMark)}, which is essential for seamless EFO switch on / off.
  */
-@Experimental(Kind.SOURCE_SINK)
 public interface KinesisIOOptions extends PipelineOptions {
   /**
    * Used to enable / disable EFO.

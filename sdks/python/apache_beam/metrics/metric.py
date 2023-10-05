@@ -229,8 +229,6 @@ class MetricResults(object):
 class MetricsFilter(object):
   """Simple object to filter metrics results.
 
-  This class is experimental. No backwards-compatibility guarantees.
-
   If filters by matching a result's step-namespace-name with three internal
   sets. No execution/matching logic is added to this object, so that it may
   be used to construct arguments as an RPC request. It is left for runners

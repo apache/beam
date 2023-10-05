@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.io.Providers.Identifyable;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -27,7 +25,6 @@ import org.apache.beam.sdk.values.PDone;
 
 /** A Provider for generic DLQ transforms that handle deserialization failures. */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface GenericDlqProvider extends Identifyable {
   /** Generate a DLQ output from the provided config value. */
   PTransform<PCollection<Failure>, PDone> newDlqTransform(String config);

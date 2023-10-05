@@ -119,18 +119,30 @@ public class SpannerAccessor implements AutoCloseable {
     if (spannerConfig.getDataBoostEnabled() != null && spannerConfig.getDataBoostEnabled().get()) {
       retryableCodes.add(Code.RESOURCE_EXHAUSTED);
     }
+    // Add default retryable codes for unary methods
+    Set<Code> unaryMethodRetryableCodes = new HashSet<>(retryableCodes);
+    unaryMethodRetryableCodes.addAll(
+        builder.getSpannerStubSettingsBuilder().getSessionSettings().getRetryableCodes());
     // Set retryable codes for all API methods
     builder
         .getSpannerStubSettingsBuilder()
         .applyToAllUnaryMethods(
             input -> {
-              input.setRetryableCodes(retryableCodes);
+              input.setRetryableCodes(unaryMethodRetryableCodes);
               return null;
             });
+    // Add default retryable codes for streaming methods
+    Set<Code> streamingMethodRetryableCodes = new HashSet<>(retryableCodes);
+    streamingMethodRetryableCodes.addAll(
+        builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings().getRetryableCodes());
     builder
         .getSpannerStubSettingsBuilder()
         .executeStreamingSqlSettings()
-        .setRetryableCodes(retryableCodes);
+        .setRetryableCodes(streamingMethodRetryableCodes);
+    builder
+        .getSpannerStubSettingsBuilder()
+        .streamingReadSettings()
+        .setRetryableCodes(streamingMethodRetryableCodes);
 
     // Set commit retry settings
     UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =

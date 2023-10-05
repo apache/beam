@@ -43,7 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -158,8 +158,7 @@ public class DebeziumIOMySqlConnectorIT {
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
-                            .build())
-                    .buildTransform())
+                            .build()))
             .get("output");
 
     PAssert.that(result)

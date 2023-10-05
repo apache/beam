@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -25,7 +26,9 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import partition
+from . import partition_function
+from . import partition_lambda
+from . import partition_multiple_arguments
 
 
 def check_partitions(actual1, actual2, actual3):
@@ -79,17 +82,24 @@ train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.elementwise.partition.print',
+    'apache_beam.examples.snippets.transforms.elementwise.partition_function.print',
+    lambda elem: elem)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.partition_lambda.print',
+    lambda elem: elem)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.elementwise.partition_multiple_arguments.print',
     lambda elem: elem)
 class PartitionTest(unittest.TestCase):
   def test_partition_function(self):
-    partition.partition_function(check_partitions)
+    partition_function.partition_function(check_partitions)
 
   def test_partition_lambda(self):
-    partition.partition_lambda(check_partitions)
+    partition_lambda.partition_lambda(check_partitions)
 
   def test_partition_multiple_arguments(self):
-    partition.partition_multiple_arguments(check_split_datasets)
+    partition_multiple_arguments.partition_multiple_arguments(
+        check_split_datasets)
 
 
 if __name__ == '__main__':

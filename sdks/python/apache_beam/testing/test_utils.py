@@ -26,7 +26,10 @@ import hashlib
 import importlib
 import os
 import shutil
+import struct
 import tempfile
+
+import numpy as np
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import retry
@@ -223,3 +226,67 @@ def read_files_from_pattern(file_pattern):
     with FileSystems.open(metadata.path) as f:
       output.append(f.read().decode('utf-8').strip())
   return '\n'.join(output)
+
+
+class LCGenerator:
+  """A pure Python implementation of linear congruential generator."""
+  def __init__(self, a=0x5DEECE66D, c=0xB, bits=48):
+    self._a = a
+    self._c = c
+    self._bits = bits
+    self._mask = (1 << self._bits) - 1
+    self.seed(0)
+
+  def seed(self, seed):
+    """Set the seed for the generator."""
+
+    # This implementation is made different than the JDK equivalent
+    # self._seed = (seed ^ self._a) & self._mask
+    # to avoid that close seed gives close first pseudo random number.
+    self._seed = (seed * self._a + self._c) & self._mask
+
+  def seed_jdk(self, seed):
+    """
+    Set the seed in the way equivalent to java.util.Random.seed.
+
+    This method provide a JDK equivalent random generator. Note that the JDK
+    implementation has a known issue that is close seed generating close first
+    pseudo-random number.
+    """
+    self._seed = (seed ^ self._a) & self._mask
+
+  def next_int(self):
+    """
+    Get the next integer value in the range of np.int32 ([0, 2^31-1]).
+
+    Equivalent to java.util.Random.nextInt.
+    """
+    self.seed(self._seed)
+    return np.int32(np.int64(self._seed) >> (self._bits - 32))
+
+  def next_uint(self):
+    """
+    Get the next unsigned integer value in the range of np.uint32.
+
+    Equivalent to java.util.Random.next(32).
+    """
+    self.seed(self._seed)
+    return self._seed >> (self._bits - 32)
+
+  def rand_bytes(self, length):
+    """
+    Get random bytes of given length.
+
+    Equivalent to java.util.Random.nextBytes.
+    """
+    ints = (length + 3) // 4
+    return struct.pack("<%iI" % ints,
+                       *(self.next_uint() for _ in range(ints)))[:length]
+
+  def random_sample(self):
+    """
+    Get random sample between [0.0, 1.0), single precision float value.
+
+    Equivalent to java.util.Random.nextFloat.
+    """
+    return float(self.next_uint() >> 8) / (1 << 24)

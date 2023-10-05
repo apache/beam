@@ -33,7 +33,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
@@ -106,7 +105,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * not. On decoding, we set all non-{@code null} beam row values to the corresponding thrift fields,
  * leaving the rest unset.
  */
-@Experimental(Experimental.Kind.SCHEMAS)
 public final class ThriftSchema extends GetterBasedSchemaProvider {
   private static final ThriftSchema defaultProvider = new ThriftSchema(Collections.emptyMap());
 

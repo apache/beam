@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.io.aws2.kinesis.TimeUtil.minTimestamp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

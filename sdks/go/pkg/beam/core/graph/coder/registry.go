@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	coderRegistry     = make(map[uintptr]func(reflect.Type) *CustomCoder)
+	coderRegistry     = make(map[reflect.Type]func(reflect.Type) *CustomCoder)
 	interfaceOrdering []reflect.Type
 )
 
@@ -43,8 +43,6 @@ var (
 //
 // Repeated registrations of the same type overrides prior ones.
 func RegisterCoder(t reflect.Type, enc, dec any) {
-	key := tkey(t)
-
 	if _, err := NewCustomCoder(t.String(), t, enc, dec); err != nil {
 		panic(errors.Wrapf(err, "RegisterCoder failed for type %v", t))
 	}
@@ -52,11 +50,10 @@ func RegisterCoder(t reflect.Type, enc, dec any) {
 	if t.Kind() == reflect.Interface {
 		// If it's already in the registry, then it's already in the list
 		// and should be removed.
-		if _, ok := coderRegistry[key]; ok {
+		if _, ok := coderRegistry[t]; ok {
 			var index int
 			for i, iT := range interfaceOrdering {
-				iKey := tkey(iT)
-				if iKey == key {
+				if iT == t {
 					index = i
 					break
 				}
@@ -67,7 +64,7 @@ func RegisterCoder(t reflect.Type, enc, dec any) {
 		interfaceOrdering = append(interfaceOrdering, t)
 	}
 	name := t.String() // Use the real type names for coders.
-	coderRegistry[key] = func(rt reflect.Type) *CustomCoder {
+	coderRegistry[t] = func(rt reflect.Type) *CustomCoder {
 		// We need to provide the concrete type, so that coders that use
 		// the reflect.Type have the proper instance.
 		cc, err := NewCustomCoder(name, rt, enc, dec)
@@ -83,21 +80,14 @@ func RegisterCoder(t reflect.Type, enc, dec any) {
 // first checking for a specific matching type, and then iterating
 // through registered interface coders in reverse registration order.
 func LookupCustomCoder(t reflect.Type) *CustomCoder {
-	key := tkey(t)
-	if maker, ok := coderRegistry[key]; ok {
+	if maker, ok := coderRegistry[t]; ok {
 		return maker(t)
 	}
 	for i := len(interfaceOrdering) - 1; i >= 0; i-- {
 		iT := interfaceOrdering[i]
 		if t.Implements(iT) {
-			key := tkey(iT)
-			return coderRegistry[key](t)
+			return coderRegistry[iT](t)
 		}
 	}
 	return nil
-}
-
-// tkey returns the uintptr for a given type as the key.
-func tkey(t reflect.Type) uintptr {
-	return reflect.ValueOf(t).Pointer()
 }

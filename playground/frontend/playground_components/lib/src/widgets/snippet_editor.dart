@@ -26,11 +26,13 @@ import 'tabbed_snippet_editor.dart';
 
 class SnippetEditor extends StatelessWidget {
   const SnippetEditor({
+    required this.autofocus,
     required this.controller,
     required this.isEditable,
     this.actionsWidget,
   });
 
+  final bool autofocus;
   final SnippetEditingController controller;
   final bool isEditable;
 
@@ -56,6 +58,7 @@ class SnippetEditor extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: SnippetFileEditor(
+                    autofocus: autofocus,
                     controller: controller.fileControllers.first,
                     eventSnippetContext: controller.eventSnippetContext,
                     isEditable: isEditable,
@@ -72,6 +75,7 @@ class SnippetEditor extends StatelessWidget {
 
           default:
             return TabbedSnippetEditor(
+              autofocus: autofocus,
               controller: controller,
               eventSnippetContext: controller.eventSnippetContext,
               isEditable: isEditable,

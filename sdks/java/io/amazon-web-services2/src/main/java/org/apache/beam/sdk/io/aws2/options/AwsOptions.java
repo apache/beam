@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.aws2.options;
 
 import java.net.URI;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
 import org.apache.beam.sdk.options.Default;
@@ -44,7 +42,6 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCred
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
  */
-@Experimental(Kind.SOURCE_SINK)
 public interface AwsOptions extends PipelineOptions {
 
   /** Region used to configure AWS service clients. */

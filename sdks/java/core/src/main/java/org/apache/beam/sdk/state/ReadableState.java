@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
  * A {@link State} that can be read via {@link #read()}.
  *
@@ -28,7 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * @param <T> The type of value returned by {@link #read}.
  */
-@Experimental(Kind.STATE)
 public interface ReadableState<T> {
   /**
    * Read the current value, blocking until it is available.

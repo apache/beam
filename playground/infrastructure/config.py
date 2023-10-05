@@ -117,6 +117,7 @@ class RepoProps:
 class Origin(str, Enum):
     PG_EXAMPLES = 'PG_EXAMPLES'
     PG_USER = 'PG_USER'
+    PG_BEAMDOC = 'PG_BEAMDOC'
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
 

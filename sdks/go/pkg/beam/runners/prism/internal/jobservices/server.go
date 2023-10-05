@@ -20,6 +20,7 @@ import (
 	"net"
 	"sync"
 
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
@@ -28,6 +29,8 @@ import (
 type Server struct {
 	jobpb.UnimplementedJobServiceServer
 	jobpb.UnimplementedArtifactStagingServiceServer
+	jobpb.UnimplementedArtifactRetrievalServiceServer
+	fnpb.UnimplementedProvisionServiceServer
 
 	// Server management
 	lis    net.Listener
@@ -40,6 +43,9 @@ type Server struct {
 
 	// execute defines how a job is executed.
 	execute func(*Job)
+
+	// Artifact hack
+	artifacts map[string][]byte
 }
 
 // NewServer acquires the indicated port.
@@ -58,6 +64,7 @@ func NewServer(port int, execute func(*Job)) *Server {
 	s.server = grpc.NewServer(opts...)
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
+	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
 	return s
 }
 
@@ -68,7 +75,8 @@ func (s *Server) getJob(id string) *Job {
 }
 
 func (s *Server) Endpoint() string {
-	return s.lis.Addr().String()
+	_, port, _ := net.SplitHostPort(s.lis.Addr().String())
+	return fmt.Sprintf("localhost:%v", port)
 }
 
 // Serve serves on the started listener. Blocks.

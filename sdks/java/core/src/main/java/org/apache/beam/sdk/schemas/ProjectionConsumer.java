@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * A {@link ProjectionConsumer} is a {@link Schema}-aware operation (such as a {@link
@@ -26,7 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental;
  * has a {@link org.apache.beam.sdk.schemas.FieldAccessDescriptor} describing which fields the
  * operation accesses.
  */
-@Experimental
 public interface ProjectionConsumer {
   /**
    * Returns a map from input {@link org.apache.beam.sdk.values.TupleTag} id to a {@link

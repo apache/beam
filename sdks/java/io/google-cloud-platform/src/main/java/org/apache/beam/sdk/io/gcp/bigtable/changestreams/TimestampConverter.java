@@ -34,4 +34,8 @@ public class TimestampConverter {
   public static long toSeconds(org.joda.time.Instant jodaInstant) {
     return jodaInstant.getMillis() / 1000;
   }
+
+  public static org.joda.time.Instant microsecondToInstant(long microsecond) {
+    return org.joda.time.Instant.ofEpochMilli(microsecond / 1_000L);
+  }
 }

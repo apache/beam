@@ -38,7 +38,7 @@ public class TestAvroFactory {
       Long aLong,
       Float aFloat,
       Double aDouble,
-      String string,
+      CharSequence string,
       ByteBuffer bytes,
       fixed4 fixed,
       LocalDate date,
@@ -46,28 +46,44 @@ public class TestAvroFactory {
       TestEnum testEnum,
       TestAvroNested row,
       List<TestAvroNested> array,
-      Map<String, TestAvroNested> map) {
+      Map<CharSequence, TestAvroNested> map) {
+    try {
+      if (VERSION_AVRO.equals("1.8.2")) {
+        Constructor<?> constructor =
+            TestAvro.class.getDeclaredConstructor(
+                Boolean.class,
+                Integer.class,
+                Long.class,
+                Float.class,
+                Double.class,
+                CharSequence.class,
+                ByteBuffer.class,
+                fixed4.class,
+                org.joda.time.LocalDate.class,
+                org.joda.time.DateTime.class,
+                TestEnum.class,
+                TestAvroNested.class,
+                java.util.List.class,
+                java.util.Map.class);
 
-    if (VERSION_AVRO.equals("1.8.2")) {
-      return new TestAvro(
-          boolNonNullable,
-          integer,
-          aLong,
-          aFloat,
-          aDouble,
-          string,
-          bytes,
-          fixed,
-          date,
-          timestampMillis,
-          testEnum,
-          row,
-          array,
-          map);
-    } else {
-      try {
-        Constructor<?> constructor;
-        constructor =
+        return (TestAvro)
+            constructor.newInstance(
+                boolNonNullable,
+                integer,
+                aLong,
+                aFloat,
+                aDouble,
+                string,
+                bytes,
+                fixed,
+                date,
+                timestampMillis,
+                testEnum,
+                row,
+                array,
+                map);
+      } else {
+        Constructor<?> constructor =
             TestAvro.class.getDeclaredConstructor(
                 Boolean.class,
                 Integer.class,
@@ -100,10 +116,10 @@ public class TestAvroFactory {
                 row,
                 array,
                 map);
-      } catch (ReflectiveOperationException e) {
-        LOG.error(String.format("Fail to create a TestAvro instance: %s", e.getMessage()));
-        return new TestAvro(); // return an empty instance to fail the tests
       }
+    } catch (ReflectiveOperationException e) {
+      LOG.error(String.format("Fail to create a TestAvro instance: %s", e.getMessage()));
+      return new TestAvro(); // return an empty instance to fail the tests
     }
   }
 }

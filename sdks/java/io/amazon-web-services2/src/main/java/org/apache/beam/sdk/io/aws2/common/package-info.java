@@ -17,8 +17,4 @@
  */
 
 /** Common code for AWS sources and sinks such as retry configuration. */
-@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.aws2.common;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;

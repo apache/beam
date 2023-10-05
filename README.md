@@ -70,32 +70,63 @@ Beam supports executing programs on multiple distributed processing backends thr
 - The `DirectRunner` runs the pipeline on your local machine.
 - The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
 - The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
-- The `SparkRunner` runs the pipeline on an Apache Spark cluster. The code has been donated from [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow) and is now part of Beam.
+- The `SparkRunner` runs the pipeline on an Apache Spark cluster.
 - The `JetRunner` runs the pipeline on a Hazelcast Jet cluster. The code has been donated from [hazelcast/hazelcast-jet](https://github.com/hazelcast/hazelcast-jet) and is now part of Beam.
 - The `Twister2Runner` runs the pipeline on a Twister2 cluster. The code has been donated from [DSC-SPIDAL/twister2](https://github.com/DSC-SPIDAL/twister2) and is now part of Beam.
 
 Have ideas for new Runners? See the [runner-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-ideas).
 
-## Getting Started
 
-To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or
-[Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
+Instructions for building and testing Beam itself
+are in the [contribution guide](./CONTRIBUTING.md).
+
+## 📚 Learn More
+
+Here are some resources actively maintained by the Beam community to help you get started:
+<table>
+<thead>
+  <tr>
+      <th><b>Resource</b></th>
+      <th><b>Details</b></th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td><a href="https://beam.apache.org" target="_blank" rel="noopener noreferrer">Apache Beam Website</a></td>
+    <td>Our website discussing the project, and it's specifics.</td>
+  </tr>
+  <tr>
+    <td><a href="https://beam.apache.org/get-started/quickstart-java" target="_blank" rel="noopener noreferrer">Java Quickstart</a></td>
+    <td>A guide to getting started with the Java SDK.</td>
+  </tr>
+  <tr>
+    <td><a href="https://beam.apache.org/get-started/quickstart-py" target="_blank" rel="noopener noreferrer">Python Quickstart</a></td>
+    <td>A guide to getting started with the Python SDK.</td>
+  </tr>
+  <tr>
+    <td><a href="https://beam.apache.org/get-started/quickstart-go" target="_blank" rel="noopener noreferrer">Go Quickstart </a></td>
+    <td>A guide to getting started with the Go SDK.</td>
+  </tr>
+  <tr>
+    <td><a href="https://tour.beam.apache.org/" target="_blank" rel="noopener noreferrer">Tour of Beam </a></td>
+    <td>A comprehensive, interactive learning experience covering Beam concepts in depth.</td>
+  </tr>
+  <tr>
+    <td><a href="https://www.cloudskillsboost.google/quests/310" target="_blank" rel="noopener noreferrer">Beam Quest </a></td>
+    <td>A certification granted by Google Cloud, certifying proficiency in Beam.</td>
+  </tr>
+  <tr>
+    <td><a href="https://s.apache.org/beam-community-metrics" target="_blank" rel="noopener noreferrer">Community Metrics </a></td>
+    <td>Beam's Git Community Metrics.</td>
+  </tr>
+</tbody>
+</table>
 
 ## Contact Us
 
-To get involved in Apache Beam:
+To get involved with Apache Beam:
 
-* [Subscribe](mailto:user-subscribe@beam.apache.org) or [mail](mailto:user@beam.apache.org) the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
-* [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
+* [Subscribe to](https://beam.apache.org/community/contact-us/#:~:text=Subscribe%20and%20Unsubscribe) or e-mail the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
+* [Subscribe to](https://beam.apache.org/community/contact-us/#:~:text=Subscribe%20and%20Unsubscribe) or e-mail the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
 * [Join ASF Slack](https://s.apache.org/slack-invite) on [#beam channel](https://s.apache.org/beam-slack-channel)
 * [Report an issue](https://github.com/apache/beam/issues/new/choose).
-
-Instructions for building and testing Beam itself
-are in the [contribution guide](https://beam.apache.org/contribute/).
-
-## More Information
-
-* [Apache Beam](https://beam.apache.org)
-* [Overview](https://beam.apache.org/use/beam-overview/)
-* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), [Go](https://beam.apache.org/get-started/quickstart-go)
-* [Community metrics](https://s.apache.org/beam-community-metrics)

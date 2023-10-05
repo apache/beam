@@ -32,14 +32,14 @@ pipeline, scope := beam.NewPipelineWithRoot()
 PipelineOptions options = PipelineOptionsFactory.create();
 
 // Then create the pipeline.
-Pipeline p = Pipeline.create(options);
+Pipeline pipeline = Pipeline.create(options);
 ```
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
 import apache_beam as beam
 
-with beam.Pipeline() as pipeline:
+with beam.Pipeline() as p:
   pass  # build your pipeline here
 ```
 {{end}}

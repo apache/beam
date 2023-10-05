@@ -17,7 +17,4 @@
  */
 
 /** User models for the Spanner change stream API. */
-@Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
-
-import org.apache.beam.sdk.annotations.Experimental;

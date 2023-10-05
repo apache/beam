@@ -21,7 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** The {@link SerializableFunctions} class to store static Serializable functions. */
 public class SerializableFunctions {

@@ -58,7 +58,7 @@ func Test_newGoLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+goExecutableFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
-					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
+					AbsoluteGraphFilePath:            filepath.Join(srcFileFolder, utils.GraphFileName),
 				},
 			},
 		},

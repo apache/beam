@@ -36,7 +36,7 @@ PlaygroundController createPlaygroundController(
   final controller = PlaygroundController(
     examplesLoader: ExamplesLoader(),
     exampleCache: exampleCache,
-    codeRepository: GetIt.instance.get<CodeRepository>(),
+    codeClient: GetIt.instance.get<CodeClient>(),
   );
 
   unawaited(_loadExamples(controller, descriptor));

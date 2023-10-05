@@ -40,8 +40,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.worker.statesampler import StateSampler
   from apache_beam.typehints.batch import BatchConverter
 
-# This module is experimental. No backwards-compatibility guarantees.
-
 
 class TransformIOCounter(object):
   """Class to track time and bytes consumed while reading from IO.

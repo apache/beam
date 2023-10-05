@@ -52,7 +52,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 1,
       ]
@@ -63,7 +64,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 99,
       ]
@@ -74,7 +76,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
         access_percentage: 1,
       ]
@@ -85,7 +88,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
       ]
     ],
@@ -95,7 +99,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'list',
         access_percentage: 1,
       ]
@@ -106,7 +111,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'list',
       ]
     ],
@@ -116,7 +122,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 1,
         window_count     : 1000,
@@ -128,7 +135,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 1000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'dict',
         access_percentage: 99,
         window_count     : 1000,
@@ -140,7 +148,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
         access_percentage: 1,
         window_count     : 1000,
@@ -152,7 +161,8 @@ def loadTestConfigurations = { mode, datasetName ->
         input_options    : '\'{' +
         '"num_records": 10000000,' +
         '"key_size": 100,' +
-        '"value_size": 900}\'',
+        '"value_size": 900,' +
+        '"algorithm": "lcg"}\'',
         side_input_type  : 'iter',
         window_count     : 1000,
       ]

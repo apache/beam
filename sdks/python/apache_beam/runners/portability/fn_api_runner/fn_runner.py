@@ -825,7 +825,8 @@ class FnApiRunner(runner.PipelineRunner):
 
     buffers_to_clean = set()
     known_consumers = set()
-    for _, buffer_id in bundle_context_manager.stage_data_outputs.items():
+    for transform_id, buffer_id in (
+      bundle_context_manager.stage_data_outputs.items()):
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
                                                                    []):
@@ -840,6 +841,13 @@ class FnApiRunner(runner.PipelineRunner):
           # so we create a copy of the buffer for every new stage.
           runner_execution_context.pcoll_buffers[buffer_id] = buffer.copy()
           buffer = runner_execution_context.pcoll_buffers[buffer_id]
+
+        # empty buffer. Add it to the pcoll_buffer to avoid element
+        # duplication.
+        if buffer_id not in runner_execution_context.pcoll_buffers:
+          buffer = bundle_context_manager.get_buffer(buffer_id, transform_id)
+          runner_execution_context.pcoll_buffers[buffer_id] = buffer
+          buffers_to_clean.add(buffer_id)
 
         # If the buffer has already been added to be consumed by
         # (stage, transform), then we don't need to add it again. This case

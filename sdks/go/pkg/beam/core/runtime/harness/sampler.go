@@ -32,15 +32,16 @@ func newSampler(store *metrics.Store) *stateSampler {
 }
 
 func (s *stateSampler) start(ctx context.Context, t time.Duration) {
+	ticker := time.NewTicker(t)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-s.done:
 			return
 		case <-ctx.Done():
 			return
-		default:
+		case <-ticker.C:
 			s.sampler.Sample(ctx, t)
-			time.Sleep(t)
 		}
 	}
 }

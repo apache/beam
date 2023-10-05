@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 
 import com.google.api.gax.rpc.ServerStream;
@@ -29,20 +28,17 @@ import com.google.cloud.bigtable.data.v2.models.ReadChangeStreamQuery;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Data access object to list and read stream partitions of a table. */
-@SuppressWarnings({"UnusedVariable", "UnusedMethod"})
 @Internal
 public class ChangeStreamDao {
-  private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
-
   private final BigtableDataClient dataClient;
   private final String tableId;
 
@@ -64,7 +60,8 @@ public class ChangeStreamDao {
    * Streams a partition.
    *
    * @param partition the partition to stream
-   * @param streamProgress may contain a continuation token for the stream request\
+   * @param streamProgress may contain a continuation token for the stream request
+   * @param endTime time to end the stream, may be null
    * @param heartbeatDuration period between heartbeat messages
    * @return stream of ReadChangeStreamResponse
    * @throws IOException if the stream could not be started
@@ -72,8 +69,8 @@ public class ChangeStreamDao {
   public ServerStream<ChangeStreamRecord> readChangeStreamPartition(
       PartitionRecord partition,
       StreamProgress streamProgress,
-      Duration heartbeatDuration,
-      boolean shouldDebug)
+      @Nullable Instant endTime,
+      Duration heartbeatDuration)
       throws IOException {
     ReadChangeStreamQuery query =
         ReadChangeStreamQuery.create(tableId).streamPartition(partition.getPartition());
@@ -85,20 +82,16 @@ public class ChangeStreamDao {
     if (currentToken != null) {
       query.continuationTokens(Collections.singletonList(currentToken));
     } else if (startTime != null) {
-      // Check if tracker has Continuation Token
       query.startTime(toThreetenInstant(startTime));
     } else if (changeStreamContinuationTokenList != null) {
       query.continuationTokens(changeStreamContinuationTokenList);
     } else {
       throw new IOException("Something went wrong");
     }
-    query.heartbeatDuration(org.threeten.bp.Duration.ofMillis(heartbeatDuration.getMillis()));
-    if (shouldDebug) {
-      LOG.info(
-          "RCSP {} ReadChangeStreamRequest: {}",
-          formatByteStringRange(partition.getPartition()),
-          query);
+    if (endTime != null) {
+      query.endTime(TimestampConverter.toThreetenInstant(endTime));
     }
+    query.heartbeatDuration(org.threeten.bp.Duration.ofMillis(heartbeatDuration.getMillis()));
     return dataClient.readChangeStream(query);
   }
 }

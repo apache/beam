@@ -23,7 +23,6 @@ import com.google.cloud.videointelligence.v1.VideoContext;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * <p>Service account with proper permissions is required to use these transforms.
  */
-@Experimental
 public class VideoIntelligence {
 
   /**
@@ -94,7 +92,6 @@ public class VideoIntelligence {
    * map and emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud AI
    * VideoIntelligence.
    */
-  @Experimental
   public static class AnnotateVideoFromUri
       extends PTransform<PCollection<String>, PCollection<List<VideoAnnotationResults>>> {
 
@@ -118,7 +115,6 @@ public class VideoIntelligence {
    * context map and emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud
    * AI VideoIntelligence.
    */
-  @Experimental
   public static class AnnotateVideoFromBytes
       extends PTransform<PCollection<ByteString>, PCollection<List<VideoAnnotationResults>>> {
 
@@ -143,7 +139,6 @@ public class VideoIntelligence {
    * emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud AI
    * VideoIntelligence.
    */
-  @Experimental
   public static class AnnotateVideoFromURIWithContext
       extends PTransform<
           PCollection<KV<String, VideoContext>>, PCollection<List<VideoAnnotationResults>>> {
@@ -166,7 +161,6 @@ public class VideoIntelligence {
    * and emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud AI
    * VideoIntelligence.
    */
-  @Experimental
   public static class AnnotateVideoFromBytesWithContext
       extends PTransform<
           PCollection<KV<ByteString, VideoContext>>, PCollection<List<VideoAnnotationResults>>> {

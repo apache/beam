@@ -31,24 +31,42 @@ labels:
       - damccorm
       - jrmccluskey
       - tvalentyn
+      - riteshghorse
+      - liferoad
     exclusionList: []
   - name: Java
     reviewers:
       - Abacn
       - kennknowles
       - robertwb
+      - bvolpato
     exclusionList: []
   - name: IO
     reviewers:
       - chamikaramj
       - johnjcasey
-      - pabloem
       - Abacn
       - ahmedabu98
+      - bvolpato
+    exclusionList: []
+  - name: spanner
+    reviewers:
+      - nielm
     exclusionList: []
   - name: Build
     reviewers:
       - damccorm
       - Abacn
     exclusionList: []
-fallbackReviewers: []
+fallbackReviewers:
+  - Abacn
+  - AnandInguva
+  - chamikaramj
+  - damccorm
+  - johnjcasey
+  - jrmccluskey
+  - kennknowles
+  - lostluck
+  - riteshghorse
+  - robertwb
+  - tvalentyn

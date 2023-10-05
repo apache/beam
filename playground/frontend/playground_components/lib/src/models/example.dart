@@ -41,6 +41,7 @@ class Example extends ExampleBase {
     required super.sdk,
     required super.type,
     required super.path,
+    super.alwaysRun,
     super.complexity,
     super.contextLine,
     super.datasets,
@@ -69,6 +70,7 @@ class Example extends ExampleBase {
     required this.outputs,
     this.graph,
   }) : super(
+          alwaysRun: example.alwaysRun,
           complexity: example.complexity,
           contextLine: example.contextLine,
           datasets: example.datasets,
@@ -93,4 +95,30 @@ class Example extends ExampleBase {
           sdk: sdk,
           type: ExampleType.example,
         );
+
+  Example copyWith({
+    ExampleViewOptions? viewOptions,
+  }) {
+    return Example(
+      alwaysRun: alwaysRun,
+      complexity: complexity,
+      contextLine: contextLine,
+      datasets: datasets,
+      description: description,
+      files: files,
+      graph: graph,
+      isMultiFile: isMultiFile,
+      logs: logs,
+      name: name,
+      outputs: outputs,
+      path: path,
+      pipelineOptions: pipelineOptions,
+      sdk: sdk,
+      tags: tags,
+      type: type,
+      urlNotebook: urlNotebook,
+      urlVcs: urlVcs,
+      viewOptions: viewOptions ?? this.viewOptions,
+    );
+  }
 }

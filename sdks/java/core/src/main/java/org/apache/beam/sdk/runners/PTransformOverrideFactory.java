@@ -20,8 +20,6 @@ package org.apache.beam.sdk.runners;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +35,6 @@ import org.apache.beam.sdk.values.TupleTag;
  * provides mappings between original and replacement outputs.
  */
 @Internal
-@Experimental(Kind.CORE_RUNNERS_ONLY)
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })

@@ -33,7 +33,7 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Helpers for cloud communication. */
 public class Transport {
@@ -89,6 +89,7 @@ public class Transport {
 
   /** Returns a Cloud Storage client builder using the specified {@link GcsOptions}. */
   public static Storage.Builder newStorageClient(GcsOptions options) {
+    String applicationNameSuffix = " (GPN:Beam)";
     String servicePath = options.getGcsEndpoint();
     Storage.Builder storageBuilder =
         new Storage.Builder(
@@ -101,7 +102,7 @@ public class Transport {
                     // logging it by default clutters the output during file staging.
                     new RetryHttpRequestInitializer(
                         ImmutableList.of(404), new UploadIdResponseInterceptor())))
-            .setApplicationName(options.getAppName())
+            .setApplicationName(options.getAppName() + applicationNameSuffix)
             .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
       ApiComponents components = apiComponentsFromUrl(servicePath);

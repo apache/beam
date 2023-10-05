@@ -17,4 +17,6 @@
 
 # This should match the saved version of your trained model.
 # Beam's tests use sklearn 1.0.2 for their saved models.
-scikit-learn==1.0.2
+scikit-learn==1.0.2; python_version < '3.11'
+# https://github.com/apache/beam/issues/27151 sklearn support Py311 in 1.2
+scikit-learn==1.2.2; python_version >= '3.11'

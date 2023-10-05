@@ -22,8 +22,8 @@ ENV PATH="/usr/src/tensorrt/bin:${PATH}"
 
 WORKDIR /workspace
 
-RUN pip install --no-cache-dir apache-beam[gcp]==2.42.0
-COPY --from=apache/beam_python3.8_sdk:2.42.0 /opt/apache/beam /opt/apache/beam
+RUN pip install --no-cache-dir apache-beam[gcp]==2.48.0
+COPY --from=apache/beam_python3.8_sdk:2.48.0 /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
     && pip install torch>=1.7.1 \
@@ -33,3 +33,4 @@ RUN pip install --upgrade pip \
     && pip install cuda-python
 
 ENTRYPOINT [ "/opt/apache/beam/boot" ]
+RUN apt-get update && apt-get install -y python3.8-venv 

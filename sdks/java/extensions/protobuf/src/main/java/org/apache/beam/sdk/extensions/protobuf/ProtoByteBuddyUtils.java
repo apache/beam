@@ -77,8 +77,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -103,13 +101,13 @@ import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
@@ -469,7 +467,6 @@ class ProtoByteBuddyUtils {
    *
    * <p>The returned list is ordered by the order of fields in the schema.
    */
-  @Experimental(Kind.SCHEMAS)
   public static List<FieldValueGetter> getGetters(
       Class<?> clazz,
       Schema schema,
@@ -1018,7 +1015,6 @@ class ProtoByteBuddyUtils {
         .orElseThrow(IllegalArgumentException::new);
   }
 
-  @Experimental(Kind.SCHEMAS)
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
       SchemaUserTypeCreator getBuilderCreator(
           Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
@@ -1053,7 +1049,6 @@ class ProtoByteBuddyUtils {
     }
   }
 
-  @Experimental(Kind.SCHEMAS)
   static <ProtoBuilderT extends MessageLite.Builder> SchemaUserTypeCreator createBuilderCreator(
       Class<?> protoClass,
       Class<?> builderClass,
@@ -1086,7 +1081,6 @@ class ProtoByteBuddyUtils {
     }
   }
 
-  @Experimental(Kind.SCHEMAS)
   static class ProtoCreatorFactory<ProtoBuilderT extends MessageLite.Builder>
       implements SchemaUserTypeCreator {
     private final Supplier<ProtoBuilderT> builderCreator;

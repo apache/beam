@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.kryo;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.OutputChunked;
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +57,7 @@ class KryoState {
                 final Kryo kryo = new Kryo();
                 // fallback in case serialized class does not have default constructor
                 kryo.setInstantiatorStrategy(
-                    new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
+                    new DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
                 kryo.setReferences(coder.getOptions().getReferences());
                 kryo.setRegistrationRequired(coder.getOptions().getRegistrationRequired());
 

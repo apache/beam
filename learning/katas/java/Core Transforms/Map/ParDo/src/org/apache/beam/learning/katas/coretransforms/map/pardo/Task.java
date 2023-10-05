@@ -22,12 +22,12 @@ package org.apache.beam.learning.katas.coretransforms.map.pardo;
 //   name: MapPardo
 //   description: Task from katas that maps the input element by multiplying it by 10.
 //   multifile: false
-//   context_line: 38
+//   context_line: 44
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - numbers
 
 import org.apache.beam.learning.katas.util.Log;

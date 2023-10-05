@@ -34,65 +34,33 @@ Then, we get the largest or smallest elements in different ways.
 
 We use `Top.Largest()` to get the largest elements from the *entire* `PCollection`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" largest_elements >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_TopLargest" show="top_largest" >}}
+{{< /playground >}}
 
 ### Example 2: Largest elements for each key
 
 We use `Top.LargestPerKey()` to get the largest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest_per_key >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" largest_elements_per_key >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_TopLargestPerKey" show="top_largest_per_key" >}}
+{{< /playground >}}
 
 ### Example 3: Smallest elements from a PCollection
 
 We use `Top.Smallest()` to get the smallest elements from the *entire* `PCollection`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" smallest_elements >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_TopSmallest" show="top_smallest" >}}
+{{< /playground >}}
 
 ### Example 4: Smallest elements for each key
 
 We use `Top.SmallestPerKey()` to get the smallest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest_per_key >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" smallest_elements_per_key >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_TopSmallestPerKey" show="top_smallest_per_key" >}}
+{{< /playground >}}
 
 ### Example 5: Custom elements from a PCollection
 
@@ -101,17 +69,9 @@ We use `Top.Of()` to get elements with customized rules from the *entire* `PColl
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_of >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" shortest_elements >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_TopOf" show="top_of" >}}
+{{< /playground >}}
 
 ### Example 6: Custom elements for each key
 
@@ -120,17 +80,9 @@ We use `Top.PerKey()` to get elements with customized rules for each unique key 
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_per_key >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" shortest_elements_per_key >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_TopPerKey" show="top_per_key" >}}
+{{< /playground >}}
 
 ## Related transforms
 

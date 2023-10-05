@@ -1,30 +1,41 @@
-{
-  "namespace": "org.apache.beam.sdk.extensions.avro.schemas",
-  "type": "record",
-  "name": "TestAvro",
-  "fields": [
-    { "name": "bool_non_nullable", "type": "boolean"},
-    { "name": "int", "type": ["int", "null"]},
-    { "name": "long", "type": ["long", "null"]},
-    { "name": "float", "type": ["float", "null"]},
-    { "name": "double", "type": ["double", "null"]},
-    { "name": "string", "type": ["string", "null"]},
-    { "name": "bytes", "type": ["bytes", "null"]},
-    { "name": "fixed", "type": {"type": "fixed", "size": 4, "name": "fixed4"} },
-    { "name": "date", "type": {"type": "int", "logicalType": "date"} },
-    { "name": "timestampMillis", "type": {"type": "long", "logicalType": "timestamp-millis"} },
-    { "name": "TestEnum", "type": {"name": "TestEnum", "type": "enum", "symbols": ["abc","cde"] } },
-    { "name": "row", "type": ["null", {
-     "type": "record",
-     "name": "TestAvroNested",
-      "fields": [
-        { "name": "BOOL_NON_NULLABLE", "type": "boolean"},
-        { "name": "int", "type": ["int", "null"]}
-         ]
-       }]
-    },
-    { "name": "array", "type":["null", {"type": "array", "items": ["null", "TestAvroNested"] }]},
-    { "name": "map", "type": ["null", {"type": "map", "values": ["null", "TestAvroNested"]}]}
-  ]
-}
-
+[
+    {
+    "namespace": "org.apache.beam.sdk.extensions.avro.schemas",
+    "type": "record",
+    "name": "TestAvro",
+    "doc": "Avro specific test model. Does not include nullable logical-types due to a bug in avro 1.8.2",
+    "fields": [
+      { "name": "bool_non_nullable", "type": "boolean"},
+      { "name": "int", "type": ["int", "null"]},
+      { "name": "long", "type": ["long", "null"]},
+      { "name": "float", "type": ["float", "null"]},
+      { "name": "double", "type": ["double", "null"]},
+      { "name": "string", "type": ["string", "null"]},
+      { "name": "bytes", "type": ["bytes", "null"]},
+      { "name": "fixed", "type": {"type": "fixed", "size": 4, "name": "fixed4"}},
+      { "name": "date", "type": {"type": "int", "logicalType": "date"}},
+      { "name": "timestampMillis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+      { "name": "TestEnum", "type": {"name": "TestEnum", "type": "enum", "symbols": ["abc","cde"]}},
+      { "name": "row", "type": ["null", {
+       "type": "record",
+       "name": "TestAvroNested",
+        "fields": [
+          { "name": "BOOL_NON_NULLABLE", "type": "boolean"},
+          { "name": "int", "type": ["int", "null"]}
+           ]
+         }]
+      },
+      { "name": "array", "type":["null", {"type": "array", "items": ["null", "TestAvroNested"]}]},
+      { "name": "map", "type": ["null", {"type": "map", "values": ["null", "TestAvroNested"]}]}
+    ]
+  },
+  {
+    "namespace": "org.apache.beam.sdk.extensions.avro.schemas",
+    "type": "record",
+    "name": "TestAvroConversion",
+    "doc": "Avro specific test model with nullable logical-types. Cannot be used with avro 1.8.2",
+    "fields": [
+      { "name": "date", "type": ["null", {"type": "int", "logicalType": "date"}]}
+    ]
+  }
+]

@@ -62,6 +62,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       provider_options=None,
       *,
       inference_fn: NumpyInferenceFn = default_numpy_inference_fn,
+      large_model: bool = False,
       **kwargs):
     """ Implementation of the ModelHandler interface for onnx
     using numpy arrays as input.
@@ -75,6 +76,10 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_uri: The URI to where the model is saved.
       inference_fn: The inference function to use on RunInference calls.
         default=default_numpy_inference_fn
+      large_model: set to true if your model is large enough to run into
+        memory pressure if you load multiple copies. Given a model that
+        consumes N memory and a machine with W cores and M memory, you should
+        set this to True if N*W > M.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """
@@ -84,6 +89,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
     self._env_vars = kwargs.get('env_vars', {})
+    self._large_model = large_model
 
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
@@ -134,3 +140,6 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_Onnx'
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model

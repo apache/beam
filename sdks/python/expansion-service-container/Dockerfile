@@ -42,8 +42,7 @@ RUN mkdir /opt/apache/beam/beam_venv &&\
     . /opt/apache/beam/beam_venv/bin/activate &&\
     pip install --upgrade pip &&\
     pip install --upgrade setuptools &&\
-    pip install -r requirements.txt &&\
-    pip install apache-beam-sdk.tar.gz[gcp,dataframe]
+    pip install apache-beam-sdk.tar.gz[gcp,dataframe] --constraint requirements.txt
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 

@@ -17,18 +17,15 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** Helpers for implementing the "Provider" pattern. */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public final class Providers {
 
   public interface Identifyable {

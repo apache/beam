@@ -53,7 +53,7 @@ extension ExampleTypeToString on ExampleType {
 /// and other large fields.
 /// These objects are fetched as lists from [ExampleRepository].
 @JsonSerializable()
-class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
+class ExampleBase with EquatableMixin implements Comparable<ExampleBase> {
   final bool alwaysRun;
   final Complexity? complexity;
 

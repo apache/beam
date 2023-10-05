@@ -39,7 +39,7 @@ dependencies {
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.vendored_grpc_1_54_0
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
 }

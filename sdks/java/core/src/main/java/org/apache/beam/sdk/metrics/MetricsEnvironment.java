@@ -21,8 +21,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,7 +42,6 @@ import org.slf4j.LoggerFactory;
  * container for the current thread and get a {@link Closeable} that will restore the previous
  * container when closed.
  */
-@Experimental(Kind.METRICS)
 @Internal
 public class MetricsEnvironment {
 

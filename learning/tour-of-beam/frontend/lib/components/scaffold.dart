@@ -23,7 +23,6 @@ import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../pages/tour/widgets/pipeline_options.dart';
-import '../pages/welcome/page.dart';
 import '../state.dart';
 import 'footer.dart';
 import 'login/button.dart';
@@ -127,15 +126,12 @@ class _SdkSelector extends StatelessWidget {
     return AnimatedBuilder(
       animation: appNotifier,
       builder: (context, child) {
-        final sdk = appNotifier.sdk;
-        return sdk == null
-            ? Container()
-            : SdkDropdown(
-                value: sdk,
-                onChanged: (value) {
-                  appNotifier.sdk = value;
-                },
-              );
+        return SdkDropdown(
+          value: appNotifier.sdk,
+          onChanged: (value) {
+            appNotifier.sdk = value;
+          },
+        );
       },
     );
   }

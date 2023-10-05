@@ -23,7 +23,7 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 
 {{< toc >}}
 
-The Python SDK supports Python 3.7, 3.8, 3.9 and 3.10. Beam 2.38.0 was the last release with support for Python 3.6.
+The Python SDK supports Python 3.8, 3.9, 3.10 and 3.11. Beam 2.48.0 was the last release with support for Python 3.7.
 
 ## Set up your environment
 
@@ -142,6 +142,7 @@ sequentially in the format `counts-0000-of-0001`.
 
 * Learn more about the [Beam SDK for Python](/documentation/sdks/python/)
   and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
+* Get [An Interactive Overview of Beam](/get-started/an-interactive-overview-of-beam)
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 * Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).

@@ -20,17 +20,14 @@ package org.apache.beam.sdk.expansion;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A registrar which contains a mapping from URNs to available {@link ExternalTransformBuilder}s.
  * Should be used with {@link com.google.auto.service.AutoService}.
  */
-@Experimental(Kind.PORTABILITY)
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })

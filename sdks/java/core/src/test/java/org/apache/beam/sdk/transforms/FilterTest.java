@@ -17,19 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-// beam-playground:
-//   name: FilterTest
-//   description: Unit-test for the Filter example.
-//   multifile: false
-//   context_line: 47
-//   categories:
-//     - Filtering
-//     - Core Transforms
-//   complexity: MEDIUM
-//   tags:
-//     - filter
-//     - test
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 

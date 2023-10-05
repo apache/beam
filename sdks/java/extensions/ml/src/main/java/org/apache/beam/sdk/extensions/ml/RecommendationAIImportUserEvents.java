@@ -35,7 +35,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -61,6 +60,7 @@ import org.json.JSONObject;
  * event (defaults to "default_event_store").
  */
 @AutoValue
+@SuppressWarnings({"nullness"})
 public abstract class RecommendationAIImportUserEvents
     extends PTransform<PCollection<KV<String, GenericJson>>, PCollectionTuple> {
 
@@ -118,9 +118,6 @@ public abstract class RecommendationAIImportUserEvents
    */
   @Override
   public PCollectionTuple expand(PCollection<KV<String, GenericJson>> input) {
-    String projectId = Preconditions.checkStateNotNull(projectId());
-    String catalogName = Preconditions.checkStateNotNull(catalogName());
-    String eventStore = Preconditions.checkStateNotNull(eventStore());
     return input
         .apply(
             "Batch Contents",
@@ -129,7 +126,7 @@ public abstract class RecommendationAIImportUserEvents
                 .withShardedKey())
         .apply(
             "Import CatalogItems",
-            ParDo.of(new ImportUserEvents(projectId, catalogName, eventStore))
+            ParDo.of(new ImportUserEvents(projectId(), catalogName(), eventStore()))
                 .withOutputTags(SUCCESS_TAG, TupleTagList.of(FAILURE_TAG)));
   }
 

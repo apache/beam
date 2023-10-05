@@ -44,7 +44,8 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 200,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 4,
         fanout               : 1,
         num_workers          : 5,
@@ -68,7 +69,8 @@ def loadTestConfigurations = { mode, datasetName ->
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 10,' +
-        '"hot_key_fraction": 1}\'',
+        '"hot_key_fraction": 1,' +
+        '"algorithm": "lcg"}\'',
         iterations           : 4,
         fanout               : 1,
         num_workers          : 5,

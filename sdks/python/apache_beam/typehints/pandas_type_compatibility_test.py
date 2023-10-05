@@ -64,7 +64,7 @@ from apache_beam.typehints.batch import BatchConverter
             'bar': pd.Series([i / 100 for i in range(100)], dtype='float64'),
             'baz': pd.Series([str(i) for i in range(100)],
                              dtype=pd.StringDtype()),
-        }).set_index(pd.Int64Index(range(123, 223), name='an_index')),
+        }).set_index(pd.Index(range(123, 223), dtype='int64', name='an_index')),
     },
     {
         'batch_typehint': pd.DataFrame,
@@ -87,8 +87,8 @@ from apache_beam.typehints.batch import BatchConverter
             'baz': pd.Series([str(i) for i in range(100)],
                              dtype=pd.StringDtype()),
         }).set_index([
-            pd.Int64Index(range(123, 223), name='an_index'),
-            pd.Int64Index(range(475, 575), name='another_index'),
+            pd.Index(range(123, 223), dtype='int64', name='an_index'),
+            pd.Index(range(475, 575), dtype='int64', name='another_index'),
         ]),
     },
     {

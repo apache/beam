@@ -25,7 +25,4 @@
  * to CVE-2021-44228. We strongly encourage users to pin a non-vulnerable version of log4j when
  * using this package. See <a href="https://github.com/apache/beam/issues/21426">Issue #21426</a>.
  */
-@Experimental
 package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
-
-import org.apache.beam.sdk.annotations.Experimental;

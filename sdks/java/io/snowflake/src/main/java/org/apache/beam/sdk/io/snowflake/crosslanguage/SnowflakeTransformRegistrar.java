@@ -19,18 +19,15 @@ package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Exposes {@link SnowflakeIO.Read} and {@link SnowflakeIO.Write} as an external transform for
  * cross-language usage.
  */
-@Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public final class SnowflakeTransformRegistrar implements ExternalTransformRegistrar {
   public static final String READ_URN = "beam:transform:org.apache.beam:snowflake_read:v1";

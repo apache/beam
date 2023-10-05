@@ -20,8 +20,6 @@ package org.apache.beam.fn.harness;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A cache allows for the storage and retrieval of values which are associated with keys.
@@ -29,7 +27,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <p>The cache allows for concurrent access and modification to its content and automatically
  * controls the amount of entries in the cache to stay within configured resource limits.
  */
-@Experimental(Kind.PORTABILITY)
 @ThreadSafe
 public interface Cache<K, V> {
   /**

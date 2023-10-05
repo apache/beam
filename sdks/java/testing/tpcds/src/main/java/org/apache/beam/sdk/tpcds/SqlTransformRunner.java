@@ -52,9 +52,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -283,7 +283,8 @@ public class SqlTransformRunner {
 
     // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
     Pipeline[] pipelines = new Pipeline[queryNames.length];
-    CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
+    CSVFormat csvFormat =
+        CSVFormat.MYSQL.withDelimiter('|').withTrailingDelimiter().withNullString("");
 
     // Execute all queries, transform each result into a PCollection<String>, write them into
     // the txt file and store in a GCP directory.

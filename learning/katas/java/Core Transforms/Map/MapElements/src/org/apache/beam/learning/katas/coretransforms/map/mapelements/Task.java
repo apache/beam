@@ -22,12 +22,12 @@ package org.apache.beam.learning.katas.coretransforms.map.mapelements;
 //   name: Map
 //   description: Task from katas to implement a simple map function that multiplies all input elements by 5.
 //   multifile: false
-//   context_line: 38
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - map
 //     - numbers
 

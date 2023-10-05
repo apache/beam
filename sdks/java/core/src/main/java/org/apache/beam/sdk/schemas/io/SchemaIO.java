@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -42,7 +40,6 @@ import org.apache.beam.sdk.values.Row;
  * </a>
  */
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface SchemaIO {
   /** Returns the schema of the data. */
   Schema schema();

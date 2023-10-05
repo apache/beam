@@ -35,31 +35,60 @@ import org.joda.time.Instant;
  */
 @Internal
 public class PartitionRecord implements Serializable {
-  private static final long serialVersionUID = -7613861834142734474L;
+  private static final long serialVersionUID = -4524061648930484599L;
 
-  private ByteStringRange partition;
+  private final ByteStringRange partition;
   @Nullable private Instant startTime;
   @Nullable private List<ChangeStreamContinuationToken> changeStreamContinuationTokens;
+  @Nullable private Instant endTime;
   private String uuid;
-  private Instant parentLowWatermark;
+  private final Instant parentLowWatermark;
+  private final List<NewPartition> parentPartitions;
 
   public PartitionRecord(
-      ByteStringRange partition, Instant startTime, String uuid, Instant parentLowWatermark) {
+      ByteStringRange partition,
+      List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions) {
+    this(partition, changeStreamContinuationTokens, "", parentLowWatermark, parentPartitions, null);
+  }
+
+  public PartitionRecord(
+      ByteStringRange partition,
+      Instant startTime,
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions) {
+    this(partition, startTime, "", parentLowWatermark, parentPartitions, null);
+  }
+
+  public PartitionRecord(
+      ByteStringRange partition,
+      Instant startTime,
+      String uuid,
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions,
+      @Nullable Instant endTime) {
     this.partition = partition;
     this.startTime = startTime;
     this.uuid = uuid;
     this.parentLowWatermark = parentLowWatermark;
+    this.endTime = endTime;
+    this.parentPartitions = parentPartitions;
   }
 
   public PartitionRecord(
       ByteStringRange partition,
       List<ChangeStreamContinuationToken> changeStreamContinuationTokens,
       String uuid,
-      Instant parentLowWatermark) {
+      Instant parentLowWatermark,
+      List<NewPartition> parentPartitions,
+      @Nullable Instant endTime) {
     this.partition = partition;
     this.changeStreamContinuationTokens = changeStreamContinuationTokens;
     this.uuid = uuid;
     this.parentLowWatermark = parentLowWatermark;
+    this.endTime = endTime;
+    this.parentPartitions = parentPartitions;
   }
 
   @Nullable
@@ -67,32 +96,16 @@ public class PartitionRecord implements Serializable {
     return startTime;
   }
 
-  public void setStartTime(@Nullable Instant startTime) {
-    this.startTime = startTime;
-  }
-
   public String getUuid() {
     return uuid;
-  }
-
-  public void setUuid(String uuid) {
-    this.uuid = uuid;
   }
 
   public Instant getParentLowWatermark() {
     return parentLowWatermark;
   }
 
-  public void setParentLowWatermark(Instant parentLowWatermark) {
-    this.parentLowWatermark = parentLowWatermark;
-  }
-
   public ByteStringRange getPartition() {
     return partition;
-  }
-
-  public void setPartition(ByteStringRange partition) {
-    this.partition = partition;
   }
 
   @Nullable
@@ -100,9 +113,21 @@ public class PartitionRecord implements Serializable {
     return changeStreamContinuationTokens;
   }
 
-  public void setChangeStreamContinuationTokens(
-      @Nullable List<ChangeStreamContinuationToken> changeStreamContinuationTokens) {
-    this.changeStreamContinuationTokens = changeStreamContinuationTokens;
+  @Nullable
+  public Instant getEndTime() {
+    return endTime;
+  }
+
+  public List<NewPartition> getParentPartitions() {
+    return parentPartitions;
+  }
+
+  public void setUuid(String uuid) {
+    this.uuid = uuid;
+  }
+
+  public void setEndTime(@Nullable Instant endTime) {
+    this.endTime = endTime;
   }
 
   @Override
@@ -114,12 +139,14 @@ public class PartitionRecord implements Serializable {
       return false;
     }
     PartitionRecord that = (PartitionRecord) o;
-    return getPartition().equals(that.getPartition())
+    return Objects.equals(getPartition(), that.getPartition())
         && Objects.equals(getStartTime(), that.getStartTime())
         && Objects.equals(
             getChangeStreamContinuationTokens(), that.getChangeStreamContinuationTokens())
-        && getUuid().equals(that.getUuid())
-        && Objects.equals(getParentLowWatermark(), that.getParentLowWatermark());
+        && Objects.equals(getEndTime(), that.getEndTime())
+        && Objects.equals(getUuid(), that.getUuid())
+        && Objects.equals(getParentLowWatermark(), that.getParentLowWatermark())
+        && Objects.equals(parentPartitions, that.parentPartitions);
   }
 
   @Override
@@ -128,8 +155,10 @@ public class PartitionRecord implements Serializable {
         getPartition(),
         getStartTime(),
         getChangeStreamContinuationTokens(),
+        getEndTime(),
         getUuid(),
-        getParentLowWatermark());
+        getParentLowWatermark(),
+        parentPartitions);
   }
 
   @Override
@@ -141,11 +170,15 @@ public class PartitionRecord implements Serializable {
         + startTime
         + ", changeStreamContinuationTokens="
         + changeStreamContinuationTokens
+        + ", endTime="
+        + endTime
         + ", uuid='"
         + uuid
         + '\''
         + ", parentLowWatermark="
         + parentLowWatermark
+        + ", parentPartitions="
+        + parentPartitions
         + '}';
   }
 }

@@ -17,6 +17,22 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
+
+# beam-playground:
+#   name: GroupByKeySort
+#   description: Demonstration of GroupByKey transform usage with per-key sorting.
+#   multifile: false
+#   default_example: false
+#   context_line: 40
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - pairs
+#     - group
 
 
 def groupbykey(test=None):
@@ -44,3 +60,7 @@ def groupbykey(test=None):
     # [END groupbykey]
     if test:
       test(produce_counts)
+
+
+if __name__ == '__main__':
+  groupbykey()

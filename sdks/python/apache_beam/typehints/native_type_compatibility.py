@@ -156,10 +156,7 @@ def is_new_type(typ):
   return hasattr(typ, '__supertype__')
 
 
-try:
-  _ForwardRef = typing.ForwardRef  # Python 3.7+
-except AttributeError:
-  _ForwardRef = typing._ForwardRef
+_ForwardRef = typing.ForwardRef  # Python 3.7+
 
 
 def is_forward_ref(typ):

@@ -30,7 +30,10 @@ Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 
 ## Examples
-See [Issue 19498](https://github.com/apache/beam/issues/19498) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_Window" show="window" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [GroupByKey](/documentation/transforms/python/aggregation/groupbykey)

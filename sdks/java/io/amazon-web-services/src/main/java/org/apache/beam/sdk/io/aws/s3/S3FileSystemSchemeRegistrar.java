@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.aws.s3;
 import com.google.auto.service.AutoService;
 import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,7 +34,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * <p>It is optional but recommended to use one of the many build time tools such as {@link
  * AutoService} to generate the necessary META-INF files automatically.
  */
-@Experimental(Kind.FILESYSTEM)
 public interface S3FileSystemSchemeRegistrar {
   /**
    * Create zero or more {@link S3FileSystemConfiguration} instances from the given {@link

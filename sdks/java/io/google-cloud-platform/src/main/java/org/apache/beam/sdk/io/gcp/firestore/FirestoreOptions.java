@@ -57,4 +57,22 @@ public interface FirestoreOptions extends PipelineOptions {
 
   /** Set the Firestore database ID to connect to. */
   void setFirestoreDb(String firestoreDb);
+
+  /**
+   * A host port pair to allow connecting to a Cloud Firestore instead of the default live service.
+   *
+   * @return the string representation of a host and port pair to be used when constructing Cloud
+   *     Firestore clients.
+   */
+  @Description("Firestore endpoint (host and port)")
+  @Default.String("batch-firestore.googleapis.com:443")
+  String getHost();
+
+  /**
+   * Define a host port pair to allow connecting to a Cloud Firestore instead of the default live
+   * service.
+   *
+   * @param host the host and port to connect to
+   */
+  void setHost(String host);
 }

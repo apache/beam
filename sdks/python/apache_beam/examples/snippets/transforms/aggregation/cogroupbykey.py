@@ -17,6 +17,25 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
+
+# beam-playground:
+#   name: CoGroupByKeyMerge
+#   description: Demonstration of CoGroupByKey transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 43
+#   categories:
+#     - Core Transforms
+#     - Joins
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - integers
+#     - tuples
+#     - pairs
+#     - group
 
 
 def cogroupbykey(test=None):
@@ -46,3 +65,7 @@ def cogroupbykey(test=None):
     # [END cogroupbykey]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  cogroupbykey()

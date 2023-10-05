@@ -111,16 +111,12 @@ public class JdbcReadSchemaTransformProviderTest {
     PCollection<Row> output =
         PCollectionRowTuple.empty(pipeline)
             .apply(
-                provider
-                    .from(
-                        JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration
-                            .builder()
-                            .setDriverClassName(
-                                DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
-                            .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
-                            .setLocation(READ_TABLE_NAME)
-                            .build())
-                    .buildTransform())
+                provider.from(
+                    JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+                        .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
+                        .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                        .setLocation(READ_TABLE_NAME)
+                        .build()))
             .get("output");
     Long expected = Long.valueOf(EXPECTED_ROW_COUNT);
     PAssert.that(output.apply(Count.globally())).containsInAnyOrder(expected);

@@ -40,7 +40,7 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExte
 	absExecFilePath, _ := filepath.Abs(filepath.Join(absExecFileFolderPath, execFileName))
 	absBaseFolderPath, _ := filepath.Abs(baseFileFolder)
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, logFileName))
-	absGraphFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, utils.GraphFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absSrcFileFolderPath, utils.GraphFileName))
 
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},

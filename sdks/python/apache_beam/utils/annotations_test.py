@@ -21,7 +21,6 @@ import warnings
 
 from apache_beam.utils.annotations import BeamDeprecationWarning
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 
 
 class AnnotationTests(unittest.TestCase):
@@ -100,51 +99,6 @@ class AnnotationTests(unittest.TestCase):
 
         fnc_test_deprecated_without_since_custom_should_fail()
       assert not w
-
-  def test_experimental_with_current_message(self):
-    with warnings.catch_warnings(record=True) as w:
-
-      @experimental(current='multiply', extra_message='Do this')
-      def fnc_test_experimental_with_current_message():
-        return 'lol'
-
-      fnc_test_experimental_with_current_message()
-      self.check_annotation(
-          warning=w,
-          warning_type=FutureWarning,
-          obj_name='fnc_test_experimental_with_current_message',
-          annotation_type='experimental',
-          label_check_list=[('instead', True), ('Do this', True)])
-
-  def test_experimental_with_current(self):
-    with warnings.catch_warnings(record=True) as w:
-
-      @experimental(current='multiply')
-      def fnc_test_experimental_with_current():
-        return 'lol'
-
-      fnc_test_experimental_with_current()
-      self.check_annotation(
-          warning=w,
-          warning_type=FutureWarning,
-          obj_name='fnc_test_experimental_with_current',
-          annotation_type='experimental',
-          label_check_list=[('instead', True)])
-
-  def test_experimental_without_current(self):
-    with warnings.catch_warnings(record=True) as w:
-
-      @experimental()
-      def fnc_test_experimental_without_current():
-        return 'lol'
-
-      fnc_test_experimental_without_current()
-      self.check_annotation(
-          warning=w,
-          warning_type=FutureWarning,
-          obj_name='fnc_test_experimental_without_current',
-          annotation_type='experimental',
-          label_check_list=[('instead', False)])
 
   def test_deprecated_custom_no_replacements(self):
     """Tests if custom message prints an empty string
@@ -236,52 +190,6 @@ class AnnotationTests(unittest.TestCase):
           annotation_type='deprecated',
           label_check_list=[('since', True), ('instead', True),
                             ('Do this', True)])
-
-  def test_experimental_with_current_message_custom(self):
-    with warnings.catch_warnings(record=True) as w:
-      strCurrent = 'multiply'
-      strExtra = 'DoThis'
-      strCustom = '%name% Function on experimental phase, use %current% \
-      for stability. Will %extra%.'
-
-      @experimental(
-          current=strCurrent, extra_message=strExtra, custom_message=strCustom)
-      def fnc_test_experimental_with_current_message_custom():
-        return 'lol'
-
-      strName = fnc_test_experimental_with_current_message_custom.__name__
-      fnc_test_experimental_with_current_message_custom()
-      self.check_custom_annotation(
-          warning=w,
-          warning_type=FutureWarning,
-          obj_name='fnc_test_experimental\
-                                   _with_current_message_custom',
-          annotation_type='experimental',
-          intended_message=strCustom.replace('%name%', strName).replace(
-              '%current%', strCurrent).replace('%extra%', strExtra))
-
-  def test_experimental_with_current_message_class(self):
-    with warnings.catch_warnings(record=True) as w:
-
-      @experimental(current='multiply', extra_message='Do this')
-      class Class_test_experimental_with_current_message(object):
-        fooo = 'lol'
-
-        def __init__(self):
-          pass
-
-        def foo(self):
-          return 'lol'
-
-      foo = Class_test_experimental_with_current_message()
-      strName = Class_test_experimental_with_current_message.__name__
-      foo.foo()
-      self.check_annotation(
-          warning=w,
-          warning_type=FutureWarning,
-          obj_name=strName,
-          annotation_type='experimental',
-          label_check_list=[('instead', True), ('Do this', True)])
 
   # helper function
   def check_annotation(

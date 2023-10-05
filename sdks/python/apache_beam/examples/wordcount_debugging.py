@@ -48,7 +48,7 @@ and an output prefix on GCS::
 #     includes regex filter("Flourish|stomach").
 #   multifile: false
 #   pipeline_options: --output output.txt
-#   context_line: 74
+#   context_line: 152
 #   categories:
 #     - Flatten
 #     - Debugging
@@ -60,7 +60,7 @@ and an output prefix on GCS::
 #   tags:
 #     - count
 #     - debug
-#     - string
+#     - strings
 
 import argparse
 import logging

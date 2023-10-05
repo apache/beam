@@ -34,10 +34,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -59,6 +59,8 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
       Metrics.counter(StorageApiFinalizeWritesDoFn.class, "batchCommitOperationsSucceeded");
   private final Counter batchCommitOperationsFailed =
       Metrics.counter(StorageApiFinalizeWritesDoFn.class, "batchCommitOperationsFailed");
+  private final Counter rowsFinalized =
+      Metrics.counter(StorageApiFinalizeWritesDoFn.class, "rowsFinalized");
 
   private Map<String, Collection<String>> commitStreams;
   private final BigQueryServices bqServices;
@@ -116,7 +118,13 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
           return RetryType.RETRY_ALL_OPERATIONS;
         },
         c -> {
-          LOG.info("Finalize of stream " + streamId + " finished with " + c.getResult());
+          FinalizeWriteStreamResponse response =
+              Preconditions.checkArgumentNotNull(
+                  c.getResult(),
+                  "Finalize of write stream " + streamId + " finished, but with null result");
+          LOG.debug("Finalize of stream " + streamId + " finished with " + response);
+          rowsFinalized.inc(response.getRowCount());
+
           finalizeOperationsSucceeded.inc();
           commitStreams.computeIfAbsent(tableId, d -> Lists.newArrayList()).add(streamId);
         },

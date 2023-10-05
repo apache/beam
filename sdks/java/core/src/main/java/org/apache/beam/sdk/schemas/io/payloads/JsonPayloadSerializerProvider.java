@@ -22,8 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
@@ -31,7 +29,6 @@ import org.apache.beam.sdk.util.RowJson.RowJsonSerializer;
 import org.apache.beam.sdk.util.RowJsonUtils;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 @AutoService(PayloadSerializerProvider.class)
 public class JsonPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override

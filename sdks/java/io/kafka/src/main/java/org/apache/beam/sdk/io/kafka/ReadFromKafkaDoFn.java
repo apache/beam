@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,14 +43,15 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Monoton
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closeables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -193,6 +194,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   // Valid between bundle start and bundle finish.
   private transient @Nullable Deserializer<K> keyDeserializerInstance = null;
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
+  private transient @Nullable Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCache;
 
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
 
@@ -212,6 +214,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
     private final Supplier<Long> memoizedBacklog;
+    private boolean closed;
 
     KafkaLatestOffsetEstimator(
         Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
@@ -221,8 +224,10 @@ abstract class ReadFromKafkaDoFn<K, V>
       memoizedBacklog =
           Suppliers.memoizeWithExpiration(
               () -> {
-                ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
-                return offsetConsumer.position(topicPartition);
+                synchronized (offsetConsumer) {
+                  ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+                  return offsetConsumer.position(topicPartition);
+                }
               },
               1,
               TimeUnit.SECONDS);
@@ -232,6 +237,8 @@ abstract class ReadFromKafkaDoFn<K, V>
     protected void finalize() {
       try {
         Closeables.close(offsetConsumer, true);
+        closed = true;
+        LOG.info("Offset Estimator consumer was closed for {}", topicPartition);
       } catch (Exception anyException) {
         LOG.warn("Failed to close offset consumer for {}", topicPartition);
       }
@@ -241,12 +248,19 @@ abstract class ReadFromKafkaDoFn<K, V>
     public long estimate() {
       return memoizedBacklog.get();
     }
+
+    public boolean isClosed() {
+      return closed;
+    }
   }
 
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element KafkaSourceDescriptor kafkaSourceDescriptor) {
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
+    LOG.info(
+        "Creating Kafka consumer for initial restriction for {}",
+        kafkaSourceDescriptor.getTopicPartition());
     try (Consumer<byte[], byte[]> offsetConsumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
       ConsumerSpEL.evaluateAssign(
           offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
@@ -310,17 +324,30 @@ abstract class ReadFromKafkaDoFn<K, V>
     if (restriction.getTo() < Long.MAX_VALUE) {
       return new OffsetRangeTracker(restriction);
     }
-    Map<String, Object> updatedConsumerConfig =
-        overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
-    KafkaLatestOffsetEstimator offsetPoller =
-        new KafkaLatestOffsetEstimator(
-            consumerFactoryFn.apply(
-                KafkaIOUtils.getOffsetConsumerConfig(
-                    "tracker-" + kafkaSourceDescriptor.getTopicPartition(),
-                    offsetConsumerConfig,
-                    updatedConsumerConfig)),
-            kafkaSourceDescriptor.getTopicPartition());
-    return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetPoller);
+
+    // OffsetEstimators are cached for each topic-partition because they hold a stateful connection,
+    // so we want to minimize the amount of connections that we start and track with Kafka. Another
+    // point is that it has a memoized backlog, and this should make that more reusable estimations.
+    final Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCacheInstance =
+        Preconditions.checkStateNotNull(this.offsetEstimatorCache);
+
+    TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
+    KafkaLatestOffsetEstimator offsetEstimator = offsetEstimatorCacheInstance.get(topicPartition);
+    if (offsetEstimator == null || offsetEstimator.isClosed()) {
+      Map<String, Object> updatedConsumerConfig =
+          overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
+
+      LOG.info("Creating Kafka consumer for offset estimation for {}", topicPartition);
+
+      Consumer<byte[], byte[]> offsetConsumer =
+          consumerFactoryFn.apply(
+              KafkaIOUtils.getOffsetConsumerConfig(
+                  "tracker-" + topicPartition, offsetConsumerConfig, updatedConsumerConfig));
+      offsetEstimator = new KafkaLatestOffsetEstimator(offsetConsumer, topicPartition);
+      offsetEstimatorCacheInstance.put(topicPartition, offsetEstimator);
+    }
+
+    return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
   @ProcessElement
@@ -354,6 +381,10 @@ abstract class ReadFromKafkaDoFn<K, V>
               kafkaSourceDescriptor.getTopicPartition(),
               Optional.ofNullable(watermarkEstimator.currentWatermark()));
     }
+
+    LOG.info(
+        "Creating Kafka consumer for process continuation for {}",
+        kafkaSourceDescriptor.getTopicPartition());
     try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
       // Check whether current TopicPartition is still available to read.
       Set<TopicPartition> existingTopicPartitions = new HashSet<>();
@@ -377,7 +408,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
 
       while (true) {
-        rawRecords = consumer.poll(KAFKA_POLL_TIMEOUT);
+        rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
@@ -424,6 +455,31 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
   }
 
+  // see https://github.com/apache/beam/issues/25962
+  private ConsumerRecords<byte[], byte[]> poll(
+      Consumer<byte[], byte[]> consumer, TopicPartition topicPartition) {
+    final Stopwatch sw = Stopwatch.createStarted();
+    long previousPosition = -1;
+    java.time.Duration elapsed = java.time.Duration.ZERO;
+    while (true) {
+      final ConsumerRecords<byte[], byte[]> rawRecords =
+          consumer.poll(KAFKA_POLL_TIMEOUT.minus(elapsed));
+      if (!rawRecords.isEmpty()) {
+        // return as we have found some entries
+        return rawRecords;
+      }
+      if (previousPosition == (previousPosition = consumer.position(topicPartition))) {
+        // there was no progress on the offset/position, which indicates end of stream
+        return rawRecords;
+      }
+      elapsed = sw.elapsed();
+      if (elapsed.toMillis() >= KAFKA_POLL_TIMEOUT.toMillis()) {
+        // timeout is over
+        return rawRecords;
+      }
+    }
+  }
+
   private TimestampPolicyContext updateWatermarkManually(
       TimestampPolicy<K, V> timestampPolicy,
       WatermarkEstimator<Instant> watermarkEstimator,
@@ -457,6 +513,7 @@ abstract class ReadFromKafkaDoFn<K, V>
                 });
     keyDeserializerInstance = keyDeserializerProvider.getDeserializer(consumerConfig, true);
     valueDeserializerInstance = valueDeserializerProvider.getDeserializer(consumerConfig, false);
+    offsetEstimatorCache = new HashMap<>();
   }
 
   @Teardown
@@ -470,6 +527,10 @@ abstract class ReadFromKafkaDoFn<K, V>
       Closeables.close(valueDeserializerInstance, true);
     } catch (Exception anyException) {
       LOG.warn("Fail to close resource during finishing bundle.", anyException);
+    }
+
+    if (offsetEstimatorCache != null) {
+      offsetEstimatorCache.clear();
     }
   }
 

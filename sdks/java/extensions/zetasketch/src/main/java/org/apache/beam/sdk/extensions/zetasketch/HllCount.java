@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.zetasketch;
 
 import com.google.zetasketch.HyperLogLogPlusPlus;
 import java.nio.ByteBuffer;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -83,7 +82,6 @@ import org.slf4j.LoggerFactory;
  * Note: Currently HllCount does not work on FnAPI workers. See <a
  * href="https://github.com/apache/beam/issues/19698">Issue #19698</a>.
  */
-@Experimental
 public final class HllCount {
 
   private static final Logger LOG = LoggerFactory.getLogger(HllCount.class);

@@ -20,8 +20,6 @@ package org.apache.beam.sdk.extensions.gcp.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.concurrent.ExecutorService;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
@@ -120,9 +118,8 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   void setPathValidator(PathValidator validator);
 
   /** If true, reports metrics of certain operations, such as batch copies. */
-  @Description("Experimental. Whether to report performance metrics of certain GCS operations.")
+  @Description("Whether to report performance metrics of certain GCS operations.")
   @Default.Boolean(false)
-  @Experimental(Kind.FILESYSTEM)
   Boolean getGcsPerformanceMetrics();
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);

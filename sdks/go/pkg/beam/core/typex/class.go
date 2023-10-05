@@ -92,7 +92,7 @@ func ClassOf(t reflect.Type) Class {
 // data must be fully serializable. Functions and channels are examples of invalid
 // types. Aggregate types with no universals are considered concrete here.
 func IsConcrete(t reflect.Type) bool {
-	err := isConcrete(t, make(map[uintptr]bool))
+	err := isConcrete(t, make(map[reflect.Type]bool))
 	return err == nil
 }
 
@@ -101,19 +101,18 @@ func IsConcrete(t reflect.Type) bool {
 // data must be fully serializable. Functions and channels are examples of invalid
 // types. Aggregate types with no universals are considered concrete here.
 func CheckConcrete(t reflect.Type) (bool, error) {
-	err := isConcrete(t, make(map[uintptr]bool))
+	err := isConcrete(t, make(map[reflect.Type]bool))
 	return err == nil, err
 }
 
-func isConcrete(t reflect.Type, visited map[uintptr]bool) error {
+func isConcrete(t reflect.Type, visited map[reflect.Type]bool) error {
 	// Check that we haven't hit a recursive loop.
-	key := reflect.ValueOf(t).Pointer()
 	// If there's an invalid field in a recursive type
 	// then the layer above will find it.
-	if visited[key] {
+	if visited[t] {
 		return nil
 	}
-	visited[key] = true
+	visited[t] = true
 
 	// Handle special types.
 	if t == nil ||

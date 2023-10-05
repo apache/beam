@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
  * {@link FirestoreIO} provides an API for reading from and writing to <a target="_blank"
  * rel="noopener noreferrer" href="https://cloud.google.com/firestore/docs">Google Cloud
@@ -27,7 +24,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * <p>For documentation see {@link FirestoreV1}.
  */
-@Experimental(Kind.SOURCE_SINK)
 public final class FirestoreIO {
 
   private FirestoreIO() {}

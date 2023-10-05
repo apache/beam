@@ -71,7 +71,7 @@ docker {
    buildArgs(
          ['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
                project.rootProject["base-image"] :
-               "openjdk:8",
+               "openjdk:11",
           'GIT_COMMIT'   : getGitCommitHash(),
           'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }

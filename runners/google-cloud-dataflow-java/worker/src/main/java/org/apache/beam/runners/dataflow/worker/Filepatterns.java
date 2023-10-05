@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for handling filepatterns. */
 @SuppressWarnings({

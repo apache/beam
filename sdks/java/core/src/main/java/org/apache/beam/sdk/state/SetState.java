@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
  * A {@link ReadableState} cell containing a set of elements.
  *
@@ -28,7 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * @param <T> The type of elements in the set.
  */
-@Experimental(Kind.STATE)
 public interface SetState<T> extends GroupingState<T, Iterable<T>> {
   /**
    * Returns a {@link ReadableState} whose {@link #read} method will return true if this set

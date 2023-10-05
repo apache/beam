@@ -41,6 +41,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
@@ -50,6 +52,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -782,7 +785,25 @@ public class FileBasedSourceTest {
     File file = createFileWithData(fileName, data);
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
+
+    ExpectedLogs.LogSaver logSaver = new ExpectedLogs.LogSaver();
+    LogManager.getLogManager().getLogger("").addHandler(logSaver);
     assertEquals(file.length(), source.getEstimatedSizeBytes(null));
+    ExpectedLogs.verifyLogged(
+        ExpectedLogs.matcher(
+            Level.INFO, String.format("matched 1 files with total size %d", file.length())),
+        logSaver);
+    LogManager.getLogManager().getLogger("").removeHandler(logSaver);
+
+    logSaver = new ExpectedLogs.LogSaver();
+    LogManager.getLogManager().getLogger("").addHandler(logSaver);
+    assertEquals(file.length(), source.getEstimatedSizeBytes(null));
+    // Second call get result from cache and does not send match request
+    ExpectedLogs.verifyNotLogged(
+        ExpectedLogs.matcher(
+            Level.INFO, String.format("matched 1 files with total size %d", file.length())),
+        logSaver);
+    LogManager.getLogManager().getLogger("").removeHandler(logSaver);
   }
 
   @Test

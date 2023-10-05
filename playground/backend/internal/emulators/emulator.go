@@ -16,12 +16,12 @@
 package emulators
 
 import (
+	"beam.apache.org/playground/backend/internal/constants"
 	"errors"
 	"os"
 	"path"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
@@ -56,20 +56,24 @@ func PrepareMockClusters(configuration EmulatorConfiguration) ([]EmulatorMockClu
 	}
 
 	var mockClusters = make([]EmulatorMockCluster, 0)
+
+	kafkaMockCluster, err := NewKafkaMockCluster(configuration.KafkaEmulatorExecutablePath)
+	if err != nil {
+		logger.Errorf("failed to run a kafka mock cluster, %v", err)
+		return nil, err
+	}
+	kafkaMockCluster.preparerParameters[constants.BootstrapServerKey] = kafkaMockCluster.GetAddress()
+	mockClusters = append(mockClusters, kafkaMockCluster)
+
 	for emulatorType, datasets := range datasetsByEmulatorTypeMap {
 		datasetDTOs, err := toDatasetDTOs(configuration.DatasetsPath, datasets)
 		if err != nil {
 			logger.Errorf("failed to get datasets from the repository, %v", err)
 			return nil, err
 		}
+
 		switch emulatorType {
 		case pb.EmulatorType_EMULATOR_TYPE_KAFKA:
-			kafkaMockCluster, err := NewKafkaMockCluster(configuration.KafkaEmulatorExecutablePath)
-			if err != nil {
-				logger.Errorf("failed to run a kafka mock cluster, %v", err)
-				return nil, err
-			}
-			mockClusters = append(mockClusters, kafkaMockCluster)
 			producer, err := NewKafkaProducer(kafkaMockCluster)
 			if err != nil {
 				logger.Errorf("failed to create a producer, %v", err)
@@ -86,7 +90,7 @@ func PrepareMockClusters(configuration EmulatorConfiguration) ([]EmulatorMockClu
 					kafkaMockCluster.preparerParameters[k] = v
 				}
 			}
-			kafkaMockCluster.preparerParameters[constants.BootstrapServerKey] = kafkaMockCluster.GetAddress()
+
 		default:
 			return nil, errors.New("unsupported emulator type")
 		}

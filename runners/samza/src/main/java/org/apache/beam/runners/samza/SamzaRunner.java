@@ -45,7 +45,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.ExternalContext;
@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
-  private static final String BEAM_JSON_GRAPH = "beamJsonGraph";
+  public static final String BEAM_JSON_GRAPH = "beamJsonGraph";
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
     final SamzaPipelineOptions samzaOptions =

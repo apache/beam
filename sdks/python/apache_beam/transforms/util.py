@@ -71,7 +71,6 @@ from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
@@ -666,7 +665,8 @@ class BatchElements(PTransform):
   operations. For a fixed batch size, set the min and max to be equal.
 
   Elements are batched per-window and batches emitted in the window
-  corresponding to its contents.
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
 
   Args:
     min_batch_size: (optional) the smallest size of a batch
@@ -766,8 +766,6 @@ class ReshufflePerKey(PTransform):
   but operationally provides some of the side effects of a GroupByKey,
   in particular checkpointing, and preventing fusion of the surrounding
   transforms.
-
-  ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
@@ -831,8 +829,6 @@ class Reshuffle(PTransform):
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
-
-  Reshuffle is experimental. No backwards compatibility guarantees.
   """
 
   # We use 32-bit integer as the default number of buckets.
@@ -911,7 +907,6 @@ def WithKeys(pcoll, k, *args, **kwargs):
   return pcoll | Map(lambda v: (k, v))
 
 
-@experimental()
 @typehints.with_input_types(Tuple[K, V])
 @typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
@@ -920,9 +915,6 @@ class GroupIntoBatches(PTransform):
   point they are output to the output Pcollection.
 
   Windows are preserved (batches will contain elements from the same window)
-
-  GroupIntoBatches is experimental. Its use case will depend on the runner if
-  it has support of States and Timers.
   """
   def __init__(
       self, batch_size, max_buffering_duration_secs=None, clock=time.time):
@@ -1163,13 +1155,24 @@ class ToString(object):
 class LogElements(PTransform):
   """
   PTransform for printing the elements of a PCollection.
+
+  Args:
+    label (str): (optional) A custom label for the transform.
+    prefix (str): (optional) A prefix string to prepend to each logged element.
+    with_timestamp (bool): (optional) Whether to include element's timestamp.
+    with_window (bool): (optional) Whether to include element's window.
+    level: (optional) The logging level for the output (e.g. `logging.DEBUG`,
+        `logging.INFO`, `logging.WARNING`, `logging.ERROR`). If not specified,
+        the log is printed to stdout.
   """
   class _LoggingFn(DoFn):
-    def __init__(self, prefix='', with_timestamp=False, with_window=False):
+    def __init__(
+        self, prefix='', with_timestamp=False, with_window=False, level=None):
       super().__init__()
       self.prefix = prefix
       self.with_timestamp = with_timestamp
       self.with_window = with_window
+      self.level = level
 
     def process(
         self,
@@ -1186,19 +1189,38 @@ class LogElements(PTransform):
         log_line += ', window(start=' + window.start.to_rfc3339()
         log_line += ', end=' + window.end.to_rfc3339() + ')'
 
-      print(log_line)
+      if self.level == logging.DEBUG:
+        logging.debug(log_line)
+      elif self.level == logging.INFO:
+        logging.info(log_line)
+      elif self.level == logging.WARNING:
+        logging.warning(log_line)
+      elif self.level == logging.ERROR:
+        logging.error(log_line)
+      elif self.level == logging.CRITICAL:
+        logging.critical(log_line)
+      else:
+        print(log_line)
+
       yield element
 
   def __init__(
-      self, label=None, prefix='', with_timestamp=False, with_window=False):
+      self,
+      label=None,
+      prefix='',
+      with_timestamp=False,
+      with_window=False,
+      level=None):
     super().__init__(label)
     self.prefix = prefix
     self.with_timestamp = with_timestamp
     self.with_window = with_window
+    self.level = level
 
   def expand(self, input):
     return input | ParDo(
-        self._LoggingFn(self.prefix, self.with_timestamp, self.with_window))
+        self._LoggingFn(
+            self.prefix, self.with_timestamp, self.with_window, self.level))
 
 
 class Reify(object):

@@ -18,14 +18,11 @@
 package org.apache.beam.sdk.schemas.io.payloads;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 
 @Internal
-@Experimental(Kind.SCHEMAS)
 public interface PayloadSerializer extends Serializable {
   long serialVersionUID = 5645783967169L;
 

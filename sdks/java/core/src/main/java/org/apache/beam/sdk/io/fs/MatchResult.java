@@ -22,8 +22,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -112,7 +110,6 @@ public abstract class MatchResult {
      *     .apply(WithTimestamps.of(metadata -> new Instant(metadata.lastModifiedMillis())));
      * }</pre>
      */
-    @Experimental(Kind.FILESYSTEM)
     public abstract long lastModifiedMillis();
 
     public static Builder builder() {

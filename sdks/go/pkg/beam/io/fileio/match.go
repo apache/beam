@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/periodic"
 )
@@ -36,6 +37,9 @@ func init() {
 	register.DoFn2x0[[]byte, func(string)](&matchContFn{})
 	register.DoFn4x1[state.Provider, string, FileMetadata, func(FileMetadata), error](
 		&dedupFn{},
+	)
+	register.DoFn4x1[state.Provider, string, FileMetadata, func(FileMetadata), error](
+		&dedupUnmodifiedFn{},
 	)
 	register.Emitter1[FileMetadata]()
 	register.Emitter1[string]()
@@ -190,13 +194,34 @@ func metadataFromFiles(
 			return nil, err
 		}
 
+		mTime, err := lastModified(ctx, fs, path)
+		if err != nil {
+			return nil, err
+		}
+
 		metadata[i] = FileMetadata{
-			Path: path,
-			Size: size,
+			Path:         path,
+			Size:         size,
+			LastModified: mTime,
 		}
 	}
 
 	return metadata, nil
+}
+
+func lastModified(ctx context.Context, fs filesystem.Interface, path string) (time.Time, error) {
+	lmGetter, ok := fs.(filesystem.LastModifiedGetter)
+	if !ok {
+		log.Warnf(ctx, "Filesystem %T does not implement filesystem.LastModifiedGetter", fs)
+		return time.Time{}, nil
+	}
+
+	mTime, err := lmGetter.LastModified(ctx, path)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("error getting last modified time for %q: %v", path, err)
+	}
+
+	return mTime, nil
 }
 
 // duplicateTreatment controls how duplicate matches are treated.
@@ -205,6 +230,9 @@ type duplicateTreatment int
 const (
 	// duplicateAllow allows duplicate matches.
 	duplicateAllow duplicateTreatment = iota
+	// duplicateAllowIfModified allows duplicate matches only if the file has been modified since it
+	// was last observed.
+	duplicateAllowIfModified
 	// duplicateSkip skips duplicate matches.
 	duplicateSkip
 )
@@ -241,6 +269,14 @@ func MatchDuplicateAllow() MatchContOptionFn {
 	}
 }
 
+// MatchDuplicateAllowIfModified specifies that file path matches will be deduplicated unless the
+// file has been modified since it was last observed.
+func MatchDuplicateAllowIfModified() MatchContOptionFn {
+	return func(o *matchContOption) {
+		o.DuplicateTreatment = duplicateAllowIfModified
+	}
+}
+
 // MatchDuplicateSkip specifies that file path matches will be deduplicated.
 func MatchDuplicateSkip() MatchContOptionFn {
 	return func(o *matchContOption) {
@@ -262,6 +298,8 @@ func MatchApplyWindow() MatchContOptionFn {
 //   - Start: start time for matching files. Defaults to the current timestamp
 //   - End: end time for matching files. Defaults to the maximum timestamp
 //   - DuplicateAllow: allow emitting matches that have already been observed. Defaults to false
+//   - DuplicateAllowIfModified: allow emitting matches that have already been observed if the file
+//     has been modified since the last observation. Defaults to false
 //   - DuplicateSkip: skip emitting matches that have already been observed. Defaults to true
 //   - ApplyWindow: assign each element to an individual window with a fixed size equivalent to the
 //     interval. Defaults to false, i.e. all elements will reside in the global window
@@ -290,19 +328,30 @@ func MatchContinuously(
 	globs := beam.ParDo(s, &matchContFn{Glob: glob}, imp)
 	matches := MatchAll(s, globs, MatchEmptyAllow())
 
-	var out beam.PCollection
-
-	if option.DuplicateTreatment == duplicateAllow {
-		out = matches
-	} else {
-		keyed := beam.ParDo(s, keyByPath, matches)
-		out = beam.ParDo(s, &dedupFn{}, keyed)
-	}
+	out := dedupIfRequired(s, matches, option.DuplicateTreatment)
 
 	if option.ApplyWindow {
 		return beam.WindowInto(s, window.NewFixedWindows(interval), out)
 	}
 	return out
+}
+
+func dedupIfRequired(
+	s beam.Scope,
+	col beam.PCollection,
+	treatment duplicateTreatment,
+) beam.PCollection {
+	if treatment == duplicateAllow {
+		return col
+	}
+
+	keyed := beam.ParDo(s, keyByPath, col)
+
+	if treatment == duplicateAllowIfModified {
+		return beam.ParDo(s, &dedupUnmodifiedFn{}, keyed)
+	}
+
+	return beam.ParDo(s, &dedupFn{}, keyed)
 }
 
 type matchContFn struct {
@@ -335,6 +384,33 @@ func (fn *dedupFn) ProcessElement(
 	if !ok {
 		emit(md)
 		if err := fn.State.Write(sp, struct{}{}); err != nil {
+			return fmt.Errorf("error writing state: %v", err)
+		}
+	}
+
+	return nil
+}
+
+type dedupUnmodifiedFn struct {
+	State state.Value[int64]
+}
+
+func (fn *dedupUnmodifiedFn) ProcessElement(
+	sp state.Provider,
+	_ string,
+	md FileMetadata,
+	emit func(FileMetadata),
+) error {
+	prevMTime, ok, err := fn.State.Read(sp)
+	if err != nil {
+		return fmt.Errorf("error reading state: %v", err)
+	}
+
+	mTime := md.LastModified.UnixMilli()
+
+	if !ok || mTime > prevMTime {
+		emit(md)
+		if err := fn.State.Write(sp, mTime); err != nil {
 			return fmt.Errorf("error writing state: %v", err)
 		}
 	}

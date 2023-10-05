@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /*
  * Metric class which records Service API call metrics.

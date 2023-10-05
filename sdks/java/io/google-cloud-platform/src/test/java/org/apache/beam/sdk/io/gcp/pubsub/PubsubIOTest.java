@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroSchema;
@@ -75,9 +76,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -573,7 +574,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroGenericRecords() {
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, SCHEMA);
+    AvroCoder<GenericRecord> coder = AvroCoder.of(SCHEMA);
     List<GenericRecord> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
@@ -612,7 +613,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroSpecificRecord() {
-    AvroCoder<AvroGeneratedUser> coder = AvroCoder.of(AvroGeneratedUser.class);
+    AvroCoder<AvroGeneratedUser> coder = AvroCoder.specific(AvroGeneratedUser.class);
     List<AvroGeneratedUser> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
@@ -738,6 +739,41 @@ public class PubsubIOTest {
       if (!isBounded) {
         messages = messages.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
       }
+      messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
+      pipeline.run();
+    }
+  }
+
+  @Test
+  public void testBigMessageBounded() throws IOException {
+    String bigMsg =
+        IntStream.range(0, 100_000).mapToObj(_unused -> "x").collect(Collectors.joining(""));
+
+    OutgoingMessage msg =
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(bigMsg))
+                .build(),
+            0,
+            null,
+            "projects/project/topics/topic1");
+
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPublish(null, ImmutableList.of(msg), ImmutableList.of())) {
+      TimestampedValue<PubsubMessage> pubsubMsg =
+          TimestampedValue.of(
+              new PubsubMessage(
+                      msg.getMessage().getData().toByteArray(),
+                      Collections.emptyMap(),
+                      msg.recordId())
+                  .withTopic(msg.topic()),
+              Instant.ofEpochMilli(msg.getTimestampMsSinceEpoch()));
+
+      PCollection<PubsubMessage> messages =
+          pipeline.apply(
+              Create.timestamped(ImmutableList.of(pubsubMsg))
+                  .withCoder(new PubsubMessageWithTopicCoder()));
+      messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
       messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
       pipeline.run();
     }

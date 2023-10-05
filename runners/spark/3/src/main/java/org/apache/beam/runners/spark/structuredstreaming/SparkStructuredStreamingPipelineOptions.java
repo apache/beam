@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,7 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
  * master address, and other user-related knobs.
  */
-@Experimental
 public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipelineOptions {
 
   /** Set to true to run the job in test mode. */

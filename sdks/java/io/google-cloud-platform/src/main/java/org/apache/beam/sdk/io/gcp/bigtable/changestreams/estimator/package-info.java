@@ -22,8 +22,6 @@
  * are under active development and may diverge
  */
 @Internal
-@Experimental
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;

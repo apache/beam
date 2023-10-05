@@ -15,6 +15,7 @@
 
 import mock
 import pytest
+from mock.mock import AsyncMock
 
 from api.v1.api_pb2 import (
     SDK_JAVA,
@@ -26,9 +27,10 @@ from api.v1.api_pb2 import (
     STATUS_COMPILE_ERROR,
     STATUS_RUN_ERROR,
 )
-from verify import Verifier, VerifyException
+
 from config import Origin
 from models import SdkEnum
+from verify import Verifier, VerifyException
 
 
 @pytest.mark.asyncio
@@ -71,3 +73,17 @@ async def test__verify_examples(create_test_example):
             client, examples_with_several_def_ex, Origin.PG_EXAMPLES
         )
     await verifier._verify_examples(client, examples_without_errors, Origin.PG_EXAMPLES)
+
+
+@pytest.mark.asyncio
+@mock.patch("verify.update_example_status")
+async def test_get_statuses(mock_update_example_status, create_test_example):
+    example = create_test_example()
+    client = mock.sentinel
+    verifier = Verifier(SdkEnum.JAVA, Origin.PG_EXAMPLES)
+
+    verifier._populate_fields = AsyncMock()
+
+    await verifier._get_statuses(client, [example])
+
+    mock_update_example_status.assert_called_once_with(example, client)

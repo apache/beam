@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.io.hcatalog.HCatToRow;
 import org.apache.beam.sdk.io.hcatalog.HCatalogIO;
@@ -35,7 +34,6 @@ import org.apache.beam.sdk.values.Row;
  * <p>Reads {@code HCatRecords} and converts them to {@link Row Rows}.
  */
 @AutoValue
-@Experimental
 public abstract class HCatalogTable extends BaseBeamTable {
 
   public abstract Schema schema();

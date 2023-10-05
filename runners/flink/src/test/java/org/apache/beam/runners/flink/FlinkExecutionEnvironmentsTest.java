@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +30,11 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
@@ -473,6 +479,58 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev.getStateBackend(), instanceOf(RocksDBStateBackend.class));
+  }
+
+  /** Test interface. */
+  public interface TestOptions extends PipelineOptions {
+    String getKey1();
+
+    void setKey1(String value);
+
+    Boolean getKey2();
+
+    void setKey2(Boolean value);
+
+    String getKey3();
+
+    void setKey3(String value);
+  }
+
+  @Test
+  public void shouldSetWebUIOptions() {
+    PipelineOptionsFactory.register(TestOptions.class);
+    PipelineOptionsFactory.register(FlinkPipelineOptions.class);
+
+    FlinkPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--key1=value1",
+                "--key2",
+                "--key3=",
+                "--parallelism=10",
+                "--checkpointTimeoutMillis=500")
+            .as(FlinkPipelineOptions.class);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
+
+    Map<String, String> actualMap = sev.getConfig().getGlobalJobParameters().toMap();
+
+    Map<String, String> expectedMap = new HashMap<>();
+    expectedMap.put("key1", "value1");
+    expectedMap.put("key2", "true");
+    expectedMap.put("key3", "");
+    expectedMap.put("checkpointTimeoutMillis", "500");
+    expectedMap.put("parallelism", "10");
+
+    Map<String, String> filteredMap =
+        expectedMap.entrySet().stream()
+            .filter(
+                kv ->
+                    actualMap.containsKey(kv.getKey())
+                        && kv.getValue().equals(actualMap.get(kv.getKey())))
+            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+
+    assertTrue(expectedMap.size() == filteredMap.size());
   }
 
   private void checkHostAndPort(Object env, String expectedHost, int expectedPort) {
