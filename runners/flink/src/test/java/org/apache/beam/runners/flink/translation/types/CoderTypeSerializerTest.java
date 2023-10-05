@@ -74,7 +74,9 @@ public class CoderTypeSerializerTest implements Serializable {
     TypeSerializerSnapshot readSnapshot = new CoderTypeSerializer.LegacySnapshot();
     readSnapshot.readSnapshot(
         writtenSnapshot.getCurrentVersion(), outView.getInputView(), getClass().getClassLoader());
+    CoderTypeSerializer<String> restoreSerializer = (CoderTypeSerializer<String>) readSnapshot.restoreSerializer();
 
-    assertThat(readSnapshot.restoreSerializer(), is(serializer));
+      assertThat(restoreSerializer, is(serializer));
+      assertThat("TypeSerializerSchemaCompatibility should be compatible", writtenSnapshot.resolveSchemaCompatibility(restoreSerializer).isCompatibleAsIs() == true);
   }
 }

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import java.io.EOFException;
-import java.io.IOException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
@@ -28,13 +26,16 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.io.VersionedIOReadableWritable;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.InstantiationUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.io.EOFException;
+import java.io.IOException;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Beam {@link
@@ -158,26 +159,81 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     return new LegacySnapshot<>(this);
   }
 
-  /** A legacy snapshot which does not care about schema compatibility. */
-  public static class LegacySnapshot<T> extends TypeSerializerConfigSnapshot<T> {
+  public static class LegacySnapshot<T> implements TypeSerializerSnapshot<T> {
 
-    /** Needs to be public to work with {@link VersionedIOReadableWritable}. */
-    public LegacySnapshot() {}
+    int CURRENT_VERSION = 2;
+    CoderTypeSerializer<T> serializer;
+
+    public LegacySnapshot() {
+    }
 
     public LegacySnapshot(CoderTypeSerializer<T> serializer) {
-      setPriorSerializer(serializer);
+      this.serializer = serializer;
     }
 
     @Override
-    public int getVersion() {
-      // We always return the same version
-      return 1;
+    public int getCurrentVersion() {
+      return CURRENT_VERSION;
     }
 
     @Override
-    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-        TypeSerializer<T> newSerializer) {
-      // We assume compatibility because we don't have a way of checking schema compatibility
+    public void writeSnapshot(DataOutputView out) throws IOException {
+      ByteArrayOutputStreamWithPos streamWithPos = new ByteArrayOutputStreamWithPos();
+      InstantiationUtil.serializeObject(streamWithPos, this.serializer);
+      out.writeInt(streamWithPos.getPosition());
+      out.write(streamWithPos.getBuf(), 0, streamWithPos.getPosition());
+    }
+
+    @Override
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+      switch (readVersion) {
+        case 1:
+          throw new UnsupportedOperationException(
+                  String.format("No longer supported version [%d].", readVersion));
+        case 2:
+          try {
+            int serializerBytes = in.readInt();
+            byte[] buffer = new byte[serializerBytes];
+            in.readFully(buffer);
+            this.serializer = InstantiationUtil.deserializeObject(buffer, userCodeClassLoader);
+          } catch (ClassNotFoundException e) {
+            throw new IOException(e);
+          }
+          break;
+        default:
+          throw new IllegalArgumentException("Unrecognized version: " + readVersion);
+      }
+    }
+
+    @Override
+    public TypeSerializer<T> restoreSerializer() {
+      if (serializer == null) {
+        throw new IllegalStateException(
+                "Trying to restore the prior serializer but the prior serializer has not been set.");
+      }
+      return this.serializer;
+    }
+
+    @Override
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+      if (newSerializer.getClass() != this.getClass().getDeclaringClass()) {
+        return TypeSerializerSchemaCompatibility.incompatible();
+      }
+
+      CoderTypeSerializer<T> coderTypeSerializer = (CoderTypeSerializer<T>) newSerializer;
+
+      if (this.serializer == null) {
+        return TypeSerializerSchemaCompatibility.incompatible();
+      }
+
+      if (!this.serializer.coder.getEncodedTypeDescriptor().getType().getTypeName().equals(coderTypeSerializer.coder.getEncodedTypeDescriptor().getType().getTypeName())) {
+        return TypeSerializerSchemaCompatibility.incompatible();
+      }
+
+      if (!this.serializer.pipelineOptions.toString().equals(coderTypeSerializer.pipelineOptions.toString())) {
+        return TypeSerializerSchemaCompatibility.incompatible();
+      }
+
       return TypeSerializerSchemaCompatibility.compatibleAsIs();
     }
   }
