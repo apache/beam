@@ -60,17 +60,19 @@ else:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-_RETRYABLE_REASONS = ["rateLimitExceeded", "quotaExceeded", "internalError", "backendError"]
+_RETRYABLE_REASONS = [
+    "rateLimitExceeded", "quotaExceeded", "internalError", "backendError"
+]
 _RETRYABLE_TYPES = (
-  exceptions.TooManyRequests if exceptions else None,
-  exceptions.InternalServerError if exceptions else None,
-  exceptions.BadGateway if exceptions else None,
-  exceptions.ServiceUnavailable if exceptions else None,
-  exceptions.DeadlineExceeded if exceptions else None,
-  requests.exceptions.ConnectionError,
-  requests.exceptions.Timeout,
-  ConnectionError
-)
+    exceptions.TooManyRequests if exceptions else None,
+    exceptions.InternalServerError if exceptions else None,
+    exceptions.BadGateway if exceptions else None,
+    exceptions.ServiceUnavailable if exceptions else None,
+    exceptions.DeadlineExceeded if exceptions else None,
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    ConnectionError)
+
 
 class PermanentException(Exception):
   """Base class for exceptions that should not be retried."""
@@ -188,9 +190,12 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
     if exception.status_code == 403:
       try:
         # attempt to extract the reason and check if it's retryable
-        return exception.content["error"]["errors"][0]["reason"] in _RETRYABLE_REASONS
+        return exception.content["error"]["errors"][0][
+            "reason"] in _RETRYABLE_REASONS
       except Exception:
-        _LOGGER.debug("Could not determine if HttpError is non-transient. Will retry: %s", exception)
+        _LOGGER.debug(
+            "Could not determine if HttpError is non-transient. Will retry: %s",
+            exception)
       return True
   if GoogleAPICallError is not None and isinstance(exception,
                                                    GoogleAPICallError):
