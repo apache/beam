@@ -80,7 +80,6 @@ jobs:
           test-language: python
           argument-file-paths: |
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_GBK_Dataflow_Streaming_2GB_of_100kB_records.txt
-          arguments: 
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
         # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
