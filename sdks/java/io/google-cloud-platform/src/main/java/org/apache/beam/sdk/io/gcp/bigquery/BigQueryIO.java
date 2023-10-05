@@ -2499,6 +2499,8 @@ public class BigQueryIO {
        * <p>The replacement may occur in multiple steps - for instance by first removing the
        * existing table, then creating a replacement, then filling it in. This is not an atomic
        * operation, and external programs may see the table in any of these intermediate steps.
+       *
+       * <p>Note: This write disposition is only supported for the FILE_LOADS write method.
        */
       WRITE_TRUNCATE,
 
@@ -3250,7 +3252,7 @@ public class BigQueryIO {
         checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
-          LOG.warn("Storage API triggering frequency" + error);
+          LOG.warn("Setting a triggering frequency" + error);
         }
         if (getStorageApiNumStreams(bqOptions) != 0) {
           LOG.warn("Setting the number of Storage API streams" + error);
@@ -3266,6 +3268,8 @@ public class BigQueryIO {
         checkArgument(
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
+      } else if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
+        LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
       }
       if (getRowMutationInformationFn() != null) {
         checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
