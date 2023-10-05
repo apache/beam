@@ -488,13 +488,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
-    // Automatically use the official release version if we are performing a release
-    // otherwise append '-SNAPSHOT'
-    project.version = '2.52.0'
-    if (!isRelease(project)) {
-      project.version += '-SNAPSHOT'
-    }
-
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
