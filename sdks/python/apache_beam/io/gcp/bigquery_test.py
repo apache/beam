@@ -471,7 +471,8 @@ class TestReadFromBigQuery(unittest.TestCase):
       schema = DummySchema()
 
     with mock.patch('time.sleep'), \
-            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get') as mock_get_table, \
+            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
+                              'Get') as mock_get_table, \
             mock.patch.object(BigQueryWrapper,
                               'wait_for_bq_job'), \
             mock.patch.object(BigQueryWrapper,
@@ -568,7 +569,8 @@ class TestReadFromBigQuery(unittest.TestCase):
       schema = DummySchema()
 
     with mock.patch('time.sleep'), \
-            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get') as mock_get_table, \
+            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
+                              'Get') as mock_get_table, \
             mock.patch.object(BigQueryWrapper,
                               'wait_for_bq_job'), \
             mock.patch.object(BigQueryWrapper,
