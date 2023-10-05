@@ -49,6 +49,8 @@ public class ResourceHints {
   private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
 
+  private static final String CPU_COUNT_URN = "beam:resources:cpu_count:v1";
+
   // TODO: reference this from a common location in all packages that use this.
   private static String getUrn(ProtocolMessageEnum value) {
     return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
@@ -64,6 +66,8 @@ public class ResourceHints {
           .put("minRam", MIN_RAM_URN)
           .put("min_ram", MIN_RAM_URN) // Courtesy alias.
           .put("accelerator", ACCELERATOR_URN)
+          .put("cpuCount", CPU_COUNT_URN)
+          .put("cpu_count", CPU_COUNT_URN) // Courtesy alias.
           .build();
 
   private static ImmutableMap<String, Function<String, ResourceHint>> parsers =
@@ -212,6 +216,47 @@ public class ResourceHints {
     }
   }
 
+  /*package*/ static class IntHint extends ResourceHint {
+    private final int value;
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      if (other == null) {
+        return false;
+      } else if (this == other) {
+        return true;
+      } else if (other instanceof IntHint) {
+        return ((IntHint) other).value == value;
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Integer.hashCode(value);
+    }
+
+    public IntHint(int value) {
+      this.value = value;
+    }
+
+    public static int parse(String s) {
+      return Integer.valueOf(s);
+      throw new IllegalArgumentException("Unable to parse '" + s + "' as an Integer value.");
+    }
+
+    @Override
+    public ResourceHint mergeWithOuter(ResourceHint outer) {
+      return new IntHint(Math.max(value, ((IntHint) outer).value));
+    }
+
+    @Override
+    public byte[] toBytes() {
+      return String.valueOf(value).getBytes(Charsets.US_ASCII);
+    }
+  }
+
   /**
    * Sets desired minimal available RAM size to have in transform's execution environment.
    *
@@ -262,6 +307,23 @@ public class ResourceHints {
       }
     }
     return new ResourceHints(newHints.build());
+  }
+
+  /**
+   * Sets desired minimal CPU or vCPU count to have in transform's execution environment.
+   *
+   * @param cpuCount specifies a positive CPU count.
+   */
+  public ResourceHints withCPUCount(int cpuCount) {
+    if (cpuCount <= 0) {
+      LOG.error(
+          "Encountered invalid non-positive cpu count hint value {}.\n"
+              + "The value is ignored. In the future, The method will require an object Long type "
+              + "and throw an IllegalArgumentException for invalid values.",
+          cpuCount);
+      return this;
+    }
+    return withHint(CPU_COUNT_URN, new IntHint(cpuCount));
   }
 
   public Map<String, ResourceHint> hints() {

@@ -1982,5 +1982,9 @@ message StandardResourceHints {
     // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
     // Payload: ASCII encoded string of the base 10 representation of an integer number of bytes.
     MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
+    // Describes desired number of CPUs available in transform's execution environment.
+    // SDKs should accept and validate a positive integer count.
+    // Payload: ASCII encoded string of the base 10 representation of an integer number of CPUs.
+    CPU_COUNT = 2 [(beam_urn) = "beam:resources:cpu_count:v1"];
   }
 }

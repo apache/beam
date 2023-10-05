@@ -42,6 +42,7 @@ __all__ = [
     'ResourceHint',
     'AcceleratorHint',
     'MinRamHint',
+    'CpuCountHint',
     'merge_resource_hints',
     'parse_resource_hints',
     'resource_hints_from_options',
@@ -175,6 +176,20 @@ class MinRamHint(ResourceHint):
 ResourceHint.register_resource_hint('min_ram', MinRamHint)
 # Alias for interoperability with SDKs preferring camelCase.
 ResourceHint.register_resource_hint('minRam', MinRamHint)
+
+
+class CpuCountHint(ResourceHint):
+  """Describes desired hardware accelerators in execution environment."""
+  urn = resource_hints.CPU_COUNT.urn
+
+  @classmethod
+  def get_merged_value(
+      cls, outer_value, inner_value):  # type: (int, int) -> int
+    return ResourceHint._use_max(outer_value, inner_value)
+
+
+ResourceHint.register_resource_hint('cpu_count', CpuCountHint)
+ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
 
 
 def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
