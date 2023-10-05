@@ -23,6 +23,6 @@
 --input_options=''{\\"num_records\\":5000000,\\"key_size\\":10,\\"value_size\\":90,\\"algorithm\\":\\"lcg\\"}''
 --iterations=1
 --fanout=4
---numWorkers=16
+--num_workers=16
 --autoscaling_algorithm=NONE
 --runner=DataflowRunner
