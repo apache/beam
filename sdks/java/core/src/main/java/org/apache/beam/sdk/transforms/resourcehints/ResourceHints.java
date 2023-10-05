@@ -243,7 +243,6 @@ public class ResourceHints {
 
     public static int parse(String s) {
       return Integer.valueOf(s);
-      throw new IllegalArgumentException("Unable to parse '" + s + "' as an Integer value.");
     }
 
     @Override

@@ -203,12 +203,12 @@ func (h acceleratorHint) String() string {
 //
 // See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
 // resource hints.
-func CPUCount(v int) Hint {
-	return CPUCountHint{value: int(v)}
+func CPUCount(v uint64) Hint {
+	return CPUCountHint{value: uint64(v)}
 }
 
 type CPUCountHint struct {
-	value int
+	value uint64
 }
 
 func (CPUCountHint) URN() string {
@@ -218,10 +218,10 @@ func (CPUCountHint) URN() string {
 func (h CPUCountHint) Payload() []byte {
 	// Go strings are utf8, and if the string is ascii,
 	// byte conversion handles that directly.
-	return []byte(strconv.FormatInt(h.value, 10))
+	return []byte(strconv.FormatUint(h.value, 10))
 }
 
-// MergeWith an outer minRAMHints by keeping the maximum of the two cpu counts.
+// MergeWith an outer CPUCountHints by keeping the maximum of the two cpu counts.
 func (h CPUCountHint) MergeWithOuter(outer Hint) Hint {
 	// Intentional runtime panic from type assertion to catch hint merge errors.
 	if outer.(CPUCountHint).value > h.value {
@@ -231,5 +231,5 @@ func (h CPUCountHint) MergeWithOuter(outer Hint) Hint {
 }
 
 func (h CPUCountHint) String() string {
-	return fmt.Sprintf("cpu_count=%v", humanize.Bytes(int(h.value)))
+	return fmt.Sprintf("cpu_count=%v", humanize.Bytes(uint64(h.value)))
 }
