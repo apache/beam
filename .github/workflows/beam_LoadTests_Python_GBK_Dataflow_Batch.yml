@@ -87,7 +87,7 @@ jobs:
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
-      - name: run integrationTest
+      - name: run 2GB of 10B records test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -96,7 +96,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-gbk-1-${{env.NOW_UTC}}' \
-      - name: run integrationTest
+      - name: run 2GB of 100B records test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -105,7 +105,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-gbk-2-${{env.NOW_UTC}}' \
-      - name: run integrationTest
+      - name: run 2GB of 100kB records test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -114,7 +114,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-gbk-3-${{env.NOW_UTC}}' \
-      - name: run integrationTest
+      - name: run fanout 4 times with 2GB 10-byte records test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -123,7 +123,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_4 }} --job_name=load-tests-python-dataflow-batch-gbk-4-${{env.NOW_UTC}}' \
-      - name: run integrationTest
+      - name: run fanout 8 times with 2GB 10-byte records total test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
