@@ -434,8 +434,8 @@ class TestReadFromBigQuery(unittest.TestCase):
           ],
           expected_retries=2),
       # first attempts returns a 403 rateLimitExceeded error
-      # second attempt returns a 403 quotaExceeded error
-      # third attempt returns a Http 403 quotaExceeded error
+      # second attempt returns a 429 rateLimitExceeded error
+      # third attempt returns a Http 403 rateLimitExceeded error
       # fourth attempt passes
       param(
           responses=[
@@ -444,17 +444,18 @@ class TestReadFromBigQuery(unittest.TestCase):
                   errors=({
                       "message": "transient", "reason": "rateLimitExceeded"
                   }, )),
-              exceptions.Forbidden(
+              exceptions.ResourceExhausted(
                   "some message",
                   errors=({
-                      "message": "transient", "reason": "quotaExceeded"
+                      "message": "transient", "reason": "rateLimitExceeded"
                   }, )),
               HttpForbiddenError(
                   response={'status': 403},
                   content={
                       "error": {
                           "errors": [{
-                              "message": "transient", "reason": "quotaExceeded"
+                              "message": "transient",
+                              "reason": "rateLimitExceeded"
                           }]
                       }
                   },
@@ -504,16 +505,17 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertEqual(expected_retries, mock_get_table.call_count - 2)
 
   @parameterized.expand([
-      # first attempt returns a Http 403 with transient reason and retries
+      # first attempt returns a Http 429 with transient reason and retries
       # second attempt returns a Http 403 with non-transient reason and fails
       param(
           responses=[
               HttpForbiddenError(
-                  response={'status': 403},
+                  response={'status': 429},
                   content={
                       "error": {
                           "errors": [{
-                              "message": "transient", "reason": "quotaExceeded"
+                              "message": "transient",
+                              "reason": "rateLimitExceeded"
                           }]
                       }
                   },

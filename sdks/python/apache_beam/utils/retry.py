@@ -43,11 +43,9 @@ from apache_beam.io.filesystem import BeamIOError
 try:
   from apitools.base.py.exceptions import HttpError
   from google.api_core.exceptions import GoogleAPICallError
-  from google.api_core import exceptions
 except ImportError as e:
   HttpError = None
   GoogleAPICallError = None  # type: ignore
-  exceptions = None
 
 # Protect against environments where aws tools are not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -60,18 +58,7 @@ else:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-_RETRYABLE_REASONS = [
-    "rateLimitExceeded", "quotaExceeded", "internalError", "backendError"
-]
-_RETRYABLE_TYPES = (
-    exceptions.TooManyRequests if exceptions else None,
-    exceptions.InternalServerError if exceptions else None,
-    exceptions.BadGateway if exceptions else None,
-    exceptions.ServiceUnavailable if exceptions else None,
-    exceptions.DeadlineExceeded if exceptions else None,
-    requests.exceptions.ConnectionError,
-    requests.exceptions.Timeout,
-    ConnectionError)
+_RETRYABLE_REASONS = ["rateLimitExceeded", "internalError", "backendError"]
 
 
 class PermanentException(Exception):
@@ -181,28 +168,33 @@ def retry_on_server_errors_and_timeout_filter(exception):
 
 
 def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
-  """Retry on server, timeout and 403 errors.
+  """Retry on server, timeout, 429, and some 403 errors.
 
-  403 errors include both transient (accessDenied, billingNotEnabled) and
-  non-transient errors (quotaExceeded, rateLimitExceeded). Only retry transient
-  errors."""
+  403 errors from BigQuery include both non-transient (accessDenied,
+  billingNotEnabled) and transient errors (rateLimitExceeded).
+  Only retry transient errors."""
   if HttpError is not None and isinstance(exception, HttpError):
+    if exception.status_code == 429:
+      return True
     if exception.status_code == 403:
       try:
         # attempt to extract the reason and check if it's retryable
         return exception.content["error"]["errors"][0][
             "reason"] in _RETRYABLE_REASONS
-      except Exception:
+      except (KeyError, IndexError, TypeError):
         _LOGGER.debug(
-            "Could not determine if HttpError is non-transient. Will retry: %s",
+            "Could not determine if HttpError is non-transient. "
+            "Will not retry: %s",
             exception)
-      return True
+      return False
   if GoogleAPICallError is not None and isinstance(exception,
                                                    GoogleAPICallError):
+    if exception.code == 429:
+      return True
     if exception.code == 403:
       if not hasattr(exception, "errors") or len(exception.errors) == 0:
-        # default to retrying
-        return True
+        # default to not retrying
+        return False
 
       reason = exception.errors[0]["reason"]
       return reason in _RETRYABLE_REASONS
