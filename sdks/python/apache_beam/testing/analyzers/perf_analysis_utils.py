@@ -235,6 +235,7 @@ class MetricsFetcher(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def fetch_metric_data(
       self,
+      *,
       project,
       metrics_dataset,
       metrics_table,
