@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -49,10 +50,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class responsible for fetching state from the windmill server. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @NotThreadSafe
 public class SideInputStateFetcher {
   private static final Logger LOG = LoggerFactory.getLogger(SideInputStateFetcher.class);
@@ -73,12 +70,30 @@ public class SideInputStateFetcher {
     this.sideInputCache = sideInputCache;
   }
 
-  @SuppressWarnings("deprecation")
-  private static Iterable<?> decodeRawData(Coder<?> viewInternalCoder, GlobalData data)
+  private static <T> Iterable<?> decodeRawData(PCollectionView<T> view, GlobalData data)
       throws IOException {
     return !data.getData().isEmpty()
-        ? IterableCoder.of(viewInternalCoder).decode(data.getData().newInput(), Coder.Context.OUTER)
+        ? IterableCoder.of(getCoder(view)).decode(data.getData().newInput())
         : Collections.emptyList();
+  }
+
+  @SuppressWarnings({
+    "deprecation" // Required as part of the SideInputCacheKey, and not exposed.
+  })
+  private static <T> TupleTag<?> getInternalTag(PCollectionView<T> view) {
+    return view.getTagInternal();
+  }
+
+  @SuppressWarnings("deprecation")
+  private static <T> ViewFn<?, T> getViewFn(PCollectionView<T> view) {
+    return view.getViewFn();
+  }
+
+  @SuppressWarnings({
+    "deprecation" // The view's internal coder is required to decode the raw data.
+  })
+  private static <T> Coder<?> getCoder(PCollectionView<T> view) {
+    return view.getCoderInternal();
   }
 
   /** Returns a view of the underlying cache that keeps track of bytes read separately. */
@@ -95,11 +110,7 @@ public class SideInputStateFetcher {
    *
    * <p>If state is KNOWN_READY, attempt to fetch the data regardless of whether a not-ready entry
    * was cached.
-   *
-   * <p>Returns {@literal null} if the side input was not ready, {@literal Optional.absent()} if the
-   * side input was null, and {@literal Optional.present(...)} if the side input was non-null.
    */
-  @SuppressWarnings("deprecation")
   public <T> SideInput<T> fetchSideInput(
       PCollectionView<T> view,
       BoundedWindow sideWindow,
@@ -108,9 +119,9 @@ public class SideInputStateFetcher {
       Supplier<Closeable> scopedReadStateSupplier) {
     Callable<SideInput<T>> loadSideInputFromWindmill =
         () -> loadSideInputFromWindmill(view, sideWindow, stateFamily, scopedReadStateSupplier);
-
-    SideInputCache.Key sideInputCacheKey =
-        SideInputCache.Key.create(view.getTagInternal(), sideWindow);
+    SideInputCache.Key<T> sideInputCacheKey =
+        SideInputCache.Key.create(
+            getInternalTag(view), sideWindow, getViewFn(view).getTypeDescriptor());
 
     try {
       if (state == SideInputState.KNOWN_READY) {
@@ -134,26 +145,29 @@ public class SideInputStateFetcher {
     }
   }
 
-  @SuppressWarnings({"deprecation", "unchecked"})
   private <T, SideWindowT extends BoundedWindow> GlobalData fetchGlobalDataFromWindmill(
       PCollectionView<T> view,
       SideWindowT sideWindow,
       String stateFamily,
       Supplier<Closeable> scopedReadStateSupplier)
       throws IOException {
+    @SuppressWarnings({
+      "deprecation", // Internal windowStrategy is required to fetch side input data from Windmill.
+      "unchecked" // Internal windowing strategy matches WindowingStrategy<?, SideWindowT>.
+    })
     WindowingStrategy<?, SideWindowT> sideWindowStrategy =
         (WindowingStrategy<?, SideWindowT>) view.getWindowingStrategyInternal();
 
     Coder<SideWindowT> windowCoder = sideWindowStrategy.getWindowFn().windowCoder();
 
     ByteStringOutputStream windowStream = new ByteStringOutputStream();
-    windowCoder.encode(sideWindow, windowStream, Coder.Context.OUTER);
+    windowCoder.encode(sideWindow, windowStream);
 
     Windmill.GlobalDataRequest request =
         Windmill.GlobalDataRequest.newBuilder()
             .setDataId(
                 Windmill.GlobalDataId.newBuilder()
-                    .setTag(view.getTagInternal().getId())
+                    .setTag(getInternalTag(view).getId())
                     .setVersion(windowStream.toByteString())
                     .build())
             .setStateFamily(stateFamily)
@@ -167,49 +181,65 @@ public class SideInputStateFetcher {
     }
   }
 
-  @SuppressWarnings("deprecation")
   private <T> SideInput<T> loadSideInputFromWindmill(
       PCollectionView<T> view,
       BoundedWindow sideWindow,
       String stateFamily,
       Supplier<Closeable> scopedReadStateSupplier)
       throws IOException {
-    checkState(
-        SUPPORTED_MATERIALIZATIONS.contains(view.getViewFn().getMaterialization().getUrn()),
-        "Only materialization's of type %s supported, received %s",
-        SUPPORTED_MATERIALIZATIONS,
-        view.getViewFn().getMaterialization().getUrn());
-
+    validateViewMaterialization(view);
     GlobalData data =
         fetchGlobalDataFromWindmill(view, sideWindow, stateFamily, scopedReadStateSupplier);
     bytesRead += data.getSerializedSize();
     return data.getIsReady() ? createSideInputCacheEntry(view, data) : SideInput.notReady();
   }
 
-  @SuppressWarnings({"deprecation", "unchecked"})
+  private <T> void validateViewMaterialization(PCollectionView<T> view) {
+    String materializationUrn = getViewFn(view).getMaterialization().getUrn();
+    checkState(
+        SUPPORTED_MATERIALIZATIONS.contains(materializationUrn),
+        "Only materialization's of type %s supported, received %s",
+        SUPPORTED_MATERIALIZATIONS,
+        materializationUrn);
+  }
+
   private <T> SideInput<T> createSideInputCacheEntry(PCollectionView<T> view, GlobalData data)
       throws IOException {
-    Iterable<?> rawData = decodeRawData(view.getCoderInternal(), data);
-    switch (view.getViewFn().getMaterialization().getUrn()) {
+    Iterable<?> rawData = decodeRawData(view, data);
+    switch (getViewFn(view).getMaterialization().getUrn()) {
       case ITERABLE_MATERIALIZATION_URN:
         {
-          ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) view.getViewFn();
+          @SuppressWarnings({
+            "unchecked", // ITERABLE_MATERIALIZATION_URN has ViewFn<IterableView, T>.
+            "rawtypes" //  TODO(https://github.com/apache/beam/issues/20447)
+          })
+          ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) getViewFn(view);
           return SideInput.ready(viewFn.apply(() -> rawData), data.getData().size());
         }
       case MULTIMAP_MATERIALIZATION_URN:
         {
-          ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-          Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-          return SideInput.ready(
+          @SuppressWarnings({
+            "unchecked", // MULTIMAP_MATERIALIZATION_URN has ViewFn<MultimapView, T>.
+            "rawtypes" //  TODO(https://github.com/apache/beam/issues/20447)
+          })
+          ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) getViewFn(view);
+          Coder<?> keyCoder = ((KvCoder<?, ?>) getCoder(view)).getKeyCoder();
+
+          @SuppressWarnings({
+            "unchecked", // Safe since multimap rawData is of type Iterable<KV<K, V>>
+            "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+          })
+          T multimapSideInputValue =
               viewFn.apply(
-                  InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) rawData)),
-              data.getData().size());
+                  InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) rawData));
+          return SideInput.ready(multimapSideInputValue, data.getData().size());
         }
       default:
-        throw new IllegalStateException(
-            String.format(
-                "Unknown side input materialization format requested '%s'",
-                view.getViewFn().getMaterialization().getUrn()));
+        {
+          throw new IllegalStateException(
+              "Unknown side input materialization format requested: "
+                  + getViewFn(view).getMaterialization().getUrn());
+        }
     }
   }
 }

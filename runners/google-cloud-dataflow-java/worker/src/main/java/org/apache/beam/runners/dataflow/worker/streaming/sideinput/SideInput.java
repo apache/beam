@@ -22,8 +22,15 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 /**
- * Entry in the side input cache that stores the value (null if not ready), and the encoded size of
- * the value.
+ * Entry in the side input cache that stores the value and the encoded size of the value.
+ *
+ * <p>Can be in 1 of 3 states:
+ *
+ * <ul>
+ *   <li>Ready with a <T> value.
+ *   <li>Ready with no value, represented as {@link Optional<T>}
+ *   <li>Not ready.
+ * </ul>
  */
 @AutoValue
 public abstract class SideInput<T> {

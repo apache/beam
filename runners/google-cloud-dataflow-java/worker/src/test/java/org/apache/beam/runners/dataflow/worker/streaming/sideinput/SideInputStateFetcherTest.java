@@ -59,14 +59,15 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SideInputStateFetcher}. */
+// TODO: Add tests with different encoded windows to verify version is correctly plumbed.
 @SuppressWarnings("deprecation")
 @RunWith(JUnit4.class)
 public class SideInputStateFetcherTest {
   private static final String STATE_FAMILY = "state";
 
-  @Mock MetricTrackingWindmillServerStub server;
+  @Mock private MetricTrackingWindmillServerStub server;
 
-  @Mock Supplier<Closeable> readStateSupplier;
+  @Mock private Supplier<Closeable> readStateSupplier;
 
   @Before
   public void setUp() {
@@ -215,7 +216,7 @@ public class SideInputStateFetcherTest {
     coder.encode(Collections.singletonList("data2"), stream, Coder.Context.OUTER);
     ByteString encodedIterable2 = stream.toByteString();
 
-    Cache<SideInputCache.Key, SideInput<?>> cache = CacheBuilder.newBuilder().build();
+    Cache<SideInputCache.Key<?>, SideInput<?>> cache = CacheBuilder.newBuilder().build();
 
     SideInputStateFetcher fetcher = new SideInputStateFetcher(server, new SideInputCache(cache));
 
@@ -331,7 +332,7 @@ public class SideInputStateFetcherTest {
     verifyNoMoreInteractions(server);
   }
 
-  private Windmill.GlobalData buildGlobalDataResponse(
+  private static Windmill.GlobalData buildGlobalDataResponse(
       String tag, boolean isReady, ByteString data) {
     Windmill.GlobalData.Builder builder =
         Windmill.GlobalData.newBuilder()
@@ -349,9 +350,9 @@ public class SideInputStateFetcherTest {
     return builder.build();
   }
 
-  private Windmill.GlobalDataRequest buildGlobalDataRequest(String tag) {
+  private static Windmill.GlobalDataRequest buildGlobalDataRequest(String tag, ByteString version) {
     Windmill.GlobalDataId id =
-        Windmill.GlobalDataId.newBuilder().setTag(tag).setVersion(ByteString.EMPTY).build();
+        Windmill.GlobalDataId.newBuilder().setTag(tag).setVersion(version).build();
 
     return Windmill.GlobalDataRequest.newBuilder()
         .setDataId(id)
@@ -359,5 +360,9 @@ public class SideInputStateFetcherTest {
         .setExistenceWatermarkDeadline(
             TimeUnit.MILLISECONDS.toMicros(GlobalWindow.INSTANCE.maxTimestamp().getMillis()))
         .build();
+  }
+
+  private static Windmill.GlobalDataRequest buildGlobalDataRequest(String tag) {
+    return buildGlobalDataRequest(tag, ByteString.EMPTY);
   }
 }

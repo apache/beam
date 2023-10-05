@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Weigher;
@@ -37,15 +38,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Weigher;
  *     types of all objects.
  */
 @CheckReturnValue
-@SuppressWarnings("unchecked")
 final class SideInputCache {
 
   private static final long MAXIMUM_CACHE_WEIGHT = 100000000; /* 100 MB */
   private static final long CACHE_ENTRY_EXPIRY_MINUTES = 1L;
 
-  private final Cache<Key, SideInput<?>> sideInputCache;
+  private final Cache<Key<?>, SideInput<?>> sideInputCache;
 
-  SideInputCache(Cache<Key, SideInput<?>> sideInputCache) {
+  SideInputCache(Cache<Key<?>, SideInput<?>> sideInputCache) {
     this.sideInputCache = sideInputCache;
   }
 
@@ -54,40 +54,60 @@ final class SideInputCache {
         CacheBuilder.newBuilder()
             .maximumWeight(MAXIMUM_CACHE_WEIGHT)
             .expireAfterWrite(CACHE_ENTRY_EXPIRY_MINUTES, TimeUnit.MINUTES)
-            .weigher((Weigher<Key, SideInput<?>>) (id, entry) -> entry.size())
+            .weigher((Weigher<Key<?>, SideInput<?>>) (id, entry) -> entry.size())
             .build());
   }
 
   synchronized <T> SideInput<T> invalidateThenLoadNewEntry(
-      Key key, Callable<SideInput<T>> cacheLoaderFn) throws ExecutionException {
+      Key<T> key, Callable<SideInput<T>> cacheLoaderFn) throws ExecutionException {
     // Invalidate the existing not-ready entry.  This must be done atomically
     // so that another thread doesn't replace the entry with a ready entry, which
     // would then be deleted here.
-    SideInput<?> newEntry = sideInputCache.getIfPresent(key);
-    if (newEntry != null && !newEntry.isReady()) {
+    Optional<SideInput<T>> newEntry = getIfPresentUnchecked(key);
+    if (newEntry.isPresent() && !newEntry.get().isReady()) {
       sideInputCache.invalidate(key);
     }
 
-    return (SideInput<T>) sideInputCache.get(key, cacheLoaderFn);
+    return getUnchecked(key, cacheLoaderFn);
   }
 
-  <T> Optional<SideInput<T>> get(Key key) {
-    return Optional.ofNullable((SideInput<T>) sideInputCache.getIfPresent(key));
+  <T> Optional<SideInput<T>> get(Key<T> key) {
+    return getIfPresentUnchecked(key);
   }
 
-  <T> SideInput<T> getOrLoad(Key key, Callable<SideInput<T>> cacheLoaderFn)
+  <T> SideInput<T> getOrLoad(Key<T> key, Callable<SideInput<T>> cacheLoaderFn)
+      throws ExecutionException {
+    return getUnchecked(key, cacheLoaderFn);
+  }
+
+  @SuppressWarnings({
+    "unchecked" // cacheLoaderFn loads SideInput<T>, and key is of type T, so value for Key is
+    // always SideInput<T>.
+  })
+  private <T> SideInput<T> getUnchecked(Key<T> key, Callable<SideInput<T>> cacheLoaderFn)
       throws ExecutionException {
     return (SideInput<T>) sideInputCache.get(key, cacheLoaderFn);
   }
 
+  @SuppressWarnings({
+    "unchecked" // cacheLoaderFn loads SideInput<T>, and key is of type T, so value for Key is
+    // always SideInput<T>.
+  })
+  private <T> Optional<SideInput<T>> getIfPresentUnchecked(Key<T> key) {
+    return Optional.ofNullable((SideInput<T>) sideInputCache.getIfPresent(key));
+  }
+
   @AutoValue
-  abstract static class Key {
+  abstract static class Key<T> {
+    static <T> Key<T> create(
+        TupleTag<?> tag, BoundedWindow window, TypeDescriptor<T> typeDescriptor) {
+      return new AutoValue_SideInputCache_Key<>(tag, window, typeDescriptor);
+    }
+
     abstract TupleTag<?> tag();
 
     abstract BoundedWindow window();
 
-    static Key create(TupleTag<?> tag, BoundedWindow window) {
-      return new AutoValue_SideInputCache_Key(tag, window);
-    }
+    abstract TypeDescriptor<T> typeDescriptor();
   }
 }
