@@ -72,9 +72,9 @@ class SwitchingDirectRunner(PipelineRunner):
   def run_pipeline(self, pipeline, options):
 
     from apache_beam.pipeline import PipelineVisitor
-    from apache_beam.runners.dataflow.native_io.iobase import NativeSource
-    from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite
     from apache_beam.testing.test_stream import TestStream
+    from apache_beam.io.gcp.pubsub import ReadFromPubSub
+    from apache_beam.io.gcp.pubsub import WriteToPubSub
 
     class _FnApiRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the FnApiRunner."""
@@ -83,17 +83,16 @@ class SwitchingDirectRunner(PipelineRunner):
         pipeline.visit(self)
         return self.supported_by_fnapi_runner
 
+      def enter_composite_transform(self, applied_ptransform):
+        # The FnApiRunner does not support streaming execution.
+        if isinstance(applied_ptransform.transform,
+                      (ReadFromPubSub, WriteToPubSub)):
+          self.supported_by_fnapi_runner = False
+
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
         # The FnApiRunner does not support streaming execution.
         if isinstance(transform, TestStream):
-          self.supported_by_fnapi_runner = False
-        # The FnApiRunner does not support reads from NativeSources.
-        if (isinstance(transform, beam.io.Read) and
-            isinstance(transform.source, NativeSource)):
-          self.supported_by_fnapi_runner = False
-        # The FnApiRunner does not support the use of _NativeWrites.
-        if isinstance(transform, _NativeWrite):
           self.supported_by_fnapi_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn

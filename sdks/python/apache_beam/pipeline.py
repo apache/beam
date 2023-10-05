@@ -235,10 +235,6 @@ class Pipeline(object):
 
 
   @property  # type: ignore[misc]  # decorated property not supported
-  @deprecated(
-      since='First stable release',
-      extra_message='References to <pipeline>.options'
-      ' will not be supported')
   def options(self):
     # type: () -> PipelineOptions
     return self._options
@@ -1330,7 +1326,10 @@ class AppliedPTransform(object):
 
     # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
-    transform_spec = transform_to_runner_api(self.transform, context)
+    try:
+      transform_spec = transform_to_runner_api(self.transform, context)
+    except Exception as exn:
+      raise RuntimeError(f'Unable to translate {self.full_label}') from exn
     environment_id = self.environment_id
     transform_urn = transform_spec.urn if transform_spec else None
     if (not environment_id and

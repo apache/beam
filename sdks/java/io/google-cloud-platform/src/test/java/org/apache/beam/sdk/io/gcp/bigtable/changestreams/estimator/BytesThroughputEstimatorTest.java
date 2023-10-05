@@ -29,113 +29,79 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.IOUtils;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.Test;
 
 public class BytesThroughputEstimatorTest {
   private static final double DELTA = 1e-10;
-  private static final int WINDOW_SIZE_SECONDS = 10;
-  private BytesThroughputEstimator<byte[]> estimator;
-
-  @Before
-  public void setup() {
-    final SizeEstimator<byte[]> sizeEstimator = new SizeEstimator<>(new TestCoder());
-    estimator = new BytesThroughputEstimator<>(WINDOW_SIZE_SECONDS, sizeEstimator, 1);
-  }
+  private final SizeEstimator<byte[]> sizeEstimator = new CoderSizeEstimator<>(new TestCoder());
 
   @Test
   public void testThroughputIsZeroWhenNothingsBeenRegistered() {
-    assertEquals(0D, estimator.get(), DELTA);
-    assertEquals(0D, estimator.getFrom(Instant.now()), DELTA);
+    BytesThroughputEstimator<byte[]> estimator =
+        new BytesThroughputEstimator<>(sizeEstimator, Instant.now());
+    assertEquals(0D, estimator.get().doubleValue(), DELTA);
   }
 
   @Test
   public void testThroughputCalculation() {
+    BytesThroughputEstimator<byte[]> estimator =
+        new BytesThroughputEstimator<>(sizeEstimator, 1, Instant.ofEpochSecond(0));
     estimator.update(Instant.ofEpochSecond(2), new byte[10]);
     estimator.update(Instant.ofEpochSecond(3), new byte[20]);
     estimator.update(Instant.ofEpochSecond(5), new byte[30]);
     estimator.update(Instant.ofEpochSecond(10), new byte[40]);
     // (10 + 20 + 30 + 40) / 10 sec window = 10
-    assertEquals(10D, estimator.getFrom(Instant.ofEpochSecond(11)), DELTA);
+    assertEquals(10D, estimator.get().doubleValue(), DELTA);
 
-    estimator.update(Instant.ofEpochSecond(20), new byte[10]);
-    estimator.update(Instant.ofEpochSecond(21), new byte[20]);
-    estimator.update(Instant.ofEpochSecond(21), new byte[10]);
-    estimator.update(Instant.ofEpochSecond(29), new byte[40]);
+    BytesThroughputEstimator<byte[]> estimator2 =
+        new BytesThroughputEstimator<>(sizeEstimator, 1, Instant.ofEpochSecond(20));
+    estimator2.update(Instant.ofEpochSecond(21), new byte[10]);
+    estimator2.update(Instant.ofEpochSecond(22), new byte[20]);
+    estimator2.update(Instant.ofEpochSecond(23), new byte[10]);
+    estimator2.update(Instant.ofEpochSecond(30), new byte[40]);
     // (10 + 20 + 10 + 40) / 10 sec window = 8
-    assertEquals(8D, estimator.getFrom(Instant.ofEpochSecond(30)), DELTA);
+    assertEquals(8D, estimator2.get().doubleValue(), DELTA);
 
-    estimator.update(Instant.ofEpochSecond(31), new byte[10]);
-    estimator.update(Instant.ofEpochSecond(35), new byte[40]);
+    BytesThroughputEstimator<byte[]> estimator3 =
+        new BytesThroughputEstimator<>(sizeEstimator, 1, Instant.ofEpochSecond(30));
+    estimator3.update(Instant.ofEpochSecond(31), new byte[10]);
+    estimator3.update(Instant.ofEpochSecond(40), new byte[40]);
     // (10 + 40) / 10 sec window = 5
-    assertEquals(5D, estimator.getFrom(Instant.ofEpochSecond(41)), DELTA);
-
-    // No values in the past 10 seconds
-    assertEquals(0D, estimator.getFrom(Instant.ofEpochSecond(50)), DELTA);
+    assertEquals(5D, estimator3.get().doubleValue(), DELTA);
   }
 
   @Test
   public void testThroughputIsAccumulatedWithin60SecondsWindow() {
-    List<ImmutablePair<Instant, byte[]>> pairs = generateTestData(100, 0, 10);
+    List<ImmutablePair<Instant, byte[]>> pairs = generateTestData(100, 0, 11);
     pairs.sort(Comparator.comparing(ImmutablePair::getLeft));
-    final Instant lastUpdateTimestamp = pairs.get(pairs.size() - 1).getLeft();
 
     BigDecimal sum = BigDecimal.valueOf(0L);
     for (ImmutablePair<Instant, byte[]> pair : pairs) {
       sum = sum.add(BigDecimal.valueOf(pair.getRight().length));
     }
-    final BigDecimal want =
-        sum.divide(BigDecimal.valueOf(WINDOW_SIZE_SECONDS), MathContext.DECIMAL128);
+    final BigDecimal want = sum.divide(BigDecimal.valueOf(10), MathContext.DECIMAL128);
 
+    BytesThroughputEstimator<byte[]> estimator =
+        new BytesThroughputEstimator<>(sizeEstimator, 1, Instant.ofEpochSecond(0));
     for (ImmutablePair<Instant, byte[]> pair : pairs) {
       estimator.update(pair.getLeft(), pair.getRight());
     }
 
-    double actual = estimator.getFrom(Instant.ofEpochSecond(10));
-    assertEquals(want.doubleValue(), actual, DELTA);
-
-    // After window without updates the throughput should be zero
-    final Instant afterWindowTimestamp =
-        Instant.ofEpochSecond(
-            TimestampConverter.toSeconds(lastUpdateTimestamp) + WINDOW_SIZE_SECONDS + 1);
-    assertEquals(0D, estimator.getFrom(afterWindowTimestamp), DELTA);
+    double actual = estimator.get().doubleValue();
+    assertEquals(want.doubleValue(), actual, 1);
   }
 
   @Test
-  public void testThroughputIsAccumulatedWithin50SecondsWindow() {
-    final List<ImmutablePair<Instant, byte[]>> excludedPairs = generateTestData(300, 0, 10);
-    final List<ImmutablePair<Instant, byte[]>> expectedPairs = generateTestData(50, 10, 20);
-    final List<ImmutablePair<Instant, byte[]>> pairs =
-        Stream.concat(excludedPairs.stream(), expectedPairs.stream())
-            .sorted(Comparator.comparing(ImmutablePair::getLeft))
-            .collect(Collectors.toList());
-    final Instant lastUpdateTimestamp = pairs.get(pairs.size() - 1).getLeft();
-
-    BigDecimal sum = BigDecimal.valueOf(0L);
-    for (ImmutablePair<Instant, byte[]> pair : expectedPairs) {
-      sum = sum.add(BigDecimal.valueOf(pair.getRight().length));
-    }
-    final BigDecimal want =
-        sum.divide(BigDecimal.valueOf(WINDOW_SIZE_SECONDS), MathContext.DECIMAL128);
-    for (ImmutablePair<Instant, byte[]> pair : pairs) {
-      estimator.update(pair.getLeft(), pair.getRight());
-    }
-
-    double actual = estimator.getFrom(Instant.ofEpochSecond(20));
-    assertEquals(want.doubleValue(), actual, DELTA);
-
-    // After window without updates the throughput should be zero
-    final Instant afterWindowTimestamp =
-        Instant.ofEpochSecond(
-            TimestampConverter.toSeconds(lastUpdateTimestamp) + WINDOW_SIZE_SECONDS + 1);
-    assertEquals(0D, estimator.getFrom(afterWindowTimestamp), DELTA);
+  public void testThroughputHandlesNoTimeDifference() {
+    BytesThroughputEstimator<byte[]> estimator =
+        new BytesThroughputEstimator<>(sizeEstimator, 1, Instant.ofEpochSecond(0));
+    estimator.update(Instant.ofEpochSecond(0), new byte[10]);
+    // (10 / 1) * 1000 because we round up to one millisecond
+    assertEquals(10000D, estimator.get().doubleValue(), DELTA);
   }
 
   private List<ImmutablePair<Instant, byte[]>> generateTestData(

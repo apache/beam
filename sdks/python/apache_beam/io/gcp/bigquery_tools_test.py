@@ -861,6 +861,11 @@ class TestBeamRowFromDict(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("nullable")}
     dict_row = {k: None for k in self.DICT_ROW}
 
+    # input dict row with missing nullable fields should still yield a full
+    # Beam Row
+    del dict_row['str']
+    del dict_row['bool']
+
     expected_beam_row = beam.Row(
         str=None,
         bool=None,

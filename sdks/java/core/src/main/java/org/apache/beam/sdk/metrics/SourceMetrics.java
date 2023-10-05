@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /** Standard {@link org.apache.beam.sdk.io.Source} Metrics. */
 public class SourceMetrics {

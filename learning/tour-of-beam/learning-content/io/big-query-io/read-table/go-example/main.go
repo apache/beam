@@ -28,6 +28,7 @@
 //   complexity: ADVANCED
 //   tags:
 //     - hellobeam
+
 package main
 
 import (
@@ -62,7 +63,7 @@ func main() {
 	s := p.Root()
 	project := "apache-beam-testing"
 
-	// Build a PCollection<CommentRow> by querying BigQuery.
+	// Build a PCollection<Game> by querying BigQuery.
 	rows := bigqueryio.Read(s, project, "bigquery-public-data:baseball.schedules", reflect.TypeOf(Game{}))
 
 	fixedSizeLines := top.Largest(s, rows, 5, less)

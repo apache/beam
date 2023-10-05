@@ -80,7 +80,7 @@ artifacts {
 }
 
 task pushAll {
-  dependsOn ":sdks:java:container:java8:dockerPush"
-  dependsOn ":sdks:java:container:java11:dockerPush"
-  dependsOn ":sdks:java:container:java17:dockerPush"
+  dependsOn ":sdks:java:container:java8:docker"
+  dependsOn ":sdks:java:container:java11:docker"
+  dependsOn ":sdks:java:container:java17:docker"
 }

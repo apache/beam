@@ -27,6 +27,7 @@ echo "${DIGESTS}" | while read -r digest; do
   if [[ ! -z "${digest}" ]]; then
     img="${IMAGE_NAME}@${digest}"
     echo "Removing untagged image ${img}"
-    gcloud container images delete --quiet "${img}"
+    # Tolerate 404 as tags may target to same image and already removed.
+    DELETE_RESULT="$(gcloud container images delete --quiet "${img}" 2>&1)" || [[ "$DELETE_RESULT" == *"'status': 404"* ]]
   fi
 done

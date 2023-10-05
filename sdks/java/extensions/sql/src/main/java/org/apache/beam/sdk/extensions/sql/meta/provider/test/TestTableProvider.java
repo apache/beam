@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
@@ -152,10 +152,10 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
       // The reason for introducing a property here is to simplify writing unit tests, testing
       // project and predicate push-down behavior when run separate and together.
-      if (tableWithRows.table.getProperties().containsKey(PUSH_DOWN_OPTION)) {
+      if (tableWithRows.table.getProperties().has(PUSH_DOWN_OPTION)) {
         options =
             PushDownOptions.valueOf(
-                tableWithRows.table.getProperties().getString(PUSH_DOWN_OPTION).toUpperCase());
+                tableWithRows.table.getProperties().get(PUSH_DOWN_OPTION).asText().toUpperCase());
       } else {
         options = PushDownOptions.NONE;
       }

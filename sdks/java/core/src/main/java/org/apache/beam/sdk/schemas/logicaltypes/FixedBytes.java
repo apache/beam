@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.RunnerApi;

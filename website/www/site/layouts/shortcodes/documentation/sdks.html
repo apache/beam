@@ -12,10 +12,9 @@
 
    {{ $data := index $.Site.Data .Site.Language.Lang }}
    <div class="sdks">
-    {{ range $item := $data.documentation_sdks }}
-      <div class="item-description">
-        <a  href={{ .name.link }} class="font-weight-bold">{{ .name.text | markdownify }}</a>
-        <p>{{ .text | safeHTML }}</p>
-      </div>
-    {{ end }}
+      <ul>
+        {{ range $item := $data.documentation_sdks }}
+        <li class="item-description"><a href={{ .name.link }}>{{ .name.text | markdownify }}</a> {{ .text | safeHTML }}</li>
+        {{ end }}
+      </ul>
    </div>

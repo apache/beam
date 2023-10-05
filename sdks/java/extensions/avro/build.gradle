@@ -58,7 +58,7 @@ test {
 
 dependencies {
   implementation library.java.byte_buddy
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation(project(path: ":sdks:java:core", configuration: "shadow")) {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"

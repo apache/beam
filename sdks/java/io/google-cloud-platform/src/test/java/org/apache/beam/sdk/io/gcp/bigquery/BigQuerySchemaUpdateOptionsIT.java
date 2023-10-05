@@ -46,8 +46,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -87,7 +87,11 @@ public class BigQuerySchemaUpdateOptionsIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(
+        project,
+        BIG_QUERY_DATASET_ID,
+        null,
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
   }
 
   @AfterClass

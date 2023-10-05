@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Options that are used to control configuration of the remote environment. */
 @Hidden

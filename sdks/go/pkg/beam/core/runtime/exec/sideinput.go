@@ -140,7 +140,7 @@ func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateRea
 }
 
 func (s *sideInputAdapter) String() string {
-	return fmt.Sprintf("SideInputAdapter[%v, %v]", s.sid, s.sideInputID)
+	return fmt.Sprintf("SideInputAdapter[%v, %v] - Coder %v", s.sid, s.sideInputID, s.c)
 }
 
 // proxyReStream is a simple wrapper of an open function.

@@ -17,23 +17,19 @@
  */
 package org.apache.beam.sdk.io.azure.options;
 
-import com.azure.core.credential.TokenCredential;
 import com.azure.core.http.HttpClient;
 import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.policy.HttpPipelinePolicy;
-import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // TODO: Tag each option with @Default or @Nullable
 
 /** Options used to configure Microsoft Azure Blob Storage. */
-public interface BlobstoreOptions extends PipelineOptions {
+public interface BlobstoreOptions extends AzureOptions {
 
   @Description(
       "Factory class that should be created and used to create a builder of Azure Blobstore client."
@@ -95,37 +91,4 @@ public interface BlobstoreOptions extends PipelineOptions {
   HttpPipeline getHttpPipeline();
 
   void setHttpPipeline(HttpPipeline httpPipeline);
-
-  /* Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help. */
-
-  /**
-   * The credential instance that should be used to authenticate against Azure services. The option
-   * value must contain a "@type" field and an Azure credentials provider class as the field value.
-   *
-   * <p>For example, to specify the Azure client id, tenant id, and client secret, specify the
-   * following: <code>
-   *     {"@type" : "ClientSecretCredential", "azureClientId": "client_id_value",
-   *     "azureTenantId": "tenant_id_value", "azureClientSecret": "client_secret_value"}
-   * </code>
-   */
-  @Description(
-      "The credential instance that should be used to authenticate "
-          + "against Azure services. The option value must contain \"@type\" field "
-          + "and an Azure credentials provider class name as the field value. "
-          + " For example, to specify the Azure client id, tenant id, and client secret, specify the following: "
-          + "{\"@type\" : \"ClientSecretCredential\", \"azureClientId\": \"client_id_value\", "
-          + "\"azureTenantId\": \"tenant_id_value\", \"azureClientSecret\": \"client_secret_value\"}")
-  @Default.InstanceFactory(AzureUserCredentialsFactory.class)
-  TokenCredential getAzureCredentialsProvider();
-
-  void setAzureCredentialsProvider(TokenCredential value);
-
-  /** Attempts to load Azure credentials. */
-  class AzureUserCredentialsFactory implements DefaultValueFactory<TokenCredential> {
-
-    @Override
-    public TokenCredential create(PipelineOptions options) {
-      return new DefaultAzureCredentialBuilder().build();
-    }
-  }
 }

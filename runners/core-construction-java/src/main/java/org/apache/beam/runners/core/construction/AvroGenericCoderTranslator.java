@@ -23,7 +23,7 @@ import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 
 /** Coder translator for AvroGenericCoder. */
 public class AvroGenericCoderTranslator implements CoderTranslator<AvroGenericCoder> {

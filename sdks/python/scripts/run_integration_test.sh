@@ -78,6 +78,8 @@ KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cry
 SUITE=""
 COLLECT_MARKERS=
 REQUIREMENTS_FILE=""
+ARCH=""
+PY_VERSION=""
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -133,16 +135,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --runner_v2)
-        RUNNER_V2="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --disable_runner_v2)
-        DISABLE_RUNNER_V2="$2"
-        shift # past argument
-        shift # past value
-        ;;
     --kms_key_name)
         KMS_KEY_NAME="$2"
         shift # past argument
@@ -170,6 +162,16 @@ case $key in
         ;;
     --collect)
       COLLECT_MARKERS="-m=$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --arch)
+      ARCH="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --py_version)
+      PY_VERSION="$2"
       shift # past argument
       shift # past value
       ;;
@@ -244,21 +246,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
     opts+=("--streaming")
   fi
 
-  # Add --runner_v2 if provided
-  if [[ "$RUNNER_V2" = true ]]; then
-    opts+=("--experiments=use_runner_v2")
-    if [[ "$STREAMING" = true ]]; then
-      # Dataflow Runner V2 only supports streaming engine.
-      opts+=("--enable_streaming_engine")
-    else
-      opts+=("--experiments=beam_fn_api")
-    fi
+  if [[ "$ARCH" == "ARM" ]]; then
+    opts+=("--machine_type=t2a-standard-1")
 
-  fi
-
-  # Add --disable_runner_v2 if provided
-  if [[ "$DISABLE_RUNNER_V2" = true ]]; then
-    opts+=("--experiments=disable_runner_v2")
+    IMAGE_NAME="beam_python${PY_VERSION}_sdk"
+    opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then

@@ -31,7 +31,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_PortableJar_Spark',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:portable:py37:testPipelineJarSparkRunner')
+          tasks(':sdks:python:test-suites:portable:py38:testPipelineJarSparkRunner')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

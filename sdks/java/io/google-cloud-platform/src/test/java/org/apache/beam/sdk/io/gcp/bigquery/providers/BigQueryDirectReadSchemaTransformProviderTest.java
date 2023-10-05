@@ -52,7 +52,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadPCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider.BigQueryDirectReadSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
@@ -270,8 +270,8 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
         BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    BigQueryDirectReadPCollectionRowTupleTransform readTransform =
-        (BigQueryDirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
+    BigQueryDirectReadSchemaTransform readTransform =
+        (BigQueryDirectReadSchemaTransform) provider.from(config);
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
@@ -334,8 +334,8 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
             .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
-    BigQueryDirectReadPCollectionRowTupleTransform readTransform =
-        (BigQueryDirectReadPCollectionRowTupleTransform) provider.from(config).buildTransform();
+    BigQueryDirectReadSchemaTransform readTransform =
+        (BigQueryDirectReadSchemaTransform) provider.from(config);
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 

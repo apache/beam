@@ -31,8 +31,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /**
  * Pipeline visitor for translating a Beam pipeline into equivalent Spark operations. Used for
@@ -183,7 +183,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
       String doFnName;
       Class<?> enclosingClass = fnClass.getEnclosingClass();
       if (enclosingClass != null && enclosingClass.equals(MapElements.class)) {
-        Field parent = fnClass.getDeclaredField("this$0");
+        Field parent = fnClass.getSuperclass().getDeclaredField("outer");
         parent.setAccessible(true);
         Field fnField = enclosingClass.getDeclaredField(fnFieldName);
         fnField.setAccessible(true);

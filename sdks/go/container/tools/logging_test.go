@@ -58,6 +58,22 @@ func TestLogger(t *testing.T) {
 			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got severity %v, want %v", got, want)
 		}
 	})
+	t.Run("SuccessfulLoggingAtError", func(t *testing.T) {
+		catcher := &logCatcher{}
+		l := &Logger{client: catcher}
+
+		l.Errorf(ctx, "failed to install dependency %v", "bar")
+
+		received := catcher.msgs[0].GetLogEntries()[0]
+
+		if got, want := received.Message, "failed to install dependency bar"; got != want {
+			t.Errorf("l.Printf(\"foo %%v\", \"bar\"): got message %q, want %q", got, want)
+		}
+
+		if got, want := received.Severity, fnpb.LogEntry_Severity_ERROR; got != want {
+			t.Errorf("l.Errorf(\"failed to install dependency %%v\", \"bar\"): got severity %v, want %v", got, want)
+		}
+	})
 	t.Run("backup path", func(t *testing.T) {
 		catcher := &logCatcher{}
 		l := &Logger{client: catcher}

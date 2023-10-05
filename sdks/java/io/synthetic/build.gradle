@@ -32,10 +32,10 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation library.java.slf4j_api
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
 
-  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

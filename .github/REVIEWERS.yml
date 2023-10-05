@@ -45,11 +45,9 @@ labels:
     reviewers:
       - chamikaramj
       - johnjcasey
-      - pabloem
       - Abacn
       - ahmedabu98
       - bvolpato
-      - manavgarg
     exclusionList: []
   - name: spanner
     reviewers:

@@ -280,29 +280,6 @@ class Coder(object):
     # refined in user-defined Coders.
     return []
 
-  def as_cloud_object(self, coders_context=None):
-    """For internal use only; no backwards-compatibility guarantees.
-
-    Returns Google Cloud Dataflow API description of this coder."""
-    # This is an internal detail of the Coder API and does not need to be
-    # refined in user-defined Coders.
-
-    value = {
-        # We pass coders in the form "<coder_name>$<pickled_data>" to make the
-        # job description JSON more readable.  Data before the $ is ignored by
-        # the worker.
-        '@type': serialize_coder(self),
-        'component_encodings': [
-            component.as_cloud_object(coders_context)
-            for component in self._get_component_coders()
-        ],
-    }
-
-    if coders_context:
-      value['pipeline_proto_coder_id'] = coders_context.get_id(self)
-
-    return value
-
   def __repr__(self):
     return self.__class__.__name__
 
@@ -493,11 +470,6 @@ class BytesCoder(FastCoder):
   def to_type_hint(self):
     return bytes
 
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:bytes',
-    }
-
   def __eq__(self, other):
     return type(self) == type(other)
 
@@ -666,11 +638,6 @@ class VarIntCoder(FastCoder):
 
   def to_type_hint(self):
     return int
-
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:varint',
-    }
 
   def __eq__(self, other):
     return type(self) == type(other)
@@ -846,21 +813,6 @@ class _PickleCoderBase(FastCoder):
     # GroupByKey operations.
     return False
 
-  def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super().as_cloud_object(coders_context)
-    # We currently use this coder in places where we cannot infer the coder to
-    # use for the value type in a more granular way.  In places where the
-    # service expects a pair, it checks for the "is_pair_like" key, in which
-    # case we would fail without the hack below.
-    if is_pair_like:
-      value['is_pair_like'] = True
-      value['component_encodings'] = [
-          self.as_cloud_object(coders_context, is_pair_like=False),
-          self.as_cloud_object(coders_context, is_pair_like=False)
-      ]
-
-    return value
-
   # We allow .key_coder() and .value_coder() to be called on PickleCoder since
   # we can't always infer the return values of lambdas in ParDo operations, the
   # result of which may be used in a GroupBykey.
@@ -982,21 +934,6 @@ class FastPrimitivesCoder(FastCoder):
 
   def to_type_hint(self):
     return Any
-
-  def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super().as_cloud_object(coders_context)
-    # We currently use this coder in places where we cannot infer the coder to
-    # use for the value type in a more granular way.  In places where the
-    # service expects a pair, it checks for the "is_pair_like" key, in which
-    # case we would fail without the hack below.
-    if is_pair_like:
-      value['is_pair_like'] = True
-      value['component_encodings'] = [
-          self.as_cloud_object(coders_context, is_pair_like=False),
-          self.as_cloud_object(coders_context, is_pair_like=False)
-      ]
-
-    return value
 
   # We allow .key_coder() and .value_coder() to be called on FastPrimitivesCoder
   # since we can't always infer the return values of lambdas in ParDo
@@ -1231,19 +1168,6 @@ class TupleCoder(FastCoder):
     # type: (typehints.TupleConstraint, CoderRegistry) -> TupleCoder
     return cls([registry.get_coder(t) for t in typehint.tuple_types])
 
-  def as_cloud_object(self, coders_context=None):
-    if self.is_kv_coder():
-      return {
-          '@type': 'kind:pair',
-          'is_pair_like': True,
-          'component_encodings': [
-              component.as_cloud_object(coders_context)
-              for component in self._get_component_coders()
-          ],
-      }
-
-    return super().as_cloud_object(coders_context)
-
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
     return self.coders()
@@ -1353,15 +1277,6 @@ class ListLikeCoder(FastCoder):
       return type(self)(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:stream',
-        'is_stream_like': True,
-        'component_encodings': [
-            self._elem_coder.as_cloud_object(coders_context)
-        ],
-    }
-
   def value_coder(self):
     return self._elem_coder
 
@@ -1409,11 +1324,6 @@ class GlobalWindowCoder(SingletonCoder):
     from apache_beam.transforms import window
     super().__init__(window.GlobalWindow())
 
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:global_window',
-    }
-
 
 Coder.register_structured_urn(
     common_urns.coders.GLOBAL_WINDOW.urn, GlobalWindowCoder)
@@ -1427,11 +1337,6 @@ class IntervalWindowCoder(FastCoder):
   def is_deterministic(self):
     # type: () -> bool
     return True
-
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:interval_window',
-    }
 
   def __eq__(self, other):
     return type(self) == type(other)
@@ -1465,16 +1370,6 @@ class WindowedValueCoder(FastCoder):
     return all(
         c.is_deterministic() for c in
         [self.wrapped_value_coder, self.timestamp_coder, self.window_coder])
-
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:windowed_value',
-        'is_wrapper': True,
-        'component_encodings': [
-            component.as_cloud_object(coders_context)
-            for component in self._get_component_coders()
-        ],
-    }
 
   def _get_component_coders(self):
     # type: () -> List[Coder]
@@ -1527,10 +1422,6 @@ class ParamWindowedValueCoder(WindowedValueCoder):
     # type: () -> bool
     return self.wrapped_value_coder.is_deterministic()
 
-  def as_cloud_object(self, coders_context=None):
-    raise NotImplementedError(
-        "as_cloud_object not supported for ParamWindowedValueCoder")
-
   def __repr__(self):
     return 'ParamWindowedValueCoder[%s]' % self.wrapped_value_coder
 
@@ -1576,14 +1467,6 @@ class LengthPrefixCoder(FastCoder):
 
   def value_coder(self):
     return self._value_coder
-
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:length_prefix',
-        'component_encodings': [
-            self._value_coder.as_cloud_object(coders_context)
-        ],
-    }
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1680,14 +1563,6 @@ class ShardedKeyCoder(FastCoder):
     # type: () -> bool
     return self._key_coder.is_deterministic()
 
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:sharded_key',
-        'component_encodings': [
-            self._key_coder.as_cloud_object(coders_context)
-        ],
-    }
-
   def to_type_hint(self):
     from apache_beam.typehints import sharded_key_type
     return sharded_key_type.ShardedKeyTypeConstraint(
@@ -1737,14 +1612,6 @@ class TimestampPrefixingWindowCoder(FastCoder):
 
   def is_deterministic(self) -> bool:
     return self._window_coder.is_deterministic()
-
-  def as_cloud_object(self, coders_context=None):
-    return {
-        '@type': 'kind:custom_window',
-        'component_encodings': [
-            self._window_coder.as_cloud_object(coders_context)
-        ],
-    }
 
   def __repr__(self):
     return 'TimestampPrefixingWindowCoder[%r]' % self._window_coder

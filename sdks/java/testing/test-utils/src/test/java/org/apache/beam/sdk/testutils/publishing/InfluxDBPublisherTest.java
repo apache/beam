@@ -22,8 +22,8 @@ import static org.junit.Assert.assertEquals;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 public final class InfluxDBPublisherTest {

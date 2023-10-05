@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness.logging;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
@@ -27,9 +27,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -37,6 +38,7 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -94,6 +96,7 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("Message")
+          .setTransformId("ptransformId")
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
           .setLogLocation("LoggerName")
@@ -103,6 +106,7 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("testMdcValue:Message")
+          .setTransformId("ptransformId")
           .setCustomData(
               Struct.newBuilder()
                   .putFields(
@@ -116,6 +120,7 @@ public class BeamFnLoggingClientTest {
           .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.WARN)
           .setMessage("MessageWithException")
+          .setTransformId("errorPtransformId")
           .setTrace(getStackTraceAsString(TEST_RECORD_WITH_EXCEPTION.getThrown()))
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
@@ -125,7 +130,16 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testLogging() throws Exception {
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), null);
+    ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
+    ExecutionStateSampler.ExecutionState state =
+        stateTracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+    state.activate();
+
     BeamFnLoggingMDC.setInstructionId("instruction-1");
+    BeamFnLoggingMDC.setStateTracker(stateTracker);
+
     AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
@@ -187,7 +201,14 @@ public class BeamFnLoggingClientTest {
       rootLogger.log(FILTERED_RECORD);
       // Should not be filtered because the default log level override for ConfiguredLogger is DEBUG
       configuredLogger.log(TEST_RECORD);
+
+      // Simulate an exception. This sets an internal error state where the PTransform should come
+      // from.
+      ExecutionStateSampler.ExecutionState errorState =
+          stateTracker.create("shortId", "errorPtransformId", "errorPtransformIdName", "process");
+      errorState.activate();
       configuredLogger.log(TEST_RECORD_WITH_EXCEPTION);
+      errorState.deactivate();
 
       // Ensure that configuring a custom formatter on the logging handler will be honored.
       for (Handler handler : rootLogger.getHandlers()) {
@@ -234,7 +255,7 @@ public class BeamFnLoggingClientTest {
     // removes the only reference and the logger may get GC'd before the assertions (BEAM-4136).
     Logger rootLogger = null;
     Logger configuredLogger = null;
-    Phaser streamBlocker = new Phaser(1);
+    CompletableFuture<Object> streamBlocker = new CompletableFuture<Object>();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
@@ -249,7 +270,7 @@ public class BeamFnLoggingClientTest {
                       StreamObserver<BeamFnApi.LogControl> outboundObserver) {
                     // Block before returning an error on the stream so that we can observe the
                     // loggers before they are reset.
-                    streamBlocker.awaitAdvance(1);
+                    streamBlocker.join();
                     outboundServerObserver.set(outboundObserver);
                     outboundObserver.onError(
                         Status.INTERNAL.withDescription("TEST ERROR").asException());
@@ -275,7 +296,7 @@ public class BeamFnLoggingClientTest {
       rootLogger = LogManager.getLogManager().getLogger("");
       configuredLogger = LogManager.getLogManager().getLogger("ConfiguredLogger");
       // Allow the stream to return with an error.
-      assertEquals(0, streamBlocker.arrive());
+      streamBlocker.complete(new Object());
       thrown.expectMessage("TEST ERROR");
       client.close();
     } finally {
@@ -356,15 +377,22 @@ public class BeamFnLoggingClientTest {
   @Test
   public void testClosableWhenBlockingForOnReady() throws Exception {
     BeamFnLoggingMDC.setInstructionId("instruction-1");
-    Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
+    AtomicInteger testEntriesObserved = new AtomicInteger();
+    AtomicBoolean onReadyBlocking = new AtomicBoolean();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
 
     final AtomicBoolean elementsAllowed = new AtomicBoolean(true);
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
         TestStreams.withOnNext(
-                (BeamFnApi.LogEntry.List logEntries) ->
-                    values.addAll(logEntries.getLogEntriesList()))
+                (BeamFnApi.LogEntry.List logEntries) -> {
+                  for (BeamFnApi.LogEntry entry : logEntries.getLogEntriesList()) {
+                    if (entry.toBuilder().clearCustomData().build().equals(TEST_ENTRY)) {
+                      testEntriesObserved.addAndGet(1);
+                    }
+                  }
+                })
+            .withOnCompleted(() -> outboundServerObserver.get().onCompleted())
             .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
@@ -397,6 +425,10 @@ public class BeamFnLoggingClientTest {
                         delegate) {
                       @Override
                       public boolean isReady() {
+                        if (elementsAllowed.get()) {
+                          return true;
+                        }
+                        onReadyBlocking.set(true);
                         return elementsAllowed.get();
                       }
                     };
@@ -430,20 +462,28 @@ public class BeamFnLoggingClientTest {
       }
       // Measure how long it takes all the logs to appear.
       int sleepTime = 0;
-      while (values.size() < numEntries) {
+      while (testEntriesObserved.get() < numEntries) {
         ++sleepTime;
         Thread.sleep(1);
       }
       // Attempt to enter the blocking state by pushing back on the stream, publishing records and
       // then giving them time for it to block.
       elementsAllowed.set(false);
-      for (int i = 0; i < numEntries; ++i) {
+      int postAllowedLogs = 0;
+      while (!onReadyBlocking.get()) {
+        ++postAllowedLogs;
         configuredLogger.log(TEST_RECORD);
+        Thread.sleep(1);
       }
+
+      // Even with sleeping to give some additional time for the logs that were sent by the client
+      // to be observed by the server we should not observe all the client logs, indicating we're
+      // blocking as intended.
       Thread.sleep(sleepTime * 3);
-      // At this point, the background thread is either blocking as intended or the background
-      // thread hasn't yet observed all the input. In either case the test should pass.
-      assertTrue(values.size() < numEntries * 2);
+      assertTrue(testEntriesObserved.get() < numEntries + postAllowedLogs);
+
+      // Allow entries to drain to speed up close.
+      elementsAllowed.set(true);
 
       client.close();
 
@@ -463,13 +503,11 @@ public class BeamFnLoggingClientTest {
   @Test
   public void testServerCloseNotifiesTermination() throws Exception {
     BeamFnLoggingMDC.setInstructionId("instruction-1");
-    Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
-        TestStreams.withOnNext(
-                (BeamFnApi.LogEntry.List logEntries) ->
-                    values.addAll(logEntries.getLogEntriesList()))
+        TestStreams.withOnNext((BeamFnApi.LogEntry.List logEntries) -> {})
+            .withOnCompleted(() -> outboundServerObserver.get().onCompleted())
             .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =

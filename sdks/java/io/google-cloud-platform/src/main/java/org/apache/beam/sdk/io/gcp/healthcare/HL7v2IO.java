@@ -53,10 +53,10 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -349,7 +349,7 @@ public class HL7v2IO {
         HL7v2MessageGetFn() {}
 
         /**
-         * Instantiate healthcare client.
+         * Instantiate healthcare client (version v1).
          *
          * @throws IOException the io exception
          */
@@ -471,7 +471,7 @@ public class HL7v2IO {
         private HL7v2MessageClient client;
 
         /**
-         * Instantiate healthcare client.
+         * Instantiate healthcare client (version v1).
          *
          * @throws IOException the io exception
          */
@@ -547,7 +547,7 @@ public class HL7v2IO {
     private static final Logger LOG = LoggerFactory.getLogger(HL7v2MessageClient.class);
     private final HealthcareApiClient client;
 
-    /** Instantiates a new HL7v2MessageClient. */
+    /** Instantiates a new HL7v2MessageClient (HCLS API v1). */
     HL7v2MessageClient(HealthcareApiClient client) {
       this.client = client;
     }
@@ -666,7 +666,7 @@ public class HL7v2IO {
     }
 
     /**
-     * Init client.
+     * Initialize client (v1).
      *
      * @throws IOException the io exception
      */
@@ -920,7 +920,7 @@ public class HL7v2IO {
       }
 
       /**
-       * Init client.
+       * Initialize client (v1).
        *
        * @throws IOException the io exception
        */

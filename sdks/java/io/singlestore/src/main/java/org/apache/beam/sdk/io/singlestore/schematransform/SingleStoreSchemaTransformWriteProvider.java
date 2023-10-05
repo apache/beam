@@ -26,7 +26,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -84,30 +83,10 @@ public class SingleStoreSchemaTransformWriteProvider
    * An implementation of {@link SchemaTransform} for SingleStoreDB write jobs configured using
    * {@link SingleStoreSchemaTransformWriteConfiguration}.
    */
-  private static class SingleStoreWriteSchemaTransform implements SchemaTransform {
+  private static class SingleStoreWriteSchemaTransform extends SchemaTransform {
     private final SingleStoreSchemaTransformWriteConfiguration configuration;
 
     SingleStoreWriteSchemaTransform(SingleStoreSchemaTransformWriteConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    /** Implements {@link SchemaTransform} buildTransform method. */
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  /**
-   * An implementation of {@link PTransform} for SingleStoreDB write jobs configured using {@link
-   * SingleStoreSchemaTransformWriteConfiguration}.
-   */
-  static class PCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private final SingleStoreSchemaTransformWriteConfiguration configuration;
-
-    PCollectionRowTupleTransform(SingleStoreSchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
     }
 

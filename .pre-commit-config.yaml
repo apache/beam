@@ -34,7 +34,7 @@ repos:
   - repo: https://github.com/pycqa/pylint
     # this rev is a release tag in the repo above and corresponds with a pylint
     # version. make sure this matches the version of pylint in tox.ini.
-    rev: v2.11.1
+    rev: v2.17.5
     hooks:
       - id: pylint
         args: ["--rcfile=sdks/python/.pylintrc"]

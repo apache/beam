@@ -35,7 +35,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +65,7 @@ public class Task {
          */
 
         PCollection<TableRow> pCollection = pipeline
-                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ));
+                .apply("ReadFromBigQuery", BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations").withMethod(TypedRead.Method.DIRECT_READ));
 
         final PTransform<PCollection<TableRow>, PCollection<Iterable<TableRow>>> sample = Sample.fixedSizeGlobally(5);
 

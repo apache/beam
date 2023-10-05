@@ -53,7 +53,7 @@ class RunnerApiTest(unittest.TestCase):
                         EmbeddedPythonGrpcEnvironment(),
                         EmbeddedPythonGrpcEnvironment(
                             state_cache_size=0, data_buffer_time_limit_ms=0),
-                        SubprocessSDKEnvironment(command_string=u'foö')):
+                        SubprocessSDKEnvironment(command_string='foö')):
       context = pipeline_context.PipelineContext()
       proto = environment.to_runner_api(context)
       reconstructed = Environment.from_runner_api(proto, context)

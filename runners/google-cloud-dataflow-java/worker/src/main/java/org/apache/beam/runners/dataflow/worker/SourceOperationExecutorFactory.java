@@ -21,7 +21,7 @@ import com.google.api.services.dataflow.model.SourceOperationRequest;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** Creates a SourceOperationExecutor from a SourceOperation. */
 public class SourceOperationExecutorFactory {

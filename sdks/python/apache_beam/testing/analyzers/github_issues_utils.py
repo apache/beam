@@ -24,6 +24,8 @@ from typing import Tuple
 import pandas as pd
 import requests
 
+from apache_beam.testing.analyzers import constants
+
 try:
   _GITHUB_TOKEN: Optional[str] = os.environ['GITHUB_TOKEN']
 except KeyError as e:
@@ -32,8 +34,8 @@ except KeyError as e:
       'A Github Personal Access token is required '
       'to create Github Issues.')
 
-_BEAM_GITHUB_REPO_OWNER = 'apache'
-_BEAM_GITHUB_REPO_NAME = 'beam'
+_GITHUB_REPO_OWNER = os.environ.get('REPO_OWNER', 'apache')
+_GITHUB_REPO_NAME = os.environ.get('REPO_NAME', 'beam')
 # Adding GitHub Rest API version to the header to maintain version stability.
 # For more information, please look at
 # https://github.blog/2022-11-28-to-infinity-and-beyond-enabling-the-future-of-githubs-rest-api-with-api-versioning/ # pylint: disable=line-too-long
@@ -54,7 +56,7 @@ _ISSUE_DESCRIPTION_TEMPLATE = """
   For more information on how to triage the alerts, please look at
   `Triage performance alert issues` section of the [README](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/testing/analyzers/README.md#triage-performance-alert-issues).
 """
-_METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: `{}`"
+_METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: {}"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 _PERF_ALERT_LABEL = 'perf-alert'
 
@@ -75,10 +77,10 @@ def create_issue(
     Tuple containing GitHub issue number and issue URL.
   """
   url = "https://api.github.com/repos/{}/{}/issues".format(
-      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME)
+      _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME)
   data = {
-      'owner': _BEAM_GITHUB_REPO_OWNER,
-      'repo': _BEAM_GITHUB_REPO_NAME,
+      'owner': _GITHUB_REPO_OWNER,
+      'repo': _GITHUB_REPO_NAME,
       'title': title,
       'body': description,
       'labels': [_AWAITING_TRIAGE_LABEL, _PERF_ALERT_LABEL]
@@ -106,23 +108,24 @@ def comment_on_issue(issue_number: int,
       issue, and the comment URL.
   """
   url = 'https://api.github.com/repos/{}/{}/issues/{}'.format(
-      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
+      _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME, issue_number)
   open_issue_response = requests.get(
       url,
       json.dumps({
-          'owner': _BEAM_GITHUB_REPO_OWNER,
-          'repo': _BEAM_GITHUB_REPO_NAME,
+          'owner': _GITHUB_REPO_OWNER,
+          'repo': _GITHUB_REPO_NAME,
           'issue_number': issue_number
       },
                  default=str),
       headers=_HEADERS).json()
   if open_issue_response['state'] == 'open':
     data = {
-        'owner': _BEAM_GITHUB_REPO_OWNER,
-        'repo': _BEAM_GITHUB_REPO_NAME,
+        'owner': _GITHUB_REPO_OWNER,
+        'repo': _GITHUB_REPO_NAME,
         'body': comment_description,
         issue_number: issue_number,
     }
+
     response = requests.post(
         open_issue_response['comments_url'], json.dumps(data), headers=_HEADERS)
     return True, response.json()['html_url']
@@ -131,18 +134,21 @@ def comment_on_issue(issue_number: int,
 
 def add_awaiting_triage_label(issue_number: int):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
-      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
+      _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME, issue_number)
   requests.post(
       url, json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}), headers=_HEADERS)
 
 
 def get_issue_description(
-    test_name: str,
+    test_id: str,
+    test_name: Optional[str],
     metric_name: str,
     timestamps: List[pd.Timestamp],
     metric_values: List,
     change_point_index: int,
-    max_results_to_display: int = 5) -> str:
+    max_results_to_display: int = 5,
+    test_description: Optional[str] = None,
+) -> str:
   """
   Args:
    metric_name: Metric name used for the Change Point Analysis.
@@ -159,20 +165,35 @@ def get_issue_description(
   """
 
   # TODO: Add mean and median before and after the changepoint index.
+
+  description = []
+
+  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_id, metric_name))
+
+  if test_name:
+    description.append(("`test_name:` " + f'{test_name}'))
+
+  if test_description:
+    description.append(("`Test description:` " + f'{test_description}'))
+
+  description.append('```')
+
+  runs_to_display = []
   max_timestamp_index = min(
       change_point_index + max_results_to_display, len(metric_values) - 1)
   min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
-  description = _ISSUE_DESCRIPTION_TEMPLATE.format(
-      test_name, metric_name) + 2 * '\n'
+  # run in reverse to display the most recent runs first.
+  for i in reversed(range(min_timestamp_index, max_timestamp_index + 1)):
+    row_template = _METRIC_INFO_TEMPLATE.format(
+        timestamps[i].ctime(), format(metric_values[i], '.2f'))
+    if i == change_point_index:
+      row_template += constants._ANOMALY_MARKER
+    runs_to_display.append(row_template)
 
-  runs_to_display = [
-      _METRIC_INFO_TEMPLATE.format(timestamps[i].ctime(), metric_values[i])
-      for i in reversed(range(min_timestamp_index, max_timestamp_index + 1))
-  ]
-
-  runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
-  return description + '\n'.join(runs_to_display)
+  description.append(os.linesep.join(runs_to_display))
+  description.append('```')
+  return (2 * os.linesep).join(description)
 
 
 def report_change_point_on_issues(

@@ -18,8 +18,8 @@
 package org.apache.beam.fn.harness.logging;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,8 +40,7 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -59,8 +58,8 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -104,8 +103,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
    * garbage collected. java.util.logging only has weak references to the loggers
    * so if they are garbage collected, our hierarchical configuration will be lost. */
   private final Collection<Logger> configuredLoggers = new ArrayList<>();
-
-  private @Nullable ProcessBundleHandler processBundleHandler;
 
   private final BlockingQueue<LogEntry> bufferedLogEntries =
       new ArrayBlockingQueue<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
@@ -347,10 +344,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
-  public void setProcessBundleHandler(ProcessBundleHandler processBundleHandler) {
-    this.processBundleHandler = processBundleHandler;
-  }
-
   // Reset the logging configuration to what it is at startup.
   @RequiresNonNull("configuredLoggers")
   @RequiresNonNull("logRecordHandler")
@@ -375,7 +368,9 @@ public class BeamFnLoggingClient implements AutoCloseable {
     bufferedLogEntries.drainTo(finalLogEntries);
     for (BeamFnApi.LogEntry logEntry : finalLogEntries) {
       LogRecord logRecord =
-          new LogRecord(REVERSE_LOG_LEVEL_MAP.get(logEntry.getSeverity()), logEntry.getMessage());
+          new LogRecord(
+              checkNotNull(REVERSE_LOG_LEVEL_MAP.get(logEntry.getSeverity())),
+              logEntry.getMessage());
       logRecord.setLoggerName(logEntry.getLogLocation());
       logRecord.setMillis(
           logEntry.getTimestamp().getSeconds() * 1000
@@ -438,14 +433,12 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (loggerName != null) {
         builder.setLogLocation(loggerName);
       }
-      if (instructionId != null && processBundleHandler != null) {
-        BundleProcessor bundleProcessor =
-            processBundleHandler.getBundleProcessorCache().find(instructionId);
-        if (bundleProcessor != null) {
-          String transformId = bundleProcessor.getStateTracker().getCurrentThreadsPTransformId();
-          if (transformId != null) {
-            builder.setTransformId(transformId);
-          }
+
+      ExecutionStateSampler.ExecutionStateTracker stateTracker = BeamFnLoggingMDC.getStateTracker();
+      if (stateTracker != null) {
+        String transformId = stateTracker.getCurrentThreadsPTransformId();
+        if (transformId != null) {
+          builder.setTransformId(transformId);
         }
       }
 

@@ -22,17 +22,33 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func init() {
+	register.Function2x2(addKeyFn)
+	register.Function2x1(lessInt)
+	register.Function2x1(shorterString)
+}
+
+func lessInt(a, b int) bool {
+	return a < b
+}
+
+func shorterString(a, b string) bool {
+	return len(a) < len(b)
+}
+
 // TestCombineFn3String verifies that the accumulator correctly
 // maintains the top 3 longest strings.
 func TestCombineFn3String(t *testing.T) {
-	less := func(a, b string) bool {
-		return len(a) < len(b)
-	}
-	fn := newCombineFn(less, 3, reflectx.String, false)
+	fn := newCombineFn(shorterString, 3, reflectx.String, false)
 
 	tests := []struct {
 		Elms     []string
@@ -57,10 +73,7 @@ func TestCombineFn3String(t *testing.T) {
 // TestCombineFn3RevString verifies that the accumulator correctly
 // maintains the top 3 shortest strings.
 func TestCombineFn3RevString(t *testing.T) {
-	less := func(a, b string) bool {
-		return len(a) < len(b)
-	}
-	fn := newCombineFn(less, 3, reflectx.String, true)
+	fn := newCombineFn(shorterString, 3, reflectx.String, true)
 
 	tests := []struct {
 		Elms     []string
@@ -86,10 +99,7 @@ func TestCombineFn3RevString(t *testing.T) {
 // extractOutput still works on the marshalled accumulators it receives after
 // merging.
 func TestCombineFnMerge(t *testing.T) {
-	less := func(a, b string) bool {
-		return len(a) < len(b)
-	}
-	fn := newCombineFn(less, 3, reflectx.String, false)
+	fn := newCombineFn(shorterString, 3, reflectx.String, false)
 	tests := []struct {
 		Elms     [][]string
 		Expected []string
@@ -170,12 +180,9 @@ func output(fn *combineFn, a accum) []string {
 // TestLargest checks that the Largest transform outputs the correct elements
 // for a given PCollection of ints and a comparator function.
 func TestLargest(t *testing.T) {
-	less := func(a, b int) bool {
-		return a < b
-	}
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 1, 11, 7, 5, 10)
-	topTwo := Largest(s, col, 2, less)
+	topTwo := Largest(s, col, 2, lessInt)
 	passert.Equals(s, topTwo, []int{11, 10})
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("pipeline failed but should have succeeded, got %v", err)
@@ -185,12 +192,9 @@ func TestLargest(t *testing.T) {
 // TestSmallest checks that the Smallest transform outputs the correct elements
 // for a given PCollection of ints and a comparator function.
 func TestSmallest(t *testing.T) {
-	less := func(a, b int) bool {
-		return a < b
-	}
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 1, 11, 7, 5, 10)
-	botTwo := Smallest(s, col, 2, less)
+	botTwo := Smallest(s, col, 2, lessInt)
 	passert.Equals(s, botTwo, []int{1, 5})
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("pipeline failed but should have succeeded, got %v", err)
@@ -209,9 +213,6 @@ func addKeyFn(elm beam.T, newKey int) (int, beam.T) {
 // TestLargestPerKey ensures that the LargestPerKey transform outputs the proper
 // collection for a PCollection of type <int, int>.
 func TestLargestPerKey(t *testing.T) {
-	less := func(a, b int) bool {
-		return a < b
-	}
 	p, s := beam.NewPipelineWithRoot()
 	colZero := beam.Create(s, 1, 11, 7, 5, 10)
 	keyedZero := addKey(s, colZero, 0)
@@ -220,7 +221,7 @@ func TestLargestPerKey(t *testing.T) {
 	keyedOne := addKey(s, colOne, 1)
 
 	col := beam.Flatten(s, keyedZero, keyedOne)
-	top := LargestPerKey(s, col, 2, less)
+	top := LargestPerKey(s, col, 2, lessInt)
 	out := beam.DropKey(s, top)
 	passert.Equals(s, out, []int{11, 10}, []int{12, 11})
 	if err := ptest.Run(p); err != nil {
@@ -231,9 +232,6 @@ func TestLargestPerKey(t *testing.T) {
 // TestSmallestPerKey ensures that the SmallestPerKey transform outputs the proper
 // collection for a PCollection of type <int, int>.
 func TestSmallestPerKey(t *testing.T) {
-	less := func(a, b int) bool {
-		return a < b
-	}
 	p, s := beam.NewPipelineWithRoot()
 	colZero := beam.Create(s, 1, 11, 7, 5, 10)
 	keyedZero := addKey(s, colZero, 0)
@@ -242,7 +240,7 @@ func TestSmallestPerKey(t *testing.T) {
 	keyedOne := addKey(s, colOne, 1)
 
 	col := beam.Flatten(s, keyedZero, keyedOne)
-	bot := SmallestPerKey(s, col, 2, less)
+	bot := SmallestPerKey(s, col, 2, lessInt)
 	out := beam.DropKey(s, bot)
 	passert.Equals(s, out, []int{1, 5}, []int{2, 6})
 	if err := ptest.Run(p); err != nil {

@@ -39,7 +39,6 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
-from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
 from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
 from apache_beam.runners.worker.sdk_worker import SdkWorker
@@ -279,18 +278,28 @@ class SdkWorkerTest(unittest.TestCase):
   def test_data_sampling_response(self):
     # Create a data sampler with some fake sampled data. This data will be seen
     # in the sample response.
-    data_sampler = DataSampler()
     coder = FastPrimitivesCoder()
 
-    # Sample from two fake PCollections to test that all sampled PCollections
-    # are present in the response. Also adds an extra sample to test that
-    # filtering is forwarded to the DataSampler.
-    data_sampler.sample_output('pcoll_id_1',
-                               coder).sample('hello, world from pcoll_id_1!')
-    data_sampler.sample_output('pcoll_id_2',
-                               coder).sample('hello, world from pcoll_id_2!')
-    data_sampler.sample_output('bad_pcoll_id',
-                               coder).sample('if present bug in filter')
+    class FakeDataSampler:
+      def samples(self, pcollection_ids):
+        return beam_fn_api_pb2.SampleDataResponse(
+            element_samples={
+                'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('a'))
+                    ]),
+                'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
+                    elements=[
+                        beam_fn_api_pb2.SampledElement(
+                            element=coder.encode_nested('b'))
+                    ])
+            })
+
+      def stop(self):
+        pass
+
+    data_sampler = FakeDataSampler()
 
     # Create and send the fake reponse. The SdkHarness should query the
     # DataSampler and fill out the sample response.
@@ -310,14 +319,12 @@ class SdkWorkerTest(unittest.TestCase):
                 'pcoll_id_1': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[
                         beam_fn_api_pb2.SampledElement(
-                            element=coder.encode_nested(
-                                'hello, world from pcoll_id_1!'))
+                            element=coder.encode_nested('a'))
                     ]),
                 'pcoll_id_2': beam_fn_api_pb2.SampleDataResponse.ElementList(
                     elements=[
                         beam_fn_api_pb2.SampledElement(
-                            element=coder.encode_nested(
-                                'hello, world from pcoll_id_2!'))
+                            element=coder.encode_nested('b'))
                     ])
             }))
 

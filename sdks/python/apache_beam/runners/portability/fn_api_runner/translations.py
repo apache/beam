@@ -603,7 +603,8 @@ def pipeline_from_stages(
   components.transforms.clear()
   components.pcollections.clear()
 
-  roots = set()
+  # order preserving but still has fast contains checking
+  roots = {}  # type: Dict[str, Any]
   parents = {
       child: parent
       for parent,
@@ -618,7 +619,8 @@ def pipeline_from_stages(
 
   def add_parent(child, parent):
     if parent is None:
-      roots.add(child)
+      if child not in roots:
+        roots[child] = None
     else:
       if (parent not in components.transforms and
           parent in pipeline_proto.components.transforms):
@@ -665,7 +667,7 @@ def pipeline_from_stages(
     add_parent(transform_id, stage.parent)
 
   del new_proto.root_transform_ids[:]
-  new_proto.root_transform_ids.extend(roots)
+  new_proto.root_transform_ids.extend(roots.keys())
 
   return new_proto
 
@@ -732,6 +734,29 @@ def optimize_pipeline(
 
 
 # Optimization stages.
+
+
+def standard_optimize_phases():
+  """Returns the basic set of phases, to be passed to optimize_pipeline,
+  that result in a pipeline consisting only of fused stages (with urn
+  beam:runner:executable_stage:v1) and, of course, those designated as known
+  runner urns, in topological order.
+  """
+  return [
+      annotate_downstream_side_inputs,
+      annotate_stateful_dofns_as_roots,
+      fix_side_input_pcoll_coders,
+      pack_combiners,
+      lift_combiners,
+      expand_sdf,
+      fix_flatten_coders,
+      # sink_flattens,
+      greedily_fuse,
+      read_to_impulse,
+      extract_impulse_stages,
+      remove_data_plane_ops,
+      sort_stages,
+  ]
 
 
 def annotate_downstream_side_inputs(stages, pipeline_context):
@@ -1321,6 +1346,7 @@ def lift_combiners(stages, context):
                 payload=transform.spec.payload),
             inputs=transform.inputs,
             outputs={'out': precombined_pcoll_id},
+            annotations=transform.annotations,
             environment_id=transform.environment_id))
 
     yield make_stage(
@@ -1330,6 +1356,7 @@ def lift_combiners(stages, context):
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=common_urns.primitives.GROUP_BY_KEY.urn),
             inputs={'in': precombined_pcoll_id},
+            annotations=transform.annotations,
             outputs={'out': grouped_pcoll_id}))
 
     yield make_stage(
@@ -1342,6 +1369,7 @@ def lift_combiners(stages, context):
                 payload=transform.spec.payload),
             inputs={'in': grouped_pcoll_id},
             outputs={'out': merged_pcoll_id},
+            annotations=transform.annotations,
             environment_id=transform.environment_id))
 
     yield make_stage(
@@ -1354,6 +1382,7 @@ def lift_combiners(stages, context):
                 payload=transform.spec.payload),
             inputs={'in': merged_pcoll_id},
             outputs=transform.outputs,
+            annotations=transform.annotations,
             environment_id=transform.environment_id))
 
   def unlifted_stages(stage):

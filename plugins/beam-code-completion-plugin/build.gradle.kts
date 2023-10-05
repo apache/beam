@@ -68,3 +68,4 @@ tasks.test {
   systemProperty("idea.home.path", System.getenv("INTELLIJ_IDEA_SOURCES"))
   useJUnit()
 }
+

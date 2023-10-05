@@ -32,9 +32,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 
 /** Utilities for going to/from Runner API pipelines. */
 public class PipelineTranslation {
@@ -102,6 +102,21 @@ public class PipelineTranslation {
       // TODO(JIRA-5649): Don't even emit these transforms in the generated protos.
       res = elideDeprecatedViews(res);
     }
+
+    ExternalTranslationOptions externalTranslationOptions =
+        pipeline.getOptions().as(ExternalTranslationOptions.class);
+    List<String> urnsToOverride = externalTranslationOptions.getTransformsToOverride();
+    if (urnsToOverride.size() > 0) {
+      try (TransformUpgrader upgrader = TransformUpgrader.of()) {
+        res =
+            upgrader.upgradeTransformsViaTransformService(
+                res, urnsToOverride, externalTranslationOptions);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Could not override the transforms with URNs " + urnsToOverride, e);
+      }
+    }
+
     // Validate that translation didn't produce an invalid pipeline.
     PipelineValidator.validate(res);
     return res;

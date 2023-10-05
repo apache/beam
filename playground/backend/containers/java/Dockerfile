@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BEAM_VERSION=2.44.0
-FROM golang:1.18-bullseye AS build
+FROM golang:1.20-bullseye AS build
 ARG BEAM_VERSION
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
@@ -65,7 +65,6 @@ ENV BEAM_SDK="SDK_JAVA"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 ARG CALCITE_VERSION=1_28_0
 ARG BYTEBUDDY_VERSION=1.12.14
-ARG FASTJSON_VERSION=1.2.69
 ARG JANINO_VERSION=3.0.11
 
 # Copy build result
@@ -102,9 +101,6 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-$CAL
 
 RUN wget  https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/$BYTEBUDDY_VERSION/byte-buddy-$BYTEBUDDY_VERSION.jar &&\
     mv byte-buddy-$BYTEBUDDY_VERSION.jar /opt/apache/beam/jars/byte-buddy-$BYTEBUDDY_VERSION.jar
-
-RUN wget  https://repo1.maven.org/maven2/com/alibaba/fastjson/$FASTJSON_VERSION/fastjson-$FASTJSON_VERSION.jar &&\
-    mv fastjson-$FASTJSON_VERSION.jar /opt/apache/beam/jars/fastjson-$FASTJSON_VERSION.jar
 
 RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/$JANINO_VERSION/janino-$JANINO_VERSION.jar &&\
     mv janino-$JANINO_VERSION.jar /opt/apache/beam/jars/janino-$JANINO_VERSION.jar
