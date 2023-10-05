@@ -162,7 +162,7 @@ def run_change_point_analysis(
 def run(
     big_query_metrics_fetcher: MetricsFetcher = BigQueryMetricsFetcher(),
     config_file_path: Optional[str] = None,
-    ) -> None:
+) -> None:
   """
   run is the entry point to run change point analysis on test metric
   data, which is read from config file, and if there is a performance
@@ -181,7 +181,6 @@ def run(
         os.path.dirname(os.path.abspath(__file__)), 'tests_config.yaml')
 
   tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
-
 
   for test_id, params in tests_config.items():
     run_change_point_analysis(

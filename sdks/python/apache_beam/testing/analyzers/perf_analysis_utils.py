@@ -231,7 +231,7 @@ def filter_change_points_by_median_threshold(
   return valid_change_points
 
 
-class MetricsFetcher:
+class MetricsFetcher(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def fetch_metric_data(
       self,
@@ -244,9 +244,10 @@ class MetricsFetcher:
     Define SQL query and fetch the timestamp values and metric values
     from BigQuery tables.
     """
+    raise NotImplementedError
 
 
-class BigQueryMetricsFetcher:
+class BigQueryMetricsFetcher(MetricsFetcher):
   def fetch_metric_data(
       self,
       *,
