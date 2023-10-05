@@ -122,7 +122,5 @@ jobs:
         run: |
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
 
-        # // TODO(https://github.com/apache/beam/issues/20402): Skipping some cases because they are too slow.
-        # def TESTS_TO_SKIP = [
-        #   'load-tests-python-flink-streaming-combine-1',
-        # ]
+        # // TODO(https://github.com/apache/beam/issues/20402). Skipping some cases because they are too slow:
+        # load-tests-python-flink-streaming-combine-1'
