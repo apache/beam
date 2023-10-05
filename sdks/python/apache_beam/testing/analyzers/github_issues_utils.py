@@ -34,8 +34,8 @@ except KeyError as e:
       'A Github Personal Access token is required '
       'to create Github Issues.')
 
-_BEAM_GITHUB_REPO_OWNER = 'apache'
-_BEAM_GITHUB_REPO_NAME = 'beam'
+_GITHUB_REPO_OWNER = os.environ.get('REPO_OWNER', 'apache')
+_GITHUB_REPO_NAME = os.environ.get('REPO_NAME', 'beam')
 # Adding GitHub Rest API version to the header to maintain version stability.
 # For more information, please look at
 # https://github.blog/2022-11-28-to-infinity-and-beyond-enabling-the-future-of-githubs-rest-api-with-api-versioning/ # pylint: disable=line-too-long
@@ -77,10 +77,10 @@ def create_issue(
     Tuple containing GitHub issue number and issue URL.
   """
   url = "https://api.github.com/repos/{}/{}/issues".format(
-      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME)
+      _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME)
   data = {
-      'owner': _BEAM_GITHUB_REPO_OWNER,
-      'repo': _BEAM_GITHUB_REPO_NAME,
+      'owner': _GITHUB_REPO_OWNER,
+      'repo': _GITHUB_REPO_NAME,
       'title': title,
       'body': description,
       'labels': [_AWAITING_TRIAGE_LABEL, _PERF_ALERT_LABEL]
@@ -108,20 +108,20 @@ def comment_on_issue(issue_number: int,
       issue, and the comment URL.
   """
   url = 'https://api.github.com/repos/{}/{}/issues/{}'.format(
-      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
+      _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME, issue_number)
   open_issue_response = requests.get(
       url,
       json.dumps({
-          'owner': _BEAM_GITHUB_REPO_OWNER,
-          'repo': _BEAM_GITHUB_REPO_NAME,
+          'owner': _GITHUB_REPO_OWNER,
+          'repo': _GITHUB_REPO_NAME,
           'issue_number': issue_number
       },
                  default=str),
       headers=_HEADERS).json()
   if open_issue_response['state'] == 'open':
     data = {
-        'owner': _BEAM_GITHUB_REPO_OWNER,
-        'repo': _BEAM_GITHUB_REPO_NAME,
+        'owner': _GITHUB_REPO_OWNER,
+        'repo': _GITHUB_REPO_NAME,
         'body': comment_description,
         issue_number: issue_number,
     }
@@ -134,13 +134,14 @@ def comment_on_issue(issue_number: int,
 
 def add_awaiting_triage_label(issue_number: int):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
-      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
+      _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME, issue_number)
   requests.post(
       url, json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}), headers=_HEADERS)
 
 
 def get_issue_description(
-    test_name: str,
+    test_id: str,
+    test_name: Optional[str],
     metric_name: str,
     timestamps: List[pd.Timestamp],
     metric_values: List,
@@ -167,10 +168,13 @@ def get_issue_description(
 
   description = []
 
-  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_name, metric_name))
+  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_id, metric_name))
 
-  description.append(("`Test description:` " +
-                      f'{test_description}') if test_description else '')
+  if test_name:
+    description.append(("`test_name:` " + f'{test_name}'))
+
+  if test_description:
+    description.append(("`Test description:` " + f'{test_description}'))
 
   description.append('```')
 
