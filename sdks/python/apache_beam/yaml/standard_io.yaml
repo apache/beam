@@ -67,6 +67,8 @@
     'WriteToCsv': 'WriteToCsv'
     'ReadFromJson': 'ReadFromJson'
     'WriteToJson': 'WriteToJson'
+    'ReadFromParquet': 'ReadFromParquet'
+    'WriteToParquet': 'WriteToParquet'
   config:
     mappings:
       'ReadFromCsv':
@@ -77,6 +79,13 @@
         path: 'path'
       'WriteToJson':
         path: 'path'
+      'ReadFromParquet':
+        path: 'file_pattern'
+      'WriteToParquet':
+        path: 'file_path_prefix'
+    defaults:
+      'ReadFromParquet':
+        as_rows: True
     underlying_provider:
       type: python
       transforms:
@@ -84,3 +93,5 @@
         'WriteToCsv': 'apache_beam.io.WriteToCsv'
         'ReadFromJson': 'apache_beam.io.ReadFromJson'
         'WriteToJson': 'apache_beam.io.WriteToJson'
+        'ReadFromParquet': 'apache_beam.io.ReadFromParquet'
+        'WriteToParquet': 'apache_beam.io.WriteToParquet'
