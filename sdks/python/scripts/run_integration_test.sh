@@ -79,6 +79,7 @@ SUITE=""
 COLLECT_MARKERS=
 REQUIREMENTS_FILE=""
 ARCH=""
+PY_VERSION=""
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -169,6 +170,11 @@ case $key in
       shift # past argument
       shift # past value
       ;;
+    --py_version)
+      PY_VERSION="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -242,6 +248,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
 
   if [[ "$ARCH" == "ARM" ]]; then
     opts+=("--machine_type=t2a-standard-1")
+
+    IMAGE_NAME="beam_python${PY_VERSION}_sdk"
+    opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then

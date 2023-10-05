@@ -126,7 +126,7 @@ artifactId=${project.name}
         }
         config.exclusions.each { exclude it }
 
-        classifier = null
+        archiveClassifier = null
         mergeServiceFiles()
         zip64 true
         exclude "META-INF/INDEX.LIST"

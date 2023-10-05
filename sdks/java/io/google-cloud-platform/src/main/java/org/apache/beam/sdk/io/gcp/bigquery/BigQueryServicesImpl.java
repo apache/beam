@@ -1364,6 +1364,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .setChannelsPerCpu(2)
               .build();
 
+      String traceId =
+          String.format(
+              "Dataflow:%s:%s:%s",
+              bqIOMetadata.getBeamJobName() == null
+                  ? options.getJobName()
+                  : bqIOMetadata.getBeamJobName(),
+              bqIOMetadata.getBeamJobId() == null ? "" : bqIOMetadata.getBeamJobId(),
+              bqIOMetadata.getBeamWorkerId() == null ? "" : bqIOMetadata.getBeamWorkerId());
+
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName, newWriteClient)
               .setExecutorProvider(
@@ -1374,11 +1383,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .setEnableConnectionPool(useConnectionPool)
               .setMaxInflightRequests(storageWriteMaxInflightRequests)
               .setMaxInflightBytes(storageWriteMaxInflightBytes)
-              .setTraceId(
-                  "Dataflow:"
-                      + (bqIOMetadata.getBeamJobId() != null
-                          ? bqIOMetadata.getBeamJobId()
-                          : options.getJobName()))
+              .setTraceId(traceId)
               .build();
       return new StreamAppendClient() {
         private int pins = 0;

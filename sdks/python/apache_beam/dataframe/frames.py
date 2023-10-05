@@ -1388,7 +1388,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     Only the default, ``method=None``, is allowed."""
     if level is not None:
       raise NotImplementedError('per-level align')
-    if method is not None:
+    if method is not None and method != lib.no_default:
       raise frame_base.WontImplementError(
           f"align(method={method!r}) is not supported because it is "
           "order sensitive. Only align(method=None) is supported.",
@@ -2580,7 +2580,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "align(copy=False) is not supported because it might be an inplace "
           "operation depending on the data. Please prefer the default "
           "align(copy=True).")
-    if method is not None:
+    if method is not None and method != lib.no_default:
       raise frame_base.WontImplementError(
           f"align(method={method!r}) is not supported because it is "
           "order sensitive. Only align(method=None) is supported.",
@@ -2978,6 +2978,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   agg = aggregate
 
   applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
+  if PD_VERSION >= (2, 1):
+    map = frame_base._elementwise_method('map', base=pd.DataFrame)
   add_prefix = frame_base._elementwise_method('add_prefix', base=pd.DataFrame)
   add_suffix = frame_base._elementwise_method('add_suffix', base=pd.DataFrame)
 
@@ -4594,8 +4596,9 @@ def _liftable_agg(meth, postagg_meth=None):
       return _unliftable_agg(meth)(self, *args, **kwargs)
 
     to_group = self._ungrouped.proxy().index
-    is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
-                                  for i in self._grouping_indexes)
+    is_categorical_grouping = any(
+        isinstance(to_group.get_level_values(i).dtype, pd.CategoricalDtype)
+        for i in self._grouping_indexes)
     groupby_kwargs = self._kwargs
     group_keys = self._group_keys
 
@@ -4647,8 +4650,9 @@ def _unliftable_agg(meth):
 
     to_group = self._ungrouped.proxy().index
     group_keys = self._group_keys
-    is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
-                                  for i in self._grouping_indexes)
+    is_categorical_grouping = any(
+        isinstance(to_group.get_level_values(i).dtype, pd.CategoricalDtype)
+        for i in self._grouping_indexes)
 
     groupby_kwargs = self._kwargs
     project = _maybe_project_func(self._projection)

@@ -31,6 +31,7 @@ python: ["sdks/python/**/*", "learning/katas/python/**/*"]
 typescript: ["sdks/typescript/**/*"]
 vendor: ["vendor/**/*"]
 website: ["website/**/*"]
+yaml: ["sdks/python/apache_beam/yaml/**"]
 
 # Extensions
 extensions: ["sdks/java/extensions/**/*", "runners/extensions-java/**/*"]
