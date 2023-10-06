@@ -64,7 +64,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Python PostCommit'
+      startswith(github.event.comment.body, 'Run Python PostCommit 3.')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
