@@ -16,6 +16,8 @@
 #
 
 """Utilities for converting between JSON and Beam Schema'd data.
+
+For internal use, no backward compatibility guarantees.
 """
 
 import json
@@ -37,6 +39,7 @@ JSON_ATOMIC_TYPES_TO_BEAM = {
 
 def json_schema_to_beam_schema(
     json_schema: Dict[str, Any]) -> schema_pb2.Schema:
+  """Returns a Beam schema equivalent for the given Json schema."""
   def maybe_nullable(beam_type, nullable):
     if nullable:
       beam_type.nullable = True
@@ -61,6 +64,7 @@ def json_schema_to_beam_schema(
 
 
 def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
+  """Returns a Beam schema type for the given Json (schema) type."""
   if not isinstance(json_type, dict) or 'type' not in json_type:
     raise ValueError(f'Malformed type {json_type}.')
   type_name = json_type['type']
@@ -91,6 +95,11 @@ def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
 
 
 def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
+  """Returns a callable converting Json objects to Beam rows of the given type.
+
+  The input to the returned callable is expected to conform to the Json schema
+  corresponding to this Beam type.
+  """
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     return lambda value: value
@@ -123,12 +132,18 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
 
 
 def json_parser(beam_schema: schema_pb2.Schema) -> Callable[[bytes], beam.Row]:
+  """Returns a callable converting Json strings to Beam rows of the given type.
+
+  The input to the returned callable is expected to conform to the Json schema
+  corresponding to this Beam type.
+  """
   to_row = json_to_row(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
   return lambda s: to_row(json.loads(s))
 
 
-def row_to_json(beam_type):
+def row_to_json(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
+  """Returns a callable converting rows of the given type to Json objects."""
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     return lambda value: value
@@ -162,6 +177,7 @@ def row_to_json(beam_type):
 
 def json_formater(
     beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
+  """Returns a callable converting rows of the given schema to Json strings."""
   convert = row_to_json(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
   return lambda row: json.dumps(convert(row), sort_keys=True).encode('utf-8')
