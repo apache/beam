@@ -153,6 +153,8 @@ task archiveFilesToLint(type: Zip) {
     include "**/*.md"
     include "**/build.gradle"
     include '**/build.gradle.kts'
+    exclude '**/build/**' // intermediate build directory
+    exclude 'website/www/site/themes/docsy/**' // fork to google/docsy
     exclude "**/node_modules/*"
     exclude "**/.gogradle/*"
   }

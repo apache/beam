@@ -19,10 +19,10 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['.test-infra/metrics/**', '.github/workflows/beam_PreCommit_CommunityMetrics.yml']
+    paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts', '.github/workflows/beam_PreCommit_CommunityMetrics.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['.test-infra/metrics/**']
+    paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts']
   issue_comment:
     types: [created]
   schedule:

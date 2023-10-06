@@ -23,7 +23,6 @@ import static java.util.UUID.randomUUID
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import java.net.ServerSocket
 import java.util.logging.Logger
 import org.gradle.api.attributes.Category
 import org.gradle.api.GradleException
@@ -488,13 +487,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // Apply common properties/repositories and tasks to all projects.
 
     project.ext.mavenGroupId = 'org.apache.beam'
-
-    // Automatically use the official release version if we are performing a release
-    // otherwise append '-SNAPSHOT'
-    project.version = '2.52.0'
-    if (!isRelease(project)) {
-      project.version += '-SNAPSHOT'
-    }
 
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
@@ -1252,7 +1244,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.shadowClosure) {
         // Ensure that tests are packaged and part of the artifact set.
         project.task('packageTests', type: Jar) {
-          classifier = 'tests-unshaded'
+          archiveClassifier = 'tests-unshaded'
           from project.sourceSets.test.output
         }
         project.artifacts.archives project.packageTests
@@ -1560,13 +1552,13 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      // Always configure the shadowJar classifier and merge service files.
+      // Always configure the shadowJar archiveClassifier and merge service files.
       if (configuration.shadowClosure) {
         // Only set the classifer on the unshaded classes if we are shading.
-        project.jar { classifier = "unshaded" }
+        project.jar { archiveClassifier = "unshaded" }
 
         project.shadowJar({
-          classifier = null
+          archiveClassifier = null
           mergeServiceFiles()
           zip64 true
           into("META-INF/") {
@@ -1575,11 +1567,11 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         } << configuration.shadowClosure)
 
-        // Always configure the shadowTestJar classifier and merge service files.
+        // Always configure the shadowTestJar archiveClassifier and merge service files.
         project.task('shadowTestJar', type: ShadowJar, {
           group = "Shadow"
           description = "Create a combined JAR of project and test dependencies"
-          classifier = "tests"
+          archiveClassifier = "tests"
           from project.sourceSets.test.output
           configurations = [
             project.configurations.testRuntimeMigration
@@ -1639,7 +1631,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.register("testJar", Jar) {
           group = "Jar"
           description = "Create a JAR of test classes"
-          classifier = "tests"
+          archiveClassifier = "tests"
           from project.sourceSets.test.output
           zip64 true
           exclude "META-INF/INDEX.LIST"
@@ -1794,18 +1786,18 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.task('sourcesJar', type: Jar) {
           from project.sourceSets.main.allSource
-          classifier = 'sources'
+          archiveClassifier = 'sources'
         }
         project.artifacts.archives project.sourcesJar
 
         project.task('testSourcesJar', type: Jar) {
           from project.sourceSets.test.allSource
-          classifier = 'test-sources'
+          archiveClassifier = 'test-sources'
         }
         project.artifacts.archives project.testSourcesJar
 
         project.task('javadocJar', type: Jar, dependsOn: project.javadoc) {
-          classifier = 'javadoc'
+          archiveClassifier = 'javadoc'
           from project.javadoc.destinationDir
         }
         project.artifacts.archives project.javadocJar
@@ -1915,8 +1907,8 @@ class BeamModulePlugin implements Plugin<Project> {
                     def dependencyNode = dependenciesNode.appendNode('dependency')
                     def appendClassifier = { dep ->
                       dep.artifacts.each { art ->
-                        if (art.hasProperty('classifier')) {
-                          dependencyNode.appendNode('classifier', art.classifier)
+                        if (art.hasProperty('archiveClassifier')) {
+                          dependencyNode.appendNode('archiveClassifier', art.archiveClassifier)
                         }
                       }
                     }
@@ -2210,7 +2202,7 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
 
     project.ext.applyDockerNature = {
-      project.apply plugin: "com.palantir.docker"
+      project.apply plugin: BeamDockerPlugin
       project.docker { noCache true }
       project.tasks.create(name: "copyLicenses", type: Copy) {
         from "${project.rootProject.projectDir}/LICENSE"
@@ -2222,7 +2214,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.applyDockerRunNature = {
-      project.apply plugin: "com.palantir.docker-run"
+      project.apply plugin: BeamDockerRunPlugin
     }
     /** ***********************************************************************************************/
 

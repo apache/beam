@@ -77,6 +77,7 @@ This section contains the following example notebooks.
 ### Multi-model pipelines
 
 * [Ensemble model using an image captioning and ranking](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb)
+* [Run ML Inference with Different Models Per Key](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/per_key_models.ipynb)
 
 ### Model Evaluation
 
