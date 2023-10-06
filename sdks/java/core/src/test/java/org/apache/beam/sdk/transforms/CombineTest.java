@@ -1031,6 +1031,30 @@ public class CombineTest implements Serializable {
 
       assertEquals(Collections.singletonList(view), combine.getSideInputs());
     }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testHotKeyCombineWithSideInputs() {
+      PCollection<KV<String, Integer>> input =
+          createInput(
+              pipeline,
+              Arrays.asList(
+                  KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)));
+      PCollection<Integer> sum =
+          input.apply(Values.create()).apply("Sum", Combine.globally(new SumInts()));
+      PCollectionView<Integer> sumView = sum.apply(View.asSingleton());
+
+      PCollection<KV<String, String>> combinePerKeyWithSideInputsAndHotKey =
+          input.apply(
+              Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(sumView))
+                  .withSideInputs(sumView)
+                  .withHotKeyFanout(1));
+
+      PAssert.that(combinePerKeyWithSideInputsAndHotKey)
+          .containsInAnyOrder(Arrays.asList(KV.of("a", "20:114"), KV.of("b", "20:113")));
+
+      pipeline.run();
+    }
   }
 
   /** Tests validating windowing behaviors. */

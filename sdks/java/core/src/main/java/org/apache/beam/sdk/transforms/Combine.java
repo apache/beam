@@ -1555,7 +1555,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<>(fn, fnDisplayData, hotKeyFanout, fewKeys);
+      return new PerKeyWithHotKeyFanout<>(fn, fnDisplayData, hotKeyFanout, fewKeys, sideInputs);
     }
 
     /**
@@ -1578,7 +1578,8 @@ public class Combine {
               return hotKeyFanout;
             }
           },
-          fewKeys);
+          fewKeys,
+          sideInputs);
     }
 
     /** Returns the {@link GlobalCombineFn} used by this Combine operation. */
@@ -1624,18 +1625,20 @@ public class Combine {
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
-
     private final boolean fewKeys;
+    private final List<PCollectionView<?>> sideInputs;
 
     private PerKeyWithHotKeyFanout(
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
         SerializableFunction<? super K, Integer> hotKeyFanout,
-        boolean fewKeys) {
+        boolean fewKeys,
+        List<PCollectionView<?>> sideInputs) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.hotKeyFanout = hotKeyFanout;
       this.fewKeys = fewKeys;
+      this.sideInputs = sideInputs;
     }
 
     @Override
@@ -1928,6 +1931,10 @@ public class Combine {
           fewKeys
               ? Combine.fewKeys(hotPreCombine, fnDisplayData)
               : Combine.perKey(hotPreCombine, fnDisplayData);
+      if (!sideInputs.isEmpty()) {
+        hotPreCombineTransform = hotPreCombineTransform.withSideInputs(sideInputs);
+      }
+
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> precombinedHot =
           split
               .get(hot)
@@ -1975,6 +1982,10 @@ public class Combine {
           fewKeys
               ? Combine.fewKeys(postCombine, fnDisplayData)
               : Combine.perKey(postCombine, fnDisplayData);
+      if (!sideInputs.isEmpty()) {
+        postCombineTransform = postCombineTransform.withSideInputs(sideInputs);
+      }
+
       return PCollectionList.of(precombinedHot)
           .and(preprocessedCold)
           .apply(Flatten.pCollections())
@@ -1991,6 +2002,11 @@ public class Combine {
       }
       builder.add(
           DisplayData.item("fanoutFn", hotKeyFanout.getClass()).withLabel("Fanout Function"));
+    }
+
+    /** Returns the side inputs used by this Combine operation. */
+    public List<PCollectionView<?>> getSideInputs() {
+      return sideInputs;
     }
 
     /**
