@@ -15,13 +15,11 @@
 #  limitations under the License.
 
 --region=us-central1
---appName=load_tests_Java11_Dataflow_V2_batch_ParDo_2
 --tempLocation=gs://temp-storage-for-perf-tests/loadtests
---influxMeasurement=java_batch_pardo_2
---influxTags={"runnerVersion":"v2","jdk":"java11"}
+--influxMeasurement=java_batch_pardo_1
 --publishToInfluxDB=true
 --sourceOptions={"numRecords":20000000,"keySizeBytes":10,"valueSizeBytes":90}
---iterations=200
+--iterations=10
 --numberOfCounters=1
 --numberOfCounterOperations=0
 --numWorkers=5

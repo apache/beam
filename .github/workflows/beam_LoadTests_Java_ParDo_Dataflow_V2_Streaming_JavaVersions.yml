@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: LoadTests Java ParDo Dataflow V2 Streaming Java17
+name: LoadTests Java ParDo Dataflow V2 Streaming JavaVersions
 
 on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '30 1 * * *'
+    - cron: '30 21 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -49,44 +49,47 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java17:
+  beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Load Tests Java 17 ParDo Dataflow V2 Streaming'
+      (contains(github.event.comment.body, 'Run Load Tests Java') &&
+         contains(github.event.comment.body, 'ParDo Dataflow V2 Streaming'))
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
     strategy:
       matrix:
-        job_name: ["beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java17"]
-        job_phrase: ["Run Load Tests Java 17 ParDo Dataflow V2 Streaming"]
+        job_name: ["beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions"]
+        job_phrase_1: ["Run Load Tests Java"]
+        job_phrase_2: ["ParDo Dataflow V2 Streaming"]
+        java_version: ['11','17']
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            8
+          java-version: ${{ matrix.java_version }}
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_Java17_10_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_Java17_200_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_Java17_10_counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_Java17_100_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_10_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_200_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_10_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_100_counters.txt
+          arguments: |
+            --influxTags={\"runnerVersion\":\"v2\",\"jdk\":\"java${{ matrix.java_version }}\"}
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
-      - name: run ParDo Dataflow V2 Streaming Java17 Load Test 1 (10 times)
+      - name: run ParDo Dataflow V2 Streaming Java Load Test 1 (10 times)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -94,10 +97,10 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java17_test_arguments_1 }}' \
-      - name: run ParDo Dataflow V2 Streaming Java17 Load Test 2 (200 times)
+            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_1 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_1' \
+      - name: run ParDo Dataflow V2 Streaming Java Load Test 2 (200 times)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -105,10 +108,10 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java17_test_arguments_2 }}' \
-      - name: run ParDo Dataflow V2 Streaming Java17 Load Test 3 (10 counters)
+            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_2 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_2' \
+      - name: run ParDo Dataflow V2 Streaming Java Load Test 3 (10 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -116,10 +119,10 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java17_test_arguments_3 }}' \
-      - name: run ParDo Dataflow V2 Streaming Java17 Load Test 4 (100 counters)
+            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_3 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_3' \
+      - name: run ParDo Dataflow V2 Streaming Java Load Test 4 (100 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -127,6 +130,6 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_Java17_test_arguments_4 }}'
+            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_4 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_4'
