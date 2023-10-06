@@ -242,7 +242,7 @@ if __name__ == '__main__':
           # To avoid depending on an old dependency, update the minor version on
           # every Beam release, see: https://github.com/apache/beam/issues/23119
           'cloudpickle~=2.2.1',
-          'fastavro>=0.23.6,<2',
+          'fastavro>=0.23.6,<2,!=1.8.4',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
