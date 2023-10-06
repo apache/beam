@@ -19,8 +19,8 @@ package org.apache.beam.sdk.testutils.jvmverification;
 
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v11;
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v17;
-import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v21;
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v1_8;
+import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v21;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
