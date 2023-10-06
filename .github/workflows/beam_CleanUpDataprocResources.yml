@@ -53,19 +53,9 @@ jobs:
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
-    name: ${{ matrix.job_name }}
-    strategy:
-      matrix:
-        job_name: ["beam_CleanUpDataprocResources"]
-        job_phrase: ["N/A"]
+    name: "beam_CleanUpDataprocResources"
     steps:
       - uses: actions/checkout@v3
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }}
       - name: Delete leaked resources for all the jobs that generates flink clusters
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./cleanup.sh -xe
