@@ -59,6 +59,7 @@ jobs:
     timeout-minutes: 720
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
     strategy:
+      fail-fast: false
       matrix:
         job_name: ["beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions"]
         job_phrase_1: ["Run Load Tests Java"]
