@@ -72,14 +72,15 @@ pipeline:
     - type: ReadFromCsv
       config:
         path: /path/to/input*.csv
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
       input: ReadFromCsv
     - type: WriteToJson
       config:
         path: /path/to/output.json
-      input: PyFilter
+      input: Filter
 ```
 
 or two.
@@ -90,15 +91,16 @@ pipeline:
     - type: ReadFromCsv
       config:
         path: /path/to/input*.csv
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
       input: ReadFromCsv
     - type: Sql
       name: MySqlTransform
       config:
         query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
-      input: PyFilter
+      input: Filter
     - type: WriteToJson
       config:
         path: /path/to/output.json
@@ -116,9 +118,10 @@ pipeline:
     - type: ReadFromCsv
       config:
         path: /path/to/input*.csv
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
     - type: Sql
       name: MySqlTransform
       config:
@@ -141,9 +144,10 @@ pipeline:
       path: /path/to/input*.csv
 
   transforms:
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
 
     - type: Sql
       name: MySqlTransform
@@ -185,11 +189,12 @@ pipeline:
     config:
       path: /path/to/all.json
 
-  - type: PyFilter
+  - type: Filter
     name: FilterToBig
     input: Sql
     config:
-      keep: "lambda x: x.col2 > 100"
+      language: python
+      keep: "col2 > 100"
 
   - type: WriteToCsv
     name: WriteBig
@@ -231,15 +236,18 @@ pipeline:
     name: ExtraProcessingForBigRows
     input: Sql
     transforms:
-      - type: PyFilter
+      - type: Filter
         config:
-          keep: "lambda x: x.col2 > 100"
-      - type: PyFilter
+          language: python
+          keep: "col2 > 100"
+      - type: Filter
         config:
-          keep: "lambda x: len(x.col1) > 10"
-      - type: PyFilter
+          language: python
+          keep: "len(col1) > 10"
+      - type: Filter
         config:
-          keep: "lambda x: x.col1 > 'z'"
+          language: python
+          keep: "col1 > 'z'"
     sink:
       type: WriteToCsv
       config:

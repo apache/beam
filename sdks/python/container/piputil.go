@@ -32,6 +32,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
+const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
+
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []string, dir, name string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
@@ -56,7 +58,7 @@ func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []s
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 			if err != nil {
 				bufLogger.FlushAtError(ctx)
-				return err
+				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 			}
 			bufLogger.FlushAtDebug(ctx)
 			return nil
@@ -114,7 +116,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
-					return err
+					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 				} else {
 					bufLogger.FlushAtDebug(ctx)
 				}
@@ -122,7 +124,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
 					bufLogger.FlushAtError(ctx)
-					return err
+					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 				}
 				bufLogger.FlushAtDebug(ctx)
 				return nil
@@ -133,7 +135,7 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 			if err != nil {
 				bufLogger.FlushAtError(ctx)
-				return err
+				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 			}
 			bufLogger.FlushAtDebug(ctx)
 			return nil

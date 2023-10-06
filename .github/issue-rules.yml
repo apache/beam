@@ -36,6 +36,8 @@ rules:
   addLabels: ['typescript']
 - contains: '[x] Component: IO'
   addLabels: ['io']
+- contains: '[x] Component: Beam YAML'
+  addLabels: ['yaml']
 - contains: '[x] Component: Beam examples'
   addLabels: ['examples']
 - contains: '[x] Component: Beam playground'

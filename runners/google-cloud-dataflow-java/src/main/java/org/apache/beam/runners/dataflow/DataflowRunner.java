@@ -1755,7 +1755,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.isEnableStreamingEngine(),
         "Runner determined sharding not available in Dataflow for GroupIntoBatches for"
             + " non-Streaming-Engine jobs. In order to use runner determined sharding, please use"
-            + " --streaming --enable_streaming_engine");
+            + " --streaming --experiments=enable_streaming_engine");
     pCollectionsPreservedKeys.add(pcol);
     pcollectionsRequiringAutoSharding.add(pcol);
   }
@@ -2570,6 +2570,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public String getUrn(PTransform transform) {
       return "dataflow_stub:" + transform.getClass().getName();
+    }
+
+    @Override
+    public String getUrn() {
+      throw new UnsupportedOperationException(
+          "URN of DataflowPayloadTranslator depends on the transform. Please use 'getUrn(PTransform transform)' instead.");
     }
 
     @Override

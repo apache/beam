@@ -16,11 +16,14 @@
 package jobservices
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingService_ReverseArtifactRetrievalServiceServer) error {
@@ -47,7 +50,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 					},
 				},
 			})
-			var count int
+			var buf bytes.Buffer
 			for {
 				in, err := stream.Recv()
 				if err == io.EOF {
@@ -56,26 +59,61 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 				if err != nil {
 					return err
 				}
-				if in.IsLast {
-					slog.Debug("GetArtifact finish",
+				if in.GetIsLast() {
+					slog.Debug("GetArtifact finished",
 						slog.Group("dep",
 							slog.String("urn", dep.GetTypeUrn()),
 							slog.String("payload", string(dep.GetTypePayload()))),
-						slog.Int("bytesReceived", count))
+						slog.Int("bytesReceived", buf.Len()),
+						slog.String("rtype", fmt.Sprintf("%T", in.GetResponse())),
+					)
 					break
 				}
 				// Here's where we go through each environment's artifacts.
 				// We do nothing with them.
 				switch req := in.GetResponse().(type) {
 				case *jobpb.ArtifactResponseWrapper_GetArtifactResponse:
-					count += len(req.GetArtifactResponse.GetData())
+					buf.Write(req.GetArtifactResponse.GetData())
+
 				case *jobpb.ArtifactResponseWrapper_ResolveArtifactResponse:
 					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
 					slog.Error("GetArtifact failure", err)
 					return err
 				}
 			}
+			if len(s.artifacts) == 0 {
+				s.artifacts = map[string][]byte{}
+			}
+			s.artifacts[string(dep.GetTypePayload())] = buf.Bytes()
 		}
 	}
+	return nil
+}
+
+func (s *Server) ResolveArtifacts(_ context.Context, req *jobpb.ResolveArtifactsRequest) (*jobpb.ResolveArtifactsResponse, error) {
+	return &jobpb.ResolveArtifactsResponse{
+		Replacements: req.GetArtifacts(),
+	}, nil
+}
+
+func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.ArtifactRetrievalService_GetArtifactServer) error {
+	info := req.GetArtifact()
+	buf, ok := s.artifacts[string(info.GetTypePayload())]
+	if !ok {
+		pt := prototext.Format(info)
+		slog.Warn("unable to provide artifact to worker", "artifact_info", pt)
+		return fmt.Errorf("unable to provide %v to worker", pt)
+	}
+	chunk := 128 * 1024 * 1024 // 128 MB
+	var i int
+	for i+chunk < len(buf) {
+		stream.Send(&jobpb.GetArtifactResponse{
+			Data: buf[i : i+chunk],
+		})
+		i += chunk
+	}
+	stream.Send(&jobpb.GetArtifactResponse{
+		Data: buf[i:],
+	})
 	return nil
 }

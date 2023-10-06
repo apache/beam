@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import abc
 import logging
 from dataclasses import asdict
 from dataclasses import dataclass
 from statistics import median
-from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -28,11 +28,11 @@ from typing import Union
 import pandas as pd
 import yaml
 from google.api_core import exceptions
+from google.cloud import bigquery
 
 from apache_beam.testing.analyzers import constants
 from apache_beam.testing.analyzers import github_issues_utils
 from apache_beam.testing.load_tests import load_test_metrics_utils
-from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
@@ -59,9 +59,7 @@ def is_change_point_in_valid_window(
   return num_runs_in_change_point_window > latest_change_point_run
 
 
-def get_existing_issues_data(
-    table_name: str, big_query_metrics_fetcher: BigQueryMetricsFetcher
-) -> Optional[pd.DataFrame]:
+def get_existing_issues_data(table_name: str) -> Optional[pd.DataFrame]:
   """
   Finds the most recent GitHub issue created for the test_name.
   If no table found with name=test_name, return (None, None)
@@ -73,12 +71,14 @@ def get_existing_issues_data(
   LIMIT 10
   """
   try:
-    df = big_query_metrics_fetcher.fetch(query=query)
+    client = bigquery.Client()
+    query_job = client.query(query=query)
+    existing_issue_data = query_job.result().to_dataframe()
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
     return None
-  return df
+  return existing_issue_data
 
 
 def is_perf_alert(
@@ -123,33 +123,6 @@ def validate_config(keys):
   return constants._PERF_TEST_KEYS.issubset(keys)
 
 
-def fetch_metric_data(
-    params: Dict[str, Any], big_query_metrics_fetcher: BigQueryMetricsFetcher
-) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
-  """
-  Args:
-   params: Dict containing keys required to fetch data from a data source.
-   big_query_metrics_fetcher: A BigQuery metrics fetcher for fetch metrics.
-  Returns:
-    Tuple[List[Union[int, float]], List[pd.Timestamp]]: Tuple containing list
-    of metric_values and list of timestamps. Both are sorted in ascending
-    order wrt timestamps.
-  """
-  query = f"""
-      SELECT *
-      FROM {params['project']}.{params['metrics_dataset']}.{params['metrics_table']}
-      WHERE CONTAINS_SUBSTR(({load_test_metrics_utils.METRICS_TYPE_LABEL}), '{params['metric_name']}')
-      ORDER BY {load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL} DESC
-      LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
-    """
-  metric_data: pd.DataFrame = big_query_metrics_fetcher.fetch(query=query)
-  metric_data.sort_values(
-      by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL], inplace=True)
-  return (
-      metric_data[load_test_metrics_utils.VALUE_LABEL].tolist(),
-      metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist())
-
-
 def find_change_points(metric_values: List[Union[float, int]]):
   return e_divisive(metric_values)
 
@@ -175,7 +148,7 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
 
 def publish_issue_metadata_to_big_query(issue_metadata, table_name):
   """
-  Published issue_metadata to BigQuery with table name=test_name.
+  Published issue_metadata to BigQuery with table name.
   """
   bq_metrics_publisher = BigQueryMetricsPublisher(
       project_name=constants._BQ_PROJECT_NAME,
@@ -190,18 +163,21 @@ def publish_issue_metadata_to_big_query(issue_metadata, table_name):
 
 def create_performance_alert(
     metric_name: str,
-    test_name: str,
+    test_id: str,
     timestamps: List[pd.Timestamp],
     metric_values: List[Union[int, float]],
     change_point_index: int,
     labels: List[str],
     existing_issue_number: Optional[int],
-    test_description: Optional[str] = None) -> Tuple[int, str]:
+    test_description: Optional[str] = None,
+    test_name: Optional[str] = None,
+) -> Tuple[int, str]:
   """
   Creates performance alert on GitHub issues and returns GitHub issue
   number and issue URL.
   """
   description = github_issues_utils.get_issue_description(
+      test_id=test_id,
       test_name=test_name,
       test_description=test_description,
       metric_name=metric_name,
@@ -213,7 +189,7 @@ def create_performance_alert(
 
   issue_number, issue_url = github_issues_utils.report_change_point_on_issues(
         title=github_issues_utils._ISSUE_TITLE_TEMPLATE.format(
-          test_name, metric_name
+          test_id, metric_name
         ),
         description=description,
         labels=labels,
@@ -253,3 +229,55 @@ def filter_change_points_by_median_threshold(
     if relative_change > threshold:
       valid_change_points.append(idx)
   return valid_change_points
+
+
+class MetricsFetcher(metaclass=abc.ABCMeta):
+  @abc.abstractmethod
+  def fetch_metric_data(
+      self,
+      *,
+      project,
+      metrics_dataset,
+      metrics_table,
+      metric_name,
+      test_name=None) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+    """
+    Define SQL query and fetch the timestamp values and metric values
+    from BigQuery tables.
+    """
+    raise NotImplementedError
+
+
+class BigQueryMetricsFetcher(MetricsFetcher):
+  def fetch_metric_data(
+      self,
+      *,
+      project,
+      metrics_dataset,
+      metrics_table,
+      metric_name,
+      test_name=None,
+  ) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+    """
+    Args:
+    params: Dict containing keys required to fetch data from a data source.
+    Returns:
+      Tuple[List[Union[int, float]], List[pd.Timestamp]]: Tuple containing list
+      of metric_values and list of timestamps. Both are sorted in ascending
+      order wrt timestamps.
+    """
+    query = f"""
+          SELECT *
+          FROM {project}.{metrics_dataset}.{metrics_table}
+          WHERE CONTAINS_SUBSTR(({load_test_metrics_utils.METRICS_TYPE_LABEL}), '{metric_name}')
+          ORDER BY {load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL} DESC
+          LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
+        """
+    client = bigquery.Client()
+    query_job = client.query(query=query)
+    metric_data = query_job.result().to_dataframe()
+    metric_data.sort_values(
+        by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL], inplace=True)
+    return (
+        metric_data[load_test_metrics_utils.VALUE_LABEL].tolist(),
+        metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist())

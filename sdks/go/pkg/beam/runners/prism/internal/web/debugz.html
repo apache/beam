@@ -30,14 +30,16 @@ limitations under the License. See accompanying LICENSE file.
       <table class="main-table">
         <thead>
           <td>ID</td>
-          <td>Name</td>
-          <td>State</td>
+          <td>Value</td>
         </thead>
         {{ range .Metrics }}
         <tr>
-          <td>{{ .Name }}</td>
+          <td>
+            <div class="tooltip">{{ .Name }}
+              <span class="tooltiptext">{{ .Description }}</span>
+            </div>
+          </td>
           <td style="white-space: pre">{{ .Value }}</td>
-          <td style="white-space: pre">{{ .Description }}</td>
         </tr>
         {{ else }}
         <tr>

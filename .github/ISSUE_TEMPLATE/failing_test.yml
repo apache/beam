@@ -69,6 +69,7 @@ body:
        - label: "Component: Go SDK"
        - label: "Component: Typescript SDK"
        - label: "Component: IO connector"
+       - label: "Component: Beam YAML"
        - label: "Component: Beam examples"
        - label: "Component: Beam playground"
        - label: "Component: Beam katas"

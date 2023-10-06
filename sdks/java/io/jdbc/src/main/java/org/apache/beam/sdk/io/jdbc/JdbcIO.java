@@ -786,7 +786,7 @@ public class JdbcIO {
 
     // Spotbugs seems to not understand the multi-statement try-with-resources
     @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
-    private static Schema inferBeamSchema(DataSource ds, String query) {
+    public static Schema inferBeamSchema(DataSource ds, String query) {
       try (Connection conn = ds.getConnection();
           PreparedStatement statement =
               conn.prepareStatement(
