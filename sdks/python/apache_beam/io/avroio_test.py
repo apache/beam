@@ -36,7 +36,7 @@ from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.avroio import _FastAvroSource  # For testing
-from apache_beam.io.avroio import _FastAvroSource  # For testing
+from apache_beam.io.avroio import _create_avro_sink  # For testing
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -221,6 +221,7 @@ class AvroBase(object):
   def test_write_display_data(self):
     file_name = 'some_avro_sink'
     write = avroio.WriteToAvro(file_name, self.SCHEMA)
+    write.expand(beam.PCollection(beam.Pipeline()))
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher('schema', str(self.SCHEMA)),
