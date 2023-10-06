@@ -43,7 +43,7 @@ import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
-import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DescriptorProtos;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -213,7 +213,8 @@ public interface BigQueryServices extends Serializable {
      * first.
      */
     StreamAppendClient getStreamAppendClient(
-        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception;
+        String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+        throws Exception;
 
     /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
     ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)

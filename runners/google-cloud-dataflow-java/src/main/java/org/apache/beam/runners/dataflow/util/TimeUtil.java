@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;

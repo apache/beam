@@ -98,7 +98,7 @@ class ScaleZScoreTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
       _ = (result | beam.Map(assert_z_score_artifacts))
 
@@ -109,7 +109,7 @@ class ScaleZScoreTest(unittest.TestCase):
           p
           | "listCreate" >> beam.Create(list_data)
           | "listMLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
       _ = (list_result | beam.Map(assert_z_score_artifacts))
 
@@ -128,7 +128,7 @@ class ScaleTo01Test(unittest.TestCase):
           p
           | "listCreate" >> beam.Create(list_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
       _ = (list_result | beam.Map(assert_ScaleTo01_artifacts))
 
@@ -147,7 +147,7 @@ class ScaleTo01Test(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
 
       _ = (result | beam.Map(assert_ScaleTo01_artifacts))
@@ -177,7 +177,7 @@ class BucketizeTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
       _ = (result | beam.Map(assert_bucketize_artifacts))
 
@@ -200,7 +200,7 @@ class BucketizeTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(list_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
       _ = (list_result | beam.Map(assert_bucketize_artifacts))
 
@@ -232,7 +232,7 @@ class BucketizeTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=num_buckets)))
       actual_boundaries = (
           result
@@ -263,7 +263,7 @@ class ApplyBucketsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ApplyBuckets(
                       columns=['x'], bucket_boundaries=bucket_boundaries)))
       expected_output = []
@@ -302,7 +302,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(input_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(columns=['x'])))
       actual_data |= beam.Map(lambda x: x.as_dict())
 
@@ -334,7 +334,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(input_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(columns=['x'])))
       actual_output = (result | beam.Map(lambda x: x.x))
       assert_that(
@@ -351,7 +351,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(columns=['x'])))
       result = result | beam.Map(lambda x: x.x)
       expected_result = [np.array([3, 2, 1]), np.array([0, 0, 1])]
@@ -368,7 +368,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(
                       columns=['x'], split_string_by_delimiter=' ')))
       result = result | beam.Map(lambda x: x.x)
@@ -389,7 +389,7 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ComputeAndApplyVocabulary(
                       columns=['x'], split_string_by_delimiter=' ;')))
       result = result | beam.Map(lambda x: x.x)
@@ -420,7 +420,8 @@ class TFIDIFTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(raw_data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location, transforms=transforms))
+              write_artifact_location=self.artifact_location,
+              transforms=transforms))
       actual_output |= beam.Map(lambda x: x.as_dict())
 
       def equals_fn(a, b):
@@ -467,7 +468,7 @@ class ScaleToMinMaxTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location).with_transform(
+              write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleByMinMax(
                       columns=['x'],
                       min_value=-1,
@@ -498,6 +499,26 @@ class NGramsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
+  def test_ngrams_on_list_separated_words_default_args(self):
+    data = [{
+        'x': ['I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[tft.NGrams(columns=['x'])]))
+      result = result | beam.Map(lambda x: x.x)
+      expected_data = [
+          np.array([b'I', b'like', b'pie'], dtype=object),
+          np.array([b'yum', b'yum', b'pie'], dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
   def test_ngrams_on_list_separated_words(self):
     data = [{
         'x': ['I', 'like', 'pie'],
@@ -509,7 +530,7 @@ class NGramsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location,
+              write_artifact_location=self.artifact_location,
               transforms=[
                   tft.NGrams(
                       columns=['x'], ngram_range=(1, 3), ngrams_separator=' ')
@@ -536,7 +557,7 @@ class NGramsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location,
+              write_artifact_location=self.artifact_location,
               transforms=[
                   tft.NGrams(
                       columns=['x'],
@@ -567,7 +588,7 @@ class NGramsTest(unittest.TestCase):
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
-              artifact_location=self.artifact_location,
+              write_artifact_location=self.artifact_location,
               transforms=[
                   tft.NGrams(
                       columns=['x'],
@@ -586,6 +607,161 @@ class NGramsTest(unittest.TestCase):
               dtype=object)
       ]
       assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+
+class BagOfWordsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_bag_of_words_on_list_seperated_words_default_ngrams(self):
+    data = [{
+        'x': ['I', 'like', 'pie', 'pie', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }]
+
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[tft.BagOfWords(columns=['x'])]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [
+          np.array([b'I', b'like', b'pie'], dtype=object),
+          np.array([b'yum', b'pie'], dtype=object)
+      ]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_bag_of_words_on_list_seperated_words_custom_ngrams(self):
+    data = [{
+        'x': ['I', 'like', 'pie', 'I', 'like', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[
+                  tft.BagOfWords(
+                      columns=['x'], ngram_range=(1, 3), ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [[
+          b'I',
+          b'I like',
+          b'I like pie',
+          b'like',
+          b'like pie',
+          b'like pie I',
+          b'pie',
+          b'pie I',
+          b'pie I like'
+      ], [b'yum', b'yum yum', b'yum yum pie', b'yum pie', b'pie']]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_bag_of_words_on_numpy_data(self):
+    data = [{
+        'x': np.array(['I', 'like', 'pie', 'I', 'like', 'pie'], dtype=object),
+    }, {
+        'x': np.array(['yum', 'yum', 'pie'], dtype=object)
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[
+                  tft.BagOfWords(
+                      columns=['x'], ngram_range=(1, 3), ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [[
+          b'I',
+          b'I like',
+          b'I like pie',
+          b'like',
+          b'like pie',
+          b'like pie I',
+          b'pie',
+          b'pie I',
+          b'pie I like'
+      ], [b'yum', b'yum yum', b'yum yum pie', b'yum pie', b'pie']]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_bag_of_words_on_by_splitting_input_text(self):
+    data = [{'x': 'I like pie I like pie'}, {'x': 'yum yum pie'}]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[
+                  tft.BagOfWords(
+                      columns=['x'],
+                      split_string_by_delimiter=' ',
+                      ngram_range=(1, 3),
+                      ngrams_separator=' ')
+              ]))
+      result = result | beam.Map(lambda x: x.x)
+
+      expected_data = [[
+          b'I',
+          b'I like',
+          b'I like pie',
+          b'like',
+          b'like pie',
+          b'like pie I',
+          b'pie',
+          b'pie I',
+          b'pie I like'
+      ], [b'yum', b'yum yum', b'yum yum pie', b'yum pie', b'pie']]
+      assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_count_per_key_on_list(self):
+    def map_element_to_count(elements, counts):
+      d = {elements[i]: counts[i] for i in range(len(elements))}
+      return d
+
+    data = [{
+        'x': ['I', 'like', 'pie', 'pie', 'pie'],
+    }, {
+        'x': ['yum', 'yum', 'pie']
+    }, {
+        'x': ['Banana', 'Banana', 'Apple', 'Apple', 'Apple', 'Apple']
+    }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location,
+              transforms=[
+                  tft.BagOfWords(columns=['x'], compute_word_count=True)
+              ]))
+
+      # the unique elements and counts are artifacts and will be
+      # stored in the result and same for all the elements in the
+      # PCollection.
+      result = result | beam.Map(
+          lambda x: map_element_to_count(x.x_unique_elements, x.x_counts))
+
+      expected_data = [{
+          b'Apple': 4, b'Banana': 2, b'I': 1, b'like': 1, b'pie': 4, b'yum': 2
+      }] * 3  # since there are 3 elements in input.
+      assert_that(result, equal_to(expected_data))
 
 
 if __name__ == '__main__':

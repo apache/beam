@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -786,7 +786,7 @@ public class JdbcIO {
 
     // Spotbugs seems to not understand the multi-statement try-with-resources
     @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
-    private static Schema inferBeamSchema(DataSource ds, String query) {
+    public static Schema inferBeamSchema(DataSource ds, String query) {
       try (Connection conn = ds.getConnection();
           PreparedStatement statement =
               conn.prepareStatement(

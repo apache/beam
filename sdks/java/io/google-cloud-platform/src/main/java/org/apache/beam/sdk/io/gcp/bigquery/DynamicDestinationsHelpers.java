@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -44,8 +45,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -178,6 +179,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
+      return inner.getTableConstraints(destination);
+    }
+
+    @Override
     public TableDestination getTable(DestinationT destination) {
       return inner.getTable(destination);
     }
@@ -211,6 +217,30 @@ class DynamicDestinationsHelpers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
+    }
+  }
+
+  static class ConstantTableConstraintsDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final String jsonTableConstraints;
+
+    ConstantTableConstraintsDestinations(
+        DynamicDestinations<T, DestinationT> inner, TableConstraints tableConstraints) {
+      super(inner);
+      this.jsonTableConstraints = BigQueryHelpers.toJsonString(tableConstraints);
+    }
+
+    @Override
+    public TableConstraints getTableConstraints(DestinationT destination) {
+      return BigQueryHelpers.fromJsonString(jsonTableConstraints, TableConstraints.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("tableConstraints", jsonTableConstraints)
+          .toString();
     }
   }
 

@@ -67,7 +67,7 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_26_0_jre
+  shadow library.java.vendored_guava_32_1_2_jre
   shadow project(path: ":model:pipeline", configuration: "shadow")
   dependOnProjects.each {
     implementation project(it)

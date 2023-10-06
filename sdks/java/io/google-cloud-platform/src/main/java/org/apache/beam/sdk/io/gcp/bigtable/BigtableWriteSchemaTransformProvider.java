@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.util.Optional.ofNullable;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Write jobs configured via
@@ -179,12 +179,13 @@ public class BigtableWriteSchemaTransformProvider
                     .setColumnQualifier(
                         ByteString.copyFrom(ofNullable(mutation.get("column_qualifier")).get()))
                     .setFamilyNameBytes(
-                        ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()));
-            if (mutation.containsKey("timestamp_micros")) {
-              setMutation =
-                  setMutation.setTimestampMicros(
-                      Longs.fromByteArray(ofNullable(mutation.get("timestamp_micros")).get()));
-            }
+                        ByteString.copyFrom(ofNullable(mutation.get("family_name")).get()))
+                    // Use timestamp if provided, else default to -1 (current Bigtable server time)
+                    .setTimestampMicros(
+                        mutation.containsKey("timestamp_micros")
+                            ? Longs.fromByteArray(
+                                ofNullable(mutation.get("timestamp_micros")).get())
+                            : -1);
             bigtableMutation = Mutation.newBuilder().setSetCell(setMutation.build()).build();
             break;
           case "DeleteFromColumn":

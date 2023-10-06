@@ -30,8 +30,8 @@ single machine use.
 
 For Go SDK users:
   - `import "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"`
-  - Short term: set runner to "prism" to use it, or invoke directly.
-  - Medium term: switch the default from "direct" to "prism".
+  - Short term: set runner to "prism" to use it, or invoke directly. &#x2611;
+  - Medium term: switch the default from "direct" to "prism". &#x2611;
   - Long term: alias "direct" to "prism", and delete legacy Go direct runner.
 
 Prisms allow breaking apart and separating a beam of light into
@@ -118,7 +118,7 @@ can have features selectively disabled to ensure
 
 ## Current Limitations
 
-* Experimental and testing use only.
+* Testing use only.
 * Executing docker containers isn't yet implemented.
     * This precludes running the Java and Python SDKs, or their transforms for Cross Language.
     * Loopback execution only.
@@ -127,7 +127,6 @@ can have features selectively disabled to ensure
     * Not yet suitable for larger jobs, which may have intermediate data that exceeds memory bounds.
     * Doesn't yet support sufficient intermediate data garbage collection for indefinite stream processing.
 * Doesn't yet execute all beam pipeline features.
-* No UI for job status inspection.
 
 ## Implemented so far.
 
@@ -140,18 +139,24 @@ can have features selectively disabled to ensure
     * Global Window
     * Interval Windowing
     * Session Windows.
+* CoGBKs
 * Combines lifted and unlifted.
 * Expands Splittable DoFns
+* Process Continuations (AKA Streaming transform support)
 * Limited support for Process Continuations
   * Residuals are rescheduled for execution immeadiately.
   * The transform must be finite (and eventually return a stop process continuation)
 * Basic Metrics support
+* Stand alone execution support
+  * Web UI available when run as a standalone command.
+* Progess tracking
+    * Channel Splitting
+    * Dynamic Splitting
 
 ## Next feature short list (unordered)
 
 See https://github.com/apache/beam/issues/24789 for current status.
 
-* Resolve watermark advancement for Process Continuations
 * Test Stream
 * Triggers & Complex Windowing Strategy execution.
 * State
@@ -162,11 +167,6 @@ See https://github.com/apache/beam/issues/24789 for current status.
 * FnAPI Optimizations
   * Fusion
   * Data with ProcessBundleRequest & Response
-* Progess tracking
-    * Channel Splitting
-    * Dynamic Splitting
-* Stand alone execution support
-* UI reporting of in progress jobs
 
 This is not a comprehensive feature set, but a set of goals to best
 support users of the Go SDK in testing their pipelines.

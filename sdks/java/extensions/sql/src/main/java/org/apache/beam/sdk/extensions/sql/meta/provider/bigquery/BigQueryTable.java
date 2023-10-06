@@ -53,8 +53,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifi
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,11 +81,11 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
 
-    if (table.getProperties().containsKey(METHOD_PROPERTY)) {
+    if (table.getProperties().has(METHOD_PROPERTY)) {
       List<String> validMethods =
           Arrays.stream(Method.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
-      String selectedMethod = table.getProperties().getString(METHOD_PROPERTY).toUpperCase();
+      String selectedMethod = table.getProperties().get(METHOD_PROPERTY).asText().toUpperCase();
 
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
@@ -105,12 +105,12 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     LOG.info("BigQuery method is set to: {}", method);
 
-    if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
+    if (table.getProperties().has(WRITE_DISPOSITION_PROPERTY)) {
       List<String> validWriteDispositions =
           Arrays.stream(WriteDisposition.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
       String selectedWriteDisposition =
-          table.getProperties().getString(WRITE_DISPOSITION_PROPERTY).toUpperCase();
+          table.getProperties().get(WRITE_DISPOSITION_PROPERTY).asText().toUpperCase();
 
       if (validWriteDispositions.contains(selectedWriteDisposition)) {
         writeDisposition = WriteDisposition.valueOf(selectedWriteDisposition);

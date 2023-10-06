@@ -788,6 +788,8 @@ BigQuery Storage Write API for Python SDK currently has some limitations on supp
 {{< paragraph class="language-py" >}}
 **Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you are running from a released Beam SDK, the jar will already be included.
 
+**Note:** Auto sharding is not currently supported for Python's Storage Write API exactly-once mode on DataflowRunner.
+
 {{< /paragraph >}}
 
 #### Exactly-once semantics
@@ -877,6 +879,8 @@ explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releas
 
 ***Note:*** `STORAGE_WRITE_API` will default to dynamic sharding when
 `numStorageWriteApiStreams` is set to 0 or is unspecified.
+
+***Note:*** Auto sharding with `STORAGE_WRITE_API` is supported on Dataflow's legacy runner, but **not** on Runner V2
 {{< /paragraph >}}
 
 When using `STORAGE_WRITE_API`, the PCollection returned by

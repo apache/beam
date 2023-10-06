@@ -26,7 +26,7 @@ import java.util.Map;
 import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceSinkOptions;
 import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceSourceOptions;
 import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceStreamingSourceOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Class for converting CDAP {@link org.apache.beam.sdk.options.PipelineOptions} to map for {@link

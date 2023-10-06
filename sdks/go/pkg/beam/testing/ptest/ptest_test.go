@@ -21,6 +21,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
+func TestMain(m *testing.M) {
+	Main(m)
+}
+
 func TestCreate(t *testing.T) {
 	inputs := []any{"a", "b", "c"}
 	p, s, col := Create(inputs)

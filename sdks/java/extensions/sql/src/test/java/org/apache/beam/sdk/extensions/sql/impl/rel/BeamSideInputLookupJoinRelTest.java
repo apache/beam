@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.hamcrest.core.StringContains;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,9 +48,16 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
 
   /** Test table for JOIN-AS-LOOKUP. */
   public static class SiteLookupTable extends SchemaBaseBeamTable implements BeamSqlSeekableTable {
+    private Schema joinSubsetType;
 
     public SiteLookupTable(Schema schema) {
       super(schema);
+    }
+
+    @Override
+    public void setUp(Schema joinSubsetType) {
+      this.joinSubsetType = joinSubsetType;
+      Assert.assertNotNull(joinSubsetType);
     }
 
     @Override
@@ -69,6 +77,7 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
 
     @Override
     public List<Row> seekRow(Row lookupSubRow) {
+      Assert.assertEquals(joinSubsetType, lookupSubRow.getSchema());
       if (lookupSubRow.getInt32("site_id") == 2) {
         return Arrays.asList(Row.withSchema(getSchema()).addValues(2, "SITE1").build());
       }

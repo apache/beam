@@ -69,10 +69,9 @@ class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
   Every execution of the run() method will submit an independent job for
-  remote execution that consists of the nodes reachable from the passed in
-  node argument or entire graph if node is None. The run() method returns
-  after the service created the job and  will not wait for the job to finish
-  if blocking is set to False.
+  remote execution that consists of the nodes reachable from the passed-in
+  node argument or entire graph if the node is None. The run() method returns
+  after the service creates the job, and the job status is reported as RUNNING.
   """
 
   # A list of PTransformOverride objects to be applied before running a pipeline
@@ -97,10 +96,6 @@ class DataflowRunner(PipelineRunner):
 
   def is_fnapi_compatible(self):
     return False
-
-  def apply(self, transform, input, options):
-    _check_and_add_missing_options(options)
-    return super().apply(transform, input, options)
 
   @staticmethod
   def poll_for_job_completion(
@@ -197,11 +192,21 @@ class DataflowRunner(PipelineRunner):
           # Skip empty messages.
           if m.messageImportance is None:
             continue
-          _LOGGER.info(message)
-          if str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
+          message_importance = str(m.messageImportance)
+          if (message_importance == 'JOB_MESSAGE_DEBUG' or
+              message_importance == 'JOB_MESSAGE_DETAILED'):
+            _LOGGER.debug(message)
+          elif message_importance == 'JOB_MESSAGE_BASIC':
+            _LOGGER.info(message)
+          elif message_importance == 'JOB_MESSAGE_WARNING':
+            _LOGGER.warning(message)
+          elif message_importance == 'JOB_MESSAGE_ERROR':
+            _LOGGER.error(message)
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
               last_error_msg = m.messageText
+          else:
+            _LOGGER.info(message)
         if not page_token:
           break
 
@@ -350,6 +355,8 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    _check_and_add_missing_options(options)
+
     # Convert all side inputs into a form acceptable to Dataflow.
     if pipeline:
       pipeline.visit(self.combinefn_visitor())
@@ -485,10 +492,6 @@ class DataflowRunner(PipelineRunner):
           coders.registry.get_coder(typehint), window_coder=window_coder)
     return coders.registry.get_coder(typehint)
 
-  # TODO(srohde): Remove this after internal usages have been removed.
-  def apply_GroupByKey(self, transform, pcoll, options):
-    return transform.expand(pcoll)
-
   def _verify_gbk_coders(self, transform, pcoll):
     # Infer coder of parent.
     #
@@ -574,6 +577,18 @@ def _check_and_add_missing_options(options):
     debug_options.add_experiment('enable_prime')
   elif debug_options.lookup_experiment('enable_prime'):
     dataflow_service_options.append('enable_prime')
+
+  sdk_location = options.view_as(SetupOptions).sdk_location
+  if 'dev' in beam.version.__version__ and sdk_location == 'default':
+    raise ValueError(
+        "You are submitting a pipeline with Apache Beam Python SDK "
+        f"{beam.version.__version__}. "
+        "When launching Dataflow jobs with an unreleased (dev) SDK, "
+        "please provide an SDK distribution in the --sdk_location option "
+        "to use a consistent SDK version at "
+        "pipeline submission and runtime. To ignore this error and use "
+        "an SDK preinstalled in the default Dataflow dev runtime environment "
+        "or in a custom container image, use --sdk_location=container.")
 
   # Streaming only supports using runner v2 (aka unified worker).
   # Runner v2 only supports using streaming engine (aka windmill service)

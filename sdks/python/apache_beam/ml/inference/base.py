@@ -34,11 +34,16 @@ import sys
 import threading
 import time
 import uuid
+from collections import OrderedDict
+from collections import defaultdict
+from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Generic
 from typing import Iterable
+from typing import List
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
@@ -103,6 +108,12 @@ class RunInferenceDLQ(NamedTuple):
   failed_postprocessing: Sequence[beam.PCollection]
 
 
+class _ModelLoadStats(NamedTuple):
+  model_tag: str
+  load_latency: Optional[int]
+  byte_size: Optional[int]
+
+
 ModelMetadata.model_id.__doc__ = """Unique identifier for the model. This can be
     a file path or a URL where the model can be accessed. It is used to load
     the model for inference."""
@@ -117,6 +128,26 @@ def _to_milliseconds(time_ns: int) -> int:
 
 def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
+
+
+@dataclass(frozen=True)
+class KeyModelPathMapping(Generic[KeyT]):
+  """
+  Dataclass for mapping 1 or more keys to 1 model path. This is used in
+  conjunction with a KeyedModelHandler with many model handlers to update
+  a set of keys' model handlers with the new path. Given
+  `KeyModelPathMapping(keys: ['key1', 'key2'], update_path: 'updated/path',
+  model_id: 'id1')`, all examples with keys `key1` or `key2` will have their
+  corresponding model handler's update_model function called with
+  'updated/path' and their metrics will correspond with 'id1'. For more
+  information see the KeyedModelHandler documentation
+  https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
+  documentation and the website section on model updates
+  https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+  """
+  keys: List[KeyT]
+  update_path: str
+  model_id: str = ''
 
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
@@ -188,7 +219,28 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
           'framework does not expect extra arguments on inferences.')
 
   def update_model_path(self, model_path: Optional[str] = None):
-    """Update the model paths produced by side inputs."""
+    """
+    Update the model path produced by side inputs. update_model_path should be
+    used when a ModelHandler represents a single model, not multiple models.
+    This will be true in most cases. For more information see the website
+    section on model updates
+    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    """
+    pass
+
+  def update_model_paths(
+      self,
+      model: ModelT,
+      model_paths: Optional[Union[str, List[KeyModelPathMapping]]] = None):
+    """
+    Update the model paths produced by side inputs. update_model_paths should
+    be used when updating multiple models at once (e.g. when using a
+    KeyedModelHandler that holds multiple models).  For more information see
+    the KeyedModelHandler documentation
+    https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
+    documentation and the website section on model updates
+    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    """
     pass
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
@@ -241,71 +293,490 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
     return False
 
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    """Returns a boolean representing whether or not a model handler will
+    override metrics reporting. If True, RunInference will not report any
+    metrics."""
+    return False
+
+
+class _ModelManager:
+  """
+  A class for efficiently managing copies of multiple models. Will load a
+  single copy of each model into a multi_process_shared object and then
+  return a lookup key for that object.
+  """
+  def __init__(self, mh_map: Dict[str, ModelHandler]):
+    """
+    Args:
+      mh_map: A map from keys to model handlers which can be used to load a
+        model.
+    """
+    self._max_models = None
+    # Map keys to model handlers
+    self._mh_map: Dict[str, ModelHandler] = mh_map
+    # Map keys to the last updated model path for that key
+    self._key_to_last_update: Dict[str, str] = defaultdict(str)
+    # Map key for a model to a unique tag that will persist for the life of
+    # that model in memory. A new tag will be generated if a model is swapped
+    # out of memory and reloaded.
+    self._tag_map: Dict[str, str] = OrderedDict()
+    # Map a tag to a multiprocessshared model object for that tag. Each entry
+    # of this map should last as long as the corresponding entry in _tag_map.
+    self._proxy_map: Dict[str, multi_process_shared.MultiProcessShared] = {}
+
+  def load(self, key: str) -> _ModelLoadStats:
+    """
+    Loads the appropriate model for the given key into memory.
+    Args:
+      key: the key associated with the model we'd like to load.
+    Returns:
+      _ModelLoadStats with tag, byte size, and latency to load the model. If
+        the model was already loaded, byte size/latency will be None.
+    """
+    # Map the key for a model to a unique tag that will persist until the model
+    # is released. This needs to be unique between releasing/reacquiring th
+    # model because otherwise the ProxyManager will try to reuse the model that
+    # has been released and deleted.
+    if key in self._tag_map:
+      self._tag_map.move_to_end(key)
+      return _ModelLoadStats(self._tag_map[key], None, None)
+    else:
+      self._tag_map[key] = uuid.uuid4().hex
+
+    tag = self._tag_map[key]
+    mh = self._mh_map[key]
+
+    if self._max_models is not None and self._max_models < len(self._tag_map):
+      # If we're about to exceed our LRU size, release the last used model.
+      tag_to_remove = self._tag_map.popitem(last=False)[1]
+      shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
+      shared_handle.release(model_to_remove)
+      del self._proxy_map[tag_to_remove]
+
+    # Load the new model
+    memory_before = _get_current_process_memory_in_bytes()
+    start_time = _to_milliseconds(time.time_ns())
+    shared_handle = multi_process_shared.MultiProcessShared(
+        mh.load_model, tag=tag)
+    model_reference = shared_handle.acquire()
+    self._proxy_map[tag] = (shared_handle, model_reference)
+    memory_after = _get_current_process_memory_in_bytes()
+    end_time = _to_milliseconds(time.time_ns())
+
+    return _ModelLoadStats(
+        tag, end_time - start_time, memory_after - memory_before)
+
+  def increment_max_models(self, increment: int):
+    """
+    Increments the number of models that this instance of a _ModelManager is
+    able to hold. If it is never called, no limit is imposed.
+    Args:
+      increment: the amount by which we are incrementing the number of models.
+    """
+    if self._max_models is None:
+      self._max_models = 0
+    self._max_models += increment
+
+  def update_model_handler(self, key: str, model_path: str, previous_key: str):
+    """
+    Updates the model path of this model handler and removes it from memory so
+    that it can be reloaded with the updated path. No-ops if no model update
+    needs to be applied.
+    Args:
+      key: the key associated with the model we'd like to update.
+      model_path: the new path to the model we'd like to load.
+      previous_key: the key that is associated with the old version of this
+        model. This will often be the same as the current key, but sometimes
+        we will want to keep both the old and new models to serve different
+        cohorts. In that case, the keys should be different.
+    """
+    if self._key_to_last_update[key] == model_path:
+      return
+    self._key_to_last_update[key] = model_path
+    if key not in self._mh_map:
+      self._mh_map[key] = deepcopy(self._mh_map[previous_key])
+    self._mh_map[key].update_model_path(model_path)
+    if key in self._tag_map:
+      tag_to_remove = self._tag_map[key]
+      shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
+      shared_handle.release(model_to_remove)
+      del self._tag_map[key]
+      del self._proxy_map[tag_to_remove]
+
+
+# Use a dataclass instead of named tuple because NamedTuples and generics don't
+# mix well across the board for all versions:
+# https://github.com/python/typing/issues/653
+class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
+  """
+  Dataclass for mapping 1 or more keys to 1 model handler. Given
+  `KeyModelMapping(['key1', 'key2'], myMh)`, all examples with keys `key1`
+  or `key2` will be run against the model defined by the `myMh` ModelHandler.
+  """
+  def __init__(
+      self, keys: List[KeyT], mh: ModelHandler[ExampleT, PredictionT, ModelT]):
+    self.keys = keys
+    self.mh = mh
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
                                      Tuple[KeyT, PredictionT],
-                                     ModelT]):
-  def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
+                                     Union[ModelT, _ModelManager]]):
+  def __init__(
+      self,
+      unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
+                     List[KeyModelMapping[KeyT, ExampleT, PredictionT,
+                                          ModelT]]],
+      max_models_per_worker_hint: Optional[int] = None):
     """A ModelHandler that takes keyed examples and returns keyed predictions.
 
     For example, if the original model is used with RunInference to take a
     PCollection[E] to a PCollection[P], this ModelHandler would take a
     PCollection[Tuple[K, E]] to a PCollection[Tuple[K, P]], making it possible
-    to use the key to associate the outputs with the inputs.
+    to use the key to associate the outputs with the inputs. KeyedModelHandler
+    is able to accept either a single unkeyed ModelHandler or many different
+    model handlers corresponding to the keys for which that ModelHandler should
+    be used. For example, the following configuration could be used to map keys
+    1-3 to ModelHandler1 and keys 4-5 to ModelHandler2:
+
+        k1 = ['k1', 'k2', 'k3']
+        k2 = ['k4', 'k5']
+        KeyedModelHandler([KeyModelMapping(k1, mh1), KeyModelMapping(k2, mh2)])
+
+    Note that a single copy of each of these models may all be held in memory
+    at the same time; be careful not to load too many large models or your
+    pipeline may cause Out of Memory exceptions.
+
+    KeyedModelHandlers support Automatic Model Refresh to update your model
+    to a newer version without stopping your streaming pipeline. For an
+    overview of this feature, see
+    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+
+
+    To use this feature with a KeyedModelHandler that has many models per key,
+    you can pass in a list of KeyModelPathMapping objects to define your new
+    model paths. For example, passing in the side input of
+
+        [KeyModelPathMapping(keys=['k1', 'k2'], update_path='update/path/1'),
+        KeyModelPathMapping(keys=['k3'], update_path='update/path/2')]
+
+    will update the model corresponding to keys 'k1' and 'k2' with path
+    'update/path/1' and the model corresponding to 'k3' with 'update/path/2'.
+    In order to do a side input update: (1) all restrictions mentioned in
+    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    must be met, (2) all update_paths must be non-empty, even if they are not
+    being updated from their original values, and (3) the set of keys
+    originally defined cannot change. This means that if originally you have
+    defined model handlers for 'key1', 'key2', and 'key3', all 3 of those keys
+    must appear in your list of KeyModelPathMappings exactly once. No
+    additional keys can be added.
+
+    When using many models defined per key, metrics about inference and model
+    loading will be gathered on an  aggregate basis for all keys. These will be
+    reported with no prefix. Metrics will also be gathered on a per key basis.
+    Since some keys can share the same model, only one set of metrics will be
+    reported per key 'cohort'. These will be reported in the form:
+    `<cohort_key>-<metric_name>`, where `<cohort_key>` can be any key selected
+    from the cohort. When model updates occur, the metrics will be reported in
+    the form `<cohort_key>-<model id>-<metric_name>`.
+
 
     Args:
-      unkeyed: An implementation of ModelHandler that does not require keys.
+      unkeyed: Either (a) an implementation of ModelHandler that does not
+        require keys or (b) a list of KeyModelMappings mapping lists of keys to
+        unkeyed ModelHandlers.
+      max_models_per_worker_hint: A hint to the runner indicating how many
+        models can be held in memory at one time per worker process. For
+        example, if your worker has 8 GB of memory provisioned and your workers
+        take up 1 GB each, you should set this to 7 to allow all models to sit
+        in memory with some buffer.
     """
-    if len(unkeyed.get_preprocess_fns()) or len(unkeyed.get_postprocess_fns()):
-      raise Exception(
-          'Cannot make make an unkeyed model handler with pre or '
-          'postprocessing functions defined into a keyed model handler. All '
-          'pre/postprocessing functions must be defined on the outer model'
-          'handler.')
-    self._unkeyed = unkeyed
-    self._env_vars = unkeyed._env_vars
+    self._metrics_collectors: Dict[str, _MetricsCollector] = {}
+    self._default_metrics_collector: _MetricsCollector = None
+    self._metrics_namespace = ''
+    self._single_model = not isinstance(unkeyed, list)
+    if self._single_model:
+      if len(unkeyed.get_preprocess_fns()) or len(
+          unkeyed.get_postprocess_fns()):
+        raise Exception(
+            'Cannot make make an unkeyed model handler with pre or '
+            'postprocessing functions defined into a keyed model handler. All '
+            'pre/postprocessing functions must be defined on the outer model'
+            'handler.')
+      self._env_vars = unkeyed._env_vars
+      self._unkeyed = unkeyed
+      return
 
-  def load_model(self) -> ModelT:
-    return self._unkeyed.load_model()
+    self._max_models_per_worker_hint = max_models_per_worker_hint
+    # To maintain an efficient representation, we will map all keys in a given
+    # KeyModelMapping to a single id (the first key in the KeyModelMapping
+    # list). We will then map that key to a ModelHandler. This will allow us to
+    # quickly look up the appropriate ModelHandler for any given key.
+    self._id_to_mh_map: Dict[str, ModelHandler[ExampleT, PredictionT,
+                                               ModelT]] = {}
+    self._key_to_id_map: Dict[str, str] = {}
+    for mh_tuple in unkeyed:
+      mh = mh_tuple.mh
+      keys = mh_tuple.keys
+      if len(mh.get_preprocess_fns()) or len(mh.get_postprocess_fns()):
+        raise ValueError(
+            'Cannot use an unkeyed model handler with pre or '
+            'postprocessing functions defined in a keyed model handler. All '
+            'pre/postprocessing functions must be defined on the outer model'
+            'handler.')
+      hints = mh.get_resource_hints()
+      if len(hints) > 0:
+        logging.warning(
+            'mh %s defines the following resource hints, which will be'
+            'ignored: %s. Resource hints are not respected when more than one '
+            'model handler is used in a KeyedModelHandler. If you would like '
+            'to specify resource hints, you can do so by overriding the '
+            'KeyedModelHandler.get_resource_hints() method.',
+            mh,
+            hints)
+      batch_kwargs = mh.batch_elements_kwargs()
+      if len(batch_kwargs) > 0:
+        logging.warning(
+            'mh %s defines the following batching kwargs which will be '
+            'ignored %s. Batching kwargs are not respected when '
+            'more than one model handler is used in a KeyedModelHandler. If '
+            'you would like to specify resource hints, you can do so by '
+            'overriding the KeyedModelHandler.batch_elements_kwargs() method.',
+            hints,
+            batch_kwargs)
+      env_vars = mh._env_vars
+      if len(env_vars) > 0:
+        logging.warning(
+            'mh %s defines the following _env_vars which will be ignored %s. '
+            '_env_vars are not respected when more than one model handler is '
+            'used in a KeyedModelHandler. If you need env vars set at '
+            'inference time, you can do so with '
+            'a custom inference function.',
+            mh,
+            env_vars)
+
+      if len(keys) == 0:
+        raise ValueError(
+            f'Empty list maps to model handler {mh}. All model handlers must '
+            'have one or more associated keys.')
+      self._id_to_mh_map[keys[0]] = mh
+      for key in keys:
+        if key in self._key_to_id_map:
+          raise ValueError(
+              f'key {key} maps to multiple model handlers. All keys must map '
+              'to exactly one model handler.')
+        self._key_to_id_map[key] = keys[0]
+
+  def load_model(self) -> Union[ModelT, _ModelManager]:
+    if self._single_model:
+      return self._unkeyed.load_model()
+    return _ModelManager(self._id_to_mh_map)
 
   def run_inference(
       self,
       batch: Sequence[Tuple[KeyT, ExampleT]],
-      model: ModelT,
+      model: Union[ModelT, _ModelManager],
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[Tuple[KeyT, PredictionT]]:
-    keys, unkeyed_batch = zip(*batch)
-    return zip(
-        keys, self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
+    if self._single_model:
+      keys, unkeyed_batch = zip(*batch)
+      return zip(
+          keys,
+          self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
+
+    # The first time a MultiProcessShared ModelManager is used for inference
+    # from this process, we should increment its max model count
+    if self._max_models_per_worker_hint is not None:
+      lock = threading.Lock()
+      if lock.acquire(blocking=False):
+        model.increment_max_models(self._max_models_per_worker_hint)
+      self._max_models_per_worker_hint = None
+
+    batch_by_key = defaultdict(list)
+    key_by_id = defaultdict(set)
+    for key, example in batch:
+      batch_by_key[key].append(example)
+      key_by_id[self._key_to_id_map[key]].add(key)
+
+    predictions = []
+    for id, keys in key_by_id.items():
+      mh = self._id_to_mh_map[id]
+      loaded_model = model.load(id)
+      keyed_model_tag = loaded_model.model_tag
+      if loaded_model.byte_size is not None:
+        self._metrics_collectors[id].update_load_model_metrics(
+            loaded_model.load_latency, loaded_model.byte_size)
+        self._default_metrics_collector.update_load_model_metrics(
+            loaded_model.load_latency, loaded_model.byte_size)
+      keyed_model_shared_handle = multi_process_shared.MultiProcessShared(
+          mh.load_model, tag=keyed_model_tag)
+      keyed_model = keyed_model_shared_handle.acquire()
+      start_time = _to_microseconds(time.time_ns())
+      num_bytes = 0
+      num_elements = 0
+      try:
+        for key in keys:
+          unkeyed_batches = batch_by_key[key]
+          try:
+            for inf in mh.run_inference(unkeyed_batches,
+                                        keyed_model,
+                                        inference_args):
+              predictions.append((key, inf))
+          except BaseException as e:
+            self._metrics_collectors[id].failed_batches_counter.inc()
+            self._default_metrics_collector.failed_batches_counter.inc()
+            raise e
+          num_bytes += mh.get_num_bytes(unkeyed_batches)
+          num_elements += len(unkeyed_batches)
+      finally:
+        keyed_model_shared_handle.release(keyed_model)
+      end_time = _to_microseconds(time.time_ns())
+      inference_latency = end_time - start_time
+      self._metrics_collectors[id].update(
+          num_elements, num_bytes, inference_latency)
+      self._default_metrics_collector.update(
+          num_elements, num_bytes, inference_latency)
+
+    return predictions
 
   def get_num_bytes(self, batch: Sequence[Tuple[KeyT, ExampleT]]) -> int:
     keys, unkeyed_batch = zip(*batch)
-    return len(pickle.dumps(keys)) + self._unkeyed.get_num_bytes(unkeyed_batch)
+    batch_bytes = len(pickle.dumps(keys))
+    if self._single_model:
+      return batch_bytes + self._unkeyed.get_num_bytes(unkeyed_batch)
+
+    batch_by_key = defaultdict(list)
+    for key, examples in batch:
+      batch_by_key[key].append(examples)
+
+    for key, examples in batch_by_key.items():
+      mh_id = self._key_to_id_map[key]
+      batch_bytes += self._id_to_mh_map[mh_id].get_num_bytes(examples)
+    return batch_bytes
 
   def get_metrics_namespace(self) -> str:
-    return self._unkeyed.get_metrics_namespace()
+    if self._single_model:
+      return self._unkeyed.get_metrics_namespace()
+    return 'BeamML_KeyedModels'
 
   def get_resource_hints(self):
-    return self._unkeyed.get_resource_hints()
+    if self._single_model:
+      return self._unkeyed.get_resource_hints()
+    return {}
 
   def batch_elements_kwargs(self):
-    return self._unkeyed.batch_elements_kwargs()
+    if self._single_model:
+      return self._unkeyed.batch_elements_kwargs()
+    return {}
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
-    return self._unkeyed.validate_inference_args(inference_args)
+    if self._single_model:
+      return self._unkeyed.validate_inference_args(inference_args)
+    for mh in self._id_to_mh_map.values():
+      mh.validate_inference_args(inference_args)
+
+  def update_model_paths(
+      self,
+      model: Union[ModelT, _ModelManager],
+      model_paths: List[KeyModelPathMapping[KeyT]] = None):
+    # When there are many models, the keyed model handler is responsible for
+    # reorganizing the model handlers into cohorts and telling the model
+    # manager to update every cohort's associated model handler. The model
+    # manager is responsible for performing the updates and tracking which
+    # updates have already been applied.
+    if model_paths is None or len(model_paths) == 0 or model is None:
+      return
+    if self._single_model:
+      raise RuntimeError(
+          'Invalid model update: sent many model paths to '
+          'update, but KeyedModelHandler is wrapping a single '
+          'model.')
+    # Map cohort ids to a dictionary mapping new model paths to the keys that
+    # were originally in that cohort. We will use this to construct our new
+    # cohorts.
+    # cohort_path_mapping will be structured as follows:
+    # {
+    # original_cohort_id: {
+    #    'update/path/1': ['key1FromOriginalCohort', key2FromOriginalCohort'],
+    #    'update/path/2': ['key3FromOriginalCohort', key4FromOriginalCohort'],
+    #    }
+    # }
+    cohort_path_mapping: Dict[KeyT, Dict[str, List[KeyT]]] = {}
+    key_modelid_mapping: Dict[KeyT, str] = {}
+    seen_keys = set()
+    for mp in model_paths:
+      keys = mp.keys
+      update_path = mp.update_path
+      model_id = mp.model_id
+      if len(update_path) == 0:
+        raise ValueError(f'Invalid model update, path for {keys} is empty')
+      for key in keys:
+        if key in seen_keys:
+          raise ValueError(
+              f'Invalid model update: {key} appears in multiple '
+              'update lists. A single model update must provide exactly one '
+              'updated path per key.')
+        seen_keys.add(key)
+        if key not in self._key_to_id_map:
+          raise ValueError(
+              f'Invalid model update: {key} appears in '
+              'update, but not in the original configuration.')
+        key_modelid_mapping[key] = model_id
+        cohort_id = self._key_to_id_map[key]
+        if cohort_id not in cohort_path_mapping:
+          cohort_path_mapping[cohort_id] = defaultdict(list)
+        cohort_path_mapping[cohort_id][update_path].append(key)
+    for key in self._key_to_id_map:
+      if key not in seen_keys:
+        raise ValueError(
+            f'Invalid model update: {key} appears in the '
+            'original configuration, but not the update.')
+
+    # We now have our new set of cohorts. For each one, update our local model
+    # handler configuration and send the results to the ModelManager
+    for old_cohort_id, path_key_mapping in cohort_path_mapping.items():
+      for updated_path, keys in path_key_mapping.items():
+        cohort_id = old_cohort_id
+        if old_cohort_id not in keys:
+          # Create new cohort
+          cohort_id = keys[0]
+          for key in keys:
+            self._key_to_id_map[key] = cohort_id
+          mh = self._id_to_mh_map[old_cohort_id]
+          self._id_to_mh_map[cohort_id] = deepcopy(mh)
+        self._id_to_mh_map[cohort_id].update_model_path(updated_path)
+        model.update_model_handler(cohort_id, updated_path, old_cohort_id)
+        model_id = key_modelid_mapping[cohort_id]
+        self._metrics_collectors[cohort_id] = _MetricsCollector(
+            self._metrics_namespace, f'{cohort_id}-{model_id}-')
 
   def update_model_path(self, model_path: Optional[str] = None):
-    return self._unkeyed.update_model_path(model_path=model_path)
-
-  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._unkeyed.get_preprocess_fns()
-
-  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._unkeyed.get_postprocess_fns()
+    if self._single_model:
+      return self._unkeyed.update_model_path(model_path=model_path)
+    if model_path is not None:
+      raise RuntimeError(
+          'Model updates are currently not supported for ' +
+          'KeyedModelHandlers with multiple different per-key ' +
+          'ModelHandlers.')
 
   def share_model_across_processes(self) -> bool:
-    return self._unkeyed.share_model_across_processes()
+    if self._single_model:
+      return self._unkeyed.share_model_across_processes()
+    return True
+
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    if self._single_model:
+      return self._unkeyed.override_metrics(metrics_namespace)
+
+    self._metrics_namespace = metrics_namespace
+    self._default_metrics_collector = _MetricsCollector(metrics_namespace)
+    for cohort_id in self._id_to_mh_map:
+      self._metrics_collectors[cohort_id] = _MetricsCollector(
+          metrics_namespace, f'{cohort_id}-')
+
+    return True
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -562,6 +1033,15 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     # allow us to effectively disambiguate in multi-model settings.
     self._model_tag = uuid.uuid4().hex
 
+  def annotations(self):
+    return {
+        'model_handler': str(self._model_handler),
+        'model_handler_type': (
+            f'{self._model_handler.__class__.__module__}'
+            f'.{self._model_handler.__class__.__qualname__}'),
+        **super().annotations()
+    }
+
   def _get_model_metadata_pcoll(self, pipeline):
     # avoid circular imports.
     # pylint: disable=wrong-import-position
@@ -740,7 +1220,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
 
 
 class _MetricsCollector:
-  """A metrics collector that tracks ML related performance and memory usage."""
+  """
+  A metrics collector that tracks ML related performance and memory usage.
+  """
   def __init__(self, namespace: str, prefix: str = ''):
     """
     Args:
@@ -787,6 +1269,10 @@ class _MetricsCollector:
     self._load_model_latency_milli_secs_cache = load_model_latency_ms
     self._model_byte_size_cache = model_byte_size
 
+  def update_load_model_metrics(self, load_model_latency_ms, model_byte_size):
+    self._load_model_latency_milli_secs.update(load_model_latency_ms)
+    self._model_byte_size.update(model_byte_size)
+
   def update(
       self,
       examples_count: int,
@@ -825,34 +1311,47 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._side_input_path = None
     self._model_tag = model_tag
 
-  def _load_model(self, side_input_model_path: Optional[str] = None):
+  def _load_model(
+      self,
+      side_input_model_path: Optional[Union[str,
+                                            List[KeyModelPathMapping]]] = None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
-      self._model_handler.update_model_path(side_input_model_path)
+      if isinstance(side_input_model_path, str):
+        self._model_handler.update_model_path(side_input_model_path)
+      else:
+        self._model_handler.update_model_paths(
+            self._model, side_input_model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
       load_model_latency_ms = end_time - start_time
       model_byte_size = memory_after - memory_before
-      self._metrics_collector.cache_load_model_metrics(
-          load_model_latency_ms, model_byte_size)
+      if self._metrics_collector:
+        self._metrics_collector.cache_load_model_metrics(
+            load_model_latency_ms, model_byte_size)
       return model
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
+    model_tag = self._model_tag
+    if isinstance(side_input_model_path, str) and side_input_model_path != '':
+      model_tag = side_input_model_path
     if self._model_handler.share_model_across_processes():
       model = multi_process_shared.MultiProcessShared(
-          load, tag=side_input_model_path or self._model_tag).acquire()
+          load, tag=model_tag, always_proxy=True).acquire()
     else:
-      model = self._shared_model_handle.acquire(
-          load, tag=side_input_model_path or self._model_tag)
+      model = self._shared_model_handle.acquire(load, tag=model_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead
     # of calling load(). For sanity check, call update_model_path again.
-    self._model_handler.update_model_path(side_input_model_path)
+    if isinstance(side_input_model_path, str):
+      self._model_handler.update_model_path(side_input_model_path)
+    else:
+      self._model_handler.update_model_paths(self._model, side_input_model_path)
     return model
 
   def get_metrics_collector(self, prefix: str = ''):
@@ -864,6 +1363,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     metrics_namespace = (
         self._metrics_namespace) if self._metrics_namespace else (
             self._model_handler.get_metrics_namespace())
+    if self._model_handler.override_metrics(metrics_namespace):
+      return None
     return _MetricsCollector(metrics_namespace, prefix=prefix)
 
   def setup(self):
@@ -872,7 +1373,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 
-  def update_model(self, side_input_model_path: Optional[str] = None):
+  def update_model(
+      self,
+      side_input_model_path: Optional[Union[str,
+                                            List[KeyModelPathMapping]]] = None):
     self._model = self._load_model(side_input_model_path=side_input_model_path)
 
   def _run_inference(self, batch, inference_args):
@@ -881,7 +1385,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       result_generator = self._model_handler.run_inference(
           batch, self._model, inference_args)
     except BaseException as e:
-      self._metrics_collector.failed_batches_counter.inc()
+      if self._metrics_collector:
+        self._metrics_collector.failed_batches_counter.inc()
       raise e
     predictions = list(result_generator)
 
@@ -889,12 +1394,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
-    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+    if self._metrics_collector:
+      self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
     return predictions
 
   def process(
-      self, batch, inference_args, si_model_metadata: Optional[ModelMetadata]):
+      self,
+      batch,
+      inference_args,
+      si_model_metadata: Optional[Union[ModelMetadata,
+                                        List[ModelMetadata],
+                                        List[KeyModelPathMapping]]]):
     """
     When side input is enabled:
       The method checks if the side input model has been updated, and if so,
@@ -902,23 +1413,30 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       side input is empty or the model has not been updated, the method
       simply runs inference on the batch of data.
     """
-    if si_model_metadata:
-      if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
-        self.update_model(side_input_model_path=None)
+    if not si_model_metadata:
+      return self._run_inference(batch, inference_args)
+
+    if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
+      self.update_model(side_input_model_path=None)
+    elif isinstance(si_model_metadata, List) and hasattr(si_model_metadata[0],
+                                                         'keys'):
+      # TODO(https://github.com/apache/beam/issues/27628): Update metrics here
+      self.update_model(si_model_metadata)
+    elif self._side_input_path != si_model_metadata.model_id:
+      self._side_input_path = si_model_metadata.model_id
+      self._metrics_collector = self.get_metrics_collector(
+          prefix=si_model_metadata.model_name)
+      with threading.Lock():
+        self.update_model(si_model_metadata.model_id)
         return self._run_inference(batch, inference_args)
-      elif self._side_input_path != si_model_metadata.model_id:
-        self._side_input_path = si_model_metadata.model_id
-        self._metrics_collector = self.get_metrics_collector(
-            prefix=si_model_metadata.model_name)
-        with threading.Lock():
-          self.update_model(si_model_metadata.model_id)
-          return self._run_inference(batch, inference_args)
+
     return self._run_inference(batch, inference_args)
 
   def finish_bundle(self):
     # TODO(https://github.com/apache/beam/issues/21435): Figure out why there
     # is a cache.
-    self._metrics_collector.update_metrics_with_cache()
+    if self._metrics_collector:
+      self._metrics_collector.update_metrics_with_cache()
 
 
 def _is_darwin() -> bool:

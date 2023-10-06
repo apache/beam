@@ -89,21 +89,21 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BoundType;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeRangeSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BoundType;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RangeSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeRangeSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -945,7 +945,9 @@ class WindmillStateInternals<K> implements StateInternals {
         // that the ids don't overlap with any in pendingAdds, so begin with pendingAdds.size().
         Iterable<TimestampedValueWithId<T>> data =
             new Iterable<TimestampedValueWithId<T>>() {
-              private Iterable<TimestampedValue<T>> iterable = future.get();
+              // Anything returned from windmill that has been deleted should be ignored.
+              private Iterable<TimestampedValue<T>> iterable =
+                  Iterables.filter(future.get(), tv -> !pendingDeletes.contains(tv.getTimestamp()));
 
               @Override
               public Iterator<TimestampedValueWithId<T>> iterator() {
@@ -970,9 +972,8 @@ class WindmillStateInternals<K> implements StateInternals {
             Iterables.mergeSorted(
                 ImmutableList.of(data, pendingInRange), TimestampedValueWithId.COMPARATOR);
         Iterable<TimestampedValue<T>> fullIterable =
-            Iterables.filter(
-                Iterables.transform(includingAdds, TimestampedValueWithId::getValue),
-                tv -> !pendingDeletes.contains(tv.getTimestamp()));
+            Iterables.transform(includingAdds, TimestampedValueWithId::getValue);
+
         // TODO(reuvenlax): If we have a known bounded amount of data, cache known ranges.
         return fullIterable;
       } catch (InterruptedException | ExecutionException | IOException e) {

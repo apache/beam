@@ -72,6 +72,7 @@ from typing import Any
 from typing import ByteString
 from typing import Dict
 from typing import Generic
+from typing import Iterable
 from typing import List
 from typing import Mapping
 from typing import NamedTuple
@@ -87,6 +88,7 @@ from google.protobuf import text_format
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
@@ -225,6 +227,15 @@ def option_from_runner_api(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
 
 
+def schema_field(
+    name: str, field_type: Union[schema_pb2.FieldType,
+                                 type]) -> schema_pb2.Field:
+  return schema_pb2.Field(
+      name=name,
+      type=field_type if isinstance(field_type, schema_pb2.FieldType) else
+      typing_to_runner_api(field_type))
+
+
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry
@@ -306,6 +317,11 @@ class SchemaTranslation(object):
       key_type, value_type = map(self.typing_to_runner_api, _get_args(type_))
       return schema_pb2.FieldType(
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
+
+    elif _safe_issubclass(type_, Iterable) and not _safe_issubclass(type_, str):
+      element_type = self.typing_to_runner_api(_get_args(type_)[0])
+      return schema_pb2.FieldType(
+          array_type=schema_pb2.ArrayType(element_type=element_type))
 
     try:
       logical_type = LogicalType.from_typing(type_)
@@ -586,6 +602,25 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
 def named_fields_from_element_type(
     element_type: type) -> List[Tuple[str, type]]:
   return named_fields_from_schema(schema_from_element_type(element_type))
+
+
+def union_schema_type(element_types):
+  """Returns a schema whose fields are the union of each corresponding field.
+
+  element_types must be a set of schema-aware types whose fields have the
+  same naming and ordering.
+  """
+  union_fields_and_types = []
+  for field in zip(*[named_fields_from_element_type(t) for t in element_types]):
+    names, types = zip(*field)
+    name_set = set(names)
+    if len(name_set) != 1:
+      raise TypeError(
+          f"Could not determine schema for type hints {element_types!r}: "
+          f"Inconsistent names: {name_set}")
+    union_fields_and_types.append(
+        (next(iter(name_set)), typehints.Union[types]))
+  return named_tuple_from_schema(named_fields_to_schema(union_fields_and_types))
 
 
 # Registry of typings for a schema by UUID

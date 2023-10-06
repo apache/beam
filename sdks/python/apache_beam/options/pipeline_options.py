@@ -101,7 +101,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     key/value form.
     """
     # Extract the option name from positional argument ['pos_arg']
-    assert args != () and len(args[0]) >= 1
+    assert args and len(args[0]) >= 1
     if args[0][0] != '-':
       option_name = args[0]
       if kwargs.get('nargs') is None:  # make them optionally templated
@@ -850,23 +850,35 @@ class GoogleCloudOptions(PipelineOptions):
     else:
       return None
 
+  # If either temp or staging location has an issue, we use the valid one for
+  # both locations. If both are bad we return an error.
+  def _handle_temp_and_staging_locations(self, validator):
+    temp_errors = validator.validate_gcs_path(self, 'temp_location')
+    staging_errors = validator.validate_gcs_path(self, 'staging_location')
+    if temp_errors and not staging_errors:
+      setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      return []
+    elif staging_errors and not temp_errors:
+      setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      return []
+    elif not staging_errors and not temp_errors:
+      return []
+    # Both staging and temp locations are bad, try to use default bucket.
+    else:
+      default_bucket = self._create_default_gcs_bucket()
+      if default_bucket is None:
+        temp_errors.extend(staging_errors)
+        return temp_errors
+      else:
+        setattr(self, 'temp_location', default_bucket)
+        setattr(self, 'staging_location', default_bucket)
+        return []
+
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
+      errors.extend(self._handle_temp_and_staging_locations(validator))
       errors.extend(validator.validate_cloud_options(self))
-
-      # Validating temp_location, or adding a default if there are issues
-      temp_location_errors = validator.validate_gcs_path(self, 'temp_location')
-      if temp_location_errors:
-        default_bucket = self._create_default_gcs_bucket()
-        if default_bucket is None:
-          errors.extend(temp_location_errors)
-        else:
-          setattr(self, 'temp_location', default_bucket)
-
-      if getattr(self, 'staging_location',
-                 None) or getattr(self, 'temp_location', None) is None:
-        errors.extend(validator.validate_gcs_path(self, 'staging_location'))
 
     if self.view_as(DebugOptions).dataflow_job_file:
       if self.view_as(GoogleCloudOptions).template_location:
@@ -1284,11 +1296,13 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=(
-            'Override the default location from where the Beam SDK is '
-            'downloaded. It can be a URL, a GCS path, or a local path to an '
+            'Path to a custom Beam SDK package to install and use on the'
+            'runner. It can be a URL, a GCS path, or a local path to an '
             'SDK tarball. Workflow submissions will download or copy an SDK '
-            'tarball from here. If set to the string "default", a standard '
-            'SDK location is used. If empty, no SDK is copied.'))
+            'tarball from here. If set to "default", '
+            'runners will use the SDK provided in the default environment.'
+            'Use this flag when running pipelines with an unreleased or '
+            'manually patched version of Beam SDK.'))
     parser.add_argument(
         '--extra_package',
         '--extra_packages',

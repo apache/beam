@@ -40,9 +40,9 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /**
  * Methods for translating between {@link Combine} {@link PTransform PTransforms} and {@link
@@ -61,7 +61,7 @@ public class CombineTranslation {
     private CombinePerKeyPayloadTranslator() {}
 
     @Override
-    public String getUrn(Combine.PerKey<?, ?, ?> transform) {
+    public String getUrn() {
       return COMBINE_PER_KEY_TRANSFORM_URN;
     }
 
@@ -108,7 +108,7 @@ public class CombineTranslation {
     private CombineGloballyPayloadTranslator() {}
 
     @Override
-    public String getUrn(Combine.Globally<?, ?> transform) {
+    public String getUrn() {
       return COMBINE_GLOBALLY_TRANSFORM_URN;
     }
 
@@ -165,7 +165,7 @@ public class CombineTranslation {
     private CombineGroupedValuesPayloadTranslator() {}
 
     @Override
-    public String getUrn(Combine.GroupedValues<?, ?, ?> transform) {
+    public String getUrn() {
       return COMBINE_GROUPED_VALUES_TRANSFORM_URN;
     }
 

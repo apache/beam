@@ -83,16 +83,16 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RangeSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.CombinableMatcher;
 import org.joda.time.Instant;
@@ -2157,6 +2157,71 @@ public class WindmillStateInternalsTest {
                 TimestampedValue.of("second", Instant.ofEpochMilli(1)),
                 TimestampedValue.of("third", Instant.ofEpochMilli(2)),
                 TimestampedValue.of("fourth", Instant.ofEpochMilli(2)),
+                TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("eighth", Instant.ofEpochMilli(10)),
+                TimestampedValue.of("ninth", Instant.ofEpochMilli(15)),
+                TimestampedValue.of("tenth", Instant.ofEpochMilli(20))),
+            TimestampedValue.class);
+
+    TimestampedValue[] read = Iterables.toArray(orderedListState.read(), TimestampedValue.class);
+    assertArrayEquals(expected, read);
+  }
+
+  @Test
+  public void testOrderedListMergePendingAddsAndDeletes() {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> fromStorage = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(fromStorage);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("second", Instant.ofEpochMilli(1)));
+    orderedListState.add(TimestampedValue.of("third", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("fourth", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("eighth", Instant.ofEpochMilli(10)));
+    orderedListState.add(TimestampedValue.of("ninth", Instant.ofEpochMilli(15)));
+
+    orderedListState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(5));
+    orderedListState.add(TimestampedValue.of("fourth", Instant.ofEpochMilli(4)));
+
+    fromStorage.set(
+        ImmutableList.of(
+            TimestampedValue.of("first", Instant.ofEpochMilli(-1)),
+            TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("tenth", Instant.ofEpochMilli(20))));
+
+    TimestampedValue[] expected =
+        Iterables.toArray(
+            ImmutableList.of(
+                TimestampedValue.of("first", Instant.ofEpochMilli(-1)),
+                TimestampedValue.of("second", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("fourth", Instant.ofEpochMilli(4)),
                 TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
                 TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
                 TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),

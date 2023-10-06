@@ -49,13 +49,19 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
+ext.dataflowLegacyEnvironmentMajorVersion = '8'
+ext.dataflowFnapiEnvironmentMajorVersion = '8'
+ext.dataflowLegacyContainerVersion = 'beam-master-20230809'
+ext.dataflowFnapiContainerVersion = 'beam-master-20230809'
+ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
+
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-    'dataflow.legacy_environment_major_version' : '8',
-    'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20230426',
-    'dataflow.fnapi_container_version' : 'beam-master-20230426',
-    'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
+    'dataflow.legacy_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.fnapi_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
+    'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
+    'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
+    'dataflow.container_base_repository' : project.ext.dataflowContainerBaseRepository,
   ]
 }
 
@@ -78,7 +84,7 @@ configurations {
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
@@ -559,8 +565,6 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -608,8 +612,9 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
+  // failing due to pane index not incrementing after Reshuffle:
+  // https://github.com/apache/beam/issues/28219
+  exclude '**/FileLoadsStreamingIT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -617,24 +622,13 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
-task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
+task examplesJavaRunnerV2PreCommit(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  dependsOn buildAndPushDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-  ])
-
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
-  // this postCommit integration test excludes them.
-  include '**/*IT.class'
-  exclude '**/WordCountIT.class'
-  exclude '**/WindowedWordCountIT.class'
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
@@ -647,7 +641,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // examplesJavaRunnerV2PreCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.
   include '**/*IT.class'
   exclude '**/WordCountIT.class'
@@ -705,7 +699,6 @@ task postCommit {
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
   dependsOn googleCloudPlatformLegacyWorkerKmsIntegrationTest
-  dependsOn examplesJavaLegacyWorkerIntegrationTest
   dependsOn coreSDKJavaLegacyWorkerIntegrationTest
 }
 
@@ -713,7 +706,6 @@ task postCommitRunnerV2 {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner V2."
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
-  dependsOn examplesJavaRunnerV2IntegrationTest
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
 

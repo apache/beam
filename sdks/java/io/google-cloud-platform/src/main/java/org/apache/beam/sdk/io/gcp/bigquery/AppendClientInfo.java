@@ -22,9 +22,9 @@ import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -49,7 +49,7 @@ abstract class AppendClientInfo {
 
   abstract @Nullable String getStreamName();
 
-  abstract Descriptors.Descriptor getDescriptor();
+  abstract DescriptorProtos.DescriptorProto getDescriptor();
 
   @AutoValue.Builder
   abstract static class Builder {
@@ -63,7 +63,7 @@ abstract class AppendClientInfo {
 
     abstract Builder setSchemaInformation(TableRowToStorageApiProto.SchemaInformation value);
 
-    abstract Builder setDescriptor(Descriptors.Descriptor value);
+    abstract Builder setDescriptor(DescriptorProtos.DescriptorProto value);
 
     abstract Builder setStreamName(@Nullable String name);
 
@@ -74,8 +74,8 @@ abstract class AppendClientInfo {
 
   static AppendClientInfo of(
       TableSchema tableSchema,
-      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
-      boolean includeCdcColumns)
+      DescriptorProtos.DescriptorProto descriptor,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient)
       throws Exception {
     return new AutoValue_AppendClientInfo.Builder()
         .setTableSchema(tableSchema)
@@ -83,10 +83,20 @@ abstract class AppendClientInfo {
         .setJsonTableSchema(TableRowToStorageApiProto.protoSchemaToTableSchema(tableSchema))
         .setSchemaInformation(
             TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema))
-        .setDescriptor(
-            TableRowToStorageApiProto.getDescriptorFromTableSchema(
-                tableSchema, true, includeCdcColumns))
+        .setDescriptor(descriptor)
         .build();
+  }
+
+  static AppendClientInfo of(
+      TableSchema tableSchema,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
+      boolean includeCdcColumns)
+      throws Exception {
+    return of(
+        tableSchema,
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            tableSchema, true, includeCdcColumns),
+        closeAppendClient);
   }
 
   public AppendClientInfo withNoAppendClient() {
@@ -149,8 +159,10 @@ abstract class AppendClientInfo {
   public TableRow toTableRow(ByteString protoBytes) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
-          DynamicMessage.parseFrom(getDescriptor(), protoBytes), true);
-    } catch (InvalidProtocolBufferException e) {
+          DynamicMessage.parseFrom(
+              TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
+          true);
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }

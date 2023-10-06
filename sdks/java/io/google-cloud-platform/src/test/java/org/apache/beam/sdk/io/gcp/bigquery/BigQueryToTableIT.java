@@ -46,14 +46,13 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -214,7 +213,7 @@ public class BigQueryToTableIT {
   }
 
   /** Customized PipelineOption for BigQueryToTable Pipeline. */
-  public interface BigQueryToTableOptions extends TestPipelineOptions, ExperimentalOptions {
+  public interface BigQueryToTableOptions extends TestBigQueryOptions, ExperimentalOptions {
 
     @Description("The BigQuery query to be used for creating the source")
     @Validation.Required
@@ -252,9 +251,11 @@ public class BigQueryToTableIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(BigQueryToTableOptions.class);
-    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    BigQueryToTableOptions options =
+        TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
+    project = options.as(GcpOptions.class).getProject();
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID, null, options.getBigQueryLocation());
 
     // Create table and insert data for new type query test cases.
     BQ_CLIENT.createNewTable(

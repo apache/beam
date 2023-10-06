@@ -87,11 +87,11 @@ class SpecialDoFn(beam.DoFn):
 class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def setUp(self):
     self.default_properties = [
-        '--dataflow_endpoint=ignored',
         '--job_name=test-job',
         '--project=test-project',
-        '--staging_location=ignored',
-        '--temp_location=/dev/null',
+        '--region=us-central1'
+        '--staging_location=gs://beam/test',
+        '--temp_location=gs://beam/tmp',
         '--no_auth',
         '--dry_run=True',
         '--sdk_location=container'
@@ -501,7 +501,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn(packed_step_name, transform_names)
 
   def test_batch_is_runner_v2(self):
-    options = PipelineOptions()
+    options = PipelineOptions(['--sdk_location=container'])
     _check_and_add_missing_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
@@ -512,7 +512,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           expected)
 
   def test_streaming_is_runner_v2(self):
-    options = PipelineOptions(['--streaming'])
+    options = PipelineOptions(['--sdk_location=container', '--streaming'])
     _check_and_add_missing_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
@@ -525,7 +525,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           expected)
 
   def test_dataflow_service_options_enable_prime_sets_runner_v2(self):
-    options = PipelineOptions(['--dataflow_service_options=enable_prime'])
+    options = PipelineOptions([
+        '--sdk_location=container',
+        '--streaming',
+        '--dataflow_service_options=enable_prime'
+    ])
     _check_and_add_missing_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
@@ -535,8 +539,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           options.view_as(DebugOptions).lookup_experiment(expected, False),
           expected)
 
-    options = PipelineOptions(
-        ['--streaming', '--dataflow_service_options=enable_prime'])
+    options = PipelineOptions([
+        '--sdk_location=container',
+        '--streaming',
+        '--dataflow_service_options=enable_prime'
+    ])
     _check_and_add_missing_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',

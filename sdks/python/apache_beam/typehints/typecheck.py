@@ -49,6 +49,13 @@ class AbstractDoFnWrapper(DoFn):
     super().__init__()
     self.dofn = dofn
 
+  def __getattribute__(self, name):
+    if (name.startswith('_') or name in self.__dict__ or
+        hasattr(type(self), name)):
+      return object.__getattribute__(self, name)
+    else:
+      return getattr(self.dofn, name)
+
   def _inspect_start_bundle(self):
     return self.dofn.get_function_arguments('start_bundle')
 

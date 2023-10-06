@@ -567,30 +567,57 @@ message ProcessBundleSplitRequest {
 //   first_residual_element.
 // - The current bundle, if no further splits happen, will have done exactly
 //   the work under primary_roots and all elements up to and including the
-//   channel splits last_primary_element.
+//   channel split's last_primary_element.
 //
 // This allows the SDK to relinquish ownership of and commit to not process some
 // of the elements that it may have been sent (the residual) while retaining
 // ownership and commitment to finish the other portion (the primary).
 //
-// For example, lets say the SDK is processing elements A B C D E and a split
-// request comes in. The SDK could return a response with a channel split
-// representing a last_primary_element of 3 (D) and first_residual_element of 4
-// (E). The SDK is now responsible for processing A B C D and the runner must
-// process E in the future. A future split request could have the SDK split the
-// elements B into B1 and B2 and C into C1 and C2 representing their primary and
-// residual roots. The SDK would return a response with a channel split
-// representing a last_primary_element of 0 (A) and first_residual_element of 3
-// (D) with primary_roots (B1, C1) and residual_roots (B2, C2). The SDK is now
-// responsible for processing A B1 C1 and the runner must process C2 D2 (and E
-// from the prior split) in the future. Yet another future split request could
-// have the SDK could split B1 further into B1a and B1b primary and residuals
-// and return C2 as a residual (assuming C2 was left unprocessed). The SDK would
-// return a response with a channel split representing a last_primary_element of
-// 0 (A) and first_residual_element of 4 (E) with primary_roots (B1a) and
-// residual_roots (B1b, C1). The SDK is now responsible for processing A B1a the
-// runner must process B1b C1 (in addition to C2, D, E from prior splits) in the
-// future.
+// Example with three splits of a single bundle:
+// Let's say the SDK is processing elements [A B C D E]. These elements make
+// up the 0-indexed channel.
+//
+// ** First Split **
+// Channel Split = [ A B C D <> E ]
+// Primary Roots = [] (No elements were split)
+// Residual Roots = []
+//
+// Say a split request comes in. The SDK could return a response with a channel
+// split representing a last_primary_element of 3 (D) and
+// first_residual_element of 4 (E). The SDK is now responsible for processing A
+// B C D and the runner must process E in the future.
+//
+// (A B C D) | (E)
+//
+// ** Second Split **
+// Channel Split = [ A < B C > D E ]
+// Primary Roots = [B1 C1]
+// Residual Roots = [B2 C2]
+//
+// A future split request could have the SDK split the elements B into B1 and
+// B2 and C into C1 and C2 representing their primary and residual roots. The
+//
+// (A B1 C1) | (B2 C2 D)
+//
+// SDK would return a response with a channel split representing a
+// last_primary_element of 0 (A) and first_residual_element of 3 (D) with
+// primary_roots (B1, C1) and residual_roots (B2, C2). The SDK is now
+// responsible for processing A B1 C1 and the runner must process B2 C2 D (and
+// E from the prior split) in the future.
+//
+// ** Third Split **
+// Channel Split = [ A < B C > D E ]
+// Primary Roots = [B1a]
+// Residual Roots [B1b C1]
+// Yet another future split request could have the SDK could split B1 further
+// into B1a and B1b primary and residuals and return C1 as a residual (assuming
+// C1 was left unprocessed). The SDK would return a response with a channel
+// split representing a last_primary_element of 0 (A) and
+// first_residual_element of 3 (E) with primary_roots (B1a) and residual_roots
+// (B1b, C1). The SDK is now responsible for processing A B1a the runner must
+// process B1b C1 (in addition to C2, D, E from prior splits) in the future.
+//
+// (A B1a) | (B1b C1)
 //
 // For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
 message ProcessBundleSplitResponse {

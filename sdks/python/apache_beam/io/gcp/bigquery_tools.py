@@ -732,11 +732,13 @@ class BigQueryWrapper(object):
     except (ClientError, GoogleAPICallError) as e:
       # e.code contains the numeric http status code.
       service_call_metric.call(e.code)
-      # Re-reise the exception so that we re-try appropriately.
-      raise
+      # Package exception with required fields
+      error = {'message': e.message, 'reason': e.response.reason}
+      # Add all rows to the errors list along with the error
+      errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
     except HttpError as e:
       service_call_metric.call(e)
-      # Re-reise the exception so that we re-try appropriately.
+      # Re-raise the exception so that we re-try appropriately.
       raise
     finally:
       self._latency_histogram_metric.update(
@@ -1491,7 +1493,19 @@ class RetryStrategy(object):
   RETRY_NEVER = 'RETRY_NEVER'
   RETRY_ON_TRANSIENT_ERROR = 'RETRY_ON_TRANSIENT_ERROR'
 
-  _NON_TRANSIENT_ERRORS = {'invalid', 'invalidQuery', 'notImplemented'}
+  # Values below may be found in reasons provided either in an
+  # error returned by a client method or by an http response as
+  # defined in google.api_core.exceptions
+  _NON_TRANSIENT_ERRORS = {
+      'invalid',
+      'invalidQuery',
+      'notImplemented',
+      'Bad Request',
+      'Unauthorized',
+      'Forbidden',
+      'Not Found',
+      'Not Implemented',
+  }
 
   @staticmethod
   def should_retry(strategy, error_message):
@@ -1558,23 +1572,32 @@ bigquery_v2_messages.TableSchema):
   """
   if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
     schema = get_bq_tableschema(schema)
-  schema_fields = {field.name: field for field in schema.fields}
   beam_row = {}
-  for col_name, value in row.items():
-    # get this column's schema field and handle struct types
-    field = schema_fields[col_name]
-    if field.type.upper() in ["RECORD", "STRUCT"]:
+  for field in schema.fields:
+    name = field.name
+    mode = field.mode.upper()
+    type = field.type.upper()
+    # When writing with Storage Write API via xlang, we give the Beam Row
+    # PCollection a hint on the schema using `with_output_types`.
+    # This requires that each row has all the fields in the schema.
+    # However, it's possible that some nullable fields don't appear in the row.
+    # For this case, we create the field with a `None` value
+    if name not in row and mode == "NULLABLE":
+      row[name] = None
+
+    value = row[name]
+    if type in ["RECORD", "STRUCT"]:
       # if this is a list of records, we create a list of Beam Rows
-      if field.mode.upper() == "REPEATED":
+      if mode == "REPEATED":
         list_of_beam_rows = []
         for record in value:
           list_of_beam_rows.append(beam_row_from_dict(record, field))
-        beam_row[col_name] = list_of_beam_rows
+        beam_row[name] = list_of_beam_rows
       # otherwise, create a Beam Row from this record
       else:
-        beam_row[col_name] = beam_row_from_dict(value, field)
+        beam_row[name] = beam_row_from_dict(value, field)
     else:
-      beam_row[col_name] = value
+      beam_row[name] = value
   return apache_beam.pvalue.Row(**beam_row)
 
 

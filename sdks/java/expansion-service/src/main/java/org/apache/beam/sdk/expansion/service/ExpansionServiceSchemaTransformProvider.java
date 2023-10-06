@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes"})
@@ -129,8 +129,7 @@ public class ExpansionServiceSchemaTransformProvider
     Row configRow;
     try {
       configRow =
-          RowCoder.of(provider.configurationSchema())
-              .decode(payload.getConfigurationRow().newInput());
+          RowCoder.of(configSchemaFromRequest).decode(payload.getConfigurationRow().newInput());
     } catch (IOException e) {
       throw new RuntimeException("Error decoding payload", e);
     }

@@ -32,6 +32,8 @@ from yaml.loader import SafeLoader
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
+from apache_beam.yaml import yaml_mapping
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
 
@@ -84,13 +86,16 @@ class FakeSql(beam.PTransform):
             typ, = [t for t in typ.__args__ if t is not type(None)]
       return name, typ
 
-    output_schema = [
-        guess_name_and_type(expr) for expr in m.group(1).split(',')
-    ]
-    output_element = beam.Row(**{name: typ() for name, typ in output_schema})
-    return next(iter(inputs.values())) | beam.Map(
-        lambda _: output_element).with_output_types(
-            trivial_inference.instance_to_type(output_element))
+    if m.group(1) == '*':
+      return inputs['PCOLLECTION'] | beam.Filter(lambda _: True)
+    else:
+      output_schema = [
+          guess_name_and_type(expr) for expr in m.group(1).split(',')
+      ]
+      output_element = beam.Row(**{name: typ() for name, typ in output_schema})
+      return next(iter(inputs.values())) | beam.Map(
+          lambda _: output_element).with_output_types(
+              trivial_inference.instance_to_type(output_element))
 
 
 class FakeReadFromPubSub(beam.PTransform):
@@ -121,12 +126,18 @@ class SomeAggregation(beam.PTransform):
 
 
 RENDER_DIR = None
-TEST_PROVIDERS = {
+TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
     'SomeAggregation': SomeAggregation,
 }
+
+
+class TestProvider(yaml_provider.InlineProvider):
+  def _affinity(self, other):
+    # Always try to choose this one.
+    return float('inf')
 
 
 class TestEnvironment:
@@ -162,7 +173,7 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
         for (key, value) in spec.items()
     }
     if spec.get('type', None) == transform_type:
-      spec[arg_name] = arg_value
+      spec['config'][arg_name] = arg_value
     return spec
   elif isinstance(spec, list):
     return [
@@ -196,8 +207,14 @@ def create_test_method(test_type, test_name, test_yaml):
             os.path.join(RENDER_DIR, test_name + '.png')
         ]
         options['render_leaf_composite_nodes'] = ['.*']
+      test_provider = TestProvider(TEST_TRANSFORMS)
+      test_sql_mapping_provider = yaml_mapping.SqlMappingProvider(test_provider)
       p = beam.Pipeline(options=PipelineOptions(**options))
-      yaml_transform.expand_pipeline(p, modified_yaml, TEST_PROVIDERS)
+      yaml_transform.expand_pipeline(
+          p,
+          modified_yaml,
+          yaml_provider.merge_providers(
+              [test_provider, test_sql_mapping_provider]))
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()
@@ -225,7 +242,8 @@ def parse_test_methods(markdown_lines):
                 '  type: chain',
                 '  transforms:',
                 '    - type: ReadFromCsv',
-                '      path: whatever',
+                '      config:',
+                '        path: whatever',
             ] + ['    ' + line for line in code_lines]
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
@@ -247,6 +265,10 @@ def createTestSuite(name, path):
 
 ReadMeTest = createTestSuite(
     'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
+
+ErrorHandlingTest = createTestSuite(
+    'ErrorHandlingTest',
+    os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

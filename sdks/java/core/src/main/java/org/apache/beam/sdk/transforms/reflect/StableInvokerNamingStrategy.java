@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.google.auto.value.AutoValue;
 import net.bytebuddy.NamingStrategy;

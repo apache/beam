@@ -23,7 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /** Describes the run-time requirements of a {@link Contextful}, such as access to side inputs. */
 @SuppressWarnings({

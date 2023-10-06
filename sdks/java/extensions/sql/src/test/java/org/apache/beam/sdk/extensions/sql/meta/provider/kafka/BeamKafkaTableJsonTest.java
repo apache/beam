@@ -19,12 +19,12 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
 
@@ -67,7 +67,7 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
                     .type("kafka")
                     .schema(TEST_SCHEMA)
                     .location("localhost/mytopic")
-                    .properties(JSON.parseObject("{ \"format\": \"json\" }"))
+                    .properties(TableUtils.parseProperties("{ \"format\": \"json\" }"))
                     .build());
   }
 
