@@ -160,6 +160,7 @@ def run_change_point_analysis(
 
 
 def run(
+    *,
     big_query_metrics_fetcher: MetricsFetcher = BigQueryMetricsFetcher(),
     config_file_path: Optional[str] = None,
 ) -> None:
@@ -209,4 +210,4 @@ if __name__ == '__main__':
   if unknown_args:
     logging.warning('Discarding unknown arguments : %s ' % unknown_args)
 
-  run(known_args.config_file_path)
+  run(config_file_path=known_args.config_file_path)
