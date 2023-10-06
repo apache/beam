@@ -22,54 +22,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestMap(t *testing.T) {
-	type args struct {
-		vars   []Variable
-		values []string
-	}
-	tests := []struct {
-		name string
-		args args
-		want map[string]interface{}
-	}{
-		{
-			name: "{}",
-			args: args{},
-			want: map[string]interface{}{},
-		},
-		{
-			name: "{A=1; B=2; C=3}",
-			args: args{
-				vars: []Variable{
-					"A",
-					"B",
-					"C",
-				},
-				values: []string{
-					"1",
-					"2",
-					"3",
-				},
-			},
-			want: map[string]interface{}{
-				"A": "1",
-				"B": "2",
-				"C": "3",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			clear(tt.args.vars...)
-			set(t, tt.args.vars, tt.args.values)
-			got := Map(tt.args.vars...)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Map() = %v, want %v, diff:\n%v", got, tt.want, diff)
-			}
-		})
-	}
-}
-
 func TestMissing(t *testing.T) {
 	type args struct {
 		vars   []Variable
@@ -126,7 +78,7 @@ func TestMissing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var got, want string
-			clear(tt.args.vars...)
+			clearVars(tt.args.vars...)
 			set(t, tt.args.vars, tt.args.values)
 			err := Missing(tt.args.vars...)
 			if err != nil {
@@ -173,7 +125,7 @@ func TestVariable_Default(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clear(tt.v)
+			clearVars(tt.v)
 			if tt.args.setValue != "" {
 				set(t, []Variable{tt.v}, []string{tt.args.setValue})
 			}
@@ -208,7 +160,7 @@ func TestVariable_KeyValue(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		clear(tt.v)
+		clearVars(tt.v)
 		t.Run(tt.name, func(t *testing.T) {
 			set(t, []Variable{tt.v}, []string{tt.value})
 			got := tt.v.KeyValue()
@@ -264,7 +216,7 @@ func TestVariable_Missing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clear(tt.v)
+			clearVars(tt.v)
 			if tt.args.defaultValue != "" {
 				if err := tt.v.Default(tt.args.defaultValue); err != nil {
 					t.Fatalf("could not set default environment variable value during test execution: %v", err)
@@ -324,7 +276,7 @@ func TestVariable_Value(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		clear(tt.v)
+		clearVars(tt.v)
 		if tt.args.defaultValue != "" {
 			if err := tt.v.Default(tt.args.defaultValue); err != nil {
 				t.Fatalf("could not set default environment variable value during test execution: %v", err)
@@ -341,7 +293,7 @@ func TestVariable_Value(t *testing.T) {
 	}
 }
 
-func clear(vars ...Variable) {
+func clearVars(vars ...Variable) {
 	for _, k := range vars {
 		_ = os.Setenv(k.Key(), "")
 	}

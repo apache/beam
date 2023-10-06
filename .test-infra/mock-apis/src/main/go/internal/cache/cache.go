@@ -76,25 +76,25 @@ func (ref *Refresher) Refresh(ctx context.Context, key string, size uint64, inte
 		return err
 	}
 	tick := time.Tick(interval)
+	fields := []logging.Field{
+		{
+			Key:   "key",
+			Value: key,
+		},
+		{
+			Key:   "size",
+			Value: size,
+		},
+		{
+			Key:   "interval",
+			Value: interval.String(),
+		},
+	}
 	for {
 		select {
 		case <-tick:
 			if err := ref.setter.Set(ctx, key, size, interval); err != nil {
 				return err
-			}
-			fields := []logging.Field{
-				{
-					Key:   "key",
-					Value: key,
-				},
-				{
-					Key:   "size",
-					Value: size,
-				},
-				{
-					Key:   "interval",
-					Value: interval.String(),
-				},
 			}
 			ref.logger.Debug(ctx, "refresh successful", fields...)
 		case <-ctx.Done():

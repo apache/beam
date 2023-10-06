@@ -19,17 +19,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/logging"
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	keyDeliminator = ":"
-)
-
-var (
-	logger = logging.New("github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/cache")
-)
+// Validate interface implementations
+var _ UInt64Setter = &RedisCache{}
+var _ Decrementer = &RedisCache{}
+var _ HealthChecker = &RedisCache{}
 
 // RedisCache implements a Decrementer and a Refresher.
 type RedisCache redis.Client

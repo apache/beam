@@ -155,7 +155,7 @@ func Test_logger_Error(t *testing.T) {
 	fields := []logging.Field{
 		{
 			Key:   "observed",
-			Value: time.UnixMilli(1000000000000),
+			Value: time.Unix(1000000000, 0),
 		},
 	}
 	l.Error(context.Background(), errors.New(message), fields...)
@@ -167,7 +167,7 @@ func Test_logger_Error(t *testing.T) {
 	if diff := cmp.Diff(got, gcplogging.Entry{
 		LogName:  "test logger error",
 		Severity: gcplogging.Error,
-		Payload:  map[string]any{"message": "some error", "observed": "2001-09-09T01:46:40Z"},
+		Payload:  map[string]any{"message": "some error", "observed": "2001-09-08T18:46:40-07:00"},
 		SourceLocation: &loggingpb.LogEntrySourceLocation{
 			File: file,
 			Line: int64(line) - 1,

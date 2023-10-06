@@ -93,13 +93,3 @@ func Missing(vars ...Variable) error {
 	}
 	return nil
 }
-
-// Map converts a slice of Variable into a map.
-// Its usage is for logging purposes.
-func Map(vars ...Variable) map[string]interface{} {
-	result := map[string]interface{}{}
-	for _, v := range vars {
-		result[(string)(v)] = v.Value()
-	}
-	return result
-}
