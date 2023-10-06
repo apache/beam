@@ -247,7 +247,7 @@ def _get_state_cache_size(experiments):
 
   Returns:
     an int indicating the maximum number of megabytes to cache.
-      Default is 0 MB
+      Default is 100 MB
   """
 
   for experiment in experiments:
