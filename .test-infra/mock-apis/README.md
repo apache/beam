@@ -3,8 +3,6 @@
 This directory holds code and related artifacts to support API related
 integration tests.
 
-
-
 # Development Dependencies
 
 | Dependency                                          | Reason                                                                                 |
@@ -33,7 +31,10 @@ TODO: See https://github.com/apache/beam/issues/28859
 
 To execute the services on your local machine, you'll need [redis](https://redis.io/docs/getting-started/installation/).
 
-## Execute
+## Execute services
+
+Follow these steps to run the services on your local machine.
+
 
 1. Start redis
     
@@ -41,10 +42,24 @@ To execute the services on your local machine, you'll need [redis](https://redis
     ```
     redis-server
     ```
-2. Start refresher
-    Start the refresher service:
-    ```
-    go run ./src/go/main/cmd/refresher
-    ```
-3. 
 
+1. Start the refresher service in a new terminal.
+    ```
+    export CACHE_HOST=localhost:6379; \
+    export QUOTA_ID=$(uuidgen); \
+    export QUOTA_REFRESH_INTERVAL=10s; \
+    export QUOTA_SIZE=100; \
+    go run ./src/main/go/cmd/service/refresher
+    ```
+1. Start the echo service in a new terminal.
+    ```
+    export PORT=8080; \
+    export CACHE_HOST=localhost:6379; \
+    go run ./src/main/go/cmd/service/echo
+    ```
+1. Call the echo service in a new terminal.
+
+
+# Deployment
+
+TODO: See https://github.com/apache/beam/issues/28709

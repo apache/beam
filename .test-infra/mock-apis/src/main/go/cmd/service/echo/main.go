@@ -10,6 +10,7 @@ import (
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/service/echo"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"os"
 	"os/signal"
@@ -75,20 +76,18 @@ func main() {
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	logger.Info(ctx, "starting service")
+	logger.Info(ctx, "starting service", loggingFields...)
+	s, err := setup(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.GracefulStop()
+
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Error(ctx, err, loggingFields...)
 		return err
 	}
-
-	s := grpc.NewServer()
-	if err = echo.RegisterGrpc(s, decrementer); err != nil {
-		logger.Error(ctx, err, loggingFields...)
-		return err
-	}
-
-	defer s.GracefulStop()
 
 	errChan := make(chan error)
 	go func() {
@@ -106,4 +105,24 @@ func run(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func setup(ctx context.Context) (*grpc.Server, error) {
+	s := grpc.NewServer()
+	if err := echo.RegisterGrpc(s, decrementer); err != nil {
+		logger.Error(ctx, err, loggingFields...)
+		return nil, err
+	}
+
+	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Error(ctx, err, loggingFields...)
+		return nil, err
+	}
+
+	if err = echo.RegisterHttp(ctx, conn); err != nil {
+		logger.Error(ctx, err, loggingFields...)
+		return nil, err
+	}
+	return s, nil
 }
