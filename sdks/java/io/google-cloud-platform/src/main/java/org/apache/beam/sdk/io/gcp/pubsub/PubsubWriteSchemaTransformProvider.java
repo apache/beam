@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
