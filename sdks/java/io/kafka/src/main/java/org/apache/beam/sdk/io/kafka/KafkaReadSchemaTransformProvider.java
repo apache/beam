@@ -159,7 +159,7 @@ public class KafkaReadSchemaTransformProvider
     if (inputSchema != null && !inputSchema.isEmpty()) {
       assert Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
           : "To read from Kafka, a schema must be provided directly or though Confluent "
-          + "Schema Registry, but not both.";
+              + "Schema Registry, but not both.";
 
       final Schema beamSchema =
           Objects.equals(format.toLowerCase(), "json")
@@ -200,7 +200,7 @@ public class KafkaReadSchemaTransformProvider
     } else {
       assert !Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
           : "To read from Kafka, a schema must be provided directly or though Confluent "
-          + "Schema Registry. Neither seems to have been provided.";
+              + "Schema Registry. Neither seems to have been provided.";
       return new SchemaTransform() {
         @Override
         public PCollectionRowTuple expand(PCollectionRowTuple input) {
