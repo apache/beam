@@ -67,6 +67,8 @@
     'WriteToCsv': 'WriteToCsv'
     'ReadFromJson': 'ReadFromJson'
     'WriteToJson': 'WriteToJson'
+    'ReadFromAvro': 'ReadFromAvro'
+    'WriteToAvro': 'WriteToAvro'
   config:
     mappings:
       'ReadFromCsv':
@@ -77,6 +79,13 @@
         path: 'path'
       'WriteToJson':
         path: 'path'
+      'ReadFromAvro':
+        path: 'file_pattern'
+      'WriteToAvro':
+        path: 'file_path_prefix'
+    defaults:
+      'ReadFromAvro':
+        as_rows: True
     underlying_provider:
       type: python
       transforms:
@@ -84,3 +93,5 @@
         'WriteToCsv': 'apache_beam.io.WriteToCsv'
         'ReadFromJson': 'apache_beam.io.ReadFromJson'
         'WriteToJson': 'apache_beam.io.WriteToJson'
+        'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
+        'WriteToAvro': 'apache_beam.io.WriteToAvro'

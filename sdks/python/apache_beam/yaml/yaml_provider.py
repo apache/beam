@@ -684,7 +684,7 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider):
+  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)
@@ -694,6 +694,7 @@ class RenamingProvider(Provider):
       if transform not in mappings:
         raise ValueError(f'Missing transform {transform} in mappings.')
     self._mappings = mappings
+    self._defaults = defaults or {}
 
   def available(self) -> bool:
     return self._underlying_provider.available()
@@ -731,6 +732,9 @@ class RenamingProvider(Provider):
         mappings.get(key, key): value
         for key, value in args.items()
     }
+    for key, value in self._defaults.get(typ, {}).items():
+      if key not in remapped_args:
+        remapped_args[key] = value
     return self._underlying_provider.create_transform(
         self._transforms[typ], remapped_args, yaml_create_transform)
 
