@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -57,7 +58,8 @@ public class JavaRowUdf implements Serializable {
 
   // Transient so we don't have to worry about issues serializing these dynamically created classes.
   // While this is lazily computed, it is always computed on class construction, so any errors
-  // should still be caught at construction time.
+  // should still be caught at construction time, and lazily re-computed before any use.
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient Function<Row, Object> function;
 
   // Find or implement the inverse of StaticSchemaInference.fieldFromType
@@ -207,7 +209,7 @@ public class JavaRowUdf implements Serializable {
       for (Map.Entry<String, Type> fieldEntry : fieldTypes.entrySet()) {
         source.append(
             String.format(
-                "    %s %s = (%s) __row__.getValue(%s);\n",
+                "    %s %s = (%s) __row__.getValue(%s);%n",
                 fieldEntry.getValue().getTypeName(),
                 fieldEntry.getKey(),
                 fieldEntry.getValue().getTypeName(),

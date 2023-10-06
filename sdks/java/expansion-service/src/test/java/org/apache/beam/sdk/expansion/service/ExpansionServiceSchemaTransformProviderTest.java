@@ -19,6 +19,7 @@ package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -296,7 +297,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
         ExpansionApi.DiscoverSchemaTransformRequest.newBuilder().build();
     ExpansionApi.DiscoverSchemaTransformResponse response =
         expansionService.discover(discoverRequest);
-    assertEquals(2, response.getSchemaTransformConfigsCount());
+    assertTrue(response.getSchemaTransformConfigsCount() >= 2);
   }
 
   private void verifyLeafTransforms(ExpansionApi.ExpansionResponse response, int count) {

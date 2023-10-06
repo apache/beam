@@ -108,6 +108,7 @@ public class JavaMapToFieldsTransformProviderTest {
                 new JavaMapToFieldsTransformProvider()
                     .from(
                         JavaMapToFieldsTransformProvider.Configuration.builder()
+                            .setLanguage("java")
                             .setAppend(true)
                             .setDrop(Collections.singletonList("b"))
                             .setFields(
@@ -151,6 +152,7 @@ public class JavaMapToFieldsTransformProviderTest {
                 new JavaMapToFieldsTransformProvider()
                     .from(
                         JavaMapToFieldsTransformProvider.Configuration.builder()
+                            .setLanguage("java")
                             .setFields(
                                 ImmutableMap.of(
                                     "sqrt",

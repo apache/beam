@@ -26,6 +26,8 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.SecureClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,15 +68,17 @@ public class StringCompiler {
             }
             if (cl instanceof URLClassLoader) {
               for (URL url : ((URLClassLoader) cl).getURLs()) {
-                try {
-                  ZipFile zipFile = new ZipFile(new File(url.getFile()));
-                  ZipEntry manifestEntry = zipFile.getEntry("META-INF/MANIFEST.MF");
-                  if (manifestEntry != null) {
-                    Manifest manifest = new Manifest(zipFile.getInputStream(manifestEntry));
-                    cp.add(manifest.getMainAttributes().getValue(Attributes.Name.CLASS_PATH));
+                File file = new File(url.getFile());
+                if (file.exists() && !file.isDirectory()) {
+                  try (ZipFile zipFile = new ZipFile(new File(url.getFile()))) {
+                    ZipEntry manifestEntry = zipFile.getEntry("META-INF/MANIFEST.MF");
+                    if (manifestEntry != null) {
+                      Manifest manifest = new Manifest(zipFile.getInputStream(manifestEntry));
+                      cp.add(manifest.getMainAttributes().getValue(Attributes.Name.CLASS_PATH));
+                    }
+                  } catch (IOException exn) {
+                    throw new RuntimeException(exn);
                   }
-                } catch (IOException exn) {
-                  throw new RuntimeException(exn);
                 }
               }
             }
@@ -200,18 +204,21 @@ public class StringCompiler {
     }
 
     public ClassLoader getClassLoader() {
-      return new SecureClassLoader() {
-        @Override
-        protected Class<?> findClass(String name) throws ClassNotFoundException {
-          OutputJavaFileObject fileObject = outputFileObjects.get(name);
-          if (fileObject == null) {
-            throw new ClassNotFoundException(name);
-          } else {
-            byte[] classBytes = fileObject.getBytes();
-            return defineClass(name, classBytes, 0, classBytes.length);
-          }
-        }
-      };
+      return AccessController.<ClassLoader>doPrivileged(
+          (PrivilegedAction<ClassLoader>)
+              () ->
+                  new SecureClassLoader() {
+                    @Override
+                    protected Class<?> findClass(String name) throws ClassNotFoundException {
+                      OutputJavaFileObject fileObject = outputFileObjects.get(name);
+                      if (fileObject == null) {
+                        throw new ClassNotFoundException(name);
+                      } else {
+                        byte[] classBytes = fileObject.getBytes();
+                        return defineClass(name, classBytes, 0, classBytes.length);
+                      }
+                    }
+                  });
     }
 
     @Override
