@@ -120,6 +120,7 @@ public class KafkaReadSchemaTransformProviderTest {
         KafkaReadSchemaTransformConfiguration.builder()
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
+            .setFormat("avro")
             .setSchema(AVRO_SCHEMA)
             .build());
   }
@@ -138,13 +139,31 @@ public class KafkaReadSchemaTransformProviderTest {
         KafkaReadSchemaTransformConfiguration.builder()
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
-            .setFormat("JSON")
+            .setFormat("json")
             .setSchema(
                 new String(
                     ByteStreams.toByteArray(
                         Objects.requireNonNull(
                             getClass().getResourceAsStream("/json-schema/basic_json_schema.json"))),
                     StandardCharsets.UTF_8))
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithRawFormat() throws IOException {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("raw")
             .build());
   }
 }
