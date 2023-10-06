@@ -179,16 +179,17 @@ ResourceHint.register_resource_hint('minRam', MinRamHint)
 
 
 class CpuCountHint(ResourceHint):
-  """Describes desired hardware accelerators in execution environment."""
+  """Describes number of CPUs available in transform's execution environment."""
   urn = resource_hints.CPU_COUNT.urn
 
   @classmethod
   def get_merged_value(
-      cls, outer_value, inner_value):  # type: (int, int) -> int
+      cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
     return ResourceHint._use_max(outer_value, inner_value)
 
 
 ResourceHint.register_resource_hint('cpu_count', CpuCountHint)
+# Alias for interoperability with SDKs preferring camelCase.
 ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
 
 

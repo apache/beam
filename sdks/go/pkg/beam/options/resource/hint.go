@@ -221,7 +221,7 @@ func (h CPUCountHint) Payload() []byte {
 	return []byte(strconv.FormatUint(h.value, 10))
 }
 
-// MergeWith an outer CPUCountHints by keeping the maximum of the two cpu counts.
+// MergeWithOuter by keeping the maximum of the two cpu counts.
 func (h CPUCountHint) MergeWithOuter(outer Hint) Hint {
 	// Intentional runtime panic from type assertion to catch hint merge errors.
 	if outer.(CPUCountHint).value > h.value {
