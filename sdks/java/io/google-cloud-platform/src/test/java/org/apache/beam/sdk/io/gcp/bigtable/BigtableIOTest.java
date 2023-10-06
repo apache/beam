@@ -766,6 +766,39 @@ public class BigtableIOTest {
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
+  /**
+   * Regression test for <a href="https://github.com/apache/beam/issues/28793">[Bug]: BigtableSource
+   * "Desired bundle size 0 bytes must be greater than 0" #28793 </a>.
+   */
+  @Test
+  public void testSplittingWithDesiredBundleSizeZero() throws Exception {
+    final String table = "TEST-SPLIT-DESIRED-BUNDLE-SIZE-ZERO-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 1L;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
+            null /*size*/);
+    List<BigtableSource> splits = source.split(0, null /* options */);
+
+    // Test num splits and split equality.
+    assertThat(splits, hasSize(numSamples));
+    assertSourcesEqualReferenceSource(source, splits, null /* options */);
+  }
+
   @Test
   public void testReadingWithSplitFailed() throws Exception {
     FailureBigtableService failureService =

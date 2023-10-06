@@ -202,10 +202,8 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
-  exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
-  exclude '**/BigQueryIOJsonTest.class'
 
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
@@ -244,6 +242,48 @@ task integrationTestKms(type: Test) {
   }
 }
 
+/*
+  Integration tests for BigQueryIO that run on BigQuery's early rollout region (us-east7)
+  with the intended purpose of catching breaking changes from new BigQuery releases.
+  If these tests fail here but not in `Java_GCP_IO_Direct`, there may be a new BigQuery change
+  that is breaking the connector. If this is the case, we should verify with the appropriate
+  BigQuery infrastructure API team.
+
+  To test in a BigQuery location, we just need to create our datasets in that location.
+ */
+task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?:  'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-bigquery-day0-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--bigQueryLocation=us-east7",
+  ])
+
+  outputs.upToDateWhen { false }
+
+  // export and direct read
+  include '**/BigQueryToTableIT.class'
+  include '**/BigQueryIOJsonIT.class'
+  include '**/BigQueryIOStorageReadTableRowIT.class'
+  // storage write api
+  include '**/StorageApiDirectWriteProtosIT.class'
+  include '**/StorageApiSinkFailedRowsIT.class'
+  include '**/StorageApiSinkRowUpdateIT.class'
+  include '**/StorageApiSinkSchemaUpdateIT.class'
+  include '**/TableRowToStorageApiProtoIT.class'
+  // file loads
+  include '**/BigQuerySchemaUpdateOptionsIT.class'
+  include '**/BigQueryTimePartitioningClusteringIT.class'
+  include '**/FileLoadsStreamingIT.class'
+
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+}
+
 // path(s) for Cloud Spanner related classes
 def spannerIncludes = [
         '**/org/apache/beam/sdk/io/gcp/spanner/**',
@@ -267,8 +307,8 @@ task spannerCodeCoverageReport(type: JacocoReport, dependsOn: test) {
   sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
   executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
   reports {
-    html.enabled true
-    html.destination file("${buildDir}/reports/jacoco/spanner/")
+    html.getRequired().set(true)
+    html.getOutputLocation().set(file("${buildDir}/reports/jacoco/spanner/"))
   }
 }
 

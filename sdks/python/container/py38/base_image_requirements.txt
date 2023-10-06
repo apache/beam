@@ -135,7 +135,7 @@ tqdm==4.66.1
 typing_extensions==4.8.0
 tzlocal==5.0.1
 uritemplate==4.1.1
-urllib3==1.26.16
+urllib3==1.26.17
 websocket-client==1.6.3
 wrapt==1.15.0
 zstandard==0.21.0

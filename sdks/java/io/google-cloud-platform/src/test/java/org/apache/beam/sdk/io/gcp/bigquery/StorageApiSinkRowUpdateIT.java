@@ -49,10 +49,15 @@ public class StorageApiSinkRowUpdateIT {
   private static final String BIG_QUERY_DATASET_ID =
       "storage_api_sink_rows_update" + System.nanoTime();
 
+  // used when test suite specifies a particular GCP location for BigQuery operations
+  private static String bigQueryLocation;
+
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    bigQueryLocation =
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation();
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, bigQueryLocation);
   }
 
   @AfterClass
@@ -129,7 +134,7 @@ public class StorageApiSinkRowUpdateIT {
       throws IOException, InterruptedException {
     List<TableRow> queryResponse =
         BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM %s", tableSpec), PROJECT, true, true);
+            String.format("SELECT * FROM %s", tableSpec), PROJECT, true, true, bigQueryLocation);
     assertThat(queryResponse, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
   }
 }

@@ -865,12 +865,25 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(lambda df: df.corrwith(df, axis=5), df)
 
   @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
+  @pytest.mark.filterwarnings(
+      "ignore:The default of observed=False is deprecated:FutureWarning")
   def test_applymap_na_action(self):
     # Replicates a doctest for na_action which is incompatible with
     # doctest framework
     df = pd.DataFrame([[pd.NA, 2.12], [3.356, 4.567]])
     self._run_test(
         lambda df: df.applymap(lambda x: len(str(x)), na_action='ignore'),
+        df,
+        # TODO: generate proxy using naive type inference on fn
+        check_proxy=False)
+
+  @unittest.skipIf(PD_VERSION < (2, 1), "map added in 2.1.0")
+  def test_map_na_action(self):
+    # Replicates a doctest for na_action which is incompatible with
+    # doctest framework
+    df = pd.DataFrame([[pd.NA, 2.12], [3.356, 4.567]])
+    self._run_test(
+        lambda df: df.map(lambda x: len(str(x)), na_action='ignore'),
         df,
         # TODO: generate proxy using naive type inference on fn
         check_proxy=False)
@@ -1021,8 +1034,14 @@ class DeferredFrameTest(_AbstractFrameTest):
     df = df.set_index('B')
     # TODO(BEAM-11190): These aggregations can be done in index partitions, but
     # it will require a little more complex logic
-    self._run_test(lambda df: df.groupby(level=0).sum(), df, nonparallel=True)
-    self._run_test(lambda df: df.groupby(level=0).mean(), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.groupby(level=0, observed=False).sum(),
+        df,
+        nonparallel=True)
+    self._run_test(
+        lambda df: df.groupby(level=0, observed=False).mean(),
+        df,
+        nonparallel=True)
 
   def test_astype_categorical(self):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})

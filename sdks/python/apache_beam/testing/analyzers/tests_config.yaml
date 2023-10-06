@@ -16,7 +16,7 @@
 #
 
 # for the unique key to define a test, please use the following format:
-# {test_name}-{metric_name}
+# {test_id}-{metric_name}
 
 pytorch_image_classification_benchmarks-resnet152-mean_inference_batch_latency_micro_secs:
   test_description:
