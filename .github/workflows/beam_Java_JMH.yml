@@ -49,13 +49,13 @@ env:
   INFLUXDB_DATABASE: beam_test_metrics
 
 jobs:
-  beam_Java_Jmh:
+  beam_Java_JMH:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 900
-    name: "beam_Java_Jmh"
+    name: "beam_Java_JMH"
     steps:
       - uses: actions/checkout@v3
       - name: run the Java JMH micro-benchmark harness suite
