@@ -259,6 +259,7 @@ def is_edge_change_point(
   """
   return change_point_index > data_size - edge_segment_size
 
+
 class MetricsFetcher(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def fetch_metric_data(
