@@ -34,6 +34,7 @@ try:
   from apache_beam.testing.analyzers import github_issues_utils
   from apache_beam.testing.analyzers.perf_analysis_utils import BigQueryMetricsFetcher
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
+  from apache_beam.testing.analyzers.perf_analysis_utils import is_edge_change_point
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
   from apache_beam.testing.analyzers.perf_analysis_utils import filter_change_points_by_median_threshold
@@ -241,6 +242,15 @@ class TestChangePointAnalysis(unittest.TestCase):
     valid_points = filter_change_points_by_median_threshold(
         metric_values, change_points)
     self.assertEqual(len(valid_points), 0)
+
+  def test_change_point_on_edge_segment(self):
+    data = [1] * 50 + [100]
+    change_points = find_change_points(data)
+    self.assertEqual(change_points, [50])
+
+    self.assertEqual(is_edge_change_point(change_points[0], len(data)), True)
+
+    self.assertEqual(find_latest_change_point_index(data), None)
 
 
 if __name__ == '__main__':
