@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/cache"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/common"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/environment"
@@ -11,20 +16,20 @@ import (
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"net"
-	"os"
-	"os/signal"
 )
 
 var (
 	logger = logging.New("github.com/apache/beam/test-infra/mock-apis/src/main/go/cmd/echo")
 	env    = []environment.Variable{
 		common.CacheHost,
-		common.Port,
+		common.GrpcPort,
+		common.HttpPort,
 	}
 	loggingFields []logging.Field
 	decrementer   cache.Decrementer
-	address       string
+	grpcAddress   string
+
+	httpAddress string
 )
 
 func init() {
@@ -45,17 +50,19 @@ func initE(ctx context.Context) error {
 		return err
 	}
 
-	port, err := common.Port.Int()
+	grpcPort, err := common.GrpcPort.Int()
 	if err != nil {
 		logger.Fatal(ctx, err, loggingFields...)
 		return err
 	}
+	grpcAddress = fmt.Sprintf(":%v", grpcPort)
 
-	address = fmt.Sprintf(":%v", port)
-	loggingFields = append(loggingFields, logging.Field{
-		Key:   "address",
-		Value: address,
-	})
+	httpPort, err := common.HttpPort.Int()
+	if err != nil {
+		logger.Fatal(ctx, err, loggingFields...)
+		return err
+	}
+	httpAddress = fmt.Sprintf(":%v", httpPort)
 
 	r := redis.NewClient(&redis.Options{
 		Addr: common.CacheHost.Value(),
@@ -77,13 +84,13 @@ func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 	logger.Info(ctx, "starting service", loggingFields...)
-	s, err := setup(ctx)
+	s, handler, err := setup(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.GracefulStop()
 
-	lis, err := net.Listen("tcp", address)
+	lis, err := net.Listen("tcp", grpcAddress)
 	if err != nil {
 		logger.Error(ctx, err, loggingFields...)
 		return err
@@ -91,38 +98,44 @@ func run(ctx context.Context) error {
 
 	errChan := make(chan error)
 	go func() {
-		if err = s.Serve(lis); err != nil {
+		if err := s.Serve(lis); err != nil {
 			logger.Error(ctx, err, loggingFields...)
+			errChan <- err
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(httpAddress, handler); err != nil {
 			errChan <- err
 		}
 	}()
 
 	for {
 		select {
-		case err = <-errChan:
+		case err := <-errChan:
 			return err
 		case <-ctx.Done():
+			logger.Info(ctx, "shutting down", loggingFields...)
 			return nil
 		}
 	}
 }
 
-func setup(ctx context.Context) (*grpc.Server, error) {
+func setup(ctx context.Context) (*grpc.Server, http.Handler, error) {
 	s := grpc.NewServer()
+
 	if err := echo.RegisterGrpc(s, decrementer); err != nil {
 		logger.Error(ctx, err, loggingFields...)
-		return nil, err
+		return nil, nil, err
 	}
 
-	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.DialContext(ctx, httpAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logger.Error(ctx, err, loggingFields...)
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err = echo.RegisterHttp(ctx, conn); err != nil {
-		logger.Error(ctx, err, loggingFields...)
-		return nil, err
-	}
-	return s, nil
+	handler := echo.RegisterHttp(conn)
+
+	return s, handler, nil
 }

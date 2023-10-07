@@ -26,15 +26,11 @@ package proto.echo.v1;
 option go_package = "proto/echo/v1";
 option java_package = "org.apache.beam.testinfra.mockapis.echo.v1";
 
-import "google/api/annotations.proto";
-
 // EchoService simulates a mock API that echos a request.
 service EchoService {
 
   // Echo an EchoRequest payload in an EchoResponse.
-  rpc Echo(EchoRequest) returns (EchoResponse) {
-    option (google.api.http) = { post: "/v1/echo" };
-  }
+  rpc Echo(EchoRequest) returns (EchoResponse) {}
 }
 
 // The request to echo a payload.

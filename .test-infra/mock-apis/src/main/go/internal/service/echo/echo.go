@@ -17,6 +17,9 @@ package echo
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"path"
 	"time"
 
@@ -24,7 +27,6 @@ import (
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/logging"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/metric"
 	echov1 "github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/proto/echo/v1"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -33,6 +35,7 @@ import (
 
 const (
 	metricsNamePrefix = "echo"
+	httpPath          = "proto.echo.v1.EchoService/Echo"
 )
 
 var (
@@ -76,9 +79,31 @@ func RegisterGrpc(s *grpc.Server, decrementer cache.Decrementer, opts ...Option)
 	return nil
 }
 
-func RegisterHttp(ctx context.Context, conn *grpc.ClientConn, opts ...runtime.ServeMuxOption) error {
-	mux := runtime.NewServeMux(opts...)
-	return echov1.RegisterEchoServiceHandler(ctx, mux, conn)
+func RegisterHttp(conn *grpc.ClientConn) http.Handler {
+	client := echov1.NewEchoServiceClient(conn)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != httpPath {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var req *echov1.EchoRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		resp, err := client.Echo(r.Context(), req)
+		if err == nil {
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		if cache.IsNotExist(err) {
+			http.NotFound(w, r)
+			fmt.Fprint(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, err)
+	})
 }
 
 type echo struct {

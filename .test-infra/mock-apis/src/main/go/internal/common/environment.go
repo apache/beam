@@ -18,8 +18,11 @@ package common
 import "github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/environment"
 
 var (
-	// Port is the port to bind a service.
-	Port environment.Variable = "PORT"
+	// HttpPort is the port to bind an HTTP service.
+	HttpPort environment.Variable = "HTTP_PORT"
+
+	// GrpcPort is the port to bind a gRPC service.
+	GrpcPort environment.Variable = "GRPC_PORT"
 
 	// CacheHost is the host address of the cache.
 	CacheHost environment.Variable = "CACHE_HOST"
