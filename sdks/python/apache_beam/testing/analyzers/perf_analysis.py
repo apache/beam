@@ -23,6 +23,7 @@
 import argparse
 import logging
 import os
+import uuid
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -146,7 +147,7 @@ def run_change_point_analysis(
             datetime.now().replace(tzinfo=timezone.utc)),
         # BQ doesn't allow '.' in table name
         test_id=test_id.replace('.', '_'),
-        test_name=test_name,
+        test_name=test_name or uuid.uuid4().hex,
         metric_name=metric_name,
         change_point=metric_values[change_point_index],
         issue_number=issue_number,
