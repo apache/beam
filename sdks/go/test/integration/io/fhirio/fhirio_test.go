@@ -129,11 +129,11 @@ func deleteStore(storePath string) (*healthcare.Empty, error) {
 // detrimental to the tests, so it is fine to ignore.
 func populateStore(storePath string) ([][]byte, error) {
 	resourcePaths := make([][]byte, 0)
-	bufferedErrors := make([]error, 0)
+	bufferedErrors := make([]string, 0)
 	for _, bundle := range readPrettyBundles() {
 		response, err := storeService.ExecuteBundle(storePath, strings.NewReader(bundle)).Do()
 		if err != nil {
-			bufferedErrors = append(bufferedErrors, err)
+			bufferedErrors = append(bufferedErrors, err.Error())
 			continue
 		}
 
@@ -147,20 +147,20 @@ func populateStore(storePath string) ([][]byte, error) {
 		}
 		err = json.NewDecoder(response.Body).Decode(&body)
 		if err != nil {
-			bufferedErrors = append(bufferedErrors, err)
+			bufferedErrors = append(bufferedErrors, err.Error())
 			continue
 		}
 
 		for _, entry := range body.Entry {
 			bundleFailedToBeCreated := !strings.Contains(entry.Response.Status, "201")
 			if bundleFailedToBeCreated {
-				bufferedErrors = append(bufferedErrors, err)
+				bufferedErrors = append(bufferedErrors, err.Error())
 				continue
 			}
 
 			resourcePath, err := extractResourcePathFrom(entry.Response.Location)
 			if err != nil {
-				bufferedErrors = append(bufferedErrors, err)
+				bufferedErrors = append(bufferedErrors, err.Error())
 				continue
 			}
 			resourcePaths = append(resourcePaths, resourcePath)
