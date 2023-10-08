@@ -154,7 +154,7 @@ func populateStore(storePath string) ([][]byte, error) {
 		for _, entry := range body.Entry {
 			bundleFailedToBeCreated := !strings.Contains(entry.Response.Status, "201")
 			if bundleFailedToBeCreated {
-				bufferedErrors = append(bufferedErrors, err.Error())
+				bufferedErrors = append(bufferedErrors, fmt.Sprintf("Bundle creation failed with: %v", entry.Response))
 				continue
 			}
 
