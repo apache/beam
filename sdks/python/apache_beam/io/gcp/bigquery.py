@@ -1317,7 +1317,7 @@ class _ReadReadRowsResponsesWithFastAvro():
             self.read_rows_response.avro_rows.serialized_binary_rows)
         return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
       else:
-        raise EOFError
+        raise StopIteration
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
