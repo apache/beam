@@ -110,8 +110,6 @@ Follow these steps to run the services on your local machine.
     export CACHE_HOST=localhost:6379; \
     go run ./src/main/go/cmd/service/echo
     ```
-1. Call the echo service in a new terminal.
-
 
 # Deployment
 
