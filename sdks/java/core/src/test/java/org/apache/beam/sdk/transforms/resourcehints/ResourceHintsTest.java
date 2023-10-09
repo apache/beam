@@ -95,8 +95,11 @@ public class ResourceHintsTest implements Serializable {
                 "--resourceHints=min_ram=1KB", "--resourceHints=accelerator=foo",
                 "--resourceHints=cpu_count=4")
             .as(ResourceHintsOptions.class);
+    ResourceHints fromOptions = ResourceHints.fromOptions(options);
+    ResourceHints expect = ResourceHints.create().withMinRam(1000).withAccelerator("foo")
+        .withCPUCount(4);
     assertEquals(
-        ResourceHints.fromOptions(options),
-        ResourceHints.create().withMinRam(1000).withAccelerator("foo").withCPUCount(4));
+        fromOptions,
+        expect);
   }
 }

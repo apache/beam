@@ -59,6 +59,7 @@ public class ResourceHints {
   static {
     checkState(MIN_RAM_URN.equals(getUrn(StandardResourceHints.Enum.MIN_RAM_BYTES)));
     checkState(ACCELERATOR_URN.equals(getUrn(StandardResourceHints.Enum.ACCELERATOR)));
+    checkState(CPU_COUNT_URN.equals(getUrn(StandardResourceHints.Enum.CPU_COUNT)));
   }
 
   private static ImmutableMap<String, String> hintNameToUrn =
@@ -74,6 +75,7 @@ public class ResourceHints {
       ImmutableMap.<String, Function<String, ResourceHint>>builder()
           .put(MIN_RAM_URN, s -> new BytesHint(BytesHint.parse(s)))
           .put(ACCELERATOR_URN, s -> new StringHint(s))
+          .put(CPU_COUNT_URN, s -> new IntHint(IntHint.parse(s)))
           .build();
 
   private static final ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
