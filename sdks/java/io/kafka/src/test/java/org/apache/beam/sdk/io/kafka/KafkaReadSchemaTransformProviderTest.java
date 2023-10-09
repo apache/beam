@@ -28,9 +28,9 @@ import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -116,14 +116,12 @@ public class KafkaReadSchemaTransformProviderTest {
             .collect(Collectors.toList());
     KafkaReadSchemaTransformProvider kafkaProvider =
         (KafkaReadSchemaTransformProvider) providers.get(0);
-    kafkaProvider
-        .from(
-            KafkaReadSchemaTransformConfiguration.builder()
-                .setTopic("anytopic")
-                .setBootstrapServers("anybootstrap")
-                .setSchema(AVRO_SCHEMA)
-                .build())
-        .buildTransform();
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setSchema(AVRO_SCHEMA)
+            .build());
   }
 
   @Test
@@ -136,20 +134,17 @@ public class KafkaReadSchemaTransformProviderTest {
             .collect(Collectors.toList());
     KafkaReadSchemaTransformProvider kafkaProvider =
         (KafkaReadSchemaTransformProvider) providers.get(0);
-    kafkaProvider
-        .from(
-            KafkaReadSchemaTransformConfiguration.builder()
-                .setTopic("anytopic")
-                .setBootstrapServers("anybootstrap")
-                .setFormat("JSON")
-                .setSchema(
-                    new String(
-                        ByteStreams.toByteArray(
-                            Objects.requireNonNull(
-                                getClass()
-                                    .getResourceAsStream("/json-schema/basic_json_schema.json"))),
-                        StandardCharsets.UTF_8))
-                .build())
-        .buildTransform();
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("JSON")
+            .setSchema(
+                new String(
+                    ByteStreams.toByteArray(
+                        Objects.requireNonNull(
+                            getClass().getResourceAsStream("/json-schema/basic_json_schema.json"))),
+                    StandardCharsets.UTF_8))
+            .build());
   }
 }

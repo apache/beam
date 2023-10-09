@@ -29,7 +29,7 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   testImplementation project(":sdks:java:extensions:kryo")
   testImplementation library.java.slf4j_api
   testImplementation library.java.hamcrest

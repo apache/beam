@@ -45,7 +45,7 @@ dependencies {
     implementation library.java.slf4j_api
     implementation library.java.spark_streaming
     implementation library.java.spark_core
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     compileOnly "org.scala-lang:scala-library:2.11.12"
     testImplementation library.java.junit

@@ -29,10 +29,12 @@ class FeedbackWidget extends StatelessWidget {
   static const negativeRatingButtonKey = Key('negative');
 
   final FeedbackController controller;
+  final String feedbackFormUrl;
   final String title;
 
   const FeedbackWidget({
     required this.controller,
+    required this.feedbackFormUrl,
     required this.title,
   });
 
@@ -58,6 +60,7 @@ class FeedbackWidget extends StatelessWidget {
           child: FeedbackDropdown(
             close: closeNotifier.notifyPublic,
             controller: controller,
+            feedbackFormUrl: feedbackFormUrl,
             rating: rating,
             title: 'widgets.feedback.title'.tr(),
             subtitle: 'widgets.feedback.hint'.tr(),
@@ -143,17 +146,19 @@ class FeedbackDropdown extends StatelessWidget {
   static const sendButtonKey = Key('sendFeedbackButtonKey');
   static const textFieldKey = Key('feedbackTextFieldKey');
 
-  final FeedbackController controller;
   final VoidCallback close;
+  final FeedbackController controller;
+  final String feedbackFormUrl;
   final FeedbackRating rating;
   final String title;
   final String subtitle;
 
   const FeedbackDropdown({
+    required this.close,
     required this.controller,
+    required this.feedbackFormUrl,
     required this.title,
     required this.rating,
-    required this.close,
     required this.subtitle,
   });
 
@@ -181,9 +186,9 @@ class FeedbackDropdown extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: BeamSizes.size16),
-            const Expanded(
+            Expanded(
               child: IFrameWidget(
-                url: BeamLinks.feedbackGoogleForms,
+                url: feedbackFormUrl,
                 viewType: 'feedbackGoogleForms',
               ),
             ),

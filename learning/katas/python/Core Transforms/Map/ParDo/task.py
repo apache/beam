@@ -18,12 +18,12 @@
 #   name: MapPardo
 #   description: Task from katas is simple ParDo that maps the input element by multiplying it by 10.
 #   multifile: false
-#   context_line: 30
+#   context_line: 38
 #   categories:
 #     - Core Transforms
 #   complexity: BASIC
 #   tags:
-#     - transform
+#     - transforms
 #     - numbers
 
 import apache_beam as beam

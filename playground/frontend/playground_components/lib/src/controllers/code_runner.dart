@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// ignore_for_file: prefer_interpolation_to_compose_strings
+
 import 'dart:async';
 
 import 'package:clock/clock.dart';
@@ -58,7 +60,6 @@ class CodeRunner extends ChangeNotifier {
   }) : _snippetEditingControllerGetter = snippetEditingControllerGetter;
 
   RunCodeResult? _result;
-  StreamSubscription<RunCodeResult>? _runSubscription;
   DateTime? _runStartDate;
   DateTime? _runStopDate;
 
@@ -155,7 +156,6 @@ class CodeRunner extends ChangeNotifier {
 
     final log = parsedPipelineOptions.isEmpty
         ? kProcessingStartedText
-        // ignore: prefer_interpolation_to_compose_strings
         : kProcessingStartedOptionsText +
             parsedPipelineOptions.entries
                 .map((e) => '--${e.key} ${e.value}')
@@ -209,7 +209,10 @@ class CodeRunner extends ChangeNotifier {
       _setResult(
         RunCodeResult(
           errorMessage: ex.message ?? kUnknownErrorText,
-          output: ex.message ?? kUnknownErrorText,
+          log: _result!.log,
+          output: (_result!.output ?? '') +
+              '\n' +
+              (ex.message ?? kUnknownErrorText),
           sdk: request.sdk,
           status: RunCodeStatus.unknownError,
         ),
@@ -219,7 +222,8 @@ class CodeRunner extends ChangeNotifier {
       _setResult(
         RunCodeResult(
           errorMessage: kUnknownErrorText,
-          output: kUnknownErrorText,
+          log: _result!.log,
+          output: (_result!.output ?? '') + '\n' + kUnknownErrorText,
           sdk: request.sdk,
           status: RunCodeStatus.unknownError,
         ),
@@ -270,6 +274,8 @@ class CodeRunner extends ChangeNotifier {
 
     _setResult(
       RunCodeResult(
+        graph: _result!.graph,
+        log: _result!.log,
         output: _result!.output,
         sdk: _result!.sdk,
         status: _result!.status,
@@ -311,7 +317,6 @@ class CodeRunner extends ChangeNotifier {
     _setResult(
       RunCodeResult(
         graph: _result?.graph,
-        // ignore: prefer_interpolation_to_compose_strings
         log: (_result?.log ?? '') +
             '\n' +
             'widgets.output.messages.pipelineCancelled'.tr(),
@@ -344,7 +349,6 @@ class CodeRunner extends ChangeNotifier {
     _setResult(
       RunCodeResult(
         graph: selectedExample.graph,
-        // ignore: prefer_interpolation_to_compose_strings
         log: kCachedResultsLog + logs,
         output: selectedExample.outputs,
         sdk: selectedExample.sdk,
@@ -399,7 +403,7 @@ class CodeRunner extends ChangeNotifier {
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,
-          output: compileOutput.output,
+          output: prevOutput + compileOutput.output,
           pipelineUuid: pipelineUuid,
           sdk: prevResult.sdk,
           status: status,
@@ -410,7 +414,7 @@ class CodeRunner extends ChangeNotifier {
           errorMessage: kTimeoutErrorText,
           graph: prevGraph,
           log: prevLog,
-          output: kTimeoutErrorText,
+          output: prevOutput + kTimeoutErrorText,
           pipelineUuid: pipelineUuid,
           sdk: prevResult.sdk,
           status: status,
@@ -421,7 +425,7 @@ class CodeRunner extends ChangeNotifier {
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,
-          output: output.output,
+          output: prevOutput + output.output,
           pipelineUuid: pipelineUuid,
           sdk: prevResult.sdk,
           status: status,
@@ -432,7 +436,7 @@ class CodeRunner extends ChangeNotifier {
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,
-          output: output.output,
+          output: prevOutput + output.output,
           sdk: prevResult.sdk,
           status: status,
         );
@@ -443,7 +447,7 @@ class CodeRunner extends ChangeNotifier {
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,
-          output: output.output,
+          output: prevOutput + output.output,
           sdk: prevResult.sdk,
           status: status,
         );
@@ -453,7 +457,7 @@ class CodeRunner extends ChangeNotifier {
           errorMessage: kUnknownErrorText,
           graph: prevGraph,
           log: prevLog,
-          output: kUnknownErrorText,
+          output: prevOutput + kUnknownErrorText,
           pipelineUuid: pipelineUuid,
           sdk: prevResult.sdk,
           status: status,
@@ -508,6 +512,7 @@ class CodeRunner extends ChangeNotifier {
         return RunCodeResult(
           graph: prevGraph,
           log: prevLog,
+          output: prevOutput,
           pipelineUuid: pipelineUuid,
           sdk: prevResult.sdk,
           status: status,

@@ -39,9 +39,9 @@ from typing import Optional
 from typing import Tuple
 
 from apache_beam import coders
+from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
@@ -261,6 +261,7 @@ class ReadFromPubSub(PTransform):
         timestamp_attribute=timestamp_attribute)
 
   def expand(self, pvalue):
+    # TODO(BEAM-27443): Apply a proper transform rather than Read.
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
     if self.with_attributes:
@@ -423,7 +424,8 @@ def parse_subscription(full_subscription):
   return project, subscription_name
 
 
-class _PubSubSource(dataflow_io.NativeSource):
+# TODO(BEAM-27443): Remove (or repurpose as a proper PTransform).
+class _PubSubSource(iobase.SourceBase):
   """Source for a Cloud Pub/Sub topic or subscription.
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
@@ -460,11 +462,6 @@ class _PubSubSource(dataflow_io.NativeSource):
     if subscription:
       self.project, self.subscription_name = parse_subscription(subscription)
 
-  @property
-  def format(self):
-    """Source format name required for remote execution."""
-    return 'pubsub'
-
   def display_data(self):
     return {
         'id_label': DisplayDataItem(self.id_label,
@@ -480,14 +477,15 @@ class _PubSubSource(dataflow_io.NativeSource):
             label='Timestamp Attribute').drop_if_none(),
     }
 
-  def reader(self):
-    raise NotImplementedError
+  def default_output_coder(self):
+    return self.coder
 
   def is_bounded(self):
     return False
 
 
-class _PubSubSink(dataflow_io.NativeSink):
+# TODO(BEAM-27443): Remove in favor of a proper WriteToPubSub transform.
+class _PubSubSink(object):
   """Sink for a Cloud Pub/Sub topic.
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
@@ -504,14 +502,6 @@ class _PubSubSink(dataflow_io.NativeSink):
     self.timestamp_attribute = timestamp_attribute
 
     self.project, self.topic_name = parse_topic(topic)
-
-  @property
-  def format(self):
-    """Sink format name required for remote execution."""
-    return 'pubsub'
-
-  def writer(self):
-    raise NotImplementedError
 
 
 class PubSubSourceDescriptor(NamedTuple):

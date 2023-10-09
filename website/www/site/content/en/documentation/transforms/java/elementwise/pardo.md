@@ -33,6 +33,7 @@ an output PCollection.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#pardo).
 
 ## Examples
+
 **Example 1**: Passing side inputs
 
 {{< highlight java >}}
@@ -142,6 +143,11 @@ See more information in the [Beam Programming Guide](/documentation/programming-
      }}));
 {{< /highlight >}}
 
+**Example 4**: Apply a simple custom function
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_FilterParDo" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)

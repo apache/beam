@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	input  = flag.String("input", "clouddataflow-readonly:samples.weather_stations", "Weather data BQ table.")
+	input  = flag.String("input", "apache-beam-testing.samples.weather_stations", "Weather data BQ table.")
 	output = flag.String("output", "", "Output BQ table.")
 	month  = flag.Int("month_filter", 7, "Numerical month to analyze")
 )

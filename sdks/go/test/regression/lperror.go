@@ -22,7 +22,14 @@ import (
 	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
+
+func init() {
+	register.Function2x2(toFoo)
+	register.Iter1[*fruit]()
+	register.Function3x1(toID)
+}
 
 // REPRO found by https://github.com/zelliott
 

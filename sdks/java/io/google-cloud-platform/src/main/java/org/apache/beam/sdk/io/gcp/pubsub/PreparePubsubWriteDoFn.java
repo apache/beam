@@ -38,7 +38,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
   private int maxPublishBatchSize;
 
-  private SerializableFunction<InputT, PubsubMessage> formatFunction;
+  private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
   @Nullable SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction;
 
   static int validatePubsubMessageSize(PubsubMessage message, int maxPublishBatchSize)
@@ -110,7 +110,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   }
 
   PreparePubsubWriteDoFn(
-      SerializableFunction<InputT, PubsubMessage> formatFunction,
+      SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
       @Nullable
           SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
       int maxPublishBatchSize) {
@@ -126,11 +126,11 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       BoundedWindow window,
       PaneInfo paneInfo,
       OutputReceiver<PubsubMessage> o) {
-    PubsubMessage message = formatFunction.apply(element);
+    ValueInSingleWindow<InputT> valueInSingleWindow =
+        ValueInSingleWindow.of(element, ts, window, paneInfo);
+    PubsubMessage message = formatFunction.apply(valueInSingleWindow);
     if (topicFunction != null) {
-      message =
-          message.withTopic(
-              topicFunction.apply(ValueInSingleWindow.of(element, ts, window, paneInfo)).asPath());
+      message = message.withTopic(topicFunction.apply(valueInSingleWindow).asPath());
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);

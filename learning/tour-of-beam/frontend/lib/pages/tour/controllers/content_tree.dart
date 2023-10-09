@@ -18,7 +18,6 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
-import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/content_tree.dart';
 
@@ -28,7 +27,6 @@ import '../../../models/unit.dart';
 import '../../../state.dart';
 
 class ContentTreeController extends ChangeNotifier {
-  final Sdk initialSdk;
   List<String> _breadcrumbIds;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
@@ -40,7 +38,6 @@ class ContentTreeController extends ChangeNotifier {
   Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
-    required this.initialSdk,
     List<String> initialBreadcrumbIds = const [],
   }) : _breadcrumbIds = initialBreadcrumbIds {
     _expandedIds.addAll(initialBreadcrumbIds);
@@ -49,7 +46,6 @@ class ContentTreeController extends ChangeNotifier {
     _onContentTreeCacheChange();
   }
 
-  Sdk get sdk => GetIt.instance.get<AppNotifier>().sdk ?? initialSdk;
   List<String> get breadcrumbIds => _breadcrumbIds;
   NodeModel? get currentNode => _currentNode;
 
@@ -109,7 +105,9 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(sdk);
+    final contentTree = _contentTreeCache.getContentTree(
+      GetIt.instance.get<AppNotifier>().sdk,
+    );
     if (contentTree == null) {
       return;
     }

@@ -20,7 +20,7 @@ package org.apache.beam.runners.portability;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Registrar for the portable runner. */
 @AutoService(PipelineRunnerRegistrar.class)

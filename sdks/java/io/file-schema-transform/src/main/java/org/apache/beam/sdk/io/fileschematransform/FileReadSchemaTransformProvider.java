@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -49,9 +49,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CharStreams;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,8 +91,7 @@ public class FileReadSchemaTransformProvider
   }
 
   @VisibleForTesting
-  static class FileReadSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
-      implements SchemaTransform {
+  static class FileReadSchemaTransform extends SchemaTransform {
     private FileReadSchemaTransformConfiguration configuration;
     private boolean useInputPCollection;
 
@@ -238,11 +237,6 @@ public class FileReadSchemaTransformProvider
           Optional.ofNullable(providers.get(format));
       checkState(provider.isPresent());
       return provider.get();
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return this;
     }
   }
 }

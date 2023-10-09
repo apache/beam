@@ -32,7 +32,7 @@ Compile and runtime dependencies for your Beam SDK version are listed in `BeamMo
     https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
     ```
 
-    <p class="paragraph-wrap">Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
+    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
 
 2. Review the list under `project.ext.library`.
 

@@ -24,8 +24,8 @@ import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

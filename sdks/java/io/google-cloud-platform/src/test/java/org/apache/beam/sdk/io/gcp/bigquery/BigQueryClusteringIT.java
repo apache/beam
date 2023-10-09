@@ -50,7 +50,7 @@ public class BigQueryClusteringIT {
   private static final Long EXPECTED_BYTES = 16000L;
   private static final BigInteger EXPECTED_ROWS = new BigInteger("1000");
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryClusteringIT";
   private static final Clustering CLUSTERING =
       new Clustering().setFields(Arrays.asList("station_number"));

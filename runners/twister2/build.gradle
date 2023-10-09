@@ -31,7 +31,7 @@ configurations {
 description = "Apache Beam :: Runners :: Twister2"
 def twister2_version = '0.6.0'
 dependencies {
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
 
     implementation(project(path: ":runners:core-java")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'

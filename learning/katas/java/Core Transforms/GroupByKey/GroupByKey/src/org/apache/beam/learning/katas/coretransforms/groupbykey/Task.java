@@ -22,13 +22,13 @@ package org.apache.beam.learning.katas.coretransforms.groupbykey;
 //   name: GroupByKey
 //   description: Task from katas that groups words by its first letter.
 //   multifile: false
-//   context_line: 43
+//   context_line: 50
 //   categories:
 //     - Combiners
 //     - Core Transforms
 //   complexity: BASIC
 //   tags:
-//     - transform
+//     - transforms
 //     - map
 //     - strings
 

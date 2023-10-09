@@ -50,7 +50,13 @@ class _CodeBlock extends StatelessWidget {
           controller: scrollController,
           padding: const EdgeInsets.all(BeamSizes.size10),
           scrollDirection: Axis.horizontal,
-          child: Text(text),
+          child: Text(
+            text,
+            style: Theme.of(context)
+                .extension<BeamThemeExtension>()!
+                .markdownStyle
+                .code,
+          ),
         ),
       ),
     );
@@ -76,7 +82,13 @@ class _InlineCode extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(color: Theme.of(context).primaryColor),
+        style: Theme.of(context)
+            .extension<BeamThemeExtension>()!
+            .markdownStyle
+            .p!
+            .copyWith(
+              color: Theme.of(context).primaryColor,
+            ),
       ),
     );
   }

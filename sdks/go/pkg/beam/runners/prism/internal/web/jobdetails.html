@@ -27,11 +27,12 @@ limitations under the License. See accompanying LICENSE file.
         <header>
             <a class="logo" href="/">Job Details - Beam Prism</a>
             <div>{{.JobID}} - {{ .JobName }}</div>
+            <div>{{.State}}</div>
         </header>
         <section class="container">
             {{ if .Error}}<div class="child">{{.Error}}</div>{{end}}
-            <div class="child">d
-                <h3>Transforms</h3>
+            <div class="child">
+                <h3>Leaf Transforms (topological order)</h3>
                 <table class="main-table">
                     <thead>
                         <td>Name</td>
@@ -39,8 +40,8 @@ limitations under the License. See accompanying LICENSE file.
                     </thead>
                     {{ range .Transforms }}
                     <tr>
-                        <td class="transform-name">{{ .Transform.UniqueName }}</td>
-                        <td class="metrics">
+                        <td>{{ .Transform.UniqueName }}</td>
+                        <td>
                             {{ range .Metrics }}
                             {{.}} <br />
                             {{else}}
@@ -71,7 +72,7 @@ limitations under the License. See accompanying LICENSE file.
                         </td>
                         <td>
                             {{with .Committed.SampledByteSize}}
-                            Count: {{ .Count }} Sum {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }}
+                            Count: {{ .Count }} Sum: {{ .Sum }} Min:{{ .Min }} Max:{{ .Max }}
                             {{end}}
                         </td>
                     </tr>

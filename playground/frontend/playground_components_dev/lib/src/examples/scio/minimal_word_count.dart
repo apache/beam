@@ -29,8 +29,7 @@ const scioMinimalWordCount = ExampleDescriptor(
       '/scio-examples/src/main/scala/com/spotify/scio/examples/MinimalWordCount.scala',
   sdk: Sdk.scio,
 
-  owner: 'spotify',
-  repository: 'scio',
+  repository: 'spotify/scio',
   ref: spotifyScioRef,
 
   outputContains: ['Finalizing 5 file results'],

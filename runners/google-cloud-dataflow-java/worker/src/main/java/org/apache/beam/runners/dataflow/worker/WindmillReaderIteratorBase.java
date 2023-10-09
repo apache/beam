@@ -22,7 +22,7 @@ import java.util.NoSuchElementException;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 
 /**
  * Base class for iterators that decode messages from bundles inside a {@link Windmill.WorkItem}.

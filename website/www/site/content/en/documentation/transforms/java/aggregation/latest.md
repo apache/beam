@@ -35,13 +35,21 @@ A transform and `Combine.CombineFn` for computing the latest element in a collec
 For elements with the same timestamp, the output element is arbitrarily selected.
 
 ## Examples
-**Example**: compute the latest value for each session
+
+**Example 1**: Compute the latest value for each session
+
 {{< highlight java >}}
  PCollection input = ...;
  PCollection sessioned = input
     .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(5)));
  PCollection latestValues = sessioned.apply(Latest.globally());
 {{< /highlight >}}
+
+**Example 2**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Latest" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Reify](/documentation/transforms/java/elementwise/reify)

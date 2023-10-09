@@ -104,6 +104,9 @@ task validateJavaHome {
     }
 }
 
+def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
+def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+
 docker {
     name containerImageName(
             name: "${project.docker_image_default_repo_prefix}java${imageJavaVersion}_sdk",
@@ -121,8 +124,10 @@ docker {
                     project.rootProject.hasProperty(["isRelease"]),
             'java_version': imageJavaVersion,
     ])
-    buildx project.containerPlatforms() != [project.nativeArchitecture()]
+    buildx useBuildx
     platform(*project.containerPlatforms())
+    load useBuildx && !pushContainers
+    push pushContainers
 }
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||

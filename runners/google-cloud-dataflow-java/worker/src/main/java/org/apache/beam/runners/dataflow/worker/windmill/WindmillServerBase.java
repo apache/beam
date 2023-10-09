@@ -19,11 +19,17 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import java.io.IOException;
 import java.util.Set;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream.WorkItemReceiver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /**
- * Implementation of a WindmillServerStub which communcates with an actual windmill server at the
- * specified location.
+ * Implementation of a WindmillServerStub which communicates with a Windmill appliance server.
+ *
+ * @implNote This is only for use in Streaming Appliance. Please do not change the name or path of
+ *     this class as this will break JNI.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -31,9 +37,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 public class WindmillServerBase extends WindmillServerStub {
 
   /** Pointer to the underlying native windmill client object. */
-  private long nativePointer;
+  private final long nativePointer;
 
-  WindmillServerBase(String host) {
+  protected WindmillServerBase(String host) {
     this.nativePointer = create(host);
   }
 

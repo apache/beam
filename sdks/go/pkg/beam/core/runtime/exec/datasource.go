@@ -83,8 +83,7 @@ func (n *DataSource) ID() UnitID {
 
 // Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
-	// TODO(https://github.com/apache/beam/issues/23043) - Reenable single iteration or more fully rip this out.
-	safeToSingleIterate := false
+	safeToSingleIterate := true
 	switch n.Out.(type) {
 	case *Expand, *Multiplex:
 		// CoGBK Expands aren't safe, as they may re-iterate the GBK stream.

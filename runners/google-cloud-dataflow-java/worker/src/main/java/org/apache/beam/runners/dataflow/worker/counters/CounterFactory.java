@@ -27,11 +27,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.AtomicDouble;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.AtomicDouble;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Factory interface for creating counters. */

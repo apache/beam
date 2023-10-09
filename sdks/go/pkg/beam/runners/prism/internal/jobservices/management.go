@@ -18,12 +18,15 @@ package jobservices
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *Server) nextId() string {
@@ -67,40 +70,47 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	defer s.mu.Unlock()
 
 	// Since jobs execute in the background, they should not be tied to a request's context.
-	rootCtx, cancelFn := context.WithCancel(context.Background())
+	rootCtx, cancelFn := context.WithCancelCause(context.Background())
 	job := &Job{
-		key:      s.nextId(),
-		Pipeline: req.GetPipeline(),
-		jobName:  req.GetJobName(),
-		options:  req.GetPipelineOptions(),
+		key:        s.nextId(),
+		Pipeline:   req.GetPipeline(),
+		jobName:    req.GetJobName(),
+		options:    req.GetPipelineOptions(),
+		streamCond: sync.NewCond(&sync.Mutex{}),
+		RootCtx:    rootCtx,
+		CancelFn:   cancelFn,
 
-		msgChan:   make(chan string, 100),
-		stateChan: make(chan jobpb.JobState_Enum, 1),
-		RootCtx:   rootCtx,
-		CancelFn:  cancelFn,
+		artifactEndpoint: s.Endpoint(),
 	}
 
 	// Queue initial state of the job.
 	job.state.Store(jobpb.JobState_STOPPED)
-	job.stateChan <- job.state.Load().(jobpb.JobState_Enum)
+	s.jobs[job.key] = job
 
 	if err := isSupported(job.Pipeline.GetRequirements()); err != nil {
+		job.Failed(err)
 		slog.Error("unable to run job", slog.String("error", err.Error()), slog.String("jobname", req.GetJobName()))
 		return nil, err
 	}
 	var errs []error
-	check := func(feature string, got, want any) {
-		if got != want {
-			err := unimplementedError{
-				feature: feature,
-				value:   got,
+	check := func(feature string, got any, wants ...any) {
+		for _, want := range wants {
+			if got == want {
+				return
 			}
-			errs = append(errs, err)
 		}
+
+		err := unimplementedError{
+			feature: feature,
+			value:   got,
+		}
+		errs = append(errs, err)
 	}
 
 	// Inspect Transforms for unsupported features.
-	for _, t := range job.Pipeline.GetComponents().GetTransforms() {
+	bypassedWindowingStrategies := map[string]bool{}
+	ts := job.Pipeline.GetComponents().GetTransforms()
+	for _, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
 		case urns.TransformImpulse,
@@ -108,9 +118,28 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
+			urns.TransformCombineGlobally,      // Used by Java SDK
+			urns.TransformCombineGroupedValues, // Used by Java SDK
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
+		case urns.TransformReshuffle:
+			// Reshuffles use features we don't yet support, but we would like to
+			// support them by making them the no-op they are, and be precise about
+			// what we're ignoring.
+			var cols []string
+			for _, stID := range t.GetSubtransforms() {
+				st := ts[stID]
+				// Only check the outputs, since reshuffle re-instates any previous WindowingStrategy
+				// so we still validate the strategy used by the input, avoiding skips.
+				cols = append(cols, maps.Values(st.GetOutputs())...)
+			}
+
+			pcs := job.Pipeline.GetComponents().GetPcollections()
+			for _, col := range cols {
+				wsID := pcs[col].GetWindowingStrategyId()
+				bypassedWindowingStrategies[wsID] = true
+			}
 		case "":
 			// Composites can often have no spec
 			if len(t.GetSubtransforms()) > 0 {
@@ -123,26 +152,29 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	}
 
 	// Inspect Windowing strategies for unsupported features.
-	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
+	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
-		check("WindowingStrategy.OnTimerBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
-		check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
-		// Non nil triggers should fail.
-		if ws.GetTrigger().GetDefault() == nil {
-			check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+		if !bypassedWindowingStrategies[wsID] {
+			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
+			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
+			// Non nil triggers should fail.
+			if ws.GetTrigger().GetDefault() == nil {
+				check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+			}
 		}
 	}
 	if len(errs) > 0 {
-		err := &joinError{errs: errs}
-		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", err.Error()))
-		return nil, fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), err)
+		jErr := &joinError{errs: errs}
+		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
+		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v:\n%v", len(errs), req.GetJobName(), jErr)
+		job.Failed(err)
+		return nil, err
 	}
-	s.jobs[job.key] = job
 	return &jobpb.PrepareJobResponse{
 		PreparationId:       job.key,
 		StagingSessionToken: job.key,
@@ -165,15 +197,54 @@ func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJ
 	}, nil
 }
 
-// GetMessageStream subscribes to a stream of state changes and messages from the job
+// GetMessageStream subscribes to a stream of state changes and messages from the job. If throughput
+// is high, this may cause losses of messages.
 func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.JobService_GetMessageStreamServer) error {
 	s.mu.Lock()
-	job := s.jobs[req.GetJobId()]
+	job, ok := s.jobs[req.GetJobId()]
 	s.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("job with id %v not found", req.GetJobId())
+	}
 
+	job.streamCond.L.Lock()
+	defer job.streamCond.L.Unlock()
+	curMsg := job.minMsg
+	curState := job.stateIdx
+
+	state := job.state.Load().(jobpb.JobState_Enum)
 	for {
-		select {
-		case msg := <-job.msgChan:
+		for (curMsg >= job.maxMsg || len(job.msgs) == 0) && curState > job.stateIdx {
+			switch state {
+			case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED:
+				// Reached terminal state.
+				return nil
+			case jobpb.JobState_FAILED:
+				// Ensure we send an error message with the cause of the job failure.
+				stream.Send(&jobpb.JobMessagesResponse{
+					Response: &jobpb.JobMessagesResponse_MessageResponse{
+						MessageResponse: &jobpb.JobMessage{
+							MessageText: job.failureErr.Error(),
+							Importance:  jobpb.JobMessage_JOB_MESSAGE_ERROR,
+						},
+					},
+				})
+				return nil
+			}
+			job.streamCond.Wait()
+			select { // Quit out if the external connection is done.
+			case <-stream.Context().Done():
+				return context.Cause(stream.Context())
+			default:
+			}
+		}
+
+		if curMsg < job.minMsg {
+			// TODO report missed messages for this stream.
+			curMsg = job.minMsg
+		}
+		for curMsg < job.maxMsg && len(job.msgs) > 0 {
+			msg := job.msgs[curMsg-job.minMsg]
 			stream.Send(&jobpb.JobMessagesResponse{
 				Response: &jobpb.JobMessagesResponse_MessageResponse{
 					MessageResponse: &jobpb.JobMessage{
@@ -182,20 +253,12 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 					},
 				},
 			})
-
-		case state, ok := <-job.stateChan:
-			// TODO: Don't block job execution if WaitForCompletion isn't being run.
-			// The state channel means the job may only execute if something is observing
-			// the message stream, as the send on the state or message channel may block
-			// once full.
-			// Not a problem for tests or short lived batch, but would be hazardous for
-			// asynchronous jobs.
-
-			// Channel is closed, so the job must be done.
-			if !ok {
-				state = jobpb.JobState_DONE
-			}
-			job.state.Store(state)
+			curMsg++
+		}
+		if curState <= job.stateIdx {
+			state = job.state.Load().(jobpb.JobState_Enum)
+			curState = job.stateIdx + 1
+			job.streamCond.L.Unlock()
 			stream.Send(&jobpb.JobMessagesResponse{
 				Response: &jobpb.JobMessagesResponse_StateResponse{
 					StateResponse: &jobpb.JobStateEvent{
@@ -203,14 +266,9 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 					},
 				},
 			})
-			switch state {
-			case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_FAILED, jobpb.JobState_UPDATED:
-				// Reached terminal state.
-				return nil
-			}
+			job.streamCond.L.Lock()
 		}
 	}
-
 }
 
 // GetJobMetrics Fetch metrics for a given job.
@@ -255,5 +313,20 @@ func (s *Server) GetPipeline(_ context.Context, req *jobpb.GetJobPipelineRequest
 	}
 	return &jobpb.GetJobPipelineResponse{
 		Pipeline: j.Pipeline,
+	}, nil
+}
+
+// GetState returns the current state of the job with the requested id.
+func (s *Server) GetState(_ context.Context, req *jobpb.GetJobStateRequest) (*jobpb.JobStateEvent, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	j, ok := s.jobs[req.GetJobId()]
+	if !ok {
+		return nil, fmt.Errorf("job with id %v not found", req.GetJobId())
+	}
+	return &jobpb.JobStateEvent{
+		State:     j.state.Load().(jobpb.JobState_Enum),
+		Timestamp: timestamppb.New(j.stateTime),
 	}, nil
 }

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
 /**
  * An {@link OffsetRangeTracker} for tracking a growable offset range. {@code Long.MAX_VALUE} is

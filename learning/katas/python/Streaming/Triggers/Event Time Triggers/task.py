@@ -23,7 +23,7 @@
 #   multifile: true
 #   files:
 #     - name: generate_event.py
-#   context_line: 36
+#   context_line: 54
 #   categories:
 #     - Streaming
 #   complexity: MEDIUM

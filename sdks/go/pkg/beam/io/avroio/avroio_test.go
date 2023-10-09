@@ -25,11 +25,29 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 
 	"github.com/linkedin/goavro/v2"
 )
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*Tweet)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*NullableFloat64)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*NullableString)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*NullableTweet)(nil)).Elem())
+	register.Function2x0(toJSONString)
+}
+
+func toJSONString(user TwitterUser, emit func(string)) {
+	b, _ := json.Marshal(user)
+	emit(string(b))
+}
 
 type Tweet struct {
 	Stamp int64  `json:"timestamp"`
@@ -126,16 +144,11 @@ func TestWrite(t *testing.T) {
 	avroFile := "./user.avro"
 	testUsername := "user1"
 	testInfo := "userInfo"
-	p, s, sequence := ptest.CreateList([]string{testUsername})
-	format := beam.ParDo(s, func(username string, emit func(string)) {
-		newUser := TwitterUser{
-			User: username,
-			Info: testInfo,
-		}
-
-		b, _ := json.Marshal(newUser)
-		emit(string(b))
-	}, sequence)
+	p, s, sequence := ptest.CreateList([]TwitterUser{{
+		User: testUsername,
+		Info: testInfo,
+	}})
+	format := beam.ParDo(s, toJSONString, sequence)
 	Write(s, avroFile, userSchema, format)
 	t.Cleanup(func() {
 		os.Remove(avroFile)

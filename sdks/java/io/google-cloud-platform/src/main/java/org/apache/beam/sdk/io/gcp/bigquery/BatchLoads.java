@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -75,10 +74,10 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -399,10 +398,12 @@ class BatchLoads<DestinationT, ElementT>
                 "Window Into Global Windows",
                 Window.<KV<DestinationT, WriteTables.Result>>into(new GlobalWindows())
                     .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-            .apply("Add Void Key", WithKeys.of((Void) null))
-            .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-            .apply("GroupByKey", GroupByKey.create())
-            .apply("Extract Values", Values.create())
+            // We use this and the following GBK to aggregate by final destination.
+            // This way, each destination has its own pane sequence
+            .apply("AddDestinationKeys", WithKeys.of(result -> result.getKey()))
+            .setCoder(KvCoder.of(destinationCoder, tempTables.getCoder()))
+            .apply("GroupTempTablesByFinalDestination", GroupByKey.create())
+            .apply("ExtractTempTables", Values.create())
             .apply(
                 ParDo.of(
                         new UpdateSchemaDestination<DestinationT>(

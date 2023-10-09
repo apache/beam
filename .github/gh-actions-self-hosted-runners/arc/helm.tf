@@ -30,7 +30,7 @@ resource "helm_release" "cert-manager" {
     name  = "installCRDs"
     value = "true"
   }
-  depends_on = [ google_container_node_pool.actions-runner-pool ]
+  depends_on = [ google_container_node_pool.main-actions-runner-pool ]
 }
 
 resource "helm_release" "arc" {

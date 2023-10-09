@@ -22,7 +22,7 @@ publish_to: none
 
 environment:
   sdk: '>=3.0.2 <4.0.0'
-  flutter: '>=3.10.2'
+  flutter: '>=3.10.4'
 
 dependencies:
   aligned_dialog: ^0.0.6
@@ -36,7 +36,7 @@ dependencies:
   enum_map: ^0.2.1
   equatable: ^2.0.5
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.23
+  flutter_code_editor: ^0.3.0
 
   # TODO(nausharipov): return flutter_markdown when it is fixed, https://github.com/apache/beam/issues/26498
   # The exact version is used because this non-official package can be poorly maintained.

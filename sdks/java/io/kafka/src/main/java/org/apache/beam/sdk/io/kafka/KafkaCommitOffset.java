@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.HashMap;

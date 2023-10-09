@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** A {@link PipelineVisitor} to discover projection pushdown opportunities. */
 class ProjectionProducerVisitor extends PipelineVisitor.Defaults {

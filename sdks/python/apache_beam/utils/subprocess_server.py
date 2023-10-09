@@ -169,7 +169,7 @@ class JavaJarServer(SubprocessServer):
       path_to_jar = self.make_classpath_jar(path_to_jar, classpath)
     super().__init__(
         stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
-    self._existing_service = path_to_jar if _is_service_endpoint(
+    self._existing_service = path_to_jar if is_service_endpoint(
         path_to_jar) else None
 
   def start_process(self):
@@ -258,7 +258,7 @@ class JavaJarServer(SubprocessServer):
     if cache_dir is None:
       cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
-    if _is_service_endpoint(url):
+    if is_service_endpoint(url):
       return url
     elif os.path.exists(url):
       return url
@@ -330,7 +330,8 @@ class JavaJarServer(SubprocessServer):
     return composite_jar
 
 
-def _is_service_endpoint(path):
+def is_service_endpoint(path):
+  """Checks whether the path conforms to the 'beam_services' PipelineOption."""
   return re.match(r'^[a-zA-Z0-9.-]+:\d+$', path)
 
 

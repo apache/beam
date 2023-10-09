@@ -21,6 +21,8 @@
 //   description: BigQueryIO read table example.
 //   multifile: false
 //   context_line: 42
+//   never_run: true
+//   always_run: true
 //   categories:
 //     - Quickstart
 //   complexity: ADVANCED
@@ -30,52 +32,48 @@
 package main
 
 import (
-	_ "context"
-	_ "flag"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"context"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+
+	"cloud.google.com/go/bigquery"
 	internal_log "log"
-	_ "reflect"
-	"time"
+	"reflect"
 )
 
-type Comment struct {
-	ID      int       `bigquery:"id"`
-	By      string    `bigquery:"by"`
-	Author  string    `bigquery:"author"`
-	Time    int       `bigquery:"time"`
-	TimeTS  time.Time `bigquery:"time_ts"`
-	Text    string    `bigquery:"text"`
-	Parent  int       `bigquery:"parent"`
-	Deleted bool      `bigquery:"deleted"`
-	Dead    bool      `bigquery:"dead"`
-	Ranking float64   `bigquery:"ranking"`
+type Game struct {
+	GameID     bigquery.NullString `bigquery:"gameId"`
+	GameNumber bigquery.NullInt64  `bigquery:"gameNumber"`
+	SeasonID   bigquery.NullString `bigquery:"seasonId"`
+	Year       bigquery.NullInt64  `bigquery:"year"`
+	Type       bigquery.NullString `bigquery:"type"`
+	DayNight   bigquery.NullString `bigquery:"dayNight"`
+	Duration   bigquery.NullString `bigquery:"duration"`
 }
-
-// rows := bigqueryio.Read(s, project, "bigquery-public-data:hacker_news.comments", reflect.TypeOf(Comment{}))
-// reads data from the specified BigQuery table and produces a PCollection where each element is a Comment.
-// The reflect.TypeOf(Comment{}) is used to tell BigQuery the schema of the data.
-
-// debug.Print(s, rows) prints the elements of the PCollection to stdout for debugging purposes.
 
 func main() {
 	internal_log.Println("Running Task")
-	/*
-		ctx := context.Background()
-		p := beam.NewPipeline()
-		s := p.Root()
-		project := "tess-372508"
 
-		// Build a PCollection<CommentRow> by querying BigQuery.
-		rows := bigqueryio.Read(s, project, "bigquery-public-data:hacker_news.comments", reflect.TypeOf(Comment{}))
+	ctx := context.Background()
+	p := beam.NewPipeline()
+	s := p.Root()
+	project := "apache-beam-testing"
 
-		debug.Print(s, rows)
+	// Build a PCollection<Game> by querying BigQuery.
+	rows := bigqueryio.Read(s, project, "bigquery-public-data:baseball.schedules", reflect.TypeOf(Game{}))
 
-		// Now that the pipeline is fully constructed, we execute it.
-		if err := beamx.Run(ctx, p); err != nil {
-			log.Exitf(ctx, "Failed to execute job: %v", err)
-		}*/
+	fixedSizeLines := top.Largest(s, rows, 5, less)
+
+	debug.Print(s, fixedSizeLines)
+	// Now that the pipeline is fully constructed, we execute it.
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
+}
+func less(a, b Game) bool {
+	return true
 }

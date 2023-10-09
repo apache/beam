@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
-import com.alibaba.fastjson.JSONObject;
 import com.google.cloud.datacatalog.v1beta1.Entry;
 import java.net.URI;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** {@link TableFactory} that understands Data Catalog BigQuery entries. */
 class BigQueryTableFactory implements TableFactory {
@@ -49,7 +48,7 @@ class BigQueryTableFactory implements TableFactory {
     return Optional.of(
         Table.builder()
             .location(getLocation(entry))
-            .properties(new JSONObject(ImmutableMap.of("truncateTimestamps", truncateTimestamps)))
+            .properties(TableUtils.emptyProperties().put("truncateTimestamps", truncateTimestamps))
             .type("bigquery")
             .comment(""));
   }

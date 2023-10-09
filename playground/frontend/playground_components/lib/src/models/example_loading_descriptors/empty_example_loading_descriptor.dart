@@ -53,4 +53,7 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       sdk: Sdk.parseOrCreate(map['sdk']),
     );
   }
+
+  @override
+  bool get isSerializableToUrl => true;
 }

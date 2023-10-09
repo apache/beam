@@ -139,7 +139,7 @@ class JavaExternalTransformTest(object):
         | beam.Map(str)
         | beam.ExternalTransform(
             TEST_FILTER_URN,
-            ImplicitSchemaPayloadBuilder({'data': u'middle'}),
+            ImplicitSchemaPayloadBuilder({'data': 'middle'}),
             expansion_service)
         | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
         | beam.Map(lambda kv: '%s: %s' % kv))

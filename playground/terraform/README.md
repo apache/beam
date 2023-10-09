@@ -210,9 +210,9 @@ static_ip_name: <ip_address_name>
 tag: <docker-tag>
 datastore_name: <datastore-namespace>
 dns_name: <dns-name>
-func_clean: playground-function-cleanup-<env>
-func_put: playground-function-delete-<env>
-func_view: playground-function-view-<env>
+func_clean: https://<region>-<project_id>.cloudfunctions.net/playground-function-cleanup-<env>
+func_put: https://<region>-<project_id>.cloudfunctions.net/playground-function-put-<env>
+func_view: https://<region>-<project_id>.cloudfunctions.net/playground-function-view-<env>
 ```
 6. Execute following command to update HELM:
 ```

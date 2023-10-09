@@ -51,6 +51,11 @@ flow. Jobs are sent to it from `jobservices`, and those jobs are then executed b
 with the `engine` and `worker` packages, and handlers urn.
 Most configurable behavior is determined here.
 
+`web` contains a web server to visualize aspects of the runner, and should never be
+depended on by the other packages for the runner.
+It will primarily abstract access to pipeline data through a JobManagement API client.
+If no other option exists, it may use direct access to exported data from the other packages.
+
 # Testing
 
 The sub packages should have reasonable Unit Test coverage in their own directories, but

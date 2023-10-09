@@ -43,7 +43,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)

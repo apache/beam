@@ -52,3 +52,7 @@ def keys(test=None):
     # [END keys]
     if test:
       test(icons)
+
+
+if __name__ == '__main__':
+  keys()

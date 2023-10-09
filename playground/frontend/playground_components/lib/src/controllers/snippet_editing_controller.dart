@@ -46,6 +46,7 @@ class SnippetEditingController extends ChangeNotifier {
   final _fileControllersByName = <String, SnippetFileEditingController>{};
 
   Map<String, dynamic> _defaultEventParams = const {};
+
   void setDefaultEventParams(Map<String, dynamic> eventParams) {
     _defaultEventParams = eventParams;
     for (final fileController in _fileControllers) {
@@ -224,6 +225,20 @@ class SnippetEditingController extends ChangeNotifier {
   SnippetFileEditingController? get activeFileController =>
       _activeFileController;
 
+  SnippetFileEditingController requireFileControllerByName(String name) {
+    final result = getFileControllerByName(name);
+
+    if (result != null) {
+      return result;
+    }
+
+    throw Exception(
+      'Required SnippetFileEditingController for $name, '
+      'only have ${_fileControllers.map((c) => c.getFile().name)}, '
+      '${example?.path} ${example?.name}',
+    );
+  }
+
   SnippetFileEditingController? getFileControllerByName(String name) {
     return _fileControllersByName[name];
   }
@@ -249,5 +264,17 @@ class SnippetEditingController extends ChangeNotifier {
       sdk: sdk,
       snippet: descriptor.token,
     );
+  }
+
+  bool shouldSaveBeforeSharing() {
+    if (!(descriptor?.isSerializableToUrl ?? false)) {
+      return true;
+    }
+
+    if (isChanged) {
+      return true;
+    }
+
+    return false;
   }
 }

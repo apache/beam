@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -72,10 +72,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -512,9 +512,18 @@ public class FileIO {
      * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
      * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
      * timestamp metadata is not available with the IO connector.
+     *
+     * <p>Matching continuously scales poorly, as it is stateful, and requires storing file ids in
+     * memory. In addition, because it is memory-only, if a pipeline is restarted, already processed
+     * files will be reprocessed. Consider an alternate technique, such as <a
+     * href="https://cloud.google.com/storage/docs/pubsub-notifications">Pub/Sub Notifications</a>
+     * when using GCS if possible.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
+      LOG.warn(
+          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
+              + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
       return toBuilder()
           .setWatchInterval(interval)
           .setWatchTerminationCondition(condition)

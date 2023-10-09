@@ -30,7 +30,7 @@ import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.conscrypt.OpenSSLProvider;
 import org.slf4j.Logger;

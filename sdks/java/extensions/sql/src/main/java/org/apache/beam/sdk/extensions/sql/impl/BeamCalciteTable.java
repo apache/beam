@@ -41,7 +41,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ModifiableTable;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.TranslatableTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Adapter from {@link BeamSqlTable} to a calcite Table. */
 @SuppressWarnings({

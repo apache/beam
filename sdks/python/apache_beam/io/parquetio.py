@@ -32,7 +32,7 @@ Parquet file.
 
 from functools import partial
 
-from pkg_resources import parse_version
+from packaging import version
 
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
@@ -53,7 +53,7 @@ except ImportError:
   pq = None
   ARROW_MAJOR_VERSION = None
 else:
-  base_pa_version = parse_version(pa.__version__).base_version
+  base_pa_version = version.parse(pa.__version__).base_version
   ARROW_MAJOR_VERSION, _, _ = map(int, base_pa_version.split('.'))
 
 __all__ = [

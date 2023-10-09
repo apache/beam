@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.samza.config.JobConfig.JOB_AUTOSIZING_CONTAINER_THREAD_POOL_SIZE;
 import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 import static org.apache.samza.config.JobConfig.JOB_ID;
@@ -40,8 +40,9 @@ import org.apache.beam.runners.samza.container.BeamContainerRunner;
 import org.apache.beam.runners.samza.container.BeamJobCoordinatorRunner;
 import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
 import org.apache.beam.runners.samza.util.ConfigUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.runners.samza.util.PortableConfigUtils;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.ConfigLoaderFactory;
@@ -101,7 +102,12 @@ public class ConfigBuilder {
       config.put(JOB_ID, options.getJobInstance());
 
       // bundle-related configs
-      config.putAll(createBundleConfig(options, config));
+      if (!PortableConfigUtils.isPortable(options)) {
+        config.putAll(createBundleConfig(options, config));
+        LOG.info("Set bundle-related configs for classic mode");
+      } else {
+        LOG.info("Skipped bundle-related configs for portable mode");
+      }
 
       // remove config overrides before serialization (LISAMZA-15259)
       options.setConfigOverride(new HashMap<>());

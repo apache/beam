@@ -57,6 +57,7 @@ class PlaygroundWidget extends StatelessWidget {
         SplitView(
           direction: Axis.vertical,
           first: SnippetEditor(
+            autofocus: true,
             controller: snippetController,
             isEditable: true,
           ),

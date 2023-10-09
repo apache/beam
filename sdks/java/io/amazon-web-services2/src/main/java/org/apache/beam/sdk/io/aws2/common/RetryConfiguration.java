@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.common;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.joda.time.Duration.ZERO;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

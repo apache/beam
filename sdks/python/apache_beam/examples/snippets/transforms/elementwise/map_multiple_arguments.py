@@ -56,3 +56,7 @@ def map_multiple_arguments(test=None):
     # [END map_multiple_arguments]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_multiple_arguments()

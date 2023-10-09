@@ -76,3 +76,7 @@ def map_side_inputs_dict(test=None):
     # [END map_side_inputs_dict]
     if test:
       test(plant_details)
+
+
+if __name__ == '__main__':
+  map_side_inputs_dict()

@@ -44,7 +44,7 @@ class TourScreen extends StatelessWidget {
         return TobShortcutsManager(
           tourNotifier: tourNotifier,
           child: TobScaffold(
-            playgroundController: tourNotifier.isUnitContainsSnippet
+            playgroundController: tourNotifier.isPlaygroundShown
                 ? tourNotifier.playgroundController
                 : null,
             child:
@@ -87,19 +87,32 @@ class _UnitContentWidget extends StatelessWidget {
     return AnimatedBuilder(
       animation: tourNotifier,
       builder: (context, widget) {
-        return !tourNotifier.isUnitContainsSnippet
-            ? UnitContentWidget(tourNotifier)
-            : SplitView(
-                direction: Axis.horizontal,
-                dragHandleKey: TourScreen.dragHandleKey,
-                first: UnitContentWidget(tourNotifier),
-                second: tourNotifier.isSnippetLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : PlaygroundWidget(
-                        tourNotifier: tourNotifier,
-                      ),
-              );
+        return tourNotifier.isPlaygroundShown
+            ? _UnitContentWithPlaygroundSplitView(tourNotifier)
+            : UnitContentWidget(tourNotifier);
       },
+    );
+  }
+}
+
+class _UnitContentWithPlaygroundSplitView extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  const _UnitContentWithPlaygroundSplitView(this.tourNotifier);
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlaygroundLoading = tourNotifier.currentUnitContent == null ||
+        tourNotifier.isSnippetLoading;
+
+    return SplitView(
+      direction: Axis.horizontal,
+      dragHandleKey: TourScreen.dragHandleKey,
+      first: UnitContentWidget(tourNotifier),
+      second: isPlaygroundLoading
+          ? const Center(child: CircularProgressIndicator())
+          : PlaygroundWidget(
+              tourNotifier: tourNotifier,
+            ),
     );
   }
 }

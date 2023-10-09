@@ -21,11 +21,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
-//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
-//go:generate starcgen --package=filter --identifiers=filterFn,mapFn,mergeFn
-//go:generate go fmt
+func init() {
+	register.DoFn2x0[beam.T, func(beam.T)]((*filterFn)(nil))
+	register.Function1x2(mapFn)
+	register.Function2x1(mergeFn)
+	register.Emitter1[beam.T]()
+}
 
 var (
 	sig = funcx.MakePredicate(beam.TType) // T -> bool

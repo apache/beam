@@ -135,7 +135,7 @@ This includes:
 - Tests.
 - Linter.
 
-### Code style
+### Code Style
 
 Code can be automatically reformatted using:
 
@@ -176,6 +176,18 @@ flutter test
 
 # Headless run without a browser window:
 ./gradlew :playground:frontend:integrationTest -PdeviceId=web-server
+```
+
+By default, tests do not expect specific code and output from most examples.
+This is because we get the expected example files from GitHub itself at runtime.
+Examples in the default GitHub branch may differ from the deployed ones,
+and this will break the tests.
+
+To expect specific code and output, run tests like this using any repository owner/name
+and commit reference to load the examples from:
+
+```bash
+./gradlew :playground:frontend:integrationTest -PexamplesRepository=apache/beam -PexamplesRef=master
 ```
 
 ## Localization

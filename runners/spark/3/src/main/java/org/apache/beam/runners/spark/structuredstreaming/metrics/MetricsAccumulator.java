@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.util.AccumulatorV2;
 import org.checkerframework.checker.nullness.qual.Nullable;

@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -51,6 +52,8 @@ public class StorageApiLoads<DestinationT, ElementT>
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
   private final Coder<DestinationT> destinationCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
+
+  private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
   private final CreateDisposition createDisposition;
   private final String kmsKey;
   private final Duration triggeringFrequency;
@@ -61,9 +64,12 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
 
+  private final boolean usesCdc;
+
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+      @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
       CreateDisposition createDisposition,
       String kmsKey,
       Duration triggeringFrequency,
@@ -73,9 +79,11 @@ public class StorageApiLoads<DestinationT, ElementT>
       boolean allowAutosharding,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
-      boolean propagateSuccessfulStorageApiWrites) {
+      boolean propagateSuccessfulStorageApiWrites,
+      boolean usesCdc) {
     this.destinationCoder = destinationCoder;
     this.dynamicDestinations = dynamicDestinations;
+    this.rowUpdateFn = rowUpdateFn;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
     this.triggeringFrequency = triggeringFrequency;
@@ -88,6 +96,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     if (propagateSuccessfulStorageApiWrites) {
       this.successfulWrittenRowsTag = new TupleTag<>("successfulPublishedRowsTag");
     }
+    this.usesCdc = usesCdc;
   }
 
   public TupleTag<BigQueryStorageApiInsertError> getFailedRowsTag() {
@@ -129,7 +138,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 failedRowsTag,
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
-                successCoder));
+                successCoder,
+                rowUpdateFn));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
@@ -145,7 +155,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     autoUpdateSchema,
                     ignoreUnknownValues,
                     createDisposition,
-                    kmsKey));
+                    kmsKey,
+                    usesCdc));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -184,7 +195,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 failedRowsTag,
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
-                successCoder));
+                successCoder,
+                rowUpdateFn));
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
@@ -300,7 +312,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 failedRowsTag,
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
-                successCoder));
+                successCoder,
+                rowUpdateFn));
 
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
@@ -317,7 +330,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     autoUpdateSchema,
                     ignoreUnknownValues,
                     createDisposition,
-                    kmsKey));
+                    kmsKey,
+                    usesCdc));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))

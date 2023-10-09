@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -52,7 +53,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /**
  * {@code BeamRelNode} to replace a {@code Window} node.
@@ -254,7 +255,9 @@ public class BeamWindowRel extends Window implements BeamRelNode {
           org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> myg =
               org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(af.partitionKeys);
           PCollection<KV<Row, Iterable<Row>>> partitionBy =
-              inputData.apply(prefix + "partitionBy", myg.getToKvs());
+              inputData
+                  .apply(prefix + "partitionByKV", myg.getToKV())
+                  .apply(prefix + "partitionByGK", GroupByKey.create());
           partitioned =
               partitionBy
                   .apply(prefix + "selectOnlyValues", ParDo.of(new SelectOnlyValues()))

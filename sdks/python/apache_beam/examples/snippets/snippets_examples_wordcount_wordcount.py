@@ -31,7 +31,7 @@
 #   name: WordCountSnippet
 #   description: An example that counts words in Shakespeare's works.
 #   multifile: false
-#   pipeline_options: --output output.txt
+#   pipeline_options: --output-path output.txt
 #   context_line: 50
 #   categories:
 #     - Combiners

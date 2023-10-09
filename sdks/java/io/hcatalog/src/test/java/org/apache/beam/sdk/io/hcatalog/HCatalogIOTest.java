@@ -60,7 +60,7 @@ import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
 import org.apache.hive.hcatalog.data.HCatRecord;

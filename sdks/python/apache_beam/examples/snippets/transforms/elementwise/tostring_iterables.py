@@ -53,3 +53,7 @@ def tostring_iterables(test=None):
     # [END tostring_iterables]
     if test:
       test(plants_csv)
+
+
+if __name__ == '__main__':
+  tostring_iterables()

@@ -27,11 +27,10 @@
 //   tags:
 //     - hellobeam
 
+import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,52 +39,49 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Task {
 
+public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
+    private static final String WEATHER_SAMPLES_QUERY =
+            "select * from `clouddataflow-readonly.samples.weather_stations`";
+
+    public static void applyBigQueryTornadoes(Pipeline p) {
+        /*TypedRead<TableRow> bigqueryIO =
+                BigQueryIO.readTableRows()
+                        .fromQuery(WEATHER_SAMPLES_QUERY)
+                        .usingStandardSql();
+
+
+        PCollection<TableRow> rowsFromBigQuery = p.apply(bigqueryIO);
+
+        rowsFromBigQuery
+                .apply(ParDo.of(new LogOutput<>("Result: ")));*/
+    }
+
+    public static void runBigQueryTornadoes(PipelineOptions options) {
+        Pipeline p = Pipeline.create(options);
+        applyBigQueryTornadoes(p);
+        p.run().waitUntilFinish();
+    }
+
     public static void main(String[] args) {
-        LOG.info("Running Task");
-        System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", "to\\path\\credential.json");
-        PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-        options.setTempLocation("gs://bucket");
-        options.as(BigQueryOptions.class).setProject("project-id");
-
-        Pipeline pipeline = Pipeline.create(options);
-
-        // pCollection.apply(BigQueryIO.read(... - This part of the pipeline reads from a BigQuery table using a SQL query and stores the result in a PCollection.
-        // The BigQueryIO.read() function is used to read from BigQuery. It is configured with a lambda function to extract a field from each record.
-        // The .fromQuery("SELECT field FROM project-id.dataset.table")
-        // specifies the SQL query used to read from BigQuery. You should replace "field", "project-id", "dataset", and "table" with your specific field name, project id, dataset name, and table name, respectively.
-/*
-        PCollection<Double> pCollection = pipeline
-                .apply(BigQueryIO.read(
-                                (SchemaAndRecord elem) -> (Double) elem.getRecord().get("field"))
-                        .fromQuery(
-                                "SELECT field FROM `project-id.dataset.table`")
-                        .usingStandardSql()
-                        .withCoder(DoubleCoder.of()));
-        pCollection
-                .apply("Log words", ParDo.of(new LogOutput<>()));
-*/
-
-        pipeline.run();
+        PipelineOptions options =
+                PipelineOptionsFactory.fromArgs(args).withValidation().as(PipelineOptions.class);
+        runBigQueryTornadoes(options);
     }
 
     static class LogOutput<T> extends DoFn<T, T> {
         private final String prefix;
-
-        LogOutput() {
-            this.prefix = "Processing element";
-        }
 
         LogOutput(String prefix) {
             this.prefix = prefix;
         }
 
         @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            LOG.info(prefix + ": {}", c.element());
+        public void processElement(ProcessContext c) {
+            LOG.info(prefix + c.element());
+            c.output(c.element());
         }
     }
 }

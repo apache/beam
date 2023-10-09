@@ -113,8 +113,7 @@ public class SpannerChangeStreamsSchemaTransformIT {
                             .setChangeStreamName(changeStreamName)
                             .setStartAtTimestamp(startAt.toString())
                             .setEndAtTimestamp(endAt.toString())
-                            .build())
-                    .buildTransform())
+                            .build()))
             .get("output")
             .apply(
                 Window.<Row>into(new GlobalWindows())

@@ -29,6 +29,7 @@ Provides a variety of different transforms for computing the maximum
 values in a collection, either globally or for each key.
 
 ## Examples
+
 **Example 1**: get the maximum of a `PCollection` of `Doubles`.
 
 {{< highlight java >}}
@@ -44,6 +45,18 @@ PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> maxPerKey = input
      .apply(Max.integersPerKey());
 {{< /highlight >}}
+
+**Example 3**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Max" show="main_section" >}}
+{{< /playground >}}
+
+**Example 4**:
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MaxPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Min](/documentation/transforms/java/aggregation/min)

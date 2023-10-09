@@ -363,6 +363,12 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual[1], expected[1]))
 
+  def test_load_model_exception(self):
+    with self.assertRaises(ValueError):
+      tensorflow_inference._load_model(
+          "https://tfhub.dev/google/imagenet/mobilenet_v1_075_192/quantops/classification/3", # pylint: disable=line-too-long
+          None, {})
+
 
 @pytest.mark.uses_tf
 class TFRunInferenceTestWithMocks(unittest.TestCase):

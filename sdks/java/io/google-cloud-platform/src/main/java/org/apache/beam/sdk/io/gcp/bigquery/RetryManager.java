@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
@@ -38,8 +38,8 @@ import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 
 /**

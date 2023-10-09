@@ -47,3 +47,7 @@ def count_per_element(test=None):
     # [END count_per_element]
     if test:
       test(total_unique_elements)
+
+
+if __name__ == '__main__':
+  count_per_element()

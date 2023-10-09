@@ -17,19 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-// beam-playground:
-//   name: CombineFnsTest
-//   description: Unit-test for the CombineFn example.
-//   multifile: false
-//   context_line: 71
-//   categories:
-//     - Combiners
-//     - Core Transforms
-//   complexity: ADVANCED
-//   tags:
-//     - combine
-//     - test
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -60,8 +47,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Rule;

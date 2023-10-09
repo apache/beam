@@ -384,7 +384,6 @@ func_view: ${pgfuncview}
     }
 }
 
-
 task("applyMigrations") {
     doLast {
         val namespace = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""

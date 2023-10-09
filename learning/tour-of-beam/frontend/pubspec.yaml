@@ -24,7 +24,7 @@ version: 0.1.0
 
 environment:
   sdk: '>=3.0.2 <4.0.0'
-  flutter: '>=3.10.2'
+  flutter: '>=3.10.4'
 
 dependencies:
   app_state: ^0.9.3

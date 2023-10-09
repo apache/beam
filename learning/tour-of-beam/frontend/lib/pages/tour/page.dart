@@ -18,7 +18,6 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
-import 'package:playground_components/playground_components.dart';
 
 import 'screen.dart';
 import 'state.dart';
@@ -28,12 +27,10 @@ class TourPage extends StatefulMaterialPage<void, TourNotifier> {
 
   /// Called when navigating to the page programmatically.
   TourPage({
-    required Sdk sdk,
     List<String> breadcrumbIds = const [],
   }) : super(
           key: const ValueKey(classFactoryKey),
           state: TourNotifier(
-            initialSdk: sdk,
             initialBreadcrumbIds: breadcrumbIds,
           ),
           createScreen: TourScreen.new,
@@ -44,7 +41,6 @@ class TourPage extends StatefulMaterialPage<void, TourNotifier> {
     final breadcrumbIds = state['breadcrumbIds'];
 
     return TourPage(
-      sdk: Sdk.parseOrCreate(state['sdkId']),
       breadcrumbIds:
           breadcrumbIds is List ? breadcrumbIds.cast<String>() : const [],
     );

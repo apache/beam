@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import logging
 import sys
 import threading
 import traceback
@@ -38,6 +39,7 @@ from typing import Optional
 from typing import Tuple
 
 from apache_beam.coders import TupleCoder
+from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -54,6 +56,7 @@ from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import typehints
@@ -66,11 +69,20 @@ from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
   from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
+
+IMPULSE_VALUE_CODER_IMPL = coders.WindowedValueCoder(
+    coders.BytesCoder(), coders.GlobalWindowCoder()).get_impl()
+
+ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
+    GlobalWindows.windowed_value(b''))
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class NameContext(object):
@@ -1338,7 +1350,8 @@ class DoFnRunner:
                state=None,
                scoped_metrics_container=None,
                operation_name=None,
-               user_state_context=None  # type: Optional[userstate.UserStateContext]
+               transform_id=None,
+               user_state_context=None,  # type: Optional[userstate.UserStateContext]
               ):
     """Initializes a DoFnRunner.
 
@@ -1354,6 +1367,7 @@ class DoFnRunner:
       state: handle for accessing DoFn state
       scoped_metrics_container: DEPRECATED
       operation_name: The system name assigned by the runner for this operation.
+      transform_id: The PTransform Id in the pipeline proto for this DoFn.
       user_state_context: The UserStateContext instance for the current
                           Stateful DoFn.
     """
@@ -1361,8 +1375,10 @@ class DoFnRunner:
     side_inputs = list(side_inputs)
 
     self.step_name = step_name
+    self.transform_id = transform_id
     self.context = DoFnContext(step_name, state=state)
     self.bundle_finalizer_param = DoFn.BundleFinalizerParam()
+    self.execution_context = None  # type: Optional[ExecutionContext]
 
     do_fn_signature = DoFnSignature(fn)
 
@@ -1417,8 +1433,24 @@ class DoFnRunner:
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
-      self._reraise_augmented(exn)
+      self._reraise_augmented(exn, windowed_value)
       return []
+
+  def _maybe_sample_exception(
+      self, exn: BaseException, windowed_value: WindowedValue) -> None:
+
+    if self.execution_context is None:
+      return
+
+    output_sampler = self.execution_context.output_sampler
+    if output_sampler is None:
+      return
+
+    output_sampler.sample_exception(
+        windowed_value,
+        exn,
+        self.transform_id,
+        self.execution_context.instruction_id)
 
   def process_batch(self, windowed_batch):
     # type: (WindowedBatch) -> None
@@ -1487,7 +1519,7 @@ class DoFnRunner:
     # type: () -> None
     self.bundle_finalizer_param.finalize_bundle()
 
-  def _reraise_augmented(self, exn):
+  def _reraise_augmented(self, exn, windowed_value=None):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
       raise exn
     step_annotation = " [while running '%s']" % self.step_name
@@ -1504,8 +1536,13 @@ class DoFnRunner:
           traceback.format_exception_only(type(exn), exn)[-1].strip() +
           step_annotation)
       new_exn._tagged_with_step = True
-    _, _, tb = sys.exc_info()
-    raise new_exn.with_traceback(tb)
+    exc_info = sys.exc_info()
+    _, _, tb = exc_info
+
+    new_exn = new_exn.with_traceback(tb)
+    self._maybe_sample_exception(exc_info, windowed_value)
+    _LOGGER.exception(new_exn)
+    raise new_exn
 
 
 class OutputHandler(object):

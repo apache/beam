@@ -31,6 +31,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
@@ -44,6 +45,9 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*shardElementsFn)(nil)).Elem())
 	beam.RegisterCoder(compactorsType, encodeCompactors, decodeCompactors)
 	beam.RegisterCoder(weightedElementType, encodeWeightedElement, decodeWeightedElement)
+
+	register.Function1x2(fixedKey)
+	register.Function2x1(makeWeightedElement)
 }
 
 // Opts contains settings used to configure how approximate quantiles are computed.
@@ -663,12 +667,14 @@ func makeWeightedElement(weight int, element beam.T) weightedElement {
 	return weightedElement{weight: weight, element: element}
 }
 
+func fixedKey(e beam.T) (int, beam.T) { return 1, e }
+
 // ApproximateQuantiles computes approximate quantiles for the input PCollection<T>.
 //
 // The output PCollection contains a single element: a list of numQuantiles - 1 elements approximately splitting up the input collection into numQuantiles separate quantiles.
 // For example, if numQuantiles = 2, the returned list would contain a single element such that approximately half of the input would be less than that element and half would be greater.
 func ApproximateQuantiles(s beam.Scope, pc beam.PCollection, less any, opts Opts) beam.PCollection {
-	return ApproximateWeightedQuantiles(s, beam.ParDo(s, func(e beam.T) (int, beam.T) { return 1, e }, pc), less, opts)
+	return ApproximateWeightedQuantiles(s, beam.ParDo(s, fixedKey, pc), less, opts)
 }
 
 // reduce takes a PCollection<weightedElementWrapper> and returns a PCollection<*compactors>. The output PCollection may have at most shardSizes[len(shardSizes) - 1] compactors.

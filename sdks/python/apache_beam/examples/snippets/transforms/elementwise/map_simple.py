@@ -53,3 +53,7 @@ def map_simple(test=None):
     # [END map_simple]
     if test:
       test(plants)
+
+
+if __name__ == '__main__':
+  map_simple()

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -64,10 +64,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.qual.ArrayLen;
 import org.checkerframework.dataflow.qual.Pure;
@@ -500,7 +501,7 @@ public class Read {
                       removalNotification -> {
                         if (removalNotification.wasEvicted()) {
                           try {
-                            removalNotification.getValue().close();
+                            Preconditions.checkNotNull(removalNotification.getValue()).close();
                           } catch (IOException e) {
                             LOG.warn("Failed to close UnboundedReader.", e);
                           }

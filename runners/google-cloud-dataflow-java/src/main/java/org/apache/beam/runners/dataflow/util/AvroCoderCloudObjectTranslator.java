@@ -20,38 +20,57 @@ package org.apache.beam.runners.dataflow.util;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.StringUtils;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
-  private static final String TYPE_FIELD = "type";
+  private static final String DATUM_FACTORY_FIELD = "datum_factory";
   private static final String SCHEMA_FIELD = "schema";
+  // deprecated fields
+  private static final String TYPE_FIELD = "type";
   private static final String REFLECT_API_FIELD = "reflect_api";
 
   @Override
   public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(AvroCoder.class);
+    byte[] serializedDatumFactory =
+        SerializableUtils.serializeToByteArray(target.getDatumFactory());
+    Structs.addString(
+        base, DATUM_FACTORY_FIELD, StringUtils.byteArrayToJsonString(serializedDatumFactory));
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
-    Structs.addString(base, TYPE_FIELD, target.getType().getName());
-    Structs.addBoolean(base, REFLECT_API_FIELD, target.useReflectApi());
     return base;
   }
 
   @Override
   public AvroCoder<?> fromCloudObject(CloudObject cloudObject) {
-    Schema.Parser parser = new Schema.Parser();
-    String className = Structs.getString(cloudObject, TYPE_FIELD);
     String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
-    boolean useReflectApi = Structs.getBoolean(cloudObject, REFLECT_API_FIELD);
-    try {
-      Class<?> type = Class.forName(className);
-      Schema schema = parser.parse(schemaString);
-      return AvroCoder.of(type, schema, useReflectApi);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalArgumentException(e);
+    Schema.Parser parser = new Schema.Parser();
+    Schema schema = parser.parse(schemaString);
+    AvroDatumFactory<?> datumFactory;
+    if (cloudObject.containsKey(TYPE_FIELD)) {
+      // coder was created with an older beam version. use default datum factory
+      try {
+        String className = Structs.getString(cloudObject, TYPE_FIELD);
+        Class<?> type = Class.forName(className);
+        boolean useReflectApi = Structs.getBoolean(cloudObject, REFLECT_API_FIELD);
+        datumFactory = AvroDatumFactory.of(type, useReflectApi);
+      } catch (ClassNotFoundException e) {
+        throw new IllegalArgumentException(e);
+      }
+    } else {
+      byte[] deserializedDatumFactory =
+          StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, DATUM_FACTORY_FIELD));
+      datumFactory =
+          (AvroDatumFactory)
+              SerializableUtils.deserializeFromByteArray(
+                  deserializedDatumFactory, DATUM_FACTORY_FIELD);
     }
+    return AvroCoder.of(datumFactory, schema);
   }
 
   @Override

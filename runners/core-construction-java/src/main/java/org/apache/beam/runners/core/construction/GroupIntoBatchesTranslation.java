@@ -26,7 +26,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -39,7 +39,7 @@ public class GroupIntoBatchesTranslation {
   static class GroupIntoBatchesTranslator
       implements TransformPayloadTranslator<GroupIntoBatches<?, ?>> {
     @Override
-    public String getUrn(GroupIntoBatches<?, ?> transform) {
+    public String getUrn() {
       return PTransformTranslation.GROUP_INTO_BATCHES_URN;
     }
 
@@ -61,7 +61,7 @@ public class GroupIntoBatchesTranslation {
   static class ShardedGroupIntoBatchesTranslator
       implements TransformPayloadTranslator<GroupIntoBatches<?, ?>.WithShardedKey> {
     @Override
-    public String getUrn(GroupIntoBatches<?, ?>.WithShardedKey transform) {
+    public String getUrn() {
       return PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN;
     }
 

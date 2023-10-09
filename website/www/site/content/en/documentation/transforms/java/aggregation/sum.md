@@ -31,18 +31,15 @@ values associated with each key in a collection of key-value pairs.
 ## Examples
 **Example 1**: get the sum of a `PCollection` of `Doubles`.
 
-{{< highlight java >}}
-PCollection<Double> input = ...;
-PCollection<Double> sum = input.apply(Sum.doublesGlobally());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Sum" show="main_section" >}}
+{{< /playground >}}
 
-Example 2: calculate the sum of the `Integers` associated with each unique key (which is of type `String`).
+**Example 2**: calculate the sum of the `Integers` associated with each unique key (which is of type `String`).
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> input = ...;
-PCollection<KV<String, Integer>> sumPerKey = input
-     .apply(Sum.integersPerKey());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_SumPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Count](/documentation/transforms/java/aggregation/count)

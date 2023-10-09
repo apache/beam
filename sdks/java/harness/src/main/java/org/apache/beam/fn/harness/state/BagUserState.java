@@ -17,8 +17,8 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /**
  * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and

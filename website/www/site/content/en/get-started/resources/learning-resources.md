@@ -80,6 +80,16 @@ If you have additional material that you would like to see here, please let us k
 *   **[Timely and Stateful Processing](/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
 
+## Videos {#videos}
+
+*  **[Getting Started with Apache Beam](https://www.youtube.com/playlist?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt)** - Five part video series for understanding basic to advanced concepts.
+*  See more [Videos and Podcasts](/get-started/resources/videos-and-podcasts/)
+
+## Courses {#courses}
+
+*  **[Beam College](https://beamcollege.dev/)** -- Free live and recorded lessons for learning Beam and data processing.
+*  **[Serverless Data Processing](https://www.coursera.org/specializations/serverless-data-processing-with-dataflow)** - Course specialized for Dataflow runner.
+
 ## Books {#books}
 
 ### Building Big Data Pipelines with Apache Beam
@@ -89,6 +99,14 @@ If you have additional material that you would like to see here, please let us k
 ###  Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing
 
 **[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
+
+
+## Certifications {#certifications}
+
+### Getting Started with Apache Beam Quest
+
+**[Get Started with Apache Beam](https://www.cloudskillsboost.google/quests/310)**  This quest includes four labs that teach you how to write and test Apache Beam pipelines. Three of the labs use Java and one uses Python. Each lab takes about 1.5 hours to complete. When you complete the quest, you're granted a badge that you can use to show your Beam expertise.
+
 
 ## Interactive Labs {#interactive-labs}
 

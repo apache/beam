@@ -29,7 +29,19 @@ Provides a variety of different transforms for computing the minimum
 values in a collection, either globally or for each key.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+**Example 1**: get the minimum of a `PCollection` of `Doubles`.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Min" show="main_section" >}}
+{{< /playground >}}
+
+**Example 2**: calculate the minimum of the `Integers` associated
+with each unique key (which is of type `String`).
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_MinPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Max](/documentation/transforms/java/aggregation/max)

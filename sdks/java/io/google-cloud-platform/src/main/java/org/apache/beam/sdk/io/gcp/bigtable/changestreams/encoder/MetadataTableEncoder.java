@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 

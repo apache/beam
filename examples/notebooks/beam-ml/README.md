@@ -54,14 +54,21 @@ This section contains the following example notebooks.
 * [Apache Beam RunInference for scikit-learn](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb)
 * [Apache Beam RunInference with TensorFlow](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb)
 * [Use RunInference with a model from TensorFlow Hub](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_with_tensorflow_hub.ipynb)
+* [Apache Beam RunInference with Hugging Face](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_huggingface.ipynb)
 * [Apache Beam RunInference with XGBoost](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_xgboost.ipynb)
 * [Use RunInference with TFX](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tfx.ipynb)
 * [Use RunInference in Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb)
+* [Use RunInference with a LLM](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_generative_ai.ipynb)
+* [Use RunInference with Beam's windowing semantics](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_windowing.ipynb)
 
 ### Custom inference
 
 * [Bring your own machine learning (ML) model to Apache Beam RunInference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb)
 * [Remote inference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb)
+
+### Machine Learning Use Cases
+* [Image Processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/image_processing_tensorflow.ipynb)
+* [Natural Language Processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/nlp_tensorflow_streaming.ipynb)
 
 ### Automatic Model Refresh
 

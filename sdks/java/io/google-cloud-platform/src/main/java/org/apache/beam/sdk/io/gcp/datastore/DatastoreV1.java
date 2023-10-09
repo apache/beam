@@ -26,9 +26,9 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.auth.Credentials;
@@ -99,11 +99,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -648,8 +648,8 @@ public class DatastoreV1 {
      *       chosen dynamically at runtime based on the query data size.
      *   <li>Any value greater than {@link Read#NUM_QUERY_SPLITS_MAX} will be capped at {@code
      *       NUM_QUERY_SPLITS_MAX}.
-     *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be ignored
-     *       and no split will be performed.
+     *   <li>If the {@code query} has a user limit set, or contains inequality filters, then {@code
+     *       numQuerySplits} will be ignored and no split will be performed.
      *   <li>Under certain cases Cloud Datastore is unable to split query to the requested number of
      *       splits. In such cases we just use whatever the Cloud Datastore returns.
      * </ul>

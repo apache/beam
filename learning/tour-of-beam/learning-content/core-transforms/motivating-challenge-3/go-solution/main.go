@@ -20,7 +20,7 @@
 //     name: CoreTransformsSolution3
 //     description: Core Transforms third motivating challenge.
 //     multifile: false
-//     context_line: 52
+//     context_line: 51
 //     categories:
 //       - Quickstart
 //     complexity: BASIC

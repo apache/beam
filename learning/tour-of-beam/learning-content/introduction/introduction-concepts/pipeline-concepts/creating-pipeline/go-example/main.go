@@ -17,7 +17,7 @@
 //   name: creating-pipeline
 //   description: Creating pipeline example.
 //   multifile: false
-//   context_line: 34
+//   context_line: 39
 //   categories:
 //     - Quickstart
 //   complexity: BASIC

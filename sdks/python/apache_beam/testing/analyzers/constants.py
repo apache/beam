@@ -37,7 +37,11 @@ _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS = 3
 _DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 14
 
 _PERF_TEST_KEYS = {
-    'test_name', 'metrics_dataset', 'metrics_table', 'project', 'metric_name'
+    'test_description',
+    'metrics_dataset',
+    'metrics_table',
+    'project',
+    'metric_name'
 }
 
 _SCHEMA = [{
@@ -66,3 +70,5 @@ _SCHEMA = [{
            }, {
                'name': _ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
            }]
+
+_ANOMALY_MARKER = ' <---- Anomaly'

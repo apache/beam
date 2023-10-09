@@ -24,15 +24,12 @@ class BeamLinks {
 
   // GitHub
   static const github = 'https://github.com/apache/beam';
-  static const newExample = 'https://github.com/apache/beam/blob/master/playground/load_your_code.md';
+  static const newExample =
+      'https://github.com/apache/beam/blob/master/playground/load_your_code.md';
   static const reportIssue = 'https://github.com/apache/beam/issues';
 
   // Projects
   static const playgroundGitHub =
       'https://github.com/apache/beam/tree/master/playground';
   static const scioGitHub = 'https://github.com/spotify/scio';
-
-  // Forms
-  static const feedbackGoogleForms =
-      'https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url';
 }

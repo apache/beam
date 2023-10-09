@@ -27,6 +27,8 @@ See the [download page](/get-started/downloads/#2480-2023-05-31) for this releas
 
 For more information on changes in 2.48.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/12).
 
+**Note: The release tag for Go SDK for this release is sdks/v2.48.2 instead of sdks/v2.48.0 because of incorrect commit attached to the release tag sdks/v2.48.0.**
+
 ## Highlights
 
 * "Experimental" annotation cleanup: the annotation and concept have been removed from Beam to avoid
@@ -60,6 +62,11 @@ For more information on changes in 2.48.0, check out the [detailed release notes
 ## Bugfixes
 
 * Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) ([#25582](https://github.com/apache/beam/issues/25582)).
+
+## Known Issues
+
+* PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
 
 
 ## List of Contributors
