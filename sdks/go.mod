@@ -47,7 +47,7 @@ require (
 	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/proullon/ramsql v0.1.3
 	github.com/spf13/cobra v1.7.0
-	github.com/testcontainers/testcontainers-go v0.24.1
+	github.com/testcontainers/testcontainers-go v0.25.0
 	github.com/tetratelabs/wazero v1.5.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
@@ -77,10 +77,10 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/shirou/gopsutil/v3 v3.23.7 // indirect
+	github.com/shirou/gopsutil/v3 v3.23.8 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
-	github.com/tklauser/go-sysconf v0.3.11 // indirect
-	github.com/tklauser/numcpus v0.6.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.12 // indirect
+	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 )
 
