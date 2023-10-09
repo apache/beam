@@ -1310,14 +1310,14 @@ class _ReadReadRowsResponsesWithFastAvro():
   def __next__(self):
     try:
       return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
-    except StopIteration:
+    except EOFError:
       self.read_rows_response = next(self.read_rows_iterator, None)
       if self.read_rows_response is not None:
         self.bytes_reader = io.BytesIO(
             self.read_rows_response.avro_rows.serialized_binary_rows)
         return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
       else:
-        raise StopIteration
+        raise EOFError
 
 
 @deprecated(since='2.11.0', current="WriteToBigQuery")
