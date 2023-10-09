@@ -37,6 +37,7 @@ func IsNotExist(err error) bool {
 type Refresher struct {
 	setter UInt64Setter
 	logger logging.Logger
+	stop   chan struct{}
 }
 
 // Option applies optional features to a Refresher.
@@ -68,14 +69,15 @@ func NewRefresher(ctx context.Context, setter UInt64Setter, opts ...Option) (*Re
 	return ref, nil
 }
 
+func (ref *Refresher) Stop() {
+	ref.stop <- struct{}{}
+}
+
 // Refresh the size of the associated key at an interval.
 func (ref *Refresher) Refresh(ctx context.Context, key string, size uint64, interval time.Duration) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	if err := ref.setter.Set(ctx, key, size, interval); err != nil {
-		return err
-	}
-	tick := time.Tick(interval)
+	ref.stop = make(chan struct{})
 	fields := []logging.Field{
 		{
 			Key:   "key",
@@ -90,6 +92,13 @@ func (ref *Refresher) Refresh(ctx context.Context, key string, size uint64, inte
 			Value: interval.String(),
 		},
 	}
+
+	ref.logger.Info(ctx, "starting refresher service", fields...)
+
+	if err := ref.setter.Set(ctx, key, size, interval); err != nil {
+		return err
+	}
+	tick := time.Tick(interval)
 	for {
 		select {
 		case <-tick:
@@ -97,6 +106,9 @@ func (ref *Refresher) Refresh(ctx context.Context, key string, size uint64, inte
 				return err
 			}
 			ref.logger.Debug(ctx, "refresh successful", fields...)
+		case <-ref.stop:
+			ref.logger.Info(ctx, "stopping refresher service", fields...)
+			return nil
 		case <-ctx.Done():
 			return nil
 		}

@@ -20,11 +20,19 @@ import (
 	"time"
 )
 
+// Writer writes to a metric sink.
 type Writer interface {
+
+	// Write to a metric sink.
 	Write(ctx context.Context, name string, unit string, points ...*Point) error
 }
 
+// Point models a metric data point.
 type Point struct {
+
+	// Timestamp of the metric data point.
 	Timestamp time.Time
-	Value     int64
+
+	// Value of the metric data point.
+	Value int64
 }

@@ -1,3 +1,19 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package echo supports a client that calls the echo service.
 package echo
 
 import (
@@ -23,13 +39,16 @@ const (
 )
 
 var (
+	nCalls    int
 	callerMap = map[string]caller{
 		schemeHttp: httpCaller,
 		schemeGrpc: grpcCaller,
 	}
-	id      string
-	u       *url.URL
-	r       io.Reader
+	id string
+	u  *url.URL
+	r  io.Reader
+
+	// Command is the subcommand that calls the echo service.
 	Command = &cobra.Command{
 		Use: `echo [flags] URL ID [PAYLOAD]
 
@@ -41,6 +60,10 @@ ID:         ID of the service quota. See github.com/apache/beam/test-infra/mock-
 		Args:  parseArgs,
 	}
 )
+
+func init() {
+	Command.Flags().IntVarP(&nCalls, "n-calls", "n", 1, "Number of calls to make against the endpoint")
+}
 
 func parseArgs(_ *cobra.Command, args []string) error {
 	var err error
@@ -76,11 +99,19 @@ func runE(cmd *cobra.Command, _ []string) error {
 		Id:      id,
 		Payload: b,
 	}
-	resp, err := f(cmd.Context(), req)
-	if err != nil {
-		return err
+	for {
+		nCalls--
+		if nCalls < 0 {
+			return nil
+		}
+		resp, err := f(cmd.Context(), req)
+		if err != nil {
+			return err
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(resp); err != nil {
+			return err
+		}
 	}
-	return json.NewEncoder(os.Stdout).Encode(resp)
 }
 
 type caller func(ctx context.Context, req *echov1.EchoRequest) (*echov1.EchoResponse, error)
@@ -113,20 +144,14 @@ func httpCaller(ctx context.Context, req *echov1.EchoRequest) (*echov1.EchoRespo
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("%s: %s", resp.Status, string(b))
 	}
-	//
-	//var result *echov1.EchoResponse
-	//
-	//if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-	//	return nil, err
-	//}
-	//
-	//return result, nil
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
+
+	var result *echov1.EchoResponse
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-	fmt.Println(string(b))
-	return &echov1.EchoResponse{}, nil
+
+	return result, nil
 }
 
 func grpcCaller(ctx context.Context, req *echov1.EchoRequest) (*echov1.EchoResponse, error) {

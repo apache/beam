@@ -31,8 +31,11 @@ const (
 	monitoredResourceType = "generic_task"
 )
 
+// GcpGauge implements a Writer for a Google Cloud gauge.
+// See https://cloud.google.com/monitoring/api/v3/kinds-and-types#metric-kinds
 type GcpGauge monitoring.MetricClient
 
+// Write to a Google Cloud monitoring gauge.
 func (writer *GcpGauge) Write(ctx context.Context, name string, unit string, points ...*Point) error {
 	var mPts []*monitoringpb.Point
 	for _, p := range points {
@@ -57,6 +60,7 @@ func (writer *GcpGauge) Write(ctx context.Context, name string, unit string, poi
 		TimeSeries: []*monitoringpb.TimeSeries{ts},
 	})
 }
+
 func timeseries(name string, unit string, kind metric.MetricDescriptor_MetricKind, points []*monitoringpb.Point) *monitoringpb.TimeSeries {
 	return &monitoringpb.TimeSeries{
 		Metric: &metric.Metric{

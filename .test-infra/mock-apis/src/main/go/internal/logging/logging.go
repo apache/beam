@@ -115,9 +115,10 @@ func (l *logger) entry(severity logging.Severity, message string, fields ...Fiel
 	_, file, line, _ := runtime.Caller(2)
 
 	return logging.Entry{
-		Severity: severity,
-		Payload:  payload,
-		LogName:  l.name,
+		Severity:  severity,
+		Payload:   payload,
+		LogName:   l.name,
+		Timestamp: time.Now(),
 		SourceLocation: &loggingpb.LogEntrySourceLocation{
 			File: file,
 			Line: int64(line),

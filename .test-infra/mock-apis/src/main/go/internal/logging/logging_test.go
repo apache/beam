@@ -34,6 +34,7 @@ import (
 var (
 	opts = []cmp.Option{
 		cmpopts.IgnoreFields(loggingpb.LogEntrySourceLocation{}, "state", "sizeCache", "unknownFields"),
+		cmpopts.IgnoreFields(gcplogging.Entry{}, "Timestamp"),
 	}
 )
 
