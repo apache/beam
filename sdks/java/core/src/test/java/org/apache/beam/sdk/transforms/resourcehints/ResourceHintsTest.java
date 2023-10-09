@@ -97,6 +97,6 @@ public class ResourceHintsTest implements Serializable {
             .as(ResourceHintsOptions.class);
     assertEquals(
         ResourceHints.fromOptions(options),
-        ResourceHints.create().withMinRam(1000).withAccelerator("foo").withCpuCount(4));
+        ResourceHints.create().withMinRam(1000).withAccelerator("foo").withCPUCount(4));
   }
 }
