@@ -18,9 +18,9 @@
 --metrics_dataset=load_test
 --metrics_table=python_flink_batch_gbk_1
 --influx_measurement=python_batch_gkb_1
---input_options=''{\\"num_records\\":200000000,\\"key_size\\":1,\\"value_size\\":9,\\"algorithm\\":\\"lcg\\"}''
 --iterations=1
 --fanout=1
+--input_options=''{\\"num_records\\":200000000,\\"key_size\\":1,\\"value_size\\":9}''
 --parallelism=5
 --job_endpoint=localhost:8099
 --environment_type=DOCKER
