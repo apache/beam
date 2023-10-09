@@ -88,7 +88,6 @@ from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.transforms.sideinputs import get_sideinput_index
@@ -109,7 +108,7 @@ if TYPE_CHECKING:
 __all__ = ['Pipeline', 'PTransformOverride']
 
 
-class Pipeline(HasDisplayData):
+class Pipeline(object):
   """A pipeline object that manages a DAG of
   :class:`~apache_beam.pvalue.PValue` s and their
   :class:`~apache_beam.transforms.ptransform.PTransform` s.
@@ -134,12 +133,9 @@ class Pipeline(HasDisplayData):
         common_urns.primitives.IMPULSE.urn,
     ])
 
-  def __init__(
-      self,
-      runner: Optional[Union[str, PipelineRunner]] = None,
-      options: Optional[PipelineOptions] = None,
-      argv: Optional[List[str]] = None,
-      display_data: Optional[Dict[str, Any]] = None):
+  def __init__(self, runner=None, options=None, argv=None):
+    # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
+
     """Initialize a pipeline object.
 
     Args:
@@ -155,8 +151,6 @@ class Pipeline(HasDisplayData):
         to be used for building a
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
         This will only be used if argument **options** is :data:`None`.
-      display_data (Dict[str: Any]): a dictionary of static data associated
-        with this pipeline that can be displayed when it runs.
 
     Raises:
       ValueError: if either the runner or options argument is not
@@ -239,11 +233,6 @@ class Pipeline(HasDisplayData):
     # Records whether this pipeline contains any external transforms.
     self.contains_external_transforms = False
 
-    self._display_data = display_data or {}
-
-  def display_data(self):
-    # type: () -> Dict[str, Any]
-    return self._display_data
 
   @property  # type: ignore[misc]  # decorated property not supported
   def options(self):
@@ -925,8 +914,7 @@ class Pipeline(HasDisplayData):
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
         components=context.to_runner_api(),
-        requirements=context.requirements(),
-        display_data=DisplayData('', self._display_data).to_proto())
+        requirements=context.requirements())
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
     self.merge_compatible_environments(proto)
@@ -982,11 +970,7 @@ class Pipeline(HasDisplayData):
     # type: (...) -> Pipeline
 
     """For internal use only; no backwards-compatibility guarantees."""
-    p = Pipeline(
-        runner=runner,
-        options=options,
-        display_data={str(ix): d
-                      for ix, d in enumerate(proto.display_data)})
+    p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
         proto.components, requirements=proto.requirements)
