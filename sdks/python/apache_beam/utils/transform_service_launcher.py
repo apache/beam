@@ -128,7 +128,7 @@ class TransformServiceLauncher(object):
     with open(requirements_file_name, 'w') as _:
       pass
     self._environmental_variables['PYTHON_REQUIREMENTS_FILE_NAME'] = (
-      'requirements.txt')
+        'requirements.txt')
 
     self._docker_compose_start_command_prefix = []
     self._docker_compose_start_command_prefix.append('docker-compose')

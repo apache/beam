@@ -49,7 +49,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   private boolean checkedAllServices = false;
 
-  private static final long SERVICE_CHECK_TIMEOUT = 60000;
+  private static final long SERVICE_CHECK_TIMEOUT_MILLIS = 60000;
 
   private boolean disableServiceCheck = false;
 
@@ -72,7 +72,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
       long start = System.currentTimeMillis();
       long duration = 10;
-      while (System.currentTimeMillis() - start < SERVICE_CHECK_TIMEOUT) {
+      while (System.currentTimeMillis() - start < SERVICE_CHECK_TIMEOUT_MILLIS) {
         try {
           String url = endpoint.getUrl();
           int portIndex = url.lastIndexOf(":");

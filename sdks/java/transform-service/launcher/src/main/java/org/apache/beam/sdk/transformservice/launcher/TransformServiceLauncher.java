@@ -88,13 +88,12 @@ public class TransformServiceLauncher {
 
     // Setting up the credentials directory.
     File credentialsDir = Paths.get(tmpDir, "credentials_dir").toFile();
-    LOG.info(
-        "Creating a temporary directory for storing credentials: "
-            + credentialsDir.getAbsolutePath());
-
     if (credentialsDir.exists()) {
       LOG.info("Reusing the existing credentials directory " + credentialsDir.getAbsolutePath());
     } else {
+      LOG.info(
+          "Creating a temporary directory for storing credentials: "
+              + credentialsDir.getAbsolutePath());
       if (!credentialsDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing credentials: "
@@ -131,12 +130,12 @@ public class TransformServiceLauncher {
     // Setting up the dependencies directory.
     File dependenciesDir = Paths.get(tmpDir, "dependencies_dir").toFile();
     Path updatedRequirementsFilePath = Paths.get(dependenciesDir.toString(), "requirements.txt");
-    LOG.info(
-        "Creating a temporary directory for storing dependencies: "
-            + dependenciesDir.getAbsolutePath());
     if (dependenciesDir.exists()) {
       LOG.info("Reusing the existing dependencies directory " + dependenciesDir.getAbsolutePath());
     } else {
+      LOG.info(
+          "Creating a temporary directory for storing dependencies: "
+              + dependenciesDir.getAbsolutePath());
       if (!dependenciesDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing dependencies: "
@@ -294,10 +293,10 @@ public class TransformServiceLauncher {
 
   public synchronized void waitTillUp(int timeout) throws IOException, TimeoutException {
     timeout = timeout <= 0 ? DEFAULT_START_WAIT_TIME : timeout;
-    String statusFileName = getStatus();
 
     long startTime = System.currentTimeMillis();
     while (System.currentTimeMillis() - startTime < timeout) {
+      String statusFileName = getStatus();
       try {
         // We are just waiting for a local process. No need for exponential backoff.
         this.wait(1000);
@@ -320,6 +319,7 @@ public class TransformServiceLauncher {
 
   private synchronized String getStatus() throws IOException {
     File outputOverride = File.createTempFile("output_override", null);
+    outputOverride.deleteOnExit();
     runDockerComposeCommand(ImmutableList.of("ps"), outputOverride);
 
     return outputOverride.getAbsolutePath();
@@ -390,7 +390,7 @@ public class TransformServiceLauncher {
     System.out.println("===================================================");
 
     String pythonRequirementsFile =
-        config.pythonRequirementsFile.isEmpty() ? config.pythonRequirementsFile : null;
+        !config.pythonRequirementsFile.isEmpty() ? config.pythonRequirementsFile : null;
 
     TransformServiceLauncher service =
         TransformServiceLauncher.forProject(
