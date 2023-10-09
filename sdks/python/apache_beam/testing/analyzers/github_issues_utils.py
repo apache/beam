@@ -21,10 +21,11 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-import pandas as pd
 import requests
 
 from apache_beam.testing.analyzers import constants
+from apache_beam.testing.analyzers.perf_analysis_utils import MetricContainer
+from apache_beam.testing.analyzers.perf_analysis_utils import TestConfigContainer
 
 try:
   _GITHUB_TOKEN: Optional[str] = os.environ['GITHUB_TOKEN']
@@ -140,25 +141,18 @@ def add_awaiting_triage_label(issue_number: int):
 
 
 def get_issue_description(
-    test_id: str,
-    test_name: Optional[str],
-    metric_name: str,
-    timestamps: List[pd.Timestamp],
-    metric_values: List,
+    test_config_container: TestConfigContainer,
+    metric_container: MetricContainer,
     change_point_index: int,
     max_results_to_display: int = 5,
-    test_description: Optional[str] = None,
 ) -> str:
   """
   Args:
-   metric_name: Metric name used for the Change Point Analysis.
-   timestamps: Timestamps of the metrics when they were published to the
-    Database. Timestamps are expected in ascending order.
-   metric_values: metric values for the previous runs.
-   change_point_index: Index for the change point. The element in the
-    index of the metric_values would be the change point.
-   max_results_to_display: Max number of results to display from the change
-    point index, in both directions of the change point index.
+    test_config_container: TestConfigContainer containing test metadata.
+    metric_container: MetricContainer containing metric data.
+    change_point_index: Index of the change point in the metric data.
+    max_results_to_display: Max number of results to display from the change
+      point index, in both directions of the change point index.
 
   Returns:
     str: Description used to fill the GitHub issues description.
@@ -168,25 +162,30 @@ def get_issue_description(
 
   description = []
 
-  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_id, metric_name))
+  description.append(
+      _ISSUE_DESCRIPTION_TEMPLATE.format(
+          test_config_container.test_id, test_config_container.metric_name))
 
-  if test_name:
-    description.append(("`test_name:` " + f'{test_name}'))
+  if test_config_container.test_name:
+    description.append(("`test_name:` " + f'{test_config_container.test_name}'))
 
-  if test_description:
-    description.append(("`Test description:` " + f'{test_description}'))
+  if test_config_container.test_description:
+    description.append(
+        ("`Test description:` " + f'{test_config_container.test_description}'))
 
   description.append('```')
 
   runs_to_display = []
   max_timestamp_index = min(
-      change_point_index + max_results_to_display, len(metric_values) - 1)
+      change_point_index + max_results_to_display,
+      len(metric_container.values) - 1)
   min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
   # run in reverse to display the most recent runs first.
   for i in reversed(range(min_timestamp_index, max_timestamp_index + 1)):
     row_template = _METRIC_INFO_TEMPLATE.format(
-        timestamps[i].ctime(), format(metric_values[i], '.2f'))
+        metric_container.timestamps[i].ctime(),
+        format(metric_container.values[i], '.2f'))
     if i == change_point_index:
       row_template += constants._ANOMALY_MARKER
     runs_to_display.append(row_template)
