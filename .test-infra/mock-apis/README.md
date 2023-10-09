@@ -89,7 +89,7 @@ Follow these steps to run the services on your local machine.
 
 
 1. Start redis
- 
+
     Start redis using the following command.
     ```
     redis-server
