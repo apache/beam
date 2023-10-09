@@ -263,7 +263,32 @@ var sparkFilters = []string{
 
 var dataflowFilters = []string{
 	// The Dataflow runner doesn't work with tests using testcontainers locally.
-	"TestFhirIO.*",
+	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
+	"TestDebeziumIO_BasicRead",
+	"TestMongoDBIO.*",
+	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
+	"TestFlattenDup",
+	// The Dataflow runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger and pane tests uses TestStream
+	"TestTrigger.*",
+	"TestPanes",
+	// There is no infrastructure for running KafkaIO tests with Dataflow.
+	"TestKafkaIO.*",
+	"TestSpannerIO.*",
+	// Dataflow doesn't support any test that requires loopback.
+	// Eg. For FileIO examples.
+	".*Loopback.*",
+	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
+	// complete.
+	"TestCheckpointing",
+	// TODO(21761): This test needs to provide GCP project to expansion service.
+	"TestBigQueryIO_BasicWriteQueryRead",
+	// Can't handle the test spanner container or access a local spanner.
+	"TestSpannerIO.*",
+	// Dataflow does not drain jobs by itself.
+	"TestDrain",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -326,7 +351,7 @@ func CheckFilters(t *testing.T) {
 		if err != nil {
 			t.Errorf("Matching of regex '%v' with test '%v' failed: %v", f, n, err)
 		}
-		if !match {
+		if match {
 			t.Skipf("Test %v is currently filtered for runner %v", n, runner)
 		}
 	}
