@@ -119,6 +119,10 @@ public class BoundedQueueExecutor {
     return totalTimeMaxActiveThreadsUsed;
   }
 
+  public int activeCount() {
+    return activeCount.intValue();
+  }
+
   public String summaryHtml() {
     monitor.enter();
     try {

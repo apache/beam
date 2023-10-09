@@ -1632,7 +1632,7 @@ public class DataflowRunnerTest implements Serializable {
   private static class TestTransformTranslator
       implements TransformPayloadTranslator<TestTransform> {
     @Override
-    public String getUrn(TestTransform transform) {
+    public String getUrn() {
       return "test_transform";
     }
 

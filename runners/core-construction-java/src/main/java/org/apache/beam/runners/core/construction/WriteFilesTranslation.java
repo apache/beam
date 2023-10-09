@@ -276,7 +276,7 @@ public class WriteFilesTranslation {
 
   static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
     @Override
-    public String getUrn(WriteFiles<?, ?, ?> transform) {
+    public String getUrn() {
       return WRITE_FILES_TRANSFORM_URN;
     }
 
