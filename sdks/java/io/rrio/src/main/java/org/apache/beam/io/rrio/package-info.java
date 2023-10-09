@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Package provides Beam I/O transform support for safety reading from and writing to Web APIs. */
+/** Package provides Beam I/O transform support for safely reading from and writing to Web APIs. */
 package org.apache.beam.io.rrio;

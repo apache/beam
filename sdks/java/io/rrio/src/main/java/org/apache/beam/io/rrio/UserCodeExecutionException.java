@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.rrio;
 
+/** Base {@link Exception} for signaling errors in user custom code. */
 public class UserCodeExecutionException extends Exception {
   public UserCodeExecutionException(String message) {
     super(message);

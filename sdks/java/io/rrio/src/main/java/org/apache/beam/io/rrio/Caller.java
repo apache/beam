@@ -19,6 +19,9 @@ package org.apache.beam.io.rrio;
 
 import java.io.Serializable;
 
+/** {@link Caller} interfaces user custom code intended for API calls. */
 public interface Caller<RequestT, ResponseT> extends Serializable {
+
+  /** Calls a Web API with the {@link RequestT} and returns a {@link ResponseT}. */
   ResponseT call(RequestT request) throws UserCodeExecutionException;
 }

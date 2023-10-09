@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.rrio;
 
+/** An extension of {@link UserCodeQuotaException} to specifically signal a user code timeout. */
 public class UserCodeTimeoutException extends UserCodeExecutionException {
 
   public UserCodeTimeoutException(String message) {

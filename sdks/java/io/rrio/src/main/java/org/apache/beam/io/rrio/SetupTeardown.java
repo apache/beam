@@ -19,8 +19,16 @@ package org.apache.beam.io.rrio;
 
 import java.io.Serializable;
 
+/**
+ * Provided by user and called within {@link org.apache.beam.sdk.transforms.DoFn.Setup} and @{link
+ * org.apache.beam.sdk.transforms.DoFn.Teardown} lifecycle methods of {@link Call}'s {@link
+ * org.apache.beam.sdk.transforms.DoFn}.
+ */
 public interface SetupTeardown extends Serializable {
+
+  /** Called during the {@link org.apache.beam.sdk.transforms.DoFn}'s setup lifecycle method. */
   void setup() throws UserCodeExecutionException;
 
+  /** Called during the {@link org.apache.beam.sdk.transforms.DoFn}'s teardown lifecycle method. */
   void teardown() throws UserCodeExecutionException;
 }

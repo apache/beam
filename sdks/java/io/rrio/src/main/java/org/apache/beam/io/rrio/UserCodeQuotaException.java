@@ -17,6 +17,10 @@
  */
 package org.apache.beam.io.rrio;
 
+/**
+ * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a
+ * Quota or API overuse related error.
+ */
 public class UserCodeQuotaException extends UserCodeExecutionException {
 
   public UserCodeQuotaException(String message) {
