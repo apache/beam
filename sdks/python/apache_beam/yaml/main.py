@@ -60,7 +60,7 @@ def run(argv=None):
   pipeline_yaml = _pipeline_spec_from_args(known_args)
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
-  with beam.Pipeline(  #
+  with beam.Pipeline(  # linebreak for better yapf formatting
       options=beam.options.pipeline_options.PipelineOptions(
           pipeline_args,
           pickle_library='cloudpickle',
