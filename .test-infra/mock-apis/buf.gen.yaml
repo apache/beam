@@ -16,9 +16,10 @@
 # buf.gen.yaml configures proto stub generation using buf.
 #
 # Requirements:
-# - go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
 # - go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 # - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+# - https://github.com/grpc/grpc-java/blob/master/compiler/README.md#grpc-java-codegen-plugin-for-protobuf-compiler
+# -
 #
 # Usage:
 # Open a terminal in the same directory as this file and run:
@@ -33,5 +34,7 @@ plugins:
   out: src/main/go/internal
 - name: go-grpc
   out: src/main/go/internal
-- name: grpc-gateway
-  out: src/main/go/internal
+- name: java
+  out: src/main/java
+- name: grpc-java
+  out: src/main/java
