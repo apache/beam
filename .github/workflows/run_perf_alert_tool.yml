@@ -59,8 +59,15 @@ jobs:
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
-        run: python perf_analysis.py
+        run: python perf_analysis.py --config_file_path=./tests_config.yaml --save_alert_metadata
         if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Change Point Analysis.
+        working-directory: ./sdks/python/apache_beam/testing/analyzers
+        shell: bash
+        run: python perf_analysis.py --config_file_path=./tests_config.yaml
+        if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run change point analysis tests.

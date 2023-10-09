@@ -66,7 +66,7 @@ class ChangePointConfig:
 
 @dataclass
 class TestConfigContainer:
-  metric_name: str  # make this list instead.
+  metric_name: str
   project: str
   metrics_dataset: str
   metrics_table: str

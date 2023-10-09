@@ -22,13 +22,11 @@
 
 import argparse
 import logging
-import os
 import uuid
 from datetime import datetime
 from datetime import timezone
 from typing import Any
 from typing import Dict
-from typing import Optional
 
 import pandas as pd
 
@@ -50,6 +48,7 @@ from apache_beam.testing.analyzers.perf_analysis_utils import read_test_config
 def get_test_config_container(
     params: Dict[str, Any],
     test_id: str,
+    metric_name: str,
 ) -> TestConfigContainer:
   """
   Args:
@@ -61,7 +60,7 @@ def get_test_config_container(
       project=params['project'],
       metrics_dataset=params['metrics_dataset'],
       metrics_table=params['metrics_table'],
-      metric_name=params['metric_name'],
+      metric_name=metric_name,
       test_id=test_id,
       test_description=params['test_description'],
       test_name=params.get('test_name', None),
@@ -89,6 +88,7 @@ def run_change_point_analysis(
     test_config_container: TestConfigContainer,
     big_query_metrics_fetcher: MetricsFetcher,
     change_point_config: ChangePointConfig = ChangePointConfig(),
+    save_alert_metadata: bool = False,
 ):
   """
   Args:
@@ -98,12 +98,14 @@ def run_change_point_analysis(
     change point analysis.
     change_point_config: ChangePointConfig containing parameters to run
       change point analysis.
+    save_alert_metadata: bool indicating if issue metadata
+      should be published to BigQuery table.
   Returns:
      bool indicating if a change point is observed and alerted on GitHub.
   """
   logging.info(
-      "Running change point analysis for test ID %s" %
-      test_config_container.test_id)
+      "Running change point analysis for test ID :%s on metric: % s" %
+      (test_config_container.test_id, test_config_container.metric_name))
 
   # test_name will be used to query a single test from
   # multiple tests in a single BQ table. Right now, the default
@@ -152,9 +154,17 @@ def run_change_point_analysis(
 
   is_valid_change_point = True
   last_reported_issue_number = None
+
+  # create a unique table name for each test and metric combination.
+  # for beam load tests, metric_name and metric table are enough to
+  # create a unique table name. For templates/IO tests, add `test_name`.
   issue_metadata_table_name = (
       f'{test_config_container.metrics_table}_{test_config_container.metric_name}'  # pylint: disable=line-too-long
   )
+  if test_config_container.test_name:
+    issue_metadata_table_name = (
+        f'{issue_metadata_table_name}_{test_config_container.test_name}')
+
   existing_issue_data = get_existing_issues_data(
       table_name=issue_metadata_table_name)
 
@@ -172,7 +182,11 @@ def run_change_point_analysis(
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points,
         test_id=test_config_container.test_id)
-  if is_valid_change_point:
+
+  # for testing purposes, we don't want to create an issue even if there is
+  # a valid change point. This is useful when we want to test the change point
+  # analysis logic without creating an issue.
+  if is_valid_change_point and save_alert_metadata:
     issue_number, issue_url = create_performance_alert(
     test_config_container=test_config_container,
     metric_container=metric_container,
@@ -192,7 +206,6 @@ def run_change_point_analysis(
         issue_url=issue_url,
         change_point_timestamp=timestamps[change_point_index],
     )
-
     publish_issue_metadata_to_big_query(
         issue_metadata=issue_metadata,
         table_name=issue_metadata_table_name,
@@ -204,7 +217,8 @@ def run_change_point_analysis(
 def run(
     *,
     big_query_metrics_fetcher: MetricsFetcher = BigQueryMetricsFetcher(),
-    config_file_path: Optional[str] = None,
+    config_file_path: str = None,
+    save_alert_metadata: bool = False,
 ) -> None:
   """
   run is the entry point to run change point analysis on test metric
@@ -219,20 +233,25 @@ def run(
   defined in the config file.
 
   """
-  if config_file_path is None:
-    config_file_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), 'tests_config.yaml')
-
   tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
 
   for test_id, params in tests_config.items():
-    test_config_container = get_test_config_container(params, test_id=test_id)
-    change_point_config = get_change_point_config(params)
-    run_change_point_analysis(
-        test_config_container=test_config_container,
-        big_query_metrics_fetcher=big_query_metrics_fetcher,
-        change_point_config=change_point_config,
-    )
+    # single test config can have multiple metrics so we need to
+    # iterate over all the metrics and run change point analysis
+    # for each metric.
+    metric_names = params['metric_name']
+    if isinstance(metric_names, str):
+      metric_names = [metric_names]
+
+    for metric_name in metric_names:
+      test_config_container = get_test_config_container(
+          params=params, test_id=test_id, metric_name=metric_name)
+      change_point_config = get_change_point_config(params)
+      run_change_point_analysis(
+          test_config_container=test_config_container,
+          big_query_metrics_fetcher=big_query_metrics_fetcher,
+          change_point_config=change_point_config,
+          save_alert_metadata=save_alert_metadata)
 
 
 if __name__ == '__main__':
@@ -241,7 +260,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--config_file_path',
-      default=None,
+      required=True,
       type=str,
       help='Path to the config file that contains data to run the Change Point '
       'Analysis.The default file will used will be '
@@ -250,9 +269,17 @@ if __name__ == '__main__':
       'performance regression in the tests, '
       'please provide an .yml file in the same structure as the above '
       'mentioned file. ')
+  parser.add_argument(
+      '--save_alert_metadata',
+      action='store_true',
+      help='Save perf alert/ GH Issue metadata to BigQuery table.')
   known_args, unknown_args = parser.parse_known_args()
 
   if unknown_args:
     logging.warning('Discarding unknown arguments : %s ' % unknown_args)
 
-  run(config_file_path=known_args.config_file_path)
+  run(
+      config_file_path=known_args.config_file_path,
+      # Set this to true while running in production.
+      save_alert_metadata=known_args.save_alert_metadata  # pylint: disable=line-too-long
+  )
