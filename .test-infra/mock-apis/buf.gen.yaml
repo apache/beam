@@ -38,7 +38,3 @@ plugins:
   out: src/main/java
 - name: grpc-java
   out: src/main/java
-- name: python
-  out: src/main/python
-- name: python-grpc
-  out: src/main/python
