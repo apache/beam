@@ -63,7 +63,7 @@ def get_test_config_container(
       metrics_table=params['metrics_table'],
       metric_name=params['metric_name'],
       test_id=test_id,
-      test_description=params.get('test_description'),
+      test_description=params['test_description'],
       test_name=params.get('test_name', None),
       labels=params.get('labels', None),
   )
