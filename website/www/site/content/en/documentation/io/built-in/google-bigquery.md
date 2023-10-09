@@ -885,8 +885,7 @@ explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releas
 
 When using `STORAGE_WRITE_API`, the `PCollection` returned by
 [`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
-will contain the rows that failed to be written to the Storage Write API sink. If there are data validation errors, the
-transform will throw a `RuntimeException`.
+will contain the rows that failed to be written to the Storage Write API sink.
 
 #### At-least-once semantics
 
@@ -903,8 +902,7 @@ Auto sharding is not applicable for `STORAGE_API_AT_LEAST_ONCE`.
 
 When using `STORAGE_API_AT_LEAST_ONCE`, the `PCollection` returned by
 [`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
-will contain the rows that failed to be written to the Storage Write API sink. If there are data validation errors, the
-transform will throw a `RuntimeException`.
+will contain the rows that failed to be written to the Storage Write API sink.
 
 #### Quotas
 
