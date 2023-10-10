@@ -38,7 +38,6 @@ package integration
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
