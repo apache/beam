@@ -16,8 +16,6 @@
 name: PerformanceTests SpannerIO Write 2GB Python Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 5 * * *'
   workflow_dispatch:

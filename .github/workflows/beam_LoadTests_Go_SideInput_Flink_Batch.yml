@@ -16,8 +16,6 @@
 name: LoadTests Go SideInput Flink Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '40 23 * * *'
   workflow_dispatch:
