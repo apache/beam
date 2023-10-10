@@ -76,8 +76,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         try {
           String url = endpoint.getUrl();
           int portIndex = url.lastIndexOf(":");
-          int port = portIndex > 0 ? Integer.parseInt(url.substring(portIndex + 1)) : 80;
-          String host = portIndex > 0 ? url.substring(0, portIndex) : url;
+          if (portIndex <= 0) {
+            throw new RuntimeException(
+                "Expected the endpoint to be of the form <host>:<port> but received " + url);
+          }
+          int port = Integer.parseInt(url.substring(portIndex + 1));
+          String host = url.substring(0, portIndex);
           new Socket(host, port).close();
           // Current service is up. Checking the next one.
           continue outer;
