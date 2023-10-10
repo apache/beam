@@ -2395,7 +2395,20 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
+    project.ext.applyAvroNature = {
+      project.apply plugin: "com.commercehub.gradle.plugin.avro"
+
+      // add dependency BeamModulePlugin defined custom tasks
+      // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+      def sourcesJar = project.tasks.findByName('sourcesJar')
+      if (sourcesJar != null) {
+        sourcesJar.dependsOn project.tasks.getByName('generateAvroJava')
+      }
+      def testSourcesJar = project.tasks.findByName('testSourcesJar')
+      if (testSourcesJar != null) {
+        testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
+      }
+    }
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
@@ -2405,6 +2418,17 @@ class BeamModulePlugin implements Plugin<Project> {
           generatedSourceDirs += project.generateGrammarSource.outputDirectory
           generatedSourceDirs += project.generateTestGrammarSource.outputDirectory
         }
+      }
+
+      // add dependency BeamModulePlugin defined custom tasks
+      // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+      def sourcesJar = project.tasks.findByName('sourcesJar')
+      if (sourcesJar != null) {
+        sourcesJar.mustRunAfter project.tasks.getByName('generateGrammarSource')
+      }
+      def testSourcesJar = project.tasks.findByName('testSourcesJar')
+      if (testSourcesJar != null) {
+        testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
       }
     }
 
