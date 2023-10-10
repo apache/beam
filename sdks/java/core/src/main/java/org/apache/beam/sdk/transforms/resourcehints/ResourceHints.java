@@ -244,7 +244,7 @@ public class ResourceHints {
     }
 
     public static int parse(String s) {
-      return Integer.valueOf(s);
+      return Integer.parseInt(s, 10);
     }
 
     @Override
