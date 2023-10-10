@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.metrics;
 
-/** A no-op implementation of Histogram. */
+/**
+ * A no-op implementation of Histogram. This class exists to provide a default if an implementation
+ * of MetricsContainer does not override a Histogram getter.
+ */
 public class NoOpHistogram implements Histogram {
 
   private static final NoOpHistogram singleton = new NoOpHistogram();

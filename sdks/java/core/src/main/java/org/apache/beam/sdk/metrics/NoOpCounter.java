@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.metrics;
 
-/** A no-op implementation of Counter. */
+/**
+ * A no-op implementation of Counter. This class exists to provide a default if an implementation of
+ * MetricsContainer does not override a Counter getter.
+ */
 public class NoOpCounter implements Counter {
 
   private static final NoOpCounter singleton = new NoOpCounter();
