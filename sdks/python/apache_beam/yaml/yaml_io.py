@@ -38,9 +38,9 @@ import yaml
 
 import apache_beam as beam
 import apache_beam.io as beam_io
-from apache_beam.io import avroio
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import avroio
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
