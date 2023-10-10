@@ -16,8 +16,6 @@
 name: Performance Tests AvroIOIT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 1/13 * * *'
   workflow_dispatch:

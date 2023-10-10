@@ -16,8 +16,6 @@
 name: PerformanceTests BiqQueryIO Read Python
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 2 * * *'
   workflow_dispatch:

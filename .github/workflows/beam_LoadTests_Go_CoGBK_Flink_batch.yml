@@ -16,8 +16,6 @@
 name: LoadTests Go CoGBK Flink Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 14 * * *'
   workflow_dispatch:

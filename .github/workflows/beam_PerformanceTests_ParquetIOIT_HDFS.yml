@@ -16,8 +16,6 @@
 name: PerformanceTests ParquetIOIT HDFS
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 3/12 * * *'
   workflow_dispatch:

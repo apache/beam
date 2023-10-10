@@ -16,8 +16,6 @@
 name: LoadTests Java Combine SparkStructuredStreaming Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '15 18 * * *'
   workflow_dispatch:

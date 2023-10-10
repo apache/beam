@@ -16,8 +16,6 @@
 name: LoadTests Java ParDo Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '55 9 * * *'
   workflow_dispatch:

@@ -16,8 +16,6 @@
 name: PerformanceTests ManyFiles TextIOIT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 2/12 * * *'
   workflow_dispatch:

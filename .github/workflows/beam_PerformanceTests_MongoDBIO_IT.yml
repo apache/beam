@@ -16,8 +16,6 @@
 name: PerformanceTests MongoDBIO IT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '14 5/12 * * *'
   workflow_dispatch:

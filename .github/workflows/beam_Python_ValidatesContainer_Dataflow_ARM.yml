@@ -16,8 +16,6 @@
 name: Python ValidatesContainer Dataflow ARM
 
 on:
-  issue_comment:
-    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']

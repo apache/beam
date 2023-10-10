@@ -16,8 +16,6 @@
 name: Load Tests Combine Dataflow Batch Java
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '35 7 * * *'
   workflow_dispatch:

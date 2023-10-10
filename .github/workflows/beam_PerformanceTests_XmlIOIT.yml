@@ -16,8 +16,6 @@
 name: PerformanceTests XmlIOIT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 4/12 * * *'
   workflow_dispatch:

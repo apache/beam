@@ -16,8 +16,6 @@
 name: PerformanceTests JDBC
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 1,13 * * *'
   workflow_dispatch:

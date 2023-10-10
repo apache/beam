@@ -16,8 +16,6 @@
 name: Load Tests ParDo Dataflow Batch Go
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '15 18 * * *'
   workflow_dispatch:
