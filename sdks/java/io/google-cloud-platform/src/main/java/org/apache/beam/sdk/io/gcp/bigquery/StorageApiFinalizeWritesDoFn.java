@@ -22,6 +22,7 @@ import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1.StorageError;
 import com.google.cloud.bigquery.storage.v1.StorageError.StorageErrorCode;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -104,7 +105,12 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
     DatasetService datasetService = getDatasetService(pipelineOptions);
 
     RetryManager<FinalizeWriteStreamResponse, Context<FinalizeWriteStreamResponse>> retryManager =
-        new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
+        new RetryManager<>(
+            Duration.standardSeconds(1),
+            Duration.standardMinutes(1),
+            3,
+            BigQuerySinkMetrics.ThrottledTimeCounter(
+                BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
     retryManager.addOperation(
         c -> {
           finalizeOperationsSent.inc();
@@ -115,6 +121,14 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
               Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
           LOG.error("Finalize of stream " + streamId + " failed with " + firstContext.getError());
           finalizeOperationsFailed.inc();
+          String errorCode = BigQuerySinkMetrics.ThrowableToGRPCCodeString(firstContext.getError());
+          BigQuerySinkMetrics.FinalizeStreamCounter(errorCode).inc();
+
+          @Nullable Instant operationStartTime = firstContext.getOperationStartTime();
+          Instant operationEndTime = Instant.now();
+          BigQuerySinkMetrics.UpdateRpcLatencyMetric(
+              operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+
           return RetryType.RETRY_ALL_OPERATIONS;
         },
         c -> {
@@ -126,6 +140,12 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
           rowsFinalized.inc(response.getRowCount());
 
           finalizeOperationsSucceeded.inc();
+          BigQuerySinkMetrics.FinalizeStreamCounter("ok").inc();
+          @Nullable Instant operationStartTime = c.getOperationStartTime();
+          Instant operationEndTime = Instant.now();
+          BigQuerySinkMetrics.UpdateRpcLatencyMetric(
+              operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+
           commitStreams.computeIfAbsent(tableId, d -> Lists.newArrayList()).add(streamId);
         },
         new Context<>());

@@ -265,6 +265,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     class DestinationState {
       private final String tableUrn;
+      private final String shortTableUrn;
       private String streamName = "";
       private @Nullable AppendClientInfo appendClientInfo = null;
       private long currentOffset = 0;
@@ -295,6 +296,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       public DestinationState(
           String tableUrn,
+          String shortTableUrn,
           MessageConverter<ElementT> messageConverter,
           DatasetService datasetService,
           boolean useDefaultStream,
@@ -305,6 +307,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           boolean includeCdcColumns)
           throws Exception {
         this.tableUrn = tableUrn;
+        this.shortTableUrn = shortTableUrn;
         this.pendingMessages = Lists.newArrayList();
         this.pendingTimestamps = Lists.newArrayList();
         this.maybeDatasetService = datasetService;
@@ -608,7 +611,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                 timestamp);
           }
-          rowsSentToFailedRowsCollection.inc(inserts.getSerializedRowsCount());
+          int numRowsFailed = inserts.getSerializedRowsCount();
+          BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+                  BigQuerySinkMetrics.RowStatus.FAILED, "PayloadTooLarge", shortTableUrn)
+              .inc(numRowsFailed);
+          rowsSentToFailedRowsCollection.inc(numRowsFailed);
           return 0;
         }
 
@@ -650,11 +657,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             contexts -> {
               AppendRowsContext failedContext =
                   Preconditions.checkStateNotNull(Iterables.getFirst(contexts, null));
+              Instant operationEndTime = Instant.now();
+              @Nullable Instant operationStartTime = failedContext.getOperationStartTime();
+              BigQuerySinkMetrics.UpdateRpcLatencyMetric(
+                  operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+              String errorCode =
+                  BigQuerySinkMetrics.ThrowableToGRPCCodeString(failedContext.getError());
+              BigQuerySinkMetrics.AppendRPCsCounter(errorCode, shortTableUrn).inc();
+
               if (failedContext.getError() != null
                   && failedContext.getError() instanceof Exceptions.AppendSerializtionError) {
                 Exceptions.AppendSerializtionError error =
                     Preconditions.checkStateNotNull(
                         (Exceptions.AppendSerializtionError) failedContext.getError());
+
                 Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
                 for (int failedIndex : failedRowIndices) {
                   // Convert the message to a TableRow and send it to the failedRows collection.
@@ -677,7 +693,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     LOG.error("Failed to insert row and could not parse the result!", e);
                   }
                 }
-                rowsSentToFailedRowsCollection.inc(failedRowIndices.size());
+                int numRowsFailed = failedRowIndices.size();
+                rowsSentToFailedRowsCollection.inc(numRowsFailed);
+                BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+                        BigQuerySinkMetrics.RowStatus.FAILED, errorCode, shortTableUrn)
+                    .inc(numRowsFailed);
 
                 // Remove the failed row from the payload, so we retry the batch without the failed
                 // rows.
@@ -692,6 +712,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 }
                 failedContext.protoRows = retryRows.build();
                 failedContext.timestamps = retryTimestamps;
+                int numRowsRetried = failedContext.protoRows.getSerializedRowsCount();
+                BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+                        BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableUrn)
+                    .inc(numRowsRetried);
 
                 // Since we removed rows, we need to update the insert offsets for all remaining
                 // rows.
@@ -732,6 +756,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               // The following errors are known to be persistent, so always fail the work item in
               // this case.
+              Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
+              Status.Code statusCode = Status.fromThrowable(error).getCode();
               if (statusCode.equals(Status.Code.OUT_OF_RANGE)
                   || statusCode.equals(Status.Code.ALREADY_EXISTS)) {
                 throw new RuntimeException(
@@ -762,11 +788,27 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 throw new RuntimeException(e);
               }
 
+              int numRowsRetried = failedContext.protoRows.getSerializedRowsCount();
+              BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableUrn)
+                  .inc(numRowsRetried);
+
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
             },
             c -> {
-              recordsAppended.inc(c.protoRows.getSerializedRowsCount());
+              BigQuerySinkMetrics.AppendRPCsCounter("ok", shortTableUrn).inc();
+              int numRecordsAppended = c.protoRows.getSerializedRowsCount();
+              recordsAppended.inc(numRecordsAppended);
+              BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.SUCCESSFUL, "ok", shortTableUrn)
+                  .inc(numRecordsAppended);
+
+              @Nullable Instant operationStartTime = c.getOperationStartTime();
+              Instant operationEndTime = Instant.now();
+              BigQuerySinkMetrics.UpdateRpcLatencyMetric(
+                  operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+
               if (successfulRowsReceiver != null) {
                 for (int i = 0; i < c.protoRows.getSerializedRowsCount(); ++i) {
                   ByteString rowBytes = c.protoRows.getSerializedRowsList().get(i);
@@ -903,7 +945,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
-            new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
+            new RetryManager<>(
+                Duration.standardSeconds(1),
+                Duration.standardSeconds(10),
+                1000,
+                BigQuerySinkMetrics.ThrottledTimeCounter(
+                    BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
         retryManagers.add(retryManager);
         numRowsWritten +=
             destinationState.flush(retryManager, failedRowsReceiver, successfulRowsReceiver);
@@ -974,6 +1021,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
         return new DestinationState(
             tableDestination1.getTableUrn(bigQueryOptions),
+            tableDestination1.getShortTableUrn(),
             messageConverter,
             datasetService,
             useDefaultStream,

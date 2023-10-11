@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
+import java.time.Instant;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -33,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -85,10 +87,23 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
             .backoff();
   }
 
+  RetryManager(
+      Duration initialBackoff, Duration maxBackoff, int maxRetries, Counter throttledTimeCounter) {
+    this.operations = Queues.newArrayDeque();
+    backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(initialBackoff)
+            .withMaxBackoff(maxBackoff)
+            .withMaxRetries(maxRetries)
+            .withThrottledTimeCounter(throttledTimeCounter)
+            .backoff();
+  }
+
   static class Operation<ResultT, ContextT extends Context<ResultT>> {
     static class Context<ResultT> {
       private @Nullable Throwable error = null;
       private @Nullable ResultT result = null;
+      private @Nullable Instant operationStartTime = null;
 
       public void setError(@Nullable Throwable error) {
         this.error = error;
@@ -104,6 +119,14 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
 
       public @Nullable ResultT getResult() {
         return result;
+      }
+
+      public void setOperationStartTime(@Nullable Instant operationStartTime) {
+        this.operationStartTime = operationStartTime;
+      }
+
+      public @Nullable Instant getOperationStartTime() {
+        return operationStartTime;
       }
     }
 
@@ -129,6 +152,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     }
 
     void run(Executor executor) {
+      this.context.setOperationStartTime(Instant.now());
       this.future = runOperation.apply(context);
       this.callback = new Callback<>(hasSucceeded);
       ApiFutures.addCallback(future, callback, executor);
