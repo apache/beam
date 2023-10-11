@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.splunk;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.gson.JsonObject;
 import org.junit.Test;
 
 /** Unit tests for {@link SplunkEvent} class. */
@@ -34,6 +35,8 @@ public class SplunkEventTest {
     String source = "test-source";
     String sourceType = "test-source-type";
     Long time = 123456789L;
+    JsonObject fields = new JsonObject();
+    fields.addProperty("test-key", "test-value");
 
     SplunkEvent actualEvent =
         SplunkEvent.newBuilder()
@@ -43,6 +46,7 @@ public class SplunkEventTest {
             .withSource(source)
             .withSourceType(sourceType)
             .withTime(time)
+            .withFields(fields)
             .create();
 
     assertEquals(
@@ -53,6 +57,7 @@ public class SplunkEventTest {
             .withSource(source)
             .withSourceType(sourceType)
             .withTime(time)
+            .withFields(fields)
             .create(),
         actualEvent);
 
