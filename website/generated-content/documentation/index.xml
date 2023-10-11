@@ -17118,13 +17118,12 @@ git checkout origin/release-$BEAM_SDK_VERSION
 ./gradlew :sdks:java:container:java11:docker
 ./gradlew :sdks:java:container:java17:docker
 ./gradlew :sdks:go:container:docker
-./gradlew :sdks:python:container:py36:docker
 ./gradlew :sdks:python:container:py38:docker
 ./gradlew :sdks:python:container:py39:docker
 ./gradlew :sdks:python:container:py310:docker
 ./gradlew :sdks:python:container:py311:docker
 # Shortcut for building all Python SDKs
-./gradlew :sdks:python:container buildAll
+./gradlew :sdks:python:container:buildAll
 &lt;/code>&lt;/pre>&lt;ol start="4">
 &lt;li>Verify the images you built were created by running &lt;code>docker images&lt;/code>.&lt;/li>
 &lt;/ol>
