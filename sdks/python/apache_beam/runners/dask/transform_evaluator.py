@@ -44,10 +44,8 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
-
 """Inputs to DaskOps."""
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
-
 """Value types for PCollections (possibly Windowed Values)."""
 PCollVal = t.Union[WindowedValue, t.Any]
 
