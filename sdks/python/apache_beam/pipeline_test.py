@@ -1337,6 +1337,12 @@ class RunnerApiTest(unittest.TestCase):
 
     self.assertEqual(len(proto.components.environments), 6)
 
+  def test_window_into_fail_pipeline(self):
+    with self.assertRaises(ValueError):
+      p = beam.Pipeline()
+      _ = p | beam.WindowInto(beam.window.FixedWindows(2 * 24 * 60 * 60))
+      _ = Pipeline.to_runner_api(p, use_fake_coders=True)
+
 
 if __name__ == '__main__':
   unittest.main()
