@@ -155,7 +155,7 @@ class Pipeline(HasDisplayData):
         to be used for building a
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
         This will only be used if argument **options** is :data:`None`.
-      display_data (Dict[str: Any]): a dictionary of static data associated
+      display_data (Dict[str, Any]): a dictionary of static data associated
         with this pipeline that can be displayed when it runs.
 
     Raises:
