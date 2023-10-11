@@ -16,8 +16,6 @@
 name: PerformanceTests Cdap
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '13 4/12 * * *'
   workflow_dispatch:

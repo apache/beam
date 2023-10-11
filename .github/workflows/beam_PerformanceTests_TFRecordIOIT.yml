@@ -16,8 +16,6 @@
 name: PerformanceTests TFRecordIOIT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 4/12 * * *'
   workflow_dispatch:

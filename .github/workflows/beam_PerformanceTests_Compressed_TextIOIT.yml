@@ -16,8 +16,6 @@
 name: PerformanceTests Compressed TextIOIT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 1/12 * * *'
   workflow_dispatch:

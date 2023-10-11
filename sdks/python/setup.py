@@ -349,9 +349,11 @@ if __name__ == '__main__':
           'interactive_test': [
               # headless chrome based integration tests
               'needle>=0.5.0,<1',
-              'chromedriver-binary>=100,<114',
+              'chromedriver-binary>=117,<118',
               # use a fixed major version of PIL for different python versions
               'pillow>=7.1.1,<10',
+              # urllib 2.x is a breaking change for the headless chrome tests
+              'urllib3<2,>=1.21.1'
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [

@@ -16,8 +16,6 @@
 name: LoadTests Java GBK Dataflow V2 Streaming Java11
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 8 * * *'
   workflow_dispatch:

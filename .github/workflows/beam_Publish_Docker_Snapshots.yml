@@ -16,8 +16,6 @@
 name: Publish Docker Snapshots
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 13 * * *'
   workflow_dispatch:

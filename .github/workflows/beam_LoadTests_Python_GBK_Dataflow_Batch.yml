@@ -16,8 +16,6 @@
 name: LoadTests Python GBK Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 2 * * *'
   workflow_dispatch:

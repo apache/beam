@@ -16,8 +16,6 @@
 name: PerformanceTests HadoopFormat
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '16 7/12 * * *'
   workflow_dispatch:

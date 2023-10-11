@@ -768,7 +768,7 @@ public class BigtableIOTest {
 
   /**
    * Regression test for <a href="https://github.com/apache/beam/issues/28793">[Bug]: BigtableSource
-   * "Desired bundle size 0 bytes must be greater than 0" #28793 </a>.
+   * "Desired bundle size 0 bytes must be greater than 0" #28793</a>.
    */
   @Test
   public void testSplittingWithDesiredBundleSizeZero() throws Exception {

@@ -16,8 +16,6 @@
 name: LoadTests Java ParDo Dataflow Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 11 * * *'
   workflow_dispatch:

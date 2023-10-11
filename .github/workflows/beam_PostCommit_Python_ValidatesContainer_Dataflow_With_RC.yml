@@ -16,8 +16,6 @@
 name: PostCommit Python ValidatesContainer Dataflow With RC
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -89,7 +87,7 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainer
           arguments: |
-            -PtestRCDependencies=true
+            -PtestRCDependencies=true \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3

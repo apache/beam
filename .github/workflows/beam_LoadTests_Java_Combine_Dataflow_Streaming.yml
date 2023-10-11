@@ -16,8 +16,6 @@
 name: LoadTests Java Combine Dataflow Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '25 14 * * *'
   workflow_dispatch:

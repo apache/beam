@@ -860,7 +860,7 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jul_to_slf4j                          : "org.slf4j:jul-to-slf4j:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
-        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.3",
+        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
@@ -2154,7 +2154,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.21.1"
+      project.ext.goVersion = "go1.21.2"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2395,7 +2395,20 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
+    project.ext.applyAvroNature = {
+      project.apply plugin: "com.commercehub.gradle.plugin.avro"
+
+      // add dependency BeamModulePlugin defined custom tasks
+      // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+      def sourcesJar = project.tasks.findByName('sourcesJar')
+      if (sourcesJar != null) {
+        sourcesJar.dependsOn project.tasks.getByName('generateAvroJava')
+      }
+      def testSourcesJar = project.tasks.findByName('testSourcesJar')
+      if (testSourcesJar != null) {
+        testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
+      }
+    }
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
@@ -2405,6 +2418,17 @@ class BeamModulePlugin implements Plugin<Project> {
           generatedSourceDirs += project.generateGrammarSource.outputDirectory
           generatedSourceDirs += project.generateTestGrammarSource.outputDirectory
         }
+      }
+
+      // add dependency BeamModulePlugin defined custom tasks
+      // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+      def sourcesJar = project.tasks.findByName('sourcesJar')
+      if (sourcesJar != null) {
+        sourcesJar.mustRunAfter project.tasks.getByName('generateGrammarSource')
+      }
+      def testSourcesJar = project.tasks.findByName('testSourcesJar')
+      if (testSourcesJar != null) {
+        testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
       }
     }
 

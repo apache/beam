@@ -16,8 +16,6 @@
 name: PerformanceTests PubsubIOIT Python Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '11 2 * * *'
   workflow_dispatch:

@@ -16,8 +16,6 @@
 name: LoadTests Python Combine Flink Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 7 * * *'
   workflow_dispatch:

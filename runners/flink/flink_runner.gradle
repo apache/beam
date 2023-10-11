@@ -46,35 +46,50 @@ evaluationDependsOn(":examples:java")
 /*
  * Copy & merge source overrides into build directory.
  */
-def sourceOverridesBase = "${project.buildDir}/source-overrides/src"
+def sourceOverridesBase = project.layout.buildDirectory.dir('source-overrides/src').get()
 
 def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
   it.from main_source_overrides
   it.into "${sourceOverridesBase}/main/java"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copySourceOverrides
 
 def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
   it.from main_resources_overrides
   it.into "${sourceOverridesBase}/main/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-processResources.dependsOn copyResourcesOverrides
 
 def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
   it.from test_source_overrides
   it.into "${sourceOverridesBase}/test/java"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileTestJava.dependsOn copyTestSourceOverrides
 
 def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
   it.from test_resources_overrides
   it.into "${sourceOverridesBase}/test/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
+
+// add dependency to gradle Java plugin defined tasks
+compileJava.dependsOn copySourceOverrides
+processResources.dependsOn copyResourcesOverrides
+compileTestJava.dependsOn copyTestSourceOverrides
 processTestResources.dependsOn copyTestResourcesOverrides
+
+// add dependency BeamModulePlugin defined custom tasks
+// they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+def sourcesJar = project.tasks.findByName('sourcesJar')
+if (sourcesJar != null) {
+  sourcesJar.dependsOn copySourceOverrides
+  sourcesJar.dependsOn copyResourcesOverrides
+}
+def testSourcesJar = project.tasks.findByName('testSourcesJar')
+if (testSourcesJar != null) {
+  testSourcesJar.dependsOn copyTestSourceOverrides
+  testSourcesJar.dependsOn copyTestResourcesOverrides
+}
 
 /*
  * We have to explicitly set all directories here to make sure each
