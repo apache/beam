@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
@@ -28,6 +29,9 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
+import org.apache.beam.runners.dataflow.worker.Weighers;
+import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.state.State;
@@ -84,14 +88,6 @@ public class WindmillStateCache implements StatusDataProvider {
             .build();
   }
 
-  private static class EntryStats {
-    long entries;
-    long idWeight;
-    long entryWeight;
-    long entryValues;
-    long maxEntryValues;
-  }
-
   private EntryStats calculateEntryStats() {
     EntryStats stats = new EntryStats();
     BiConsumer<StateId, StateCacheEntry> consumer =
@@ -119,130 +115,52 @@ public class WindmillStateCache implements StatusDataProvider {
     return stateCache.stats();
   }
 
-  /** Per-computation view of the state cache. */
-  public class ForComputation {
-
-    private final String computation;
-
-    private ForComputation(String computation) {
-      this.computation = computation;
-    }
-
-    /** Invalidate all cache entries for this computation and {@code processingKey}. */
-    public void invalidate(ByteString processingKey, long shardingKey) {
-      WindmillComputationKey key =
-          WindmillComputationKey.create(computation, processingKey, shardingKey);
-      // By removing the ForKey object, all state for the key is orphaned in the cache and will
-      // be removed by normal cache cleanup.
-      keyIndex.remove(key);
-    }
-
-    /**
-     * Returns a per-computation, per-key view of the state cache. Access to the cached data for
-     * this key is not thread-safe. Callers should ensure that there is only a single ForKey object
-     * in use at a time and that access to it is synchronized or single-threaded.
-     */
-    public ForKey forKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
-      ForKey forKey = keyIndex.get(computationKey);
-      if (forKey == null || !forKey.updateTokens(cacheToken, workToken)) {
-        forKey = new ForKey(computationKey, cacheToken, workToken);
-        // We prefer this implementation to using compute because that is implemented similarly for
-        // ConcurrentHashMap with the downside of it performing inserts for unchanged existing
-        // values as well.
-        keyIndex.put(computationKey, forKey);
-      }
-      return forKey;
-    }
-  }
-
-  /** Per-computation, per-key view of the state cache. */
-  // Note that we utilize the default equality and hashCode for this class based upon the instance
-  // (instead of the fields) to optimize cache invalidation.
-  public class ForKey {
-    private final WindmillComputationKey computationKey;
-    // Cache token must be consistent for the key for the cache to be valid.
-    private final long cacheToken;
-
-    // The work token for processing must be greater than the last work token.  As work items are
-    // increasing for a key, a less-than or equal to work token indicates that the current token is
-    // for stale processing.
-    private long workToken;
-
-    /**
-     * Returns a per-computation, per-key, per-family view of the state cache. Access to the cached
-     * data for this key is not thread-safe. Callers should ensure that there is only a single
-     * ForKeyAndFamily object in use at a time for a given computation, key, family tuple and that
-     * access to it is synchronized or single-threaded.
-     */
-    public ForKeyAndFamily forFamily(String stateFamily) {
-      return new ForKeyAndFamily(this, stateFamily);
-    }
-
-    private ForKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
-      this.computationKey = computationKey;
-      this.cacheToken = cacheToken;
-      this.workToken = workToken;
-    }
-
-    private boolean updateTokens(long cacheToken, long workToken) {
-      if (this.cacheToken != cacheToken || workToken <= this.workToken) {
-        return false;
-      }
-      this.workToken = workToken;
-      return true;
-    }
-  }
-
-  /**
-   * Per-computation, per-key, per-family view of the state cache. Modifications are cached locally
-   * and must be flushed to the cache by calling persist. This class is not thread-safe.
-   */
-  public class ForKeyAndFamily {
-    final ForKey forKey;
-    final String stateFamily;
-    private final HashMap<StateId, StateCacheEntry> localCache;
-
-    private ForKeyAndFamily(ForKey forKey, String stateFamily) {
-      this.forKey = forKey;
-      this.stateFamily = stateFamily;
-      localCache = new HashMap<>();
-    }
-
-    public String getStateFamily() {
-      return stateFamily;
-    }
-
-    public <T extends State> @Nullable T get(StateNamespace namespace, StateTag<T> address) {
-      StateId id = new StateId(forKey, stateFamily, namespace);
-      @SuppressWarnings("nullness") // Unsure how to annotate lambda return allowing null.
-      @Nullable
-      StateCacheEntry entry = localCache.computeIfAbsent(id, key -> stateCache.getIfPresent(key));
-      return entry == null ? null : entry.get(namespace, address);
-    }
-
-    public <T extends State> void put(
-        StateNamespace namespace, StateTag<T> address, T value, long weight) {
-      StateId id = new StateId(forKey, stateFamily, namespace);
-      @Nullable StateCacheEntry entry = localCache.get(id);
-      if (entry == null) {
-        entry = stateCache.getIfPresent(id);
-        if (entry == null) {
-          entry = new StateCacheEntry();
-        }
-        boolean hadValue = localCache.putIfAbsent(id, entry) != null;
-        Preconditions.checkState(!hadValue);
-      }
-      entry.put(namespace, address, value, weight);
-    }
-
-    public void persist() {
-      localCache.forEach((id, entry) -> stateCache.put(id, entry));
-    }
-  }
-
   /** Returns a per-computation view of the state cache. */
   public ForComputation forComputation(String computation) {
     return new ForComputation(computation);
+  }
+
+  /** Print summary statistics of the cache to the given {@link PrintWriter}. */
+  @Override
+  public void appendSummaryHtml(PrintWriter response) {
+    response.println("Cache Stats: <br><table>");
+    response.println(
+        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Entries</th>"
+            + "<th>Entry Values</th><th>Max Entry Values</th>"
+            + "<th>Id Weight</th><th>Entry Weight</th><th>Max Weight</th><th>Keys</th>"
+            + "</tr><tr>");
+    CacheStats cacheStats = stateCache.stats();
+    EntryStats entryStats = calculateEntryStats();
+    response.println("<td>" + cacheStats.hitRate() + "</td>");
+    response.println("<td>" + cacheStats.evictionCount() + "</td>");
+    response.println("<td>" + entryStats.entries + "(" + stateCache.size() + " inc. weak) </td>");
+    response.println("<td>" + entryStats.entryValues + "</td>");
+    response.println("<td>" + entryStats.maxEntryValues + "</td>");
+    response.println("<td>" + entryStats.idWeight / MEGABYTES + "MB</td>");
+    response.println("<td>" + entryStats.entryWeight / MEGABYTES + "MB</td>");
+    response.println("<td>" + getMaxWeight() / MEGABYTES + "MB</td>");
+    response.println("<td>" + keyIndex.size() + "</td>");
+    response.println("</tr></table><br>");
+  }
+
+  public BaseStatusServlet statusServlet() {
+    return new BaseStatusServlet("/cachez") {
+      @Override
+      protected void doGet(HttpServletRequest request, HttpServletResponse response)
+          throws IOException {
+        PrintWriter writer = response.getWriter();
+        writer.println("<h1>Cache Information</h1>");
+        appendSummaryHtml(writer);
+      }
+    };
+  }
+
+  private static class EntryStats {
+    long entries;
+    long idWeight;
+    long entryWeight;
+    long entryValues;
+    long maxEntryValues;
   }
 
   /**
@@ -297,12 +215,10 @@ public class WindmillStateCache implements StatusDataProvider {
       this.weight = 0;
     }
 
-    public <T extends State> @Nullable T get(StateNamespace namespace, StateTag<T> tag) {
-      @SuppressWarnings("unchecked")
-      @Nullable
-      WeightedValue<T> weightedValue =
-          (WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag));
-      return weightedValue == null ? null : weightedValue.value;
+    @SuppressWarnings("unchecked")
+    public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> tag) {
+      return Optional.ofNullable((WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag)))
+          .flatMap(WeightedValue::value);
     }
 
     public <T extends State> void put(
@@ -362,43 +278,137 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     private static class WeightedValue<T> {
-      public long weight;
-      public @Nullable T value;
+      private long weight;
+      private @Nullable T value;
+
+      private Optional<T> value() {
+        return Optional.ofNullable(this.value);
+      }
     }
   }
 
-  /** Print summary statistics of the cache to the given {@link PrintWriter}. */
-  @Override
-  public void appendSummaryHtml(PrintWriter response) {
-    response.println("Cache Stats: <br><table>");
-    response.println(
-        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Entries</th>"
-            + "<th>Entry Values</th><th>Max Entry Values</th>"
-            + "<th>Id Weight</th><th>Entry Weight</th><th>Max Weight</th><th>Keys</th>"
-            + "</tr><tr>");
-    CacheStats cacheStats = stateCache.stats();
-    EntryStats entryStats = calculateEntryStats();
-    response.println("<td>" + cacheStats.hitRate() + "</td>");
-    response.println("<td>" + cacheStats.evictionCount() + "</td>");
-    response.println("<td>" + entryStats.entries + "(" + stateCache.size() + " inc. weak) </td>");
-    response.println("<td>" + entryStats.entryValues + "</td>");
-    response.println("<td>" + entryStats.maxEntryValues + "</td>");
-    response.println("<td>" + entryStats.idWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + entryStats.entryWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + getMaxWeight() / MEGABYTES + "MB</td>");
-    response.println("<td>" + keyIndex.size() + "</td>");
-    response.println("</tr></table><br>");
+  /** Per-computation view of the state cache. */
+  public class ForComputation {
+
+    private final String computation;
+
+    private ForComputation(String computation) {
+      this.computation = computation;
+    }
+
+    /** Invalidate all cache entries for this computation and {@code processingKey}. */
+    public void invalidate(ByteString processingKey, long shardingKey) {
+      WindmillComputationKey key =
+          WindmillComputationKey.create(computation, processingKey, shardingKey);
+      // By removing the ForKey object, all state for the key is orphaned in the cache and will
+      // be removed by normal cache cleanup.
+      keyIndex.remove(key);
+    }
+
+    /**
+     * Returns a per-computation, per-key view of the state cache. Access to the cached data for
+     * this key is not thread-safe. Callers should ensure that there is only a single ForKey object
+     * in use at a time and that access to it is synchronized or single-threaded.
+     */
+    public ForKey forKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
+      ForKey forKey = keyIndex.get(computationKey);
+      if (forKey == null || !forKey.updateTokens(cacheToken, workToken)) {
+        forKey = new ForKey(computationKey, cacheToken, workToken);
+        // We prefer this implementation to using compute because that is implemented similarly for
+        // ConcurrentHashMap with the downside of it performing inserts for unchanged existing
+        // values as well.
+        keyIndex.put(computationKey, forKey);
+      }
+      return forKey;
+    }
   }
 
-  public BaseStatusServlet statusServlet() {
-    return new BaseStatusServlet("/cachez") {
-      @Override
-      protected void doGet(HttpServletRequest request, HttpServletResponse response)
-          throws IOException {
-        PrintWriter writer = response.getWriter();
-        writer.println("<h1>Cache Information</h1>");
-        appendSummaryHtml(writer);
+  /** Per-computation, per-key view of the state cache. */
+  // Note that we utilize the default equality and hashCode for this class based upon the instance
+  // (instead of the fields) to optimize cache invalidation.
+  public class ForKey {
+    private final WindmillComputationKey computationKey;
+    // Cache token must be consistent for the key for the cache to be valid.
+    private final long cacheToken;
+
+    // The work token for processing must be greater than the last work token.  As work items are
+    // increasing for a key, a less-than or equal to work token indicates that the current token is
+    // for stale processing.
+    private long workToken;
+
+    private ForKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
+      this.computationKey = computationKey;
+      this.cacheToken = cacheToken;
+      this.workToken = workToken;
+    }
+
+    /**
+     * Returns a per-computation, per-key, per-family view of the state cache. Access to the cached
+     * data for this key is not thread-safe. Callers should ensure that there is only a single
+     * ForKeyAndFamily object in use at a time for a given computation, key, family tuple and that
+     * access to it is synchronized or single-threaded.
+     */
+    public ForKeyAndFamily forFamily(String stateFamily) {
+      return new ForKeyAndFamily(this, stateFamily);
+    }
+
+    private boolean updateTokens(long cacheToken, long workToken) {
+      if (this.cacheToken != cacheToken || workToken <= this.workToken) {
+        return false;
       }
-    };
+      this.workToken = workToken;
+      return true;
+    }
+  }
+
+  /**
+   * Per-computation, per-key, per-family view of the state cache. Modifications are cached locally
+   * and must be flushed to the cache by calling persist. This class is not thread-safe.
+   */
+  public class ForKeyAndFamily {
+    final ForKey forKey;
+    final String stateFamily;
+    private final HashMap<StateId, StateCacheEntry> localCache;
+
+    private ForKeyAndFamily(ForKey forKey, String stateFamily) {
+      this.forKey = forKey;
+      this.stateFamily = stateFamily;
+      localCache = new HashMap<>();
+    }
+
+    public String getStateFamily() {
+      return stateFamily;
+    }
+
+    public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> address) {
+      @SuppressWarnings("nullness")
+      // the mapping function for localCache.computeIfAbsent (i.e stateCache.getIfPresent) is
+      // nullable.
+      Optional<StateCacheEntry> stateCacheEntry =
+          Optional.ofNullable(
+              localCache.computeIfAbsent(
+                  new StateId(forKey, stateFamily, namespace), stateCache::getIfPresent));
+
+      return stateCacheEntry.flatMap(entry -> entry.get(namespace, address));
+    }
+
+    public <T extends State> void put(
+        StateNamespace namespace, StateTag<T> address, T value, long weight) {
+      StateId id = new StateId(forKey, stateFamily, namespace);
+      @Nullable StateCacheEntry entry = localCache.get(id);
+      if (entry == null) {
+        entry = stateCache.getIfPresent(id);
+        if (entry == null) {
+          entry = new StateCacheEntry();
+        }
+        boolean hadValue = localCache.putIfAbsent(id, entry) != null;
+        Preconditions.checkState(!hadValue);
+      }
+      entry.put(namespace, address, value, weight);
+    }
+
+    public void persist() {
+      localCache.forEach(stateCache::put);
+    }
   }
 }

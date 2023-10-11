@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import static org.apache.beam.runners.dataflow.worker.DataflowMatchers.ByteStringMatcher.byteStringEq;
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
@@ -56,8 +56,8 @@ import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.runners.dataflow.worker.WindmillStateInternals.IdTracker;
-import org.apache.beam.runners.dataflow.worker.WindmillStateInternals.WindmillOrderedList;
+import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
+import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListUpdateRequest;
@@ -113,24 +113,21 @@ import org.mockito.MockitoAnnotations;
 })
 public class WindmillStateInternalsTest {
 
+  public static final Range<Long> FULL_ORDERED_LIST_RANGE =
+      Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");
   private static final String STATE_FAMILY = "family";
-
   private static final StateTag<CombiningState<Integer, int[], Integer>> COMBINING_ADDR =
       StateTags.combiningValueFromInputInternal("combining", VarIntCoder.of(), Sum.ofIntegers());
   private static final ByteString COMBINING_KEY = key(NAMESPACE, "combining");
   private final Coder<int[]> accumCoder =
       Sum.ofIntegers().getAccumulatorCoder(null, VarIntCoder.of());
-  private long workToken = 0;
-
   DataflowWorkerHarnessOptions options;
-
+  private long workToken = 0;
   @Mock private WindmillStateReader mockReader;
-
   private WindmillStateInternals<String> underTest;
   private WindmillStateInternals<String> underTestNewKey;
   private WindmillStateCache cache;
-
   @Mock private Supplier<Closeable> readStateSupplier;
 
   private static ByteString key(StateNamespace namespace, String addrId) {
@@ -139,6 +136,67 @@ public class WindmillStateInternalsTest {
 
   private static ByteString systemKey(StateNamespace namespace, String addrId) {
     return ByteString.copyFromUtf8(namespace.stringKey() + "+s" + addrId);
+  }
+
+  private static <T> ByteString encodeWithCoder(T key, Coder<T> coder) {
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    try {
+      coder.encode(key, out, Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return out.toByteString();
+  }
+
+  // We use the structural value of the Multimap keys to differentiate between different keys. So we
+  // mix using the original key object and a duplicate but same key object so make sure the
+  // correctness.
+  private static byte[] dup(byte[] key) {
+    byte[] res = new byte[key.length];
+    System.arraycopy(key, 0, res, 0, key.length);
+    return res;
+  }
+
+  private static Map.Entry<ByteString, Iterable<Integer>> multimapEntry(
+      byte[] key, Integer... values) {
+    return new AbstractMap.SimpleEntry<>(
+        encodeWithCoder(key, ByteArrayCoder.of()), Arrays.asList(values));
+  }
+
+  @SafeVarargs
+  private static <T> List<T> weightedList(T... entries) {
+    WeightedList<T> list = new WeightedList<>(new ArrayList<>());
+    for (T entry : entries) {
+      list.addWeighted(entry, 1);
+    }
+    return list;
+  }
+
+  private static CombinableMatcher<Object> multimapEntryMatcher(byte[] key, Integer value) {
+    return Matchers.both(Matchers.hasProperty("key", Matchers.equalTo(key)))
+        .and(Matchers.hasProperty("value", Matchers.equalTo(value)));
+  }
+
+  private static MultimapEntryUpdate decodeTagMultimapEntry(Windmill.TagMultimapEntry entryProto) {
+    try {
+      String key = StringUtf8Coder.of().decode(entryProto.getEntryName().newInput(), Context.OUTER);
+      List<Integer> values = new ArrayList<>();
+      for (ByteString value : entryProto.getValuesList()) {
+        values.add(VarIntCoder.of().decode(value.newInput(), Context.OUTER));
+      }
+      return new MultimapEntryUpdate(key, values, entryProto.getDeleteAll());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static void assertTagMultimapUpdates(
+      Windmill.TagMultimapUpdateRequest.Builder updates, MultimapEntryUpdate... expected) {
+    assertThat(
+        updates.getUpdatesList().stream()
+            .map(WindmillStateInternalsTest::decodeTagMultimapEntry)
+            .collect(Collectors.toList()),
+        Matchers.containsInAnyOrder(expected));
   }
 
   @Before
@@ -203,9 +261,8 @@ public class WindmillStateInternalsTest {
         .run();
   }
 
-  private WindmillStateReader.WeightedList<String> weightedList(String... elems) {
-    WindmillStateReader.WeightedList<String> result =
-        new WindmillStateReader.WeightedList<>(new ArrayList<String>(elems.length));
+  private WeightedList<String> weightedList(String... elems) {
+    WeightedList<String> result = new WeightedList<>(new ArrayList<String>(elems.length));
     for (String elem : elems) {
       result.addWeighted(elem, elem.length());
     }
@@ -660,25 +717,6 @@ public class WindmillStateInternalsTest {
     assertEquals(0, commitBuilder.getValueUpdatesCount());
   }
 
-  private static <T> ByteString encodeWithCoder(T key, Coder<T> coder) {
-    ByteStringOutputStream out = new ByteStringOutputStream();
-    try {
-      coder.encode(key, out, Context.OUTER);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return out.toByteString();
-  }
-
-  // We use the structural value of the Multimap keys to differentiate between different keys. So we
-  // mix using the original key object and a duplicate but same key object so make sure the
-  // correctness.
-  private static byte[] dup(byte[] key) {
-    byte[] res = new byte[key.length];
-    System.arraycopy(key, 0, res, 0, key.length);
-    return res;
-  }
-
   @Test
   public void testMultimapGet() {
     final String tag = "multimap";
@@ -796,7 +834,7 @@ public class WindmillStateInternalsTest {
     underTest.persist(commitBuilder);
     assertTagMultimapUpdates(
         Iterables.getOnlyElement(commitBuilder.getMultimapUpdatesBuilderList()),
-        new MultimapEntryUpdate(key, Arrays.asList(4), true));
+        new MultimapEntryUpdate(key, Collections.singletonList(4), true));
 
     multimapState.put(key, 5);
     assertThat(multimapState.get(key).read(), Matchers.containsInAnyOrder(4, 5));
@@ -887,22 +925,6 @@ public class WindmillStateInternalsTest {
     assertTrue(multimapState.isEmpty().read());
   }
 
-  private static Map.Entry<ByteString, Iterable<Integer>> multimapEntry(
-      byte[] key, Integer... values) {
-    return new AbstractMap.SimpleEntry<>(
-        encodeWithCoder(key, ByteArrayCoder.of()), Arrays.asList(values));
-  }
-
-  @SafeVarargs
-  private static <T> List<T> weightedList(T... entries) {
-    WindmillStateReader.WeightedList<T> list =
-        new WindmillStateReader.WeightedList<>(new ArrayList<>());
-    for (T entry : entries) {
-      list.addWeighted(entry, 1);
-    }
-    return list;
-  }
-
   @Test
   public void testMultimapBasicEntriesAndKeys() {
     final String tag = "multimap";
@@ -948,11 +970,6 @@ public class WindmillStateInternalsTest {
     Iterable<byte[]> keys = keysResult.read();
     assertEquals(2, Iterables.size(keys));
     assertThat(keys, Matchers.containsInAnyOrder(key1, key2));
-  }
-
-  private static CombinableMatcher<Object> multimapEntryMatcher(byte[] key, Integer value) {
-    return Matchers.both(Matchers.hasProperty("key", Matchers.equalTo(key)))
-        .and(Matchers.hasProperty("value", Matchers.equalTo(value)));
   }
 
   @Test
@@ -1389,10 +1406,10 @@ public class WindmillStateInternalsTest {
         entriesFuture,
         () ->
             new Iterator<Map.Entry<ByteString, Iterable<Integer>>>() {
-              int returnedEntries = 0;
-              byte[] entryKey = new byte[10_000]; // each key is 10KB
               final int targetEntries = 1_000_000; // return 1 million entries, which is 10 GBs
-              Random rand = new Random();
+              final byte[] entryKey = new byte[10_000]; // each key is 10KB
+              final Random rand = new Random();
+              int returnedEntries = 0;
 
               @Override
               public boolean hasNext() {
@@ -1429,10 +1446,10 @@ public class WindmillStateInternalsTest {
         keysFuture,
         () ->
             new Iterator<Map.Entry<ByteString, Iterable<Integer>>>() {
-              int returnedEntries = 0;
-              byte[] entryKey = new byte[10_000]; // each key is 10KB
               final int targetEntries = 1_000_000; // return 1 million entries, which is 10 GBs
-              Random rand = new Random();
+              final byte[] entryKey = new byte[10_000]; // each key is 10KB
+              final Random rand = new Random();
+              int returnedEntries = 0;
 
               @Override
               public boolean hasNext() {
@@ -1477,10 +1494,10 @@ public class WindmillStateInternalsTest {
     Iterable<byte[]> values =
         () ->
             new Iterator<byte[]>() {
-              int returnedValues = 0;
-              byte[] value = new byte[10_000]; // each value is 10KB
               final int targetValues = 1_000_000; // return 1 million values, which is 10 GBs
-              Random rand = new Random();
+              final byte[] value = new byte[10_000]; // each value is 10KB
+              final Random rand = new Random();
+              int returnedValues = 0;
 
               @Override
               public boolean hasNext() {
@@ -1497,8 +1514,8 @@ public class WindmillStateInternalsTest {
 
     waitAndSet(
         entriesFuture,
-        Arrays.asList(
-            new AbstractMap.SimpleEntry<>(encodeWithCoder(key, VarIntCoder.of()), values)),
+        Collections.singletonList(
+            new SimpleEntry<>(encodeWithCoder(key, VarIntCoder.of()), values)),
         200);
     waitAndSet(getKeyFuture, values, 200);
 
@@ -1507,55 +1524,6 @@ public class WindmillStateInternalsTest {
 
     Iterable<byte[]> valueResult = multimapState.get(key).read();
     assertEquals(1_000_000, Iterables.size(valueResult));
-  }
-
-  private static class MultimapEntryUpdate {
-    String key;
-    Iterable<Integer> values;
-    boolean deleteAll;
-
-    public MultimapEntryUpdate(String key, Iterable<Integer> values, boolean deleteAll) {
-      this.key = key;
-      this.values = values;
-      this.deleteAll = deleteAll;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (!(o instanceof MultimapEntryUpdate)) return false;
-      MultimapEntryUpdate that = (MultimapEntryUpdate) o;
-      return deleteAll == that.deleteAll
-          && Objects.equals(key, that.key)
-          && Objects.equals(values, that.values);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(key, values, deleteAll);
-    }
-  }
-
-  private static MultimapEntryUpdate decodeTagMultimapEntry(Windmill.TagMultimapEntry entryProto) {
-    try {
-      String key = StringUtf8Coder.of().decode(entryProto.getEntryName().newInput(), Context.OUTER);
-      List<Integer> values = new ArrayList<>();
-      for (ByteString value : entryProto.getValuesList()) {
-        values.add(VarIntCoder.of().decode(value.newInput(), Context.OUTER));
-      }
-      return new MultimapEntryUpdate(key, values, entryProto.getDeleteAll());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static void assertTagMultimapUpdates(
-      Windmill.TagMultimapUpdateRequest.Builder updates, MultimapEntryUpdate... expected) {
-    assertThat(
-        updates.getUpdatesList().stream()
-            .map(WindmillStateInternalsTest::decodeTagMultimapEntry)
-            .collect(Collectors.toList()),
-        Matchers.containsInAnyOrder(expected));
   }
 
   @Test
@@ -1582,7 +1550,7 @@ public class WindmillStateInternalsTest {
     assertTagMultimapUpdates(
         builder,
         new MultimapEntryUpdate(key1, Arrays.asList(1, 2), false),
-        new MultimapEntryUpdate(key2, Arrays.asList(2), false));
+        new MultimapEntryUpdate(key2, Collections.singletonList(2), false));
   }
 
   @Test
@@ -1615,7 +1583,7 @@ public class WindmillStateInternalsTest {
     assertTagMultimapUpdates(
         builder,
         new MultimapEntryUpdate(key1, Arrays.asList(1, 2), true),
-        new MultimapEntryUpdate(key2, Arrays.asList(4), true));
+        new MultimapEntryUpdate(key2, Collections.singletonList(4), true));
   }
 
   @Test
@@ -1709,7 +1677,8 @@ public class WindmillStateInternalsTest {
     assertEquals(1, commitBuilder.getMultimapUpdatesCount());
     Windmill.TagMultimapUpdateRequest.Builder builder =
         Iterables.getOnlyElement(commitBuilder.getMultimapUpdatesBuilderList());
-    assertTagMultimapUpdates(builder, new MultimapEntryUpdate(key1, Arrays.asList(4), false));
+    assertTagMultimapUpdates(
+        builder, new MultimapEntryUpdate(key1, Collections.singletonList(4), false));
   }
 
   @Test
@@ -1731,8 +1700,7 @@ public class WindmillStateInternalsTest {
     ReadableState<Iterable<byte[]>> keysResult = multimapState.keys().readLater();
     waitAndSet(
         keysFuture,
-        new WindmillStateReader.WeightedList<>(
-            Arrays.asList(multimapEntry(key1), multimapEntry(key2))),
+        new WeightedList<>(Arrays.asList(multimapEntry(key1), multimapEntry(key2))),
         30);
 
     multimapState.remove(key1);
@@ -1753,7 +1721,7 @@ public class WindmillStateInternalsTest {
     Windmill.TagMultimapEntry entryUpdate = Iterables.getOnlyElement(builder.getUpdatesList());
     byte[] decodedKey =
         ByteArrayCoder.of().decode(entryUpdate.getEntryName().newInput(), Context.OUTER);
-    assertTrue(Arrays.equals(key1, decodedKey));
+    assertArrayEquals(key1, decodedKey);
     assertTrue(entryUpdate.getDeleteAll());
   }
 
@@ -1870,9 +1838,6 @@ public class WindmillStateInternalsTest {
     underTest.persist(commitBuilder);
   }
 
-  public static final Range<Long> FULL_ORDERED_LIST_RANGE =
-      Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
-
   @Test
   public void testOrderedListAddBeforeRead() throws Exception {
     StateTag<OrderedListState<String>> addr =
@@ -1897,7 +1862,7 @@ public class WindmillStateInternalsTest {
         TimestampedValue.of("goodbye", Instant.ofEpochMilli(50));
 
     orderedList.add(helloValue);
-    waitAndSet(future, Arrays.asList(worldValue), 200);
+    waitAndSet(future, Collections.singletonList(worldValue), 200);
     assertThat(orderedList.read(), Matchers.contains(worldValue, helloValue));
 
     orderedList.add(goodbyeValue);
@@ -1940,7 +1905,7 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             StringUtf8Coder.of());
 
-    waitAndSet(future, Arrays.asList(TimestampedValue.of("world", Instant.EPOCH)), 200);
+    waitAndSet(future, Collections.singletonList(TimestampedValue.of("world", Instant.EPOCH)), 200);
     assertThat(result.read(), Matchers.is(false));
   }
 
@@ -2266,10 +2231,6 @@ public class WindmillStateInternalsTest {
     Mockito.verifyZeroInteractions(mockReader);
   }
 
-  // test ordered list cleared before read
-  // test fetch + add + read
-  // test ids
-
   @Test
   public void testBagAddBeforeRead() throws Exception {
     StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
@@ -2282,12 +2243,16 @@ public class WindmillStateInternalsTest {
     bag.readLater();
 
     bag.add("hello");
-    waitAndSet(future, Arrays.asList("world"), 200);
+    waitAndSet(future, Collections.singletonList("world"), 200);
     assertThat(bag.read(), Matchers.containsInAnyOrder("hello", "world"));
 
     bag.add("goodbye");
     assertThat(bag.read(), Matchers.containsInAnyOrder("hello", "world", "goodbye"));
   }
+
+  // test ordered list cleared before read
+  // test fetch + add + read
+  // test ids
 
   @Test
   public void testBagClearBeforeRead() throws Exception {
@@ -2313,7 +2278,7 @@ public class WindmillStateInternalsTest {
     ReadableState<Boolean> result = bag.isEmpty().readLater();
     Mockito.verify(mockReader).bagFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
 
-    waitAndSet(future, Arrays.asList("world"), 200);
+    waitAndSet(future, Collections.singletonList("world"), 200);
     assertThat(result.read(), Matchers.is(false));
   }
 
@@ -2328,7 +2293,7 @@ public class WindmillStateInternalsTest {
     ReadableState<Boolean> result = bag.isEmpty().readLater();
     Mockito.verify(mockReader).bagFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
 
-    waitAndSet(future, Arrays.<String>asList(), 200);
+    waitAndSet(future, Collections.emptyList(), 200);
     assertThat(result.read(), Matchers.is(true));
   }
 
@@ -2436,7 +2401,7 @@ public class WindmillStateInternalsTest {
     assertThat(value.read(), Matchers.equalTo(29));
 
     // That get "compressed" the combiner. So, the underlying future should change:
-    future.set(Arrays.asList(new int[] {29}));
+    future.set(Collections.singletonList(new int[] {29}));
 
     value.add(2);
     assertThat(value.read(), Matchers.equalTo(31));
@@ -2480,7 +2445,7 @@ public class WindmillStateInternalsTest {
         .bagFuture(byteString.capture(), eq(STATE_FAMILY), Mockito.<Coder<int[]>>any());
     assertThat(byteString.getValue(), byteStringEq(COMBINING_KEY));
 
-    waitAndSet(future, Arrays.asList(new int[] {29}), 200);
+    waitAndSet(future, Collections.singletonList(new int[] {29}), 200);
     assertThat(result.read(), Matchers.is(false));
   }
 
@@ -2527,12 +2492,10 @@ public class WindmillStateInternalsTest {
 
     Mockito.when(
             mockReader.bagFuture(
-                org.mockito.Matchers.<ByteString>any(),
-                org.mockito.Matchers.<String>any(),
+                org.mockito.Matchers.any(),
+                org.mockito.Matchers.any(),
                 org.mockito.Matchers.<Coder<int[]>>any()))
-        .thenReturn(
-            Futures.<Iterable<int[]>>immediateFuture(
-                ImmutableList.of(new int[] {40}, new int[] {60})));
+        .thenReturn(Futures.immediateFuture(ImmutableList.of(new int[] {40}, new int[] {60})));
 
     GroupingState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
@@ -2717,7 +2680,7 @@ public class WindmillStateInternalsTest {
     hold.add(new Instant(2000));
 
     when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY))
-        .thenReturn(Futures.<Instant>immediateFuture(null));
+        .thenReturn(Futures.immediateFuture(null));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -2743,7 +2706,7 @@ public class WindmillStateInternalsTest {
     hold.add(new Instant(2000));
 
     when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY))
-        .thenReturn(Futures.<Instant>immediateFuture(new Instant(4000)));
+        .thenReturn(Futures.immediateFuture(new Instant(4000)));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -2769,7 +2732,7 @@ public class WindmillStateInternalsTest {
     hold.add(new Instant(2000));
 
     when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY))
-        .thenReturn(Futures.<Instant>immediateFuture(new Instant(500)));
+        .thenReturn(Futures.immediateFuture(new Instant(500)));
 
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
@@ -2880,7 +2843,7 @@ public class WindmillStateInternalsTest {
 
     value.clear();
 
-    assertEquals(null, value.read());
+    assertNull(value.read());
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -2956,7 +2919,7 @@ public class WindmillStateInternalsTest {
     StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
     ValueState<String> value = underTestNewKey.state(NAMESPACE, addr);
 
-    assertEquals(null, value.read());
+    assertNull(value.read());
 
     // Shouldn't need to read from windmill for this.
     Mockito.verifyZeroInteractions(mockReader);
@@ -2984,7 +2947,7 @@ public class WindmillStateInternalsTest {
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
-    assertEquals(null, value.read());
+    assertNull(value.read());
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
     Mockito.verifyNoMoreInteractions(mockReader);
@@ -3087,7 +3050,7 @@ public class WindmillStateInternalsTest {
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
-    assertEquals(null, hold.read());
+    assertNull(hold.read());
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
     Mockito.verify(mockReader, times(2)).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
@@ -3109,7 +3072,7 @@ public class WindmillStateInternalsTest {
     value.readLater();
 
     value.add(1);
-    waitAndSet(future, Arrays.asList(new int[] {2}), 200);
+    waitAndSet(future, Collections.singletonList(new int[] {2}), 200);
     assertThat(value.read(), Matchers.equalTo(3));
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
@@ -3148,5 +3111,32 @@ public class WindmillStateInternalsTest {
 
   private void forceCompactOnWrite() {
     WindmillStateInternals.COMPACT_NOW.set(() -> true);
+  }
+
+  private static class MultimapEntryUpdate {
+    String key;
+    Iterable<Integer> values;
+    boolean deleteAll;
+
+    public MultimapEntryUpdate(String key, Iterable<Integer> values, boolean deleteAll) {
+      this.key = key;
+      this.values = values;
+      this.deleteAll = deleteAll;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (!(o instanceof MultimapEntryUpdate)) return false;
+      MultimapEntryUpdate that = (MultimapEntryUpdate) o;
+      return deleteAll == that.deleteAll
+          && Objects.equals(key, that.key)
+          && Objects.equals(values, that.values);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, values, deleteAll);
+    }
   }
 }
