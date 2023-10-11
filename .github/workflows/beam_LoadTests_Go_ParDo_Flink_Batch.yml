@@ -16,8 +16,6 @@
 name: LoadTests Go ParDo Flink Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '40 2 * * *'
   workflow_dispatch:

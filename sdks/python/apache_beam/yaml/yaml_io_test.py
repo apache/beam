@@ -167,6 +167,101 @@ class YamlPubSubTest(unittest.TestCase):
             result,
             equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
 
+  def test_read_json(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(
+                              b'{"generator": {"x": 0, "y": 0}, "rank": 1}',
+                              {'weierstrass': 'y^2+y=x^3-x', 'label': '37a'})
+                                    ])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: json
+              schema:
+                type: object
+                properties:
+                  generator:
+                    type: object
+                    properties:
+                      x: {type: integer}
+                      y: {type: integer}
+                  rank: {type: integer}
+              attributes: [label]
+              attributes_map: other
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    generator=beam.Row(x=0, y=0),
+                    rank=1,
+                    label='37a',
+                    other={
+                        'label': '37a', 'weierstrass': 'y^2+y=x^3-x'
+                    })
+            ]))
+
+  def test_read_json_with_error_handling(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch(
+          'apache_beam.io.ReadFromPubSub',
+          FakeReadFromPubSub(topic='my_topic',
+                             messages=[PubsubMessage('{"some_int": 123}',
+                                                     attributes={}),
+                                       PubsubMessage('unparsable',
+                                                     attributes={})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: json
+              schema:
+                type: object
+                properties:
+                  some_int: {type: integer}
+              error_handling:
+                output: errors
+            ''')
+        assert_that(
+            result['good'],
+            equal_to([beam.Row(some_int=123)]),
+            label='CheckGood')
+        assert_that(
+            result['errors'] | beam.Map(lambda error: error.element),
+            equal_to(['unparsable']),
+            label='CheckErrors')
+
+  def test_read_json_without_error_handling(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        with mock.patch(
+            'apache_beam.io.ReadFromPubSub',
+            FakeReadFromPubSub(topic='my_topic',
+                               messages=[PubsubMessage('{"some_int": 123}',
+                                                       attributes={}),
+                                         PubsubMessage('unparsable',
+                                                       attributes={})])):
+          _ = p | YamlTransform(
+              '''
+              type: ReadFromPubSub
+              config:
+                topic: my_topic
+                format: json
+                schema:
+                  type: object
+                  properties:
+                    some_int: {type: integer}
+              ''')
+
   def test_simple_write(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -249,6 +344,34 @@ class YamlPubSubTest(unittest.TestCase):
               topic: my_topic
               format: raw
               id_attribute: some_attr
+            '''))
+
+  def test_write_json(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.WriteToPubSub',
+                      FakeWriteToPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(
+                              b'{"generator": {"x": 0, "y": 0}, "rank": 1}',
+                              {'weierstrass': 'y^2+y=x^3-x', 'label': '37a'})
+                                    ])):
+        _ = (
+            p | beam.Create([
+                beam.Row(
+                    label='37a',
+                    generator=beam.Row(x=0, y=0),
+                    rank=1,
+                    other={'weierstrass': 'y^2+y=x^3-x'})
+            ]) | YamlTransform(
+                '''
+            type: WriteToPubSub
+            input: input
+            config:
+              topic: my_topic
+              format: json
+              attributes: [label]
+              attributes_map: other
             '''))
 
 

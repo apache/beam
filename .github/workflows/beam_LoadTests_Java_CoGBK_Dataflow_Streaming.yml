@@ -16,8 +16,6 @@
 name: Load Tests CoGBK Dataflow Streaming Java
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 10 * * *'
   workflow_dispatch:

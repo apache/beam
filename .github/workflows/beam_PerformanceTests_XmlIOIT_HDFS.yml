@@ -16,8 +16,6 @@
 name: PerformanceTests XmlIOIT HDFS
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 4/12 * * *'
   workflow_dispatch:

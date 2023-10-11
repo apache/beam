@@ -108,7 +108,7 @@ public class TransformUpgrader implements AutoCloseable {
     } else if (options.getTransformServiceBeamVersion() != null) {
       String projectName = UUID.randomUUID().toString();
       int port = findAvailablePort();
-      service = TransformServiceLauncher.forProject(projectName, port);
+      service = TransformServiceLauncher.forProject(projectName, port, null);
       service.setBeamVersion(options.getTransformServiceBeamVersion());
 
       // Starting the transform service.

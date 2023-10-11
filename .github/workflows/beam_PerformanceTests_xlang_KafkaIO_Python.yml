@@ -16,8 +16,6 @@
 name: PerformanceTests xlang KafkaIO Python
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 5 * * *'
   workflow_dispatch:

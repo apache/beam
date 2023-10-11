@@ -16,8 +16,6 @@
 name: PerformanceTests SparkReceiver IO
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '15 6/12 * * *'
   workflow_dispatch:

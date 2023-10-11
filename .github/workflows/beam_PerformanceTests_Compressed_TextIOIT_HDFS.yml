@@ -16,8 +16,6 @@
 name: PerformanceTests Compressed TextIOIT HDFS
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 1/12 * * *'
   workflow_dispatch:

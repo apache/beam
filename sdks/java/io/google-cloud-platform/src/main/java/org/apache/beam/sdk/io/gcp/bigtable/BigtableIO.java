@@ -1326,7 +1326,11 @@ public class BigtableIO {
       long maximumNumberOfSplits = 4000;
       long sizeEstimate = getEstimatedSizeBytes(options);
       desiredBundleSizeBytes =
-          Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
+          Math.max(
+              sizeEstimate / maximumNumberOfSplits,
+              // BoundedReadEvaluatorFactory may provide us with a desiredBundleSizeBytes of 0
+              // https://github.com/apache/beam/issues/28793
+              Math.max(1, desiredBundleSizeBytes));
 
       // Delegate to testable helper.
       List<BigtableSource> splits =
