@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
 import java.util.List;
@@ -92,10 +93,11 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     FlinkPortablePipelineTranslator<?> translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
       // TODO: Do we need to inspect for unbounded sources before fusing?
-      translator = FlinkBatchPortablePipelineTranslator.createTranslator();
+      translator = FlinkUnifiedPipelineTranslator.createTranslator(false, true);
     } else {
-      translator = new FlinkStreamingPortablePipelineTranslator();
+      translator = FlinkUnifiedPipelineTranslator.createTranslator(true, true);
     }
+
     return runPipelineWithTranslator(pipeline, jobInfo, translator);
   }
 
@@ -129,6 +131,7 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
         translator.translate(
             translator.createTranslationContext(jobInfo, pipelineOptions, confDir, filesToStage),
             fusedPipeline);
+
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return createPortablePipelineResult(result, pipelineOptions);

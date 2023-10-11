@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.Sample;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
@@ -111,8 +114,8 @@ public class ReadSourcePortableTest implements Serializable {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> result =
         p.apply(Read.from(new Source(10)))
-            // FIXME: the test fails without this
-            .apply(Window.into(FixedWindows.of(Duration.millis(1))));
+          // FIXME: the test fails without this
+          .apply(Window.into(FixedWindows.of(Duration.millis(1))));
 
     PAssert.that(result)
         .containsInAnyOrder(ImmutableList.of(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L));
@@ -148,27 +151,30 @@ public class ReadSourcePortableTest implements Serializable {
     }
   }
 
-  private static class Source extends UnboundedSource<Long, Source.Checkpoint> {
+  private static class Source extends BoundedSource<Long> {
 
     private final int count;
-    private final Instant now = Instant.now();
 
     Source(int count) {
       this.count = count;
     }
 
     @Override
-    public List<? extends UnboundedSource<Long, Checkpoint>> split(
-        int desiredNumSplits, PipelineOptions options) {
+    public List<? extends BoundedSource<Long>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) {
 
       return Collections.singletonList(this);
     }
 
     @Override
-    public UnboundedReader<Long> createReader(
-        PipelineOptions options, @Nullable Checkpoint checkpointMark) {
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return -1;
+    }
 
-      return new UnboundedReader<Long>() {
+    @Override
+    public BoundedReader<Long> createReader(PipelineOptions options) {
+
+      return new BoundedReader<Long>() {
         int pos = -1;
 
         @Override
@@ -182,19 +188,7 @@ public class ReadSourcePortableTest implements Serializable {
         }
 
         @Override
-        public Instant getWatermark() {
-          return pos < count
-              ? BoundedWindow.TIMESTAMP_MIN_VALUE
-              : BoundedWindow.TIMESTAMP_MAX_VALUE;
-        }
-
-        @Override
-        public CheckpointMark getCheckpointMark() {
-          return new Checkpoint(pos);
-        }
-
-        @Override
-        public UnboundedSource<Long, ?> getCurrentSource() {
+        public BoundedSource<Long> getCurrentSource() {
           return Source.this;
         }
 
@@ -204,18 +198,8 @@ public class ReadSourcePortableTest implements Serializable {
         }
 
         @Override
-        public Instant getCurrentTimestamp() throws NoSuchElementException {
-          return now;
-        }
-
-        @Override
         public void close() {}
       };
-    }
-
-    @Override
-    public boolean requiresDeduping() {
-      return false;
     }
 
     @Override
@@ -224,20 +208,5 @@ public class ReadSourcePortableTest implements Serializable {
       return SerializableCoder.of(Long.class);
     }
 
-    @Override
-    public Coder<Checkpoint> getCheckpointMarkCoder() {
-      return SerializableCoder.of(Checkpoint.class);
-    }
-
-    private static class Checkpoint implements CheckpointMark, Serializable {
-      final int pos;
-
-      Checkpoint(int pos) {
-        this.pos = pos;
-      }
-
-      @Override
-      public void finalizeCheckpoint() {}
-    }
   }
 }
