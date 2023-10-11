@@ -178,7 +178,9 @@ public final class CoderProviders {
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {
-      if (!this.type.equals(type)) {
+      if (!(this.type.equals(type)
+          || (type.getRawType().getName().contains("AutoValue_")
+              && this.type.getRawType().isAssignableFrom(type.getRawType())))) {
         throw new CannotProvideCoderException(
             String.format(
                 "Unable to provide coder for %s, this factory can only provide coders for %s",
