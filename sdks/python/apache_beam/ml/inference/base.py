@@ -1131,7 +1131,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
-        ) if self._enable_side_input_loading else None).with_resource_hints(
+        ) if self._model_metadata_pcoll else None).with_resource_hints(
             **resource_hints)
 
     if self._with_exception_handling:
