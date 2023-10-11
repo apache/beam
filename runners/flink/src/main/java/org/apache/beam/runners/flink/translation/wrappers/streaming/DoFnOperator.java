@@ -626,17 +626,17 @@ public class DoFnOperator<InputT, OutputT>
     while (bundleStarted) {
       invokeFinishBundle();
     }
+    if (requiresStableInput) {
+      // Flush any buffered events here before draining the pipeline. Note that this is best-effort
+      // and requiresStableInput contract might be violated in cases where buffer processing fails.
+      bufferingDoFnRunner.checkpointCompleted(Long.MAX_VALUE);
+      updateOutputWatermark();
+    }
     if (currentOutputWatermark < Long.MAX_VALUE) {
-      if (requiresStableInput) {
-        LOG.debug(
-            "Skipping watermark hold check for operator {} since requiresStableInput is set.",
-            getOperatorName());
-      } else {
-        throw new RuntimeException(
-            String.format(
-                "There are still watermark holds left when terminating operator %s Watermark held %d",
-                getOperatorName(), currentOutputWatermark));
-      }
+      throw new RuntimeException(
+          String.format(
+              "There are still watermark holds left when terminating operator %s Watermark held %d",
+              getOperatorName(), currentOutputWatermark));
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks

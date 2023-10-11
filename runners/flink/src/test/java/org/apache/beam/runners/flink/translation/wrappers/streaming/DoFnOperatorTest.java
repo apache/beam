@@ -19,76 +19,36 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.util.LRUMap;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.runners.core.StatefulDoFnRunner;
-import org.apache.beam.runners.core.StepContext;
-import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.*;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.coders.*;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -2013,6 +1973,97 @@ public class DoFnOperatorTest {
             WindowedValue.valueInGlobalWindow("a"),
             WindowedValue.valueInGlobalWindow("b"),
             WindowedValue.valueInGlobalWindow("finishBundle")));
+  }
+
+  @Test
+  public void testExactlyOnceBufferingFlushDuringDrain() throws Exception {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setMaxBundleSize(2L);
+    options.setCheckpointingInterval(1L);
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+    WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
+        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+
+    numStartBundleCalled = 0;
+    DoFn<String, String> doFn =
+        new DoFn<String, String>() {
+          @StartBundle
+          public void startBundle(StartBundleContext context) {
+            numStartBundleCalled += 1;
+          }
+
+          @ProcessElement
+          // Use RequiresStableInput to force buffering elements
+          @RequiresStableInput
+          public void processElement(ProcessContext context) {
+            context.output(context.element());
+          }
+
+          @FinishBundle
+          public void finishBundle(FinishBundleContext context) {
+            context.output(
+                "finishBundle", BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE);
+          }
+        };
+
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(
+            outputTag,
+            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
+
+    Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
+        () ->
+            new DoFnOperator<>(
+                doFn,
+                "stepName",
+                windowedValueCoder,
+                Collections.emptyMap(),
+                outputTag,
+                Collections.emptyList(),
+                outputManagerFactory,
+                WindowingStrategy.globalDefault(),
+                new HashMap<>(), /* side-input mapping */
+                Collections.emptyList(), /* side inputs */
+                options,
+                null,
+                null,
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
+
+    DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
+        new OneInputStreamOperatorTestHarness<>(doFnOperator);
+
+    testHarness.open();
+
+    testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("a")));
+    testHarness.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow("b")));
+
+    assertThat(Iterables.size(testHarness.getOutput()), is(0));
+    assertThat(numStartBundleCalled, is(0));
+
+    // Simulate pipeline drain scenario
+    OperatorSubtaskState backup = testHarness.snapshot(0, 0);
+    doFnOperator.flushData();
+
+    assertThat(numStartBundleCalled, is(1));
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("a"),
+            WindowedValue.valueInGlobalWindow("b"),
+            WindowedValue.valueInGlobalWindow("finishBundle")));
+
+    doFnOperator = doFnOperatorSupplier.get();
+    testHarness = new OneInputStreamOperatorTestHarness<>(doFnOperator);
+    testHarness.open();
+
+    doFnOperator.notifyCheckpointComplete(0L);
+
+    assertThat(numStartBundleCalled, is(1));
+    assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
   }
 
   @Test
