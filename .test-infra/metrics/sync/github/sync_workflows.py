@@ -34,16 +34,18 @@ import sys
 import time
 import re
 import psycopg2
+from github import GithubIntegration
 
 DB_HOST = os.environ['DB_HOST']
 DB_PORT = os.environ['DB_PORT']
 DB_NAME = os.environ['DB_DBNAME']
 DB_USER_NAME = os.environ['DB_DBUSERNAME']
 DB_PASSWORD = os.environ['DB_DBPWD']
-GH_WORKFLOWS_TABLE_NAME = "github_workflows"
-
-GH_ACCESS_TOKEN = os.environ['GH_ACCESS_TOKEN']
-GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH = 100
+GH_APP_ID = os.environ['GH_APP_ID']
+GH_APP_INSTALLATION_ID = os.environ['GH_APP_INSTALLATION_ID']
+GH_PEM_KEY = os.environ['GH_PEM_KEY']
+GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH =\
+  os.environ['GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH']
 
 
 class Workflow:
@@ -51,31 +53,24 @@ class Workflow:
     self.id = id
     self.name = name
     self.filename = filename
-    self.run_results = ['None'] * GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH
-    self.run_urls = ['None'] * GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH
+    self.runs = []
 
-GH_WORKFLOWS_CREATE_TABLE_QUERY = f"""
-CREATE TABLE IF NOT EXISTS {GH_WORKFLOWS_TABLE_NAME} (
-  workflow_id integer NOT NULL PRIMARY KEY,
-  job_name text NOT NULL,
-  job_yml_filename text NOT NULL"""
-for i in range(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
-  GH_WORKFLOWS_CREATE_TABLE_QUERY += f""",
-  run{i+1} text,
-  run{i+1}Id text"""
-GH_WORKFLOWS_CREATE_TABLE_QUERY += ")\n"
-
-def githubWorkflowsGrafanaSync(data, context):
-  return asyncio.run(sync_workflow_runs())
-
-async def sync_workflow_runs():
+async def github_workflows_dashboard_sync():
   print('Started')
   print('Updating table with recent workflow runs')
-  databaseOperations(initDbConnection(), await fetch_workflow_data())
+
+  if not GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH or \
+    not GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH.isdigit():
+    raise ValueError(
+      'The number of workflow runs to fetch is not specified or not an integer'
+    )
+
+  database_operations(init_db_connection(), await fetch_workflow_data())
+
   print('Done')
   return "Completed"
 
-def initDbConnection():
+def init_db_connection():
   '''Init connection with the Database'''
   connection = None
   maxRetries = 3
@@ -95,12 +90,24 @@ def initDbConnection():
         sys.exit(1)
   return connection
 
-# Retries 9 times: 1s, 2s, 4s, 8s, 16s, ...
-@backoff.on_exception(backoff.expo, Exception, max_tries=9, factor=2)
-async def fetch(url, params=None, headers=None):
-  async with aiohttp.ClientSession() as session:
-    async with session.get(url, params=params, headers=headers) as response:
-      if response.status != 200:
+def get_token():
+  git_integration = GithubIntegration(GH_APP_ID, GH_PEM_KEY)
+  token = git_integration.get_access_token(GH_APP_INSTALLATION_ID).token
+  return f'Bearer {token}'
+  
+@backoff.on_exception(backoff.constant, aiohttp.ClientResponseError, max_tries=5)
+async def fetch(url, semaphore, params=None, headers=None, request_id=None):
+  async with semaphore:
+    async with aiohttp.ClientSession() as session:
+      async with session.get(url, params=params, headers=headers) as response:
+        if response.status == 200:
+          result = await response.json()
+          if request_id:
+            return request_id, result
+          return result
+        elif response.status == 403:
+          print(f'Retry for: {url}')
+          headers['Authorization'] = get_token()
         raise aiohttp.ClientResponseError(
           response.request_info,
           response.history,
@@ -108,96 +115,157 @@ async def fetch(url, params=None, headers=None):
           message=response.reason,
           headers=response.headers
         )
-      return await response.json()
 
 async def fetch_workflow_data():
+  def append_workflow_runs(workflow, runs):
+    for run in runs:
+      # Getting rid of all runs with a "skipped" status to display
+      # only actual runs
+      if run['conclusion'] != 'skipped':
+        status = ''
+        if run['status'] == 'completed':
+          status = run['conclusion']
+        elif run['status'] != 'cancelled':
+          status = run['status']
+        workflow.runs.append((int(run['id']), status, run['html_url']))
+
   url = "https://api.github.com/repos/apache/beam/actions/workflows"
-  headers = {'Authorization': f'Bearer {GH_ACCESS_TOKEN}'}
+  headers = {'Authorization': get_token()}
   page = 1
   number_of_entries_per_page = 100 # The number of results per page (max 100)
-  query_options =\
+  params =\
     {'branch': 'master', 'page': page, 'per_page': number_of_entries_per_page}
+  concurrent_requests = 30 # Number of requests to send simultaneously
+  semaphore = asyncio.Semaphore(concurrent_requests)
 
   print("Start fetching recent workflow runs")
   workflow_tasks = []
-  response = await fetch(url, query_options, headers)
-  while math.ceil(response['total_count'] / number_of_entries_per_page) >= page:
-    query_options = {
+  response = await fetch(url, semaphore, params, headers)
+  pages_to_fetch =\
+    math.ceil(response['total_count'] / number_of_entries_per_page)
+  while pages_to_fetch >= page:
+    params = {
       'branch': 'master',
       'page': page,
       'per_page': number_of_entries_per_page
     }
-    task = asyncio.ensure_future(fetch(url, query_options, headers))
-    workflow_tasks.append(task)
+    workflow_tasks.append(fetch(url, semaphore, params, headers))
     page += 1
 
   workflow_run_tasks = []
-  workflows_dict = {}
   for completed_task in asyncio.as_completed(workflow_tasks):
     response = await completed_task
     workflows = response.get('workflows', [])
     for workflow in workflows:
-      workflow_id = workflow['id']
-      workflow_name = workflow['name']
-      workflow_path = workflow['path']
-      result = re.search(r'(workflows\/.*)$', workflow_path)
-      if result:
-        workflow_path = result.group(1)
-
-      workflows_dict[workflow_id] =\
-        Workflow(workflow_id, workflow_name, workflow_path)
-
-      runs_url = f"{url}/{workflow_id}/runs"
+      runs_url = f"{url}/{workflow['id']}/runs"
       page = 1
       pages_to_fetch = math.ceil(
-        GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH / number_of_entries_per_page
+        int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH) / number_of_entries_per_page
       )
       while pages_to_fetch >= page:
-        query_options = {
+        params = {
           'branch': 'master',
           'page': page,
           'per_page': number_of_entries_per_page,
           'exclude_pull_requests': 'true'
         }
-        task = asyncio.ensure_future(fetch(runs_url, query_options, headers))
-        workflow_run_tasks.append(task)
+        workflow_run_tasks.append(fetch(runs_url, semaphore, params, headers))
         page += 1
   print("Successfully fetched workflow runs")
 
-  print("Start fetching workflow run's details")
-  responses = await asyncio.gather(*workflow_run_tasks)
-  for response in responses:
-    workflow_runs = response.get('workflow_runs', [])
-    for idx, run in enumerate(workflow_runs):
-      workflow = workflows_dict[run['workflow_id']]
-      workflow.run_urls[idx] = run['html_url']
-      if run['status'] == 'completed':
-        workflow.run_results[idx] = run['conclusion']
-      elif run['status'] != 'cancelled':
-        workflow.run_results[idx] = run['status']
+  print("Start fetching workflow runs details")
+  workflows = {}
+  workflow_ids_to_fetch_extra_runs = {}
+  for completed_task in asyncio.as_completed(workflow_run_tasks):
+    response = await completed_task
+    workflow_runs = response.get('workflow_runs')
+    if workflow_runs:
+      workflow_id = workflow_runs[0]['workflow_id']
+      workflow = workflows.get(workflow_id)
+      if not workflow:
+        workflow_name = workflow_runs[0]['name']
+        workflow_path = workflow_runs[0]['path']
+        result = re.search(r'(workflows\/.*)$', workflow_path)
+        if result:
+          workflow_path = result.group(1)
+        workflow = Workflow(workflow_id, workflow_name, workflow_path)
+
+      append_workflow_runs(workflow, workflow_runs)
+      workflows[workflow_id] = workflow
+      if len(workflow.runs) < int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
+        workflow_ids_to_fetch_extra_runs[workflow_id] = workflow_id
+      else:
+        workflow_ids_to_fetch_extra_runs.pop(workflow_id, None)
       print(f"Successfully fetched details for: {workflow.filename}")
-  print("Successfully fetched workflow run's details")
+  
+  page = math.ceil(
+    int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH) / number_of_entries_per_page
+  ) + 1
+  # Fetch extra workflow runs if the specified number of runs is not reached
+  while workflow_ids_to_fetch_extra_runs:
+    extra_workflow_runs_tasks = []
+    for workflow_id in list(workflow_ids_to_fetch_extra_runs.values()):
+      runs_url = f"{url}/{workflow_id}/runs"
+      params = {
+        'branch': 'master',
+        'page': page,
+        'per_page': number_of_entries_per_page,
+        'exclude_pull_requests': 'true'
+      }
+      extra_workflow_runs_tasks.append(fetch(runs_url, semaphore, params, headers, workflow_id))
+    for completed_task in asyncio.as_completed(extra_workflow_runs_tasks):
+      workflow_id, response = await completed_task
+      workflow = workflows[workflow_id]
+      print(f"Fetching extra workflow runs for: {workflow.filename}")
+      workflow_runs = response.get('workflow_runs')
+      if workflow_runs:
+        append_workflow_runs(workflow, workflow_runs)
+      else:
+        number_of_runs_to_add =\
+          int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH) - len(workflow.runs)
+        workflow.runs.extend([(0, 'None', 'None')] * number_of_runs_to_add)
+      if len(workflow.runs) >= int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
+          workflow_ids_to_fetch_extra_runs.pop(workflow_id, None)
+      print(f"Successfully fetched extra workflow runs for: {workflow.filename}")
+    page += 1
+  print("Successfully fetched workflow runs details")
 
-  return list(workflows_dict.values())
+  for workflow in list(workflows.values()):
+    runs = sorted(workflow.runs, key=lambda r: r[0], reverse=True)
+    workflow.runs = runs[:int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
 
-def databaseOperations(connection, workflows):
-  '''Create the table if not exist and update the table with the latest runs
-  of the workflows '''
-  queryInsert = f"INSERT INTO {GH_WORKFLOWS_TABLE_NAME} VALUES "
+  return list(workflows.values())
+
+def database_operations(connection, workflows):
+  # Create the table and update it with the latest workflow runs
+  if not workflows:
+    return
   cursor = connection.cursor()
-  cursor.execute(GH_WORKFLOWS_CREATE_TABLE_QUERY)
-  cursor.execute(f"DELETE FROM {GH_WORKFLOWS_TABLE_NAME};")
-  query = ""
+  workflows_table_name = "github_workflows"
+  cursor.execute(f"DROP TABLE IF EXISTS {workflows_table_name};")
+  create_table_query = f"""
+  CREATE TABLE IF NOT EXISTS {workflows_table_name} (
+    workflow_id integer NOT NULL PRIMARY KEY,
+    job_name text NOT NULL,
+    job_yml_filename text NOT NULL"""
+  for i in range(int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)):
+    create_table_query += f""",
+    run{i+1} text,
+    run{i+1}Id text"""
+  create_table_query += ")\n"
+  cursor.execute(create_table_query)
+  insert_query = f"INSERT INTO {workflows_table_name} VALUES "
   for workflow in workflows:
-    rowInsert =\
+    row_insert =\
       f"(\'{workflow.id}\',\'{workflow.name}\',\'{workflow.filename}\'"
-    for run, run_urls in zip(workflow.run_results, workflow.run_urls):
-      rowInsert += f",\'{run}\',\'{run_urls}\'"
-    query = query + rowInsert
-    query += "),"
-  query = query[:-1] + ";"
-  query = queryInsert + query
-  cursor.execute(query)
+    for _, status, url in workflow.runs:
+      row_insert += f",\'{status}\',\'{url}\'"
+    insert_query += f"{row_insert}),"
+  insert_query = insert_query[:-1] + ";"
+  cursor.execute(insert_query)
   cursor.close()
   connection.commit()
   connection.close()
+
+if __name__ == '__main__':
+  asyncio.run(github_workflows_dashboard_sync())

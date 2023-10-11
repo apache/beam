@@ -15,6 +15,5 @@
 
 aiohttp
 backoff
-requests
 psycopg2-binary
-ddt
+PyGithub
