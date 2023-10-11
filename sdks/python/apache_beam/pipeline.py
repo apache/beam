@@ -1359,6 +1359,8 @@ class AppliedPTransform(object):
         pc in sorted(self.named_inputs().items())
     }
 
+    # specifically check for WindowInto transform as this could cause
+    # pipeline to stuck forever when no inputs are available.
     if 'WindowInto(WindowIntoFn)' in self.full_label and not inputs:
       raise ValueError(
           "No input PCollection for WindowInto. "
