@@ -95,7 +95,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
@@ -105,7 +105,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
@@ -115,7 +115,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
@@ -125,7 +125,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
