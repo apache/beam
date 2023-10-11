@@ -116,7 +116,6 @@ disable =
   missing-docstring,
   modified-iterating-list, 
   multiple-statements,
-  missing-timeout, #TODO(https://github.com/apache/beam/issues/28240) Enable and fix warnings
   no-self-use,
   no-else-break,
   no-else-continue,
