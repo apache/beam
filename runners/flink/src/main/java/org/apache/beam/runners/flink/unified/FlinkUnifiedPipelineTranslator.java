@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.unified;
 
+
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
@@ -310,6 +313,16 @@ public class FlinkUnifiedPipelineTranslator
     return Sets.difference(
         urnToTransformTranslator.keySet(),
         ImmutableSet.of(PTransformTranslation.READ_TRANSFORM_URN));
+  }
+
+  /** Predicate to determine whether a URN is a Flink native transform. */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      return PTransformTranslation.RESHUFFLE_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
+    }
   }
 
   private void urnNotFound(
