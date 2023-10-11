@@ -15,23 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.rrio;
+package org.apache.beam.io.requestresponseio;
 
-/** Base {@link Exception} for signaling errors in user custom code. */
-public class UserCodeExecutionException extends Exception {
-  public UserCodeExecutionException(String message) {
+/** An extension of {@link UserCodeQuotaException} to specifically signal a user code timeout. */
+public class UserCodeTimeoutException extends UserCodeExecutionException {
+
+  public UserCodeTimeoutException(String message) {
     super(message);
   }
 
-  public UserCodeExecutionException(String message, Throwable cause) {
+  public UserCodeTimeoutException(String message, Throwable cause) {
     super(message, cause);
   }
 
-  public UserCodeExecutionException(Throwable cause) {
+  public UserCodeTimeoutException(Throwable cause) {
     super(cause);
   }
 
-  public UserCodeExecutionException(
+  public UserCodeTimeoutException(
       String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.rrio;
+package org.apache.beam.io.requestresponseio;
 
 /**
  * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a

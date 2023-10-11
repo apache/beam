@@ -15,13 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.rrio;
+package org.apache.beam.io.requestresponseio;
 
-import java.io.Serializable;
+/** Base {@link Exception} for signaling errors in user custom code. */
+public class UserCodeExecutionException extends Exception {
+  public UserCodeExecutionException(String message) {
+    super(message);
+  }
 
-/** {@link Caller} interfaces user custom code intended for API calls. */
-public interface Caller<RequestT, ResponseT> extends Serializable {
+  public UserCodeExecutionException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
-  /** Calls a Web API with the {@link RequestT} and returns a {@link ResponseT}. */
-  ResponseT call(RequestT request) throws UserCodeExecutionException;
+  public UserCodeExecutionException(Throwable cause) {
+    super(cause);
+  }
+
+  public UserCodeExecutionException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    super(message, cause, enableSuppression, writableStackTrace);
+  }
 }

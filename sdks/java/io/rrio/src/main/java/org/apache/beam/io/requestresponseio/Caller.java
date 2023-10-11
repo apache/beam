@@ -15,25 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.rrio;
+package org.apache.beam.io.requestresponseio;
 
-/** An extension of {@link UserCodeQuotaException} to specifically signal a user code timeout. */
-public class UserCodeTimeoutException extends UserCodeExecutionException {
+import java.io.Serializable;
 
-  public UserCodeTimeoutException(String message) {
-    super(message);
-  }
+/** {@link Caller} interfaces user custom code intended for API calls. */
+public interface Caller<RequestT, ResponseT> extends Serializable {
 
-  public UserCodeTimeoutException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public UserCodeTimeoutException(Throwable cause) {
-    super(cause);
-  }
-
-  public UserCodeTimeoutException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
+  /** Calls a Web API with the {@link RequestT} and returns a {@link ResponseT}. */
+  ResponseT call(RequestT request) throws UserCodeExecutionException;
 }
