@@ -53,14 +53,14 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java CompressedTextIO Performance Test'
+      github.event.comment.body == 'Run Python xlang KafkaIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
         job_name: ["beam_PerformanceTests_xlang_KafkaIO_Python"]
-        job_phrase: ["Run Java CompressedTextIO Performance Test"]
+        job_phrase: ["Run Python xlang KafkaIO Performance Test"]
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository

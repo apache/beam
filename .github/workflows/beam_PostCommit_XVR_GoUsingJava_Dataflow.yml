@@ -73,6 +73,9 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      # username is required to generate container name in step \sdks\go\test\run_validatesrunner_tests.sh
+      - name: Get current user
+        run: echo "USER="$(whoami)"" >> $GITHUB_ENV
       - name: run XVR GoUsingJava Dataflow script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
