@@ -1,4 +1,123 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>DIY GenAI Content Discovery Platform with Apache Beam</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.51.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.51.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2510-2023-10-03">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.51.0, check out the &lt;a href="https://github.com/apache/beam/milestone/15">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>In Python, &lt;a href="https://beam.apache.org/documentation/sdks/python-machine-learning/#why-use-the-runinference-api">RunInference&lt;/a> now supports loading many models in the same transform using a &lt;a href="https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler">KeyedModelHandler&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/27628">#27628&lt;/a>).&lt;/li>
+&lt;li>In Python, the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vertex_ai_inference.html#apache_beam.ml.inference.vertex_ai_inference.VertexAIModelHandlerJSON">VertexAIModelHandlerJSON&lt;/a> now supports passing in inference_args. These will be passed through to the Vertex endpoint as parameters.&lt;/li>
+&lt;li>Added support to run &lt;code>mypy&lt;/code> on user pipelines (&lt;a href="https://github.com/apache/beam/issues/27906">#27906&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Removed fastjson library dependency for Beam SQL. Table property is changed to be based on jackson ObjectNode (Java) (&lt;a href="https://github.com/apache/beam/issues/24154">#24154&lt;/a>).&lt;/li>
+&lt;li>Removed TensorFlow from Beam Python container images &lt;a href="https://github.com/apache/beam/pull/28424">PR&lt;/a>. If you have been negatively affected by this change, please comment on &lt;a href="https://github.com/apache/beam/issues/20605">#20605&lt;/a>.&lt;/li>
+&lt;li>Removed the parameter &lt;code>t reflect.Type&lt;/code> from &lt;code>parquetio.Write&lt;/code>. The element type is derived from the input PCollection (Go) (&lt;a href="https://github.com/apache/beam/issues/28490">#28490&lt;/a>)&lt;/li>
+&lt;li>Refactor BeamSqlSeekableTable.setUp adding a parameter joinSubsetType. &lt;a href="https://github.com/apache/beam/issues/28283">#28283&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed exception chaining issue in GCS connector (Python) (&lt;a href="https://github.com/apache/beam/issues/26769#issuecomment-1700422615">#26769&lt;/a>).&lt;/li>
+&lt;li>Fixed streaming inserts exception handling, GoogleAPICallErrors are now retried according to retry strategy and routed to failed rows where appropriate rather than causing a pipeline error (Python) (&lt;a href="https://github.com/apache/beam/issues/21080">#21080&lt;/a>).&lt;/li>
+&lt;li>Fixed a bug in Python SDK&amp;rsquo;s cross-language Bigtable sink that mishandled records that don&amp;rsquo;t have an explicit timestamp set: &lt;a href="https://github.com/apache/beam/issues/28632">#28632&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="security-fixes">Security Fixes&lt;/h2>
+&lt;ul>
+&lt;li>Python containers updated, fixing &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2021-30474">CVE-2021-30474&lt;/a>, &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2021-30475">CVE-2021-30475&lt;/a>, &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2021-30473">CVE-2021-30473&lt;/a>, &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2020-36133">CVE-2020-36133&lt;/a>, &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2020-36131">CVE-2020-36131&lt;/a>, &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2020-36130">CVE-2020-36130&lt;/a>, and &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2020-36135">CVE-2020-36135&lt;/a>&lt;/li>
+&lt;li>Used go 1.21.1 to build, fixing &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-39320">CVE-2023-39320&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Python pipelines using BigQuery Storage Read API must pin &lt;code>fastavro&lt;/code> dependency to 1.8.3
+or earlier: &lt;a href="https://github.com/apache/beam/issues/28811">#28811&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.50.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Adam Whitmore&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Aleksandr Dudko&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrey Devyatkin&lt;/p>
+&lt;p>Arvind Ram&lt;/p>
+&lt;p>Arwin Tio&lt;/p>
+&lt;p>BjornPrime&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Bulat&lt;/p>
+&lt;p>Celeste Zeng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Clay Johnson&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>David Cavazos&lt;/p>
+&lt;p>Dip Patel&lt;/p>
+&lt;p>Hai Joey Tran&lt;/p>
+&lt;p>Hao Xu&lt;/p>
+&lt;p>Haruka Abe&lt;/p>
+&lt;p>Jack Dingilian&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jeff Kinard&lt;/p>
+&lt;p>Jeffrey Kinard&lt;/p>
+&lt;p>Joey Tran&lt;/p>
+&lt;p>Johanna Öjeling&lt;/p>
+&lt;p>Julien Tournay&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kerry Donny-Clark&lt;/p>
+&lt;p>Mattie Fu&lt;/p>
+&lt;p>Melissa Pashniak&lt;/p>
+&lt;p>Michel Davit&lt;/p>
+&lt;p>Moritz Mack&lt;/p>
+&lt;p>Pranav Bhandari&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Reeba Qureshi&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Ruwann&lt;/p>
+&lt;p>Ryan Tam&lt;/p>
+&lt;p>Sam Rohde&lt;/p>
+&lt;p>Sereana Seim&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Tim Grein&lt;/p>
+&lt;p>Udi Meiri&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vlado Djerek&lt;/p>
+&lt;p>Xinyu Liu&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>Zbynek Konecny&lt;/p>
+&lt;p>Zechen Jiang&lt;/p>
+&lt;p>bzablocki&lt;/p>
+&lt;p>caneff&lt;/p>
+&lt;p>dependabot[bot]&lt;/p>
+&lt;p>gDuperran&lt;/p>
+&lt;p>gabry.wu&lt;/p>
+&lt;p>johnjcasey&lt;/p>
+&lt;p>kberezin-nshl&lt;/p>
+&lt;p>kennknowles&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>lostluck&lt;/p>
+&lt;p>magicgoody&lt;/p>
+&lt;p>martin trieu&lt;/p>
+&lt;p>mosche&lt;/p>
+&lt;p>olalamichelle&lt;/p>
+&lt;p>tvalentyn&lt;/p>
+&lt;p>xqhu&lt;/p>
+&lt;p>Łukasz Spyra&lt;/p></description><link>/blog/beam-2.51.0/</link><pubDate>Wed, 11 Oct 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.51.0/</guid><category>blog</category><category>release</category></item><item><title>DIY GenAI Content Discovery Platform with Apache Beam</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1125,150 +1244,4 @@ non-portable Java jobs and non-portable Python batch jobs are not impacted. (&lt
 &lt;p>ruslan-ikhsan&lt;/p>
 &lt;p>tvalentyn&lt;/p>
 &lt;p>yyy1000&lt;/p>
-&lt;p>zhengbuqian&lt;/p></description><link>/blog/beam-2.45.0/</link><pubDate>Wed, 15 Feb 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.45.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.44.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.44.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2430-2023-01-13">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.44.0, check out the &lt;a href="https://github.com/apache/beam/milestone/7?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Support for Bigtable sink (Write and WriteBatch) added (Go) (&lt;a href="https://github.com/apache/beam/issues/23324">#23324&lt;/a>).&lt;/li>
-&lt;li>S3 implementation of the Beam filesystem (Go) (&lt;a href="https://github.com/apache/beam/issues/23991">#23991&lt;/a>).&lt;/li>
-&lt;li>Support for SingleStoreDB source and sink added (Java) (&lt;a href="https://github.com/apache/beam/issues/22617">#22617&lt;/a>).&lt;/li>
-&lt;li>Added support for DefaultAzureCredential authentication in Azure Filesystem (Python) (&lt;a href="https://github.com/apache/beam/issues/24210">#24210&lt;/a>).&lt;/li>
-&lt;li>Added new CdapIO for CDAP Batch and Streaming Source/Sinks (Java) (&lt;a href="https://github.com/apache/beam/issues/24961">#24961&lt;/a>).&lt;/li>
-&lt;li>Added new SparkReceiverIO for Spark Receivers 2.4.* (Java) (&lt;a href="https://github.com/apache/beam/issues/24960">#24960&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Beam now provides a portable &amp;ldquo;runner&amp;rdquo; that can render pipeline graphs with
-graphviz. See &lt;code>python -m apache_beam.runners.render --help&lt;/code> for more details.&lt;/li>
-&lt;li>Local packages can now be used as dependencies in the requirements.txt file, rather
-than requiring them to be passed separately via the &lt;code>--extra_package&lt;/code> option
-(Python) (&lt;a href="https://github.com/apache/beam/pull/23684">#23684&lt;/a>).&lt;/li>
-&lt;li>Pipeline Resource Hints now supported via &lt;code>--resource_hints&lt;/code> flag (Go) (&lt;a href="https://github.com/apache/beam/pull/23990">#23990&lt;/a>).&lt;/li>
-&lt;li>Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12792">BEAM-12792&lt;/a>).&lt;/li>
-&lt;li>RunInference model handlers now support the specification of a custom inference function in Python (&lt;a href="https://github.com/apache/beam/issues/22572">#22572&lt;/a>)&lt;/li>
-&lt;li>Support for &lt;code>map_windows&lt;/code> urn added to Go SDK (&lt;a href="https://github.apache/beam/pull/24307">#24307&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>&lt;code>ParquetIO.withSplit&lt;/code> was removed since splittable reading has been the default behavior since 2.35.0. The effect of
-this change is to drop support for non-splittable reading (Java)(&lt;a href="https://github.com/apache/beam/issues/23832">#23832&lt;/a>).&lt;/li>
-&lt;li>&lt;code>beam-sdks-java-extensions-google-cloud-platform-core&lt;/code> is no longer a
-dependency of the Java SDK Harness. Some users of a portable runner (such as Dataflow Runner v2)
-may have an undeclared dependency on this package (for example using GCS with
-TextIO) and will now need to declare the dependency.&lt;/li>
-&lt;li>&lt;code>beam-sdks-java-core&lt;/code> is no longer a dependency of the Java SDK Harness. Users of a portable
-runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.&lt;/li>
-&lt;li>Slices now use the Beam Iterable Coder. This enables cross language use, but breaks pipeline updates
-if a Slice type is used as a PCollection element or State API element. (Go)&lt;a href="https://github.com/apache/beam/issues/24339">#24339&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed JmsIO acknowledgment issue (Java) (&lt;a href="https://github.com/apache/beam/issues/20814">#20814&lt;/a>)&lt;/li>
-&lt;li>Fixed Beam SQL CalciteUtils (Java) and Cross-language JdbcIO (Python) did not support JDBC CHAR/VARCHAR, BINARY/VARBINARY logical types (&lt;a href="https://github.com/apache/beam/issues/23747">#23747&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/23526">#23526&lt;/a>).&lt;/li>
-&lt;li>Ensure iterated and emitted types are used with the generic register package are registered with the type and schema registries.(Go) (&lt;a href="https://github.com/apache/beam/pull/23889">#23889&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.44.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud&lt;/p>
-&lt;p>Ahmet Altay&lt;/p>
-&lt;p>Alex Merose&lt;/p>
-&lt;p>Alexey Inkin&lt;/p>
-&lt;p>Alexey Romanenko&lt;/p>
-&lt;p>Anand Inguva&lt;/p>
-&lt;p>Andrei Gurau&lt;/p>
-&lt;p>Andrej Galad&lt;/p>
-&lt;p>Andrew Pilloud&lt;/p>
-&lt;p>Ayush Sharma&lt;/p>
-&lt;p>Benjamin Gonzalez&lt;/p>
-&lt;p>Bjorn Pedersen&lt;/p>
-&lt;p>Brian Hulette&lt;/p>
-&lt;p>Bruno Volpato&lt;/p>
-&lt;p>Bulat Safiullin&lt;/p>
-&lt;p>Chamikara Jayalath&lt;/p>
-&lt;p>Chris Gavin&lt;/p>
-&lt;p>Damon Douglas&lt;/p>
-&lt;p>Danielle Syse&lt;/p>
-&lt;p>Danny McCormick&lt;/p>
-&lt;p>Darkhan Nausharipov&lt;/p>
-&lt;p>David Cavazos&lt;/p>
-&lt;p>Dmitry Repin&lt;/p>
-&lt;p>Doug Judd&lt;/p>
-&lt;p>Elias Segundo Antonio&lt;/p>
-&lt;p>Evan Galpin&lt;/p>
-&lt;p>Evgeny Antyshev&lt;/p>
-&lt;p>Heejong Lee&lt;/p>
-&lt;p>Henrik Heggelund-Berg&lt;/p>
-&lt;p>Israel Herraiz&lt;/p>
-&lt;p>Jack McCluskey&lt;/p>
-&lt;p>Jan Lukavský&lt;/p>
-&lt;p>Janek Bevendorff&lt;/p>
-&lt;p>Johanna Öjeling&lt;/p>
-&lt;p>John J. Casey&lt;/p>
-&lt;p>Jozef Vilcek&lt;/p>
-&lt;p>Kanishk Karanawat&lt;/p>
-&lt;p>Kenneth Knowles&lt;/p>
-&lt;p>Kiley Sok&lt;/p>
-&lt;p>Laksh&lt;/p>
-&lt;p>Liam Miller-Cushon&lt;/p>
-&lt;p>Luke Cwik&lt;/p>
-&lt;p>MakarkinSAkvelon&lt;/p>
-&lt;p>Minbo Bae&lt;/p>
-&lt;p>Moritz Mack&lt;/p>
-&lt;p>Nancy Xu&lt;/p>
-&lt;p>Ning Kang&lt;/p>
-&lt;p>Nivaldo Tokuda&lt;/p>
-&lt;p>Oleh Borysevych&lt;/p>
-&lt;p>Pablo Estrada&lt;/p>
-&lt;p>Philippe Moussalli&lt;/p>
-&lt;p>Pranav Bhandari&lt;/p>
-&lt;p>Rebecca Szper&lt;/p>
-&lt;p>Reuven Lax&lt;/p>
-&lt;p>Rick Smit&lt;/p>
-&lt;p>Ritesh Ghorse&lt;/p>
-&lt;p>Robert Bradshaw&lt;/p>
-&lt;p>Robert Burke&lt;/p>
-&lt;p>Ryan Thompson&lt;/p>
-&lt;p>Sam Whittle&lt;/p>
-&lt;p>Sanil Jain&lt;/p>
-&lt;p>Scott Strong&lt;/p>
-&lt;p>Shubham Krishna&lt;/p>
-&lt;p>Steven van Rossum&lt;/p>
-&lt;p>Svetak Sundhar&lt;/p>
-&lt;p>Thiago Nunes&lt;/p>
-&lt;p>Tianyang Hu&lt;/p>
-&lt;p>Trevor Gevers&lt;/p>
-&lt;p>Valentyn Tymofieiev&lt;/p>
-&lt;p>Vitaly Terentyev&lt;/p>
-&lt;p>Vladislav Chunikhin&lt;/p>
-&lt;p>Xinyu Liu&lt;/p>
-&lt;p>Yi Hu&lt;/p>
-&lt;p>Yichi Zhang&lt;/p>
-&lt;p>AdalbertMemSQL&lt;/p>
-&lt;p>agvdndor&lt;/p>
-&lt;p>andremissaglia&lt;/p>
-&lt;p>arne-alex&lt;/p>
-&lt;p>bullet03&lt;/p>
-&lt;p>camphillips22&lt;/p>
-&lt;p>capthiron&lt;/p>
-&lt;p>creste&lt;/p>
-&lt;p>fab-jul&lt;/p>
-&lt;p>illoise&lt;/p>
-&lt;p>kn1kn1&lt;/p>
-&lt;p>nancyxu123&lt;/p>
-&lt;p>peridotml&lt;/p>
-&lt;p>shinannegans&lt;/p>
-&lt;p>smeet07&lt;/p></description><link>/blog/beam-2.44.0/</link><pubDate>Tue, 17 Jan 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.44.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>zhengbuqian&lt;/p></description><link>/blog/beam-2.45.0/</link><pubDate>Wed, 15 Feb 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.45.0/</guid><category>blog</category><category>release</category></item></channel></rss>
