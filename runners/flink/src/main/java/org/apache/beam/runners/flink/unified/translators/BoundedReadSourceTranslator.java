@@ -161,7 +161,7 @@ public class BoundedReadSourceTranslator<T>
           PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
 
         WindowedValue.FullWindowedValueCoder<T> sdkCoder =
-          ReadSourceTranslator.getSdkCoder(outputPCollectionId, pipeline.getComponents());
+          context.getSdkCoder(outputPCollectionId, pipeline.getComponents());
 
         CoderTypeInformation<WindowedValue<T>> outputTypeInfo =
             new CoderTypeInformation<>(wireCoder, pipelineOptions);

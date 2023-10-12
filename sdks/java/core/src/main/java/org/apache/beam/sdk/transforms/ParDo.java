@@ -877,7 +877,7 @@ public class ParDo {
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final DoFn<InputT, OutputT> fn;
 
-    MultiOutput(
+    public MultiOutput(
         DoFn<InputT, OutputT> fn,
         Map<String, PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,

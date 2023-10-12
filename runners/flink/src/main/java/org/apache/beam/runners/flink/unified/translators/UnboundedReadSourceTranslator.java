@@ -238,7 +238,7 @@ public class UnboundedReadSourceTranslator<T>
                 PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
 
         WindowedValue.FullWindowedValueCoder<T> sdkCoder =
-          ReadSourceTranslator.getSdkCoder(outputPCollectionId, pipeline.getComponents());
+          context.getSdkCoder(outputPCollectionId, pipeline.getComponents());
 
         CoderTypeInformation<WindowedValue<T>> outputTypeInfo =
             new CoderTypeInformation<>(wireCoder, pipelineOptions);
@@ -279,8 +279,7 @@ public class UnboundedReadSourceTranslator<T>
         context.getWindowingStrategy(pipeline, outputPCollectionId);
 
       WindowedValueCoder<T> windowedOutputCoder =
-        (WindowedValueCoder)
-            PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
+        context.getWindowedInputCoder(pipeline, outputPCollectionId);
 
       Coder<T> coder = windowedOutputCoder.getValueCoder();
 

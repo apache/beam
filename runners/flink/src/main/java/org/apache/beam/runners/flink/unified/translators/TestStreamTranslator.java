@@ -62,7 +62,8 @@ public class TestStreamTranslator<T>
 
     RunnerApi.PTransform pTransform = transform.getTransform();
     String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-    Coder<WindowedValue<T>> coder = PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
+    Coder<WindowedValue<T>> coder =
+      context.getWindowedInputCoder(pipeline, outputPCollectionId);
 
     DataStream<WindowedValue<T>> source =
         context

@@ -45,7 +45,7 @@ public class WindowAssignTranslator<T>
 
     WindowingStrategy<T, BoundedWindow> windowingStrategy =
         (WindowingStrategy<T, BoundedWindow>)
-            context.getWindowingStrategy(pipeline, inputPCollectionId);
+            context.getWindowingStrategy(pipeline, outputPCollectionId);
 
     TypeInformation<WindowedValue<T>> typeInfo = context.getTypeInfo(pipeline, outputPCollectionId);
 

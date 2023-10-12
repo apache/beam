@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.unified.translators;
 
-import avro.shaded.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -28,7 +27,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
+import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -37,6 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -108,6 +109,19 @@ public class ParDoTranslator<InputT, OutputT>
           Map<String, PCollectionView<?>> sideInputMapping);
     }
 
+    private static String getMainInput(
+      Map<String, String> inputsMap,
+      Map<String, PCollectionView<?>> sideInputMapping) {
+      List<Map.Entry<String, String>> ins =
+        inputsMap
+          .entrySet()
+          .stream()
+          .filter(i -> !sideInputMapping.containsKey(i.getKey()))
+          .collect(Collectors.toList());
+
+      return Iterables.getOnlyElement(ins).getValue();
+    }
+
     @SuppressWarnings({
       "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
       "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -125,7 +139,9 @@ public class ParDoTranslator<InputT, OutputT>
         DoFnOperatorFactory<InputT, OutputT> doFnOperatorFactory) {
 
       RunnerApi.PTransform pTransform = transform.getTransform();
-      String inputPCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
+      String inputPCollectionId =
+        getMainInput(pTransform.getInputsMap(), sideInputMapping);
+
       String transformName = pTransform.getUniqueName();
 
       // we assume that the transformation does not change the windowing strategy.
@@ -136,7 +152,7 @@ public class ParDoTranslator<InputT, OutputT>
       SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
 
       Coder<WindowedValue<InputT>> windowedInputCoder =
-        PipelineTranslatorUtils.instantiateCoder(inputPCollectionId, pipeline.getComponents());
+        context.getWindowedInputCoder(pipeline, inputPCollectionId);
 
       // TupleTag to outputs PCollection IDs
       Map<TupleTag<?>, String> outputs =
@@ -147,12 +163,12 @@ public class ParDoTranslator<InputT, OutputT>
           .collect(Collectors.toMap(x -> new TupleTag<>(x.getKey()), Map.Entry::getValue));
 
       Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
-          outputs
+        outputs
           .entrySet()
           .stream()
           .collect(Collectors.toMap(
             Map.Entry::getKey,
-            x -> (Coder) PipelineTranslatorUtils.instantiateCoder(x.getValue(), pipeline.getComponents())));
+            x -> (Coder) context.getWindowedInputCoder(pipeline, x.getValue())));
 
       // TODO: Are tagsToCoders and outputCoders really the same ?
       Map<TupleTag<?>, Coder<?>> outputCoders = (Map) tagsToCoders;
@@ -252,7 +268,7 @@ public class ParDoTranslator<InputT, OutputT>
 
       } else {
         Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformedSideInputs =
-            transformSideInputs(transform, sideInputs, context);
+            transformSideInputs(sideInputs, context);
 
         DoFnOperator<InputT, OutputT> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
@@ -321,20 +337,8 @@ public class ParDoTranslator<InputT, OutputT>
     }
   }
 
-  @SuppressWarnings("return")
-  private static String getPCollectionIdFromTag(TupleTag<?> tag, PTransformNode transform) {
-    // Tuple tag to PCollectionId mapping
-    Map<String, String> inputs = transform.getTransform().getInputsMap();
-    String pCollectionId = inputs.get(tag.getId());
-
-    Preconditions.checkArgument(
-      pCollectionId != null, "Can not find PCollection ID from TupleTag: " + tag);
-
-    return pCollectionId;
-  }
-
   private static Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>>
-      transformSideInputs(PTransformNode transform, Collection<PCollectionView<?>> sideInputs, UnifiedTranslationContext context) {
+      transformSideInputs(Collection<PCollectionView<?>> sideInputs, UnifiedTranslationContext context) {
 
 
 
@@ -351,10 +355,9 @@ public class ParDoTranslator<InputT, OutputT>
 
     List<Coder<?>> inputCoders = new ArrayList<>();
     for (PCollectionView<?> sideInput : sideInputs) {
-      String pCollectionId = getPCollectionIdFromTag(sideInput.getTagInternal(), transform);
-      DataStream<Object> sideInputStream =
-        context.getDataStreamOrThrow(pCollectionId);
+      DataStream<Object> sideInputStream = (DataStream) context.getSideInputDataStream(sideInput);
       TypeInformation<Object> tpe = sideInputStream.getType();
+
       if (!(tpe instanceof CoderTypeInformation)) {
         throw new IllegalStateException("Input Stream TypeInformation is no CoderTypeInformation.");
       }
@@ -378,8 +381,7 @@ public class ParDoTranslator<InputT, OutputT>
         throw new IllegalStateException("Tag to mapping should never return null");
       }
       final int intTag = integerTag;
-      String pCollectionId = getPCollectionIdFromTag(tag, transform);
-      DataStream<Object> sideInputStream = context.getDataStreamOrThrow(pCollectionId);
+      DataStream<Object> sideInputStream = (DataStream) context.getSideInputDataStream(sideInput);
       DataStream<RawUnionValue> unionValueStream =
           sideInputStream
               .map(new ToRawUnion<>(intTag, context.getPipelineOptions()))
@@ -428,7 +430,8 @@ public class ParDoTranslator<InputT, OutputT>
     Map<String, PCollectionView<?>> sideInputMapping =
       ParDoTranslation.getSideInputMapping(parDoPayload);
 
-    List<PCollectionView<?>> sideInputs = ImmutableList.copyOf(sideInputMapping.values());
+    List<PCollectionView<?>> sideInputs =
+      ImmutableList.copyOf(sideInputMapping.values());
 
     TupleTagList additionalOutputTags;
     try {

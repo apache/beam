@@ -119,7 +119,7 @@ public class CombinePerKeyTranslator<K, InputT, OutputT>
 
     WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
         (WindowedValueCoder)
-            PipelineTranslatorUtils.instantiateCoder(inputPCollectionId, pipeline.getComponents());
+          context.getWindowedInputCoder(pipeline, inputPCollectionId);
 
     KvCoder<K, InputT> inputKvCoder =
       (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();

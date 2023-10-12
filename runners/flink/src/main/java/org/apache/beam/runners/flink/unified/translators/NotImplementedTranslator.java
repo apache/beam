@@ -26,9 +26,16 @@ import org.apache.commons.lang3.NotImplementedException;
 public class NotImplementedTranslator<ElemT, ViewT>
     implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
+
+  String urn;
+
+  public NotImplementedTranslator(String urn) {
+    this.urn = urn;
+  }
+
   @Override
   public void translate(
       PTransformNode transform, Pipeline pipeline, UnifiedTranslationContext context) {
-    throw new NotImplementedException("Translator is not implemented.");
+    throw new NotImplementedException(String.format("Translator for %s is not implemented.", urn));
   }
 }

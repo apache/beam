@@ -97,10 +97,10 @@ public class GBKIntoKeyedWorkItemsTranslator<K, V>
         context.getWindowingStrategy(pipeline, inputPCollectionId);
 
     WindowedValueCoder<KV<K, V>> windowedInputCoder =
-        (WindowedValueCoder)
-            PipelineTranslatorUtils.instantiateCoder(inputPCollectionId, pipeline.getComponents());
+        context.getWindowedInputCoder(pipeline, inputPCollectionId);
 
-    KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) windowedInputCoder.getValueCoder();
+    KvCoder<K, V> inputKvCoder =
+        (KvCoder<K, V>) windowedInputCoder.getValueCoder();
 
     DataStream<WindowedValue<KV<K, V>>> inputDataStream =
         context.getDataStreamOrThrow(inputPCollectionId);

@@ -128,7 +128,10 @@ public class ExecutableStageTranslator<InputT, OutputT>
             e);
       }
 
-      Coder<WindowedValue<Object>> coder0 = instantiateCoder(collectionId, components);
+      // TODO: Should use context.getWindowedInputCoder ?
+       Coder<WindowedValue<Object>> coder0 =
+        instantiateCoder(collectionId, components);
+
       // side input materialization via GBK (T -> Iterable<T>)
       WindowedValueCoder<Object> wvCoder = (WindowedValueCoder<Object>) coder0;
       Coder<WindowedValue<Iterable<Object>>> coder =

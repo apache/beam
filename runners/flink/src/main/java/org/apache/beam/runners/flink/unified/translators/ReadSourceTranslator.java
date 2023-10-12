@@ -88,37 +88,6 @@ public class ReadSourceTranslator<T>
         new UnboundedReadSourceTranslator<>();
 
     /**
-     * Get SDK coder for given PCollection. The SDK coder is the coder that the SDK-harness would have
-     * used to encode data before passing it to the runner over {@link SdkHarnessClient}.
-     *
-     * @param pCollectionId ID of PCollection in components
-     * @param components the Pipeline components (proto)
-     * @return SDK-side coder for the PCollection
-     */
-    public static <T> WindowedValue.FullWindowedValueCoder<T> getSdkCoder(
-        String pCollectionId, RunnerApi.Components components) {
-
-      PipelineNode.PCollectionNode pCollectionNode =
-          PipelineNode.pCollection(pCollectionId, components.getPcollectionsOrThrow(pCollectionId));
-      RunnerApi.Components.Builder componentsBuilder = components.toBuilder();
-      String coderId =
-          WireCoders.addSdkWireCoder(
-              pCollectionNode,
-              componentsBuilder,
-              RunnerApi.ExecutableStagePayload.WireCoderSetting.getDefaultInstance());
-      RehydratedComponents rehydratedComponents =
-          RehydratedComponents.forComponents(componentsBuilder.build());
-      try {
-        @SuppressWarnings("unchecked")
-        WindowedValue.FullWindowedValueCoder<T> res =
-            (WindowedValue.FullWindowedValueCoder<T>) rehydratedComponents.getCoder(coderId);
-        return res;
-      } catch (IOException ex) {
-        throw new IllegalStateException("Could not get SDK coder.", ex);
-      }
-    }
-
-    /**
      * Transform types from SDK types to runner types. The runner uses byte array representation for
      * non {@link ModelCoders} coders.
      *

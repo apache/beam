@@ -17,6 +17,18 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.util.UUID;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.UnconsumedReads;
+import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
+import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
+import org.apache.beam.runners.core.construction.graph.TrivialNativeTransformExpander;
+import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
@@ -25,6 +37,7 @@ import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.RuntimeExecutionMode;
@@ -48,6 +61,43 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class FlinkPipelineExecutionEnvironment {
+
+  private static class UnifiedTranslatorWrapper extends FlinkPipelineTranslator {
+    private FlinkUnifiedPipelineTranslator translator;
+    private FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context;
+
+    public UnifiedTranslatorWrapper(
+      StreamExecutionEnvironment env, PipelineOptions options, boolean isStreaming){
+      FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
+      String invocationId =
+        String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
+
+      // The retrieval token is only required by the legacy artifact service, which the Flink runner
+      // no longer uses.
+      String retrievalToken =
+        ArtifactApi.CommitManifestResponse.Constants.NO_ARTIFACTS_STAGED_TOKEN
+            .getValueDescriptor()
+            .getOptions()
+            .getExtension(RunnerApi.beamConstant);
+
+      JobInfo jobInfo =
+        JobInfo.create(
+            invocationId,
+            flinkOptions.getJobName(),
+            retrievalToken,
+            PipelineOptionsTranslation.toProto(flinkOptions));
+
+      translator = FlinkUnifiedPipelineTranslator.createTranslator(isStreaming, false);
+      context = translator.createTranslationContext(jobInfo, flinkOptions, env, isStreaming, false);
+    }
+
+    @Override
+    public void translate(Pipeline pipeline) {
+      // Ensure all outputs of all reads are consumed.
+      UnconsumedReads.ensureAllReadsConsumed(pipeline);
+      translator.translate(context, PipelineTranslation.toProto(pipeline));
+    }
+  }
 
   private static final Logger LOG =
       LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
@@ -101,13 +151,15 @@ class FlinkPipelineExecutionEnvironment {
     // Staged files need to be set before initializing the execution environments
     prepareFilesToStageForRemoteClusterExecution(options);
 
+
     FlinkPipelineTranslator translator;
     if (options.isStreaming() || options.getUseDataStreamForBatch()) {
       this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn("UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
-      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options, options.isStreaming());
+      translator = new UnifiedTranslatorWrapper(flinkStreamEnv, options, options.isStreaming());
+      // translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options, options.isStreaming());
       if (!options.isStreaming()) {
         flinkStreamEnv.setRuntimeMode(RuntimeExecutionMode.BATCH);
       }
