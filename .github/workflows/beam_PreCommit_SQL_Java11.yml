@@ -103,7 +103,7 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -PskipCheckerFramework \
             -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Archive JUnit Test Results

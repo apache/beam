@@ -160,7 +160,7 @@ def commonLoadTestConfig = { jobType, isStreaming ->
 
 def final JOB_SPECIFIC_SWITCHES = [
   '-Prunner.version="V2"',
-  '-PcompileAndRunTestsWithJava11',
+  '-PtestJavaVersion=11',
   "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
 ]
 

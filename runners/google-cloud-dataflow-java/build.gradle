@@ -279,10 +279,8 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   def javaVer = "java8"
-  if(project.hasProperty('compileAndRunTestsWithJava17')) {
-    javaVer = "java17"
-  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-    javaVer = "java11"
+  if(project.hasProperty('testJavaVersion')) {
+    javaVer = "java${project.getProperty('testJavaVersion')}"
   }
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(

@@ -80,7 +80,7 @@ jobs:
           gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
           arguments:
             -PskipCheckerFramework
-            -PcompileAndRunTestsWithJava17
+            -PtestJavaVersion=17
             -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
