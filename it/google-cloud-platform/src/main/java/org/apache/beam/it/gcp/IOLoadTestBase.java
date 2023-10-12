@@ -62,8 +62,8 @@ public class IOLoadTestBase extends LoadTestBase {
   }
 
   @Override
-  PipelineLauncher launcher() {
-    return DefaultPipelineLauncher.builder().build();
+  public PipelineLauncher launcher() {
+    return DefaultPipelineLauncher.builder(CREDENTIALS).build();
   }
 
   /** A utility DoFn that counts elements passed through. */

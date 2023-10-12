@@ -53,9 +53,12 @@ func isLeafCoder(c *pipepb.Coder) bool {
 //
 // PCollection coders are not inherently WindowValueCoder wrapped, and they are added by the runner
 // for crossing the FnAPI boundary at data sources and data sinks.
-func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[string]*pipepb.Coder) string {
+func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[string]*pipepb.Coder) (string, error) {
 	col := comps.GetPcollections()[pID]
-	cID := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders())
+	cID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders())
+	if err != nil {
+		return "", fmt.Errorf("makeWindowedValueCoder: couldn't process coder for pcollection %q %v: %w", pID, prototext.Format(col), err)
+	}
 	wcID := comps.GetWindowingStrategies()[col.GetWindowingStrategyId()].GetWindowCoderId()
 
 	// The runner needs to be defensive, and tell the SDK to Length Prefix
@@ -73,7 +76,7 @@ func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[str
 	}
 	// Populate the coders to send with the new windowed value coder.
 	coders[wvcID] = wInC
-	return wvcID
+	return wvcID, nil
 }
 
 // makeWindowCoders makes the coder pair but behavior is ultimately determined by the strategy's windowFn.
@@ -94,22 +97,22 @@ func makeWindowCoders(wc *pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder)
 // lpUnknownCoders takes a coder, and populates coders with any new coders
 // coders that the runner needs to be safe, and speedy.
 // It returns either the passed in coder id, or the new safe coder id.
-func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
+func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string, error) {
 	// First check if we've already added the LP version of this coder to coders already.
 	lpcID := cID + "_lp"
 	// Check if we've done this one before.
 	if _, ok := bundle[lpcID]; ok {
-		return lpcID
+		return lpcID, nil
 	}
 	// All coders in the coders map have been processed.
 	if _, ok := bundle[cID]; ok {
-		return cID
+		return cID, nil
 	}
 	// Look up the canonical location.
 	c, ok := base[cID]
 	if !ok {
 		// We messed up somewhere.
-		panic(fmt.Sprint("unknown coder id:", cID))
+		return "", fmt.Errorf("lpUnknownCoders: coder %q not present in base map", cID)
 	}
 	// Add the original coder to the coders map.
 	bundle[cID] = c
@@ -124,7 +127,7 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 			ComponentCoderIds: []string{cID},
 		}
 		bundle[lpcID] = lpc
-		return lpcID
+		return lpcID, nil
 	}
 	// We know we have a composite, so if we count this as a leaf, move everything to
 	// the coders map.
@@ -133,12 +136,15 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 		for _, cc := range c.GetComponentCoderIds() {
 			bundle[cc] = base[cc]
 		}
-		return cID
+		return cID, nil
 	}
 	var needNewComposite bool
 	var comps []string
-	for _, cc := range c.GetComponentCoderIds() {
-		rcc := lpUnknownCoders(cc, bundle, base)
+	for i, cc := range c.GetComponentCoderIds() {
+		rcc, err := lpUnknownCoders(cc, bundle, base)
+		if err != nil {
+			return "", fmt.Errorf("lpUnknownCoders: couldn't handle component %d %q of %q %v:\n%w", i, cc, cID, prototext.Format(c), err)
+		}
 		if cc != rcc {
 			needNewComposite = true
 		}
@@ -150,9 +156,9 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 			ComponentCoderIds: comps,
 		}
 		bundle[lpcID] = lpc
-		return lpcID
+		return lpcID, nil
 	}
-	return cID
+	return cID, nil
 }
 
 // reconcileCoders ensures that the bundle coders are primed with initial coders from

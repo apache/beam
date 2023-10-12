@@ -183,7 +183,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
       String doFnName;
       Class<?> enclosingClass = fnClass.getEnclosingClass();
       if (enclosingClass != null && enclosingClass.equals(MapElements.class)) {
-        Field parent = fnClass.getDeclaredField("this$0");
+        Field parent = fnClass.getSuperclass().getDeclaredField("outer");
         parent.setAccessible(true);
         Field fnField = enclosingClass.getDeclaredField(fnFieldName);
         fnField.setAccessible(true);

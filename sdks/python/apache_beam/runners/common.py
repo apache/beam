@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import logging
 import sys
 import threading
 import traceback
@@ -38,6 +39,7 @@ from typing import Optional
 from typing import Tuple
 
 from apache_beam.coders import TupleCoder
+from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -54,6 +56,7 @@ from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import typehints
@@ -72,6 +75,14 @@ if TYPE_CHECKING:
   from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
+
+IMPULSE_VALUE_CODER_IMPL = coders.WindowedValueCoder(
+    coders.BytesCoder(), coders.GlobalWindowCoder()).get_impl()
+
+ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
+    GlobalWindows.windowed_value(b''))
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class NameContext(object):
@@ -1530,6 +1541,7 @@ class DoFnRunner:
 
     new_exn = new_exn.with_traceback(tb)
     self._maybe_sample_exception(exc_info, windowed_value)
+    _LOGGER.exception(new_exn)
     raise new_exn
 
 

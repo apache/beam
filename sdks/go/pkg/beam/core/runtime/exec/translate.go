@@ -823,6 +823,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 		u = sink
 
+	case graphx.URNToString:
+		u = &ToString{UID: b.idgen.New(), Out: out[0]}
+
 	default:
 		panic(fmt.Sprintf("Unexpected transform URN: %v", urn))
 	}

@@ -46,11 +46,11 @@ builder.build {
   steps {
     gradle {
       rootBuildScriptDir(properties.checkoutDir)
-      tasks 'javaExamplesDataflowPreCommit'
+      tasks ':runners:google-cloud-dataflow-java:examples:preCommit'
       switches '-PdisableSpotlessCheck=true'
       switches '-PdisableCheckStyle=true'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
-      switches '-PcompileAndRunTestsWithJava17'
+      switches '-PtestJavaVersion=17'
       switches "-Pjava17Home=${properties.JAVA_17_HOME}"
       properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }

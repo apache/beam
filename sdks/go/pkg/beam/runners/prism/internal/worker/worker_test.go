@@ -32,14 +32,14 @@ import (
 )
 
 func TestWorker_New(t *testing.T) {
-	w := New("test")
+	w := New("test", "testEnv")
 	if got, want := w.ID, "test"; got != want {
 		t.Errorf("New(%q) = %v, want %v", want, got, want)
 	}
 }
 
 func TestWorker_NextInst(t *testing.T) {
-	w := New("test")
+	w := New("test", "testEnv")
 
 	instIDs := map[string]struct{}{}
 	for i := 0; i < 100; i++ {
@@ -50,20 +50,8 @@ func TestWorker_NextInst(t *testing.T) {
 	}
 }
 
-func TestWorker_NextStage(t *testing.T) {
-	w := New("test")
-
-	stageIDs := map[string]struct{}{}
-	for i := 0; i < 100; i++ {
-		stageIDs[w.NextStage()] = struct{}{}
-	}
-	if got, want := len(stageIDs), 100; got != want {
-		t.Errorf("calling w.NextStage() got %v unique ids, want %v", got, want)
-	}
-}
-
 func TestWorker_GetProcessBundleDescriptor(t *testing.T) {
-	w := New("test")
+	w := New("test", "testEnv")
 
 	id := "available"
 	w.Descriptors[id] = &fnpb.ProcessBundleDescriptor{
@@ -93,7 +81,7 @@ func serveTestWorker(t *testing.T) (context.Context, *W, *grpc.ClientConn) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	t.Cleanup(cancelFn)
 
-	w := New("test")
+	w := New("test", "testEnv")
 	lis := bufconn.Listen(2048)
 	w.lis = lis
 	t.Cleanup(func() { w.Stop() })
@@ -119,8 +107,17 @@ func TestWorker_Logging(t *testing.T) {
 
 	logStream.Send(&fnpb.LogEntry_List{
 		LogEntries: []*fnpb.LogEntry{{
-			Severity: fnpb.LogEntry_Severity_INFO,
-			Message:  "squeamish ossiphrage",
+			Severity:    fnpb.LogEntry_Severity_INFO,
+			Message:     "squeamish ossiphrage",
+			LogLocation: "intentionally.go:124",
+		}},
+	})
+
+	logStream.Send(&fnpb.LogEntry_List{
+		LogEntries: []*fnpb.LogEntry{{
+			Severity:    fnpb.LogEntry_Severity_INFO,
+			Message:     "squeamish ossiphrage the second",
+			LogLocation: "intentionally bad log location",
 		}},
 	})
 
@@ -180,7 +177,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 
 	b := &B{
 		InstID: instID,
-		PBDID:  wk.NextStage(),
+		PBDID:  "teststageID",
 		InputData: [][]byte{
 			{1, 1, 1, 1, 1, 1},
 		},

@@ -98,6 +98,7 @@ class PipelineTask(str, Enum):
   TextClassification = 'text-classification'
   TextGeneration = 'text-generation'
   Text2TextGeneration = 'text2text-generation'
+  TextToAudio = 'text-to-audio'
   TokenClassification = 'token-classification'
   Translation = 'translation'
   VideoClassification = 'video-classification'
@@ -289,6 +290,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     if self._framework == 'pt':
       if self._device == "GPU" and is_gpu_available_torch:
         model.to(torch.device("cuda"))
+      if callable(getattr(model, 'requires_grad_', None)):
+        model.requires_grad_(False)
     return model
 
   def run_inference(
@@ -465,6 +468,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     """Loads and initializes the model for processing."""
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
+    if callable(getattr(model, 'requires_grad_', None)):
+      model.requires_grad_(False)
     return model
 
   def run_inference(
@@ -566,7 +571,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
   def __init__(
       self,
       task: Union[str, PipelineTask] = "",
-      model=None,
+      model: str = "",
       *,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_pipeline_args: Optional[Dict[str, Any]] = None,
@@ -589,9 +594,18 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Args:
       task (str or enum.Enum): task supported by HuggingFace Pipelines.
         Accepts a string task or an enum.Enum from PipelineTask.
-      model : path to pretrained model on Hugging Face Models Hub to use custom
-        model for the chosen task. If the model already defines the task then
-        no need to specify the task parameter.
+      model (str): path to the pretrained *model-id* on Hugging Face Models Hub
+        to use custom model for the chosen task. If the `model` already defines
+        the task then no need to specify the `task` parameter.
+        Use the *model-id* string instead of an actual model here.
+        Model-specific kwargs for `from_pretrained(..., **model_kwargs)` can be
+        specified with `model_kwargs` using `load_pipeline_args`.
+
+        Example Usage::
+          model_handler = HuggingFacePipelineModelHandler(
+            task="text-generation", model="meta-llama/Llama-2-7b-hf",
+            load_pipeline_args={'model_kwargs':{'quantization_map':config}})
+
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load

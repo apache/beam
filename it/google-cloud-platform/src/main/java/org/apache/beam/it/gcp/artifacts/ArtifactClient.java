@@ -54,6 +54,14 @@ public interface ArtifactClient extends ResourceManager {
   String runId();
 
   /**
+   * Returns a path the artifact will be created at.
+   *
+   * @param artifactName Artifact name
+   * @return GCS path where the artifact will be created
+   */
+  String getPathForArtifact(String artifactName);
+
+  /**
    * Creates a new artifact in whatever service is being used to store them.
    *
    * @param artifactName the name of the artifact. If this is supposed to go under an input/output

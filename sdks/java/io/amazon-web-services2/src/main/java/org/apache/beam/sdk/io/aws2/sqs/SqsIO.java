@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import static java.util.Collections.EMPTY_LIST;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.buildClient;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -27,10 +28,19 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -61,6 +71,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -152,6 +163,7 @@ public class SqsIO {
         .concurrentRequests(WriteBatches.DEFAULT_CONCURRENCY)
         .batchSize(WriteBatches.MAX_BATCH_SIZE)
         .batchTimeout(WriteBatches.DEFAULT_BATCH_TIMEOUT)
+        .strictTimeouts(false)
         .build();
   }
 
@@ -289,6 +301,8 @@ public class SqsIO {
 
     abstract @Pure Duration batchTimeout();
 
+    abstract @Pure boolean strictTimeouts();
+
     abstract @Pure int batchSize();
 
     abstract @Pure ClientConfiguration clientConfiguration();
@@ -310,6 +324,8 @@ public class SqsIO {
       abstract Builder<T> concurrentRequests(int concurrentRequests);
 
       abstract Builder<T> batchTimeout(Duration duration);
+
+      abstract Builder<T> strictTimeouts(boolean strict);
 
       abstract Builder<T> batchSize(int batchSize);
 
@@ -363,10 +379,20 @@ public class SqsIO {
     /**
      * The duration to accumulate records before timing out, default is 3 secs.
      *
-     * <p>Timeouts will be checked upon arrival of new messages.
+     * <p>By default timeouts will be checked upon arrival of records.
      */
     public WriteBatches<T> withBatchTimeout(Duration timeout) {
-      return builder().batchTimeout(timeout).build();
+      return withBatchTimeout(timeout, false);
+    }
+
+    /**
+     * The duration to accumulate records before timing out, default is 3 secs.
+     *
+     * <p>By default timeouts will be checked upon arrival of records. If using {@code strict}
+     * enforcement, timeouts will be check by a separate thread.
+     */
+    public WriteBatches<T> withBatchTimeout(Duration timeout, boolean strict) {
+      return builder().batchTimeout(timeout).strictTimeouts(strict).build();
     }
 
     /** Dynamic record based destination to write to. */
@@ -546,12 +572,18 @@ public class SqsIO {
     }
 
     private static class BatchHandler<T> implements AutoCloseable {
+      private static final int CHECKS_PER_TIMEOUT_PERIOD = 5;
+      public static final int EXPIRATION_CHECK_TIMEOUT_SECS = 3;
+
       private final WriteBatches<T> spec;
       private final SqsAsyncClient sqs;
       private final Batches batches;
       private final EntryMapperFn<T> entryMapper;
       private final AsyncBatchWriteHandler<SendMessageBatchRequestEntry, BatchResultErrorEntry>
           handler;
+      private final @Nullable ScheduledExecutorService scheduler;
+
+      private @MonotonicNonNull ScheduledFuture<?> expirationCheck = null;
 
       BatchHandler(WriteBatches<T> spec, EntryMapperFn<T> entryMapper, AwsOptions options) {
         this.spec = spec;
@@ -567,8 +599,10 @@ public class SqsIO {
                 error -> error.code(),
                 record -> record.id(),
                 error -> error.id());
+        this.scheduler =
+            spec.strictTimeouts() ? Executors.newSingleThreadScheduledExecutor() : null;
         if (spec.queueUrl() != null) {
-          this.batches = new Single(spec.queueUrl());
+          this.batches = new Single();
         } else if (spec.dynamicDestination() != null) {
           this.batches = new Dynamic(spec.dynamicDestination());
         } else {
@@ -585,6 +619,13 @@ public class SqsIO {
 
       public void startBundle() {
         handler.reset();
+        if (scheduler != null && spec.strictTimeouts()) {
+          long timeout = spec.batchTimeout().getMillis();
+          long period = timeout / CHECKS_PER_TIMEOUT_PERIOD;
+          expirationCheck =
+              scheduler.scheduleWithFixedDelay(
+                  () -> batches.submitExpired(false), timeout, period, MILLISECONDS);
+        }
       }
 
       public void process(T msg) {
@@ -592,18 +633,21 @@ public class SqsIO {
         Batch batch = batches.getLocked(msg);
         batch.add(entry);
         if (batch.size() >= spec.batchSize() || batch.isExpired()) {
-          writeEntries(batch, true);
+          submitEntries(batch, true);
         } else {
           checkState(batch.lock(false)); // unlock to continue writing to batch
         }
 
-        // check timeouts synchronously on arrival of new messages
-        batches.writeExpired(true);
+        if (scheduler == null) {
+          // check for expired batches synchronously
+          batches.submitExpired(true);
+        }
       }
 
-      private void writeEntries(Batch batch, boolean throwPendingFailures) {
+      /** Submit entries of a {@link Batch} to the async write handler. */
+      private void submitEntries(Batch batch, boolean throwFailures) {
         try {
-          handler.batchWrite(batch.queue, batch.getAndClear(), throwPendingFailures);
+          handler.batchWrite(batch.queue, batch.getAndClose(), throwFailures);
         } catch (RuntimeException e) {
           throw e;
         } catch (Throwable e) {
@@ -612,32 +656,54 @@ public class SqsIO {
       }
 
       public void finishBundle() throws Throwable {
-        batches.writeAll();
+        if (expirationCheck != null) {
+          expirationCheck.cancel(false);
+          while (true) {
+            try {
+              expirationCheck.get(EXPIRATION_CHECK_TIMEOUT_SECS, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+              LOG.warn("Waiting for timeout check to complete");
+            } catch (CancellationException e) {
+              break; // scheduled checks completed after cancellation
+            }
+          }
+        }
+        // safe to write remaining batches without risking to encounter locked ones
+        checkState(batches.submitAll());
         handler.waitForCompletion();
       }
 
       @Override
       public void close() throws Exception {
         sqs.close();
+        if (scheduler != null) {
+          scheduler.shutdown();
+        }
       }
 
       /**
        * Batch(es) of a single fixed or several dynamic queues.
        *
-       * <p>{@link #getLocked} is meant to support atomic writes from multiple threads if using an
-       * appropriate thread-safe implementation. This is necessary to later support strict timeouts
-       * (see below).
+       * <p>A {@link Batch} can only ever be modified from the single runner thread.
        *
-       * <p>For simplicity, check for expired messages after appending to a batch. For strict
-       * enforcement of timeouts, {@link #writeExpired} would have to be periodically called using a
-       * scheduler and requires also a thread-safe impl of {@link Batch#lock(boolean)}.
+       * <p>In case of strict timeouts, a batch may be submitted to the write handler by periodic
+       * expiration checks using a scheduler. Otherwise, and by default, this is done after
+       * appending to a batch. {@link Batch#lock(boolean)} prevents concurrent access to a batch
+       * between threads. Once a batch was locked by an expiration check, it must always be
+       * submitted to the write handler.
        */
+      @NotThreadSafe
       private abstract class Batches {
         private int nextId = 0; // only ever used from one "runner" thread
 
         abstract int maxBatches();
 
-        /** Next batch entry id is guaranteed to be unique for all open batches. */
+        /**
+         * Next batch entry id is guaranteed to be unique for all open batches.
+         *
+         * <p>This method is not thread-safe and may only ever be called from the single runner
+         * thread.
+         */
         String nextId() {
           if (nextId >= (spec.batchSize() * maxBatches())) {
             nextId = 0;
@@ -645,24 +711,40 @@ public class SqsIO {
           return Integer.toString(nextId++);
         }
 
-        /** Get existing or new locked batch that can be written to. */
+        /**
+         * Get an existing or new locked batch to append new messages.
+         *
+         * <p>This method is not thread-safe and may only ever be called from a single runner
+         * thread. If this encounters a locked batch, it assumes the {@link Batch} is currently
+         * written to SQS and creates a new one.
+         */
         abstract Batch getLocked(T record);
 
-        /** Write all remaining batches (that can be locked). */
-        abstract void writeAll();
+        /**
+         * Submit all remaining batches (that can be locked) to the write handler.
+         *
+         * @return {@code true} if successful for all batches.
+         */
+        abstract boolean submitAll();
 
-        /** Write all expired batches (that can be locked). */
-        abstract void writeExpired(boolean throwPendingFailures);
+        /**
+         * Submit all expired batches (that can be locked) to the write handler.
+         *
+         * <p>This is the only method that may be invoked from a thread other than the runner
+         * thread.
+         */
+        abstract void submitExpired(boolean throwFailures);
 
-        /** Create a new locked batch that is ready for writing. */
-        Batch createLocked(String queue) {
-          return new Batch(queue, spec.batchSize(), spec.batchTimeout());
-        }
-
-        /** Write a batch if it can be locked. */
-        protected boolean writeLocked(Batch batch, boolean throwPendingFailures) {
-          if (batch.lock(true)) {
-            writeEntries(batch, throwPendingFailures);
+        /**
+         * Submit a batch to the write handler if it can be locked.
+         *
+         * @return {@code true} if successful (or closed).
+         */
+        protected boolean lockAndSubmit(Batch batch, boolean throwFailures) {
+          if (batch.isClosed()) {
+            return true; // nothing to submit
+          } else if (batch.lock(true)) {
+            submitEntries(batch, throwFailures);
             return true;
           }
           return false;
@@ -672,11 +754,7 @@ public class SqsIO {
       /** Batch of a single, fixed queue. */
       @NotThreadSafe
       private class Single extends Batches {
-        private Batch batch;
-
-        Single(String queue) {
-          this.batch = new Batch(queue, EMPTY_LIST, Batch.NEVER); // locked
-        }
+        private @Nullable Batch batch;
 
         @Override
         int maxBatches() {
@@ -685,18 +763,21 @@ public class SqsIO {
 
         @Override
         Batch getLocked(T record) {
-          return batch.lock(true) ? batch : (batch = createLocked(batch.queue));
+          if (batch == null || !batch.lock(true)) {
+            batch = Batch.createLocked(checkStateNotNull(spec.queueUrl()), spec);
+          }
+          return batch;
         }
 
         @Override
-        void writeAll() {
-          writeLocked(batch, true);
+        boolean submitAll() {
+          return batch == null || lockAndSubmit(batch, true);
         }
 
         @Override
-        void writeExpired(boolean throwPendingFailures) {
-          if (batch.isExpired()) {
-            writeLocked(batch, throwPendingFailures);
+        void submitExpired(boolean throwFailures) {
+          if (batch != null && batch.isExpired()) {
+            lockAndSubmit(batch, throwFailures);
           }
         }
       }
@@ -709,8 +790,9 @@ public class SqsIO {
             (queue, batch) -> batch != null && batch.lock(true) ? batch : createLocked(queue);
 
         private final Map<@NonNull String, Batch> batches = new HashMap<>();
+        private final AtomicBoolean submitExpiredRunning = new AtomicBoolean(false);
+        private final AtomicReference<Instant> nextTimeout = new AtomicReference<>(Batch.NEVER);
         private final DynamicDestination<T> destination;
-        private Instant nextTimeout = Batch.NEVER;
 
         Dynamic(DynamicDestination<T> destination) {
           this.destination = destination;
@@ -727,77 +809,118 @@ public class SqsIO {
         }
 
         @Override
-        void writeAll() {
-          batches.values().forEach(batch -> writeLocked(batch, true));
+        boolean submitAll() {
+          AtomicBoolean res = new AtomicBoolean(true);
+          batches.values().forEach(batch -> res.compareAndSet(true, lockAndSubmit(batch, true)));
           batches.clear();
-          nextTimeout = Batch.NEVER;
+          nextTimeout.set(Batch.NEVER);
+          return res.get();
         }
 
-        private void writeExpired(Batch batch) {
-          if (!batch.isExpired() || !writeLocked(batch, true)) {
-            // find next timeout for remaining, unwritten batches
-            if (batch.timeout.isBefore(nextTimeout)) {
-              nextTimeout = batch.timeout;
+        private void updateNextTimeout(Batch batch) {
+          Instant prev;
+          do {
+            prev = nextTimeout.get();
+          } while (batch.expirationTime.isBefore(prev)
+              && !nextTimeout.compareAndSet(prev, batch.expirationTime));
+        }
+
+        private void submitExpired(Batch batch, boolean throwFailures) {
+          if (!batch.isClosed() && (!batch.isExpired() || !lockAndSubmit(batch, throwFailures))) {
+            updateNextTimeout(batch);
+          }
+        }
+
+        @Override
+        void submitExpired(boolean throwFailures) {
+          Instant timeout = nextTimeout.get();
+          if (timeout.isBeforeNow()) {
+            // prevent concurrent checks for expired batches
+            if (submitExpiredRunning.compareAndSet(false, true)) {
+              try {
+                nextTimeout.set(Batch.NEVER);
+                batches.values().forEach(b -> submitExpired(b, throwFailures));
+              } catch (ConcurrentModificationException e) {
+                // Can happen rarely when adding a new dynamic destination and is expected.
+                // Reset old timeout to repeat check asap.
+                nextTimeout.set(timeout);
+              } finally {
+                submitExpiredRunning.set(false);
+              }
             }
           }
         }
 
-        @Override
-        void writeExpired(boolean throwPendingFailures) {
-          if (nextTimeout.isBeforeNow()) {
-            nextTimeout = Batch.NEVER;
-            batches.values().forEach(this::writeExpired);
-          }
-        }
-
-        @Override
         Batch createLocked(String queue) {
-          Batch batch = super.createLocked(queue);
-          if (batch.timeout.isBefore(nextTimeout)) {
-            nextTimeout = batch.timeout;
-          }
+          Batch batch = Batch.createLocked(queue, spec);
+          updateNextTimeout(batch);
           return batch;
         }
       }
     }
 
-    /**
-     * Batch of entries of a queue.
-     *
-     * <p>Overwrite {@link #lock} with a thread-safe implementation to support concurrent usage.
-     */
+    /** Batch of entries of a queue. */
     @NotThreadSafe
-    private static final class Batch {
+    private abstract static class Batch {
       private static final Instant NEVER = Instant.ofEpochMilli(Long.MAX_VALUE);
+
       private final String queue;
-      private Instant timeout;
+      private final Instant expirationTime;
       private List<SendMessageBatchRequestEntry> entries;
 
-      Batch(String queue, int size, Duration bufferedTime) {
-        this(queue, new ArrayList<>(size), Instant.now().plus(bufferedTime));
+      static Batch createLocked(String queue, SqsIO.WriteBatches<?> spec) {
+        return spec.strictTimeouts()
+            ? new BatchWithAtomicLock(queue, spec.batchSize(), spec.batchTimeout())
+            : new BatchWithNoopLock(queue, spec.batchSize(), spec.batchTimeout());
       }
 
-      Batch(String queue, List<SendMessageBatchRequestEntry> entries, Instant timeout) {
+      /** A {@link Batch} with a noop lock that just rejects un/locking if closed. */
+      private static class BatchWithNoopLock extends Batch {
+        BatchWithNoopLock(String queue, int size, Duration timeout) {
+          super(queue, size, timeout);
+        }
+
+        @Override
+        boolean lock(boolean lock) {
+          return !isClosed(); // always un/lock unless closed
+        }
+      }
+
+      /** A {@link Batch} supporting atomic locking for concurrent usage. */
+      private static class BatchWithAtomicLock extends Batch {
+        private final AtomicBoolean locked = new AtomicBoolean(true); // always lock on creation
+
+        BatchWithAtomicLock(String queue, int size, Duration timeout) {
+          super(queue, size, timeout);
+        }
+
+        @Override
+        boolean lock(boolean lock) {
+          return !isClosed() && locked.compareAndSet(!lock, lock);
+        }
+      }
+
+      private Batch(String queue, int size, Duration timeout) {
         this.queue = queue;
-        this.entries = entries;
-        this.timeout = timeout;
+        this.entries = new ArrayList<>(size);
+        this.expirationTime = Instant.now().plus(timeout);
       }
 
-      /** Attempt to un/lock this batch and return if successful. */
-      boolean lock(boolean lock) {
-        // thread unsafe dummy impl that rejects locking batches after getAndClear
-        return !NEVER.equals(timeout) || !lock;
-      }
+      /** Attempt to un/lock this batch, if closed this always fails. */
+      abstract boolean lock(boolean lock);
 
-      /** Get and clear entries for writing. */
-      List<SendMessageBatchRequestEntry> getAndClear() {
+      /**
+       * Get and clear entries for submission to the write handler.
+       *
+       * <p>The batch must be locked and kept locked, it can't be modified anymore.
+       */
+      List<SendMessageBatchRequestEntry> getAndClose() {
         List<SendMessageBatchRequestEntry> res = entries;
         entries = EMPTY_LIST;
-        timeout = NEVER;
         return res;
       }
 
-      /** Add entry to this batch. */
+      /** Append entry (only use if locked!). */
       void add(SendMessageBatchRequestEntry entry) {
         entries.add(entry);
       }
@@ -807,7 +930,11 @@ public class SqsIO {
       }
 
       boolean isExpired() {
-        return timeout.isBeforeNow();
+        return expirationTime.isBeforeNow();
+      }
+
+      boolean isClosed() {
+        return entries == EMPTY_LIST;
       }
     }
   }

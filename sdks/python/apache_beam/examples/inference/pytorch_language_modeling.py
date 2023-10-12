@@ -118,6 +118,13 @@ def parse_known_args(argv):
       dest='model_state_dict_path',
       required=True,
       help="Path to the model's state_dict.")
+  parser.add_argument(
+      '--large_model',
+      action='store_true',
+      dest='large_model',
+      default=False,
+      help='Set to true if your model is large enough to run into memory '
+      'pressure if you load multiple copies.')
   return parser.parse_known_args(argv)
 
 
@@ -166,7 +173,8 @@ def run(
   model_handler = PytorchNoBatchModelHandler(
       state_dict_path=known_args.model_state_dict_path,
       model_class=model_class,
-      model_params=model_params)
+      model_params=model_params,
+      large_model=known_args.large_model)
 
   pipeline = test_pipeline
   if not test_pipeline:

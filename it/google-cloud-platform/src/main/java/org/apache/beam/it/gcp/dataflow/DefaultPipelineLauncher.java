@@ -99,7 +99,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           .put(PipelineResult.State.UNRECOGNIZED, JobState.UNKNOWN)
           .build();
 
-  private DefaultPipelineLauncher(Builder builder) {
+  private DefaultPipelineLauncher(DefaultPipelineLauncher.Builder builder) {
     super(
         new Dataflow(
             Utils.getDefaultTransport(),
@@ -109,8 +109,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
                 : new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
-  public static Builder builder() {
-    return new Builder();
+  public static DefaultPipelineLauncher.Builder builder(Credentials credentials) {
+    return new DefaultPipelineLauncher.Builder(credentials);
   }
 
   @Override
@@ -462,15 +462,12 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   public static final class Builder {
     private Credentials credentials;
 
-    private Builder() {}
+    private Builder(Credentials credentials) {
+      this.credentials = credentials;
+    }
 
     public Credentials getCredentials() {
       return credentials;
-    }
-
-    public Builder setCredentials(Credentials value) {
-      credentials = value;
-      return this;
     }
 
     public DefaultPipelineLauncher build() {

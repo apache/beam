@@ -63,15 +63,15 @@ import org.slf4j.LoggerFactory;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
- * and can be overridden with {@code --input}.
+ * <p>The BigQuery input table defaults to {@code apache-beam-testing.samples.weather_stations} and
+ * can be overridden with {@code --input}.
  */
 public class BigQueryTornadoes {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTornadoes.class);
 
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
 
   /**
    * Examines each row in the input table. If a tornado was recorded in that sample, the month in

@@ -21,6 +21,7 @@ import static org.apache.beam.it.common.utils.ResourceManagerUtils.checkValidPro
 import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.checkValidTableId;
 import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.generateDefaultClusters;
 import static org.apache.beam.it.gcp.bigtable.BigtableResourceManagerUtils.generateInstanceId;
+import static org.awaitility.Awaitility.await;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.rpc.ServerStream;
@@ -32,11 +33,14 @@ import com.google.cloud.bigtable.admin.v2.models.AppProfile;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.MultiClusterRoutingPolicy;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.RoutingPolicy;
 import com.google.cloud.bigtable.admin.v2.models.AppProfile.SingleClusterRoutingPolicy;
+import com.google.cloud.bigtable.admin.v2.models.Cluster;
 import com.google.cloud.bigtable.admin.v2.models.CreateAppProfileRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateInstanceRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.GCRules;
 import com.google.cloud.bigtable.admin.v2.models.StorageType;
+import com.google.cloud.bigtable.admin.v2.models.Table;
+import com.google.cloud.bigtable.admin.v2.models.UpdateTableRequest;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Query;
@@ -49,6 +53,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.commons.lang3.StringUtils;
@@ -72,7 +80,7 @@ import org.threeten.bp.Duration;
 public class BigtableResourceManager implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableResourceManager.class);
-  private static final String DEFAULT_CLUSTER_ZONE = "us-central1-a";
+  private static final String DEFAULT_CLUSTER_ZONE = "us-central1-b";
   private static final int DEFAULT_CLUSTER_NUM_NODES = 1;
   private static final StorageType DEFAULT_CLUSTER_STORAGE_TYPE = StorageType.SSD;
 
@@ -84,8 +92,12 @@ public class BigtableResourceManager implements ResourceManager {
   private final List<String> createdTables;
   // List to store created app profiles for static RM
   private final List<String> createdAppProfiles;
+  // List of tables we enabled CDC for
+  private final Set<String> cdcEnabledTables;
 
   private boolean hasInstance;
+  private List<BigtableResourceManagerCluster> clusters;
+
   private final boolean usingStaticInstance;
 
   private BigtableResourceManager(Builder builder) throws IOException {
@@ -103,6 +115,8 @@ public class BigtableResourceManager implements ResourceManager {
     this.projectId = builder.projectId;
     this.createdTables = new ArrayList<>();
     this.createdAppProfiles = new ArrayList<>();
+    this.cdcEnabledTables = new HashSet<>();
+    this.clusters = new ArrayList<>();
 
     // Check if RM was configured to use static Bigtable instance.
     if (builder.useStaticInstance) {
@@ -181,18 +195,20 @@ public class BigtableResourceManager implements ResourceManager {
   /**
    * Creates a Bigtable instance in which all clusters, nodes and tables will exist.
    *
-   * @param clusters Collection of BigtableResourceManagerCluster objects to associate with the
-   *     given Bigtable instance.
+   * @param clusters List of BigtableResourceManagerCluster objects to associate with the given
+   *     Bigtable instance.
    * @throws BigtableResourceManagerException if there is an error creating the instance in
    *     Bigtable.
    */
-  public synchronized void createInstance(Iterable<BigtableResourceManagerCluster> clusters)
+  public synchronized void createInstance(List<BigtableResourceManagerCluster> clusters)
       throws BigtableResourceManagerException {
 
     // Check to see if instance already exists, and throw error if it does
     if (hasInstance) {
-      throw new IllegalStateException(
-          "Instance " + instanceId + " already exists for project " + projectId + ".");
+      LOG.warn(
+          "Skipping instance creation. Instance was already created or static instance was passed. Reusing : {}.",
+          instanceId);
+      return;
     }
 
     LOG.info("Creating instance {} in project {}.", instanceId, projectId);
@@ -213,6 +229,7 @@ public class BigtableResourceManager implements ResourceManager {
           "Failed to create instance " + instanceId + ".", e);
     }
     hasInstance = true;
+    this.clusters = clusters;
 
     LOG.info("Successfully created instance {}.", instanceId);
   }
@@ -341,8 +358,22 @@ public class BigtableResourceManager implements ResourceManager {
           createTableRequest.addFamily(
               columnFamily, GCRules.GCRULES.maxAge(bigtableTableSpec.getMaxAge()));
         }
-        // TODO: Set CDC enabled
+        if (bigtableTableSpec.getCdcEnabled()) {
+          createTableRequest.addChangeStreamRetention(Duration.ofDays(7));
+          cdcEnabledTables.add(tableId);
+        }
         tableAdminClient.createTable(createTableRequest);
+
+        await("Waiting for all tables to be replicated.")
+            .atMost(java.time.Duration.ofMinutes(10))
+            .pollInterval(java.time.Duration.ofSeconds(5))
+            .until(
+                () -> {
+                  Table t = tableAdminClient.getTable(tableId);
+                  Map<String, Table.ReplicationState> rs = t.getReplicationStatesByClusterId();
+                  return rs.values().stream().allMatch(Table.ReplicationState.READY::equals);
+                });
+
       } else {
         throw new IllegalStateException(
             "Table " + tableId + " already exists for instance " + instanceId + ".");
@@ -520,6 +551,32 @@ public class BigtableResourceManager implements ResourceManager {
     return tableRows;
   }
 
+  /** Get all the cluster names of the current instance. */
+  public List<String> getClusterNames() {
+    return StreamSupport.stream(getClusters().spliterator(), false)
+        .map(BigtableResourceManagerCluster::clusterId)
+        .collect(Collectors.toList());
+  }
+
+  private Iterable<BigtableResourceManagerCluster> getClusters() {
+    if (usingStaticInstance && this.clusters.isEmpty()) {
+      try (BigtableInstanceAdminClient instanceAdminClient =
+          bigtableResourceManagerClientFactory.bigtableInstanceAdminClient()) {
+        List<BigtableResourceManagerCluster> managedClusters = new ArrayList<>();
+        for (Cluster cluster : instanceAdminClient.listClusters(instanceId)) {
+          managedClusters.add(
+              BigtableResourceManagerCluster.create(
+                  cluster.getId(),
+                  cluster.getZone(),
+                  cluster.getServeNodes(),
+                  cluster.getStorageType()));
+        }
+        this.clusters = managedClusters;
+      }
+    }
+    return this.clusters;
+  }
+
   /**
    * Deletes all created resources (instance and tables) and cleans up all Bigtable clients, making
    * the manager object unusable.
@@ -534,12 +591,26 @@ public class BigtableResourceManager implements ResourceManager {
   public synchronized void cleanupAll() throws BigtableResourceManagerException {
     LOG.info("Attempting to cleanup manager.");
 
-    if (usingStaticInstance) {
-      try (BigtableTableAdminClient tableAdminClient =
-          bigtableResourceManagerClientFactory.bigtableTableAdminClient()) {
-        createdTables.forEach(tableAdminClient::deleteTable);
+    try (BigtableTableAdminClient tableAdminClient =
+        bigtableResourceManagerClientFactory.bigtableTableAdminClient()) {
+      // Change streams must be disabled before table or instance can be deleted
+      for (String tableId : cdcEnabledTables) {
+        tableAdminClient.updateTable(UpdateTableRequest.of(tableId).disableChangeStreamRetention());
+      }
+
+      if (usingStaticInstance) {
         LOG.info(
             "This manager was configured to use a static instance that will not be cleaned up.");
+
+        // Remove managed tables
+        createdTables.forEach(tableAdminClient::deleteTable);
+
+        // Remove managed app profiles
+        try (BigtableInstanceAdminClient instanceAdminClient =
+            bigtableResourceManagerClientFactory.bigtableInstanceAdminClient()) {
+          createdAppProfiles.forEach(
+              profile -> instanceAdminClient.deleteAppProfile(instanceId, profile, true));
+        }
         return;
       }
     }

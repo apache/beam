@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.List;
 import java.util.Map;
@@ -113,10 +114,14 @@ public class CreateTables<DestinationT, ElementT>
                     dest);
                 Supplier<@Nullable TableSchema> schemaSupplier =
                     () -> dynamicDestinations.getSchema(dest);
+                Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
+                    () -> dynamicDestinations.getTableConstraints(dest);
+
                 return CreateTableHelpers.possiblyCreateTable(
                     context.getPipelineOptions().as(BigQueryOptions.class),
                     tableDestination1,
                     schemaSupplier,
+                    tableConstraintsSupplier,
                     createDisposition,
                     dynamicDestinations.getDestinationCoder(),
                     kmsKey,

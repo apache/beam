@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: 'Set test arguments action'
+description: 'Set test arguments action to run the test'
+inputs:
+  argument-file-paths:
+    required: true
+    description: 'List of paths to files with test arguments'
+    default: ''
+  arguments:
+    required: false
+    description: 'Test arguments generated at runtime'
+    default: ''
+  test-type:
+    required: true
+    description: 'Specify if this is a "load" or "performance" test'
+  test-language:
+    required: true
+    description: 'Specify if this is a "java", "python" or "go" test'
+
+runs:
+  using: composite
+  steps:
+    - name: Check if test-type was provided
+      shell: bash
+      run: | 
+        if [ -z "${{ inputs.test-type }}" ]; then
+          echo "Test type was not provided"
+          exit 1
+        fi
+    - name: Check if test-language was provided
+      shell: bash
+      run: | 
+        if [ -z "${{ inputs.test-language }}" ]; then
+          echo "Test language was not provided"
+          exit 1
+        fi
+    - name: Set common arguments
+      id: common_arguments
+      shell: bash
+      run: |
+        echo project="apache-beam-testing" >> $GITHUB_OUTPUT
+        echo influx_db_name="beam_test_metrics" >> $GITHUB_OUTPUT
+        echo influx_host="http://10.128.0.96:8086" >> $GITHUB_OUTPUT
+    - name: Get default ${{ inputs.test-language }} test arguments
+      id: default_arguments
+      shell: bash
+      run: |
+        DEFAULT_ARGUMENTS=""
+        if ${{ inputs.test-language == 'java' }}; then
+          DEFAULT_ARGUMENTS=$(echo "
+            --project=${{ steps.common_arguments.outputs.project }}
+            --influxDatabase=${{ steps.common_arguments.outputs.influx_db_name }}
+            --influxHost=${{ steps.common_arguments.outputs.influx_host }}
+          ")
+        elif ${{ inputs.test-language == 'python' || inputs.test-language == 'go' }}; then
+          DEFAULT_ARGUMENTS=$(echo "
+            --project=${{ steps.common_arguments.outputs.project }}
+            --influx_db_name=${{ steps.common_arguments.outputs.influx_db_name }}
+            --influx_hostname=${{ steps.common_arguments.outputs.influx_host }}
+          ")
+        fi
+        echo arguments=$DEFAULT_ARGUMENTS >> $GITHUB_OUTPUT
+    - name: Group arguments
+      shell: bash
+      run: |
+        PATHS=($(echo "${{ inputs.argument-file-paths }}" | tr '\n' ' '))
+        for index in "${!PATHS[@]}"; do
+          CONFIG=$(grep -v "^#.*" ${PATHS[index]})
+          ARGUMENTS=$(echo "${{ steps.default_arguments.outputs.arguments }} ${{ inputs.arguments }} $CONFIG" | tr '\n' ' ')
+          ARGUMENTS="${ARGUMENTS% }"
+          if ${{ inputs.test-type == 'performance' }}; then
+            arguments=""
+            read -ra args <<< "$ARGUMENTS"
+            for arg in "${args[@]}"; do
+              arguments="${arguments}\"${arg}\","
+            done
+            ARGUMENTS="${arguments%,}"
+          fi
+          echo "${{ github.job }}_test_arguments_$((index + 1))=$ARGUMENTS" >> $GITHUB_ENV
+        done

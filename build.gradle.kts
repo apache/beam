@@ -19,7 +19,7 @@
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.0"
+  id("org.nosphere.apache.rat") version "0.8.1"
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -310,6 +310,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:testing:test-utils:build")
   dependsOn(":sdks:java:testing:tpcds:build")
   dependsOn(":sdks:java:testing:watermarks:build")
+  dependsOn(":sdks:java:transform-service:build")
+  dependsOn(":sdks:java:transform-service:launcher:build")
 
   dependsOn(":examples:java:preCommit")
   dependsOn(":examples:java:twitter:preCommit")
@@ -443,23 +445,16 @@ tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
+tasks.register("goPrismPreCommit") {
+  dependsOn(":sdks:go:test:prismValidatesRunner")
+}
+
 tasks.register("goPostCommitDataflowARM") {
   dependsOn(":sdks:go:test:dataflowValidatesRunnerARM64")
 }
 
 tasks.register("goPostCommit") {
-  dependsOn(":goIntegrationTests")
-}
-
-tasks.register("goIntegrationTests") {
-  doLast {
-    exec {
-      executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
-    }
-  }
-  dependsOn(":sdks:go:test:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+  dependsOn(":sdks:go:test:dataflowValidatesRunner")
 }
 
 tasks.register("playgroundPreCommit") {
@@ -564,6 +559,7 @@ tasks.register("communityMetricsProber") {
 tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
+  dependsOn(":runners:google-cloud-dataflow-java:examplesJavaRunnerV2PreCommit")
 }
 
 tasks.register("whitespacePreCommit") {
@@ -716,14 +712,12 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
     }
   }
 }
-if (project.hasProperty("compileAndRunTestsWithJava11")) {
-  tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
-  tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
-  tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
-} else if (project.hasProperty("compileAndRunTestsWithJava17")) {
-  tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
-  tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
-  tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+if (project.hasProperty("testJavaVersion")) {
+  var testVer = project.property("testJavaVersion")
+
+  tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
+  tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
+  tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
 } else {
   allprojects {
     tasks.withType(Test::class).configureEach {

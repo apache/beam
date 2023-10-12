@@ -54,14 +54,14 @@ import os
 import shutil
 import sys
 import tempfile
+from importlib.metadata import distribution
 from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-import pkg_resources
-from pkg_resources import parse_version
+from packaging import version
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -594,11 +594,9 @@ class Stager(object):
             '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
       if os.path.basename(package).endswith('.whl'):
         _LOGGER.warning(
-            'The .whl package "%s" is provided in --extra_package. '
-            'This functionality is not officially supported. Since wheel '
-            'packages are binary distributions, this package must be '
-            'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).' % package)
+            'The .whl package "%s" provided in --extra_package '
+            'must be binary-compatible with the worker runtime environment.' %
+            package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
@@ -704,8 +702,8 @@ class Stager(object):
     # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
-    pip_version = pkg_resources.get_distribution('pip').version
-    if parse_version(pip_version) >= parse_version('19.3'):
+    pip_version = distribution('pip').version
+    if version.parse(pip_version) >= version.parse('19.3'):
       # pip can only recognize manylinux2014_x86_64 wheels
       # from version 19.3.
       return 'manylinux2014_x86_64'
