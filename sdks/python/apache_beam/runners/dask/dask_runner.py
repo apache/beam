@@ -183,7 +183,6 @@ class DaskRunner(BundleBasedDirectRunner):
 
     dask_visitor = self.to_dask_bag_visitor()
     pipeline.visit(dask_visitor)
-
-    opt_graph = dask.optimize(dask_visitor.bags.values())
+    opt_graph = dask.optimize(list(dask_visitor.bags.values()))
     futures = client.compute(opt_graph)
     return DaskRunnerResult(client, futures)
