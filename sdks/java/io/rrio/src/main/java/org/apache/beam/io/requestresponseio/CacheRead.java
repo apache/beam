@@ -35,7 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * {@link CacheRead} reads associated {@link ResponseT} types from {@link RequestT} types, if any
  * exist.
  */
-public class CacheRead<RequestT, ResponseT>
+class CacheRead<RequestT, ResponseT>
     extends PTransform<PCollection<RequestT>, Result<RequestT, ResponseT>> {
 
   // TODO(damondouglas): replace with ApiIOError
@@ -77,7 +77,7 @@ public class CacheRead<RequestT, ResponseT>
    * The {@link Result} of reading RequestT {@link PCollection} elements yielding ResponseT {@link
    * PCollection} elements.
    */
-  public static class Result<RequestT, ResponseT> implements POutput {
+  static class Result<RequestT, ResponseT> implements POutput {
 
     static <RequestT, ResponseT> Result<RequestT, ResponseT> of(
         TupleTag<KV<RequestT, ResponseT>> responseTag, PCollectionTuple pct) {
@@ -96,11 +96,11 @@ public class CacheRead<RequestT, ResponseT>
       this.failures = pct.get(FAILURE_TAG);
     }
 
-    public PCollection<KV<RequestT, ResponseT>> getResponses() {
+    PCollection<KV<RequestT, ResponseT>> getResponses() {
       return responses;
     }
 
-    public PCollection<String> getFailures() {
+    PCollection<String> getFailures() {
       return failures;
     }
 
