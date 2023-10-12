@@ -99,7 +99,7 @@ Finally, we postprocess the model predictions in the `Postprocess` DoFn. The `Po
 The custom Python code needs to be written in a local package and be compiled as a tarball. This package can then be used by the Java pipeline. The following example shows how to compile the Python package into a tarball:
 
 ```bash
- python setup.py sdist
+ pip install --upgrade build && python -m build --sdist
  ```
 
 In order to run this, a `setup.py` is required. The path to the tarball will be used as an argument in the pipeline options of the Java pipeline.
