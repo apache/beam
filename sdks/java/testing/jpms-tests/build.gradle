@@ -46,9 +46,9 @@ project.tasks.compileJava {
     options.fork = true
     options.forkOptions.javaHome = project.findProperty("java${project.getProperty('testJavaVersion')}Home") as File
     if (project.getProperty('testJavaVersion') == '17') {
-      setJava17Options(options)
+      setJavaVerOptions(options, '17')
     } else if (project.getProperty('testJavaVersion') == '21') {
-      setJava21Options(options)
+      setJavaVerOptions(options, '21')
     }
   }
 }
