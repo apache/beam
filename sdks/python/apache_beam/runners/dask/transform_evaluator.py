@@ -211,7 +211,7 @@ class GroupByKey(DaskBagOp):
 class Flatten(DaskBagOp):
   """Produces a flattened bag from a collection of bags."""
   def apply(self, input_bag: t.List[db.Bag]) -> db.Bag:
-    assert type(input_bag) is list, 'Must take a sequence of bags!'
+    assert isinstance(input_bag, list), 'Must take a sequence of bags!'
     return db.concat(input_bag)
 
 
