@@ -111,7 +111,7 @@ jobs:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             max-workers: 12
             arguments: |
-                -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+                -PtestJavaVersion${{ matrix.java_version }} \
                 -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \

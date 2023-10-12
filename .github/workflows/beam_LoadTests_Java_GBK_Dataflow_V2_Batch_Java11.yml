@@ -93,7 +93,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_1 }}' \
       - name: run Load test 2GB of 100B records
@@ -104,7 +104,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_2 }}' \
       - name: run Load test 2GB of 100kB records
@@ -115,7 +115,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_3 }}' \
       - name: run Load test fanout 4 times with 2GB 10-byte records total
@@ -126,7 +126,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_4 }}' \
       - name: run Load test fanout 8 times with 2GB 10-byte records total
@@ -137,7 +137,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_5 }}' \
       - name: run Load test reiterate 4 times 10kB values
@@ -148,7 +148,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_6 }}' \
       - name: run Load test reiterate 4 times 2MB values
@@ -159,6 +159,6 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Dataflow_V2_Batch_Java11_test_arguments_7 }}'
