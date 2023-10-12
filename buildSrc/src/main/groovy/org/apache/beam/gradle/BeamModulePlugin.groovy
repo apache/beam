@@ -946,6 +946,29 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
     }
 
+    project.ext.setJava21Options = { CompileOptions options ->
+      def java17Home = project.findProperty("java17Home")
+      options.fork = true
+      options.forkOptions.javaHome = java17Home as File
+      options.compilerArgs += ['-Xlint:-path']
+      // Error prone requires some packages to be exported/opened for Java 17
+      // Disabling checks since this property is only used for Jenkins tests
+      // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
+      options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+      options.forkOptions.jvmArgs += [
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+      ]
+    }
+
     project.ext.repositories = {
       maven {
         name "testPublicationLocal"
@@ -1492,7 +1515,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
-      if (project.hasProperty("compileAndRunTestsWithJava11")) {
+      if (project.findProperty('testJavaVersion') == "11") {
         def java11Home = project.findProperty("java11Home")
         project.tasks.compileTestJava {
           options.fork = true
@@ -1504,7 +1527,7 @@ class BeamModulePlugin implements Plugin<Project> {
           useJUnit()
           executable = "${java11Home}/bin/java"
         }
-      } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+      } else if (project.findProperty('testJavaVersion') == "17") {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
@@ -1513,6 +1536,16 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${java17Home}/bin/java"
+        }
+      } else if (project.findProperty('testJavaVersion') == "21") {
+        def java21Home = project.findProperty("java21Home")
+        project.tasks.compileTestJava {
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '21')
+          project.ext.setJava17Options(options)
+        }
+        project.tasks.withType(Test).configureEach {
+          useJUnit()
+          executable = "${java21Home}/bin/java"
         }
       }
 
@@ -2965,7 +2998,7 @@ class BeamModulePlugin implements Plugin<Project> {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
                 "pip install --pre --retries 10 --upgrade pip && " +
-                "pip install --pre --retries 10 --upgrade tox -r ${project.rootDir}/sdks/python/build-requirements.txt"
+                "pip install --pre --retries 10 --upgrade tox"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -3048,30 +3081,40 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         return argList.join(' ')
       }
-
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
-
-          doLast {
-            // Python source directory is also tox execution workspace, We want
-            // to isolate them per tox suite to avoid conflict when running
-            // multiple tox suites in parallel.
-            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-
-            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
-            project.exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+          if (project.hasProperty('useWheelDistribution')) {
+            def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
+            dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
+            doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              def collection = project.fileTree(project.project(':sdks:python').buildDir){
+                include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+              }
+              String packageFilename = collection.singleFile.toString()
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+              }
+            }
+          } else {
+            // tox task will run in editable mode, which is configured in the tox.ini file.
+            doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+              }
             }
           }
           inputs.files project.pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
       }
-
       // Run single or a set of integration tests with provided test options and pipeline options.
       project.ext.enablePythonPerformanceTest = {
 

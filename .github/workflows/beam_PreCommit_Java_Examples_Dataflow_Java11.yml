@@ -115,7 +115,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PskipCheckerFramework \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
