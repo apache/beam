@@ -56,7 +56,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
 
   private static final long MEBIBYTE = 1L << 20;
   private static final long SOFT_MEMORY_LIMIT = 512 * MEBIBYTE;
-  private static final long MIN_PER_PARTITION_MEMORY = 4 * MEBIBYTE;
+  private static final long MIN_PER_PARTITION_MEMORY = 10 * MEBIBYTE;
   private static final long MAX_PER_PARTITION_MEMORY = 100 * MEBIBYTE;
 
   private static final MemoryLimiter LIMITER =
