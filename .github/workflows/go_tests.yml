@@ -46,6 +46,8 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+          cache-dependency-path: |
+             sdks/go.sum
       - name: Delete old coverage
         run: "cd sdks && rm -rf .coverage.txt || :"
       - name: Run coverage
