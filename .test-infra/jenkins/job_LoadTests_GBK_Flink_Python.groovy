@@ -170,3 +170,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     }
 
 // TODO(https://github.com/apache/beam/issues/20146) Re-enable auto builds after these tests pass.
+
+TEST
