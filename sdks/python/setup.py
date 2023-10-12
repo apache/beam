@@ -18,6 +18,7 @@
 """Apache Beam SDK for Python setup file."""
 
 import os
+import subprocess
 import sys
 import warnings
 # Pylint and isort disagree here.
@@ -62,7 +63,6 @@ class mypy(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    import subprocess
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
@@ -155,12 +155,18 @@ dataframe_dependency = [
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
   try:
-    # pylint: disable=wrong-import-position
-    import gen_protos
-    gen_protos.generate_proto_files()
-
-  except ImportError:
-    warnings.warn("Could not import gen_protos, skipping proto generation.")
+    # Pyproject toml build happens in isolated environemnts. In those envs,
+    # gen_protos is unable to get imported. so we run a subprocess call.
+    cwd = os.path.abspath(os.path.dirname(__file__))
+    out = subprocess.run([
+      sys.executable,
+      os.path.join(cwd, 'gen_protos.py'),
+      '--no-force'
+    ], capture_output=True, check=True)
+    print(out.stdout)
+  except subprocess.CalledProcessError as err:
+    raise RuntimeError('Could not generate protos due to error: %s',
+                       err.stderr)
 
 
 def get_portability_package_data():
@@ -188,6 +194,27 @@ if __name__ == '__main__':
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
   generate_protos_first()
+
+  # generate cythonize extensions only if we are building a wheel or
+  # building an extension or running in editable mode.
+  cythonize_cmds = ('bdist_wheel', 'build_ext', 'editable_wheel')
+  if any(cmd in sys.argv for cmd in cythonize_cmds):
+    extensions = cythonize([
+            'apache_beam/**/*.pyx',
+            'apache_beam/coders/coder_impl.py',
+            'apache_beam/metrics/cells.py',
+            'apache_beam/metrics/execution.py',
+            'apache_beam/runners/common.py',
+            'apache_beam/runners/worker/logger.py',
+            'apache_beam/runners/worker/opcounters.py',
+            'apache_beam/runners/worker/operations.py',
+            'apache_beam/transforms/cy_combiners.py',
+            'apache_beam/transforms/stats.py',
+            'apache_beam/utils/counters.py',
+            'apache_beam/utils/windowed_value.py',
+        ])
+  else:
+    extensions = []
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
@@ -213,21 +240,7 @@ if __name__ == '__main__':
               *get_portability_package_data()
           ]
       },
-      ext_modules=cythonize([
-          'apache_beam/**/*.pyx',
-          'apache_beam/coders/coder_impl.py',
-          'apache_beam/metrics/cells.py',
-          'apache_beam/metrics/execution.py',
-          'apache_beam/runners/common.py',
-          'apache_beam/runners/worker/logger.py',
-          'apache_beam/runners/worker/opcounters.py',
-          'apache_beam/runners/worker/operations.py',
-          'apache_beam/transforms/cy_combiners.py',
-          'apache_beam/transforms/stats.py',
-          'apache_beam/utils/counters.py',
-          'apache_beam/utils/windowed_value.py',
-      ],
-                            language_level=3),
+      ext_modules=extensions,
       install_requires=[
           'crcmod>=1.7,<2.0',
           'orjson>=3.9.7,<4',
@@ -250,7 +263,7 @@ if __name__ == '__main__':
           'js2py>=0.74,<1',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<1.25.0',  # Update build-requirements.txt as well.
+          'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.7.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
