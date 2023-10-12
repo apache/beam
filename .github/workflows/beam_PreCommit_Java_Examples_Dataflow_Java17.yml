@@ -115,7 +115,7 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PtestJavaVersion=17 \
+            -PcompileAndRunTestsWithJava17 \
             -PskipCheckerFramework \
             -Pjava17Home=$JAVA_HOME_17_X64 \
           max-workers: 12

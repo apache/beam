@@ -26,7 +26,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true',
-      '-PtestJavaVersion=11',
+      '-PcompileAndRunTestsWithJava11',
       '-PskipCheckerFramework',
       // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
       "-Pjava11Home=${properties.JAVA_11_HOME}"
