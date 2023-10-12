@@ -15,9 +15,12 @@
 # limitations under the License.
 #
 
+import io
+import json
 import logging
 import unittest
 
+import fastavro
 import mock
 
 import apache_beam as beam
@@ -166,6 +169,48 @@ class YamlPubSubTest(unittest.TestCase):
         assert_that(
             result,
             equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
+
+  _avro_schema = {
+      'type': 'record',
+      'name': 'ec',
+      'fields': [{
+          'name': 'label', 'type': 'string'
+      }, {
+          'name': 'rank', 'type': 'int'
+      }]
+  }
+
+  def _encode_avro(self, data):
+    buffer = io.BytesIO()
+    fastavro.schemaless_writer(buffer, self._avro_schema, data)
+    buffer.seek(0)
+    return buffer.read()
+
+  def test_read_avro(self):
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch(
+          'apache_beam.io.ReadFromPubSub',
+          FakeReadFromPubSub(
+              topic='my_topic',
+              messages=[PubsubMessage(self._encode_avro({'label': '37a',
+                                                         'rank': 1}), {}),
+                        PubsubMessage(self._encode_avro({'label': '389a',
+                                                         'rank': 2}), {})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: avro
+              schema: %s
+            ''' % json.dumps(self._avro_schema))
+        assert_that(
+            result,
+            equal_to(
+                [beam.Row(label='37a', rank=1),  # linebreak
+                 beam.Row(label='389a', rank=2)]))
 
   def test_read_json(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -344,6 +389,29 @@ class YamlPubSubTest(unittest.TestCase):
               topic: my_topic
               format: raw
               id_attribute: some_attr
+            '''))
+
+  def test_write_avro(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch(
+          'apache_beam.io.WriteToPubSub',
+          FakeWriteToPubSub(
+              topic='my_topic',
+              messages=[PubsubMessage(self._encode_avro({'label': '37a',
+                                                         'rank': 1}), {}),
+                        PubsubMessage(self._encode_avro({'label': '389a',
+                                                         'rank': 2}), {})])):
+        _ = (
+            p | beam.Create(
+                [beam.Row(label='37a', rank=1), beam.Row(label='389a', rank=2)])
+            | YamlTransform(
+                '''
+            type: WriteToPubSub
+            input: input
+            config:
+              topic: my_topic
+              format: avro
             '''))
 
   def test_write_json(self):
