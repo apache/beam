@@ -947,11 +947,11 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.setJava21Options = { CompileOptions options ->
-      def java17Home = project.findProperty("java17Home")
+      def java21Home = project.findProperty("java21Home")
       options.fork = true
-      options.forkOptions.javaHome = java17Home as File
+      options.forkOptions.javaHome = java21Home as File
       options.compilerArgs += ['-Xlint:-path']
-      // Error prone requires some packages to be exported/opened for Java 17
+      // Error prone requires some packages to be exported/opened for Java 17+
       // Disabling checks since this property is only used for Jenkins tests
       // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
       options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
