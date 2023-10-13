@@ -47,5 +47,5 @@ runs:
         if [ -f ~/.m2/settings.xml ]; then
           rm ~/.m2/settings.xml
         fi
-        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} ${{ inputs.arguments }} \
-        ${{ inputs.default-arguments }}
+        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} ${{ inputs.default-arguments }} \
+        ${{ inputs.arguments }}
