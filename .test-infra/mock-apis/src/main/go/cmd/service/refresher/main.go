@@ -21,8 +21,8 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"reflect"
 
+	gcplogging "cloud.google.com/go/logging"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/cache"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/environment"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/logging"
@@ -36,10 +36,11 @@ var (
 		environment.QuotaSize,
 		environment.QuotaRefreshInterval,
 	}
+	logger   *slog.Logger
 	logAttrs []slog.Attr
-	logger   = logging.New(&logging.Options{
-		Name: reflect.TypeOf(struct{}{}).PkgPath(),
-	})
+	opts     = &logging.Options{
+		Name: "refresher",
+	}
 )
 
 func init() {
@@ -53,6 +54,18 @@ func init() {
 
 func main() {
 	ctx := context.Background()
+
+	if !environment.ProjectId.Missing() {
+		client, err := gcplogging.NewClient(ctx, environment.ProjectId.Value())
+		if err != nil {
+			slog.LogAttrs(ctx, slog.LevelError, err.Error(), logAttrs...)
+			os.Exit(1)
+		}
+
+		opts.Client = client
+	}
+
+	logger = logging.New(opts)
 	if err := run(ctx); err != nil {
 		logger.LogAttrs(ctx, slog.LevelError, err.Error(), logAttrs...)
 		os.Exit(1)
@@ -82,6 +95,7 @@ func run(ctx context.Context) error {
 	})
 
 	opts := &cache.Options{
+		Logger: logger,
 		Setter: (*cache.RedisCache)(r),
 	}
 

@@ -162,7 +162,7 @@ func (srv *echo) writeMetric(ctx context.Context, id string, value int64) error 
 func (srv *echo) httpHandler(w http.ResponseWriter, r *http.Request) {
 	var body *echov1.EchoRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		err = fmt.Errorf("error decoding request body: %w", err)
+		err = fmt.Errorf("error decoding request body, payload field of %T needs to be base64 encoded, error: %w", body, err)
 		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

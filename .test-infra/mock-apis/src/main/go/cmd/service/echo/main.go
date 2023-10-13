@@ -24,8 +24,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
 
+	gcplogging "cloud.google.com/go/logging"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/cache"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/environment"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/logging"
@@ -35,15 +35,17 @@ import (
 )
 
 var (
-	logger = logging.New(&logging.Options{
-		Name: reflect.TypeOf(struct{}{}).PkgPath(),
-	})
 	env = []environment.Variable{
 		environment.CacheHost,
 		environment.GrpcPort,
 		environment.HttpPort,
 	}
+
+	logger   *slog.Logger
 	logAttrs []slog.Attr
+	opts     = &logging.Options{
+		Name: "echo",
+	}
 )
 
 func init() {
@@ -57,6 +59,19 @@ func init() {
 
 func main() {
 	ctx := context.Background()
+
+	if !environment.ProjectId.Missing() {
+		client, err := gcplogging.NewClient(ctx, environment.ProjectId.Value())
+		if err != nil {
+			slog.LogAttrs(ctx, slog.LevelError, err.Error(), logAttrs...)
+			os.Exit(1)
+		}
+
+		opts.Client = client
+	}
+
+	logger = logging.New(opts)
+
 	if err := run(ctx); err != nil {
 		logger.LogAttrs(ctx, slog.LevelError, err.Error(), logAttrs...)
 		os.Exit(1)
@@ -90,14 +105,15 @@ func run(ctx context.Context) error {
 		Addr: environment.CacheHost.Value(),
 	})
 
-	opts := &echo.Options{
+	echoOpts := &echo.Options{
 		Decrementer:  (*cache.RedisCache)(r),
 		LoggingAttrs: logAttrs,
+		Logger:       logger,
 		// TODO(damondouglas): add GCP metrics client
 		// 	MetricsWriter:
 	}
 
-	handler, err := echo.Register(s, opts)
+	handler, err := echo.Register(s, echoOpts)
 	if err != nil {
 		return err
 	}

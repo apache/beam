@@ -22,6 +22,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
 	"runtime"
 	"sync"
 
@@ -34,6 +35,7 @@ type Options struct {
 	*slog.HandlerOptions
 	Name   string
 	Writer io.Writer
+	Client *logging.Client
 }
 
 // New instantiates a slog.Logger to output using Google Cloud logging entries.
@@ -44,15 +46,22 @@ func New(opts *Options) *slog.Logger {
 	if opts.HandlerOptions == nil {
 		opts.HandlerOptions = &slog.HandlerOptions{}
 	}
+
 	opts.AddSource = true
+
 	if opts.Writer == nil {
 		opts.Writer = os.Stdout
 	}
+
 	handler := &gcpHandler{
 		name:        opts.Name,
 		mu:          &sync.Mutex{},
 		out:         opts.Writer,
 		JSONHandler: slog.NewJSONHandler(opts.Writer, opts.HandlerOptions),
+	}
+
+	if opts.Client != nil {
+		handler.logger = opts.Client.Logger(path.Base(opts.Name))
 	}
 
 	return slog.New(handler)
@@ -63,8 +72,9 @@ var _ slog.Handler = &gcpHandler{}
 type gcpHandler struct {
 	name string
 	*slog.JSONHandler
-	mu  *sync.Mutex
-	out io.Writer
+	mu     *sync.Mutex
+	out    io.Writer
+	logger *logging.Logger
 }
 
 func (g *gcpHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -107,7 +117,13 @@ func (g *gcpHandler) Handle(_ context.Context, record slog.Record) error {
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return json.NewEncoder(g.out).Encode(entry)
+	if g.logger == nil {
+		return json.NewEncoder(g.out).Encode(entry)
+	}
+
+	entry.LogName = ""
+	g.logger.Log(entry)
+	return g.logger.Flush()
 }
 
 func (g *gcpHandler) WithAttrs(attrs []slog.Attr) slog.Handler {

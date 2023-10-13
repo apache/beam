@@ -34,6 +34,9 @@ var (
 	// CacheHost is the host address of the cache.
 	CacheHost Variable = "CACHE_HOST"
 
+	// ProjectId is the ID of the Google Cloud host project.
+	ProjectId Variable = "PROJECT_ID"
+
 	// QuotaId uniquely identifies a quota measure.
 	QuotaId Variable = "QUOTA_ID"
 
