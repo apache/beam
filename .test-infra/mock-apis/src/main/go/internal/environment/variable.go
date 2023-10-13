@@ -24,6 +24,26 @@ import (
 	"time"
 )
 
+var (
+	// HttpPort is the port to bind an HTTP service.
+	HttpPort Variable = "HTTP_PORT"
+
+	// GrpcPort is the port to bind a gRPC service.
+	GrpcPort Variable = "GRPC_PORT"
+
+	// CacheHost is the host address of the cache.
+	CacheHost Variable = "CACHE_HOST"
+
+	// QuotaId uniquely identifies a quota measure.
+	QuotaId Variable = "QUOTA_ID"
+
+	// QuotaSize specifies the size of the quota.
+	QuotaSize Variable = "QUOTA_SIZE"
+
+	// QuotaRefreshInterval configures how often a quota is refreshed.
+	QuotaRefreshInterval Variable = "QUOTA_REFRESH_INTERVAL"
+)
+
 // Variable defines an environment variable via a string type alias.
 // Variable's string defaultValue assigns the system environment variable key.
 type Variable string

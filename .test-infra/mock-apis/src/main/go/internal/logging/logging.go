@@ -20,136 +20,102 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"os"
 	"runtime"
-	"time"
+	"sync"
 
 	"cloud.google.com/go/logging"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 )
 
-var (
-	defaultWriter  = os.Stdout
-	defaultTimeout = time.Second * 3
-)
+// Options for the slog.Logger
+type Options struct {
+	*slog.HandlerOptions
+	Name   string
+	Writer io.Writer
+}
 
-func New(name string, opts ...Option) Logger {
-	l := &logger{
-		name:    name,
-		w:       defaultWriter,
-		timeout: defaultTimeout,
+// New instantiates a slog.Logger to output using Google Cloud logging entries.
+// When running locally, output is JSON strings of Cloud logging entries and
+// does not make any API calls to the service. When running in Google Cloud,
+// logging entries are submitted to the Cloud logging service.
+func New(opts *Options) *slog.Logger {
+	if opts.HandlerOptions == nil {
+		opts.HandlerOptions = &slog.HandlerOptions{}
 	}
-	for _, opt := range opts {
-		opt.apply(l)
+	opts.AddSource = true
+	if opts.Writer == nil {
+		opts.Writer = os.Stdout
 	}
-	return l
+	handler := &gcpHandler{
+		name:        opts.Name,
+		mu:          &sync.Mutex{},
+		out:         opts.Writer,
+		JSONHandler: slog.NewJSONHandler(opts.Writer, opts.HandlerOptions),
+	}
+
+	return slog.New(handler)
 }
 
-type Logger interface {
-	Debug(ctx context.Context, message string, fields ...Field)
-	Info(ctx context.Context, message string, fields ...Field)
-	Error(ctx context.Context, err error, fields ...Field)
-	Fatal(ctx context.Context, err error, fields ...Field)
+var _ slog.Handler = &gcpHandler{}
+
+type gcpHandler struct {
+	name string
+	*slog.JSONHandler
+	mu  *sync.Mutex
+	out io.Writer
 }
 
-type logger struct {
-	w       io.Writer
-	timeout time.Duration
-	name    string
+func (g *gcpHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return g.JSONHandler.Enabled(ctx, level)
 }
 
-type Field struct {
-	Key   string
-	Value any
+func severity(lvl slog.Level) logging.Severity {
+	switch lvl {
+	case slog.LevelDebug:
+		return logging.Debug
+	case slog.LevelInfo:
+		return logging.Info
+	case slog.LevelWarn:
+		return logging.Warning
+	case slog.LevelError:
+		return logging.Error
+	}
+	return logging.Default
 }
 
-type Source struct {
-	File string
-	Line int64
-	Func string
-}
-
-type Option interface {
-	apply(logger *logger)
-}
-
-func WithWriter(w io.Writer) Option {
-	return &writerOpt{w: w}
-}
-
-func WithTimeout(timeout time.Duration) Option {
-	return timeoutOpt(timeout)
-}
-
-func (l *logger) Info(ctx context.Context, message string, fields ...Field) {
-	e := l.entry(logging.Info, message, fields...)
-	l.write(ctx, e)
-}
-
-func (l *logger) Error(ctx context.Context, err error, fields ...Field) {
-	e := l.entry(logging.Error, err.Error(), fields...)
-	l.write(ctx, e)
-}
-
-func (l *logger) Debug(ctx context.Context, message string, fields ...Field) {
-	e := l.entry(logging.Debug, message, fields...)
-	l.write(ctx, e)
-
-}
-
-func (l *logger) Fatal(ctx context.Context, err error, fields ...Field) {
-	e := l.entry(logging.Error, err.Error(), fields...)
-	l.write(ctx, e)
-	os.Exit(1)
-}
-
-func (l *logger) entry(severity logging.Severity, message string, fields ...Field) logging.Entry {
+func (g *gcpHandler) Handle(_ context.Context, record slog.Record) error {
 	payload := map[string]any{
-		"message": message,
+		"message": record.Message,
 	}
-
-	for _, f := range fields {
-		payload[f.Key] = f.Value
-	}
-
-	_, file, line, _ := runtime.Caller(2)
-
-	return logging.Entry{
-		Severity:  severity,
+	record.Attrs(func(attr slog.Attr) bool {
+		payload[attr.Key] = attr.Value.Any()
+		return true
+	})
+	fs := runtime.CallersFrames([]uintptr{record.PC})
+	f, _ := fs.Next()
+	entry := logging.Entry{
+		LogName:   g.name,
+		Timestamp: record.Time,
+		Severity:  severity(record.Level),
 		Payload:   payload,
-		LogName:   l.name,
-		Timestamp: time.Now(),
 		SourceLocation: &loggingpb.LogEntrySourceLocation{
-			File: file,
-			Line: int64(line),
+			File: f.File,
+			Line: int64(f.Line),
 		},
 	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return json.NewEncoder(g.out).Encode(entry)
 }
 
-func (l *logger) write(ctx context.Context, entry logging.Entry) {
-	ctx, cancel := context.WithTimeout(ctx, l.timeout)
-	defer cancel()
-	if err := json.NewEncoder(l.w).Encode(entry); err != nil {
-		panic(err)
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
+func (g *gcpHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	h := g.JSONHandler
+	return h.WithAttrs(attrs)
 }
 
-type timeoutOpt time.Duration
-
-func (opt timeoutOpt) apply(logger *logger) {
-	logger.timeout = time.Duration(opt)
-}
-
-type writerOpt struct {
-	w io.Writer
-}
-
-func (w *writerOpt) apply(logger *logger) {
-	logger.w = w.w
+func (g *gcpHandler) WithGroup(name string) slog.Handler {
+	h := g.JSONHandler
+	return h.WithGroup(name)
 }

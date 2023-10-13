@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
+	"log/slog"
 	"runtime"
 	"testing"
 	"time"
@@ -41,7 +41,7 @@ var (
 func Test_logger_Info(t *testing.T) {
 	type args struct {
 		message string
-		fields  []logging.Field
+		fields  []slog.Attr
 	}
 	tests := []struct {
 		name string
@@ -65,22 +65,22 @@ func Test_logger_Info(t *testing.T) {
 			name: "with flat fields",
 			args: args{
 				message: "message with fields",
-				fields: []logging.Field{
+				fields: []slog.Attr{
 					{
 						Key:   "string",
-						Value: "a string",
+						Value: slog.StringValue("a string"),
 					},
 					{
 						Key:   "int",
-						Value: 1,
+						Value: slog.IntValue(1),
 					},
 					{
 						Key:   "bool",
-						Value: true,
+						Value: slog.BoolValue(true),
 					},
 					{
 						Key:   "float",
-						Value: 1.23456789,
+						Value: slog.Float64Value(1.23456789),
 					},
 				},
 			},
@@ -96,44 +96,15 @@ func Test_logger_Info(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "with struct",
-			args: args{
-				message: "with struct",
-				fields: []logging.Field{
-					{
-						Key: "a struct",
-						Value: logging.Field{
-							Key: "a",
-							Value: logging.Field{
-								Key:   "b",
-								Value: "c",
-							},
-						},
-					},
-				},
-			},
-			want: gcplogging.Entry{
-				LogName:  "with struct",
-				Severity: gcplogging.Info,
-				Payload: map[string]interface{}{
-					"message": "with struct",
-					"a struct": map[string]any{
-						"Key": "a",
-						"Value": map[string]any{
-							"Key":   "b",
-							"Value": "c",
-						},
-					},
-				},
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.Buffer{}
-			l := logging.New(tt.name, logging.WithWriter(&buf))
-			l.Info(context.Background(), tt.args.message, tt.args.fields...)
+			l := logging.New(&logging.Options{
+				Name:   tt.name,
+				Writer: &buf,
+			})
+			l.LogAttrs(context.Background(), slog.LevelInfo, tt.args.message, tt.args.fields...)
 			_, file, line, _ := runtime.Caller(0)
 			tt.want.SourceLocation = &loggingpb.LogEntrySourceLocation{
 				File: file,
@@ -143,37 +114,40 @@ func Test_logger_Info(t *testing.T) {
 			if err := json.NewDecoder(&buf).Decode(&got); err != nil {
 				t.Fatal(err)
 			}
-			if diff := cmp.Diff(got, tt.want, opts...); diff != "" {
-				t.Errorf("Info(%s, %v) diff\n%s", tt.args.message, tt.args.fields, diff)
+			if diff := cmp.Diff(tt.want, got, opts...); diff != "" {
+				t.Errorf("LogAttrs(Info) yielded unexpected difference in log entry (-want, +got):\n%s", diff)
 			}
 		})
 	}
 }
 func Test_logger_Error(t *testing.T) {
 	buf := bytes.Buffer{}
-	l := logging.New("test logger error", logging.WithWriter(&buf))
+	l := logging.New(&logging.Options{
+		Name:   "test logger error",
+		Writer: &buf,
+	})
 	message := "some error"
-	fields := []logging.Field{
+	fields := []slog.Attr{
 		{
 			Key:   "observed",
-			Value: time.Unix(1000000000, 0),
+			Value: slog.TimeValue(time.Unix(1000000000, 0)),
 		},
 	}
-	l.Error(context.Background(), errors.New(message), fields...)
+	l.LogAttrs(context.Background(), slog.LevelError, message, fields...)
 	_, file, line, _ := runtime.Caller(0)
 	var got gcplogging.Entry
 	if err := json.NewDecoder(&buf).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(got, gcplogging.Entry{
+	if diff := cmp.Diff(gcplogging.Entry{
 		LogName:  "test logger error",
 		Severity: gcplogging.Error,
-		Payload:  map[string]any{"message": "some error", "observed": "2001-09-08T18:46:40-07:00"},
+		Payload:  map[string]any{"message": "some error", "observed": "2001-09-09T01:46:40Z"},
 		SourceLocation: &loggingpb.LogEntrySourceLocation{
 			File: file,
 			Line: int64(line) - 1,
 		},
-	}, opts...); diff != "" {
-		t.Errorf("Info(%s, %v) diff\n%s", message, fields, diff)
+	}, got, opts...); diff != "" {
+		t.Errorf("LogAttrs(Error) yielded unexpected difference in log entry (-want, +got):\n%s", diff)
 	}
 }

@@ -88,8 +88,8 @@ func TestMissing(t *testing.T) {
 			if tt.want != nil {
 				want = tt.want.Error()
 			}
-			if diff := cmp.Diff(got, want); diff != "" {
-				t.Errorf("Missing() error = %v, want %v, diff:\n%s", err, tt.want, diff)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("Missing() error returned unexpected difference in error messages (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -134,8 +134,8 @@ func TestVariable_Default(t *testing.T) {
 				t.Fatalf("could not set default environment variable value during test execution: %v", err)
 			}
 			got := os.Getenv(tt.v.Key())
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Default() = %s, want %s, diff:\n%s", got, tt.want, diff)
+			if got != tt.want {
+				t.Errorf("Default() = %s, want %s", got, tt.want)
 			}
 		})
 	}
@@ -165,8 +165,8 @@ func TestVariable_KeyValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			set(t, []Variable{tt.v}, []string{tt.value})
 			got := tt.v.KeyValue()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("KeyValue() = %v, want %v, diff:\n%s", got, tt.want, diff)
+			if got != tt.want {
+				t.Errorf("KeyValue() = %s, want %s", got, tt.want)
 			}
 		})
 	}

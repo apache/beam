@@ -13,14 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package echo contains the EchoService API implementation.
 package echo
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path"
+	"reflect"
 	"time"
 
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/cache"
@@ -41,44 +44,22 @@ const (
 	healthPathAlias   = "/v1/healthz"
 )
 
-var (
-	defaultLogger = logging.New("github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/service/echo")
-)
-
-// Option applies optional parameters to the echo service.
-type Option interface {
-	apply(srv *echo)
-}
-
-// WithLogger overrides the default logging.Logger.
-func WithLogger(logger logging.Logger) Option {
-	return &loggerOpt{
-		v: logger,
-	}
-}
-
-// WithLoggerFields WitLoggerFields supplies the echo service's logging.Logger with logging.Field slice.
-func WithLoggerFields(fields ...logging.Field) Option {
-	return &loggerFieldsOpts{
-		v: fields,
-	}
-}
-
-// WithMetricWriter supplies the echo service with a metric.Writer.
-func WithMetricWriter(writer metric.Writer) Option {
-	return &metricWriterOpt{
-		v: writer,
-	}
+type Options struct {
+	Decrementer   cache.Decrementer
+	MetricsWriter metric.Writer
+	Logger        *slog.Logger
+	LoggingAttrs  []slog.Attr
 }
 
 // Register a grpc.Server with the echov1.EchoService. Returns a http.Handler or error.
-func Register(s *grpc.Server, decrementer cache.Decrementer, opts ...Option) (http.Handler, error) {
-	srv := &echo{
-		decrementer: decrementer,
-		logger:      defaultLogger,
+func Register(s *grpc.Server, opts *Options) (http.Handler, error) {
+	if opts.Logger == nil {
+		opts.Logger = logging.New(&logging.Options{
+			Name: reflect.TypeOf((*echo)(nil)).PkgPath(),
+		})
 	}
-	for _, opt := range opts {
-		opt.apply(srv)
+	srv := &echo{
+		opts: opts,
 	}
 
 	echov1.RegisterEchoServiceServer(s, srv)
@@ -90,29 +71,24 @@ func Register(s *grpc.Server, decrementer cache.Decrementer, opts ...Option) (ht
 type echo struct {
 	echov1.UnimplementedEchoServiceServer
 	grpc_health_v1.UnimplementedHealthServer
-	decrementer   cache.Decrementer
-	logger        logging.Logger
-	loggerFields  []logging.Field
-	metricsWriter metric.Writer
+	opts *Options
 }
 
 // ServeHTTP implements http.Handler, allowing echo to support HTTP clients in addition to gRPC.
 func (srv *echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if f, ok := map[string]http.HandlerFunc{
-		echoPath:        srv.httpHandler,
-		echoPathAlias:   srv.httpHandler,
-		healthPath:      srv.checkHandler,
-		healthPathAlias: srv.checkHandler,
-	}[r.URL.Path]; ok {
-		f(w, r)
-		return
+	switch r.URL.Path {
+	case echoPath, echoPathAlias:
+		srv.httpHandler(w, r)
+	case healthPath, healthPathAlias:
+		srv.checkHandler(w, r)
+	default:
+		http.Error(w, fmt.Sprintf("%s not found", r.URL.Path), http.StatusNotFound)
 	}
-	http.Error(w, fmt.Sprintf("%s not found", r.URL.Path), http.StatusNotFound)
 }
 
 // Check checks whether echo service's underlying decrementer is alive.
 func (srv *echo) Check(ctx context.Context, _ *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
-	if err := srv.decrementer.Alive(ctx); err != nil {
+	if err := srv.opts.Decrementer.Alive(ctx); err != nil {
 		return nil, err
 	}
 	return &grpc_health_v1.HealthCheckResponse{
@@ -123,12 +99,12 @@ func (srv *echo) Check(ctx context.Context, _ *grpc_health_v1.HealthCheckRequest
 func (srv *echo) checkHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := srv.Check(r.Context(), nil)
 	if err != nil {
-		srv.logger.Error(r.Context(), err, srv.loggerFields...)
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		srv.logger.Error(r.Context(), err, srv.loggerFields...)
+		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -137,7 +113,7 @@ func (srv *echo) checkHandler(w http.ResponseWriter, r *http.Request) {
 func (srv *echo) Watch(request *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
 	resp, err := srv.Check(server.Context(), request)
 	if err != nil {
-		srv.logger.Error(server.Context(), err, srv.loggerFields...)
+		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
 		return err
 	}
 	return server.Send(resp)
@@ -147,38 +123,47 @@ func (srv *echo) Watch(request *grpc_health_v1.HealthCheckRequest, server grpc_h
 // Returns a cache.IsNotExist if request's id does not map to a key in the cache.
 // See cache.Refresher for how the cache refreshes the quota identified by the request id.
 func (srv *echo) Echo(ctx context.Context, request *echov1.EchoRequest) (*echov1.EchoResponse, error) {
-	v, err := srv.decrementer.Decrement(ctx, request.Id)
+	v, err := srv.opts.Decrementer.Decrement(ctx, request.Id)
 	if cache.IsNotExist(err) {
 		return nil, status.Errorf(codes.NotFound, "error: source not found: %s, err %v", request.Id, err)
 	}
 	if err != nil {
-		srv.logger.Error(ctx, err, srv.loggerFields...)
+		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
 		return nil, status.Errorf(codes.Internal, "error: encountered from cache for resource: %srv, err %v", request.Id, err)
 	}
 
-	if srv.metricsWriter != nil {
-		if err := srv.metricsWriter.Write(ctx, path.Join(metricsNamePrefix, request.Id), "unit", &metric.Point{
-			Timestamp: time.Now(),
-			Value:     v + 1,
-		}); err != nil {
-			srv.logger.Error(ctx, err, srv.loggerFields...)
-		}
+	if err := srv.writeMetric(ctx, request.Id, v); err != nil {
+		return nil, err
 	}
 
 	if v < 0 {
 		return nil, status.Errorf(codes.ResourceExhausted, "error: resource exhausted for: %srv", request.Id)
 	}
+
 	return &echov1.EchoResponse{
 		Id:      request.Id,
 		Payload: request.Payload,
 	}, nil
 }
 
+func (srv *echo) writeMetric(ctx context.Context, id string, value int64) error {
+	if srv.opts.MetricsWriter == nil {
+		return nil
+	}
+	if err := srv.opts.MetricsWriter.Write(ctx, path.Join(metricsNamePrefix, id), "unit", &metric.Point{
+		Timestamp: time.Now(),
+		Value:     value + 1,
+	}); err != nil {
+		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
+	}
+	return nil
+}
+
 func (srv *echo) httpHandler(w http.ResponseWriter, r *http.Request) {
 	var body *echov1.EchoRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		err = fmt.Errorf("error decoding request body: %w", err)
-		srv.logger.Error(r.Context(), err, srv.loggerFields...)
+		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -197,28 +182,4 @@ func (srv *echo) httpHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-type loggerOpt struct {
-	v logging.Logger
-}
-
-func (opt *loggerOpt) apply(svc *echo) {
-	svc.logger = opt.v
-}
-
-type loggerFieldsOpts struct {
-	v []logging.Field
-}
-
-func (opt *loggerFieldsOpts) apply(svc *echo) {
-	svc.loggerFields = opt.v
-}
-
-type metricWriterOpt struct {
-	v metric.Writer
-}
-
-func (opt *metricWriterOpt) apply(svc *echo) {
-	svc.metricsWriter = opt.v
 }

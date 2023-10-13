@@ -18,57 +18,61 @@ package cache
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"reflect"
 	"time"
 
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/logging"
 )
 
 var (
-	defaultLogger = logging.New("github.com/apache/beam/test-infra/mock-apis/main/go/internal/cache")
 
+	// ErrNotExist is an error indicating that a resource does not exist
 	ErrNotExist = errors.New("resource does not exist")
 )
 
+// IsNotExist is true when err is ErrNotExist.
 func IsNotExist(err error) bool {
 	return errors.Is(err, ErrNotExist)
 }
 
+// Options for running the Refresher.
+type Options struct {
+	Setter UInt64Setter
+	Logger *slog.Logger
+}
+
 // Refresher refreshes a value in a cache on a set interval.
 type Refresher struct {
-	setter UInt64Setter
-	logger logging.Logger
-	stop   chan struct{}
-}
-
-// Option applies optional features to a Refresher.
-type Option interface {
-	apply(ref *Refresher)
-}
-
-// WithLogger overrides Refresher's default logging.Logger.
-func WithLogger(logger logging.Logger) Option {
-	return &withLoggerOpt{
-		logger: logger,
-	}
+	opts *Options
+	stop chan struct{}
 }
 
 // NewRefresher instantiates a Refresher.
-func NewRefresher(ctx context.Context, setter UInt64Setter, opts ...Option) (*Refresher, error) {
-	if err := setter.Alive(ctx); err != nil {
-		return nil, err
-	}
-	ref := &Refresher{
-		setter: setter,
-		logger: defaultLogger,
+func NewRefresher(ctx context.Context, opts *Options) (*Refresher, error) {
+	if opts.Logger == nil {
+		opts.Logger = logging.New(&logging.Options{
+			Name: reflect.TypeOf((*Refresher)(nil)).PkgPath(),
+		})
 	}
 
-	for _, opt := range opts {
-		opt.apply(ref)
+	if opts.Setter == nil {
+		return nil, fmt.Errorf("%T.Setter is nil but required", opts)
+	}
+
+	if err := opts.Setter.Alive(ctx); err != nil {
+		return nil, err
+	}
+
+	ref := &Refresher{
+		opts: opts,
 	}
 
 	return ref, nil
 }
 
+// Stop the Refresher.
 func (ref *Refresher) Stop() {
 	ref.stop <- struct{}{}
 }
@@ -78,47 +82,41 @@ func (ref *Refresher) Refresh(ctx context.Context, key string, size uint64, inte
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ref.stop = make(chan struct{})
-	fields := []logging.Field{
+	attrs := []slog.Attr{
 		{
 			Key:   "key",
-			Value: key,
+			Value: slog.StringValue(key),
 		},
 		{
 			Key:   "size",
-			Value: size,
+			Value: slog.Uint64Value(size),
 		},
 		{
 			Key:   "interval",
-			Value: interval.String(),
+			Value: slog.StringValue(interval.String()),
 		},
 	}
 
-	ref.logger.Info(ctx, "starting refresher service", fields...)
+	ref.opts.Logger.LogAttrs(ctx, slog.LevelInfo, "starting refresher service", attrs...)
 
-	if err := ref.setter.Set(ctx, key, size, interval); err != nil {
+	if err := ref.opts.Setter.Set(ctx, key, size, interval); err != nil {
 		return err
 	}
+	ref.opts.Logger.LogAttrs(ctx, slog.LevelDebug, "successful initial refresh", attrs...)
+
 	tick := time.Tick(interval)
 	for {
 		select {
 		case <-tick:
-			if err := ref.setter.Set(ctx, key, size, interval); err != nil {
+			if err := ref.opts.Setter.Set(ctx, key, size, interval); err != nil {
 				return err
 			}
-			ref.logger.Debug(ctx, "refresh successful", fields...)
+			ref.opts.Logger.LogAttrs(ctx, slog.LevelDebug, "refresh successful", attrs...)
 		case <-ref.stop:
-			ref.logger.Info(ctx, "stopping refresher service", fields...)
+			ref.opts.Logger.LogAttrs(ctx, slog.LevelInfo, "stopping refresher service", attrs...)
 			return nil
 		case <-ctx.Done():
 			return nil
 		}
 	}
-}
-
-type withLoggerOpt struct {
-	logger logging.Logger
-}
-
-func (opt *withLoggerOpt) apply(ref *Refresher) {
-	ref.logger = opt.logger
 }

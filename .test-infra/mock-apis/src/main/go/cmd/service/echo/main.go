@@ -19,13 +19,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/cache"
-	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/common"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/environment"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/logging"
 	"github.com/apache/beam/test-infra/mock-apis/src/main/go/internal/service/echo"
@@ -34,87 +35,83 @@ import (
 )
 
 var (
-	logger = logging.New("github.com/apache/beam/test-infra/mock-apis/src/main/go/cmd/echo")
-	env    = []environment.Variable{
-		common.CacheHost,
-		common.GrpcPort,
-		common.HttpPort,
+	logger = logging.New(&logging.Options{
+		Name: reflect.TypeOf(struct{}{}).PkgPath(),
+	})
+	env = []environment.Variable{
+		environment.CacheHost,
+		environment.GrpcPort,
+		environment.HttpPort,
 	}
-	loggingFields []logging.Field
-	decrementer   cache.Decrementer
-	grpcAddress   string
-
-	httpAddress string
+	logAttrs []slog.Attr
 )
 
 func init() {
-	ctx := context.Background()
 	for _, v := range env {
-		loggingFields = append(loggingFields, logging.Field{
+		logAttrs = append(logAttrs, slog.Attr{
 			Key:   v.Key(),
-			Value: v.Value(),
+			Value: slog.StringValue(v.Value()),
 		})
 	}
-	if err := initE(ctx); err != nil {
-		logger.Fatal(ctx, err, loggingFields...)
-	}
-}
-
-func initE(ctx context.Context) error {
-	if err := environment.Missing(env...); err != nil {
-		return err
-	}
-
-	grpcPort, err := common.GrpcPort.Int()
-	if err != nil {
-		logger.Fatal(ctx, err, loggingFields...)
-		return err
-	}
-	grpcAddress = fmt.Sprintf(":%v", grpcPort)
-
-	httpPort, err := common.HttpPort.Int()
-	if err != nil {
-		logger.Fatal(ctx, err, loggingFields...)
-		return err
-	}
-	httpAddress = fmt.Sprintf(":%v", httpPort)
-
-	r := redis.NewClient(&redis.Options{
-		Addr: common.CacheHost.Value(),
-	})
-	rc := (*cache.RedisCache)(r)
-	decrementer = rc
-
-	return decrementer.Alive(ctx)
 }
 
 func main() {
 	ctx := context.Background()
 	if err := run(ctx); err != nil {
-		logger.Error(ctx, err, loggingFields...)
+		logger.LogAttrs(ctx, slog.LevelError, err.Error(), logAttrs...)
+		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	logger.Info(ctx, "starting service", loggingFields...)
-	s, handler, err := setup(ctx)
+
+	if err := environment.Missing(env...); err != nil {
+		return err
+	}
+
+	grpcPort, err := environment.GrpcPort.Int()
 	if err != nil {
 		return err
 	}
+	grpcAddress := fmt.Sprintf(":%v", grpcPort)
+
+	httpPort, err := environment.HttpPort.Int()
+	if err != nil {
+		return err
+	}
+	httpAddress := fmt.Sprintf(":%v", httpPort)
+
+	s := grpc.NewServer()
 	defer s.GracefulStop()
+
+	r := redis.NewClient(&redis.Options{
+		Addr: environment.CacheHost.Value(),
+	})
+
+	opts := &echo.Options{
+		Decrementer:  (*cache.RedisCache)(r),
+		LoggingAttrs: logAttrs,
+		// TODO(damondouglas): add GCP metrics client
+		// 	MetricsWriter:
+	}
+
+	handler, err := echo.Register(s, opts)
+	if err != nil {
+		return err
+	}
+
+	logger.LogAttrs(ctx, slog.LevelInfo, "starting service", logAttrs...)
 
 	lis, err := net.Listen("tcp", grpcAddress)
 	if err != nil {
-		logger.Error(ctx, err, loggingFields...)
 		return err
 	}
 
 	errChan := make(chan error)
 	go func() {
 		if err := s.Serve(lis); err != nil {
-			logger.Error(ctx, err, loggingFields...)
 			errChan <- err
 		}
 	}()
@@ -125,24 +122,11 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	for {
-		select {
-		case err := <-errChan:
-			return err
-		case <-ctx.Done():
-			logger.Info(ctx, "shutting down", loggingFields...)
-			return nil
-		}
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		logger.LogAttrs(ctx, slog.LevelInfo, "shutting down", logAttrs...)
+		return nil
 	}
-}
-
-func setup(ctx context.Context) (*grpc.Server, http.Handler, error) {
-	s := grpc.NewServer()
-	handler, err := echo.Register(s, decrementer)
-	if err != nil {
-		logger.Error(ctx, err, loggingFields...)
-		return nil, nil, err
-	}
-
-	return s, handler, nil
 }
