@@ -276,7 +276,8 @@ class PipelineTest(unittest.TestCase):
 
       pcoll2 = pcoll | Map(identity)
       pcoll3 = pcoll2 | Map(identity)
-      assert_that(pcoll3, equal_to([1, 2, 3]))
+      pcoll4 = pcoll3 | Map(identity)
+      assert_that(pcoll4, equal_to([1, 2, 3]))
 
   def test_reuse_cloned_custom_transform_instance(self):
     with TestPipeline() as pipeline:
