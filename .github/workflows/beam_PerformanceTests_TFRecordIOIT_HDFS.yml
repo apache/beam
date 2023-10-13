@@ -18,8 +18,6 @@ name: PerformanceTests TFRecordIOIT HDFS
 on:
   # TODO(https://github.com/apache/beam/issues/18796) TFRecord performance test is failing only when running on hdfs.
   # We need to fix this before enabling this job on jenkins.
-  # issue_comment:
-  #   types: [created]
   # schedule:
   #   - cron: '17 8/20 * * *'
   workflow_dispatch:

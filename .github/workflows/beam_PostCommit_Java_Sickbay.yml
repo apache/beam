@@ -18,8 +18,6 @@
 name: PostCommit Java Sickbay
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:

@@ -16,8 +16,6 @@
 name: PerformanceTests ParquetIOIT
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 3/12 * * *'
   workflow_dispatch:

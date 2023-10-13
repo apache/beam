@@ -16,8 +16,6 @@
 name: PerformanceTests ManyFiles TextIOIT HDFS
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 2/12 * * *'
   workflow_dispatch:

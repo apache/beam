@@ -16,8 +16,6 @@
 name: Performance Tests BigQueryIO Streaming Java
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '20 15,22 * * *'
   workflow_dispatch:

@@ -20,8 +20,6 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['.github/workflows/beam_PostCommit_BeamMetrics_Publish.yml']
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '24 2 * * *'
   workflow_dispatch:

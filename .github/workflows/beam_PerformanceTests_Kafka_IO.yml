@@ -16,8 +16,6 @@
 name: PerformanceTests Kafka IO
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 2,14 * * *'
   workflow_dispatch:

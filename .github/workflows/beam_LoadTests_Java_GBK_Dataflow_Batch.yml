@@ -16,8 +16,6 @@
 name: LoadTests Java GBK Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 6 * * *'
   workflow_dispatch:

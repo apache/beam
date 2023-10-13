@@ -28,5 +28,3 @@ pythonVersion = '3.10'
 
 apply from: "../common.gradle"
 
-// TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
-testPy310Cython.mustRunAfter testPython310, testPy310Cloud

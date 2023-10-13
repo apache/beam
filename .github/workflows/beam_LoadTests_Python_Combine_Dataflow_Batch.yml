@@ -16,8 +16,6 @@
 name: Load Tests Combine Dataflow Batch Python
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '40 5 * * *'
   workflow_dispatch:

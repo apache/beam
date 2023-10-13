@@ -16,8 +16,6 @@
 name: PerformanceTests BiqQueryIO Write Python Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 1 * * *'
   workflow_dispatch:

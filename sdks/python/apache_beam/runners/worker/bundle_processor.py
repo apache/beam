@@ -233,7 +233,7 @@ class DataInputOperation(RunnerIOOperation):
       except Exception as exn:
         raise ValueError(
             "Error decoding input stream with coder " +
-            self.windowed_coder) from exn
+            str(self.windowed_coder)) from exn
       self.output(decoded_value)
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
