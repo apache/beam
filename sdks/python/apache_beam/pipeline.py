@@ -775,12 +775,15 @@ class Pipeline(object):
     Note that the generated label is only guaranteed to be unique relative
     to the current _current_transform()
     """
-    full_label = '/'.join(
-        [self._current_transform().full_label, transform.label]).lstrip('/')
     counter = 1
+
+    full_label_wo_prefix = '/'.join(
+        [self._current_transform().full_label, transform.label]).lstrip('/')
+
+    full_label = '%s_%d' % (full_label_wo_prefix, counter)
     while full_label in self.applied_labels:
       counter += 1
-      full_label = '%s_%d' % (full_label, counter)
+      full_label = '%s_%d' % (full_label_wo_prefix, counter)
     label = full_label.rsplit('/', maxsplit=1)[-1]
     return label
 

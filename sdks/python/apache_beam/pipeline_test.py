@@ -279,6 +279,14 @@ class PipelineTest(unittest.TestCase):
       pcoll4 = pcoll3 | Map(identity)
       assert_that(pcoll4, equal_to([1, 2, 3]))
 
+    map_id_full_labels = {
+        label
+        for label in pipeline.applied_labels if "Map(identity)" in label
+    }
+    map_id_leaf_labels = {label.split(":")[-1] for label in map_id_full_labels}
+    assert map_id_leaf_labels == set(
+        ["Map(identity)", "Map(identity)_1", "Map(identity)_2"])
+
   def test_reuse_cloned_custom_transform_instance(self):
     with TestPipeline() as pipeline:
       pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
