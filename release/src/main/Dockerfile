@@ -23,7 +23,7 @@
 #
 # then run `service docker start` and `docker login docker.io` to connect to the docker
 # daemon and authenticate with Docker Hub.
-FROM debian:bullseye
+FROM gcr.io/distroless/python3-debian12:latest
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 SHELL ["/bin/bash", "-c"]
 
@@ -33,9 +33,9 @@ RUN apt-get update && \
 RUN apt-get install -y build-essential libssl-dev zlib1g-dev \
     libbz2-dev libreadline-dev libsqlite3-dev llvm \
     libncurses5-dev libncursesw5-dev xz-utils tk-dev \
-    libffi-dev liblzma-dev python3-openssl 
+    libffi-dev liblzma-dev python3-openssl
 
-# Install pyenv and install all of the Python versions 
+# Install pyenv and install all of the Python versions
 # needed to build containers
 RUN curl https://pyenv.run | bash && \
     echo 'export PYENV_ROOT="$HOME/.pyenv"' >> /root/.bashrc && \
