@@ -23,8 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Python_Transforms',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=apache_beam/transforms/',
-      '-PuseWheelDistribution'
+      '-Pposargs=apache_beam/transforms/'
     ],
     timeoutMins: 180,
     triggerPathPatterns: [

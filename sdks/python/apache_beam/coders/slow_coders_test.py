@@ -25,9 +25,6 @@ import unittest
 from apache_beam.coders.coders_test_common import *
 
 
-@unittest.skip(
-    'Remove non-cython tests.'
-    'https://github.com/apache/beam/issues/28307')
 class SlowCoders(unittest.TestCase):
   def test_using_slow_impl(self):
     try:

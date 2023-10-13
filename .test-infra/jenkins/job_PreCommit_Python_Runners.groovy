@@ -23,8 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Python_Runners',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=apache_beam/runners/',
-      '-PuseWheelDistribution'
+      '-Pposargs=apache_beam/runners/'
     ],
     timeoutMins: 180,
     triggerPathPatterns: [
