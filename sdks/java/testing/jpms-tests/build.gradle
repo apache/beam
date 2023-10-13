@@ -25,6 +25,8 @@ plugins {
 // overwrite javaVersion before applyJavaNature
 if (project.hasProperty("testJavaVersion")) {
   javaVersion = "1.${project.getProperty('testJavaVersion')}" as String
+} else {
+  javaVersion = "1.11"
 }
 
 applyJavaNature(
