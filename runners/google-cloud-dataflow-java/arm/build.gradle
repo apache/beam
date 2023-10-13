@@ -76,8 +76,10 @@ dependencies {
 }
 
 def javaVer = "java8"
-if (project.hasProperty('testJavaVersion')) {
-  javaVer = "java${project.getProperty('testJavaVersion')}"
+if(project.hasProperty('compileAndRunTestsWithJava17')) {
+  javaVer = "java17"
+} else if(project.hasProperty('compileAndRunTestsWithJava11')) {
+  javaVer = "java11"
 }
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'

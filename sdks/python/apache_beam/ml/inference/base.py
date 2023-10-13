@@ -1032,7 +1032,6 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._clock = clock
     self._metrics_namespace = metrics_namespace
     self._model_metadata_pcoll = model_metadata_pcoll
-    self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
     self._watch_model_pattern = watch_model_pattern
     self._kwargs = kwargs
@@ -1133,12 +1132,12 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
             self._model_handler,
             self._clock,
             self._metrics_namespace,
-            self._enable_side_input_loading,
+            self._model_metadata_pcoll is not None,
             self._model_tag),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
-        ) if self._enable_side_input_loading else None).with_resource_hints(
+        ) if self._model_metadata_pcoll else None).with_resource_hints(
             **resource_hints)
 
     if self._with_exception_handling:
