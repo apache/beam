@@ -1215,7 +1215,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  instance reuse. They also give instantiation use cases. Three key points
  to note are that:
  1. teardown is done on a best effort basis and thus
- isn't guaranteed
+ isn't guaranteed.
  2. the number of DoFn instances created at runtime is runner-dependent.
  3. for the Python SDK, the pipeline contents such as DoFn user code,
  is [serialized into a bytecode](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pickling-and-managing-the-main-session). Use [this module](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.shared.html) to manage a single instance of a DoFn shared by multiple threads within the same process.
