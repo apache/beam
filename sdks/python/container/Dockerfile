@@ -17,17 +17,14 @@
 ###############################################################################
 
 ARG py_version
-FROM python:"${py_version}"-bullseye as beam
-LABEL Author "Apache Beam <dev@beam.apache.org>"
-ARG TARGETOS
-ARG TARGETARCH
 
-COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
-COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE target/LICENSE.python /opt/apache/beam/
+FROM python:"${py_version}"-bookworm as python-base
 
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+
+COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
+COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 
 # Use one RUN command to reduce the number of layers.
 RUN  \
@@ -43,9 +40,12 @@ RUN  \
        # Required for using Beam Python SDK on ARM machines.
        libgeos-dev \
        && \
-    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/lib/apt/lists/*
 
-    pip install --upgrade pip setuptools wheel && \
+RUN python -m venv venv
+ENV PATH="/venv/bin:$PATH"
+RUN \
+    pip install --upgrade setuptools && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
@@ -81,6 +81,68 @@ RUN  \
 
     # Remove pip cache.
     rm -rf /root/.cache/pip
+
+# extract the deb packages
+RUN cd /tmp && \
+    # Install native bindings required for dependencies.
+    apt-get update && \
+    apt-get download \
+       # Required by python-snappy
+       libsnappy-dev \
+       # Required by pyyaml (for c bindings)
+       libyaml-dev \
+       # This is used to speed up the re-installation of the sdk.
+       ccache \
+       # Required for using Beam Python SDK on ARM machines.
+       libgeos-dev \
+       && \
+    mkdir /dpkg && \
+    for deb in *.deb; do dpkg -i $deb; dpkg --extract $deb /dpkg || exit 10; done
+
+FROM gcr.io/distroless/cc-debian12 as beam
+LABEL Author "Apache Beam <dev@beam.apache.org>"
+ARG TARGETOS
+ARG TARGETARCH
+
+# copy some commands
+COPY --from=python-base /bin/echo /bin/echo
+COPY --from=python-base /bin/rm /bin/rm
+COPY --from=python-base /bin/sh /bin/sh
+
+# ARG  CHIPSET_ARCH=x86_64-linux-gnu
+ARG  CHIPSET_ARCH=aarch64-linux-gnu
+
+# copy python to distroless
+COPY --from=python-base /usr/local/lib/ /usr/local/lib/
+COPY --from=python-base /usr/local/bin/python /usr/local/bin/python
+COPY --from=python-base /usr/local/bin/pip /usr/local/bin/pip
+COPY --from=python-base /etc/ld.so.cache /etc/ld.so.cache
+COPY --from=python-base /usr/local/gcloud /usr/local/gcloud
+
+
+# copy venv
+COPY --from=python-base /venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+# # required by lots of packages - e.g. six, numpy, wsgi
+# COPY --from=python-base /lib/${CHIPSET_ARCH}/libz.so.1 /lib/${CHIPSET_ARCH}/
+# # required by google-cloud/grpcio
+# COPY --from=python-base /usr/lib/${CHIPSET_ARCH}/libffi* /usr/lib/${CHIPSET_ARCH}/
+# COPY --from=python-base /lib/${CHIPSET_ARCH}/libexpat* /lib/${CHIPSET_ARCH}/
+
+# quick validation that python works
+RUN python --version
+
+COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
+COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE target/LICENSE.python /opt/apache/beam/
+
+ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
+ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+
+# copy all packages over
+COPY --from=python-base /dpkg /
+
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
