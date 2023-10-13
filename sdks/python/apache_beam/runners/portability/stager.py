@@ -49,9 +49,9 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 
 import glob
 import hashlib
-import importlib.util
 import logging
 import os
+import pkgutil
 import shutil
 import sys
 import tempfile
@@ -774,7 +774,7 @@ class Stager(object):
       if build_setup_args is None:
         # if build is installed in the user env, use it to
         # build the sdist else fallback to legacy setup.py sdist call.
-        if importlib.util.find_spec('build'):
+        if pkgutil.find_loader('build') is not None:
           build_setup_args = [
               Stager._get_python_executable(),
               '-m',
