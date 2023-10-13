@@ -33,6 +33,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 /**
  * {@link PTransform} for reading from and writing to Web APIs.
  *
+ * <p>{@link RequestResponseIO} is recommended for interacting with external systems that offer RPCs
+ * that execute relatively quickly and do not offer advance features to make RPC execution
+ * efficient.
+ *
+ * <p>For systems that offer features for more efficient reading, for example, tracking progress of
+ * RPCs, support for splitting RPCs (deduct two or more RPCs which when combined return the same
+ * result), consider using the Apache Beam's `Splittable DoFn` interface instead.
+ *
  * <h2>Basic Usage</h2>
  *
  * {@link RequestResponseIO} minimally requires implementing the {@link Caller} interface:
@@ -65,7 +73,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     this.configuration = configuration;
   }
 
-  public static <RequestT, ResponseT> RequestResponseIO<RequestT, ResponseT> create(
+  public static <RequestT, ResponseT> RequestResponseIO<RequestT, ResponseT> of(
       Caller<RequestT, ResponseT> caller) {
     return new RequestResponseIO<>(
         Configuration.<RequestT, ResponseT>builder().setCaller(caller).build());
