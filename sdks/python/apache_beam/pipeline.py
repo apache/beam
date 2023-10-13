@@ -674,8 +674,7 @@ class Pipeline(object):
       alter_label_if_ipython(transform, pvalueish)
 
     full_label = '/'.join(
-        [self._current_transform().full_label, label or
-         transform.label]).lstrip('/')
+        [self._current_transform().full_label, transform.label]).lstrip('/')
     if full_label in self.applied_labels:
       auto_unique_labels = self._options.view_as(
           StandardOptions).auto_unique_labels
