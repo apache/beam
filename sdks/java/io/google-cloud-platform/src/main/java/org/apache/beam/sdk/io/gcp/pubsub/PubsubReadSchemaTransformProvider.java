@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
 import org.apache.beam.sdk.metrics.Counter;
@@ -104,13 +103,13 @@ public class PubsubReadSchemaTransformProvider
 
     String format =
         configuration.getFormat() == null ? null : configuration.getFormat().toUpperCase();
-    if (Objects.equals(format, "RAW")) {
+    if ("RAW".equals(format)) {
       payloadSchema = Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
       payloadMapper = input -> Row.withSchema(payloadSchema).addValue(input).build();
-    } else if (Objects.equals(format, "JSON")) {
+    } else if ("JSON".equals(format)) {
       payloadSchema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema());
       payloadMapper = JsonUtils.getJsonBytesToRowFunction(payloadSchema);
-    } else if (Objects.equals(format, "AVRO")) {
+    } else if ("AVRO".equals(format)) {
       payloadSchema =
           AvroUtils.toBeamSchema(
               new org.apache.avro.Schema.Parser().parse(configuration.getSchema()));
@@ -212,8 +211,6 @@ public class PubsubReadSchemaTransformProvider
             }
             if (attributes != null) {
               for (String attribute : attributes) {
-                System.out.println(
-                    "attribute " + attribute + " " + message.getAttribute(attribute));
                 rowBuilder.addValue(message.getAttribute(attribute));
               }
             }

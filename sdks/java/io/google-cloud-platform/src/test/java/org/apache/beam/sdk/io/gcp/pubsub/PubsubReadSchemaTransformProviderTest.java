@@ -364,7 +364,6 @@ public class PubsubReadSchemaTransformProviderTest {
 
   private static PubsubTestClient.PubsubTestClientFactory clientFactory(
       List<PubsubClient.IncomingMessage> messages) {
-    System.out.println("messages " + messages);
     return PubsubTestClient.createFactoryForPull(
         CLOCK, PubsubClient.subscriptionPathFromPath(SUBSCRIPTION), 60, messages);
   }

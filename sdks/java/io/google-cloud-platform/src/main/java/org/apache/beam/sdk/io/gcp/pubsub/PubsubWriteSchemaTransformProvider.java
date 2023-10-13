@@ -159,7 +159,6 @@ public class PubsubWriteSchemaTransformProvider
       "nullness" // TODO(https://github.com/apache/beam/issues/20497)
     })
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      @SuppressWarnings("nullness")
       String errorOutput =
           configuration.getErrorHandling() == null
               ? null
