@@ -33,6 +33,7 @@ from apache_beam.io import Read
 from apache_beam.io.iobase import SourceBase
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
+from apache_beam.pipeline import StandardOptions
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
@@ -265,6 +266,18 @@ class PipelineTest(unittest.TestCase):
         'A transform with label "CustomTransform" already exists in the '
         'pipeline. To apply a transform with a specified label write '
         'pvalue | "label" >> transform')
+
+  def test_auto_unique_labels(self):
+    opts = StandardOptions("--auto_unique_labels")
+    with TestPipeline(options=opts) as pipeline:
+      pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
+
+      def identity(x):
+        return x
+
+      pcoll2 = pcoll | Map(identity)
+      pcoll3 = pcoll2 | Map(identity)
+      assert_that(pcoll3, equal_to([1, 2, 3]))
 
   def test_reuse_cloned_custom_transform_instance(self):
     with TestPipeline() as pipeline:
