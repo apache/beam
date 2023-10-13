@@ -33,7 +33,6 @@ from apache_beam.io import Read
 from apache_beam.io.iobase import SourceBase
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
-from apache_beam.pipeline import StandardOptions
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
@@ -268,7 +267,7 @@ class PipelineTest(unittest.TestCase):
         'pvalue | "label" >> transform')
 
   def test_auto_unique_labels(self):
-    opts = StandardOptions("--auto_unique_labels")
+    opts = PipelineOptions(["--auto_unique_labels"])
     with TestPipeline(options=opts) as pipeline:
       pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
 

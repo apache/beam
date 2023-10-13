@@ -677,10 +677,18 @@ class Pipeline(object):
         [self._current_transform().full_label, label or
          transform.label]).lstrip('/')
     if full_label in self.applied_labels:
-      raise RuntimeError(
-          'A transform with label "%s" already exists in the pipeline. '
-          'To apply a transform with a specified label write '
-          'pvalue | "label" >> transform' % full_label)
+      auto_unique_labels = self._options.view_as(
+          StandardOptions).auto_unique_labels
+      if auto_unique_labels:
+        # If auto_unique_labels is set, we will append a unique suffix to the
+        # label to make it unique.
+        unique_label = self._generate_unique_label(transform)
+        return self.apply(transform, pvalueish, unique_label)
+      else:
+        raise RuntimeError(
+            'A transform with label "%s" already exists in the pipeline. '
+            'To apply a transform with a specified label write '
+            'pvalue | "label" >> transform' % full_label)
     self.applied_labels.add(full_label)
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
@@ -755,6 +763,28 @@ class Pipeline(object):
     finally:
       self.transforms_stack.pop()
     return pvalueish_result
+
+  def _generate_unique_label(
+      self,
+      transform  # type: str
+  ):
+    # type: (...) -> str
+
+    """
+    Given a transform, generate a unique label for it based on current label.
+    
+    Note that the generated label is only guaranteed to be unique relative
+    to the current _current_transform()
+    """
+    full_label = '/'.join(
+        [self._current_transform().full_label, transform.label]).lstrip('/')
+    counter = 1
+    while full_label in self.applied_labels:
+      counter += 1
+      full_label = '%s_%d' % (full_label, counter)
+    label = full_label.rsplit('/', maxsplit=1)[-1]
+    return label
+
 
   def _infer_result_type(
       self,
