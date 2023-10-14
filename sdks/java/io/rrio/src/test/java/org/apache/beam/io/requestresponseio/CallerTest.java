@@ -15,16 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.rrio;
+package org.apache.beam.io.requestresponseio;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-import org.apache.beam.io.requestresponseio.Caller;
-import org.apache.beam.io.requestresponseio.UserCodeExecutionException;
-import org.apache.beam.io.requestresponseio.UserCodeQuotaException;
-import org.apache.beam.io.requestresponseio.UserCodeTimeoutException;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
