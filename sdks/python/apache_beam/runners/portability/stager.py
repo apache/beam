@@ -51,7 +51,6 @@ import glob
 import hashlib
 import logging
 import os
-import pkgutil
 import shutil
 import sys
 import tempfile
@@ -774,7 +773,7 @@ class Stager(object):
       if build_setup_args is None:
         # if build is installed in the user env, use it to
         # build the sdist else fallback to legacy setup.py sdist call.
-        if pkgutil.find_loader('build') is not None:
+        try:
           build_setup_args = [
               Stager._get_python_executable(),
               '-m',
@@ -784,7 +783,9 @@ class Stager(object):
               temp_dir,
               os.path.dirname(setup_file),
           ]
-        else:
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
+        except RuntimeError:
           build_setup_args = [
               Stager._get_python_executable(),
               os.path.basename(setup_file),
@@ -792,8 +793,8 @@ class Stager(object):
               '--dist-dir',
               temp_dir
           ]
-      _LOGGER.info('Executing command: %s', build_setup_args)
-      processes.check_output(build_setup_args)
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(
