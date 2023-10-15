@@ -97,6 +97,7 @@ jobs:
           arguments: |
             -Pposargs="--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/" \
             -PpythonVersion=${{ matrix.python_version }} \
+            -PuseWheelDistribution
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
