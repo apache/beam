@@ -49,6 +49,7 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 
 import glob
 import hashlib
+import importlib.util
 import logging
 import os
 import shutil
@@ -771,13 +772,26 @@ class Stager(object):
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
-        build_setup_args = [
-            Stager._get_python_executable(),
-            os.path.basename(setup_file),
-            'sdist',
-            '--dist-dir',
-            temp_dir
-        ]
+        # if build is installed in the user env, use it to
+        # build the sdist else fallback to legacy setup.py sdist call.
+        if importlib.util.find_spec('build'):
+          build_setup_args = [
+              Stager._get_python_executable(),
+              '-m',
+              'build',
+              '--sdist',
+              '--outdir',
+              temp_dir,
+              os.path.dirname(setup_file),
+          ]
+        else:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              os.path.basename(setup_file),
+              'sdist',
+              '--dist-dir',
+              temp_dir
+          ]
       _LOGGER.info('Executing command: %s', build_setup_args)
       processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
