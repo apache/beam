@@ -126,8 +126,9 @@ import org.slf4j.LoggerFactory;
  * <p>To read a {@link PCollection} from a query to Cloud Datastore, use {@link DatastoreV1#read}
  * and its methods {@link DatastoreV1.Read#withProjectId} and {@link DatastoreV1.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
- * to query within using {@link DatastoreV1.Read#withNamespace}. You could also optionally specify
- * how many splits you want for the query using {@link DatastoreV1.Read#withNumQuerySplits}.
+ * to query within using {@link DatastoreV1.Read#withDatabase} or {@link
+ * DatastoreV1.Read#withNamespace}. You could also optionally specify how many splits you want for
+ * the query using {@link DatastoreV1.Read#withNumQuerySplits}.
  *
  * <p>For example:
  *
@@ -135,12 +136,14 @@ import org.slf4j.LoggerFactory;
  * // Read a query from Datastore
  * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
  * Query query = ...;
+ * String databaseId = "...";
  * String projectId = "...";
  *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
  *     DatastoreIO.v1().read()
  *         .withProjectId(projectId)
+ *         .withDatabaseId(databaseId)
  *         .withQuery(query));
  * }</pre>
  *
@@ -156,7 +159,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1().write().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1().write().withProjectId(projectId).withDatabaseId(databaseId));
  * p.run();
  * }</pre>
  *
@@ -165,7 +168,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1().deleteEntity().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1().deleteEntity().withProjectId(projectId).withDatabaseId(databaseId));
  * p.run();
  * }</pre>
  *
@@ -174,7 +177,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1().deleteKey().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1().deleteKey().withProjectId(projectId).withDatabaseId(databaseId));
  * p.run();
  * }</pre>
  *
