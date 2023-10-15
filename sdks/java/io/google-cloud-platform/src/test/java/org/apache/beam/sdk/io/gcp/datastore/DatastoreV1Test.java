@@ -171,10 +171,12 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withQuery(QUERY)
               .withNamespace(NAMESPACE);
       assertEquals(QUERY, read.getQuery());
       assertEquals(PROJECT_ID, read.getProjectId().get());
+      assertEquals(DATABASE_ID, read.getDatabaseId().get());
       assertEquals(NAMESPACE, read.getNamespace().get());
     }
 
@@ -184,11 +186,13 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withQuery(QUERY)
               .withReadTime(TIMESTAMP);
       assertEquals(TIMESTAMP, read.getReadTime());
       assertEquals(QUERY, read.getQuery());
       assertEquals(PROJECT_ID, read.getProjectId().get());
+      assertEquals(DATABASE_ID, read.getDatabaseId().get());
     }
 
     @Test
@@ -197,10 +201,12 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withLiteralGqlQuery(GQL_QUERY)
               .withNamespace(NAMESPACE);
       assertEquals(GQL_QUERY, read.getLiteralGqlQuery().get());
       assertEquals(PROJECT_ID, read.getProjectId().get());
+      assertEquals(DATABASE_ID, read.getDatabaseId().get());
       assertEquals(NAMESPACE, read.getNamespace().get());
     }
 
@@ -214,10 +220,12 @@ public class DatastoreV1Test {
               .withQuery(QUERY)
               .withNamespace(NAMESPACE)
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withLocalhost(LOCALHOST);
       assertEquals(TIMESTAMP, read.getReadTime());
       assertEquals(QUERY, read.getQuery());
       assertEquals(PROJECT_ID, read.getProjectId().get());
+      assertEquals(DATABASE_ID, read.getDatabaseId().get());
       assertEquals(NAMESPACE, read.getNamespace().get());
       assertEquals(LOCALHOST, read.getLocalhost());
     }
@@ -228,6 +236,7 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withLiteralGqlQuery(GQL_QUERY)
               .withQuery(QUERY);
 
@@ -261,6 +270,7 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withQuery(QUERY)
               .withNamespace(NAMESPACE)
               .withReadTime(TIMESTAMP);
@@ -268,6 +278,7 @@ public class DatastoreV1Test {
       DisplayData displayData = DisplayData.from(read);
 
       assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+      assertThat(displayData, hasDisplayItem("databaseId", DATABASE_ID));
       assertThat(displayData, hasDisplayItem("query", QUERY.toString()));
       assertThat(displayData, hasDisplayItem("namespace", NAMESPACE));
       assertThat(displayData, hasDisplayItem("readTime", TIMESTAMP));
@@ -279,6 +290,7 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withLiteralGqlQuery(GQL_QUERY)
               .withNamespace(NAMESPACE)
               .withReadTime(TIMESTAMP);
@@ -299,6 +311,7 @@ public class DatastoreV1Test {
           DatastoreIO.v1()
               .read()
               .withProjectId(PROJECT_ID)
+              .withDatabaseId(DATABASE_ID)
               .withQuery(Query.newBuilder().build())
               .withNumQuerySplits(numSplits);
 
@@ -317,29 +330,34 @@ public class DatastoreV1Test {
 
     @Test
     public void testWriteDisplayData() {
-      Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+      Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID).withDatabaseId(DATABASE_ID);
 
       DisplayData displayData = DisplayData.from(write);
 
       assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+      assertThat(displayData, hasDisplayItem("databaseId", DATABASE_ID));
     }
 
     @Test
     public void testDeleteEntityDisplayData() {
-      DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
+      DeleteEntity deleteEntity =
+          DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID).withDatabaseId(DATABASE_ID);
 
       DisplayData displayData = DisplayData.from(deleteEntity);
 
       assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+      assertThat(displayData, hasDisplayItem("databaseId", DATABASE_ID));
     }
 
     @Test
     public void testDeleteKeyDisplayData() {
-      DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
+      DeleteKey deleteKey =
+          DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID).withDatabaseId(DATABASE_ID);
 
       DisplayData displayData = DisplayData.from(deleteKey);
 
       assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+      assertThat(displayData, hasDisplayItem("databaseId", DATABASE_ID));
     }
 
     @Test

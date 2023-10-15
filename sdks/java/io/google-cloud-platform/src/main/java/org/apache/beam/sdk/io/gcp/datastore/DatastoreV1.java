@@ -73,7 +73,6 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -831,6 +830,7 @@ public class DatastoreV1 {
       String query = getQuery() == null ? null : getQuery().toString();
       builder
           .addIfNotNull(DisplayData.item("projectId", getProjectId()).withLabel("ProjectId"))
+          .addIfNotNull(DisplayData.item("databaseId", getDatabaseId()).withLabel("DatabaseId"))
           .addIfNotNull(DisplayData.item("namespace", getNamespace()).withLabel("Namespace"))
           .addIfNotNull(DisplayData.item("query", query).withLabel("Query"))
           .addIfNotNull(DisplayData.item("gqlQuery", getLiteralGqlQuery()).withLabel("GqlQuery"))
@@ -888,6 +888,10 @@ public class DatastoreV1 {
         return project;
       }
 
+      public ValueProvider<String> getDatabaseValueProvider() {
+        return database;
+      }
+
       public @Nullable ValueProvider<String> getNamespaceValueProvider() {
         return namespace;
       }
@@ -901,6 +905,8 @@ public class DatastoreV1 {
         builder
             .addIfNotNull(
                 DisplayData.item("projectId", getProjectValueProvider()).withLabel("ProjectId"))
+            .addIfNotNull(
+                DisplayData.item("databaseId", getDatabaseValueProvider()).withLabel("DatabaseId"))
             .addIfNotNull(
                 DisplayData.item("namespace", getNamespaceValueProvider()).withLabel("Namespace"));
       }
@@ -1255,7 +1261,16 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
+      super(projectId, null, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
+    }
+
+    Write(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      super(projectId, databaseId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
     /** Returns a new {@link Write} that writes to the Cloud Datastore for the default database. */
@@ -1264,10 +1279,22 @@ public class DatastoreV1 {
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
+    /** Returns a new {@link Write} that writes to the Cloud Datastore for the database id. */
+    public Write withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return withDatabaseId(StaticValueProvider.of(databaseId));
+    }
+
     /** Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}. */
     public Write withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Same as {@link Write#withDatabaseId(String)} but with a {@link ValueProvider}. */
+    public Write withDatabaseId(ValueProvider<String> databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new Write(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1315,7 +1342,16 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
+      super(projectId, null, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
+    }
+
+    DeleteEntity(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      super(projectId, databaseId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1327,10 +1363,25 @@ public class DatastoreV1 {
       return withProjectId(StaticValueProvider.of(projectId));
     }
 
+    /**
+     * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore for the
+     * specified database.
+     */
+    public DeleteEntity withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return withDatabaseId(StaticValueProvider.of(databaseId));
+    }
+
     /** Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}. */
     public DeleteEntity withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Same as {@link DeleteEntity#withDatabaseId(String)} but with a {@link ValueProvider}. */
+    public DeleteEntity withDatabaseId(ValueProvider<String> databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new DeleteEntity(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1380,7 +1431,16 @@ public class DatastoreV1 {
         @Nullable String localhost,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
-      super(projectId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
+      super(projectId, null, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
+    }
+
+    DeleteKey(
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
+        @Nullable String localhost,
+        boolean throttleRampup,
+        ValueProvider<Integer> hintNumWorkers) {
+      super(projectId, databaseId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
     }
 
     /**
@@ -1390,6 +1450,15 @@ public class DatastoreV1 {
     public DeleteKey withProjectId(String projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Returns a new {@link DeleteKey} that deletes entities from the Cloud Datastore for the
+     * specified database.
+     */
+    public DeleteKey withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return withDatabaseId(StaticValueProvider.of(databaseId));
     }
 
     /**
@@ -1405,6 +1474,12 @@ public class DatastoreV1 {
     public DeleteKey withProjectId(ValueProvider<String> projectId) {
       checkArgument(projectId != null, "projectId can not be null");
       return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
+    }
+
+    /** Same as {@link DeleteKey#withDatabaseId(String)} but with a {@link ValueProvider}. */
+    public DeleteKey withDatabaseId(ValueProvider<String> databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      return new DeleteKey(projectId, databaseId, localhost, throttleRampup, hintNumWorkers);
     }
 
     /** Returns a new {@link DeleteKey} that does not throttle during ramp-up. */
@@ -1439,6 +1514,7 @@ public class DatastoreV1 {
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
 
     protected ValueProvider<String> projectId;
+    protected ValueProvider<String> databaseId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
     protected ValueProvider<Integer> hintNumWorkers;
@@ -1453,11 +1529,13 @@ public class DatastoreV1 {
      */
     Mutate(
         @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> databaseId,
         @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
         ValueProvider<Integer> hintNumWorkers) {
       this.projectId = projectId;
+      this.databaseId = databaseId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
       this.hintNumWorkers = hintNumWorkers;
@@ -1499,7 +1577,14 @@ public class DatastoreV1 {
                 ParDo.of(rampupThrottlingFn).withSideInputs(startTimestampView));
       }
       intermediateOutput.apply(
-          "Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId, localhost)));
+          "Write Mutation to Datastore",
+          ParDo.of(
+              new DatastoreWriterFn(
+                  projectId,
+                  databaseId,
+                  localhost,
+                  new V1DatastoreFactory(),
+                  new WriteBatcherImpl())));
 
       return PDone.in(input.getPipeline());
     }
@@ -1517,6 +1602,7 @@ public class DatastoreV1 {
       super.populateDisplayData(builder);
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"))
+          .addIfNotNull(DisplayData.item("databaseId", databaseId).withLabel("Output Database"))
           .include("mutationFn", mutationFn);
       if (rampupThrottlingFn != null) {
         builder.include("rampupThrottlingFn", rampupThrottlingFn);
@@ -1525,6 +1611,10 @@ public class DatastoreV1 {
 
     public String getProjectId() {
       return projectId.get();
+    }
+
+    public String getDatabaseId() {
+      return databaseId.get();
     }
   }
 
@@ -1639,13 +1729,14 @@ public class DatastoreV1 {
     DatastoreWriterFn(String projectId, @Nullable String localhost) {
       this(
           StaticValueProvider.of(projectId),
+          null,
           localhost,
           new V1DatastoreFactory(),
           new WriteBatcherImpl());
     }
 
     DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost) {
-      this(projectId, localhost, new V1DatastoreFactory(), new WriteBatcherImpl());
+      this(projectId, null, localhost, new V1DatastoreFactory(), new WriteBatcherImpl());
     }
 
     @VisibleForTesting
@@ -1654,8 +1745,18 @@ public class DatastoreV1 {
         @Nullable String localhost,
         V1DatastoreFactory datastoreFactory,
         WriteBatcher writeBatcher) {
+      this(projectId, null, localhost, datastoreFactory, writeBatcher);
+    }
+
+    @VisibleForTesting
+    DatastoreWriterFn(
+        ValueProvider<String> projectId,
+        ValueProvider<String> databaseIdProvider,
+        @Nullable String localhost,
+        V1DatastoreFactory datastoreFactory,
+        WriteBatcher writeBatcher) {
       this.projectId = checkNotNull(projectId, "projectId");
-      this.databaseId = DEFAULT_DATABASE;
+      this.databaseId = databaseIdProvider == null ? DEFAULT_DATABASE : databaseIdProvider.get();
       this.localhost = localhost;
       this.datastoreFactory = datastoreFactory;
       this.writeBatcher = writeBatcher;
@@ -1663,11 +1764,6 @@ public class DatastoreV1 {
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
-      // Read Firestore DatabaseID from FirestoreOptions.
-      String firestoreDatabaseId =
-          c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
-      databaseId = firestoreDatabaseId.equals("(default)") ? DEFAULT_DATABASE : firestoreDatabaseId;
-
       datastore =
           datastoreFactory.getDatastore(
               c.getPipelineOptions(), projectId.get(), databaseId, localhost);
