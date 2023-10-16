@@ -205,7 +205,7 @@ public class HistogramDataTest {
 
   // The following tests cover exponential buckets.
   @Test
-  public void testPositiveScaleBucket() {
+  public void testExponentialBuckets_PostiveScaleRecord() {
     // Buckets will be:
     // Index        Range
     // Underflow    (-inf, 0)
@@ -242,7 +242,7 @@ public class HistogramDataTest {
   }
 
   @Test
-  public void testZeroScaleBucket() {
+  public void testExponentialBuckets_ZeroScaleRecord() {
     // Buckets will be:
     // Index        Range
     // Underflow    (-inf, 0)
@@ -275,7 +275,7 @@ public class HistogramDataTest {
   }
 
   @Test
-  public void testNegativeScaleBucket() {
+  public void testExponentialBuckets_NegativeScalesRecord() {
     // Buckets will be:
     // Index        Range
     // Underflow    (-inf, 0)
@@ -303,7 +303,7 @@ public class HistogramDataTest {
   }
 
   @Test
-  public void testBucketSize() {
+  public void testExponentialBuckets_BucketSize() {
     HistogramData data = HistogramData.exponential(0, 20);
     assertThat(data.getBucketType().getBucketSize(0), equalTo(2.0));
     // 10th bucket contains [2^10, 2^11).
@@ -321,7 +321,7 @@ public class HistogramDataTest {
   }
 
   @Test
-  public void testNumBuckets() {
+  public void testExponentialBuckets_NumBuckets() {
     // Validate that numBuckets clipping WAI.
     HistogramData data = HistogramData.exponential(0, 200);
     assertThat(data.getBucketType().getNumBuckets(), equalTo(32));
