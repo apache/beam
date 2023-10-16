@@ -216,8 +216,8 @@ def run_change_point_analysis(
 
 def run(
     *,
+    config_file_path: str,
     big_query_metrics_fetcher: MetricsFetcher = BigQueryMetricsFetcher(),
-    config_file_path: str = None,
     save_alert_metadata: bool = False,
 ) -> None:
   """
