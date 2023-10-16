@@ -55,7 +55,8 @@ class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
 
   /**
    * Setter for the threshold that overrides usage of a random value. The threshold is the value
-   * that pReject() must exceed in order to report a value() of true.
+   * (within range [0, 1)) that {@link #getRejectionProbability()} must exceed in order to report a
+   * value() of true.
    */
   CallShouldBackoffBasedOnRejectionProbability<ResponseT> setThreshold(double threshold) {
     this.threshold = threshold;
@@ -76,7 +77,7 @@ class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
   }
 
   /** Provide a threshold to evaluate backoff. */
-  double threshold() {
+  double getThreshold() {
     if (this.threshold != null) {
       return this.threshold;
     }
@@ -87,7 +88,7 @@ class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
    * Compute the probability of API call rejection based on
    * https://sre.google/sre-book/handling-overload/.
    */
-  double pReject() {
+  double getRejectionProbability() {
     double numerator = requests - multiplier * accepts;
     double denominator = requests + 1;
     double ratio = numerator / denominator;
@@ -97,6 +98,6 @@ class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
   /** Report whether to backoff. */
   @Override
   public boolean value() {
-    return pReject() > threshold();
+    return getRejectionProbability() > getThreshold();
   }
 }

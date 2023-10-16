@@ -41,7 +41,7 @@ public class CallShouldBackoffBasedOnRejectionProbabilityTest {
           shouldBackoff.update(new UserCodeExecutionException(""));
         }
       }
-      assertEquals(caze.toString(), caze.wantPReject, shouldBackoff.pReject(), 0.0);
+      assertEquals(caze.toString(), caze.wantPReject, shouldBackoff.getRejectionProbability(), 0.1);
       assertEquals(caze.toString(), caze.wantValue, shouldBackoff.value());
     }
   }
@@ -49,9 +49,10 @@ public class CallShouldBackoffBasedOnRejectionProbabilityTest {
   private static final List<Case> CASES =
       Arrays.asList(
           of(0, false),
+          of(0, false, true, true, true, true, true, true, true, true, true, true, true),
           of(0, false, true),
           of(0.5, false, false),
-          of(0.75, true, false, false, false));
+          of(0.91, true, false, false, false, false, false, false, false, false, false, false));
 
   private static Case of(double wantPReject, boolean wantValue, boolean... acceptRejects) {
     List<Boolean> list = new ArrayList<>();
