@@ -14,8 +14,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
---job_name=load-tests-go-dataflow-batch-gbk-6
---project=apache-beam-testing
 --region=us-central1
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
@@ -28,6 +26,4 @@
 --autoscaling_algorithm=NONE
 --environment_type=DOCKER
 --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
---influx_db_name=beam_test_metrics
---influx_hostname=http://10.128.0.96:8086
 --runner=DataflowRunner
