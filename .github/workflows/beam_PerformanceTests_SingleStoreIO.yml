@@ -56,7 +56,6 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, highmem]
     timeout-minutes: 100
     strategy:
-      fail-fast: false
       matrix: 
         job_name: [beam_PerformanceTests_SingleStoreIO]
         job_phrase: [Run Java SingleStoreIO Performance Test]
