@@ -73,8 +73,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase_1 }} ${{matrix.python_version}} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} ${{ matrix.job_phrase_1 }} ${{matrix.python_version}} ${{ matrix.job_phrase_2 }}
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{matrix.python_version}}
       - name: Set PY_VER_CLEAN

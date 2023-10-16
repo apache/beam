@@ -79,10 +79,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.8'
+          python-version: 3.8
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
