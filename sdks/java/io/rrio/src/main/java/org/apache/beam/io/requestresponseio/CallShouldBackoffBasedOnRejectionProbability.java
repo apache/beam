@@ -26,8 +26,8 @@ class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
   // Default multiplier value recommended by https://sre.google/sre-book/handling-overload/
   private static final double DEFAULT_MULTIPLIER = 2.0;
 
-  // The threshold is the value that pReject() must exceed in order to report a value() of true. If
-  // null, then the computation relies on a random value.
+  // The threshold is the value that the rejection probability must exceed in order to report a
+  // value() of true. If null, then the computation relies on a random value.
   private @Nullable Double threshold;
 
   // The multiplier drives the impact of accepts on the rejection probability. See <a
