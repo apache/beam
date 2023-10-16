@@ -19,7 +19,7 @@
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.0"
+  id("org.nosphere.apache.rat") version "0.8.1"
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -310,6 +310,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:testing:test-utils:build")
   dependsOn(":sdks:java:testing:tpcds:build")
   dependsOn(":sdks:java:testing:watermarks:build")
+  dependsOn(":sdks:java:transform-service:build")
+  dependsOn(":sdks:java:transform-service:launcher:build")
 
   dependsOn(":examples:java:preCommit")
   dependsOn(":examples:java:twitter:preCommit")

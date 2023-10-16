@@ -106,6 +106,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
