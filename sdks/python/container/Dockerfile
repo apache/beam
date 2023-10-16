@@ -42,8 +42,8 @@ RUN  \
        && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python -m venv venv
-ENV PATH="/venv/bin:$PATH"
+RUN python -m venv venv-beam
+ENV PATH="/venv-beam/bin:$PATH"
 RUN \
     pip install --upgrade setuptools && \
 
@@ -83,21 +83,21 @@ RUN \
     rm -rf /root/.cache/pip
 
 # extract the deb packages
-RUN cd /tmp && \
-    # Install native bindings required for dependencies.
-    apt-get update && \
-    apt-get download \
-       # Required by python-snappy
-       libsnappy-dev \
-       # Required by pyyaml (for c bindings)
-       libyaml-dev \
-       # This is used to speed up the re-installation of the sdk.
-       ccache \
-       # Required for using Beam Python SDK on ARM machines.
-       libgeos-dev \
-       && \
-    mkdir /dpkg && \
-    for deb in *.deb; do dpkg -i $deb; dpkg --extract $deb /dpkg || exit 10; done
+# RUN cd /tmp && \
+#     # Install native bindings required for dependencies.
+#     apt-get update && \
+#     apt-get download \
+#        # Required by python-snappy
+#        libsnappy-dev \
+#        # Required by pyyaml (for c bindings)
+#        libyaml-dev \
+#        # This is used to speed up the re-installation of the sdk.
+#        ccache \
+#        # Required for using Beam Python SDK on ARM machines.
+#        libgeos-dev \
+#        && \
+#     mkdir /dpkg && \
+#     for deb in *.deb; do dpkg -i $deb; dpkg --extract $deb /dpkg || exit 10; done
 
 FROM gcr.io/distroless/cc-debian12 as beam
 LABEL Author "Apache Beam <dev@beam.apache.org>"
@@ -107,7 +107,7 @@ ARG TARGETARCH
 # copy some commands
 COPY --from=python-base /bin /bin
 
-ARG  CHIPSET_ARCH=x86_64-linux-gnu
+# ARG  CHIPSET_ARCH=x86_64-linux-gnu
 # arm
 # ARG  CHIPSET_ARCH=aarch64-linux-gnu
 
@@ -120,11 +120,13 @@ COPY --from=python-base /usr/local/gcloud /usr/local/gcloud
 
 
 # copy venv
-COPY --from=python-base /venv /venv
-ENV PATH="/venv/bin:$PATH"
+COPY --from=python-base /venv-beam /venv-beam
+ENV PATH="/venv-beam/bin:$PATH"
 
 # required by lots of packages - e.g. six, numpy, wsgi
-COPY --from=python-base /lib/${CHIPSET_ARCH} /lib/${CHIPSET_ARCH}
+COPY --from=python-base /lib /lib
+
+# COPY --from=python-base /lib/${CHIPSET_ARCH} /lib/${CHIPSET_ARCH}
 
 # COPY --from=python-base /lib/${CHIPSET_ARCH}/libz* /lib/${CHIPSET_ARCH}/
 # COPY --from=python-base /lib/${CHIPSET_ARCH}/libselinux* /lib/${CHIPSET_ARCH}/
@@ -143,7 +145,7 @@ ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
 # copy all packages over
-COPY --from=python-base /dpkg /
+# COPY --from=python-base /dpkg /
 
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
