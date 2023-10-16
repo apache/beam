@@ -75,9 +75,7 @@ jobs:
           distribution: 'zulu'
           java-version: '8'
       - name: run validatesRunner script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:direct-java:validatesRunner
+        run: ./gradlew :runners:direct-java:validatesRunner
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()

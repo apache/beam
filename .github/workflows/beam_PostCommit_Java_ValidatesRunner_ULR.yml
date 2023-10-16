@@ -77,9 +77,7 @@ jobs:
         with:
           python-version: '3.8'
       - name: run ulrLoopbackValidatesRunner script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:portability:java:ulrLoopbackValidatesRunner
+        run: ./gradlew :runners:portability:java:ulrLoopbackValidatesRunner
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()
