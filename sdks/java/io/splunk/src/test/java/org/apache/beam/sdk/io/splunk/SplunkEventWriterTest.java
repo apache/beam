@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.splunk;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,6 +62,21 @@ public class SplunkEventWriterTest {
   @Rule public MockServerRule mockServerRule = new MockServerRule(this);
 
   private MockServerClient mockServerClient;
+
+  @Test
+  public void testMissingURLProtocol() {
+    assertFalse(SplunkEventWriter.isValidUrlFormat("test-url"));
+  }
+
+  @Test
+  public void testInvalidURL() {
+    assertFalse(SplunkEventWriter.isValidUrlFormat("http://1.2.3"));
+  }
+
+  @Test
+  public void testValidURL() {
+    assertTrue(SplunkEventWriter.isValidUrlFormat("http://test-url"));
+  }
 
   @Test
   public void eventWriterMissingURL() {

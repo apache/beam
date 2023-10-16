@@ -451,7 +451,8 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
     }
   }
 
-  private static boolean isValidUrlFormat(String url) {
+  @VisibleForTesting
+  static boolean isValidUrlFormat(String url) {
     Matcher matcher = URL_PATTERN.matcher(url);
     if (matcher.find()) {
       String host = matcher.group(2);
