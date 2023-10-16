@@ -23,7 +23,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Python_Dataframes',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=apache_beam/dataframe/'
+      '-Pposargs=apache_beam/dataframe/',
+      '-PuseWheelDistribution'
     ],
     timeoutMins: 180,
     triggerPathPatterns: [

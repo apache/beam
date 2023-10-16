@@ -860,7 +860,7 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jul_to_slf4j                          : "org.slf4j:jul-to-slf4j:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
-        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.3",
+        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
@@ -2395,7 +2395,20 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
+    project.ext.applyAvroNature = {
+      project.apply plugin: "com.commercehub.gradle.plugin.avro"
+
+      // add dependency BeamModulePlugin defined custom tasks
+      // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+      def sourcesJar = project.tasks.findByName('sourcesJar')
+      if (sourcesJar != null) {
+        sourcesJar.dependsOn project.tasks.getByName('generateAvroJava')
+      }
+      def testSourcesJar = project.tasks.findByName('testSourcesJar')
+      if (testSourcesJar != null) {
+        testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
+      }
+    }
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
@@ -2405,6 +2418,17 @@ class BeamModulePlugin implements Plugin<Project> {
           generatedSourceDirs += project.generateGrammarSource.outputDirectory
           generatedSourceDirs += project.generateTestGrammarSource.outputDirectory
         }
+      }
+
+      // add dependency BeamModulePlugin defined custom tasks
+      // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+      def sourcesJar = project.tasks.findByName('sourcesJar')
+      if (sourcesJar != null) {
+        sourcesJar.mustRunAfter project.tasks.getByName('generateGrammarSource')
+      }
+      def testSourcesJar = project.tasks.findByName('testSourcesJar')
+      if (testSourcesJar != null) {
+        testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
       }
     }
 
@@ -2941,7 +2965,7 @@ class BeamModulePlugin implements Plugin<Project> {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
                 "pip install --pre --retries 10 --upgrade pip && " +
-                "pip install --pre --retries 10 --upgrade tox -r ${project.rootDir}/sdks/python/build-requirements.txt"
+                "pip install --pre --retries 10 --upgrade tox"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -3024,30 +3048,40 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         return argList.join(' ')
       }
-
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
           dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
-
-          doLast {
-            // Python source directory is also tox execution workspace, We want
-            // to isolate them per tox suite to avoid conflict when running
-            // multiple tox suites in parallel.
-            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-
-            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-            def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
-            project.exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env $distTarBall '$posargs'"
+          if (project.hasProperty('useWheelDistribution')) {
+            def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
+            dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
+            doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              def collection = project.fileTree(project.project(':sdks:python').buildDir){
+                include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+              }
+              String packageFilename = collection.singleFile.toString()
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+              }
+            }
+          } else {
+            // tox task will run in editable mode, which is configured in the tox.ini file.
+            doLast {
+              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+              project.exec {
+                executable 'sh'
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+              }
             }
           }
           inputs.files project.pythonSdkDeps
           outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
         }
       }
-
       // Run single or a set of integration tests with provided test options and pipeline options.
       project.ext.enablePythonPerformanceTest = {
 

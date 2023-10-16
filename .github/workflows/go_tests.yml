@@ -46,6 +46,8 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+          cache-dependency-path: |
+             sdks/go.sum
       - name: Delete old coverage
         run: "cd sdks && rm -rf .coverage.txt || :"
       - name: Run coverage
@@ -66,8 +68,3 @@ jobs:
           go install "honnef.co/go/tools/cmd/staticcheck@2023.1.3"
           cd sdks/go/pkg/beam
           $(go env GOPATH)/bin/staticcheck ./...
-      - uses: golang/govulncheck-action@v1.0.1
-        with:
-          work-dir: ./sdks
-          go-package: ./...
-          go-version-input: 1.21

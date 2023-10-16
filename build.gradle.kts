@@ -310,6 +310,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:testing:test-utils:build")
   dependsOn(":sdks:java:testing:tpcds:build")
   dependsOn(":sdks:java:testing:watermarks:build")
+  dependsOn(":sdks:java:transform-service:build")
+  dependsOn(":sdks:java:transform-service:launcher:build")
 
   dependsOn(":examples:java:preCommit")
   dependsOn(":examples:java:twitter:preCommit")

@@ -27,6 +27,3 @@ applyPythonNature()
 pythonVersion = '3.9'
 
 apply from: "../common.gradle"
-
-// TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
-testPy39Cython.mustRunAfter testPython39, testPy39Cloud

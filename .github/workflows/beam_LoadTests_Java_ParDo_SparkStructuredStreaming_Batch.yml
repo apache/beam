@@ -16,8 +16,6 @@
 name: LoadTests Java ParDo SparkStructuredStreaming Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '25 8 * * *'
   workflow_dispatch:

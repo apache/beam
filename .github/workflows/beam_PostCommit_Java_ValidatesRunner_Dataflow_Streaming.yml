@@ -18,8 +18,6 @@
 name: PostCommit Java ValidatesRunner Dataflow Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:

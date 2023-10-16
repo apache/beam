@@ -16,8 +16,6 @@
 name: PostCommit Python Xlang Gcp Direct
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:

@@ -18,8 +18,6 @@
 name: PostCommit Java ValidatesRunner Flink Java11
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:

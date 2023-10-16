@@ -16,8 +16,6 @@
 name: PerformanceTests SpannerIO Read 2GB Python
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 4 * * *'
   workflow_dispatch:

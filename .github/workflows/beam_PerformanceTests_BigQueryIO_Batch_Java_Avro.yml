@@ -16,8 +16,6 @@
 name: Performance Tests BigQueryIO Batch Java Avro
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 1,13 * * *'
   workflow_dispatch:

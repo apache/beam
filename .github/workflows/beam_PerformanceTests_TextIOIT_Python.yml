@@ -16,8 +16,6 @@
 name: PerformanceTests TextIOIT Python
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 8,20 * * *'
   workflow_dispatch:

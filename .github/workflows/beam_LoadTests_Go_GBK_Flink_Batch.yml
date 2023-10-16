@@ -16,8 +16,6 @@
 name: LoadTests Go GBK Flink Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '20 1 * * *'
   workflow_dispatch:
