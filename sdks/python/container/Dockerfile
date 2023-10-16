@@ -105,12 +105,11 @@ ARG TARGETOS
 ARG TARGETARCH
 
 # copy some commands
-COPY --from=python-base /bin/echo /bin/echo
-COPY --from=python-base /bin/rm /bin/rm
-COPY --from=python-base /bin/sh /bin/sh
+COPY --from=python-base /bin /bin
 
-# ARG  CHIPSET_ARCH=x86_64-linux-gnu
-ARG  CHIPSET_ARCH=aarch64-linux-gnu
+ARG  CHIPSET_ARCH=x86_64-linux-gnu
+# arm
+# ARG  CHIPSET_ARCH=aarch64-linux-gnu
 
 # copy python to distroless
 COPY --from=python-base /usr/local/lib/ /usr/local/lib/
@@ -124,8 +123,11 @@ COPY --from=python-base /usr/local/gcloud /usr/local/gcloud
 COPY --from=python-base /venv /venv
 ENV PATH="/venv/bin:$PATH"
 
-# # required by lots of packages - e.g. six, numpy, wsgi
-# COPY --from=python-base /lib/${CHIPSET_ARCH}/libz.so.1 /lib/${CHIPSET_ARCH}/
+# required by lots of packages - e.g. six, numpy, wsgi
+COPY --from=python-base /lib/${CHIPSET_ARCH} /lib/${CHIPSET_ARCH}
+
+# COPY --from=python-base /lib/${CHIPSET_ARCH}/libz* /lib/${CHIPSET_ARCH}/
+# COPY --from=python-base /lib/${CHIPSET_ARCH}/libselinux* /lib/${CHIPSET_ARCH}/
 # # required by google-cloud/grpcio
 # COPY --from=python-base /usr/lib/${CHIPSET_ARCH}/libffi* /usr/lib/${CHIPSET_ARCH}/
 # COPY --from=python-base /lib/${CHIPSET_ARCH}/libexpat* /lib/${CHIPSET_ARCH}/
