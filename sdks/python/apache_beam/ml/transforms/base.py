@@ -33,8 +33,8 @@ TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
 
 # Input/Output types to the MLTransform.
-ExampleT = TypeVar('ExampleT')
 MLTransformOutputT = TypeVar('MLTransformOutputT')
+ExampleT = TypeVar('ExampleT')
 
 # Input to the apply() method of BaseOperation.
 OperationInputT = TypeVar('OperationInputT')
