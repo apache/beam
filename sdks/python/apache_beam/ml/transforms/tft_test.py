@@ -41,29 +41,6 @@ if not tft:
 z_score_expected = {'x_mean': 3.5, 'x_var': 2.9166666666666665}
 
 
-def assert_z_score_artifacts(element):
-  element = element.as_dict()
-  assert 'x_mean' in element
-  assert 'x_var' in element
-  assert element['x_mean'] == z_score_expected['x_mean']
-  assert element['x_var'] == z_score_expected['x_var']
-
-
-def assert_ScaleTo01_artifacts(element):
-  element = element.as_dict()
-  assert 'x_min' in element
-  assert 'x_max' in element
-  assert element['x_min'] == 1
-  assert element['x_max'] == 6
-
-
-def assert_bucketize_artifacts(element):
-  element = element.as_dict()
-  assert 'x_quantiles' in element
-  assert np.array_equal(
-      element['x_quantiles'], np.array([3, 5], dtype=np.float32))
-
-
 class ScaleZScoreTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
@@ -99,8 +76,20 @@ class ScaleZScoreTest(unittest.TestCase):
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
-                  tft.ScaleToZScore(columns=['x'])))
-      _ = (result | beam.Map(assert_z_score_artifacts))
+                  tft.ScaleToZScore(columns=['x']))
+          | beam.Map(print))
+      expected_data = [
+          np.array([-1.4638501], dtype=np.float32),
+          np.array([-0.8783101], dtype=np.float32),
+          np.array([-0.2927701], dtype=np.float32),
+          np.array([0.2927701], dtype=np.float32),
+          np.array([0.8783101], dtype=np.float32),
+          np.array([1.4638501], dtype=np.float32),
+      ]
+
+      actual_data = (result | beam.Map(lambda x: x.x))
+      assert_that(
+          actual_data, equal_to(expected_data, equals_fn=np.array_equal))
 
   def test_z_score_list_data(self):
     list_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
@@ -111,7 +100,14 @@ class ScaleZScoreTest(unittest.TestCase):
           | "listMLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
-      _ = (list_result | beam.Map(assert_z_score_artifacts))
+
+      expected_data = [
+          np.array([-1.4638501, -0.8783101, -0.2927701], dtype=np.float32),
+          np.array([0.2927701, 0.8783101, 1.4638501], dtype=np.float32)
+      ]
+      actual_data = (list_result | beam.Map(lambda x: x.x))
+      assert_that(
+          actual_data, equal_to(expected_data, equals_fn=np.array_equal))
 
 
 class ScaleTo01Test(unittest.TestCase):
@@ -130,7 +126,6 @@ class ScaleTo01Test(unittest.TestCase):
           | "MLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
-      _ = (list_result | beam.Map(assert_ScaleTo01_artifacts))
 
       expected_output = [
           np.array([0, 0.2, 0.4], dtype=np.float32),
@@ -150,7 +145,6 @@ class ScaleTo01Test(unittest.TestCase):
               write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleTo01(columns=['x'])))
 
-      _ = (result | beam.Map(assert_ScaleTo01_artifacts))
       expected_output = (
           np.array([0], dtype=np.float32),
           np.array([0.2], dtype=np.float32),
@@ -179,7 +173,6 @@ class BucketizeTest(unittest.TestCase):
           | "MLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
-      _ = (result | beam.Map(assert_bucketize_artifacts))
 
       transformed_data = (result | beam.Map(lambda x: x.x))
       expected_data = [
@@ -202,8 +195,6 @@ class BucketizeTest(unittest.TestCase):
           | "MLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   tft.Bucketize(columns=['x'], num_buckets=3)))
-      _ = (list_result | beam.Map(assert_bucketize_artifacts))
-
       transformed_data = (
           list_result
           | "TransformedColumnX" >> beam.Map(lambda ele: ele.x))
@@ -751,7 +742,6 @@ class BagOfWordsTest(unittest.TestCase):
               transforms=[
                   tft.BagOfWords(columns=['x'], compute_word_count=True)
               ]))
-
       # the unique elements and counts are artifacts and will be
       # stored in the result and same for all the elements in the
       # PCollection.

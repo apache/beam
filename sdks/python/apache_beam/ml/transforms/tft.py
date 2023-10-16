@@ -45,9 +45,7 @@ from typing import Union
 import tensorflow as tf
 import tensorflow_transform as tft
 from apache_beam.ml.transforms.base import BaseOperation
-from tensorflow_transform import analyzers
 from tensorflow_transform import common_types
-from tensorflow_transform import tf_utils
 
 __all__ = [
     'ComputeAndApplyVocabulary',
@@ -77,6 +75,8 @@ def register_input_dtype(type):
   return wrapper
 
 
+# TODO: https://github.com/apache/beam/pull/29016
+# Add support for outputting artifacts to a text file in human readable form.
 class TFTOperation(BaseOperation[common_types.TensorType,
                                  common_types.TensorType]):
   def __init__(self, columns: List[str]) -> None:
@@ -240,15 +240,6 @@ class ScaleToZScore(TFTOperation):
     }
     return output_dict
 
-  def get_artifacts(self, data: common_types.TensorType,
-                    col_name: str) -> Dict[str, common_types.TensorType]:
-    mean_var = tft.analyzers._mean_and_var(data)
-    shape = [tf.shape(data)[0], 1]
-    return {
-        col_name + '_mean': tf.broadcast_to(mean_var[0], shape),
-        col_name + '_var': tf.broadcast_to(mean_var[1], shape),
-    }
-
 
 @register_input_dtype(float)
 class ScaleTo01(TFTOperation):
@@ -279,14 +270,6 @@ class ScaleTo01(TFTOperation):
     super().__init__(columns)
     self.elementwise = elementwise
     self.name = name
-
-  def get_artifacts(self, data: common_types.TensorType,
-                    col_name: str) -> Dict[str, common_types.TensorType]:
-    shape = [tf.shape(data)[0], 1]
-    return {
-        col_name + '_min': tf.broadcast_to(tft.min(data), shape),
-        col_name + '_max': tf.broadcast_to(tft.max(data), shape)
-    }
 
   def apply_transform(
       self, data: common_types.TensorType,
@@ -367,34 +350,6 @@ class Bucketize(TFTOperation):
     self.epsilon = epsilon
     self.elementwise = elementwise
     self.name = name
-
-  def get_artifacts(self, data: common_types.TensorType,
-                    col_name: str) -> Dict[str, common_types.TensorType]:
-    num_buckets = self.num_buckets
-    epsilon = self.epsilon
-    elementwise = self.elementwise
-
-    if num_buckets < 1:
-      raise ValueError('Invalid num_buckets %d' % num_buckets)
-
-    if isinstance(data, (tf.SparseTensor, tf.RaggedTensor)) and elementwise:
-      raise ValueError(
-          'bucketize requires `x` to be dense if `elementwise=True`')
-
-    x_values = tf_utils.get_values(data)
-
-    if epsilon is None:
-      # See explanation in args documentation for epsilon.
-      epsilon = min(1.0 / num_buckets, 0.01)
-
-    quantiles = analyzers.quantiles(
-        x_values, num_buckets, epsilon, reduce_instance_dims=not elementwise)
-    shape = [
-        tf.shape(data)[0], num_buckets - 1 if num_buckets > 1 else num_buckets
-    ]
-    # These quantiles are used as the bucket boundaries in the later stages.
-    # Should we change the prefix _quantiles to _bucket_boundaries?
-    return {col_name + '_quantiles': tf.broadcast_to(quantiles, shape)}
 
   def apply_transform(
       self, data: common_types.TensorType,
@@ -613,10 +568,6 @@ class BagOfWords(TFTOperation):
     if ngram_range != (1, 1) and not ngrams_separator:
       raise ValueError(
           'ngrams_separator must be specified when ngram_range is not (1, 1)')
-
-  def get_artifacts(self, data: tf.SparseTensor,
-                    col_name: str) -> Dict[str, tf.Tensor]:
-    return self.compute_word_count_fn(data, col_name)
 
   def apply_transform(self, data: tf.SparseTensor, output_col_name: str):
     if self.split_string_by_delimiter:
