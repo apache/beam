@@ -36,86 +36,86 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * exist.
  */
 class CacheRead<RequestT, ResponseT>
-        extends PTransform<PCollection<RequestT>, Result<RequestT, ResponseT>> {
+    extends PTransform<PCollection<RequestT>, Result<RequestT, ResponseT>> {
 
-    private static final TupleTag<ApiIOError> FAILURE_TAG = new TupleTag<ApiIOError>() {};
+  private static final TupleTag<ApiIOError> FAILURE_TAG = new TupleTag<ApiIOError>() {};
 
-    // TODO(damondouglas): remove suppress warnings after instance utilized.
-    @SuppressWarnings({"unused"})
-    private final Configuration<RequestT, ResponseT> configuration;
+  // TODO(damondouglas): remove suppress warnings after instance utilized.
+  @SuppressWarnings({"unused"})
+  private final Configuration<RequestT, ResponseT> configuration;
 
-    private CacheRead(Configuration<RequestT, ResponseT> configuration) {
-        this.configuration = configuration;
+  private CacheRead(Configuration<RequestT, ResponseT> configuration) {
+    this.configuration = configuration;
+  }
+
+  /** Configuration details for {@link CacheRead}. */
+  @AutoValue
+  abstract static class Configuration<RequestT, ResponseT> {
+
+    static <RequestT, ResponseT> Builder<RequestT, ResponseT> builder() {
+      return new AutoValue_CacheRead_Configuration.Builder<>();
     }
 
-    /** Configuration details for {@link CacheRead}. */
-    @AutoValue
-    abstract static class Configuration<RequestT, ResponseT> {
+    abstract Builder<RequestT, ResponseT> toBuilder();
 
-        static <RequestT, ResponseT> Builder<RequestT, ResponseT> builder() {
-            return new AutoValue_CacheRead_Configuration.Builder<>();
-        }
+    @AutoValue.Builder
+    abstract static class Builder<RequestT, ResponseT> {
 
-        abstract Builder<RequestT, ResponseT> toBuilder();
+      abstract Configuration<RequestT, ResponseT> build();
+    }
+  }
 
-        @AutoValue.Builder
-        abstract static class Builder<RequestT, ResponseT> {
+  @Override
+  public Result<RequestT, ResponseT> expand(PCollection<RequestT> input) {
+    return Result.of(
+        new TupleTag<KV<RequestT, ResponseT>>() {}, PCollectionTuple.empty(input.getPipeline()));
+  }
 
-            abstract Configuration<RequestT, ResponseT> build();
-        }
+  /**
+   * The {@link Result} of reading RequestT {@link PCollection} elements yielding ResponseT {@link
+   * PCollection} elements.
+   */
+  static class Result<RequestT, ResponseT> implements POutput {
+
+    static <RequestT, ResponseT> Result<RequestT, ResponseT> of(
+        TupleTag<KV<RequestT, ResponseT>> responseTag, PCollectionTuple pct) {
+      return new Result<>(responseTag, pct);
+    }
+
+    private final Pipeline pipeline;
+    private final TupleTag<KV<RequestT, ResponseT>> responseTag;
+    private final PCollection<KV<RequestT, ResponseT>> responses;
+    private final PCollection<ApiIOError> failures;
+
+    private Result(TupleTag<KV<RequestT, ResponseT>> responseTag, PCollectionTuple pct) {
+      this.pipeline = pct.getPipeline();
+      this.responseTag = responseTag;
+      this.responses = pct.get(responseTag);
+      this.failures = pct.get(FAILURE_TAG);
+    }
+
+    PCollection<KV<RequestT, ResponseT>> getResponses() {
+      return responses;
+    }
+
+    PCollection<ApiIOError> getFailures() {
+      return failures;
     }
 
     @Override
-    public Result<RequestT, ResponseT> expand(PCollection<RequestT> input) {
-        return Result.of(
-                new TupleTag<KV<RequestT, ResponseT>>() {}, PCollectionTuple.empty(input.getPipeline()));
+    public Pipeline getPipeline() {
+      return this.pipeline;
     }
 
-    /**
-     * The {@link Result} of reading RequestT {@link PCollection} elements yielding ResponseT {@link
-     * PCollection} elements.
-     */
-    static class Result<RequestT, ResponseT> implements POutput {
-
-        static <RequestT, ResponseT> Result<RequestT, ResponseT> of(
-                TupleTag<KV<RequestT, ResponseT>> responseTag, PCollectionTuple pct) {
-            return new Result<>(responseTag, pct);
-        }
-
-        private final Pipeline pipeline;
-        private final TupleTag<KV<RequestT, ResponseT>> responseTag;
-        private final PCollection<KV<RequestT, ResponseT>> responses;
-        private final PCollection<ApiIOError> failures;
-
-        private Result(TupleTag<KV<RequestT, ResponseT>> responseTag, PCollectionTuple pct) {
-            this.pipeline = pct.getPipeline();
-            this.responseTag = responseTag;
-            this.responses = pct.get(responseTag);
-            this.failures = pct.get(FAILURE_TAG);
-        }
-
-        PCollection<KV<RequestT, ResponseT>> getResponses() {
-            return responses;
-        }
-
-        PCollection<ApiIOError> getFailures() {
-            return failures;
-        }
-
-        @Override
-        public Pipeline getPipeline() {
-            return this.pipeline;
-        }
-
-        @Override
-        public Map<TupleTag<?>, PValue> expand() {
-            return ImmutableMap.of(
-                    responseTag, responses,
-                    FAILURE_TAG, failures);
-        }
-
-        @Override
-        public void finishSpecifyingOutput(
-                String transformName, PInput input, PTransform<?, ?> transform) {}
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      return ImmutableMap.of(
+          responseTag, responses,
+          FAILURE_TAG, failures);
     }
+
+    @Override
+    public void finishSpecifyingOutput(
+        String transformName, PInput input, PTransform<?, ?> transform) {}
+  }
 }
