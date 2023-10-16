@@ -33,7 +33,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 
 env:
@@ -54,7 +54,7 @@ jobs:
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
       py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -87,16 +87,11 @@ jobs:
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install python
         uses: actions/setup-python@v4
         with:
           python-version: 3.8
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: python -m pip install -r build-requirements.txt
-      - name: Install wheels
-        run: python -m pip install wheel
       - name: Get tag
         id: get_tag
         run: |
@@ -117,15 +112,15 @@ jobs:
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist --formats=zip
+        run: pip install -U build && python -m build --sdist
       - name: Add checksums
         working-directory: ./sdks/python/dist
         run: |
-          file=$(ls | grep .zip | head -n 1)
+          file=$(ls | grep .tar.gz | head -n 1)
           sha512sum $file > ${file}.sha512
       - name: Unzip source
         working-directory: ./sdks/python
-        run: unzip dist/$(ls dist | grep .zip | head -n 1)
+        run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
       - name: Rename source directory
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source
@@ -155,17 +150,17 @@ jobs:
       - name: Build RC source
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
-        run: python setup.py sdist --formats=zip
+        run: pip install -U build && pythom -m build --sdist
       - name: Add RC checksums
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python/dist
         run: |
-          file=$(ls | grep .zip | head -n 1)
+          file=$(ls | grep .tar.gz | head -n 1)
           sha512sum $file > ${file}.sha512
       - name: Unzip RC source
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
-        run: unzip dist/$(ls dist | grep .zip | head -n 1)
+        run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
       - name: Rename RC source directory
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
@@ -269,7 +264,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
@@ -295,7 +290,7 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy && pip install --upgrade setuptools
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
@@ -385,7 +380,7 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           submodules: recursive

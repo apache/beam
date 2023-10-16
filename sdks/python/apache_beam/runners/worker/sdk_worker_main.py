@@ -153,9 +153,7 @@ def create_harness(environment, dry_run=False):
   if dry_run:
     return
 
-  data_sampler = None
-  if 'enable_data_sampling' in experiments:
-    data_sampler = DataSampler()
+  data_sampler = DataSampler.create(sdk_pipeline_options)
 
   sdk_harness = SdkHarness(
       control_address=control_service_descriptor.url,
@@ -249,7 +247,7 @@ def _get_state_cache_size(experiments):
 
   Returns:
     an int indicating the maximum number of megabytes to cache.
-      Default is 0 MB
+      Default is 100 MB
   """
 
   for experiment in experiments:
@@ -258,7 +256,7 @@ def _get_state_cache_size(experiments):
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
                    experiment).group('state_cache_size')) << 20
-  return 0
+  return 100 << 20
 
 
 def _get_data_buffer_time_limit_ms(experiments):

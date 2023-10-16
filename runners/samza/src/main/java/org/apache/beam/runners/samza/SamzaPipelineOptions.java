@@ -173,4 +173,10 @@ public interface SamzaPipelineOptions extends PipelineOptions {
           new ThreadFactoryBuilder().setNameFormat("Process Element Thread-%d").build());
     }
   }
+
+  @Description("Enable/disable late data dropping in GroupByKey/Combine transforms")
+  @Default.Boolean(false)
+  boolean getDropLateData();
+
+  void setDropLateData(boolean dropLateData);
 }

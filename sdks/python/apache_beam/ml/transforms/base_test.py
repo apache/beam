@@ -27,6 +27,7 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -243,6 +244,30 @@ class BaseMLTransformTest(unittest.TestCase):
           actual_output_y,
           equal_to(expected_output_y, equals_fn=np.array_equal),
           label='actual_output_y')
+
+  def test_mltransform_with_counter(self):
+    transforms = [
+        tft.ComputeAndApplyVocabulary(columns=['y']),
+        tft.ScaleTo01(columns=['x'])
+    ]
+    data = [{'x': [1, 2, 3], 'y': ['a', 'b', 'c']}]
+    with beam.Pipeline() as p:
+      _ = (
+          p | beam.Create(data)
+          | base.MLTransform(
+              transforms=transforms,
+              write_artifact_location=self.artifact_location))
+    scale_to_01_counter = MetricsFilter().with_name('BeamML_ScaleTo01')
+    vocab_counter = MetricsFilter().with_name(
+        'BeamML_ComputeAndApplyVocabulary')
+    mltransform_counter = MetricsFilter().with_name('BeamML_MLTransform')
+    result = p.result
+    self.assertEqual(
+        result.metrics().query(scale_to_01_counter)['counters'][0].result, 1)
+    self.assertEqual(
+        result.metrics().query(vocab_counter)['counters'][0].result, 1)
+    self.assertEqual(
+        result.metrics().query(mltransform_counter)['counters'][0].result, 1)
 
 
 if __name__ == '__main__':

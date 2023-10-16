@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -56,6 +57,7 @@ public class PeriodicSequence
     public Instant first;
     public Instant last;
     public Long durationMilliSec;
+    public boolean catchUpToNow;
 
     public SequenceDefinition() {}
 
@@ -63,6 +65,17 @@ public class PeriodicSequence
       this.first = first;
       this.last = last;
       this.durationMilliSec = duration.getMillis();
+      this.catchUpToNow = true;
+    }
+
+    /** <b><i>catchUpToNow is experimental; no backwards-compatibility guarantees.</i></b> */
+    @Internal
+    public SequenceDefinition(
+        Instant first, Instant last, Duration duration, boolean catchUpToNow) {
+      this.first = first;
+      this.last = last;
+      this.durationMilliSec = duration.getMillis();
+      this.catchUpToNow = catchUpToNow;
     }
 
     @Override
@@ -223,11 +236,17 @@ public class PeriodicSequence
           estimator.setWatermark(output);
           nextOutput = nextOutput + interval;
         }
+        if (!srcElement.catchUpToNow) {
+          break;
+        }
       }
 
       ProcessContinuation continuation = ProcessContinuation.stop();
       if (claimSuccess) {
-        Duration offset = new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput));
+        Duration offset =
+            srcElement.catchUpToNow
+                ? new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput))
+                : new Duration(interval);
         continuation = ProcessContinuation.resume().withResumeDelay(offset);
       }
       return continuation;

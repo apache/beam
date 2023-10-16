@@ -139,6 +139,8 @@ var portableFilters = []string{
 }
 
 var prismFilters = []string{
+	// The prism runner does not yet support Java's CoGBK.
+	"TestXLang_CoGroupBy",
 	// The prism runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// The trigger and pane tests uses TestStream
@@ -318,7 +320,6 @@ func CheckFilters(t *testing.T) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
-
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner

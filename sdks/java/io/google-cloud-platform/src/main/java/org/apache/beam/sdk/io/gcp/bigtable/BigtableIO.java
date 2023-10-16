@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
@@ -688,14 +689,13 @@ public class BigtableIO {
     private void validateTableExists(
         BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
       if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
-        String tableId = checkNotNull(readOptions.getTableId().get());
+        ValueProvider<String> tableIdProvider = checkArgumentNotNull(readOptions.getTableId());
+        String tableId = checkArgumentNotNull(tableIdProvider.get());
         try {
-          checkArgument(
-              getServiceFactory().checkTableExists(config, options, tableId),
-              "Table %s does not exist",
-              tableId);
+          boolean exists = getServiceFactory().checkTableExists(config, options, tableId);
+          checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -1121,14 +1121,13 @@ public class BigtableIO {
     private void validateTableExists(
         BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
       if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
-        String tableId = checkNotNull(writeOptions.getTableId().get());
+        ValueProvider<String> tableIdProvider = checkArgumentNotNull(writeOptions.getTableId());
+        String tableId = checkArgumentNotNull(tableIdProvider.get());
         try {
-          checkArgument(
-              factory.checkTableExists(config, options, writeOptions.getTableId().get()),
-              "Table %s does not exist",
-              tableId);
+          boolean exists = factory.checkTableExists(config, options, tableId);
+          checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -1327,7 +1326,11 @@ public class BigtableIO {
       long maximumNumberOfSplits = 4000;
       long sizeEstimate = getEstimatedSizeBytes(options);
       desiredBundleSizeBytes =
-          Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
+          Math.max(
+              sizeEstimate / maximumNumberOfSplits,
+              // BoundedReadEvaluatorFactory may provide us with a desiredBundleSizeBytes of 0
+              // https://github.com/apache/beam/issues/28793
+              Math.max(1, desiredBundleSizeBytes));
 
       // Delegate to testable helper.
       List<BigtableSource> splits =
@@ -1985,6 +1988,24 @@ public class BigtableIO {
       return toBuilder()
           .setMetadataTableBigtableConfig(
               config.withAppProfileId(StaticValueProvider.of(appProfileId)))
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that overrides the config of data and/or
+     * admin client for streaming changes and for managing the metadata. For testing purposes only.
+     * Not intended for use.
+     *
+     * <p>Does not modify this object.
+     */
+    @VisibleForTesting
+    ReadChangeStream withBigtableClientOverride(BigtableClientOverride clientOverride) {
+      BigtableConfig config = getBigtableConfig();
+      BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setBigtableConfig(config.withBigtableClientOverride(clientOverride))
+          .setMetadataTableBigtableConfig(
+              metadataTableConfig.withBigtableClientOverride(clientOverride))
           .build();
     }
 

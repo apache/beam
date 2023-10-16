@@ -60,22 +60,8 @@ import org.slf4j.LoggerFactory;
 })
 public class BatchDataflowWorker implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(BatchDataflowWorker.class);
-
-  /** A client to get and update work items. */
-  private final WorkUnitClient workUnitClient;
-
-  /**
-   * Pipeline options, initially provided via the constructor and partially provided via each work
-   * work unit.
-   */
-  private final DataflowWorkerHarnessOptions options;
-
-  /** The factory to create {@link DataflowMapTaskExecutor DataflowMapTaskExecutors}. */
-  private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
-
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
-
   /**
    * Function which converts map tasks to their network representation for execution.
    *
@@ -90,30 +76,7 @@ public class BatchDataflowWorker implements Closeable {
       new FixMultiOutputInfosOnParDoInstructions(idGenerator)
           .andThen(new MapTaskToNetworkFunction(idGenerator));
 
-  /** Registry of known {@link ReaderFactory ReaderFactories}. */
-  private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
-
-  /** Registry of known {@link SinkFactory SinkFactories}. */
-  private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
-
-  /** A side input cache shared between all execution contexts. */
-  private final Cache<?, WeightedValue<?>> sideInputDataCache;
-
-  /**
-   * A side input cache shared between all execution contexts. This cache is meant to store values
-   * as weak references. This allows for insertion of logical keys with zero weight since they will
-   * only be scoped to the lifetime of the value being cached.
-   */
-  private final Cache<?, ?> sideInputWeakReferenceCache;
-
   private static final int DEFAULT_STATUS_PORT = 8081;
-
-  /** Status pages returning health of worker. */
-  private WorkerStatusPages statusPages;
-
-  /** Periodic sender of debug information to the debug capture service. */
-  private DebugCapture.Manager debugCaptureManager = null;
-
   /**
    * A weight in "bytes" for the overhead of a {@link Weighted} wrapper in the cache. It is just an
    * approximation so it is OK for it to be fairly arbitrary as long as it is nonzero.
@@ -121,33 +84,42 @@ public class BatchDataflowWorker implements Closeable {
   private static final int OVERHEAD_WEIGHT = 8;
 
   private static final long MEGABYTES = 1024 * 1024;
-
   /**
    * Limit the number of logical references. Weak references may never be cleared if the object is
    * long lived irrespective if the user actually is interested in the key lookup anymore.
    */
   private static final int MAX_LOGICAL_REFERENCES = 1_000_000;
-
   /** How many concurrent write operations to a cache should we allow. */
   private static final int CACHE_CONCURRENCY_LEVEL = 4 * Runtime.getRuntime().availableProcessors();
+  /** A client to get and update work items. */
+  private final WorkUnitClient workUnitClient;
+  /**
+   * Pipeline options, initially provided via the constructor and partially provided via each work
+   * work unit.
+   */
+  private final DataflowWorkerHarnessOptions options;
+  /** The factory to create {@link DataflowMapTaskExecutor DataflowMapTaskExecutors}. */
+  private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
+  /** Registry of known {@link ReaderFactory ReaderFactories}. */
+  private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
+  /** Registry of known {@link SinkFactory SinkFactories}. */
+  private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
+  /** A side input cache shared between all execution contexts. */
+  private final Cache<?, WeightedValue<?>> sideInputDataCache;
+  /**
+   * A side input cache shared between all execution contexts. This cache is meant to store values
+   * as weak references. This allows for insertion of logical keys with zero weight since they will
+   * only be scoped to the lifetime of the value being cached.
+   */
+  private final Cache<?, ?> sideInputWeakReferenceCache;
 
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
-
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
-
-  /**
-   * Returns a {@link BatchDataflowWorker} configured to execute user functions via intrinsic Java
-   * execution.
-   *
-   * <p>This is also known as the "legacy" or "pre-portability" approach. It is not yet deprecated
-   * as there is not a compatible path forward for users.
-   */
-  static BatchDataflowWorker forBatchIntrinsicWorkerHarness(
-      WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
-    return new BatchDataflowWorker(
-        workUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
-  }
+  /** Status pages returning health of worker. */
+  private final WorkerStatusPages statusPages;
+  /** Periodic sender of debug information to the debug capture service. */
+  private DebugCapture.Manager debugCaptureManager = null;
 
   protected BatchDataflowWorker(
       WorkUnitClient workUnitClient,
@@ -188,6 +160,19 @@ public class BatchDataflowWorker implements Closeable {
     ExecutionStateSampler.instance().start();
   }
 
+  /**
+   * Returns a {@link BatchDataflowWorker} configured to execute user functions via intrinsic Java
+   * execution.
+   *
+   * <p>This is also known as the "legacy" or "pre-portability" approach. It is not yet deprecated
+   * as there is not a compatible path forward for users.
+   */
+  static BatchDataflowWorker forBatchIntrinsicWorkerHarness(
+      WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
+    return new BatchDataflowWorker(
+        workUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
+  }
+
   private static DebugCapture.Manager initializeAndStartDebugCaptureManager(
       DataflowWorkerHarnessOptions options, Collection<Capturable> debugCapturePages) {
     DebugCapture.Manager result = new DebugCapture.Manager(options, debugCapturePages);
@@ -215,7 +200,7 @@ public class BatchDataflowWorker implements Closeable {
    */
   public boolean getAndPerformWork() throws IOException {
     while (true) {
-      Optional<WorkItem> work = workUnitClient.getWorkItem();
+      Optional<WorkItem> work = Optional.fromJavaUtil(workUnitClient.getWorkItem());
       if (work.isPresent()) {
         WorkItemStatusClient statusProvider = new WorkItemStatusClient(workUnitClient, work.get());
         return doWork(work.get(), statusProvider);
@@ -243,7 +228,7 @@ public class BatchDataflowWorker implements Closeable {
       } else if (workItem.getSourceOperationTask() != null) {
         stageName = workItem.getSourceOperationTask().getStageName();
       } else {
-        throw new RuntimeException("Unknown kind of work item: " + workItem.toString());
+        throw new RuntimeException("Unknown kind of work item: " + workItem);
       }
 
       CounterSet counterSet = new CounterSet();

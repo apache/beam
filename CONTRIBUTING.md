@@ -21,7 +21,7 @@
 
 There are many ways to contribute to Beam, just one of which is by contributing code.
 For a full list of ways to contribute and get plugged into Beam, see the
-[Beam Contribution Guide](https://beam.apache.org/contribute/get-started-contributing/)
+[Beam Contribution Guide](https://beam.apache.org/contribute/)
 
 ## Code Contributions
 

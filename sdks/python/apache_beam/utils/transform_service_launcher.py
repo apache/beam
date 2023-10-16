@@ -40,7 +40,7 @@ _EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:launcher:build'
 
 class TransformServiceLauncher(object):
   _DEFAULT_PROJECT_NAME = 'apache.beam.transform.service'
-  _DEFAULT_START_WAIT_TIMEOUT = 25000
+  _DEFAULT_START_WAIT_TIMEOUT = 50000
 
   _launchers = {}  # type: ignore
 
@@ -86,6 +86,7 @@ class TransformServiceLauncher(object):
 
     compose_file = os.path.join(temp_dir, 'docker-compose.yml')
 
+    # Creating the credentials volume.
     credentials_dir = os.path.join(temp_dir, 'credentials_dir')
     if not os.path.exists(credentials_dir):
       os.mkdir(credentials_dir)
@@ -111,10 +112,23 @@ class TransformServiceLauncher(object):
           'credentials file at the expected location %s.' %
           application_default_path_file)
 
+    # Creating the dependencies volume.
+    dependencies_dir = os.path.join(temp_dir, 'dependencies_dir')
+    if not os.path.exists(dependencies_dir):
+      os.mkdir(dependencies_dir)
+
     self._environmental_variables = {}
     self._environmental_variables['CREDENTIALS_VOLUME'] = credentials_dir
+    self._environmental_variables['DEPENDENCIES_VOLUME'] = dependencies_dir
     self._environmental_variables['TRANSFORM_SERVICE_PORT'] = str(port)
     self._environmental_variables['BEAM_VERSION'] = beam_version
+
+    # Setting an empty requirements file
+    requirements_file_name = os.path.join(dependencies_dir, 'requirements.txt')
+    with open(requirements_file_name, 'w') as _:
+      pass
+    self._environmental_variables['PYTHON_REQUIREMENTS_FILE_NAME'] = (
+        'requirements.txt')
 
     self._docker_compose_start_command_prefix = []
     self._docker_compose_start_command_prefix.append('docker-compose')

@@ -38,7 +38,7 @@ public class GroupByKeyTranslation {
 
   static class GroupByKeyTranslator implements TransformPayloadTranslator<GroupByKey<?, ?>> {
     @Override
-    public String getUrn(GroupByKey<?, ?> transform) {
+    public String getUrn() {
       return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
     }
 

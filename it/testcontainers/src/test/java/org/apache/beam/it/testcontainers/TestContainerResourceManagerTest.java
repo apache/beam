@@ -19,7 +19,9 @@ package org.apache.beam.it.testcontainers;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -54,6 +56,7 @@ public class TestContainerResourceManagerTest {
     testManagerBuilder =
         new TestContainerResourceManager.Builder<TestContainerResourceManagerImpl>(
             TEST_ID, null, null) {
+
           @Override
           public TestContainerResourceManagerImpl build() {
             return new TestContainerResourceManagerImpl(container, this);
@@ -64,6 +67,7 @@ public class TestContainerResourceManagerTest {
   @Test
   public void testCreateResourceManagerSetsCorrectDockerImageName() {
     when(container.getDockerImageName()).thenReturn("container-test:test");
+    doReturn(container).when(container).withLogConsumer(any());
 
     testManagerBuilder.setContainerImageName("container-test").setContainerImageTag("test").build();
 
@@ -74,6 +78,7 @@ public class TestContainerResourceManagerTest {
 
   @Test
   public void testCreateResourceManagerShouldStartContainerWhenNotUsingStaticResource() {
+    doReturn(container).when(container).withLogConsumer(any());
     testManagerBuilder.build();
 
     verify(container).start();
@@ -110,6 +115,7 @@ public class TestContainerResourceManagerTest {
 
   @Test
   public void testGetHostShouldReturnCorrectHostWhenManuallySet() {
+    doReturn(container).when(container).withLogConsumer(any());
     TestContainerResourceManager<?> testManager = testManagerBuilder.setHost(HOST).build();
 
     assertThat(testManager.getHost()).matches(HOST);
@@ -117,6 +123,7 @@ public class TestContainerResourceManagerTest {
 
   @Test
   public void testGetHostShouldReturnCorrectHostWhenHostNotSet() {
+    doReturn(container).when(container).withLogConsumer(any());
     String host = TestProperties.hostIp();
     TestContainerResourceManager<?> testManager = testManagerBuilder.build();
 
@@ -125,6 +132,7 @@ public class TestContainerResourceManagerTest {
 
   @Test
   public void testGetPortShouldReturnCorrectPortWhenManuallySet() {
+    doReturn(container).when(container).withLogConsumer(any());
     TestContainerResourceManager<?> testManager =
         testManagerBuilder.setHost(HOST).setPort(PORT).build();
 
@@ -135,6 +143,7 @@ public class TestContainerResourceManagerTest {
   public void testGetPortShouldReturnContainerHostWhenPortNotSet() {
     int mappedPort = 5000;
     when(container.getMappedPort(anyInt())).thenReturn(mappedPort);
+    doReturn(container).when(container).withLogConsumer(any());
 
     TestContainerResourceManager<?> testManager = testManagerBuilder.build();
 
@@ -143,6 +152,7 @@ public class TestContainerResourceManagerTest {
 
   @Test
   public void testCleanupAllShouldCloseContainerWhenNotUsingStaticResource() {
+    doReturn(container).when(container).withLogConsumer(any());
     TestContainerResourceManager<?> testManager = testManagerBuilder.build();
 
     testManager.cleanupAll();
@@ -152,6 +162,7 @@ public class TestContainerResourceManagerTest {
   @Test
   public void testCleanupAllShouldReturnFalseWhenContainerFailsToClose() {
     doThrow(RuntimeException.class).when(container).close();
+    doReturn(container).when(container).withLogConsumer(any());
 
     TestContainerResourceManager<?> testManager = testManagerBuilder.build();
 

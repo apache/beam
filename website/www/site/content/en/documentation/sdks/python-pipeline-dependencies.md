@@ -66,16 +66,17 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
     This command lists all packages that are installed on your machine, regardless of where they were installed from.
 
-2. Run your pipeline with the following command-line option:
+   1. Run your pipeline with the following command-line option:
 
-        --extra_package /path/to/package/package-name
+           --extra_package /path/to/package/package-name
 
-   where package-name is the package's tarball. If you have the `setup.py` for that
-   package then you can build the tarball with the following command:
+      where package-name is the package's tarball. You can build the package tarball using a command line tool called [build](https://setuptools.pypa.io/en/latest/userguide/quickstart.html#install-build).
 
-        python setup.py sdist
+            # Install build using pip
+            pip install --upgrade build
+            python -m build --sdist
 
-   See the [sdist documentation](https://docs.python.org/3/distutils/sourcedist.html) for more details on this command.
+      See the [build documentation](https://pypa-build.readthedocs.io/en/latest/index.html) for more details on this command.
 
 ## Multiple File Dependencies
 
@@ -150,7 +151,7 @@ To use the `cloudpickle` pickler, supply the `--pickle_library=cloudpickle` pipe
 By default, global imports, functions, and variables defined in the main pipeline module are not saved during the serialization of a Beam job.
 Thus, one might encounter an unexpected `NameError` when running a `DoFn` on any remote runner. To resolve this, supply the main session content with the pipeline by
 setting the `--save_main_session` pipeline option. This will load the pickled state of the global namespace onto the Dataflow workers (if using `DataflowRunner`).
-For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#how-do-i-handle-nameerrors) to set the main session on the `DataflowRunner`.
+For example, see [Handling NameErrors](https://cloud.google.com/dataflow/docs/guides/common-errors#name-error) to set the main session on the `DataflowRunner`.
 
 Managing the main session in Python SDK is only necessary when using `dill` pickler on any remote runner. Therefore, this issue will
 not occur in `DirectRunner`.
@@ -224,8 +225,9 @@ Use a constraint file to ensure that Beam dependencies in the launch environment
 
 The launch environment translates the  pipeline graph into a [runner-independent representation](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto). This process involves serializing (or pickling) the code of the transforms. The serialized content is deserialized on the workers. If the runtime worker environment significantly differs from the launch environment, runtime errors might occur for the following reasons:
 
+* The Apache Beam version  must match in the submission and runtime environments. Python major.minor versions must match as well. Otherwise, the pipeline might fail with errors like `Pipeline construction environment and pipeline runtime environment are not compatible`. On older SDK versions, the error might be reported as `SystemError: unknown opcode`.
+
 * Versions of `protobuf` in the submission and runtime environment need to match or be compatible.
-The Apache Beam version and the Python major.minor versions must match in the submission and runtime environments. Otherwise, the pipeline might fail with errors like `Pipeline construction environment and pipeline runtime environment are not compatible`. On older SDK versions, the error might be reported as `SystemError: unknown opcode`.
 
 * Libraries used in the pipeline code might need to match. If serialized pipeline code has references to functions or modules that aren’t available on the workers, the pipeline might fail with `ModuleNotFound` or `AttributeError` exceptions on the remote runner. If you encounter such errors, make sure that the affected libraries are available on the remote worker, and check whether you need to [save the main session](  https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pickling-and-managing-the-main-session).
 

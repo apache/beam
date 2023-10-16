@@ -29,9 +29,10 @@ on:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*']
+  workflow_dispatch:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 jobs:
   build:
@@ -39,12 +40,14 @@ jobs:
     name: Go Build
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+          cache-dependency-path: |
+             sdks/go.sum
       - name: Delete old coverage
         run: "cd sdks && rm -rf .coverage.txt || :"
       - name: Run coverage

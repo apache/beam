@@ -20,6 +20,7 @@ package org.apache.beam.it.jdbc;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
@@ -50,6 +51,7 @@ public class OracleResourceManagerTest<T extends OracleContainer> {
     when(container.withUsername(any())).thenReturn(container);
     when(container.withPassword(any())).thenReturn(container);
     when(container.withDatabaseName(anyString())).thenReturn(container);
+    doReturn(container).when(container).withLogConsumer(any());
     testManager = new OracleResourceManager(container, new OracleResourceManager.Builder(TEST_ID));
   }
 

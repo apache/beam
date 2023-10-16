@@ -21,7 +21,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.alibaba.fastjson.JSON;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -153,7 +153,7 @@ public class KafkaTableProviderIT {
             .location(buildLocation())
             .schema(TEST_TABLE_SCHEMA)
             .type("kafka")
-            .properties(JSON.parseObject(objectsProvider.getKafkaPropertiesString()))
+            .properties(TableUtils.parseProperties(objectsProvider.getKafkaPropertiesString()))
             .build();
     BeamKafkaTable kafkaTable = (BeamKafkaTable) new KafkaTableProvider().buildBeamSqlTable(table);
     produceSomeRecordsWithDelay(100, 20);

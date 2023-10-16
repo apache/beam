@@ -16,7 +16,7 @@
 name: Assign or close an issue
 on: 
   issue_comment:
-
+    types: [created]
 jobs:
   assign:
     permissions:

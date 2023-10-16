@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -45,10 +47,12 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPaylo
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -89,8 +93,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseForma
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Converter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -175,6 +181,65 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 }
               };
           builder.put(urn, transformProvider);
+        }
+      }
+
+      List<String> deprecatedTransformURNs = ImmutableList.of(READ_TRANSFORM_URN);
+      for (TransformPayloadTranslatorRegistrar registrar :
+          ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
+        for (Map.Entry<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+            entry : registrar.getTransformPayloadTranslators().entrySet()) {
+          @Initialized TransformPayloadTranslator translator = entry.getValue();
+          if (translator == null) {
+            continue;
+          }
+
+          String urn;
+          try {
+            urn = translator.getUrn();
+            if (urn == null) {
+              LOG.debug(
+                  "Could not load the TransformPayloadTranslator "
+                      + translator
+                      + " to the Expansion Service since it did not produce a unique URN.");
+              continue;
+            }
+          } catch (Exception e) {
+            LOG.info(
+                "Could not load the TransformPayloadTranslator "
+                    + translator
+                    + " to the Expansion Service.");
+            continue;
+          }
+
+          if (deprecatedTransformURNs.contains(urn)) {
+            continue;
+          }
+          final String finalUrn = urn;
+          TransformProvider transformProvider =
+              spec -> {
+                try {
+                  ExternalConfigurationPayload payload =
+                      ExternalConfigurationPayload.parseFrom(spec.getPayload());
+                  Row configRow =
+                      RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
+                          .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
+                  PTransform transformFromRow = translator.fromConfigRow(configRow);
+                  if (transformFromRow != null) {
+                    return transformFromRow;
+                  } else {
+                    throw new RuntimeException(
+                        String.format(
+                            "A transform cannot be initiated using the provided config row %s and the TransformPayloadTranslator %s",
+                            configRow, translator));
+                  }
+                } catch (Exception e) {
+                  throw new RuntimeException(
+                      String.format("Failed to build transform %s from spec %s", finalUrn, spec),
+                      e);
+                }
+              };
+          builder.put(finalUrn, transformProvider);
         }
       }
 

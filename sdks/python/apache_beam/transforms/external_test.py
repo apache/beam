@@ -202,16 +202,15 @@ class ExternalTransformTest(unittest.TestCase):
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_pipeline_generation_with_runner_overrides(self):
     pipeline_properties = [
-        '--dataflow_endpoint=ignored',
         '--job_name=test-job',
         '--project=test-project',
-        '--staging_location=ignored',
-        '--temp_location=/dev/null',
+        '--temp_location=gs://beam/tmp',
         '--no_auth',
         '--dry_run=True',
         '--sdk_location=container',
         '--runner=DataflowRunner',
-        '--streaming'
+        '--streaming',
+        '--region=us-central1'
     ]
 
     with beam.Pipeline(options=PipelineOptions(pipeline_properties)) as p:
@@ -529,15 +528,19 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
     kwargs = {"int_field": 0, "str_field": "str"}
 
     transform = beam.SchemaAwareExternalTransform(
-        identifier=identifier, expansion_service=expansion_service, **kwargs)
-    ordered_kwargs = transform._rearrange_kwargs(identifier)
+        identifier=identifier,
+        expansion_service=expansion_service,
+        rearrange_based_on_discovery=True,
+        **kwargs)
+    payload = transform._payload_builder.build()
+    ordered_fields = [f.name for f in payload.configuration_schema.fields]
 
     schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
         expansion_service, identifier)
     external_config_fields = schematransform_config.configuration_schema._fields
 
     self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
-    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_fields), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

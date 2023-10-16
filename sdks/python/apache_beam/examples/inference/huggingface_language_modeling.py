@@ -113,7 +113,14 @@ def parse_known_args(argv):
       '--model_class',
       dest='model_class',
       default=AutoModelForMaskedLM,
-      help="Name of the model from Hugging Face")
+      help='Name of the model from Hugging Face')
+  parser.add_argument(
+      '--large_model',
+      action='store_true',
+      dest='large_model',
+      default=False,
+      help='Set to true if your model is large enough to run into memory '
+      'pressure if you load multiple copies.')
   return parser.parse_known_args(argv)
 
 
@@ -139,7 +146,8 @@ def run(
       model_uri=known_args.model_name,
       model_class=known_args.model_class,
       framework='pt',
-      max_batch_size=1)
+      max_batch_size=1,
+      large_model=known_args.large_model)
   if not known_args.input:
     text = (
         pipeline | 'CreateSentences' >> beam.Create([
