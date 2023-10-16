@@ -1,8 +1,25 @@
-Run Go PostCommit Dataflow ARM
-Run Java_Examples_Dataflow_ARM PostCommit 8
-Run Java_Examples_Dataflow_ARM PostCommit 11
-Run Java_Examples_Dataflow_ARM PostCommit 17
-Run Python ValidatesContainer Dataflow ARM 3.8
-Run Python ValidatesContainer Dataflow ARM 3.9
-Run Python ValidatesContainer Dataflow ARM 3.10
-Run Python ValidatesContainer Dataflow ARM 3.11
+Run PythonDocs PreCommit,beam_PreCommit_PythonDocs
+Run PythonLint PreCommit,beam_PreCommit_PythonLint
+Run RAT PreCommit,beam_PreCommit_RAT
+Run Spotless PreCommit,beam_PreCommit_Spotless
+Run Website PreCommit,beam_PreCommit_Website
+Run Website_Stage_GCS PreCommit,beam_PreCommit_Website_Stage_GCS
+Run Whitespace PreCommit,beam_PreCommit_Whitespace
+Run PythonFormatter PreCommit,beam_PreCommit_PythonFormatter
+Run Kotlin_Examples PreCommit,beam_PreCommit_Kotlin_Examples
+Run Go PreCommit,beam_PreCommit_Go
+Run GoPortable PreCommit,beam_PreCommit_GoPortable
+Run GoPrism PreCommit,beam_PreCommit_GoPrism
+Run Typescript PreCommit,beam_PreCommit_Typescript
+Run CommunityMetrics PreCommit,beam_PreCommit_CommunityMetrics
+Run Java_Flink_Versions PreCommit,beam_PreCommit_Java_Flink_Versions
+Run It_Framework PreCommit,beam_PreCommit_ItFramework
+Run Java examples on Dataflow,beam_PostCommit_Java_Examples_Dataflow
+Run Go PostCommit Dataflow ARM,beam_PostCommit_Go_Dataflow_ARM
+Run Java_Examples_Dataflow_ARM PostCommit 8,beam_PostCommit_Java_Examples_Dataflow_ARM
+Run Java_Examples_Dataflow_ARM PostCommit 11,beam_PostCommit_Java_Examples_Dataflow_ARM
+Run Java_Examples_Dataflow_ARM PostCommit 17,beam_PostCommit_Java_Examples_Dataflow_ARM
+Run Python ValidatesContainer Dataflow ARM 3.8,beam_Python_ValidatesContainer_Dataflow_ARM
+Run Python ValidatesContainer Dataflow ARM 3.9,beam_Python_ValidatesContainer_Dataflow_ARM
+Run Python ValidatesContainer Dataflow ARM 3.10,beam_Python_ValidatesContainer_Dataflow_ARM
+Run Python ValidatesContainer Dataflow ARM 3.11,beam_Python_ValidatesContainer_Dataflow_ARM

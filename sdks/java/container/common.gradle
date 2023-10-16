@@ -63,6 +63,8 @@ task copyDockerfileDependencies(type: Copy) {
 
 task copySdkHarnessLauncher(type: Copy) {
     dependsOn ":sdks:java:container:downloadCloudProfilerAgent"
+    // if licenses are required, they should be present before this task run.
+    mustRunAfter ":sdks:java:container:pullLicenses"
 
     from configurations.sdkHarnessLauncher
     into "build/target"

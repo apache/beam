@@ -93,6 +93,7 @@ from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
+from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
@@ -283,6 +284,9 @@ class SchemaTranslation(object):
       row_type_constraint = row_type.RowTypeConstraint.from_user_type(type_)
       if row_type_constraint is not None:
         return self.typing_to_runner_api(row_type_constraint)
+
+    if isinstance(type_, typehints.TypeConstraint):
+      type_ = convert_to_typing_type(type_)
 
     # All concrete types (other than NamedTuple sub-classes) should map to
     # a supported primitive type.
