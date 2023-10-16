@@ -2963,12 +2963,9 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           project.exec {
             executable 'sh'
-            // TODO: https://github.com/apache/beam/issues/29022
-            // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
-            // until it is resolved on pip's side, don't use pip's cache.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip --no-cache-dir && " +
-                "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
+                "pip install --pre --retries 10 --upgrade pip && " +
+                "pip install --pre --retries 10 --upgrade tox"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
