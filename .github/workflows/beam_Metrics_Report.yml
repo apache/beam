@@ -54,9 +54,8 @@ jobs:
   beam_Metrics_Report:
     name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 120
+    timeout-minutes: 100
     strategy:
-      fail-fast: false
       matrix: 
         job_name: [beam_Metrics_Report]
         job_phrase: [Run Metrics Report]
@@ -95,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Metrics Report
-          path: ".test-infra/jenkins/metrics_report/beam-metrics_report.html"
+          path: "${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html"
       - name: Generate Date
         run: |
           date=$(date -u +"%Y-%m-%d")
@@ -108,8 +107,8 @@ jobs:
           secure: true
           username: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           password: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
-          subject: Beam Metrics Report  ${{ env.date }}
+          subject: Beam Metrics Report ${{ env.date }}
           to: dannymccormick@google.com #dev@beam.apache.org
           cc: vlado.djerek@akvelon.com
           from: gactions@beam.apache.org # <user@example.com>
-          html_body: file://.test-infra/jenkins/metrics_report/beam-metrics_report.html
+          html_body: file://${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html
