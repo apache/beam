@@ -106,18 +106,19 @@ public class HistogramData implements Serializable {
    * </pre>
    *
    * <pre>
-   * Example sacle/boundaries:
+   * Example scale/boundaries:
    * When scale=1, buckets 0,1,2...i have lowerbounds 0, 2^(1/2), 2^(2/2), ... 2^(i/2).
    * When scale=0, buckets 0,1,2...i have lowerbounds 0, 2, 2^2, ... 2^(i).
    * When scale=-1, buckets 0,1,2...i have lowerbounds 0, 4, 4^2, ... 4^(i).
    * </pre>
    *
-   * Scale parameter is similar to OpenTelemetry's notion of ExponentialHistogram.
-   * https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram. Bucket
-   * boundaries are modified to make them compatible with GCP's exponential histogram.
+   * Scale parameter is similar to <a
+   * href="https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram">
+   * OpenTelemetry's notion of ExponentialHistogram</a>. Bucket boundaries are modified to make them
+   * compatible with GCP's exponential histogram.
    *
    * @param numBuckets The number of buckets. Clipped so that the largest bucket's lower bound is
-   *     not greater than 2^31-1 (uint32 max).
+   *     not greater than 2^32-1 (uint32 max).
    * @param scale Integer between [-3, 3] which determines bucket boundaries. Larger values imply
    *     more fine grained buckets.
    * @return a new Histogram instance.
@@ -279,6 +280,15 @@ public class HistogramData implements Serializable {
   @AutoValue
   public abstract static class ExponentialBuckets implements BucketType {
 
+    // Minimum scale factor. Bucket boundaries can grow at a rate of at most: 2^(2^3)=2^8=256
+    private static final int MINIMUM_SCALE = -3;
+
+    // Minimum scale factor. Bucket boundaries must grow at a rate of at least 2^(2^-3)=2^(1/8)
+    private static final int MAXIMUM_SCALE = 3;
+
+    // Maximum number of buckets that is supported when 'scale' is zero.
+    private static final int ZERO_SCALE_MAX_NUM_BUCKETS = 32;
+
     public abstract double getBase();
 
     public abstract int getScale();
@@ -297,17 +307,18 @@ public class HistogramData implements Serializable {
     public abstract double getRangeTo();
 
     public static ExponentialBuckets of(int scale, int numBuckets) {
-      if (scale < -3) {
+      if (scale < MINIMUM_SCALE) {
         throw new IllegalArgumentException(
-            String.format("Scale should be greater than -3: %d", scale));
+            String.format("Scale should be greater than %d: %d", MINIMUM_SCALE, scale));
       }
 
-      if (scale > 3) {
-        throw new IllegalArgumentException(String.format("Scale should be less than 3: %d", scale));
+      if (scale > MAXIMUM_SCALE) {
+        throw new IllegalArgumentException(
+            String.format("Scale should be less than %d: %d", MAXIMUM_SCALE, scale));
       }
       if (numBuckets <= 0) {
         throw new IllegalArgumentException(
-            String.format("numBuckets should be greater than zero: %d", numBuckets));
+            String.format("numBuckets should be positive: %d", numBuckets));
       }
 
       double invLog2GrowthFactor = Math.pow(2, scale);
@@ -319,19 +330,26 @@ public class HistogramData implements Serializable {
     }
 
     /**
-     * numBuckets is clipped so that the largest bucket's lower bound is not greater than 2^31-1
-     * (uint32 max).
+     * numBuckets is clipped so that the largest bucket's lower bound is not greater than 2^32-1
+     * (uint32 max). This value is log_base(2^32) which simplifies as follows:
+     *
+     * <pre>
+     * log_base(2^32)
+     * = log_2(2^32)/log_2(base)
+     * = 32/(2**-scale)
+     * = 32*(2**scale)
+     * </pre>
      */
     private static int computeNumberOfBuckets(int scale, int inputNumBuckets) {
       if (scale == 0) {
         // When base=2 then the bucket at index 31 contains [2^31, 2^32).
-        return Math.min(32, inputNumBuckets);
+        return Math.min(ZERO_SCALE_MAX_NUM_BUCKETS, inputNumBuckets);
       } else if (scale > 0) {
-        // Need atmost 32*(2**scale) buckets.
-        return Math.min(inputNumBuckets, 32 << scale);
+        // When scale is positive 32*(2**scale) is equivalent to a right bit-shift.
+        return Math.min(inputNumBuckets, ZERO_SCALE_MAX_NUM_BUCKETS << scale);
       } else {
-        // Need atmost 32/(2**scale) buckets.
-        return Math.min(inputNumBuckets, 32 >> -scale);
+        // When scale is negative 32*(2**scale) is equivalent to a left bit-shift.
+        return Math.min(inputNumBuckets, ZERO_SCALE_MAX_NUM_BUCKETS >> -scale);
       }
     }
 
