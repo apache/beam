@@ -23,22 +23,40 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class CallShouldBackoffBasedOnRejectionProbability<ResponseT>
     implements CallShouldBackoff<ResponseT> {
 
-  // Default value recommended by https://sre.google/sre-book/handling-overload/
+  // Default multiplier value recommended by https://sre.google/sre-book/handling-overload/
   private static final double DEFAULT_MULTIPLIER = 2.0;
 
+  // The threshold is the value that pReject() must exceed in order to report a value() of true. If
+  // null, then the computation relies on a random value.
+  private @Nullable Double threshold;
+
+  // The multiplier drives the impact of accepts on the rejection probability. See <a
+  // https://sre.google/sre-book/handling-overload/ for details.
+  private final double multiplier;
+
+  // The number of total requests called to a remote API.
+  private double requests = 0;
+
+  // The number of total accepts called to a remote API.
+  private double accepts = 0;
+
+  /** Instantiate class with the {@link #DEFAULT_MULTIPLIER}. */
   CallShouldBackoffBasedOnRejectionProbability() {
     this(DEFAULT_MULTIPLIER);
   }
 
+  /**
+   * Instantiates class with the provided multiplier. The multiplier drives the impact of accepts on
+   * the rejection probability. See https://sre.google/sre-book/handling-overload/ for details.
+   */
   CallShouldBackoffBasedOnRejectionProbability(double multiplier) {
     this.multiplier = multiplier;
   }
 
-  private @Nullable Double threshold;
-  private final double multiplier;
-  private double requests = 0;
-  private double accepts = 0;
-
+  /**
+   * Setter for the threshold that overrides usage of a random value. The threshold is the value
+   * that pReject() must exceed in order to report a value() of true.
+   */
   CallShouldBackoffBasedOnRejectionProbability<ResponseT> setThreshold(double threshold) {
     this.threshold = threshold;
     return this;
