@@ -1700,7 +1700,7 @@ public class DatastoreV1 {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final ValueProvider<String> projectId;
-    private String databaseId;
+    private final ValueProvider<String> databaseId;
     private final @Nullable String localhost;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
@@ -1754,12 +1754,12 @@ public class DatastoreV1 {
     @VisibleForTesting
     DatastoreWriterFn(
         ValueProvider<String> projectId,
-        ValueProvider<String> databaseIdProvider,
+        ValueProvider<String> databaseId,
         @Nullable String localhost,
         V1DatastoreFactory datastoreFactory,
         WriteBatcher writeBatcher) {
       this.projectId = checkNotNull(projectId, "projectId");
-      this.databaseId = databaseIdProvider == null ? DEFAULT_DATABASE : databaseIdProvider.get();
+      this.databaseId = databaseId;
       this.localhost = localhost;
       this.datastoreFactory = datastoreFactory;
       this.writeBatcher = writeBatcher;
@@ -1767,9 +1767,10 @@ public class DatastoreV1 {
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
+      String databaseIdOrDefaultDatabase = databaseId == null ? DEFAULT_DATABASE : databaseId.get();
       datastore =
           datastoreFactory.getDatastore(
-              c.getPipelineOptions(), projectId.get(), databaseId, localhost);
+              c.getPipelineOptions(), projectId.get(), databaseIdOrDefaultDatabase, localhost);
       writeBatcher.start();
       if (adaptiveThrottler == null) {
         // Initialize throttler at first use, because it is not serializable.
@@ -1837,13 +1838,14 @@ public class DatastoreV1 {
 
       batchSize.update(mutations.size());
 
+      String databaseIdOrDefaultDatabase = databaseId == null ? DEFAULT_DATABASE : databaseId.get();
       while (true) {
         // Batch upsert entities.
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
         commitRequest.addAllMutations(mutations);
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         commitRequest.setProjectId(projectId.get());
-        commitRequest.setDatabaseId(databaseId);
+        commitRequest.setDatabaseId(databaseIdOrDefaultDatabase);
         long startTime = System.currentTimeMillis(), endTime;
 
         if (adaptiveThrottler.throttleRequest(startTime)) {
