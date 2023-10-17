@@ -176,12 +176,12 @@ def generate_protos_first():
 
       warnings.warn('Skipping proto generation as they are already generated.')
       return
-
     out = subprocess.run([
       sys.executable,
       os.path.join(cwd, 'gen_protos.py'),
       '--no-force'
     ], capture_output=True, check=True)
+    print(out.stdout)
   except subprocess.CalledProcessError as err:
     raise RuntimeError('Could not generate protos due to error: %s',
                        err.stderr)
