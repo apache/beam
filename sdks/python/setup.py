@@ -151,6 +151,11 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
 ]
 
+def find_by_ext(root_dir, ext):
+  for root, _, files in os.walk(root_dir):
+    for file in files:
+      if file.endswith(ext):
+        yield os.path.realpath(os.path.join(root, file))
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -158,6 +163,19 @@ def generate_protos_first():
     # Pyproject toml build happens in isolated environemnts. In those envs,
     # gen_protos is unable to get imported. so we run a subprocess call.
     cwd = os.path.abspath(os.path.dirname(__file__))
+    # when pip install <>.tar.gz gets called, if gen_protos.py is not available
+    # in the sdist,then the proto files would have already been generated. So we
+    # skip proto generation in that case.
+    if not os.path.exists(os.path.join(cwd, 'gen_protos.py')):
+      # make sure we already generated protos
+      pb2_files = list(find_by_ext(os.path.join(
+          cwd, 'apache_beam', 'portability', 'api'), '_pb2.py'))
+      if not pb2_files:
+        raise RuntimeError('protobuf files are not generated. '
+                           'Please generate pb2 files')
+
+      warnings.warn('Skipping proto generation as they are already generated.')
+      return
     out = subprocess.run([
       sys.executable,
       os.path.join(cwd, 'gen_protos.py'),
