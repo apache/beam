@@ -1928,6 +1928,10 @@ def validate_pipeline_graph(pipeline_proto):
             "Incompatible input coder %s and output coder %s for transform %s" %
             (transform_id, input_coder, output_coder))
 
+    if transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Unexpected number of inputs: %s" % transform_proto)
+
     for t in transform_proto.subtransforms:
       validate_transform(t)
 
