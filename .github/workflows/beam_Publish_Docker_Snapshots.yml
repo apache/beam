@@ -45,7 +45,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  docker_registry: gcr.io/apache-beam-testing/beam_portability
+  docker_registry: gcr.io
 
 jobs:
   beam_Publish_Docker_Snapshots:
@@ -84,7 +84,7 @@ jobs:
           gradle-command: :runners:spark:3:job-server:container:dockerPush
           arguments: |
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability \
-            -Pdocker-tag-list=latest
+            -Pdocker-tag-list=latest \
       - name: run Publish Docker Snapshots script for Flink
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
