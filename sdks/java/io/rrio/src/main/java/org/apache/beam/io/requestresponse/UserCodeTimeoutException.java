@@ -15,20 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponseio;
+package org.apache.beam.io.requestresponse;
 
-import java.io.Serializable;
+/** An extension of {@link UserCodeQuotaException} to specifically signal a user code timeout. */
+public class UserCodeTimeoutException extends UserCodeExecutionException {
 
-/**
- * Provided by user and called within {@link org.apache.beam.sdk.transforms.DoFn.Setup} and @{link
- * org.apache.beam.sdk.transforms.DoFn.Teardown} lifecycle methods of {@link Call}'s {@link
- * org.apache.beam.sdk.transforms.DoFn}.
- */
-public interface SetupTeardown extends Serializable {
+  public UserCodeTimeoutException(String message) {
+    super(message);
+  }
 
-  /** Called during the {@link org.apache.beam.sdk.transforms.DoFn}'s setup lifecycle method. */
-  void setup() throws UserCodeExecutionException;
+  public UserCodeTimeoutException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
-  /** Called during the {@link org.apache.beam.sdk.transforms.DoFn}'s teardown lifecycle method. */
-  void teardown() throws UserCodeExecutionException;
+  public UserCodeTimeoutException(Throwable cause) {
+    super(cause);
+  }
+
+  public UserCodeTimeoutException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    super(message, cause, enableSuppression, writableStackTrace);
+  }
 }

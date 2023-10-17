@@ -15,19 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponseio;
+package org.apache.beam.io.requestresponse;
 
-import java.io.Serializable;
+/** Base {@link Exception} for signaling errors in user custom code. */
+public class UserCodeExecutionException extends Exception {
+  public UserCodeExecutionException(String message) {
+    super(message);
+  }
 
-/** Informs whether a call to an API should backoff. */
-public interface CallShouldBackoff<ResponseT> extends Serializable {
+  public UserCodeExecutionException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
-  /** Update the state of whether to backoff using information about the exception. */
-  void update(UserCodeExecutionException exception);
+  public UserCodeExecutionException(Throwable cause) {
+    super(cause);
+  }
 
-  /** Update the state of whether to backoff using information about the response. */
-  void update(ResponseT response);
-
-  /** Report whether to backoff. */
-  boolean value();
+  public UserCodeExecutionException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    super(message, cause, enableSuppression, writableStackTrace);
+  }
 }
