@@ -156,12 +156,6 @@ applyJavaNature(
 /******************************************************************************/
 // Configure the worker root project
 
-test {
-    filter {
-        includeTestsMatching "*testOutstandingBytesMetric*"
-    }
-}
-
 configurations {
     sourceFile
 

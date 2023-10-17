@@ -338,14 +338,18 @@ public class StreamingDataflowWorker {
             StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName());
     this.activeThreads =
         pendingCumulativeCounters.intSum(StreamingSystemCounterNames.ACTIVE_THREADS.counterName());
-    this.outstandingBytes = 
-        pendingCumulativeCounters.longSum(StreamingSystemCounterNames.OUTSTANDING_BYTES.counterName());
-    this.maxOutstandingBytes = 
-        pendingCumulativeCounters.longSum(StreamingSystemCounterNames.MAX_OUTSTANDING_BYTES.counterName());
-    this.outstandingBundles = 
-        pendingCumulativeCounters.longSum(StreamingSystemCounterNames.OUTSTANDING_BUNDLES.counterName());
-    this.maxOutstandingBundles = 
-        pendingCumulativeCounters.longSum(StreamingSystemCounterNames.MAX_OUTSTANDING_BUNDLES.counterName());
+    this.outstandingBytes =
+        pendingCumulativeCounters.longSum(
+            StreamingSystemCounterNames.OUTSTANDING_BYTES.counterName());
+    this.maxOutstandingBytes =
+        pendingCumulativeCounters.longSum(
+            StreamingSystemCounterNames.MAX_OUTSTANDING_BYTES.counterName());
+    this.outstandingBundles =
+        pendingCumulativeCounters.longSum(
+            StreamingSystemCounterNames.OUTSTANDING_BUNDLES.counterName());
+    this.maxOutstandingBundles =
+        pendingCumulativeCounters.longSum(
+            StreamingSystemCounterNames.MAX_OUTSTANDING_BUNDLES.counterName());
     this.totalAllocatedThreads =
         pendingCumulativeCounters.intSum(
             StreamingSystemCounterNames.TOTAL_ALLOCATED_THREADS.counterName());
