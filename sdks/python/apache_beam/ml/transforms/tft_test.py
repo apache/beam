@@ -78,12 +78,12 @@ class ScaleZScoreTest(unittest.TestCase):
               write_artifact_location=self.artifact_location).with_transform(
                   tft.ScaleToZScore(columns=['x'])))
       expected_data = [
-          np.array([-1.4638501], dtype=np.float32),
-          np.array([-0.8783101], dtype=np.float32),
-          np.array([-0.2927701], dtype=np.float32),
-          np.array([0.2927701], dtype=np.float32),
-          np.array([0.8783101], dtype=np.float32),
-          np.array([1.4638501], dtype=np.float32),
+          np.array([-1.46385], dtype=np.float32),
+          np.array([-0.87831], dtype=np.float32),
+          np.array([-0.29277], dtype=np.float32),
+          np.array([0.29277], dtype=np.float32),
+          np.array([0.87831], dtype=np.float32),
+          np.array([1.46385], dtype=np.float32),
       ]
 
       actual_data = (result | beam.Map(lambda x: x.x))
