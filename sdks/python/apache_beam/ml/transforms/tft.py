@@ -577,6 +577,10 @@ class BagOfWords(TFTOperation):
         data, self.ngram_range, self.ngrams_separator, self.name)
     return {output_col_name: output}
 
+  def get_artifacts(self, data: tf.SparseTensor,
+                    col_name: str) -> Dict[str, tf.Tensor]:
+    return self.compute_word_count_fn(data, col_name)
+
 
 def count_unqiue_words(data: tf.SparseTensor,
                        output_col_name: str) -> Dict[str, tf.Tensor]:

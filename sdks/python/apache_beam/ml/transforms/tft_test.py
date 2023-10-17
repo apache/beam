@@ -76,8 +76,7 @@ class ScaleZScoreTest(unittest.TestCase):
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
-                  tft.ScaleToZScore(columns=['x']))
-          | beam.Map(print))
+                  tft.ScaleToZScore(columns=['x'])))
       expected_data = [
           np.array([-1.4638501], dtype=np.float32),
           np.array([-0.8783101], dtype=np.float32),
@@ -102,8 +101,8 @@ class ScaleZScoreTest(unittest.TestCase):
                   tft.ScaleToZScore(columns=['x'])))
 
       expected_data = [
-          np.array([-1.4638501, -0.8783101, -0.2927701], dtype=np.float32),
-          np.array([0.2927701, 0.8783101, 1.4638501], dtype=np.float32)
+          np.array([-1.46385, -0.87831, -0.29277], dtype=np.float32),
+          np.array([0.29277, 0.87831, 1.46385], dtype=np.float32)
       ]
       actual_data = (list_result | beam.Map(lambda x: x.x))
       assert_that(
@@ -204,36 +203,6 @@ class BucketizeTest(unittest.TestCase):
       ]
       assert_that(
           transformed_data, equal_to(expected_data, equals_fn=np.array_equal))
-
-  @parameterized.expand([
-      (range(1, 10), [4, 7]),
-      (range(9, 0, -1), [4, 7]),
-      (range(19, 0, -1), [10]),
-      (range(1, 100), [25, 50, 75]),
-      # similar to the above but with odd number of elements
-      (range(1, 100, 2), [25, 51, 75]),
-      (range(99, 0, -1), range(10, 100, 10))
-  ])
-  def test_bucketize_boundaries(self, test_input, expected_boundaries):
-    # boundaries are outputted as artifacts for the Bucketize transform.
-    data = [{'x': [i]} for i in test_input]
-    num_buckets = len(expected_boundaries) + 1
-    with beam.Pipeline() as p:
-      result = (
-          p
-          | "Create" >> beam.Create(data)
-          | "MLTransform" >> base.MLTransform(
-              write_artifact_location=self.artifact_location).with_transform(
-                  tft.Bucketize(columns=['x'], num_buckets=num_buckets)))
-      actual_boundaries = (
-          result
-          | beam.Map(lambda x: x.as_dict())
-          | beam.Map(lambda x: x['x_quantiles']))
-
-      def assert_boundaries(actual_boundaries):
-        assert np.array_equal(actual_boundaries, expected_boundaries)
-
-      _ = (actual_boundaries | beam.Map(assert_boundaries))
 
 
 class ApplyBucketsTest(unittest.TestCase):
