@@ -2794,6 +2794,79 @@ public class StreamingDataflowWorkerTest {
     executor.shutdown();
   }
 
+  volatile boolean stop = false;
+
+  @Test
+  public void testActiveThreadMetric() throws Exception {
+    int maxThreads = 5;
+    int threadExpirationSec = 60;
+    // setting up actual implementation of executor instead of mocking to keep track of
+    // active thread count.
+    BoundedQueueExecutor executor =
+        new BoundedQueueExecutor(
+            maxThreads,
+            threadExpirationSec,
+            TimeUnit.SECONDS,
+            maxThreads,
+            10000000,
+            new ThreadFactoryBuilder()
+                .setNameFormat("DataflowWorkUnits-%d")
+                .setDaemon(true)
+                .build());
+
+    ComputationState computationState =
+        new ComputationState(
+            "computation",
+            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            executor,
+            ImmutableMap.of(),
+            null);
+
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+
+    Consumer<Work> sleepProcessWorkFn =
+        unused -> {
+          synchronized (this) {
+            this.notify();
+          }
+          int count = 0;
+          while (!stop) {
+            count += 1;
+          }
+        };
+
+    Work m2 = createMockWork(2, sleepProcessWorkFn);
+
+    Work m3 = createMockWork(3, sleepProcessWorkFn);
+
+    Work m4 = createMockWork(4, sleepProcessWorkFn);
+    assertEquals(0, executor.activeCount());
+
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    synchronized (this) {
+      executor.execute(m2, m2.getWorkItem().getSerializedSize());
+      this.wait();
+      // Seems current executor executes the initial work item twice
+      this.wait();
+    }
+    assertEquals(2, executor.activeCount());
+
+    assertTrue(computationState.activateWork(key1Shard1, m3));
+    assertTrue(computationState.activateWork(key1Shard1, m4));
+    synchronized (this) {
+      executor.execute(m3, m3.getWorkItem().getSerializedSize());
+      this.wait();
+    }
+    assertEquals(3, executor.activeCount());
+    synchronized (this) {
+      executor.execute(m4, m4.getWorkItem().getSerializedSize());
+      this.wait();
+    }
+    assertEquals(4, executor.activeCount());
+    stop = true;
+    executor.shutdown();
+  }
+
   @Test
   public void testActiveThreadMetric() throws Exception {
     int maxThreads = 5;

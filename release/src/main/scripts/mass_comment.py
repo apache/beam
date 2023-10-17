@@ -135,7 +135,8 @@ def getGithubActionsTriggerCommands(dirname):
     comments = [line.strip() for line in file if len(line.strip()) > 0]
 
   for i in range(len(comments)):
-    gha_trigger_commands.append(comments[i])
+    parts = comments[i].split(',')
+    gha_trigger_commands.append((parts[0], parts[1]))
 
   return gha_trigger_commands
 

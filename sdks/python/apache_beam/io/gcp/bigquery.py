@@ -1310,7 +1310,7 @@ class _ReadReadRowsResponsesWithFastAvro():
   def __next__(self):
     try:
       return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
-    except StopIteration:
+    except (StopIteration, EOFError):
       self.read_rows_response = next(self.read_rows_iterator, None)
       if self.read_rows_response is not None:
         self.bytes_reader = io.BytesIO(

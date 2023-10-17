@@ -106,11 +106,16 @@ public class FileLoadsStreamingIT {
 
   private final Random randomGenerator = new Random();
 
+  // used when test suite specifies a particular GCP location for BigQuery operations
+  private static String bigQueryLocation;
+
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
     cleanUp();
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    bigQueryLocation =
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation();
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, bigQueryLocation);
   }
 
   @AfterClass
@@ -293,7 +298,7 @@ public class FileLoadsStreamingIT {
       throws IOException, InterruptedException {
     List<TableRow> actualTableRows =
         BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false);
+            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false, bigQueryLocation);
 
     Schema rowSchema = BigQueryUtils.fromTableSchema(schema);
     List<Row> actualBeamRows =

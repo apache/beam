@@ -67,6 +67,10 @@
     'WriteToCsv': 'WriteToCsv'
     'ReadFromJson': 'ReadFromJson'
     'WriteToJson': 'WriteToJson'
+    'ReadFromParquet': 'ReadFromParquet'
+    'WriteToParquet': 'WriteToParquet'
+    'ReadFromAvro': 'ReadFromAvro'
+    'WriteToAvro': 'WriteToAvro'
   config:
     mappings:
       'ReadFromCsv':
@@ -77,6 +81,19 @@
         path: 'path'
       'WriteToJson':
         path: 'path'
+      'ReadFromParquet':
+        path: 'file_pattern'
+      'WriteToParquet':
+        path: 'file_path_prefix'
+      'ReadFromAvro':
+        path: 'file_pattern'
+      'WriteToAvro':
+        path: 'file_path_prefix'
+    defaults:
+      'ReadFromParquet':
+        as_rows: True
+      'ReadFromAvro':
+        as_rows: True
     underlying_provider:
       type: python
       transforms:
@@ -84,3 +101,14 @@
         'WriteToCsv': 'apache_beam.io.WriteToCsv'
         'ReadFromJson': 'apache_beam.io.ReadFromJson'
         'WriteToJson': 'apache_beam.io.WriteToJson'
+        'ReadFromParquet': 'apache_beam.io.ReadFromParquet'
+        'WriteToParquet': 'apache_beam.io.WriteToParquet'
+        'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
+        'WriteToAvro': 'apache_beam.io.WriteToAvro'
+
+- type: beamJar
+  transforms:
+    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
+    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'

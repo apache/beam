@@ -23,22 +23,28 @@ Note that in the case that they overlap with other (likely Java)
 implementations of the same transforms, the configs must be kept in sync.
 """
 
+import io
 import os
 from typing import Any
+from typing import Callable
 from typing import Iterable
 from typing import List
 from typing import Mapping
 from typing import Optional
+from typing import Tuple
 
+import fastavro
 import yaml
 
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import avroio
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 
@@ -131,18 +137,32 @@ def write_to_bigquery(
   return WriteToBigQueryHandlingErrors()
 
 
-def _create_parser(format, schema):
+def _create_parser(
+    format,
+    schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
   if format == 'raw':
     if schema:
       raise ValueError('raw format does not take a schema')
     return (
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
+  elif format == 'json':
+    beam_schema = json_utils.json_schema_to_beam_schema(schema)
+    return beam_schema, json_utils.json_parser(beam_schema)
+  elif format == 'avro':
+    beam_schema = avroio.avro_schema_to_beam_schema(schema)
+    covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
+    return (
+        beam_schema,
+        lambda record: covert_to_row(
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))
   else:
     raise ValueError(f'Unknown format: {format}')
 
 
-def _create_formatter(format, schema, beam_schema):
+def _create_formatter(
+    format, schema: Any,
+    beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
   if format == 'raw':
     if schema:
       raise ValueError('raw format does not take a schema')
@@ -150,6 +170,19 @@ def _create_formatter(format, schema, beam_schema):
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
     return lambda row: getattr(row, field_names[0])
+  elif format == 'json':
+    return json_utils.json_formater(beam_schema)
+  elif format == 'avro':
+    avro_schema = schema or avroio.beam_schema_to_avro_schema(beam_schema)
+    from_row = avroio.beam_row_to_avro_dict(avro_schema, beam_schema)
+
+    def formatter(row):
+      buffer = io.BytesIO()
+      fastavro.schemaless_writer(buffer, avro_schema, from_row(row))
+      buffer.seek(0)
+      return buffer.read()
+
+    return formatter
   else:
     raise ValueError(f'Unknown format: {format}')
 

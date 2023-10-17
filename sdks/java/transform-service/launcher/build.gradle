@@ -45,6 +45,9 @@ dependencies {
     shadow library.java.args4j
     shadow library.java.error_prone_annotations
     permitUnusedDeclared(library.java.error_prone_annotations)
+    testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+    testImplementation project(path: ":sdks:java:core")
 }
 
 sourceSets {

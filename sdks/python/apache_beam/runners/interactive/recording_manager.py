@@ -448,11 +448,6 @@ class RecordingManager:
       # incomplete.
       self._clear()
 
-      warnings.filterwarnings(
-          'ignore',
-          'options is deprecated since First stable release. References to '
-          '<pipeline>.options will not be supported',
-          category=DeprecationWarning)
       cache_path = ie.current_env().options.cache_root
       is_remote_run = cache_path and ie.current_env(
       ).options.cache_root.startswith('gs://')
