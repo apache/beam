@@ -209,7 +209,7 @@ public class JdbcReadSchemaTransformProvider
       public abstract Builder setFetchSize(Short value);
 
       public abstract Builder setOutputParallelization(Boolean value);
-      
+
       public abstract Builder setDriverJars(String value);
 
       public abstract JdbcReadSchemaTransformConfiguration build();

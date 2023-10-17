@@ -33,6 +33,10 @@ dependencies {
   implementation library.java.joda_time
   implementation "org.apache.commons:commons-pool2:2.11.1"
   implementation library.java.slf4j_api
+  implementation 'org.postgresql:postgresql:42.6.0'
+  implementation 'mysql:mysql-connector-java:8.0.22'
+  implementation 'com.oracle.database.jdbc:ojdbc8:23.2.0.0'
+  implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
   testImplementation "org.apache.derby:derby:10.14.2.0"
   testImplementation "org.apache.derby:derbyclient:10.14.2.0"
   testImplementation "org.apache.derby:derbynet:10.14.2.0"

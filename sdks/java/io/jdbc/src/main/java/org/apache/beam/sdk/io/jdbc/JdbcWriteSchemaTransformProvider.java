@@ -19,6 +19,10 @@ package org.apache.beam.sdk.io.jdbc;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -34,11 +38,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
-
-import javax.annotation.Nullable;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * An implementation of {@link org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider} for
@@ -132,9 +131,12 @@ public class JdbcWriteSchemaTransformProvider
       if (autosharding != null && autosharding) {
         writeRows = writeRows.withAutoSharding();
       }
-      PCollection<Row> postWrite = input.get("input").apply(writeRows)
-          .apply("post-write", ParDo.of(new NoOutputDoFn<>()))
-          .setRowSchema(Schema.of());
+      PCollection<Row> postWrite =
+          input
+              .get("input")
+              .apply(writeRows)
+              .apply("post-write", ParDo.of(new NoOutputDoFn<>()))
+              .setRowSchema(Schema.of());
       return PCollectionRowTuple.of("post_write", postWrite);
     }
   }

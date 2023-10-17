@@ -118,8 +118,6 @@ def _expand_python_mapping_func(
         for name in original_fields if name in expression
     ] + ['  return (' + expression + ')'])
 
-    return python_callable.PythonCallableWithSource(source)
-
   else:
     source = callable
 
