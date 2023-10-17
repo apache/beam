@@ -16,8 +16,6 @@
 name: LoadTests Java CoGBK Dataflow V2 Streaming JavaVersions
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 10 * * *'
   workflow_dispatch:

@@ -16,8 +16,6 @@
 name: LoadTests Java Combine Smoke
 
 on:
-  # issue_comment:
-  #   types: [created]
   # schedule:
   #   - cron: '1 1 * * *'
   workflow_dispatch:

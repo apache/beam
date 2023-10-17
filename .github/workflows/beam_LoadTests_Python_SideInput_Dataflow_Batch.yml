@@ -16,8 +16,6 @@
 name: LoadTests Python SideInput Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 13 * * *'
   workflow_dispatch:

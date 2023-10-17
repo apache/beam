@@ -16,8 +16,6 @@
 name: LoadTests Java CoGBK SparkStructuredStreaming Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 11 * * *'
   workflow_dispatch:
