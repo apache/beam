@@ -1354,7 +1354,8 @@ After the release, try updating the BOM to the latest version.
 To do so, create a draft PR and run test suites following the instructions at
 https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md.
 
-If there are no test failures, request review and merge the PR as normal.
+Triage the test failures and rerun any tests that seem potentially unrelated to the upgrade.
+If there are no test failures due to the BOM upgrade, request review and merge the PR as normal.
 
 If there are test failures due to the BOM upgrade, email the dev list and ask for a volunteer to take the update forward.
 It is not your responsibility to fix the BOM issues or to find a volunteer (though you are welcome to take it forward).
