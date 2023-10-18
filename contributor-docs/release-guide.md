@@ -261,16 +261,6 @@ for each release.
 See if https://go.dev/doc/devel/release has a newer release. Update throughout
 Beam. See example at https://github.com/apache/beam/pull/27900/files
 
-#### Update the Java BOM
-
-Google releases a BOM that pins compatible versions of their Java libraries.
-Ideally, this update happens as far in advance of the release as possible, such
-as just after a release. But if that was not done, consider doing it before
-cutting the release branch.
-
-To do so, follow instructions at
-https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md.
-
 ### Cut the release branch
 
 > **Note**
@@ -1355,6 +1345,41 @@ Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wik
 ## Post-Release Tasks
 
 At the end of the release, go to the GitHub milestones page and mark the recently released version as closed.
+
+#### Update the Java BOM
+
+Google releases a BOM that pins compatible versions of their Java libraries.
+After the release, try updating the BOM to the latest version.
+
+To do so, create a draft PR and run test suites following the instructions at
+https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md.
+
+If there are no test failures, request review and merge the PR as normal.
+
+If there are test failures due to the BOM upgrade, email the dev list and ask for a volunteer to take the update forward.
+It is not your responsibility to fix the BOM issues or to find a volunteer (though you are welcome to take it forward).
+If nobody volunteers, that is OK and this issue can roll forward to the next release.
+You can optionally use the following template for your email to the dev list:
+
+```
+From: Release Manager
+To: dev@beam.apache.org
+Subject: Java BOM Update X.Y.Z
+
+Hi everyone,
+
+Following the instructions in https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md#post-release-tasks
+I've attempted to update the Java Google BOM and have run into test issues caused by the upgrade [1].
+Since the Java Google BOM update is best effort for a release manager, I'm handing this piece off to the community.
+If you would like to volunteer to help, you can get started by following the instructions in
+https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md#google-cloud-related-dependency-upgrades
+otherwise this will roll over to the next release.
+
+Thanks,
+Release Manager
+
+[1] https://github.com/apache/beam/pull/123
+```
 
 ### Update Beam Playground
 
