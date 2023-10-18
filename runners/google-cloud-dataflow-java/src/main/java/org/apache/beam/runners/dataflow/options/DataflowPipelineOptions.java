@@ -113,7 +113,7 @@ public interface DataflowPipelineOptions
   @Description(
       "Service options are set by the user and configure the service. This "
           + "decouples service side feature availability from the Apache Beam release cycle. "
-          + "For more information, see "
+          + "For a list of service options, see "
           + "https://cloud.google.com/dataflow/docs/reference/service-options "
           + "in the Dataflow documentation.")
   List<String> getDataflowServiceOptions();
