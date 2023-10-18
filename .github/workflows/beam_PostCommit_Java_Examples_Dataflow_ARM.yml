@@ -63,7 +63,7 @@ permissions:
 
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.java_version}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
@@ -82,9 +82,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.java_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{matrix.java_version}})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

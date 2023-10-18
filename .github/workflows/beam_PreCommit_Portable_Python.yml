@@ -76,7 +76,7 @@ env:
 
 jobs:
   beam_PreCommit_Portable_Python:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     timeout-minutes: 120
     runs-on: ['self-hosted', ubuntu-20.04, main]
     strategy:
@@ -95,7 +95,7 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}} ${{matrix.python_version}}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Install Java
@@ -109,7 +109,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: |
-            ${{matrix.python_version}}
+            ${{ matrix.python_version }}
             3.8
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean

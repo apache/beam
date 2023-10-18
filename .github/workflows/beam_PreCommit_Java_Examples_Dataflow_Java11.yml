@@ -72,7 +72,7 @@ permissions:
 
 jobs:
   beam_PreCommit_Java_Examples_Dataflow_Java11:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -90,9 +90,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{matrix.job_phrase}})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

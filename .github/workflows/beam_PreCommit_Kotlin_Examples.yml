@@ -72,7 +72,7 @@ env:
 
 jobs:
   beam_PreCommit_Kotlin_Examples:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     timeout-minutes: 120
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
@@ -90,7 +90,7 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Install Java
