@@ -1,7 +1,10 @@
 {
-  "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "java": "robertwb",
+    "io": "chamikaramj"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
