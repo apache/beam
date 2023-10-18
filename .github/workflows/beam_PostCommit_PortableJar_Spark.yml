@@ -81,6 +81,7 @@ jobs:
             -PpythonVersion=3.8 \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"
