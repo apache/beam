@@ -16,7 +16,7 @@
 
 --region=us-central1
 --machine_type=n1-standard-2
---num_workers=75
+--num_workers=30
 --disk_size_gb=50
 --autoscaling_algorithm=NONE
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
