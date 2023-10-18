@@ -15,25 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponseio;
+package org.apache.beam.io.requestresponse;
 
-/** An extension of {@link UserCodeQuotaException} to specifically signal a user code timeout. */
-public class UserCodeTimeoutException extends UserCodeExecutionException {
+import java.io.Serializable;
 
-  public UserCodeTimeoutException(String message) {
-    super(message);
-  }
+/** Informs whether a call to an API should backoff. */
+public interface CallShouldBackoff<ResponseT> extends Serializable {
 
-  public UserCodeTimeoutException(String message, Throwable cause) {
-    super(message, cause);
-  }
+  /** Update the state of whether to backoff using information about the exception. */
+  void update(UserCodeExecutionException exception);
 
-  public UserCodeTimeoutException(Throwable cause) {
-    super(cause);
-  }
+  /** Update the state of whether to backoff using information about the response. */
+  void update(ResponseT response);
 
-  public UserCodeTimeoutException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
+  /** Report whether to backoff. */
+  boolean value();
 }

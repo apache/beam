@@ -15,24 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponseio;
+package org.apache.beam.io.requestresponse;
 
-/** Base {@link Exception} for signaling errors in user custom code. */
-public class UserCodeExecutionException extends Exception {
-  public UserCodeExecutionException(String message) {
-    super(message);
-  }
+import java.io.Serializable;
 
-  public UserCodeExecutionException(String message, Throwable cause) {
-    super(message, cause);
-  }
+/**
+ * Provided by user and called within {@link org.apache.beam.sdk.transforms.DoFn.Setup} and @{link
+ * org.apache.beam.sdk.transforms.DoFn.Teardown} lifecycle methods of {@link Call}'s {@link
+ * org.apache.beam.sdk.transforms.DoFn}.
+ */
+public interface SetupTeardown extends Serializable {
 
-  public UserCodeExecutionException(Throwable cause) {
-    super(cause);
-  }
+  /** Called during the {@link org.apache.beam.sdk.transforms.DoFn}'s setup lifecycle method. */
+  void setup() throws UserCodeExecutionException;
 
-  public UserCodeExecutionException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
+  /** Called during the {@link org.apache.beam.sdk.transforms.DoFn}'s teardown lifecycle method. */
+  void teardown() throws UserCodeExecutionException;
 }

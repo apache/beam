@@ -15,13 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponseio;
 
-import java.io.Serializable;
-
-/** {@link Caller} interfaces user custom code intended for API calls. */
-public interface Caller<RequestT, ResponseT> extends Serializable {
-
-  /** Calls a Web API with the {@link RequestT} and returns a {@link ResponseT}. */
-  ResponseT call(RequestT request) throws UserCodeExecutionException;
-}
+/** Package provides Beam I/O transform support for safely reading from and writing to Web APIs. */
+package org.apache.beam.io.requestresponse;

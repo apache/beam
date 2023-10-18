@@ -15,6 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.io.requestresponse;
 
-/** Package provides Beam I/O transform support for safely reading from and writing to Web APIs. */
-package org.apache.beam.io.requestresponseio;
+/**
+ * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a
+ * Quota or API overuse related error.
+ */
+public class UserCodeQuotaException extends UserCodeExecutionException {
+
+  public UserCodeQuotaException(String message) {
+    super(message);
+  }
+
+  public UserCodeQuotaException(String message, Throwable cause) {
+    super(message, cause);
+  }
+
+  public UserCodeQuotaException(Throwable cause) {
+    super(cause);
+  }
+
+  public UserCodeQuotaException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    super(message, cause, enableSuppression, writableStackTrace);
+  }
+}

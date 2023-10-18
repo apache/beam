@@ -15,28 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponseio;
+package org.apache.beam.io.requestresponse;
 
-/**
- * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a
- * Quota or API overuse related error.
- */
-public class UserCodeQuotaException extends UserCodeExecutionException {
+import java.io.Serializable;
 
-  public UserCodeQuotaException(String message) {
-    super(message);
-  }
+/** {@link Caller} interfaces user custom code intended for API calls. */
+public interface Caller<RequestT, ResponseT> extends Serializable {
 
-  public UserCodeQuotaException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public UserCodeQuotaException(Throwable cause) {
-    super(cause);
-  }
-
-  public UserCodeQuotaException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
+  /** Calls a Web API with the {@link RequestT} and returns a {@link ResponseT}. */
+  ResponseT call(RequestT request) throws UserCodeExecutionException;
 }
