@@ -2020,6 +2020,7 @@ public class DoFnOperatorTest {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setMaxBundleSize(2L);
     options.setCheckpointingInterval(1L);
+    options.setEnableStableInputDrain(true);
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
     WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
