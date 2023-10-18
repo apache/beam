@@ -143,6 +143,20 @@ public interface FlinkPipelineOptions
   void setNumberOfExecutionRetries(Integer retries);
 
   @Description(
+      "Set job check interval in seconds under detached mode in method waitUntilFinish, "
+          + "by default it is 5 seconds")
+  @Default.Integer(5)
+  int getJobCheckIntervalInSecs();
+
+  void setJobCheckIntervalInSecs(int seconds);
+
+  @Description("Specifies if the pipeline is submitted in attached or detached mode")
+  @Default.Boolean(true)
+  boolean getAttachedMode();
+
+  void setAttachedMode(boolean attachedMode);
+
+  @Description(
       "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")
   @Default.Long(-1L)
@@ -305,6 +319,13 @@ public interface FlinkPipelineOptions
   Boolean getEnableStableInputDrain();
 
   void setEnableStableInputDrain(Boolean enableStableInputDrain);
+
+  @Description(
+      "Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.")
+  @Default.Long(0)
+  Long getFileInputSplitMaxSizeMB();
+
+  void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
 
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);

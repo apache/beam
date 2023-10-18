@@ -23,7 +23,9 @@ import copy
 import functools
 import glob
 import logging
+import subprocess
 import threading
+import uuid
 from collections import OrderedDict
 from collections import namedtuple
 from typing import Dict
@@ -32,6 +34,7 @@ import grpc
 
 from apache_beam import pvalue
 from apache_beam.coders import RowCoder
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -51,6 +54,7 @@ from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
 from apache_beam.utils import subprocess_server
+from apache_beam.utils import transform_service_launcher
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
@@ -181,6 +185,14 @@ class SchemaTransformPayloadBuilder(PayloadBuilder):
     self._identifier = identifier
     self._kwargs = kwargs
 
+  def identifier(self):
+    """
+    The URN referencing this SchemaTransform
+
+    :return: str
+    """
+    return self._identifier
+
   def build(self):
     schema_proto, payload = self._get_schema_proto_and_payload(**self._kwargs)
     payload = external_transforms_pb2.SchemaTransformPayload(
@@ -188,6 +200,56 @@ class SchemaTransformPayloadBuilder(PayloadBuilder):
         configuration_schema=schema_proto,
         configuration_row=payload)
     return payload
+
+
+class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
+  def __init__(self, identifier, schema_proto, **kwargs):
+    self._identifier = identifier
+    self._schema_proto = schema_proto
+    self._kwargs = kwargs
+
+  def build(self):
+    def dict_to_row_recursive(field_type, py_value):
+      if py_value is None:
+        return None
+      type_info = field_type.WhichOneof('type_info')
+      if type_info == 'row_type':
+        return dict_to_row(field_type.row_type.schema, py_value)
+      elif type_info == 'array_type':
+        return [
+            dict_to_row_recursive(field_type.array_type.element_type, value)
+            for value in py_value
+        ]
+      elif type_info == 'map_type':
+        return {
+            key: dict_to_row_recursive(field_type.map_type.value_type, value)
+            for key,
+            value in py_value.items()
+        }
+      else:
+        return py_value
+
+    def dict_to_row(schema_proto, py_value):
+      row_type = named_tuple_from_schema(schema_proto)
+      if isinstance(py_value, dict):
+        extra = set(py_value.keys()) - set(row_type._fields)
+        if extra:
+          raise ValueError(
+              f"Unknown fields: {extra}. Valid fields: {row_type._fields}")
+        return row_type(
+            *[
+                dict_to_row_recursive(
+                    field.type, py_value.get(field.name, None))
+                for field in schema_proto.fields
+            ])
+      else:
+        return row_type(py_value)
+
+    return external_transforms_pb2.SchemaTransformPayload(
+        identifier=self._identifier,
+        configuration_schema=self._schema_proto,
+        configuration_row=RowCoder(self._schema_proto).encode(
+            dict_to_row(self._schema_proto, self._kwargs)))
 
 
 class JavaClassLookupPayloadBuilder(PayloadBuilder):
@@ -347,60 +409,50 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
 
     _kwargs = kwargs
     if rearrange_based_on_discovery:
-      _kwargs = self._rearrange_kwargs(identifier)
+      config = SchemaAwareExternalTransform.discover_config(
+          self._expansion_service, identifier)
+      self._payload_builder = ExplicitSchemaTransformPayloadBuilder(
+          identifier,
+          named_tuple_to_schema(config.configuration_schema),
+          **_kwargs)
 
-    self._payload_builder = SchemaTransformPayloadBuilder(identifier, **_kwargs)
-
-  def _rearrange_kwargs(self, identifier):
-    # discover and fetch the external SchemaTransform configuration then
-    # use it to build an appropriate payload
-    schematransform_config = SchemaAwareExternalTransform.discover_config(
-        self._expansion_service, identifier)
-
-    external_config_fields = schematransform_config.configuration_schema._fields
-    ordered_kwargs = OrderedDict()
-    missing_fields = []
-
-    for field in external_config_fields:
-      if field not in self._kwargs:
-        missing_fields.append(field)
-      else:
-        ordered_kwargs[field] = self._kwargs[field]
-
-    extra_fields = list(set(self._kwargs.keys()) - set(external_config_fields))
-    if missing_fields:
-      raise ValueError(
-          'Input parameters are missing the following SchemaTransform config '
-          'fields: %s' % missing_fields)
-    elif extra_fields:
-      raise ValueError(
-          'Input parameters include the following extra fields that are not '
-          'found in the SchemaTransform config schema: %s' % extra_fields)
-
-    return ordered_kwargs
+    else:
+      self._payload_builder = SchemaTransformPayloadBuilder(
+          identifier, **_kwargs)
 
   def expand(self, pcolls):
     # Expand the transform using the expansion service.
-    return pcolls | ExternalTransform(
+    return pcolls | self._payload_builder.identifier() >> ExternalTransform(
         common_urns.schematransform_based_expand.urn,
         self._payload_builder,
         self._expansion_service)
 
-  @staticmethod
-  def discover(expansion_service):
+  @classmethod
+  @functools.lru_cache
+  def discover(cls, expansion_service, ignore_errors=False):
     """Discover all SchemaTransforms available to the given expansion service.
 
     :return: a list of SchemaTransformsConfigs that represent the discovered
         SchemaTransforms.
     """
+    return list(cls.discover_iter(expansion_service, ignore_errors))
 
+  @staticmethod
+  def discover_iter(expansion_service, ignore_errors=True):
     with ExternalTransform.service(expansion_service) as service:
       discover_response = service.DiscoverSchemaTransform(
           beam_expansion_api_pb2.DiscoverSchemaTransformRequest())
 
       for identifier in discover_response.schema_transform_configs:
         proto_config = discover_response.schema_transform_configs[identifier]
-        schema = named_tuple_from_schema(proto_config.config_schema)
+        try:
+          schema = named_tuple_from_schema(proto_config.config_schema)
+        except Exception as exn:
+          if ignore_errors:
+            logging.info("Bad schema for %s: %s", identifier, str(exn)[:250])
+            continue
+          else:
+            raise
 
         yield SchemaTransformsConfig(
             identifier=identifier,
@@ -420,7 +472,8 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       are discovered
     """
 
-    schematransforms = SchemaAwareExternalTransform.discover(expansion_service)
+    schematransforms = SchemaAwareExternalTransform.discover(
+        expansion_service, ignore_errors=True)
     matched = []
 
     for st in schematransforms:
@@ -668,7 +721,10 @@ class ExternalTransform(ptransform.PTransform):
         transform=transform_proto,
         output_coder_requests=output_coders)
 
-    with ExternalTransform.service(self._expansion_service) as service:
+    expansion_service = _maybe_use_transform_service(
+        self._expansion_service, pipeline.options)
+
+    with ExternalTransform.service(expansion_service) as service:
       response = service.Expand(request)
       if response.error:
         raise RuntimeError(response.error)
@@ -878,6 +934,9 @@ class JavaJarExpansionService(object):
     self._service_count = 0
     self._append_args = append_args or []
 
+  def is_existing_service(self):
+    return subprocess_server.is_service_endpoint(self._path_to_jar)
+
   @staticmethod
   def _expand_jars(jar):
     if glob.glob(jar):
@@ -971,6 +1030,76 @@ class BeamJarExpansionService(JavaJarExpansionService):
         gradle_target, gradle_appendix)
     super().__init__(
         path_to_jar, extra_args, classpath=classpath, append_args=append_args)
+
+
+def _maybe_use_transform_service(provided_service=None, options=None):
+  # For anything other than 'JavaJarExpansionService' we just use the
+  # provided service. For example, string address of an already available
+  # service.
+  if not isinstance(provided_service, JavaJarExpansionService):
+    return provided_service
+
+  if provided_service.is_existing_service():
+    # This is an existing service supported through the 'beam_services'
+    # PipelineOption.
+    return provided_service
+
+  def is_java_available():
+    cmd = ['java', '--version']
+
+    try:
+      subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except:  # pylint: disable=bare-except
+      return False
+
+    return True
+
+  def is_docker_available():
+    cmd = ['docker', '--version']
+
+    try:
+      subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except:  # pylint: disable=bare-except
+      return False
+
+    return True
+
+  # We try java and docker based expansion services in that order.
+
+  java_available = is_java_available()
+  docker_available = is_docker_available()
+
+  use_transform_service = options.view_as(
+      CrossLanguageOptions).use_transform_service
+
+  if (java_available and provided_service and not use_transform_service):
+    return provided_service
+  elif docker_available:
+    if use_transform_service:
+      error_append = 'it was explicitly requested'
+    elif not java_available:
+      error_append = 'the Java executable is not available in the system'
+    else:
+      error_append = 'a Java expansion service was not provided.'
+
+    project_name = str(uuid.uuid4())
+    port = subprocess_server.pick_port(None)[0]
+
+    logging.info(
+        'Trying to expand the external transform using the Docker Compose '
+        'based transform service since %s. Transform service will be under '
+        'Docker Compose project name %s and will be made available at port %r.'
+        % (error_append, project_name, str(port)))
+
+    from apache_beam import version as beam_version
+    beam_version = beam_version.__version__
+
+    return transform_service_launcher.TransformServiceLauncher(
+        project_name, port, beam_version)
+  else:
+    raise ValueError(
+        'Cannot start an expansion service since neither Java nor '
+        'Docker executables are available in the system.')
 
 
 def memoize(func):

@@ -33,8 +33,8 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 
 /** A {@link PipelineRunner} a {@link Pipeline} against a {@code JobService}. */

@@ -355,11 +355,12 @@ def is_typing_generic(type_param):
 
   Such objects are considered valid type parameters.
 
-  Always returns false for Python versions below 3.7.
+  For Python versions 3.9 and above, also permits types.GenericAlias.
   """
-  if hasattr(typing, '_GenericAlias'):
-    return isinstance(type_param, typing._GenericAlias)
-  return False
+  if hasattr(types, "GenericAlias") and isinstance(type_param,
+                                                   types.GenericAlias):
+    return True
+  return isinstance(type_param, typing._GenericAlias)
 
 
 def validate_composite_type_param(type_param, error_msg_prefix):
@@ -603,6 +604,15 @@ class UnionHint(CompositeTypeHint):
       return Any
     elif len(params) == 1:
       return next(iter(params))
+
+    if len(params) > 1:
+      from apache_beam.typehints import schemas
+      try:
+        return schemas.union_schema_type(params)
+      except (TypeError, KeyError):
+        # Not a union of compatible schema types.
+        pass
+
     return self.UnionConstraint(params)
 
 

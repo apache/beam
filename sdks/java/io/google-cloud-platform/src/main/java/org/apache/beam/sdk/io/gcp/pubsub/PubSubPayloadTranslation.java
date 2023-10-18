@@ -38,7 +38,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -52,10 +52,7 @@ public class PubSubPayloadTranslation {
       implements TransformPayloadTranslator<Read.Unbounded<?>> {
 
     @Override
-    public String getUrn(Read.Unbounded<?> transform) {
-      if (!(transform.getSource() instanceof PubsubUnboundedSource.PubsubSource)) {
-        return null;
-      }
+    public String getUrn() {
       return PTransformTranslation.PUBSUB_READ;
     }
 
@@ -106,7 +103,7 @@ public class PubSubPayloadTranslation {
   static class PubSubWritePayloadTranslator
       implements TransformPayloadTranslator<PubsubUnboundedSink.PubsubSink> {
     @Override
-    public String getUrn(PubsubUnboundedSink.PubsubSink transform) {
+    public String getUrn() {
       return PTransformTranslation.PUBSUB_WRITE;
     }
 
@@ -140,7 +137,7 @@ public class PubSubPayloadTranslation {
   static class PubSubDynamicWritePayloadTranslator
       implements TransformPayloadTranslator<PubsubUnboundedSink.PubsubDynamicSink> {
     @Override
-    public String getUrn(PubsubUnboundedSink.PubsubDynamicSink transform) {
+    public String getUrn() {
       return PTransformTranslation.PUBSUB_WRITE_DYNAMIC;
     }
 

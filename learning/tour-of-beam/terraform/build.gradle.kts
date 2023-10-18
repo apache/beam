@@ -49,7 +49,7 @@ tasks.register<TerraformTask>("terraformRef") {
 
 tasks.register<TerraformTask>("terraformApplyBackend") {
     group = "backend-deploy"
-    
+
     val pg_router_host = if (project.extensions.extraProperties.has("pg_router_host")) {
         project.extensions.extraProperties["pg_router_host"] as String
     } else {
@@ -64,7 +64,7 @@ tasks.register<TerraformTask>("terraformApplyBackend") {
         "-var=project_id=$(gcloud config get-value project)",
         "-var-file=./common.tfvars"
     )
-        
+
     tasks.getByName("uploadLearningMaterials").mustRunAfter(this)
 }
 
@@ -174,7 +174,7 @@ tasks.register("firebaseHostingCreate") {
             }.assertNormalExitValue()
             println("Firebase hosting site has been added to project $projectId.")
         }
-    
+
         exec {
             executable("firebase")
             args("target:apply", "hosting", webapp_id , webapp_id)
@@ -184,12 +184,12 @@ tasks.register("firebaseHostingCreate") {
 
         val file = project.file("../frontend/firebase.json")
         val content = file.readText()
-        
+
         val oldContent = """"public": "build/web","""
         val newContent = """"public": "build/web",
         "target": "$webapp_id","""
         val updatedContent = content.replace(oldContent, newContent)
-        
+
         file.writeText(updatedContent)
     }
 }

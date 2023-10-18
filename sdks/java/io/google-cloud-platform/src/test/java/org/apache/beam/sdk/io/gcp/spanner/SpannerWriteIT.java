@@ -54,9 +54,9 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
@@ -231,8 +231,7 @@ public class SpannerWriteIT {
                         .setDatabaseId(databaseName)
                         .setInstanceId(options.getInstanceId())
                         .setTableId(options.getTable())
-                        .build())
-                .buildTransform());
+                        .build()));
 
     PipelineResult result = p.run();
     result.waitUntilFinish();

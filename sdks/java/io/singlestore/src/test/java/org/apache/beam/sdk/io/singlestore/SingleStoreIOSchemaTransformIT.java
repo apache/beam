@@ -42,7 +42,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -138,8 +137,6 @@ public class SingleStoreIOSchemaTransformIT {
 
     Row configurationRow = configuration.toBeamRow();
     SchemaTransform schemaTransform = provider.from(configurationRow);
-    PTransform<PCollectionRowTuple, PCollectionRowTuple> pCollectionRowTupleTransform =
-        schemaTransform.buildTransform();
 
     Schema.Builder schemaBuilder = new Schema.Builder();
     schemaBuilder.addField("id", Schema.FieldType.INT32);
@@ -166,7 +163,7 @@ public class SingleStoreIOSchemaTransformIT {
     PCollectionRowTuple input =
         PCollectionRowTuple.of(SingleStoreSchemaTransformWriteProvider.INPUT_TAG, rows);
     String tag = provider.outputCollectionNames().get(0);
-    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
+    PCollectionRowTuple output = input.apply(schemaTransform);
     assertTrue(output.has(tag));
     PCollection<Integer> writtenRows =
         output
@@ -194,12 +191,10 @@ public class SingleStoreIOSchemaTransformIT {
 
     Row configurationRow = configuration.toBeamRow();
     SchemaTransform schemaTransform = provider.from(configurationRow);
-    PTransform<PCollectionRowTuple, PCollectionRowTuple> pCollectionRowTupleTransform =
-        schemaTransform.buildTransform();
 
     PCollectionRowTuple input = PCollectionRowTuple.empty(pipelineRead);
     String tag = provider.outputCollectionNames().get(0);
-    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
+    PCollectionRowTuple output = input.apply(schemaTransform);
     assertTrue(output.has(tag));
     PCollection<TestRow> namesAndIds =
         output
@@ -227,12 +222,10 @@ public class SingleStoreIOSchemaTransformIT {
 
     Row configurationRow = configuration.toBeamRow();
     SchemaTransform schemaTransform = provider.from(configurationRow);
-    PTransform<PCollectionRowTuple, PCollectionRowTuple> pCollectionRowTupleTransform =
-        schemaTransform.buildTransform();
 
     PCollectionRowTuple input = PCollectionRowTuple.empty(pipelineReadWithPartitions);
     String tag = provider.outputCollectionNames().get(0);
-    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
+    PCollectionRowTuple output = input.apply(schemaTransform);
     assertTrue(output.has(tag));
     PCollection<TestRow> namesAndIds =
         output

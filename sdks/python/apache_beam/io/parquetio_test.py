@@ -30,6 +30,7 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
+import apache_beam as beam
 from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource
@@ -399,6 +400,21 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(
             readback, equal_to([json.dumps(r) for r in self.RECORDS_NESTED]))
+
+  def test_schema_read_write(self):
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'tmp_filename')
+      rows = [beam.Row(a=1, b='x'), beam.Row(a=2, b='y')]
+      stable_repr = lambda row: json.dumps(row._asdict())
+      with TestPipeline() as p:
+        _ = p | Create(rows) | WriteToParquet(path) | beam.Map(print)
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = (
+            p
+            | ReadFromParquet(path + '*', as_rows=True)
+            | Map(stable_repr))
+        assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
   def test_batched_read(self):
     with TemporaryDirectory() as tmp_dirname:

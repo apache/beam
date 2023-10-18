@@ -60,7 +60,7 @@ class XlangParquetIOTest(unittest.TestCase):
               AvroRecord({"name": "ghi"})]) \
           | beam.ExternalTransform(
               PARQUET_WRITE_URN,
-              ImplicitSchemaPayloadBuilder({'data': u'/tmp/test.parquet'}),
+              ImplicitSchemaPayloadBuilder({'data': '/tmp/test.parquet'}),
               address)
     except RuntimeError as e:
       if re.search(PARQUET_WRITE_URN, str(e)):

@@ -214,7 +214,7 @@ if [[ $confirmation = "y" ]]; then
   rm -r "$RELEASE_DIR"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+  gpg --local-user ${SIGNING_KEY} --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
 
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -281,7 +281,7 @@ if [[ $confirmation = "y" ]]; then
 
   for artifact in *.whl; do
     echo "------------------Signing ${artifact} wheel-------------------"
-    gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
+    gpg --local-user "${SIGNING_KEY}" --armor --batch --yes --detach-sig "${artifact}"
   done
 
   cd ..
@@ -346,7 +346,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-  cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+  cd sdks/python && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 

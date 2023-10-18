@@ -21,8 +21,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 
 class BitConverters {
   private BitConverters() {}

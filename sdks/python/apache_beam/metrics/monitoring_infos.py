@@ -299,8 +299,13 @@ def create_monitoring_info(urn, type_urn, payload, labels=None):
     payload: The payload field to use in the monitoring info.
     labels: The label dictionary to use in the MonitoringInfo.
   """
-  return metrics_pb2.MonitoringInfo(
-      urn=urn, type=type_urn, labels=labels or {}, payload=payload)
+  try:
+    return metrics_pb2.MonitoringInfo(
+        urn=urn, type=type_urn, labels=labels or {}, payload=payload)
+  except TypeError as e:
+    raise RuntimeError(
+        f'Failed to create MonitoringInfo for urn {urn} type {type} labels ' +
+        '{labels} and payload {payload}') from e
 
 
 def is_counter(monitoring_info_proto):

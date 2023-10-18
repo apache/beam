@@ -90,6 +90,9 @@ These variables are:
 Service Account shall have following permissions ([IAM roles](https://cloud.google.com/iam/docs/understanding-roles)):
  * Storage Admin (roles/storage.admin)
  * Dataflow Admin (roles/dataflow.admin)
+ * Artifact Registry writer (roles/artifactregistry.createOnPush)
+ * Big Query Data Editor (roles/bigquery.dataEditor)
+ * Service Account User (roles/iam.serviceAccountUser)
 
 ### Workflows
 

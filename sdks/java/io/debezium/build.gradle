@@ -31,7 +31,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Debezium"
 ext.summary = "Library to work with Debezium data."
 
 dependencies {
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.vendored_grpc_1_54_0
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api

@@ -30,7 +30,7 @@ def dataflowPipelineArgs = [
 ]
 
 testConfigurations = []
-pythonVersions = ['37']
+pythonVersions = ['38']
 
 for (pythonVersion in pythonVersions) {
   testConfigurations.add([

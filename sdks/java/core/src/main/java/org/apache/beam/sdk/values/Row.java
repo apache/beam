@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -786,12 +786,12 @@ public abstract class Row implements Serializable {
     // withFieldValue or
     // withFieldValues.
 
-    public Builder addValue(@Nullable Object values) {
-      this.values.add(values);
+    public Builder addValue(@Nullable Object value) {
+      this.values.add(value);
       return this;
     }
 
-    public Builder addValues(List<Object> values) {
+    public Builder addValues(List<@Nullable Object> values) {
       this.values.addAll(values);
       return this;
     }
@@ -822,7 +822,7 @@ public abstract class Row implements Serializable {
     // method is largely
     // used internal to Beam.
     @Internal
-    public Row attachValues(List<Object> attachedValues) {
+    public Row attachValues(List<@Nullable Object> attachedValues) {
       checkState(this.values.isEmpty());
       return new RowWithStorage(schema, attachedValues);
     }

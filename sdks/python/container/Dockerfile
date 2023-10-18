@@ -40,10 +40,12 @@ RUN  \
        libyaml-dev \
        # This is used to speed up the re-installation of the sdk.
        ccache \
+       # Required for using Beam Python SDK on ARM machines.
+       libgeos-dev \
        && \
     rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade setuptools && \
+    pip install --upgrade pip setuptools wheel && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.

@@ -99,11 +99,11 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.Network;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Test;
@@ -117,6 +117,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "DoNotMock", // TODO: Use NetworkBuilder to create a real instance
 })
 public class IntrinsicMapTaskExecutorFactoryTest {
   private static final String STAGE = "test";

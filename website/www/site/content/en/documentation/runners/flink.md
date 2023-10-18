@@ -325,235 +325,84 @@ To find out which version of Flink is compatible with Beam please see the table 
 
 <table class="table table-bordered">
 <tr>
-  <th>Beam Version</th>
   <th>Flink Version</th>
   <th>Artifact Id</th>
+  <th>Supported Beam Versions</th>
 </tr>
 <tr>
-  <td rowspan="5">&ge; 2.47.0</td>
   <td>1.16.x</td>
   <td>beam-runners-flink-1.16</td>
+  <td>&ge; 2.47.0</td>
 </tr>
 <tr>
   <td>1.15.x</td>
   <td>beam-runners-flink-1.15</td>
+  <td>&ge; 2.40.0</td>
 </tr>
 <tr>
   <td>1.14.x</td>
   <td>beam-runners-flink-1.14</td>
+  <td>&ge; 2.38.0</td>
 </tr>
 <tr>
   <td>1.13.x</td>
   <td>beam-runners-flink-1.13</td>
+  <td>&ge; 2.31.0</td>
 </tr>
 <tr>
   <td>1.12.x</td>
   <td>beam-runners-flink-1.12</td>
-</tr>
-<tr>
-  <td rowspan="4">2.40.0 - 2.46.0</td>
-  <td>1.15.x</td>
-  <td>beam-runners-flink-1.15</td>
-</tr>
-<tr>
-  <td>1.14.x</td>
-  <td>beam-runners-flink-1.14</td>
-</tr>
-<tr>
-  <td>1.13.x</td>
-  <td>beam-runners-flink-1.13</td>
-</tr>
-<tr>
-  <td>1.12.x</td>
-  <td>beam-runners-flink-1.12</td>
-</tr>
-<tr>
-  <td rowspan="3">2.39.0</td>
-  <td>1.14.x</td>
-  <td>beam-runners-flink-1.14</td>
-</tr>
-<tr>
-  <td>1.13.x</td>
-  <td>beam-runners-flink-1.13</td>
-</tr>
-<tr>
-  <td>1.12.x</td>
-  <td>beam-runners-flink-1.12</td>
-</tr>
-<tr>
-  <td rowspan="4">2.38.0</td>
-  <td>1.14.x</td>
-  <td>beam-runners-flink-1.14</td>
-</tr>
-<tr>
-  <td>1.13.x</td>
-  <td>beam-runners-flink-1.13</td>
-</tr>
-<tr>
-  <td>1.12.x</td>
-  <td>beam-runners-flink-1.12</td>
+  <td>&ge; 2.27.0</td>
 </tr>
 <tr>
   <td>1.11.x</td>
   <td>beam-runners-flink-1.11</td>
-</tr>
-<tr>
-  <td rowspan="3">2.31.0 - 2.37.0</td>
-  <td>1.13.x</td>
-  <td>beam-runners-flink-1.13</td>
-</tr>
-<tr>
-  <td>1.12.x</td>
-  <td>beam-runners-flink-1.12</td>
-</tr>
-<tr>
-  <td>1.11.x</td>
-  <td>beam-runners-flink-1.11</td>
-</tr>
-<tr>
-  <td rowspan="3">2.30.0</td>
-  <td>1.12.x</td>
-  <td>beam-runners-flink-1.12</td>
-</tr>
-<tr>
-  <td>1.11.x</td>
-  <td>beam-runners-flink-1.11</td>
+  <td>2.25.0 - 2.38.0</td>
 </tr>
 <tr>
   <td>1.10.x</td>
   <td>beam-runners-flink-1.10</td>
-</tr>
-<tr>
-  <td rowspan="5">2.27.0 - 2.29.0</td>
-  <td>1.12.x</td>
-  <td>beam-runners-flink-1.12</td>
-</tr>
-<tr>
-  <td>1.11.x</td>
-  <td>beam-runners-flink-1.11</td>
-</tr>
-<tr>
-  <td>1.10.x</td>
-  <td>beam-runners-flink-1.10</td>
+  <td>2.21.0 - 2.30.0</td>
 </tr>
 <tr>
   <td>1.9.x</td>
   <td>beam-runners-flink-1.9</td>
+  <td>2.17.0 - 2.29.0</td>
 </tr>
 <tr>
   <td>1.8.x</td>
   <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td rowspan="4">2.25.0 - 2.26.0</td>
-  <td>1.11.x</td>
-  <td>beam-runners-flink-1.11</td>
-</tr>
-<tr>
-  <td>1.10.x</td>
-  <td>beam-runners-flink-1.10</td>
-</tr>
-<tr>
-  <td>1.9.x</td>
-  <td>beam-runners-flink-1.9</td>
-</tr>
-<tr>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td rowspan="3">2.21.0 - 2.24.0</td>
-  <td>1.10.x</td>
-  <td>beam-runners-flink-1.10</td>
-</tr>
-<tr>
-  <td>1.9.x</td>
-  <td>beam-runners-flink-1.9</td>
-</tr>
-<tr>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td rowspan="3">2.17.0 - 2.20.0</td>
-  <td>1.9.x</td>
-  <td>beam-runners-flink-1.9</td>
-</tr>
-<tr>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
+  <td>2.13.0 - 2.29.0</td>
 </tr>
 <tr>
   <td>1.7.x</td>
   <td>beam-runners-flink-1.7</td>
-</tr>
-<tr>
-  <td rowspan="4">2.13.0 - 2.16.0</td>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
+  <td>2.10.0 - 2.20.0</td>
 </tr>
 <tr>
   <td>1.6.x</td>
   <td>beam-runners-flink-1.6</td>
+  <td>2.10.0 - 2.16.0</td>
 </tr>
 <tr>
   <td>1.5.x</td>
   <td>beam-runners-flink_2.11</td>
+  <td>2.6.0 - 2.16.0</td>
 </tr>
 <tr>
-  <td rowspan="3">2.10.0 - 2.16.0</td>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
-</tr>
-<tr>
-  <td>1.6.x</td>
-  <td>beam-runners-flink-1.6</td>
-</tr>
-<tr>
-  <td>1.5.x</td>
+  <td>1.4.x with Scala 2.11</td>
   <td>beam-runners-flink_2.11</td>
+  <td>2.3.0 - 2.5.0</td>
 </tr>
 <tr>
-  <td>2.9.0</td>
-  <td rowspan="4">1.5.x</td>
-  <td rowspan="4">beam-runners-flink_2.11</td>
+  <td>1.3.x with Scala 2.10</td>
+  <td>beam-runners-flink_2.10</td>
+  <td>2.1.x - 2.2.0</td>
 </tr>
 <tr>
-  <td>2.8.0</td>
-</tr>
-<tr>
-  <td>2.7.0</td>
-</tr>
-<tr>
-  <td>2.6.0</td>
-</tr>
-<tr>
-  <td>2.5.0</td>
-  <td rowspan="3">1.4.x with Scala 2.11</td>
-  <td rowspan="3">beam-runners-flink_2.11</td>
-</tr>
-<tr>
-  <td>2.4.0</td>
-</tr>
-<tr>
-  <td>2.3.0</td>
-</tr>
-<tr>
-  <td>2.2.0</td>
-  <td rowspan="2">1.3.x with Scala 2.10</td>
-  <td rowspan="2">beam-runners-flink_2.10</td>
-</tr>
-<tr>
-  <td>2.1.x</td>
-</tr>
-<tr>
-  <td>2.0.0</td>
   <td>1.2.x with Scala 2.10</td>
   <td>beam-runners-flink_2.10</td>
+  <td>2.0.0</td>
 </tr>
 </table>
 

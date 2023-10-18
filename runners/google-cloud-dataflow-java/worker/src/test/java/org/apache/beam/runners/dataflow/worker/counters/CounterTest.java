@@ -26,7 +26,7 @@ import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CommitState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

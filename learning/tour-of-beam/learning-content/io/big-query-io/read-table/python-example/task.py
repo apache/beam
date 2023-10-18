@@ -16,7 +16,7 @@
 
 # beam-playground:
 #   name: read-table
-#   description: TextIO read table example.
+#   description: BigQueryIO read table example.
 #   multifile: false
 #   never_run: true
 #   always_run: true
@@ -28,13 +28,8 @@
 #     - hellobeam
 
 import argparse
-import os
-import warnings
-
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, SetupOptions
-#from google.cloud import bigquery
-from apache_beam.io.gcp.bigquery import ReadFromBigQueryRequest, ReadAllFromBigQuery
 
 class WeatherData:
     def __init__(self, station_number, wban_number, year, month, day):
@@ -57,7 +52,7 @@ def run(argv=None):
 
 
     with beam.Pipeline(options=pipeline_options, argv=argv) as p:
-        (p | 'ReadFromBigQuery' >> beam.io.ReadFromBigQuery(table='apache-beam-testing:clouddataflow_samples.weather_stations',
+      (p | 'ReadFromBigQuery' >> beam.io.ReadFromBigQuery(table='apache-beam-testing:clouddataflow_samples.weather_stations',
                                                             method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
          | beam.combiners.Sample.FixedSizeGlobally(5)
          | beam.FlatMap(lambda line: line)

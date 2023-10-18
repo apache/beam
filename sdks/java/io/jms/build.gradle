@@ -28,7 +28,7 @@ ext.summary = """IO to read and write to JMS (Java Messaging Service)
 destinations (queues and topics)."""
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.slf4j_api
   implementation library.java.joda_time

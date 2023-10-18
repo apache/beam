@@ -53,7 +53,7 @@ dependencies {
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.google_auth_library_credentials
     implementation library.java.grpc_auth
     implementation library.java.protobuf_java

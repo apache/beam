@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.jobsubmission;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getRootCause;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getRootCause;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,10 +36,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.util.Timestamps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.FutureCallback;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

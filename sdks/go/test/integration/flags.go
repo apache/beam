@@ -47,6 +47,11 @@ var (
 	BigQueryDataset = flag.String("bq_dataset", "",
 		"Name of the dataset to create tables in for BigQuery tests.")
 
+	// BigtableInstance is the name of the Bigtable instance to create tables in
+	// for Bigtable integration tests.
+	BigtableInstance = flag.String("bt_instance", "",
+		"Name of the Bigtable instance to create tables in for Bigtable tests.")
+
 	// ExpansionJars contains elements in the form "label:jar" describing jar
 	// filepaths for expansion services to use in integration tests, and the
 	// corresponding labels. Once provided through this flag, those jars can

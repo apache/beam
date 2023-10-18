@@ -23,9 +23,9 @@ import java.util.Set;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

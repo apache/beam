@@ -21,14 +21,18 @@ import static org.apache.beam.runners.core.construction.Environments.JAVA_SDK_HA
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -49,7 +54,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -60,6 +65,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class EnvironmentsTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedLogs expectedLogs = ExpectedLogs.none(Environments.class);
 
   @Test
   public void createEnvironmentDockerFromEnvironmentConfig() throws IOException {
@@ -303,5 +309,44 @@ public class EnvironmentsTest implements Serializable {
   @Test(expected = UnsupportedOperationException.class)
   public void testJavaVersionStrictInvalid() {
     assertEquals(JavaVersion.java8, JavaVersion.forSpecificationStrict("invalid"));
+  }
+
+  @Test
+  public void testGetArtifactsExistingNoLogs() throws Exception {
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+    File file2 = File.createTempFile("file2-", ".txt");
+    file2.deleteOnExit();
+
+    List<ArtifactInformation> artifacts =
+        Environments.getArtifacts(ImmutableList.of(file1.getAbsolutePath(), "file2=" + file2));
+
+    assertThat(artifacts, hasSize(2));
+    expectedLogs.verifyNotLogged("was not found");
+  }
+
+  @Test
+  public void testGetArtifactsBadFileLogsInfo() throws Exception {
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+
+    List<ArtifactInformation> artifacts =
+        Environments.getArtifacts(ImmutableList.of(file1.getAbsolutePath(), "spurious_file"));
+
+    assertThat(artifacts, hasSize(1));
+    expectedLogs.verifyInfo("'spurious_file' was not found");
+  }
+
+  @Test
+  public void testGetArtifactsBadNamedFileLogsWarn() throws Exception {
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+
+    List<ArtifactInformation> artifacts =
+        Environments.getArtifacts(
+            ImmutableList.of(file1.getAbsolutePath(), "file_name=spurious_file"));
+
+    assertThat(artifacts, hasSize(1));
+    expectedLogs.verifyWarn("name 'file_name' was not found");
   }
 }

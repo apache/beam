@@ -25,7 +25,7 @@ import com.amazonaws.http.HttpResponse;
 import com.amazonaws.http.SdkHttpMetadata;
 import java.util.UUID;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 /** Tests for AWS coders. */

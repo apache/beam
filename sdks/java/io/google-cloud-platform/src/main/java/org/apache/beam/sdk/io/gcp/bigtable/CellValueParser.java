@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.bigtable.v2.Cell;
 import com.google.protobuf.ByteString;
@@ -27,9 +27,9 @@ import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Shorts;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Shorts;
 import org.joda.time.DateTime;
 
 class CellValueParser implements Serializable {

@@ -22,7 +22,7 @@ import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import io.cdap.plugin.zendesk.source.common.config.BaseZendeskSourceConfig;
 import java.util.Map;
 import org.apache.beam.examples.complete.cdap.zendesk.options.CdapZendeskOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Class for converting CDAP {@link org.apache.beam.sdk.options.PipelineOptions} to map for {@link

@@ -111,8 +111,11 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	err = runStep(pipelineLifeCycleCtx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions)
 	if err != nil {
 		var pipelineCanceledError perrors.PipelineCanceledError
+		var runError perrors.RunError
 		if errors.As(err, &pipelineCanceledError) {
 			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
+		} else if errors.As(err, &runError) {
+			logger.Warnf("%s: pipeline execution ended with error from child process: %s", runError.Error())
 		} else {
 			logger.Errorf("%s: error during run step: %s", pipelineId, err.Error())
 		}
@@ -190,7 +193,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 		if processingErr != nil {
 			return processingErr
 		}
-		return fmt.Errorf("run error: %s", runError.String())
+		return perrors.RunError{Log: runError}
 	}
 	// Run step is finished and code is executed
 	err = processRunSuccess(pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)

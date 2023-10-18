@@ -26,6 +26,11 @@ on:
   workflow_dispatch:
 permissions: read-all
 
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
 jobs:
   set-properties:
     runs-on: [self-hosted, ubuntu-20.04]
@@ -33,7 +38,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3        
+        uses: actions/checkout@v4        
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -43,9 +48,15 @@ jobs:
     name: Update Python Dependencies
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup environment
-        uses: ./.github/actions/setup-self-hosted-action
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: |
+            3.8
+            3.9
+          java-version: 8
+          go-version: 1.21
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

@@ -30,7 +30,7 @@ import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
-from apache_beam.metrics import Metrics
+from apache_beam.io.iobase import SourceBase
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
@@ -40,7 +40,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
-from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -61,39 +60,9 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
-# TODO(BEAM-1555): Test is failing on the service, with FakeSource.
 
-
-class FakeSource(NativeSource):
-  """Fake source returning a fixed list of values."""
-  class _Reader(object):
-    def __init__(self, vals):
-      self._vals = vals
-      self._output_counter = Metrics.counter('main', 'outputs')
-
-    def __enter__(self):
-      return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-      pass
-
-    def __iter__(self):
-      for v in self._vals:
-        self._output_counter.inc()
-        yield v
-
-  def __init__(self, vals):
-    self._vals = vals
-
-  def reader(self):
-    return FakeSource._Reader(self._vals)
-
-
-class FakeUnboundedSource(NativeSource):
+class FakeUnboundedSource(SourceBase):
   """Fake unbounded source. Does not work at runtime"""
-  def reader(self):
-    return None
-
   def is_bounded(self):
     return False
 
@@ -258,24 +227,6 @@ class PipelineTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
       assert_that(pcoll, equal_to([[1, 2, 3]]))
-
-  # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @pytest.mark.it_validatesrunner
-  def test_metrics_in_fake_source(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
-    assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
-    res = pipeline.run()
-    metric_results = res.metrics().query()
-    outputs_counter = metric_results['counters'][0]
-    self.assertEqual(outputs_counter.key.step, 'Read')
-    self.assertEqual(outputs_counter.key.metric.name, 'outputs')
-    self.assertEqual(outputs_counter.committed, 6)
-
-  def test_fake_read(self):
-    with TestPipeline() as pipeline:
-      pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
-      assert_that(pcoll, equal_to([1, 2, 3]))
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline()

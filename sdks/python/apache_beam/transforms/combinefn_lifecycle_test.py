@@ -20,12 +20,10 @@
 # pytype: skip-file
 
 import unittest
-from functools import wraps
 
 import pytest
 from parameterized import parameterized_class
 
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
@@ -36,39 +34,17 @@ from apache_beam.transforms.combinefn_lifecycle_pipeline import run_combine
 from apache_beam.transforms.combinefn_lifecycle_pipeline import run_pardo
 
 
-def skip_unless_v2(fn):
-  @wraps(fn)
-  def wrapped(*args, **kwargs):
-    self = args[0]
-    options = self.pipeline.get_pipeline_options()
-    standard_options = options.view_as(StandardOptions)
-    experiments = options.view_as(DebugOptions).experiments or []
-
-    if 'DataflowRunner' in standard_options.runner and \
-       'use_runner_v2' not in experiments:
-      self.skipTest(
-          'CombineFn.setup and CombineFn.teardown are not supported. '
-          'Please use Dataflow Runner V2.')
-    else:
-      return fn(*args, **kwargs)
-
-  return wrapped
-
-
 @pytest.mark.it_validatesrunner
 class CombineFnLifecycleTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
 
-  @skip_unless_v2
   def test_combine(self):
     run_combine(self.pipeline)
 
-  @skip_unless_v2
   def test_non_liftable_combine(self):
     run_combine(self.pipeline, lift_combiners=False)
 
-  @skip_unless_v2
   def test_combining_value_state(self):
     if ('DataflowRunner' in self.pipeline.get_pipeline_options().view_as(
         StandardOptions).runner):

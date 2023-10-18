@@ -21,7 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Representation of multiple metric updates. */
 @AutoValue

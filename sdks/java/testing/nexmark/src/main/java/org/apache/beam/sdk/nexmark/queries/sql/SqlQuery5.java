@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /**
  * Query 5, 'Hot Items'. Which auctions have seen the most bids in the last hour (updated every

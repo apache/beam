@@ -15,12 +15,25 @@
 
 package errors
 
+import (
+	"bytes"
+	"fmt"
+)
+
 type PipelineCanceledError struct {
 	Reason string
 }
 
 func (e PipelineCanceledError) Error() string {
 	return e.Reason
+}
+
+type RunError struct {
+	Log bytes.Buffer
+}
+
+func (e RunError) Error() string {
+	return fmt.Sprintf("run error: %s", e.Log.String())
 }
 
 type CompilationError struct {

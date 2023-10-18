@@ -43,7 +43,7 @@ import org.apache.beam.testinfra.pipelines.dataflow.StageSummaryWithAppendedDeta
 import org.apache.beam.testinfra.pipelines.dataflow.WorkerDetailsWithAppendedDetails;
 import org.apache.beam.testinfra.pipelines.schemas.DescriptorSchemaRegistry;
 import org.apache.beam.testinfra.pipelines.schemas.GeneratedMessageV3RowBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 

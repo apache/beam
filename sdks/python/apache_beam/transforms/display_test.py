@@ -165,7 +165,7 @@ class DisplayDataTest(unittest.TestCase):
       def display_data(self):
         return {
             'unicode_string': 'my string',
-            'unicode_literal_string': u'my literal string'
+            'unicode_literal_string': 'my literal string'
         }
 
     fn = MyDoFn()

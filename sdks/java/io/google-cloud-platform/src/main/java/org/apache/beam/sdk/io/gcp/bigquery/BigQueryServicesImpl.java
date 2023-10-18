@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -86,7 +86,7 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Int64Value;
 import com.google.rpc.RetryInfo;
 import io.grpc.Metadata;
@@ -131,16 +131,16 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -154,7 +154,7 @@ import org.slf4j.LoggerFactory;
   "nullness", // TODO(https://github.com/apache/beam/issues/20506)
   "keyfor"
 })
-class BigQueryServicesImpl implements BigQueryServices {
+public class BigQueryServicesImpl implements BigQueryServices {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
   // The maximum number of retries to execute a BigQuery RPC.
@@ -549,7 +549,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   @VisibleForTesting
-  static class DatasetServiceImpl implements DatasetService {
+  public static class DatasetServiceImpl implements DatasetService {
     // Backoff: 200ms * 1.5 ^ n, n=[1,5]
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
@@ -610,7 +610,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.executor = null;
     }
 
-    private DatasetServiceImpl(BigQueryOptions bqOptions) {
+    public DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = newBigQueryClient(bqOptions).build();
       this.newWriteClient = newBigQueryWriteClient(bqOptions);
@@ -1352,9 +1352,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public StreamAppendClient getStreamAppendClient(
-        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception {
-      ProtoSchema protoSchema =
-          ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
+        String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+        throws Exception {
+      ProtoSchema protoSchema = ProtoSchema.newBuilder().setProtoDescriptor(descriptor).build();
 
       TransportChannelProvider transportChannelProvider =
           BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()
@@ -1363,6 +1363,15 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setKeepAliveWithoutCalls(true)
               .setChannelsPerCpu(2)
               .build();
+
+      String traceId =
+          String.format(
+              "Dataflow:%s:%s:%s",
+              bqIOMetadata.getBeamJobName() == null
+                  ? options.getJobName()
+                  : bqIOMetadata.getBeamJobName(),
+              bqIOMetadata.getBeamJobId() == null ? "" : bqIOMetadata.getBeamJobId(),
+              bqIOMetadata.getBeamWorkerId() == null ? "" : bqIOMetadata.getBeamWorkerId());
 
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName, newWriteClient)
@@ -1374,11 +1383,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setEnableConnectionPool(useConnectionPool)
               .setMaxInflightRequests(storageWriteMaxInflightRequests)
               .setMaxInflightBytes(storageWriteMaxInflightBytes)
-              .setTraceId(
-                  "Dataflow:"
-                      + (bqIOMetadata.getBeamJobId() != null
-                          ? bqIOMetadata.getBeamJobId()
-                          : options.getJobName()))
+              .setTraceId(traceId)
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
