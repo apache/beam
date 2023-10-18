@@ -75,6 +75,7 @@ on:
       - 'examples/java/**'
       - 'examples/kotlin/**'
       - 'release/**'
+      - 'release/trigger_all_tests.json'
       - '!sdks/java/extensions/avro/**'
       - '!sdks/java/extensions/sql/**'
       - '!sdks/java/io/amazon-web-services/**'

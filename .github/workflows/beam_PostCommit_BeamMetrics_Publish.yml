@@ -19,7 +19,6 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['.github/workflows/beam_PostCommit_BeamMetrics_Publish.yml']
   schedule:
     - cron: '24 2 * * *'
   workflow_dispatch:

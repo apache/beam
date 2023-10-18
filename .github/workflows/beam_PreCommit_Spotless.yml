@@ -35,6 +35,7 @@ on:
       - 'examples/java/**'
       - 'examples/kotlin/**'
       - '.test-infra/jenkins/'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

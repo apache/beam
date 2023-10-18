@@ -13,22 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Whitespace
+name: PreCommit GHA
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['**.md', '**.build.gradle', 'build.gradle.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
+    paths: ['.github/**/*.yml']
   pull_request_target:
-    branches: ['master', 'release-*']
-    paths: ['**.md', '**.build.gradle', 'build.gradle.kts', 'release/trigger_all_tests.json']
+    branches: ['master', 'release-*' ]
+    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+  - cron: '0 */6 * * *'
   workflow_dispatch:
 
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: read
@@ -55,34 +56,34 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Whitespace:
+  beam_PreCommit_GHA:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
-        job_name: [beam_PreCommit_Whitespace]
-        job_phrase: [Run Whitespace PreCommit]
-    timeout-minutes: 120
+        job_name: [beam_PreCommit_GHA]
+        job_phrase: [Run GHA PreCommit]
+    timeout-minutes: 30
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Whitespace PreCommit'
+      github.event.comment.body == 'Run Go PreCommit'
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
-        with:
-          java-version: 8
-          python-version: 3.8
-      - name: run whitespacePreCommit script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :whitespacePreCommit
+    - uses: actions/checkout@v4
+    - name: Setup repository
+      uses: ./.github/actions/setup-action
+      with:
+        comment_phrase: ${{ matrix.job_phrase }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
+      with:
+        java-version: 8
+        go-version: 1.21
+    - name: run goPreCommit script
+      uses: ./.github/actions/gradle-command-self-hosted-action
+      with:
+        gradle-command: :beam-test-gha:preCommit

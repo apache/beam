@@ -367,9 +367,11 @@ issues that would block the creation of the release candidate.
        ```
        (cd release/src/main/scripts && ./verify_release_build.sh)
        ```
-    4. Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
+    4. Trigger all Github Action and Jenkins PostCommit jobs from the PR created by the previous step.
+       For GitHub Action jobs, they should be triggered by the pull_request_target event of a specific placeholder file
+       added to the PR (`release/trigger_all_tests.json`)
        You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
-       Or manually add one trigger phrase per PR comment.
+       Or manually add one trigger phrase per PR comment for Jenkins tests, or rerun the workflow for GitHub Action tests.
        See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
        for a full list of phrases.
 

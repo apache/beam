@@ -26,6 +26,7 @@ on:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/rabbitmq/**"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

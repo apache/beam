@@ -28,6 +28,7 @@ on:
     paths:
       - "sdks/java/io/elasticsearch/**"
       - "sdks/java/io/elasticsearch-tests/**"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

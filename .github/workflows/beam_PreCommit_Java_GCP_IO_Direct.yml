@@ -36,6 +36,7 @@ on:
     paths:
       - "runners/core-construction-java/**"
       - "runners/core-java/**"
+      - 'release/trigger_all_tests.json'
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
       - "sdks/java/extensions/google-cloud-platform-core/**"
