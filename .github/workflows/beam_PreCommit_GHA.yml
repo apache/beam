@@ -69,7 +69,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Go PreCommit'
+      github.event.comment.body == 'Run GHA PreCommit'
     steps:
     - uses: actions/checkout@v4
     - name: Setup repository
