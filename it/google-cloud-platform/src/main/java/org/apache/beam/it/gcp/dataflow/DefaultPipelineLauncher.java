@@ -30,7 +30,9 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.protobuf.util.Timestamps;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 import org.apache.beam.it.common.PipelineLauncher;
+import org.apache.beam.it.common.utils.IORedirectUtil;
 import org.apache.beam.it.common.utils.PipelineUtils;
 import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -74,7 +77,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
   // For unsupported runners (other than dataflow), implement launcher methods by operating with
   // PipelineResult.
-  private static final Map<String, PipelineResult> MANAGED_JOBS = new HashMap<>();
+  private static final Map<String, PipelineResult> JAVA_MANAGED_JOBS = new HashMap<>();
+  private static final Map<String, JobThread> PYTHON_MANAGED_JOBS = new HashMap<>();
 
   // For supported runners (e.g. DataflowRunner), still keep a PipelineResult for pipeline specific
   // usages, e.g.,
@@ -115,8 +119,10 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
   @Override
   public JobState getJobStatus(String project, String region, String jobId) throws IOException {
-    if (MANAGED_JOBS.containsKey(jobId)) {
-      return PIPELINE_STATE_TRANSLATE.get(MANAGED_JOBS.get(jobId).getState());
+    if (JAVA_MANAGED_JOBS.containsKey(jobId)) {
+      return PIPELINE_STATE_TRANSLATE.get(JAVA_MANAGED_JOBS.get(jobId).getState());
+    } else if (PYTHON_MANAGED_JOBS.containsKey(jobId)) {
+      return PYTHON_MANAGED_JOBS.get(jobId).getJobState();
     } else {
       return super.handleJobState(getJob(project, region, jobId));
     }
@@ -124,12 +130,15 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
   @Override
   public Job cancelJob(String project, String region, String jobId) {
-    if (MANAGED_JOBS.containsKey(jobId)) {
+    if (JAVA_MANAGED_JOBS.containsKey(jobId)) {
       try {
-        MANAGED_JOBS.get(jobId).cancel();
+        JAVA_MANAGED_JOBS.get(jobId).cancel();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+      return new Job().setId(jobId).setRequestedState(JobState.CANCELLED.toString());
+    } else if (PYTHON_MANAGED_JOBS.containsKey(jobId)) {
+      PYTHON_MANAGED_JOBS.get(jobId).cancel();
       return new Job().setId(jobId).setRequestedState(JobState.CANCELLED.toString());
     } else {
       return super.cancelJob(project, region, jobId);
@@ -138,11 +147,15 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
   @Override
   public Job getJob(String project, String region, String jobId) throws IOException {
-    if (MANAGED_JOBS.containsKey(jobId)) {
+    if (JAVA_MANAGED_JOBS.containsKey(jobId)) {
       return new Job()
           .setId(jobId)
           .setRequestedState(
-              PIPELINE_STATE_TRANSLATE.get(MANAGED_JOBS.get(jobId).getState()).toString());
+              PIPELINE_STATE_TRANSLATE.get(JAVA_MANAGED_JOBS.get(jobId).getState()).toString());
+    } else if (PYTHON_MANAGED_JOBS.containsKey(jobId)) {
+      return new Job()
+          .setId(jobId)
+          .setRequestedState(PYTHON_MANAGED_JOBS.get(jobId).getJobState().toString());
     } else {
       return super.getJob(project, region, jobId);
     }
@@ -150,7 +163,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
   @Override
   public Job drainJob(String project, String region, String jobId) {
-    if (MANAGED_JOBS.containsKey(jobId)) {
+    if (JAVA_MANAGED_JOBS.containsKey(jobId) || PYTHON_MANAGED_JOBS.containsKey(jobId)) {
       // drain unsupported. Just cancel.
       Job job = new Job().setId(jobId).setRequestedState(JobState.DRAINED.toString());
       cancelJob(project, region, jobId);
@@ -188,7 +201,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   public Long getBeamMetric(
       String jobId, IOLoadTestBase.PipelineMetricsType metricType, String metricName) {
     PipelineResult pipelineResult =
-        MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
+        JAVA_MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
     if (pipelineResult != null) {
       MetricQueryResults metrics =
           pipelineResult
@@ -273,7 +286,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   @Override
   public Map<String, Double> getMetrics(String project, String region, String jobId)
       throws IOException {
-    if (MANAGED_JOBS.containsKey(jobId)) {
+    if (JAVA_MANAGED_JOBS.containsKey(jobId) || PYTHON_MANAGED_JOBS.containsKey(jobId)) {
       // unsupported. Just return an empty map
       return new HashMap<>();
     } else {
@@ -339,7 +352,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           PipelineResult pipelineResult = options.pipeline().run();
           // for unsupported runners (e.g. direct runner), set jobId the same as jobName
           jobId = options.jobName();
-          MANAGED_JOBS.put(jobId, pipelineResult);
+          JAVA_MANAGED_JOBS.put(jobId, pipelineResult);
           // for unsupported runners (e.g. direct runner), return a wrapped LaunchInfo
           return LaunchInfo.builder()
               .setJobId(jobId)
@@ -375,7 +388,24 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           cmd.add("&&");
           cmd.add("deactivate");
         }
-        jobId = executeCommandAndParseResponse(String.join(" ", cmd));
+        if ("DataflowRunner".equalsIgnoreCase(options.getParameter("runner"))) {
+          jobId = executeCommandAndParseResponse(String.join(" ", cmd));
+        } else {
+          // Flink or DirectRunner
+          jobId = executeThread(String.join(" ", cmd));
+          return LaunchInfo.builder()
+              .setJobId(jobId)
+              .setProjectId(project)
+              .setRegion(region)
+              .setCreateTime(Timestamps.toString(Timestamps.fromMillis(System.currentTimeMillis())))
+              .setSdk("DirectBeam")
+              .setVersion("0.0.1")
+              .setJobType("")
+              .setRunner(options.getParameter("runner"))
+              .setParameters(options.parameters())
+              .setState(JobState.RUNNING)
+              .build();
+        }
         break;
       case GO:
         checkState(
@@ -470,6 +500,83 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
     String jobId = m.group(1);
     LOG.info("Submitted job: {}", jobId);
     return jobId;
+  }
+
+  /**
+   * Executes the specified command on a separate thread. Should be used for running jobs on
+   * FlinkRunner, DirectRunner in tests.
+   */
+  private String executeThread(String cmd) {
+    String jobId =
+        "direct-"
+            + new SimpleDateFormat("yyyy-MM-dd_HH_mm_ss").format(new Date())
+            + "-"
+            + System.currentTimeMillis();
+    JobThread jobThread = new JobThread(jobId, cmd);
+    PYTHON_MANAGED_JOBS.put(jobId, jobThread);
+    jobThread.start();
+    return jobId;
+  }
+
+  static class JobThread extends Thread {
+
+    private final String cmd;
+    private final String jobId;
+    private boolean cancelled;
+    private JobState jobState;
+
+    public JobThread(String jobId, String cmd) {
+      this.jobId = jobId;
+      this.cmd = cmd;
+    }
+
+    @Override
+    public void run() {
+
+      try {
+        LOG.info("Starting job {} using command {} ...", jobId, cmd);
+        jobState = JobState.RUNNING;
+        Process exec = new ProcessBuilder().command("/bin/bash", "-c", cmd).start();
+        IORedirectUtil.redirectLinesLog(exec.getErrorStream(), LOG);
+        while(exec.isAlive()) {
+          Thread.sleep(5000);
+        }
+        if (exec.exitValue() == 0) {
+          jobState = JobState.DONE;
+        } else {
+          jobState = JobState.FAILED;
+        }
+        LOG.info("Job {} finished.", jobId);
+      } catch (Throwable e) {
+
+        // Errors are acceptable if thread was cancelled
+        if (!cancelled) {
+          LOG.warn("Error occurred with job {}", jobId, e);
+          jobState = JobState.FAILED;
+        }
+      }
+    }
+
+    public JobState getJobState() {
+      return jobState;
+    }
+
+    public void cancel() {
+      if (this.cancelled || !isAlive()) {
+        return;
+      }
+
+      LOG.info("Finishing job {}...", jobId);
+
+      this.cancelled = true;
+      jobState = JobState.CANCELLED;
+
+      try {
+        this.stop();
+      } catch (Exception e) {
+        LOG.warn("Error cancelling job", e);
+      }
+    }
   }
 
   /** Builder for {@link DefaultPipelineLauncher}. */
