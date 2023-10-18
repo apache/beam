@@ -137,7 +137,7 @@ if [[ ! -z `which hub` ]]; then
   # Note that dataflow worker containers should be built after RC has been built.
   bash "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
   # add a file that will trigger all relevant GHA workflows. Need to be .json extension to be excluded from RAT check
-  echo "{}" >> release/trigger_all_tests.json
+  echo "{}" > release/trigger_all_tests.json
   git add release/trigger_all_tests.json
   git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} ${WORKING_BRANCH} --quiet
