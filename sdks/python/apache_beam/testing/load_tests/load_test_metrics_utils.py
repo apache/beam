@@ -38,7 +38,6 @@ from typing import Mapping
 from typing import Optional
 from typing import Union
 
-import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -536,7 +535,8 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
       self.options.http_auth_enabled() else None
 
     try:
-      response = requests.post(url, params=query_str, data=payload, auth=auth)
+      response = requests.post(
+          url, params=query_str, data=payload, auth=auth, timeout=60)
     except requests.exceptions.RequestException as e:
       _LOGGER.warning('Failed to publish metrics to InfluxDB: ' + str(e))
     else:
@@ -650,13 +650,3 @@ class AssignTimestamps(beam.DoFn):
   def process(self, element):
     yield self.timestamp_val_fn(
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
-
-
-class BigQueryMetricsFetcher:
-  def __init__(self):
-    self.client = bigquery.Client()
-
-  def fetch(self, query) -> pd.DataFrame:
-    query_job = self.client.query(query=query)
-    result = query_job.result()
-    return result.to_dataframe()

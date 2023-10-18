@@ -37,7 +37,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 
 env:
@@ -74,16 +74,13 @@ jobs:
       run:
         working-directory: ./learning/tour-of-beam/backend
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
           go-version: '1.16'
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-            cache-read-only: false
 
       - name: Build Playground router image
         run: ./gradlew -i playground:backend:containers:router:docker

@@ -59,7 +59,7 @@ class SamzaPublishView<ElemT, ViewT>
     SamzaPublishViewPayloadTranslator() {}
 
     @Override
-    public String getUrn(SamzaPublishView<?, ?> transform) {
+    public String getUrn() {
       return SAMZA_PUBLISH_VIEW_URN;
     }
   }

@@ -35,8 +35,8 @@ from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
+from apache_beam.io.avroio import _FastAvroSource  # For testing
 from apache_beam.io.avroio import _create_avro_sink  # For testing
-from apache_beam.io.avroio import _create_avro_source  # For testing
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -125,7 +125,7 @@ class AvroBase(object):
 
   def _run_avro_test(
       self, pattern, desired_bundle_size, perform_splitting, expected_result):
-    source = _create_avro_source(pattern)
+    source = _FastAvroSource(pattern)
 
     if perform_splitting:
       assert desired_bundle_size
@@ -146,6 +146,20 @@ class AvroBase(object):
       read_records = source_test_utils.read_from_source(source, None, None)
       self.assertCountEqual(expected_result, read_records)
 
+  def test_schema_read_write(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'tmp_filename')
+      rows = [beam.Row(a=1, b=['x', 'y']), beam.Row(a=2, b=['t', 'u'])]
+      stable_repr = lambda row: json.dumps(row._asdict())
+      with TestPipeline() as p:
+        _ = p | Create(rows) | avroio.WriteToAvro(path) | beam.Map(print)
+      with TestPipeline() as p:
+        readback = (
+            p
+            | avroio.ReadFromAvro(path + '*', as_rows=True)
+            | beam.Map(stable_repr))
+        assert_that(readback, equal_to([stable_repr(r) for r in rows]))
+
   def test_read_without_splitting(self):
     file_name = self._write_data()
     expected_result = self.RECORDS
@@ -159,7 +173,7 @@ class AvroBase(object):
   def test_source_display_data(self):
     file_name = 'some_avro_source'
     source = \
-        _create_avro_source(
+        _FastAvroSource(
             file_name,
             validate=False,
         )
@@ -207,6 +221,7 @@ class AvroBase(object):
   def test_write_display_data(self):
     file_name = 'some_avro_sink'
     write = avroio.WriteToAvro(file_name, self.SCHEMA)
+    write.expand(beam.PCollection(beam.Pipeline()))
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher('schema', str(self.SCHEMA)),
@@ -220,12 +235,12 @@ class AvroBase(object):
 
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
-    source = _create_avro_source(file_name)
+    source = _FastAvroSource(file_name)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reantrant_with_splitting(self):
     file_name = self._write_data()
-    source = _create_avro_source(file_name)
+    source = _FastAvroSource(file_name)
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
     source_test_utils.assert_reentrant_reads_succeed(
@@ -246,7 +261,7 @@ class AvroBase(object):
     sync_interval = 16000
     file_name = self._write_data(count=num_records, sync_interval=sync_interval)
 
-    source = _create_avro_source(file_name)
+    source = _FastAvroSource(file_name)
 
     splits = [split for split in source.split(desired_bundle_size=float('inf'))]
     assert len(splits) == 1
@@ -306,7 +321,7 @@ class AvroBase(object):
 
   def test_dynamic_work_rebalancing_exhaustive(self):
     def compare_split_points(file_name):
-      source = _create_avro_source(file_name)
+      source = _FastAvroSource(file_name)
       splits = [
           split for split in source.split(desired_bundle_size=float('inf'))
       ]
@@ -334,7 +349,7 @@ class AvroBase(object):
       f.write(corrupted_data)
       corrupted_file_name = f.name
 
-    source = _create_avro_source(corrupted_file_name)
+    source = _FastAvroSource(corrupted_file_name)
     with self.assertRaisesRegex(ValueError, r'expected sync marker'):
       source_test_utils.read_from_source(source, None, None)
 

@@ -44,7 +44,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -65,9 +65,9 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_Java_IO_Performance_Tests"]
         job_phrase: ["Run Java PostCommit IO Performance Tests"]
-        test_case: ["GCSPerformanceTest", "BigTablePerformanceTest"]
+        test_case: ["GCSPerformanceTest", "BigTablePerformanceTest", "BigQueryStorageApiStreamingPerformanceTest"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
@@ -76,19 +76,14 @@ jobs:
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
     - name: Checkout release branch
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: v2.50.0 #TODO(https://github.com/apache/beam/issues/28330) automate updating this
         repository: apache/beam
-    - name: Install Java
-      uses: actions/setup-java@v3.8.0
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
       with:
-        distribution: 'zulu'
-        java-version: '8'
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
-      with:
-        cache-read-only: false
+        java-version: 8
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0
       with:
@@ -112,3 +107,16 @@ jobs:
       env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
+    - name: Archive JUnit Test Results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: JUnit Test Results
+        path: "**/build/reports/tests/"
+    - name: Publish JUnit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        commit: '${{ env.prsha || env.GITHUB_SHA }}'
+        comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+        files: '**/build/test-results/**/*.xml'

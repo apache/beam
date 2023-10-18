@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_EARLY_ROLLOUT_REGION;
+
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -52,7 +54,13 @@ public class BigQueryIOStorageQueryIT {
           "1G", 11110839L,
           "1T", 11110839000L);
 
-  private static final String DATASET_ID = "big_query_storage";
+  private static final String DATASET_ID =
+      TestPipeline.testingPipelineOptions()
+              .as(TestBigQueryOptions.class)
+              .getBigQueryLocation()
+              .equals(BIGQUERY_EARLY_ROLLOUT_REGION)
+          ? "big_query_storage_day0"
+          : "big_query_storage";
   private static final String TABLE_PREFIX = "storage_read_";
 
   private BigQueryIOStorageQueryOptions options;

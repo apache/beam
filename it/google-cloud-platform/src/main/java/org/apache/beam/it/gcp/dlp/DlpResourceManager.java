@@ -113,8 +113,9 @@ public class DlpResourceManager implements ResourceManager {
    * @param project the GCP project ID
    * @return a new instance of Builder
    */
-  public static Builder builder(String project, CredentialsProvider credentialsProvider) {
-    return new Builder(project, credentialsProvider);
+  public static DlpResourceManager.Builder builder(
+      String project, CredentialsProvider credentialsProvider) {
+    return new DlpResourceManager.Builder(project, credentialsProvider);
   }
 
   /** A builder class for creating instances of {@link DlpResourceManager}. */

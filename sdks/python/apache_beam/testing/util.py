@@ -33,6 +33,7 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.util import CoGroupByKey
 
 __all__ = [
@@ -306,6 +307,12 @@ def assert_that(
       return label
 
   actual | AssertThat()  # pylint: disable=expression-not-assigned
+
+
+@ptransform_fn
+def AssertThat(pcoll, *args, **kwargs):
+  """Like assert_that, but as an applicable PTransform."""
+  return assert_that(pcoll, *args, **kwargs)
 
 
 def open_shards(glob_pattern, mode='rt', encoding='utf-8'):

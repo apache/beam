@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.11.3"
 }
 
 
@@ -244,6 +244,7 @@ include(":sdks:java:io:hbase")
 include(":sdks:java:io:hcatalog")
 include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
+include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
@@ -255,6 +256,7 @@ include(":sdks:java:io:parquet")
 include(":sdks:java:io:pulsar")
 include(":sdks:java:io:rabbitmq")
 include(":sdks:java:io:redis")
+include(":sdks:java:io:rrio")
 include(":sdks:java:io:solr")
 include(":sdks:java:io:sparkreceiver:2")
 include(":sdks:java:io:snowflake")
