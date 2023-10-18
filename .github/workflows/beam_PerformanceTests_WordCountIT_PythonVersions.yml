@@ -17,7 +17,7 @@ name: PerformanceTests WordCountIT PythonVersions
 
 on:
   schedule:
-    - cron: '12 3 * * *'
+    - cron: '50 11/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

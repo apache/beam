@@ -47,7 +47,7 @@ on:
       - 'runners/reference/**'
       - '.github/workflows/beam_PreCommit_Python_PVR_Flink.yml'
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '30 3/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

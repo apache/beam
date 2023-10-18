@@ -17,7 +17,7 @@ name: Load Tests Combine Dataflow Batch Java
 
 on:
   schedule:
-    - cron: '35 7 * * *'
+    - cron: '50 13 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
