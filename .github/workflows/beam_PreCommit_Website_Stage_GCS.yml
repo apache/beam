@@ -59,7 +59,7 @@ permissions:
 
 jobs:
   beam_PreCommit_Website_Stage_GCS:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:

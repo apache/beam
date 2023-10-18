@@ -52,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_Examples_Dataflow_V2:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
