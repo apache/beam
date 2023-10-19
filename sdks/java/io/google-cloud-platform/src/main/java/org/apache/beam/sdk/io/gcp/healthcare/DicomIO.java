@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HealthcareIOError.SCHEMA_FOR
 import static org.apache.beam.sdk.io.gcp.healthcare.HealthcareIOError.STRING_RESOURCE_TYPE;
 import static org.apache.beam.sdk.io.gcp.healthcare.HealthcareIOError.TO_ROW_FN;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1.model.Operation;
@@ -38,10 +37,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.healthcare.DicomIO.Deidentify.Result;
 import org.apache.beam.sdk.metrics.Counter;
@@ -58,12 +55,9 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /**
@@ -91,11 +85,12 @@ public class DicomIO {
 
   public static Deidentify deidentify(
       String sourceDicomStore, String destinationDicomStore, DeidentifyConfig deidentifyConfig) {
-    return new Deidentify(DicomDeIdOperationConfig.builder()
-        .setSourceDicomStore(sourceDicomStore)
-        .setDestinationDicomStore(destinationDicomStore)
-        .setDeidentifyConfigJson(GSON.toJson(deidentifyConfig))
-        .build());
+    return new Deidentify(
+        DicomDeIdOperationConfig.builder()
+            .setSourceDicomStore(sourceDicomStore)
+            .setDestinationDicomStore(destinationDicomStore)
+            .setDeidentifyConfigJson(GSON.toJson(deidentifyConfig))
+            .build());
   }
 
   public static ReadStudyMetadata readStudyMetadata() {
@@ -264,15 +259,12 @@ public class DicomIO {
         new TupleTag<HealthcareIOError<String>>() {};
     private final DicomDeIdOperationConfig operationConfig;
 
-
-
-    private Deidentify(DicomDeIdOperationConfig config){
-      this.operationConfig=config;
+    private Deidentify(DicomDeIdOperationConfig config) {
+      this.operationConfig = config;
     }
-    public Deidentify withAPICallInterval(Duration interval){
-      return new Deidentify(this.operationConfig.toBuilder()
-          .setAPICallInterval(interval)
-          .build());
+
+    public Deidentify withAPICallInterval(Duration interval) {
+      return new Deidentify(this.operationConfig.toBuilder().setAPICallInterval(interval).build());
     }
 
     @Override
@@ -304,8 +296,11 @@ public class DicomIO {
       Result(PCollectionTuple pct) {
         this.pipeline = pct.getPipeline();
         this.output = pct.get(OUTPUT).setCoder(OperationCoder.of());
-        this.error = pct.get(FAILURE).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()))
-            .setSchema(SCHEMA_FOR_STRING_RESOURCE_TYPE, STRING_RESOURCE_TYPE,TO_ROW_FN,FROM_ROW_FN);
+        this.error =
+            pct.get(FAILURE)
+                .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()))
+                .setSchema(
+                    SCHEMA_FOR_STRING_RESOURCE_TYPE, STRING_RESOURCE_TYPE, TO_ROW_FN, FROM_ROW_FN);
       }
 
       public PCollection<Operation> getOperation() {
@@ -335,7 +330,6 @@ public class DicomIO {
     /** A function that schedules a deidentify operation and monitors the status. */
     private static class DeidentifyFn extends DoFn<byte[], Operation> {
 
-
       private transient @MonotonicNonNull HttpHealthcareApiClient dicomStore;
       private transient @MonotonicNonNull DeidentifyConfig deidentifyConfig;
       private final Deidentify spec;
@@ -347,7 +341,8 @@ public class DicomIO {
       @Setup
       public void setup() throws IOException {
         this.dicomStore = new HttpHealthcareApiClient();
-        this.deidentifyConfig = GSON.fromJson(spec.operationConfig.getDeidentifyConfigJson(), DeidentifyConfig.class);
+        this.deidentifyConfig =
+            GSON.fromJson(spec.operationConfig.getDeidentifyConfigJson(), DeidentifyConfig.class);
       }
 
       @ProcessElement
@@ -357,7 +352,9 @@ public class DicomIO {
         try {
           Operation operation =
               safeClient.deidentifyDicomStore(
-                  spec.operationConfig.getSourceDicomStore(), spec.operationConfig.getDestinationDicomStore(), safeConfig);
+                  spec.operationConfig.getSourceDicomStore(),
+                  spec.operationConfig.getDestinationDicomStore(),
+                  safeConfig);
           if (operation == null) {
             throw new NullPointerException(
                 "Operation is null after De-identify Dicom Store operation.");
@@ -368,31 +365,34 @@ public class DicomIO {
         } catch (NullPointerException | IOException e) {
           LroCounters.DEIDENTIFY_OPERATION_ERRORS.inc();
           JsonObject sourceObject = new JsonObject();
-          sourceObject.addProperty("source_dicom_store", spec.operationConfig.getSourceDicomStore());
-          sourceObject.addProperty("destination_dicom_store", spec.operationConfig.getDestinationDicomStore());
-          sourceObject.addProperty("deidentify_config", spec.operationConfig.getDeidentifyConfigJson());
+          sourceObject.addProperty(
+              "source_dicom_store", spec.operationConfig.getSourceDicomStore());
+          sourceObject.addProperty(
+              "destination_dicom_store", spec.operationConfig.getDestinationDicomStore());
+          sourceObject.addProperty(
+              "deidentify_config", spec.operationConfig.getDeidentifyConfigJson());
           String source = GSON.toJson(sourceObject);
           receiver.get(FAILURE).output(HealthcareIOError.of(source, e));
         }
       }
     }
-    static class OperationCoder extends CustomCoder<Operation>{
-      static OperationCoder of(){
+
+    static class OperationCoder extends CustomCoder<Operation> {
+      static OperationCoder of() {
         return new OperationCoder();
       }
 
       private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+
       @Override
-      public void encode(Operation value,
-           OutputStream outStream)
+      public void encode(Operation value, OutputStream outStream)
           throws CoderException, IOException {
         String json = GSON.toJson(value);
         STRING_CODER.encode(json, outStream);
       }
 
       @Override
-      public Operation decode( InputStream inStream)
-          throws CoderException, IOException {
+      public Operation decode(InputStream inStream) throws CoderException, IOException {
         String json = STRING_CODER.decode(inStream);
         return GSON.fromJson(json, Operation.class);
       }
@@ -400,23 +400,28 @@ public class DicomIO {
   }
 
   @AutoValue
-  public abstract static class DicomDeIdOperationConfig implements Serializable{
+  public abstract static class DicomDeIdOperationConfig implements Serializable {
 
-    static Builder builder(){
+    static Builder builder() {
       return new AutoValue_DicomIO_DicomDeIdOperationConfig.Builder();
     }
 
     abstract Builder toBuilder();
 
     abstract String getSourceDicomStore();
+
     abstract String getDestinationDicomStore();
+
     abstract String getDeidentifyConfigJson();
-    DeidentifyConfig getDeidentifyConfig(){
+
+    DeidentifyConfig getDeidentifyConfig() {
       return GSON.fromJson(getDeidentifyConfigJson(), DeidentifyConfig.class);
     }
+
     abstract Duration getAPICallInterval();
+
     @AutoValue.Builder
-    abstract static class Builder{
+    abstract static class Builder {
 
       abstract Builder setSourceDicomStore(String value);
 
@@ -425,13 +430,13 @@ public class DicomIO {
       abstract Builder setDeidentifyConfigJson(String value);
 
       abstract Builder setAPICallInterval(Duration value);
-      abstract Optional<Duration> getAPICallInterval();
 
+      abstract Optional<Duration> getAPICallInterval();
 
       abstract DicomDeIdOperationConfig autoBuild();
 
-      final DicomDeIdOperationConfig build(){
-        if(!getAPICallInterval().isPresent()){
+      final DicomDeIdOperationConfig build() {
+        if (!getAPICallInterval().isPresent()) {
           setAPICallInterval(DEFAULT_CALL_API_INTERVAL);
         }
         return autoBuild();

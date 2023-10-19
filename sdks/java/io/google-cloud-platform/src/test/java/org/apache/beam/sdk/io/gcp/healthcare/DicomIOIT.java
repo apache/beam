@@ -18,22 +18,17 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
-import static org.apache.beam.sdk.values.TypeDescriptors.strings;
-import static org.junit.Assert.assertNotNull;
 
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
-import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
 import java.util.Collections;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ToJson;
 import org.junit.After;
 import org.junit.Assert;
@@ -122,8 +117,10 @@ public class DicomIOIT {
   @Test
   public void test_DicomIO_deidentify() {
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
-    DicomIO.Deidentify.Result result = pipeline.apply(DicomIO.deidentify(dicomStoreName, deidDicomStoreName, deidConfig));
-    PAssert.that(result.getError().apply("toString", ToJson.of())).containsInAnyOrder(Collections.emptyList());
+    DicomIO.Deidentify.Result result =
+        pipeline.apply(DicomIO.deidentify(dicomStoreName, deidDicomStoreName, deidConfig));
+    PAssert.that(result.getError().apply("toString", ToJson.of()))
+        .containsInAnyOrder(Collections.emptyList());
     PAssert.thatSingleton(result.getOperation().apply("output", Count.globally())).isEqualTo(1L);
     pipeline.run();
   }
