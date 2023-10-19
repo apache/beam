@@ -16,8 +16,6 @@
 name: LoadTests Python CoGBK Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 15 * * *'
   workflow_dispatch:

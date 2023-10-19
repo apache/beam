@@ -16,8 +16,6 @@
 name: LoadTests Python Combine Dataflow Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 15 * * *'
   workflow_dispatch:

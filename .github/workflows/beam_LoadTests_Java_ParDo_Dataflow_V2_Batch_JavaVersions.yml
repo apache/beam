@@ -16,8 +16,6 @@
 name: LoadTests Java ParDo Dataflow V2 Batch JavaVersions
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 14 * * *'
   workflow_dispatch:
