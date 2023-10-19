@@ -602,7 +602,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jackson_version = "2.14.1"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
-    def everit_json_version = "1.14.1"
+    def everit_json_version = "1.14.2"
     def kafka_version = "2.4.1"
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
@@ -716,7 +716,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230806-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230830-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231003-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230907-$google_clients_version",
@@ -809,7 +809,7 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
-        json_org                                    : "org.json:json:20220320", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
+        json_org                                    : "org.json:json:20230618", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",

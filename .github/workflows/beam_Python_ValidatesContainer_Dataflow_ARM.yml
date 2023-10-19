@@ -52,7 +52,7 @@ env:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     strategy:
       fail-fast: false
       matrix:
@@ -115,6 +115,7 @@ jobs:
           USER: github-actions
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"

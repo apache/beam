@@ -17,7 +17,7 @@ name: PerformanceTests WordCountIT PythonVersions
 
 on:
   schedule:
-    - cron: '12 3 * * *'
+    - cron: '50 11/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -56,7 +56,7 @@ jobs:
         endswith(github.event.comment.body, 'WordCountIT Performance Test'))
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }}${{matrix.python_version}} ${{ matrix.job_phrase_2 }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
     strategy:
       fail-fast: false
       matrix:
@@ -69,13 +69,13 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase_1 }}${{matrix.python_version}} ${{ matrix.job_phrase_2 }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }}${{matrix.python_version}} ${{ matrix.job_phrase_2 }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: ${{matrix.python_version}}
+          python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
@@ -101,3 +101,9 @@ jobs:
             --info \
             -Ptest=apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it \
             "-Ptest-pipeline-options=${{ env.beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1 }}"
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: python-code-coverage-report
+          path: "**/pytest*.xml"

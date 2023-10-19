@@ -17,7 +17,7 @@ name: Load Tests ParDo Dataflow Batch Go
 
 on:
   schedule:
-    - cron: '15 18 * * *'
+    - cron: '50 12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

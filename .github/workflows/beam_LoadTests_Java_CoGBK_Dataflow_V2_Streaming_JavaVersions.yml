@@ -16,10 +16,8 @@
 name: LoadTests Java CoGBK Dataflow V2 Streaming JavaVersions
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '30 10 * * *'
+    - cron: '10 13 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -57,7 +55,7 @@ jobs:
          contains(github.event.comment.body, 'CoGBK Dataflow V2 Streaming'))
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
-    name: ${{matrix.job_name}} (${{matrix.job_phrase_1}} ${{matrix.java_version}} ${{matrix.job_phrase_2}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
     strategy:
       fail-fast: false
       matrix:
@@ -70,9 +68,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase_1 }} ${{matrix.java_version}} ${{ matrix.job_phrase_2 }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.job_phrase_1 }} ${{matrix.java_version}} ${{ matrix.job_phrase_2 }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

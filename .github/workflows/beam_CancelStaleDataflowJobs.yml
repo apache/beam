@@ -18,8 +18,6 @@
 name: Cancel Stale Dataflow Jobs
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
@@ -52,7 +50,7 @@ permissions:
 
 jobs:
   beam_CancelStaleDataflowJobs:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:

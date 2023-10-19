@@ -465,6 +465,11 @@ public class StreamingDataflowWorker {
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
+    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to WMW.
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
+        options.isEnableStreamingEngine()
+            && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
+
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
