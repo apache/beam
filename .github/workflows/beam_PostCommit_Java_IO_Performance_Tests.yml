@@ -92,6 +92,7 @@ jobs:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         export_default_credentials: true
     - name: run scheduled javaPostcommitIOPerformanceTests script
+      id: run_scheduled_javapostcommitioperformancetests_script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
@@ -100,6 +101,7 @@ jobs:
         exportDataset: performance_tests
         exportTable: io_performance_metrics
     - name: run triggered javaPostcommitIOPerformanceTests script
+      id: run_triggered_javapostcommitioperformancetests_script
       if: github.event_name != 'schedule'
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:

@@ -117,6 +117,7 @@ jobs:
         with:
           python-version: 3.8
       - name: run Java Testing Nexmark (query ${{ matrix.query }})
+        id: run_java_testing_nexmark
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:nexmark:run
@@ -126,6 +127,7 @@ jobs:
             --query=${{ matrix.query }} \
             --generateEventFilePathPrefix=gs://temp-storage-for-perf-tests/nexmark/eventFiles/beam_PostCommit_Python_Nexmark_Direct/query${{ matrix.query }}-" \
       - name: run Python Testing Benchmarks Nexmark (query ${{ matrix.query }})
+        id: run_python_testing_benchmarks_nexmark
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:benchmarks:nexmark:run

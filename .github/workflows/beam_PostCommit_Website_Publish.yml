@@ -57,6 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: run PostCommit Website Publish script
+        id: run_postcommit_website_publish_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :website:clean :website:publishWebsite

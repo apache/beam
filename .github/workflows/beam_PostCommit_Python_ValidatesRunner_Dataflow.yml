@@ -81,6 +81,7 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: Run validatesRunnerBatchTests script
+        id: run_validatesrunnerbatchtests_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesRunnerBatchTests
@@ -88,6 +89,7 @@ jobs:
             -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Run validatesRunnerStreamingTests script
+        id: run_validatesrunnerstreamingtests_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesRunnerStreamingTests

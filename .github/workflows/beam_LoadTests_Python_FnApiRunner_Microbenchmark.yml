@@ -79,6 +79,7 @@ jobs:
           argument-file-paths: |
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_FnApiRunner_Python_Microbenchmark.txt
       - name: run FnApiRunner Microbenchmark Python Load Test
+        id: run_fnapirunner_microbenchmark_python_load_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

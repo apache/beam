@@ -81,6 +81,7 @@ jobs:
             echo "prepared_config_$((INDEX + 1))=$CURCONFIG" >> $GITHUB_OUTPUT
           done
       - name: run Combine Dataflow Batch Go Load Test 1 (single key)
+        id: run_combine_dataflow_batch_go_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -89,6 +90,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
       - name: run Combine Dataflow Batch Go Load Test 2 (multiple keys)
+        id: run_combine_dataflow_batch_go_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -97,6 +99,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}' \
       - name: run Combine Dataflow Batch Go Load Test 3 (reiterate 10KB)
+        id: run_combine_dataflow_batch_go_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run

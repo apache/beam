@@ -77,6 +77,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_Fanout_4.txt
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_Fanout_8.txt
       - name: run Combine Dataflow Batch Java Load Test 1 (10 b records)
+        id: run_combine_dataflow_batch_java_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -85,6 +86,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_Combine_Dataflow_Batch_test_arguments_1 }}' \
       - name: run Combine Dataflow Batch Java Load Test 2 (fanout 4)
+        id: run_combine_dataflow_batch_java_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -93,6 +95,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_Combine_Dataflow_Batch_test_arguments_2 }}' \
       - name: run Combine Dataflow Batch Java Load Test 3 (fanout 8)
+        id: run_combine_dataflow_batch_java_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run

@@ -90,6 +90,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run Kafka IO build script
+        id: run_kafka_io_build_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:kafka:build :sdks:java:io:kafka:kafkaVersionsCompatibilityTest

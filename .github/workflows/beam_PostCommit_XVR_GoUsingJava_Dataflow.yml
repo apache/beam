@@ -72,6 +72,7 @@ jobs:
         with:
           python-version: '3.8'
       - name: run XVR GoUsingJava Dataflow script
+        id: run_xvr_gousingjava_dataflow_script
         env:
           USER: github-actions
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}

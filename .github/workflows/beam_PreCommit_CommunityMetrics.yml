@@ -99,6 +99,7 @@ jobs:
       - name: Install gcloud Kubectl
         run: gcloud components install kubectl
       - name: run Community Metrics PreCommit script
+        id: run_community_metrics_precommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :communityMetricsPreCommit

@@ -85,6 +85,7 @@ jobs:
       - name: Install gcloud Kubectl
         run: gcloud components install kubectl
       - name: run Beam Metrics deployment script
+        id: run_beam_metrics_deployment_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :beam-test-infra-metrics:getClusterCredentials :beam-test-infra-metrics:deploy

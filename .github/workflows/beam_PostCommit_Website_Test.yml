@@ -68,6 +68,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run PostCommit Website Test script
+        id: run_postcommit_website_test_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :website:testWebsite 

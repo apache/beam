@@ -89,6 +89,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB of 100B records with a single key
+        id: run_cogbk_2gb_of_100b_records_with_a_single_key
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -99,6 +100,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-cogbk-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK 2GB of 100B records with multiple keys
+        id: run_cogbk_2gb_of_100b_records_with_multiple_keys
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -108,6 +110,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-cogbk-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK reiterate 4 times 10kB values
+        id: run_cogbk_reiterate_4_times_10kb_values
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -117,6 +120,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-cogbk-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK reiterate 4 times 2MB values
+        id: run_cogbk_reiterate_4_times_2mb_values
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

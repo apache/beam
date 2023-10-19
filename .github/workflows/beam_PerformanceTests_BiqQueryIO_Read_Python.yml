@@ -82,6 +82,7 @@ jobs:
           arguments: |
             --job_name=performance-tests-bqio-read-python-10gb$(date '+%m%d%H%M%S' --utc)
       - name: Run BigQueryIO Read Performance Test Python
+        id: run_bigqueryio_read_performance_test_python
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

@@ -100,6 +100,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run Amazon-Web-Services IO build script
+        id: run_amazon_web_services_io_build_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:amazon-web-services:build
@@ -107,6 +108,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
       - name: run Amazon-Web-Services IO IT script
+        id: run_amazon_web_services_io_it_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:amazon-web-services:integrationTest

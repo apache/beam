@@ -96,6 +96,7 @@ jobs:
           arguments: |
             --postgresServerName=${{ steps.postgres_for_dev.outputs.pfd_ip }}
       - name: Run Java JdbcIO Performance Test
+        id: run_java_jdbcio_performance_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:jdbc:integrationTest

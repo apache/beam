@@ -74,6 +74,7 @@ jobs:
             3.8
             3.11
       - name: run PostCommit Python Xlang Gcp Direct script
+        id: run_postcommit_python_xlang_gcp_direct_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:gcpCrossLanguagePostCommit

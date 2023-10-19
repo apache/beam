@@ -85,6 +85,7 @@ jobs:
           python-version: 3.8
           java-version: 8
       - name: run typescriptPreCommit script
+        id: run_typescriptprecommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :typescriptPreCommit

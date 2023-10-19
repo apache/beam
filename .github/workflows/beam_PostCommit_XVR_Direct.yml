@@ -75,6 +75,7 @@ jobs:
             3.8
             3.11
       - name: run PostCommit XVR Direct script
+        id: run_postcommit_xvr_direct_script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         if: ${{ matrix.python_version != '3.8' }}
@@ -85,6 +86,7 @@ jobs:
             -PpythonVersion=${{ matrix.python_version }} \
             -PskipNonPythonTask=true \
       - name: run PostCommit XVR Direct script
+        id: run_postcommit_xvr_direct_script_2
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         if: ${{ matrix.python_version == '3.8' }}

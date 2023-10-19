@@ -86,6 +86,7 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: run PostCommit Python ${{ matrix.python_version }} script
+        id: run_postcommit_python_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :python${{steps.set_py_ver_clean.outputs.py_ver_clean}}PostCommit

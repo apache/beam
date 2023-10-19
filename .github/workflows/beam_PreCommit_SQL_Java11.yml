@@ -97,6 +97,7 @@ jobs:
           flutter-version: '3.10.4'
           channel: 'stable'
       - name: Build and Test
+        id: build_and_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sqlPreCommit

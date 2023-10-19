@@ -82,6 +82,7 @@ jobs:
           arguments: |
             --job_name=performance-tests-spannerio-write-python-batch-2gb$(date '+%m%d%H%M%S' --utc)
       - name: run Performance SpannerIO Write 2GB Test Python
+        id: run_performance_spannerio_write_2gb_test_python
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

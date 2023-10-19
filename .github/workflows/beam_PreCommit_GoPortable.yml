@@ -84,6 +84,7 @@ jobs:
           python-version: 3.8
           java-version: 8
       - name: Run goPortablePreCommit script
+        id: run_goportableprecommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :goPortablePreCommit

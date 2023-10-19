@@ -77,12 +77,14 @@ jobs:
             11
             8
       - name: run jar Java8 script
+        id: run_jar_java8_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:jar :runners:spark:3:testJar
           arguments: |
             -Dorg.gradle.java.home=$JAVA_HOME_8_X64 \
       - name: run validatesRunner Java11 script
+        id: run_validatesrunner_java11_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:validatesRunner

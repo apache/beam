@@ -89,6 +89,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run ParDo Dataflow Streaming Python Load Test 1 (10 iterations)
+        id: run_pardo_dataflow_streaming_python_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -98,6 +99,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_1 }} --job_name=load-tests-python-dataflow-streaming-pardo-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Streaming Python Load Test 2 (200 iterations)
+        id: run_pardo_dataflow_streaming_python_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -107,6 +109,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_2 }} --job_name=load-tests-python-dataflow-streaming-pardo-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Streaming Python Load Test 3 (10 counters)
+        id: run_pardo_dataflow_streaming_python_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -116,6 +119,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Streaming_test_arguments_3 }} --job_name=load-tests-python-dataflow-streaming-pardo-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Streaming Python Load Test 4 (100 counters)
+        id: run_pardo_dataflow_streaming_python_load_test_4
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

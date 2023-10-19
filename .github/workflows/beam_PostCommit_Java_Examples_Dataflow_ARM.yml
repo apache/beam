@@ -106,6 +106,7 @@ jobs:
         id: set_tag
         run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
       - name: run javaExamplesDataflowARMPostCommit script for Java${{ matrix.java_version }}
+        id: run_javaexamplesdataflowarmpostcommit_script_for_java
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM

@@ -70,6 +70,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run PostCommit Java PortableValidatesRunner Spark3 Streaming script
+        id: run_postcommit_java_portablevalidatesrunner_spark3_streaming_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: :runners:spark:3:job-server:validatesPortableRunnerStreaming

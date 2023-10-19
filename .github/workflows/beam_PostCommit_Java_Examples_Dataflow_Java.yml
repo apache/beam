@@ -79,6 +79,7 @@ jobs:
             ${{ matrix.java_version }}
             8
       - name: run java${{ matrix.java_version }}PostCommit script
+        id: run_java_postcommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:examples:java${{ matrix.java_version }}PostCommit

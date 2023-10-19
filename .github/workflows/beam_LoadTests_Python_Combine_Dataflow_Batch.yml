@@ -85,6 +85,7 @@ jobs:
             echo "prepared_config_$((INDEX + 1))=$CURCONFIG" >> $GITHUB_OUTPUT
           done
       - name: run Combine Dataflow Batch Python Load Test 1 (10 bytes records)
+        id: run_combine_dataflow_batch_python_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -94,6 +95,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
       - name: run Combine Dataflow Batch Python Load Test 2 (fanout 4)
+        id: run_combine_dataflow_batch_python_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -103,6 +105,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}' \
       - name: run Combine Dataflow Batch Python Load Test 3 (fanout 8)
+        id: run_combine_dataflow_batch_python_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

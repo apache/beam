@@ -91,6 +91,7 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: run Python Integration PreCommit batch script
+        id: run_python_integration_precommit_batch_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_batch
@@ -98,6 +99,7 @@ jobs:
             -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: run Python Integration PreCommit streaming script
+        id: run_python_integration_precommit_streaming_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_streaming

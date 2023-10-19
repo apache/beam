@@ -103,6 +103,7 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.java_version }}
       - name: run PostCommit Java ${{matrix.java_version}} Nexmark Dataflow V2 (streaming = ${{ matrix.streaming }}) script
+        id: run_postcommit_java_nexmark_dataflow_v2_streaming_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:nexmark:run

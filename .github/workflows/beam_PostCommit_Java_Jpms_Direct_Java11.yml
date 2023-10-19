@@ -73,6 +73,7 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
       - name: run PostCommit Java Jpms Direct Java11 script
+        id: run_postcommit_java_jpms_direct_java11_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest

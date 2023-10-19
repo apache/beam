@@ -103,6 +103,7 @@ jobs:
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Flink Batch 2GB of 10B records test
+        id: run_flink_batch_2gb_of_10b_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run --info
@@ -111,6 +112,7 @@ jobs:
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Flink_Batch_test_arguments_1 }} --job_name=load-tests-python-flink-batch-gbk-1-${{env.NOW_UTC}}' \
       - name: run Flink Batch 2GB of 100B records test
+        id: run_flink_batch_2gb_of_100b_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -119,6 +121,7 @@ jobs:
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-gbk-2-${{env.NOW_UTC}}' \
       - name: run reiterate 4 times 10kB values test
+        id: run_reiterate_4_times_10kb_values
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -132,6 +135,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh restart
       - name: run fanout 4 times with 2GB 10-byte records total test
+        id: run_fanout_4_times_with_2gb_10_byte_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -140,6 +144,7 @@ jobs:
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Flink_Batch_test_arguments_3 }} --job_name=load-tests-python-flink-batch-gbk-4-${{env.NOW_UTC}}' \
       - name: run fanout 8 times with 2GB 10-byte records total test
+        id: run_fanout_8_times_with_2gb_10_byte_records_total_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

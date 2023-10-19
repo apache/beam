@@ -96,6 +96,7 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: Run pythonDockerBuildPreCommit
+        id: run_pythondockerbuildprecommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:container:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:docker

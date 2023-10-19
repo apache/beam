@@ -59,10 +59,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: run the Java JMH micro-benchmark harness suite
+        id: run_the_java_jmh_micro_benchmark_harness_suite
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:harness:jmh:jmh
       - name: run the Java JMH micro-benchmark core suite
+        id: run_the_java_jmh_micro_benchmark_core_suite
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:core:jmh:jmh

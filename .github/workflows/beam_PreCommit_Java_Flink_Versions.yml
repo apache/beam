@@ -85,6 +85,7 @@ jobs:
           java-version: 8
           python-version: 3.8
       - name: run Java Flink Versions PreCommit script
+        id: run_java_flink_versions_precommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :flinkPreCommit

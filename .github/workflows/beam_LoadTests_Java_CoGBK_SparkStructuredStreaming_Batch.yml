@@ -81,6 +81,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_SparkStructuredStreaming_Batch_2MB.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB 100  byte records - single key
+        id: run_cogbk_2gb_100_byte_records_single_key
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -89,6 +90,7 @@ jobs:
             -Prunner=:runners:spark:3 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_SparkStructuredStreaming_Batch_test_arguments_1 }}' \
       - name: run CoGBK 2GB 100 byte records - multiple keys
+        id: run_cogbk_2gb_100_byte_records_multiple_keys
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -97,6 +99,7 @@ jobs:
             -Prunner=:runners:spark:3 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_SparkStructuredStreaming_Batch_test_arguments_2 }}' \
       - name: run CoGBK 2GB reiteration 10kB value
+        id: run_cogbk_2gb_reiteration_10kb_value
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -105,6 +108,7 @@ jobs:
             -Prunner=:runners:spark:3 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_SparkStructuredStreaming_Batch_test_arguments_3 }}' \
       - name: run CoGBK 2GB reiteration 2MB value
+        id: run_cogbk_2gb_reiteration_2mb_value
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run

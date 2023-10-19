@@ -82,6 +82,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run GroupByKey load test Direct
+        id: run_groupbykey_load_test_direct
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -90,6 +91,7 @@ jobs:
             -Prunner=:runners:direct-java  \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_1 }}' \
       - name: run GroupByKey load test Dataflow
+        id: run_groupbykey_load_test_dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -98,6 +100,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_2 }}' \
       - name: run GroupByKey load test Flink
+        id: run_groupbykey_load_test_flink
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -107,6 +110,7 @@ jobs:
             -Prunner=:runners:flink:1.15 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_3 }}' \
       - name: run GroupByKey load test Spark
+        id: run_groupbykey_load_test_spark
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run

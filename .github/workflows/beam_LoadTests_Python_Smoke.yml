@@ -84,6 +84,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run GroupByKey Python load test Direct
+        id: run_groupbykey_python_load_test_direct
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -93,6 +94,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Smoke_test_arguments_1 }} --job_name=load-tests-python-direct-batch-gbk-smoke-${{ steps.datetime.outputs.datetime }}' \
       - name: run GroupByKey Python load test Dataflow
+        id: run_groupbykey_python_load_test_dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

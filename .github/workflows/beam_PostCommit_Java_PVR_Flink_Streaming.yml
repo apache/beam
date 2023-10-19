@@ -70,6 +70,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run PostCommit Java Flink PortableValidatesRunner Streaming script
+        id: run_postcommit_java_flink_portablevalidatesrunner_streaming_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: runners:flink:1.15:job-server:validatesPortableRunnerStreaming

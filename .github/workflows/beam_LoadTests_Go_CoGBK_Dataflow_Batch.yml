@@ -80,6 +80,7 @@ jobs:
           arguments: |
             --job_name=load-tests-go-dataflow-batch-cogbk-$(date '+%m%d%H%M%S' --utc)
       - name: run CoGBK Dataflow Batch Go Load Test 1 (single key)
+        id: run_cogbk_dataflow_batch_go_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -88,6 +89,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_CoGBK_Dataflow_Batch_test_arguments_1 }}' \
       - name: run CoGBK Dataflow Batch Go Load Test 2 (multiple keys)
+        id: run_cogbk_dataflow_batch_go_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -96,6 +98,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_CoGBK_Dataflow_Batch_test_arguments_2 }}' \
       - name: run CoGBK Dataflow Batch Go Load Test 3 (reiterate 10KB)
+        id: run_cogbk_dataflow_batch_go_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -104,6 +107,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_CoGBK_Dataflow_Batch_test_arguments_3 }}' \
       - name: run CoGBK Dataflow Batch Go Load Test 4 (reiterate 2MB)
+        id: run_cogbk_dataflow_batch_go_load_test_4
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run

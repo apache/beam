@@ -84,6 +84,7 @@ jobs:
           python-version: 3.8
           go-version: 1.16
       - name: run pythonLintPreCommit script
+        id: run_pythonlintprecommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :pythonLintPreCommit

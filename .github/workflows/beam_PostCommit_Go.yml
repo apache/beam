@@ -80,6 +80,7 @@ jobs:
         run: |
           gcloud auth configure-docker us.gcr.io
       - name: run Go PostCommit script
+        id: run_go_postcommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         env:
           USER: github-actions

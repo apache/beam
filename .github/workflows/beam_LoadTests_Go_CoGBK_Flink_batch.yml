@@ -95,6 +95,7 @@ jobs:
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh create
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK Flink Batch Go Load Test 1 (multiple keys)
+        id: run_cogbk_flink_batch_go_load_test_1
         timeout-minutes: 240
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -104,6 +105,7 @@ jobs:
             -Prunner=FlinkRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_CoGBK_Flink_Batch_test_arguments_1 }}' \
       - name: run CoGBK Flink Batch Go Load Test 2 (reiterate 4 times 10KB values)
+        id: run_cogbk_flink_batch_go_load_test_2
         timeout-minutes: 240
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -113,6 +115,7 @@ jobs:
             -Prunner=FlinkRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_CoGBK_Flink_Batch_test_arguments_2 }}' \
       - name: run CoGBK Flink Batch Go Load Test 3 (reiterate 4 times 2MB values)
+        id: run_cogbk_flink_batch_go_load_test_3
         timeout-minutes: 240
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

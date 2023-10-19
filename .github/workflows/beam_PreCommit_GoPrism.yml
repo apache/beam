@@ -84,6 +84,7 @@ jobs:
           python-version: 3.8
           java-version: 8
       - name: Run goPrismPreCommit script
+        id: run_goprismprecommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :goPrismPreCommit

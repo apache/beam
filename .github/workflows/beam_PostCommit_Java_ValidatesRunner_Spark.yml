@@ -73,6 +73,7 @@ jobs:
           distribution: 'zulu'
           java-version: '8'
       - name: run validatesRunner script
+        id: run_validatesrunner_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:validatesRunner

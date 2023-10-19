@@ -96,6 +96,7 @@ jobs:
           arguments: |
             --rabbitMqBootstrapServerAddress=amqp://guest:guest@${{ steps.install_rabbitmq.outputs.rabbitmq_IP }}:5672
       - name: run integrationTest
+        id: run_integrationtest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:sparkreceiver:2:integrationTest

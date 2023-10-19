@@ -78,6 +78,7 @@ jobs:
           arguments: |
             --job_name=load-tests-go-dataflow-batch-sideinput-$(date '+%m%d%H%M%S' --utc)
       - name: run SideInput Dataflow Batch Go Load Test 1 (first iterable)
+        id: run_sideinput_dataflow_batch_go_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -86,6 +87,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_SideInput_Dataflow_Batch_test_arguments_1 }}' \
       - name: run SideInput Dataflow Batch Go Load Test 2 (iterable)
+        id: run_sideinput_dataflow_batch_go_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run

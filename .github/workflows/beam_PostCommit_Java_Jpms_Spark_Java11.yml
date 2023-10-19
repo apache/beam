@@ -73,6 +73,7 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
       - name: run PostCommit Java Jpms Spark Java11 script
+        id: run_postcommit_java_jpms_spark_java11_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:jpms-tests:sparkRunnerIntegrationTest

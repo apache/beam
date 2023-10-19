@@ -96,6 +96,7 @@ jobs:
           arguments: |
             --postgresServerName=${{ steps.install_postgres.outputs.postgres_IP }}
       - name: run integrationTest
+        id: run_integrationtest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:hadoop-format:integrationTest

@@ -86,6 +86,7 @@ jobs:
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run 2GB of 10B records test
+        id: run_2gb_of_10b_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -95,6 +96,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-gbk-1-${{env.NOW_UTC}}' \
       - name: run 2GB of 100B records test
+        id: run_2gb_of_100b_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -104,6 +106,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-gbk-2-${{env.NOW_UTC}}' \
       - name: run 2GB of 100kB records test
+        id: run_2gb_of_100kb_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -113,6 +116,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-gbk-3-${{env.NOW_UTC}}' \
       - name: run fanout 4 times with 2GB 10-byte records test
+        id: run_fanout_4_times_with_2gb_10_byte_records_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -122,6 +126,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Dataflow_Batch_test_arguments_4 }} --job_name=load-tests-python-dataflow-batch-gbk-4-${{env.NOW_UTC}}' \
       - name: run fanout 8 times with 2GB 10-byte records total test
+        id: run_fanout_8_times_with_2gb_10_byte_records_total_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

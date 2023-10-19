@@ -91,6 +91,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run PostCommit Java Nexmark Direct (${{ matrix.streaming }} ${{ matrix.queryLanguage }}) script
+        id: run_postcommit_java_nexmark_direct_script
         if: matrix.queryLanguage != 'none'
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -99,6 +100,7 @@ jobs:
             -Pnexmark.runner=:runners:direct-java \
              "${{ env.GRADLE_COMMAND_ARGUMENTS }} --streaming=${{ matrix.streaming }} --queryLanguage=${{ matrix.queryLanguage }}" \
       - name: run PostCommit Java Nexmark Direct (${{ matrix.streaming }}) script
+        id: run_postcommit_java_nexmark_direct_script_2
         if: matrix.queryLanguage == 'none'
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

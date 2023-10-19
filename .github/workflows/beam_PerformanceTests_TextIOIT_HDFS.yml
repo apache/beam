@@ -91,6 +91,7 @@ jobs:
             --hdfsConfiguration=[{\\\"fs.defaultFS\\\":\\\"hdfs:${{ steps.install_hadoop.outputs.hadoop_IP }}:9000\\\",\\\"dfs.replication\\\":1}]
       # The env variable is created and populated in the test-arguments-action as "beam_PerformanceTests_TextIOIT_HDFS_test_arguments_1"
       - name: Run Java TextIO Performance Test
+        id: run_java_textio_performance_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:file-based-io-tests:integrationTest

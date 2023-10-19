@@ -83,6 +83,7 @@ jobs:
           java-version: 8
           python-version: 3.8
       - name: Run preCommitPyCoverage
+        id: run_precommitpycoverage
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py38:preCommitPyCoverage

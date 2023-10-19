@@ -73,6 +73,7 @@ jobs:
           java-version: 8
           python-version: 3.11
       - name: Run mongodbioIT script
+        id: run_mongodbioit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:py311:mongodbioIT

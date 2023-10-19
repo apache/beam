@@ -80,6 +80,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_LoadTests_Combine_Smoke_CombineLoadTest_load_test_Dataflow-3.txt
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CombineLoadTest load test Dataflow-1
+        id: run_combineloadtest_load_test_dataflow_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -88,6 +89,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_Java_LoadTests_Combine_Smoke_test_arguments_1 }}' \
       - name: run CombineLoadTest load test Dataflow-2
+        id: run_combineloadtest_load_test_dataflow_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -96,6 +98,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_Java_LoadTests_Combine_Smoke_test_arguments_2 }}' \
       - name: run CombineLoadTest load test Dataflow-3
+        id: run_combineloadtest_load_test_dataflow_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run

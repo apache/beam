@@ -82,6 +82,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run Debezium IO build task
+        id: run_debezium_io_build_task
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:debezium:build
@@ -89,6 +90,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
       - name: run Debezium IO additional tasks
+        id: run_debezium_io_additional_tasks
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: |

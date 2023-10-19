@@ -70,6 +70,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: run PostCommit Java Avro Versions script
+        id: run_postcommit_java_avro_versions_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: :javaAvroVersionsTest

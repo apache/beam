@@ -99,6 +99,7 @@ jobs:
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"  
       - name: run Load test 2GB 10 byte records
+        id: run_load_test_2gb_10_byte_records
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -115,6 +116,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh restart
       - name: run Load test 2GB Fanout 4
+        id: run_load_test_2gb_fanout_4
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -124,6 +126,7 @@ jobs:
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-combine-4-${{env.NOW_UTC}}' \
       - name: run Load test 2GB Fanout 8
+        id: run_load_test_2gb_fanout_8
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

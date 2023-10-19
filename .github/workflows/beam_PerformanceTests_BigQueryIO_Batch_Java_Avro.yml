@@ -76,6 +76,7 @@ jobs:
           CONFIGWITHDATE=$(echo "${CURCONFIG/bqio_write_10GB_java_avro_/bqio_write_10GB_java_avro_$CURDATE}")
           echo "prepared_config=$CONFIGWITHDATE" >> $GITHUB_OUTPUT
       - name: run Java BigQueryIO Batch Avro Performance Test
+        id: run_java_bigqueryio_batch_avro_performance_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:bigquery-io-perf-tests:integrationTest
