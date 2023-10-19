@@ -24,9 +24,8 @@ output "cluster_endpoint" {
     value = google_container_cluster.actions-runner-gke.endpoint
 }
 output "ingress_ip" {
-    value = google_compute_global_address.actions-runner-ip.address
+    value = var.deploy_webhook != "false" ? data.google_compute_global_address.actions-runner-ip[0].address : "Not Configured"
 }
-
 output "get_kubeconfig_command" {
     value = "gcloud container clusters get-credentials ${google_container_cluster.actions-runner-gke.name} --region ${var.zone} --project ${var.project_id}"
 }
