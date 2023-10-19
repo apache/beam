@@ -27,6 +27,7 @@ resource "kubectl_manifest" "arc_autoscaler" {
   depends_on         = [helm_release.arc]
 }
 resource "kubectl_manifest" "arc_webhook_certificate" {
+  count = var.deploy_webhook != "false" ? 1 : 0
   yaml_body          = templatefile("config/arc_certificate.tpl", { ingress_domain = var.ingress_domain })
   override_namespace = "arc"
   depends_on         = [helm_release.arc]
