@@ -16,8 +16,6 @@
 name: LoadTests Python ParDo Flink Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 16 * * *'
   workflow_dispatch:
