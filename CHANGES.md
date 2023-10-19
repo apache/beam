@@ -57,8 +57,10 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Previously deprecated Avro-dependent code (Beam Release 2.46.0) has been finally removed from Java SDK "core" package.
+Please, use `beam-sdks-java-extensions-avro` instead. This will allow to easily update Avro version in user code without
+potential breaking changes in Beam "core" since the Beam Avro extension already supports the latest Avro versions and
+should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 
 ## I/Os
 
@@ -71,6 +73,10 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* `org.apache.beam.sdk.io.CountingSource.CounterMark` uses custom `CounterMarkCoder` as a default coder since all Avro-dependent
+classes finally moved to `extensions/avro`. In case if it's still required to use `AvroCoder` for `CounterMark`, then,
+as a workaround, a copy of "old" `CountingSource` class should be placed into a project code and used directly
+([#25252](https://github.com/apache/beam/issues/25252)).
 
 ## Deprecations
 

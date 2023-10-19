@@ -17,7 +17,7 @@ name: Performance Tests BigQueryIO Batch Java Json
 
 on:
   schedule:
-    - cron: '30 8,20 * * *'
+    - cron: '10 9/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

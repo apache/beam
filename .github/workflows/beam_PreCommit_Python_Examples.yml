@@ -25,7 +25,7 @@ on:
     branches: ['master', 'release-*']
     paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Examples.yml"]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 2/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -56,7 +56,7 @@ env:
 
 jobs:
   beam_PreCommit_Python_Examples:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
@@ -101,6 +101,7 @@ jobs:
             -PuseWheelDistribution
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"

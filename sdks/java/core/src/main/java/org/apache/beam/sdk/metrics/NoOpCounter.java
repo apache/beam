@@ -15,37 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.metrics;
 
-import java.util.Objects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.checkerframework.checker.nullness.qual.Nullable;
+/**
+ * A no-op implementation of Counter. This class exists to provide a default if an implementation of
+ * MetricsContainer does not override a Counter getter.
+ */
+public class NoOpCounter implements Counter {
 
-/** A Pojo at the top level for use in tests. */
-class AvroCoderTestPojo {
+  private static final NoOpCounter singleton = new NoOpCounter();
+  private static final MetricName name = MetricName.named(NoOpCounter.class, "singleton");
 
-  public String text;
-
-  // Empty constructor required for Avro decoding.
-  @SuppressWarnings("unused")
-  public AvroCoderTestPojo() {}
-
-  public AvroCoderTestPojo(String text) {
-    this.text = text;
-  }
+  private NoOpCounter() {}
 
   @Override
-  public boolean equals(@Nullable Object other) {
-    return (other instanceof AvroCoderTestPojo) && ((AvroCoderTestPojo) other).text.equals(text);
-  }
+  public void inc() {}
 
   @Override
-  public int hashCode() {
-    return Objects.hash(AvroCoderTestPojo.class, text);
-  }
+  public void inc(long n) {}
 
   @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this).add("text", text).toString();
+  public void dec() {}
+
+  @Override
+  public void dec(long n) {}
+
+  @Override
+  public MetricName getName() {
+    return name;
+  }
+
+  public static NoOpCounter getInstance() {
+    return singleton;
   }
 }

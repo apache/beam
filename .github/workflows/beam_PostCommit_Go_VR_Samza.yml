@@ -17,7 +17,7 @@ name: PostCommit Go VR Samza
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 3/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

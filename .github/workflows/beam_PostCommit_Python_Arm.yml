@@ -21,7 +21,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 5/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -52,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Python_Arm:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     strategy:
@@ -76,7 +76,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{matrix.python_version}}
+          python-version: ${{ matrix.python_version }}
       - name: Install docker compose
         run: |
           sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
@@ -113,6 +113,7 @@ jobs:
           USER: github-actions
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"

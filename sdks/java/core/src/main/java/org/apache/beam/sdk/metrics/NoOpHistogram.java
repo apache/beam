@@ -15,26 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
+package org.apache.beam.sdk.metrics;
 
 /**
- * AvroCoder specialisation for GenericRecord.
- *
- * @deprecated Avro related classes are deprecated in module <code>beam-sdks-java-core</code> and
- *     will be eventually removed. Please, migrate to a new module <code>
- *     beam-sdks-java-extensions-avro</code> by importing <code>
- *     org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder</code> instead of this one.
+ * A no-op implementation of Histogram. This class exists to provide a default if an implementation
+ * of MetricsContainer does not override a Histogram getter.
  */
-@Deprecated
-public class AvroGenericCoder extends AvroCoder<GenericRecord> {
-  AvroGenericCoder(Schema schema) {
-    super(GenericRecord.class, schema);
+public class NoOpHistogram implements Histogram {
+
+  private static final NoOpHistogram singleton = new NoOpHistogram();
+  private static final MetricName name = MetricName.named(NoOpHistogram.class, "singleton");
+
+  private NoOpHistogram() {}
+
+  @Override
+  public void update(double value) {}
+
+  @Override
+  public MetricName getName() {
+    return name;
   }
 
-  public static AvroGenericCoder of(Schema schema) {
-    return new AvroGenericCoder(schema);
+  public static NoOpHistogram getInstance() {
+    return singleton;
   }
 }
