@@ -19,7 +19,7 @@ name: PostCommit Java Examples Dataflow V2
 
 on:
   schedule:
-    - cron: '0 5/6 * * *'
+    - cron: '45 3/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs

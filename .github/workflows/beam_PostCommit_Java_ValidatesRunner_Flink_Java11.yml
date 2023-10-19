@@ -19,7 +19,7 @@ name: PostCommit Java ValidatesRunner Flink Java11
 
 on:
   schedule:
-    - cron: '30 6/6 * * *'
+    - cron: '45 4/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
