@@ -19,7 +19,7 @@ name: PostCommit Java Nexmark Dataflow
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 4/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs

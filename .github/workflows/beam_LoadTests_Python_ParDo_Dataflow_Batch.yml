@@ -19,7 +19,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '30 13 * * *'
+    - cron: '10 16 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
