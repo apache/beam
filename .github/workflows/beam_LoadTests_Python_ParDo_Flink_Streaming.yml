@@ -87,11 +87,11 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_10_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_100_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_5_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_100_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_5_Iterations.txt
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5
