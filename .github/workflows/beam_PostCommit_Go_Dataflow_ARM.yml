@@ -20,6 +20,8 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml']
+  issue_comment:
+    types: [created]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
