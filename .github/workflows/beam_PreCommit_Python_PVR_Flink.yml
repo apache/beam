@@ -29,6 +29,7 @@ on:
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
       - 'runners/reference/**'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   push:

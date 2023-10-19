@@ -30,6 +30,7 @@ on:
       - 'model/**'
       - 'runners/flink/**'
       - 'release/**'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

@@ -32,6 +32,7 @@ on:
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
       - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:
