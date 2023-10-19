@@ -118,7 +118,9 @@ plugins.withType(JavaPlugin).configureEach{
   }
 }
 
-// JPMS requires JDK > 8
+// JPMS requires JDK > 8. Test tasks enabled when either
+// (i) testJavaVersion property specified (assumed to be >8) or;
+// (ii) current Java version is greater than 8
 project.tasks.each {
   it.onlyIf {
     project.hasProperty('testJavaVersion')
