@@ -34,6 +34,7 @@ on:
       - "sdks/java/expansion-service/**"
       - "sdks/java/io/synthetic/**"
       - "sdks/java/io/expansion-service/**"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:
