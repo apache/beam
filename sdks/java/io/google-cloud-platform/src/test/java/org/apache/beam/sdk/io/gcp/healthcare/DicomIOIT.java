@@ -123,10 +123,8 @@ public class DicomIOIT {
   public void test_DicomIO_deidentify() {
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
     DicomIO.Deidentify.Result result = pipeline.apply(DicomIO.deidentify(dicomStoreName, deidDicomStoreName, deidConfig));
-    assertNotNull(result.getError().getSchema());
-    // PAssert.that(result.getError()).empty();
-    // PAssert.that(result.getError().apply("toString", ToJson.of())).containsInAnyOrder(Collections.emptyList());
-    // PAssert.thatSingleton(result.getOperation().apply("output", Count.globally())).isEqualTo(1L);
+    PAssert.that(result.getError().apply("toString", ToJson.of())).containsInAnyOrder(Collections.emptyList());
+    PAssert.thatSingleton(result.getOperation().apply("output", Count.globally())).isEqualTo(1L);
     pipeline.run();
   }
 }
