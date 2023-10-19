@@ -232,7 +232,6 @@ public class DicomIO {
     }
 
     @Override
-    @SuppressWarnings("SameNameButDifferent")
     public ReadStudyMetadata.Result expand(PCollection<String> input) {
       return new Result(
           input.apply(
