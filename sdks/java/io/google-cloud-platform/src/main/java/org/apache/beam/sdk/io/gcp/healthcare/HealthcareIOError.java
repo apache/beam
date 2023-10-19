@@ -77,7 +77,7 @@ public class HealthcareIOError<T> {
           return result;
         }
       };
-  static Schema SCHEMA_FOR_STRING_RESOURCE_TYPE =
+  static final Schema SCHEMA_FOR_STRING_RESOURCE_TYPE =
       Schema.of(
           Field.of(DATA_RESOURCE, FieldType.STRING),
           Field.of(ERROR_MESSAGE, FieldType.STRING),
