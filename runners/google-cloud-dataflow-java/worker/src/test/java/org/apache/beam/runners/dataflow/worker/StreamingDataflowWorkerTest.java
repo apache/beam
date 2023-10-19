@@ -226,6 +226,7 @@ public class StreamingDataflowWorkerTest {
   private static final ByteString DEFAULT_KEY_BYTES = ByteString.copyFromUtf8(DEFAULT_KEY_STRING);
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
+  private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final Function<GetDataRequest, GetDataResponse> EMPTY_DATA_RESPONDER =
       (GetDataRequest request) -> {
         GetDataResponse.Builder builder = GetDataResponse.newBuilder();
@@ -2750,7 +2751,7 @@ public class StreamingDataflowWorkerTest {
             threadExpiration,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
@@ -2808,7 +2809,7 @@ public class StreamingDataflowWorkerTest {
             threadExpirationSec,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
@@ -2883,7 +2884,7 @@ public class StreamingDataflowWorkerTest {
             threadExpirationSec,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
@@ -2952,7 +2953,7 @@ public class StreamingDataflowWorkerTest {
             threadExpirationSec,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
@@ -3025,7 +3026,7 @@ public class StreamingDataflowWorkerTest {
             threadExpirationSec,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
