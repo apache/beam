@@ -200,3 +200,40 @@ criteria. This can be accomplished with a `Filter` transform, e.g.
     language: sql
     keep: "col2 > 0"
 ```
+
+## Types
+
+Beam will try to infer the types involved in the mappings, but sometimes this
+is not possible. In these cases one can explicitly denote the expected output
+type, e.g.
+
+```
+- type: MapToFields
+  config:
+    language: python
+    fields:
+      new_col:
+        expression: "col1.upper()"
+        type: string
+```
+
+The expected type is given in json schema notation, with the addition that
+a top-level basic types may be given as a literal string rather than requiring
+a `{type: 'basic_type_name'}` nesting.
+
+```
+- type: MapToFields
+  config:
+    language: python
+    fields:
+      new_col:
+        expression: "col1.upper()"
+        type: string
+      another_col:
+        expression: "beam.Row(a=col1, b=[col2])"
+        type:
+          type: 'object'
+          properties:
+            a: {type: 'string'}
+            b: {type: 'array', items: {type: 'number'}}
+```

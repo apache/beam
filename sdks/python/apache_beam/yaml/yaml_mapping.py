@@ -30,10 +30,13 @@ import js2py
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import schemas
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
+from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
 
 
@@ -120,6 +123,44 @@ def _expand_python_mapping_func(
   return python_callable.PythonCallableWithSource(source)
 
 
+def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
+  """Returns a callable converting rows of the given type to Json objects."""
+  type_info = beam_type.WhichOneof("type_info")
+  if type_info == "atomic_type":
+    if beam_type.atomic_type == schema_pb2.BOOLEAN:
+      return lambda x: isinstance(x, bool)
+    elif beam_type.atomic_type == schema_pb2.INT64:
+      return lambda x: isinstance(x, int)
+    elif beam_type.atomic_type == schema_pb2.DOUBLE:
+      return lambda x: isinstance(x, (int, float))
+    elif beam_type.atomic_type == schema_pb2.STRING:
+      return lambda x: isinstance(x, str)
+    else:
+      raise ValueError(
+          f'Unknown or unsupported atomic type: {beam_type.atomic_type}')
+  elif type_info == "array_type":
+    element_validator = _validator(beam_type.array_type.element_type)
+    return lambda value: all(element_validator(e) for e in value)
+  elif type_info == "iterable_type":
+    element_validator = _validator(beam_type.iterable_type.element_type)
+    return lambda value: all(element_validator(e) for e in value)
+  elif type_info == "map_type":
+    key_validator = _validator(beam_type.iterable_type.key_type)
+    value_validator = _validator(beam_type.iterable_type.value_type)
+    return lambda value: all(
+        key_validator(k) and value_validator(v) for (k, v) in value.items())
+  elif type_info == "row_type":
+    validators = {
+        field.name: _validator(field.type)
+        for field in beam_type.row_type.schema.fields
+    }
+    return lambda row: all(
+        validator(getattr(row, name))
+        for (name, validator) in validators.items())
+  else:
+    raise ValueError(f"Unrecognized type_info: {type_info!r}")
+
+
 def _as_callable(original_fields, expr, transform_name, language):
   if expr in original_fields:
     return expr
@@ -132,19 +173,35 @@ def _as_callable(original_fields, expr, transform_name, language):
   if not isinstance(expr, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
-  elif len(expr) != 1 and ('path' not in expr or 'name' not in expr):
-    raise ValueError(f"Ambiguous expression type: {list(expr.keys())}")
-
+  explicit_type = expr.pop('type', None)
   _check_mapping_arguments(transform_name, **expr)
 
   if language == "javascript":
-    return _expand_javascript_mapping_func(original_fields, **expr)
+    func = _expand_javascript_mapping_func(original_fields, **expr)
   elif language == "python":
-    return _expand_python_mapping_func(original_fields, **expr)
+    func = _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
         f'Unknown language for mapping transform: {language}. '
         'Supported languages are "javascript" and "python."')
+
+  if explicit_type:
+    if isinstance(explicit_type, str):
+      explicit_type = {'type': explicit_type}
+    beam_type = json_utils.json_type_to_beam_type(explicit_type)
+    validator = _validator(beam_type)
+
+    @beam.typehints.with_output_types(schemas.typing_from_runner_api(beam_type))
+    def checking_func(row):
+      result = func(row)
+      if not validator(result):
+        raise TypeError(f'{result} violates schema {explicit_type}')
+      return result
+
+    return checking_func
+
+  else:
+    return func
 
 
 def exception_handling_args(error_handling_spec):
