@@ -103,9 +103,16 @@ jobs:
             --info \
             -Ptest=apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it \
             "-Ptest-pipeline-options=${{ env.beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1 }}"
-      - name: Archive code coverage results
+      - name: Archive Python Test Results
         uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: Python Test Results
+          path: '**/pytest*.xml'
+      - name: Publish Python Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          name: python-code-coverage-report
-          path: "**/pytest*.xml"
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/pytest*.xml'
