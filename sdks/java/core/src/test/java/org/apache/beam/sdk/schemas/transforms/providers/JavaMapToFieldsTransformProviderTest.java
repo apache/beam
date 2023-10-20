@@ -171,7 +171,7 @@ public class JavaMapToFieldsTransformProviderTest {
                                                 + "  }"
                                                 + "}")
                                         .build()))
-                            .setError_handling(
+                            .setErrorHandling(
                                 JavaMapToFieldsTransformProvider.Configuration.ErrorHandling
                                     .builder()
                                     .setOutput("errors")

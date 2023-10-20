@@ -96,8 +96,7 @@ public class JavaMapToFieldsTransformProvider
     public abstract Map<String, JavaRowUdf.Configuration> getFields();
 
     @Nullable
-    @SuppressWarnings("all")
-    public abstract ErrorHandling getError_handling();
+    public abstract ErrorHandling getErrorHandling();
 
     public static Builder builder() {
       return new AutoValue_JavaMapToFieldsTransformProvider_Configuration.Builder();
@@ -114,8 +113,7 @@ public class JavaMapToFieldsTransformProvider
 
       public abstract Builder setFields(Map<String, JavaRowUdf.Configuration> fields);
 
-      @SuppressWarnings("all")
-      public abstract Builder setError_handling(ErrorHandling error_handling);
+      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
       public abstract Configuration build();
     }
@@ -195,8 +193,8 @@ public class JavaMapToFieldsTransformProvider
       }
       Schema outputSchema = outputSchemaBuilder.build();
       boolean handleErrors =
-          configuration.getError_handling() != null
-              && configuration.getError_handling().getOutput() != null;
+          configuration.getErrorHandling() != null
+              && configuration.getErrorHandling().getOutput() != null;
       Schema errorSchema =
           Schema.of(
               Schema.Field.of("failed_row", Schema.FieldType.row(inputSchema)),
@@ -215,7 +213,7 @@ public class JavaMapToFieldsTransformProvider
       PCollectionRowTuple result =
           PCollectionRowTuple.of(OUTPUT_ROWS_TAG, pcolls.get(mappedValues));
       if (handleErrors) {
-        result = result.and(configuration.getError_handling().getOutput(), pcolls.get(errorValues));
+        result = result.and(configuration.getErrorHandling().getOutput(), pcolls.get(errorValues));
       }
       return result;
     }
