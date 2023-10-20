@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
  * reading from JDBC connections using {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @AutoService(SchemaTransformProvider.class)
 public class JdbcReadSchemaTransformProvider
@@ -209,6 +209,7 @@ public class JdbcReadSchemaTransformProvider
       public abstract Builder setFetchSize(Short value);
 
       public abstract Builder setOutputParallelization(Boolean value);
+
       public abstract Builder setDriverJars(String value);
 
       public abstract JdbcReadSchemaTransformConfiguration build();
