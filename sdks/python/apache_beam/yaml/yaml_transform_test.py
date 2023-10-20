@@ -43,6 +43,16 @@ class CreateTimestamped(beam.PTransform):
         | beam.Map(lambda x: beam.transforms.window.TimestampedValue(x, x)))
 
 
+class CreateInts(beam.PTransform):
+  _yaml_requires_inputs = False
+
+  def __init__(self, elements):
+    self._elements = elements
+
+  def expand(self, p):
+    return p | beam.Create(self._elements)
+
+
 class SumGlobally(beam.PTransform):
   def expand(self, pcoll):
     return pcoll | beam.CombineGlobally(sum).without_defaults()
@@ -65,7 +75,7 @@ class SizeLimiter(beam.PTransform):
 
 
 TEST_PROVIDERS = {
-    'CreateInts': lambda elements: beam.Create(elements),
+    'CreateInts': CreateInts,
     'CreateTimestamped': CreateTimestamped,
     'SumGlobally': SumGlobally,
     'SizeLimiter': SizeLimiter,
