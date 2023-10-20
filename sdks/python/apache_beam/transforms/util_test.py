@@ -462,6 +462,20 @@ class BatchElementsTest(unittest.TestCase):
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
 
+class StatefulBatchElementsTest(unittest.TestCase):
+  def test_constant_batch(self):
+    # Assumes a single bundle...
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.StatefulBatchElements(min_batch_size=10, max_batch_size=10)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+
+
 class IdentityWindowTest(unittest.TestCase):
   def test_window_preserved(self):
     expected_timestamp = timestamp.Timestamp(5)

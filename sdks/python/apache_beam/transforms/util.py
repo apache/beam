@@ -61,6 +61,7 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import Always
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
@@ -646,6 +647,79 @@ class _WindowAwareBatchingDoFn(DoFn):
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
 
+# TODO(jrmccluskey): add stateful handling for batch size estimation
+def _pardo_stateful_batch_elements(
+    input_coder: coders.Coder,
+    batch_size_estimator: _BatchSizeEstimator,
+    max_buffering_duration_secs: int):
+  ELEMENT_STATE = BagStateSpec('values', input_coder)
+  COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
+  BATCH_SIZE_STATE = ReadModifyWriteStateSpec('batch_size', input_coder)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
+
+  class _StatefulBatchElementsDoFn(DoFn):
+    def process(
+        self,
+        element,
+        window=DoFn.WindowParam,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      window_timer.set(window.end)
+      # Drop the fixed key since we don't care about it
+      element_state.add(element[1])
+      count_state.add(1)
+      count = count_state.read()
+      target_size = batch_size_state.read()
+      if target_size is None:
+        target_size = batch_size_estimator.next_batch_size()
+        batch_size_state.write(target_size)
+
+      if count == 1 and max_buffering_duration_secs > 0:
+        # First element in batch, start buffering timer
+        buffering_timer.set(time.time() + max_buffering_duration_secs)
+
+      if count >= target_size:
+        return self.flush_batch(element_state, count_state, batch_size_state, buffering_timer)
+
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state, count_state, batch_size_state, buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state, count_state, batch_size_state, buffering_timer)
+
+    def flush_batch(
+        self, element_state, count_state, batch_size_state, buffering_timer):
+      batch = [element for element in element_state.read()]
+      if not batch:
+        return
+      element_state.clear()
+      count_state.clear()
+      batch_size_estimator.record_time(len(batch))
+      batch_size_state.write(batch_size_estimator.next_batch_size())
+      buffering_timer.clear()
+      yield batch
+
+  return _StatefulBatchElementsDoFn()
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(List[T])
 class BatchElements(PTransform):
@@ -727,6 +801,81 @@ class BatchElements(PTransform):
           _WindowAwareBatchingDoFn(
               self._batch_size_estimator, self._element_size_fn))
 
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(List[T])
+class StatefulBatchElements(PTransform):
+  """A Transform that batches elements for amortized processing.
+
+  This transform is designed to precede operations whose processing cost
+  is of the form
+
+      time = fixed_cost + num_elements * per_element_cost
+
+  where the per element cost is (often significantly) smaller than the fixed
+  cost and could be amortized over multiple elements.  It consumes a PCollection
+  of element type T and produces a PCollection of element type List[T].
+
+  This transform attempts to find the best batch size between the minimim
+  and maximum parameters by profiling the time taken by (fused) downstream
+  operations. For a fixed batch size, set the min and max to be equal.
+
+  Elements are batched per-window and batches emitted in the window
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
+
+  Args:
+    min_batch_size: (optional) the smallest size of a batch
+    max_batch_size: (optional) the largest size of a batch
+    target_batch_overhead: (optional) a target for fixed_cost / time,
+        as used in the formula above
+    target_batch_duration_secs: (optional) a target for total time per bundle,
+        in seconds, excluding fixed cost
+    target_batch_duration_secs_including_fixed_cost: (optional) a target for
+        total time per bundle, in seconds, including fixed cost
+    element_size_fn: (optional) A mapping of an element to its contribution to
+        batch size, defaulting to every element having size 1.  When provided,
+        attempts to provide batches of optimal total size which may consist of
+        a varying number of elements.
+    variance: (optional) the permitted (relative) amount of deviation from the
+        (estimated) ideal batch size used to produce a wider base for
+        linear interpolation
+    clock: (optional) an alternative to time.time for measuring the cost of
+        donwstream operations (mostly for testing)
+    record_metrics: (optional) whether or not to record beam metrics on
+        distributions of the batch size. Defaults to True.
+  """
+  def __init__(
+      self,
+      min_batch_size=1,
+      max_batch_size=10000,
+      target_batch_overhead=.05,
+      target_batch_duration_secs=10,
+      target_batch_duration_secs_including_fixed_cost=None,
+      *,
+      element_size_fn=lambda x: 1,
+      variance=0.25,
+      clock=time.time,
+      record_metrics=True):
+    self._batch_size_estimator = _BatchSizeEstimator(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        target_batch_overhead=target_batch_overhead,
+        target_batch_duration_secs=target_batch_duration_secs,
+        target_batch_duration_secs_including_fixed_cost=(
+            target_batch_duration_secs_including_fixed_cost),
+        variance=variance,
+        clock=clock,
+        record_metrics=record_metrics)
+    self._element_size_fn = element_size_fn
+    self._target_batch_dur = target_batch_duration_secs
+
+  def expand(self, pcoll):
+    if getattr(pcoll.pipeline.runner, 'is_streaming', False):
+      raise NotImplementedError("Requires stateful processing (BEAM-2687)")
+    coder = coders.registry.get_coder(pcoll)
+    return pcoll | WithKeys(0) | ParDo(_pardo_stateful_batch_elements(coder, self._batch_size_estimator, self._target_batch_dur))
+    
 
 class _IdentityWindowFn(NonMergingWindowFn):
   """Windowing function that preserves existing windows.
