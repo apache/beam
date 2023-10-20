@@ -319,7 +319,6 @@ class YamlPubSubTest(unittest.TestCase):
             | YamlTransform(
                 '''
             type: WriteToPubSub
-            input: input
             config:
               topic: my_topic
               format: raw
@@ -341,7 +340,6 @@ class YamlPubSubTest(unittest.TestCase):
             ]) | YamlTransform(
                 '''
             type: WriteToPubSub
-            input: input
             config:
               topic: my_topic
               format: raw
@@ -364,7 +362,6 @@ class YamlPubSubTest(unittest.TestCase):
             ]) | YamlTransform(
                 '''
             type: WriteToPubSub
-            input: input
             config:
               topic: my_topic
               format: raw
@@ -384,7 +381,6 @@ class YamlPubSubTest(unittest.TestCase):
             | YamlTransform(
                 '''
             type: WriteToPubSub
-            input: input
             config:
               topic: my_topic
               format: raw
@@ -408,7 +404,6 @@ class YamlPubSubTest(unittest.TestCase):
             | YamlTransform(
                 '''
             type: WriteToPubSub
-            input: input
             config:
               topic: my_topic
               format: avro
@@ -434,7 +429,6 @@ class YamlPubSubTest(unittest.TestCase):
             ]) | YamlTransform(
                 '''
             type: WriteToPubSub
-            input: input
             config:
               topic: my_topic
               format: json
