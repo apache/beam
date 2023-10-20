@@ -310,13 +310,13 @@ class YamlPubSubTest(unittest.TestCase):
   def test_read_json_with_bad_schema(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
-      with mock.patch(
-          'apache_beam.io.ReadFromPubSub',
-          FakeReadFromPubSub(topic='my_topic',
-                             messages=[PubsubMessage('{"some_int": 123}',
-                                                     attributes={}),
-                                       PubsubMessage('{"some_int": "NOT"}',
-                                                     attributes={})])):
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage('{"some_int": 123}',
+                                                  attributes={}),
+                                    PubsubMessage('{"some_int": "NOT"}',
+                                                  attributes={})])):
         result = p | YamlTransform(
             '''
             type: ReadFromPubSub
