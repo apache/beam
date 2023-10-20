@@ -114,7 +114,7 @@ class RedisClient implements SetupTeardown {
    */
   void rpush(String key, byte[]... items) throws UserCodeExecutionException {
     try {
-      getSafeClient().lpush(key.getBytes(StandardCharsets.UTF_8), items);
+      getSafeClient().rpush(key.getBytes(StandardCharsets.UTF_8), items);
     } catch (JedisException e) {
       throw new UserCodeExecutionException(e);
     }
@@ -126,7 +126,7 @@ class RedisClient implements SetupTeardown {
    */
   byte[] lpop(String key) throws UserCodeExecutionException {
     try {
-      return getSafeClient().rpop(key.getBytes(StandardCharsets.UTF_8));
+      return getSafeClient().lpop(key.getBytes(StandardCharsets.UTF_8));
     } catch (JedisException e) {
       throw new UserCodeExecutionException(e);
     }
