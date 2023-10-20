@@ -148,8 +148,9 @@ def json_parser(
   else:
     cls = jsonschema.validators.validator_for(json_schema)
     cls.check_schema(json_schema)
-    validate_fn = _PicklableFromConstructor(lambda: jsonschema.validators.validator_for(json_schema)(
-                json_schema).validate)
+    validate_fn = _PicklableFromConstructor(
+        lambda: jsonschema.validators.validator_for(json_schema)
+        (json_schema).validate)
 
   to_row = json_to_row(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
