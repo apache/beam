@@ -1330,9 +1330,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // enable upload_graph when the graph is too large
-    byte[] job_graph_bytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
-    int job_graph_size = job_graph_bytes.length;
-    if (job_graph_size >= CREATE_JOB_REQUEST_LIMIT_BYTES
+    byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
+    int jobGraphByteSize = jobGraphBytes.length;
+    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
         && !hasExperiment(options, "upload_graph")) {
       List<String> experiments = firstNonNull(options.getExperiments(), new ArrayList<>());
       experiments.add("upload_graph");
@@ -1340,7 +1340,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       LOG.info(
           "The job graph size ({} in bytes) is larger than {}. Automatically add "
               + "the upload_graph option to experiments.",
-          job_graph_size,
+              jobGraphByteSize,
           CREATE_JOB_REQUEST_LIMIT_BYTES);
     }
 
@@ -1348,7 +1348,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // will be downloaded from GCS by the service.
     if (hasExperiment(options, "upload_graph")) {
       DataflowPackage stagedGraph =
-          options.getStager().stageToFile(job_graph_bytes, DATAFLOW_GRAPH_FILE_NAME);
+          options.getStager().stageToFile(jobGraphBytes, DATAFLOW_GRAPH_FILE_NAME);
       newJob.getSteps().clear();
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
@@ -1408,7 +1408,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
       if (e.getDetails() != null) {
-        if (job_graph_size >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
+        if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
                   + "exceeds the allowable limit. "
