@@ -89,9 +89,9 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Batch_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Batch_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Batch_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Batch_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Batch_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Batch_10_Counters.txt
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5

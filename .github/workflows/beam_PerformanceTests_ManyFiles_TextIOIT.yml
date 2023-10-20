@@ -47,7 +47,6 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
-  beam_PerformanceTests_ManyFiles_TextIOIT_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_ManyFiles_TextIOIT:
@@ -76,9 +75,10 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_ManyFiles_TextIOIT.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/manyFiles_TextIOIT.txt
           arguments: |
             --filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
