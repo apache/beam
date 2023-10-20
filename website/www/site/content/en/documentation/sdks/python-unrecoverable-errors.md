@@ -16,46 +16,58 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Unrecoverable Errors in Beam Python
+# Unrecoverable errors in Beam Python
 
-## What is an Unrecoverable Error?
+Unrecoverable errors are issues that occur at job start-up time and
+prevent jobs from ever running successfully. The problem usually stems
+from a misconfiguration. This page provides context about
+common errors and troubleshooting information.
 
-An unrecoverable error is an issue at job start-up time that will
-prevent a job from ever running successfully, usually due to some kind
-of misconfiguration. Solving these issues when they occur is key to
-successfully running a Beam Python pipeline.
+## Job submission or Python runtime version mismatch {#python-version-mismatch}
 
-## Common Unrecoverable Errors
+If the Python version that you use to submit your job doesn't match the
+Python version used to build the worker container, the job doesn't run.
+The job fails immediately after job submission.
 
-### Job Submission/Runtime Python Version Mismatch
+To resolve this issue, ensure that the Python version used to submit the job
+matches the Python container version.
 
-If the Python version used for job submission does not match the
-Python version used to build the worker container, the job will not
-execute. Ensure that the Python version being used for job submission
-and the container Python version match.
+## Dependency resolution failures with pip {#dependency-resolution-failures}
 
-### PIP Dependency Resolution Failures
+During worker start-up, the worker might fail and, depending on the
+runner, try to restart.
 
-During worker start-up, dependencies are checked and installed in
-the worker container before accepting work. If a pipeline requires
-additional dependencies not already present in the runtime environment,
-they are installed here. If there’s an issue during this process
-(e.g. a dependency version cannot be found, or a worker cannot
-connect to PyPI) the worker will fail and may try to restart
-depending on the runner. Ensure that dependency versions provided in
-your requirements.txt file exist and can be installed locally before
-submitting jobs.
+Before workers accept work, dependencies are checked and installed in
+the worker container. If a pipeline requires
+dependencies not already present in the runtime environment,
+they are installed at this time.
+When a problem occurs during this process, you might encounter
+dependency resolution failures.
 
-### Dependency Version Mismatches
+Examples of problems include the following:
 
-When additional dependencies like `torch`, `transformers`, etc. are not
-specified via a requirements_file or preinstalled in a custom container
-then the worker might fail to deserialize (unpickle) the user code.
-This can result in `ModuleNotFound` errors. If dependencies are installed
-but their versions don't match the versions in submission environment,
-pipeline might have `AttributeError` messages.
+- A dependency version can't be found.
+- A worker can't connect to PyPI.
 
-Ensure that the required dependencies at runtime and in the submission
-environment are the same along with their versions. For better visibility,
-debug logs are added specifying the dependencies at both stages starting in
-Beam 2.52.0. For more information, see: https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#control-dependencies
+To resolve this issue, before submitting your job, ensure that the
+dependency versions provided in your `requirements.txt` file exist
+and that you can install them locally.
+
+## Dependency version mismatches {#dependency-version}
+
+When your pipeline has dependency version mismatches, you might
+see `ModuleNotFound` errors or `AttributeError` messages.
+
+ - The `ModuleNotFound` errors occur when additional dependencies,
+   such as `torch` and `transformers`, are neither specified in a
+   `requirements_file` nor preinstalled in a custom container.
+	In this case, the worker might fail to deserialize (unpickle) the user code.
+
+- Your pipeline might have `AttributeError` messages when dependencies
+  are installed but their versions don't match the versions in submission environment.
+
+To resolve these problems, ensure that the required dependencies and their versions are the same
+at runtime and in the submission environment. To help you identify these issues,
+in Apache Beam 2.52.0 and later versions, debug logs specify the dependencies at both stages.
+For more information, see
+[Control the dependencies the pipeline uses](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#control-dependencies).
