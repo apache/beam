@@ -168,7 +168,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -1332,22 +1331,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // enable upload_graph when the graph is too large
-    if ((Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES)
+    byte[] job_graph_bytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
+    int job_graph_size = job_graph_bytes.length;
+    if (job_graph_size >= CREATE_JOB_REQUEST_LIMIT_BYTES
         && !hasExperiment(options, "upload_graph")) {
-      List<String> experiments = new ArrayList<>(options.getExperiments());
+      List<String> experiments = firstNonNull(options.getExperiments(), new ArrayList<>());
       experiments.add("upload_graph");
       options.setExperiments(ImmutableList.copyOf(experiments));
+      LOG.info(
+          "The job graph size ({} in bytes) is larger than {}. Automatically add "
+              + "the upload_graph option to experiments.",
+          job_graph_size,
+          CREATE_JOB_REQUEST_LIMIT_BYTES);
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
     // will be downloaded from GCS by the service.
     if (hasExperiment(options, "upload_graph")) {
       DataflowPackage stagedGraph =
-          options
-              .getStager()
-              .stageToFile(
-                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
-                  DATAFLOW_GRAPH_FILE_NAME);
+          options.getStager().stageToFile(job_graph_bytes, DATAFLOW_GRAPH_FILE_NAME);
       newJob.getSteps().clear();
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
@@ -1407,7 +1409,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
       if (e.getDetails() != null) {
-        if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
+        if (job_graph_size >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
                   + "exceeds the allowable limit. "
