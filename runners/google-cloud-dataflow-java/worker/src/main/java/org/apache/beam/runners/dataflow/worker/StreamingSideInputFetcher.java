@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -135,8 +136,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
           W window = entry.getKey();
           boolean allSideInputsCached = true;
           for (PCollectionView<?> view : sideInputViews.values()) {
-            if (!stepContext.issueSideInputFetch(
-                view, window, StateFetcher.SideInputState.KNOWN_READY)) {
+            if (!stepContext.issueSideInputFetch(view, window, SideInputState.KNOWN_READY)) {
               Windmill.GlobalDataRequest request = buildGlobalDataRequest(view, window);
               stepContext.addBlockingSideInput(request);
               windowBlockedSet.add(request);
@@ -192,7 +192,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     Set<Windmill.GlobalDataRequest> blocked = blockedMap().get(window);
     if (blocked == null) {
       for (PCollectionView<?> view : sideInputViews.values()) {
-        if (!stepContext.issueSideInputFetch(view, window, StateFetcher.SideInputState.UNKNOWN)) {
+        if (!stepContext.issueSideInputFetch(view, window, SideInputState.UNKNOWN)) {
           if (blocked == null) {
             blocked = new HashSet<>();
             blockedMap().put(window, blocked);
@@ -222,7 +222,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
 
     boolean blocked = false;
     for (PCollectionView<?> view : sideInputViews.values()) {
-      if (!stepContext.issueSideInputFetch(view, window, StateFetcher.SideInputState.UNKNOWN)) {
+      if (!stepContext.issueSideInputFetch(view, window, SideInputState.UNKNOWN)) {
         blocked = true;
       }
     }
