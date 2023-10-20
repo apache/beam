@@ -281,11 +281,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static Work createMockWork(long workToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-        Instant::now,
-        Collections.emptyList(),
-        work -> {});
+    return createMockWork(workToken, work -> {});
   }
 
   static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
