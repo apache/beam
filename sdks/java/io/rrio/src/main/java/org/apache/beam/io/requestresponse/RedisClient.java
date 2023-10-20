@@ -84,7 +84,7 @@ class RedisClient implements SetupTeardown {
 
   /**
    * Increment a value stored by the key, returning the resulting decremented value. Sets the value
-   * to 1, key does not exist, per Redis convention. Naming of this method preserves that of the
+   * to 1, if key does not exist, per Redis convention. Naming of this method preserves that of the
    * underlying {@link JedisPooled} client and performs a null check prior to execution.
    */
   long incr(String key) throws UserCodeExecutionException {
