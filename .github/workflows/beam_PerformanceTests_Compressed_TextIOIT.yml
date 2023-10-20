@@ -76,7 +76,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_Compressed_TextIOIT.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/compressed_TextIOIT.txt
           arguments: |
             --filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
       - name: run integrationTest

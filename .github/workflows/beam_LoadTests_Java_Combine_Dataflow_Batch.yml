@@ -75,9 +75,9 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Batch_Fanout_8.txt
       - name: run Combine Dataflow Batch Java Load Test 1 (10 b records)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

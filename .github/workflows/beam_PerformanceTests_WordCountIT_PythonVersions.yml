@@ -47,7 +47,6 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
-  beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_WordCountIT_PythonVersions:
@@ -95,6 +94,7 @@ jobs:
             --job_name=performance-tests-wordcount-python${{steps.set_py_ver_clean.outputs.py_ver_clean}}-batch-1gb$(date '+%m%d%H%M%S' --utc)
             --metrics_table=wordcount_py${{steps.set_py_ver_clean.outputs.py_ver_clean}}_pkb_results
             --influx_measurement=wordcount_py${{steps.set_py_ver_clean.outputs.py_ver_clean}}_results
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Run test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
