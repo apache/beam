@@ -58,7 +58,7 @@ import org.json.JSONObject;
  * }</pre>
  *
  * <p><b>Note:</b> This functionality has been tested with {@code everit-json-schema} version
- * 1.14.1.
+ * 1.14.2.
  *
  * <h3>JSON-Schema supported features</h3>
  *

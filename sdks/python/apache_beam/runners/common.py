@@ -765,6 +765,7 @@ class PerWindowInvoker(DoFnInvoker):
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
+    input_args = list(input_args)
     (
         self.placeholders_for_process,
         self.args_for_process,
@@ -1437,7 +1438,8 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exn: BaseException, windowed_value: WindowedValue) -> None:
+      self, exn: BaseException,
+      windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return
@@ -1927,6 +1929,12 @@ def validate_pipeline_graph(pipeline_proto):
         raise ValueError(
             "Incompatible input coder %s and output coder %s for transform %s" %
             (transform_id, input_coder, output_coder))
+    elif transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Missing input for transform: %s" % transform_proto)
+    elif transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Missing input for transform: %s" % transform_proto)
 
     for t in transform_proto.subtransforms:
       validate_transform(t)

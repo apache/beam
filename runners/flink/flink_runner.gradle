@@ -46,7 +46,7 @@ evaluationDependsOn(":examples:java")
 /*
  * Copy & merge source overrides into build directory.
  */
-def sourceOverridesBase = project.layout.buildDirectory.dir('source-overrides/src')
+def sourceOverridesBase = project.layout.buildDirectory.dir('source-overrides/src').get()
 
 def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
   it.from main_source_overrides

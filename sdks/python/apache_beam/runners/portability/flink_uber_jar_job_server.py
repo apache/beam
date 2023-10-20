@@ -80,8 +80,8 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
-    full_version = requests.get('%s/v1/config' %
-                                self._master_url).json()['flink-version']
+    full_version = requests.get(
+        '%s/v1/config' % self._master_url, timeout=60).json()['flink-version']
     # Only return up to minor version.
     return '.'.join(full_version.split('.')[:2])
 
