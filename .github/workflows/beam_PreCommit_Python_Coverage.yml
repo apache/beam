@@ -17,7 +17,7 @@ name: PreCommit Python Coverage
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**"]
+    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   push:
@@ -25,7 +25,7 @@ on:
     branches: ['master', 'release-*']
     paths: [ "model/**","sdks/python/**","release/**", ".github/workflows/beam_PreCommit_Python_Coverage.yml"]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 2/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -56,7 +56,7 @@ env:
 
 jobs:
   beam_PreCommit_Python_Coverage:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -74,7 +74,7 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
@@ -90,6 +90,7 @@ jobs:
             -PuseWheelDistribution
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"

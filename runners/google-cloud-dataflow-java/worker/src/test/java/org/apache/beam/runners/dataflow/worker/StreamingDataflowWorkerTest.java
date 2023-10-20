@@ -178,6 +178,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -254,6 +255,7 @@ public class StreamingDataflowWorkerTest {
           return idGenerator.getAndIncrement();
         }
       };
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public BlockingFn blockingFn = new BlockingFn();
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
@@ -279,11 +281,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static Work createMockWork(long workToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-        Instant::now,
-        Collections.emptyList(),
-        work -> {});
+    return createMockWork(workToken, work -> {});
   }
 
   static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {

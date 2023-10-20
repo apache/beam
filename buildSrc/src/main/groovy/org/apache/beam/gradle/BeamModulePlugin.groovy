@@ -602,7 +602,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jackson_version = "2.14.1"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
-    def everit_json_version = "1.14.1"
+    def everit_json_version = "1.14.2"
     def kafka_version = "2.4.1"
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
@@ -716,7 +716,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230806-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20230830-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231003-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230907-$google_clients_version",
@@ -809,7 +809,7 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
-        json_org                                    : "org.json:json:20220320", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
+        json_org                                    : "org.json:json:20230618", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
@@ -932,6 +932,29 @@ class BeamModulePlugin implements Plugin<Project> {
       // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
       options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
       // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
+      options.forkOptions.jvmArgs += [
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+      ]
+    }
+
+    project.ext.setJava21Options = { CompileOptions options ->
+      def java21Home = project.findProperty("java21Home")
+      options.fork = true
+      options.forkOptions.javaHome = java21Home as File
+      options.compilerArgs += ['-Xlint:-path']
+      // Error prone requires some packages to be exported/opened for Java 17+
+      // Disabling checks since this property is only used for Jenkins tests
+      // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
+      options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
       options.forkOptions.jvmArgs += [
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
@@ -1492,7 +1515,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
-      if (project.hasProperty("compileAndRunTestsWithJava11")) {
+      if (project.findProperty('testJavaVersion') == "11") {
         def java11Home = project.findProperty("java11Home")
         project.tasks.compileTestJava {
           options.fork = true
@@ -1504,7 +1527,7 @@ class BeamModulePlugin implements Plugin<Project> {
           useJUnit()
           executable = "${java11Home}/bin/java"
         }
-      } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+      } else if (project.findProperty('testJavaVersion') == "17") {
         def java17Home = project.findProperty("java17Home")
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
@@ -1513,6 +1536,16 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${java17Home}/bin/java"
+        }
+      } else if (project.findProperty('testJavaVersion') == "21") {
+        def java21Home = project.findProperty("java21Home")
+        project.tasks.compileTestJava {
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, '21')
+          project.ext.setJava17Options(options)
+        }
+        project.tasks.withType(Test).configureEach {
+          useJUnit()
+          executable = "${java21Home}/bin/java"
         }
       }
 
@@ -2963,9 +2996,12 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           project.exec {
             executable 'sh'
+            // TODO: https://github.com/apache/beam/issues/29022
+            // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
+            // until it is resolved on pip's side, don't use pip's cache.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip && " +
-                "pip install --pre --retries 10 --upgrade tox"
+                "pip install --pre --retries 10 --upgrade pip --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a

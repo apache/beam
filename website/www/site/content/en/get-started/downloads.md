@@ -19,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam&#8482; Downloads
+# Apache Beam<sup>®</sup> Downloads
 
 > Beam SDK {{< param release_latest >}} is the latest released version.
 

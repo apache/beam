@@ -458,6 +458,25 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Read} that will read using the specified app profile id.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAppProfileId(ValueProvider<String> appProfileId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withAppProfileId(appProfileId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will read using the specified app profile id.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAppProfileId(String appProfileId) {
+      return withAppProfileId(StaticValueProvider.of(appProfileId));
+    }
+
+    /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
      * Bigtable, instanceId and projectId should be provided over {@link #withInstanceId} and {@link
      * #withProjectId} respectively.
@@ -835,6 +854,31 @@ public class BigtableIO {
      */
     public Write withTableId(String tableId) {
       return withTableId(StaticValueProvider.of(tableId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will write using the specified app profile id.
+     *
+     * <p>Remember that in order to use single-row transactions, this must use a single-cluster
+     * routing policy.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAppProfileId(ValueProvider<String> appProfileId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withAppProfileId(appProfileId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will write using the specified app profile id.
+     *
+     * <p>Remember that in order to use single-row transactions, this must use a single-cluster
+     * routing policy.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAppProfileId(String appProfileId) {
+      return withAppProfileId(StaticValueProvider.of(appProfileId));
     }
 
     /**

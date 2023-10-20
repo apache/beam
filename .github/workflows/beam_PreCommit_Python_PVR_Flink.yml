@@ -29,6 +29,7 @@ on:
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
       - 'runners/reference/**'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   push:
@@ -47,7 +48,7 @@ on:
       - 'runners/reference/**'
       - '.github/workflows/beam_PreCommit_Python_PVR_Flink.yml'
   schedule:
-    - cron: '* */6 * * *'
+    - cron: '45 2/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -113,6 +114,7 @@ jobs:
             -PpythonVersion=3.11 \
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: '**/pytest*.xml'

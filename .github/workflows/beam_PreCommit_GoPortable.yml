@@ -22,11 +22,11 @@ on:
     paths: ['model/**', 'sdks/go.**', 'release/**','.github/workflows/beam_PreCommit_GoPortable.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**']
+    paths: ['model/**', 'sdks/go.**', 'release/**', 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 1/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -57,7 +57,7 @@ permissions:
 
 jobs:
   beam_PreCommit_GoPortable:
-    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:

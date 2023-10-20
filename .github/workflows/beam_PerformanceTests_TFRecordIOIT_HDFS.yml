@@ -19,7 +19,7 @@ on:
   # TODO(https://github.com/apache/beam/issues/18796) TFRecord performance test is failing only when running on hdfs.
   # We need to fix this before enabling this job on jenkins.
   # schedule:
-  #   - cron: '17 8/20 * * *'
+  #   - cron: '50 11/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,6 +47,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   beam_PerformanceTests_TFRecordIOIT_HDFS_test_arguments_1: ''
 
 jobs:

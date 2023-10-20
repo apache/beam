@@ -20,10 +20,13 @@ plugins {
     id 'org.apache.beam.module'
 }
 
+// the order is intended here
 if (project.hasProperty('java11Home')) {
     javaVersion = "1.11"
 } else if (project.hasProperty('java17Home')) {
     javaVersion = "1.17"
+} else if (project.hasProperty('java21Home')) {
+    javaVersion = "1.21"
 }
 
 applyJavaNature(
@@ -42,6 +45,7 @@ jar {
     }
 }
 
+// the order is intended here
 if (project.hasProperty('java11Home')) {
     def java11Home = project.findProperty('java11Home')
     project.tasks.withType(JavaCompile) {
@@ -57,12 +61,20 @@ if (project.hasProperty('java11Home')) {
             skipCheckerFramework = true
         }
     }
+} else if (project.hasProperty('java21Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJava21Options(options)
+
+        checkerFramework {
+            skipCheckerFramework = true
+        }
+    }
 }
 
 // Module classes requires JDK > 8
 project.tasks.each {
     it.onlyIf {
-        project.hasProperty('java11Home') || project.hasProperty('java17Home')
+        project.hasProperty('java11Home') || project.hasProperty('java17Home') || project.hasProperty('java21Home')
                 || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
     }
 }
