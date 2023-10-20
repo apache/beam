@@ -48,6 +48,7 @@ public class Work implements Runnable {
   private final Instant startTime;
   private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
   private final Consumer<Work> processWorkFn;
+  private final WorkId id;
   private TimedState currentState;
 
   private volatile boolean isFailed;
@@ -60,6 +61,11 @@ public class Work implements Runnable {
     this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
     this.currentState = TimedState.initialState(startTime);
     this.isFailed = false;
+    this.id =
+        WorkId.builder()
+            .setCacheToken(workItem.getCacheToken())
+            .setWorkToken(workItem.getWorkToken())
+            .build();
   }
 
   public static Work create(
@@ -194,6 +200,10 @@ public class Work implements Runnable {
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
+  }
+
+  public WorkId id() {
+    return id;
   }
 
   public enum State {
