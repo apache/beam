@@ -107,9 +107,9 @@ public class ComputationState implements AutoCloseable {
   /**
    * Marks the work for the given shardedKey as complete. Schedules queued work for the key if any.
    */
-  public void completeWorkAndScheduleNextWorkForKey(ShardedKey shardedKey, long workToken) {
+  public void completeWorkAndScheduleNextWorkForKey(ShardedKey shardedKey, WorkId workId) {
     activeWorkState
-        .completeWorkAndGetNextWorkForKey(shardedKey, workToken)
+        .completeWorkAndGetNextWorkForKey(shardedKey, workId)
         .ifPresent(this::forceExecute);
   }
 

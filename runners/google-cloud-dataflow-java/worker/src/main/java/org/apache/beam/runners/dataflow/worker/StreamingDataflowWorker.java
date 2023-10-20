@@ -98,6 +98,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.State;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
@@ -1308,7 +1309,7 @@ public class StreamingDataflowWorker {
         // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
         // be processed.
         computationState.completeWorkAndScheduleNextWorkForKey(
-            ShardedKey.create(key, workItem.getShardingKey()), workItem.getWorkToken());
+            ShardedKey.create(key, workItem.getShardingKey()), work.id());
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
@@ -1386,7 +1387,10 @@ public class StreamingDataflowWorker {
         for (Windmill.WorkItemCommitRequest workRequest : entry.getValue().getRequestsList()) {
           computationState.completeWorkAndScheduleNextWorkForKey(
               ShardedKey.create(workRequest.getKey(), workRequest.getShardingKey()),
-              workRequest.getWorkToken());
+              WorkId.builder()
+                  .setCacheToken(workRequest.getCacheToken())
+                  .setWorkToken(workRequest.getWorkToken())
+                  .build());
         }
       }
     }
@@ -1428,7 +1432,10 @@ public class StreamingDataflowWorker {
           activeCommitBytes.addAndGet(-size);
           state.completeWorkAndScheduleNextWorkForKey(
               ShardedKey.create(request.getKey(), request.getShardingKey()),
-              request.getWorkToken());
+              WorkId.builder()
+                  .setCacheToken(request.getCacheToken())
+                  .setWorkToken(request.getWorkToken())
+                  .build());
         })) {
       return true;
     } else {

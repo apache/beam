@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +58,7 @@ import org.slf4j.LoggerFactory;
 public final class ActiveWorkState {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
-  /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown.*/
+  /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown for observability.*/
   private static final int MAX_PRINTABLE_COMMIT_PENDING_KEYS = 50;
 
   /**
@@ -88,6 +89,12 @@ public final class ActiveWorkState {
     return new ActiveWorkState(activeWork, computationStateCache);
   }
 
+  private static String elapsedString(Instant start, Instant end) {
+    Duration activeFor = new Duration(start, end);
+    // Duration's toString always starts with "PT"; remove that here.
+    return activeFor.toString().substring(2);
+  }
+
   /**
    * Activates {@link Work} for the {@link ShardedKey}. Outcome can be 1 of 3 {@link
    * ActivateWorkResult}
@@ -112,10 +119,18 @@ public final class ActiveWorkState {
       return ActivateWorkResult.EXECUTE;
     }
 
-    // Ensure we don't already have this work token queued.
+    // Check to see if we have this work token queued.
     for (Work queuedWork : workQueue) {
-      if (queuedWork.getWorkItem().getWorkToken() == work.getWorkItem().getWorkToken()) {
+      // Work tokens and cache tokens are equal.
+      if (queuedWork.id().equals(work.id())) {
         return ActivateWorkResult.DUPLICATE;
+      }
+
+      if (queuedWork.id().cacheToken() == work.id().cacheToken()) {
+        if (work.id().workToken() > queuedWork.id().workToken()) {
+          workQueue.addLast(work);
+          return ActivateWorkResult.QUEUED;
+        }
       }
     }
 
@@ -175,34 +190,43 @@ public final class ActiveWorkState {
    * #activeWork}.
    */
   synchronized Optional<Work> completeWorkAndGetNextWorkForKey(
-      ShardedKey shardedKey, long workToken) {
+      ShardedKey shardedKey, WorkId workId) {
     @Nullable Queue<Work> workQueue = activeWork.get(shardedKey);
     if (workQueue == null) {
       // Work may have been completed due to clearing of stuck commits.
-      LOG.warn("Unable to complete inactive work for key {} and token {}.", shardedKey, workToken);
+      LOG.warn(
+          "Unable to complete inactive work for sharded_key {} and work_id {}.",
+          shardedKey,
+          workId);
       return Optional.empty();
     }
-    removeCompletedWorkFromQueue(workQueue, shardedKey, workToken);
+    removeCompletedWorkFromQueue(workQueue, shardedKey, workId);
     return getNextWork(workQueue, shardedKey);
   }
 
   private synchronized void removeCompletedWorkFromQueue(
-      Queue<Work> workQueue, ShardedKey shardedKey, long workToken) {
-    Work completedWork = workQueue.peek();
-    if (completedWork == null) {
-      // Work may have been completed due to clearing of stuck commits.
-      LOG.warn(
-          String.format("Active key %s without work, expected token %d", shardedKey, workToken));
-      return;
-    }
+      Queue<Work> workQueue, ShardedKey shardedKey, WorkId workId) {
+    // avoid Preconditions.checkState here to prevent eagerly evaluating the
+    // format string parameters for the error message.
+    Work completedWork =
+        Optional.ofNullable(workQueue.peek())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        String.format(
+                            "Active key %s without work, expected work_token %d, expected cache_token %d",
+                            shardedKey, workId.workToken(), workId.cacheToken())));
 
-    if (completedWork.getWorkItem().getWorkToken() != workToken) {
+    if (!completedWork.id().equals(workId)) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn(
-          "Unable to complete due to token mismatch for key {} and token {}, actual token was {}.",
+          "Unable to complete due to token mismatch for "
+              + "key {},"
+              + "expected work_id {}, "
+              + "actual work_id was {}",
           shardedKey,
-          workToken,
-          completedWork.getWorkItem().getWorkToken());
+          workId,
+          completedWork.id());
       return;
     }
 
@@ -224,21 +248,21 @@ public final class ActiveWorkState {
    * before the stuckCommitDeadline.
    */
   synchronized void invalidateStuckCommits(
-      Instant stuckCommitDeadline, BiConsumer<ShardedKey, Long> shardedKeyAndWorkTokenConsumer) {
-    for (Entry<ShardedKey, Long> shardedKeyAndWorkToken :
+      Instant stuckCommitDeadline, BiConsumer<ShardedKey, WorkId> shardedKeyAndWorkIdConsumer) {
+    for (Entry<ShardedKey, WorkId> shardedKeyAndWorkId :
         getStuckCommitsAt(stuckCommitDeadline).entrySet()) {
-      ShardedKey shardedKey = shardedKeyAndWorkToken.getKey();
-      long workToken = shardedKeyAndWorkToken.getValue();
+      ShardedKey shardedKey = shardedKeyAndWorkId.getKey();
+      WorkId workId = shardedKeyAndWorkId.getValue();
       computationStateCache.invalidate(shardedKey.key(), shardedKey.shardingKey());
-      shardedKeyAndWorkTokenConsumer.accept(shardedKey, workToken);
+      shardedKeyAndWorkIdConsumer.accept(shardedKey, workId);
     }
   }
 
-  private synchronized ImmutableMap<ShardedKey, Long> getStuckCommitsAt(
+  private synchronized ImmutableMap<ShardedKey, WorkId> getStuckCommitsAt(
       Instant stuckCommitDeadline) {
     // Determine the stuck commit keys but complete them outside the loop iterating over
     // activeWork as completeWork may delete the entry from activeWork.
-    ImmutableMap.Builder<ShardedKey, Long> stuckCommits = ImmutableMap.builder();
+    ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
     for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
       ShardedKey shardedKey = entry.getKey();
       @Nullable Work work = entry.getValue().peek();
@@ -248,7 +272,7 @@ public final class ActiveWorkState {
               "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
               shardedKey,
               work.getStateStartTime());
-          stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());
+          stuckCommits.put(shardedKey, work.id());
         }
       }
     }
@@ -328,12 +352,6 @@ public final class ActiveWorkState {
       writer.println(commitsPendingCount - MAX_PRINTABLE_COMMIT_PENDING_KEYS);
       writer.println("<br>");
     }
-  }
-
-  private static String elapsedString(Instant start, Instant end) {
-    Duration activeFor = new Duration(start, end);
-    // Duration's toString always starts with "PT"; remove that here.
-    return activeFor.toString().substring(2);
   }
 
   enum ActivateWorkResult {
