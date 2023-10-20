@@ -307,6 +307,38 @@ class YamlPubSubTest(unittest.TestCase):
                     some_int: {type: integer}
               ''')
 
+  def test_read_json_with_bad_schema(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage('{"some_int": 123}',
+                                                  attributes={}),
+                                    PubsubMessage('{"some_int": "NOT"}',
+                                                  attributes={})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: json
+              schema:
+                type: object
+                properties:
+                  some_int: {type: integer}
+              error_handling:
+                output: errors
+            ''')
+        assert_that(
+            result['good'],
+            equal_to([beam.Row(some_int=123)]),
+            label='CheckGood')
+        assert_that(
+            result['errors'] | beam.Map(lambda error: error.element),
+            equal_to(['{"some_int": "NOT"}']),
+            label='CheckErrors')
+
   def test_simple_write(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
