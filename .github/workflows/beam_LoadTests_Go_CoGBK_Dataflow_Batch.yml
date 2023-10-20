@@ -75,10 +75,10 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_CoGBK_Go_Batch_SingleKey.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_CoGBK_Go_Batch_MultipleKey.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_CoGBK_Go_Batch_Reiteration_10KB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_CoGBK_Go_Batch_Reiteration_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Dataflow_Batch_SingleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Dataflow_Batch_MultipleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Dataflow_Batch_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Dataflow_Batch_Reiteration_2MB.txt
           arguments: |
             --job_name=load-tests-go-dataflow-batch-cogbk-$(date '+%m%d%H%M%S' --utc)
       - name: run CoGBK Dataflow Batch Go Load Test 1 (single key)
