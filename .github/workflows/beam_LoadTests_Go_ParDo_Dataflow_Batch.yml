@@ -75,10 +75,10 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Dataflow_Batch_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Dataflow_Batch_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Dataflow_Batch_10_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Dataflow_Batch_100_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Dataflow_Batch_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Dataflow_Batch_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Dataflow_Batch_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Dataflow_Batch_100_Counters.txt
           arguments: |
             --job_name=load-tests-go-dataflow-batch-pardo-$(date '+%m%d%H%M%S' --utc)
       - name: run ParDo Dataflow Batch Go Load Test 1 (10 iterations)

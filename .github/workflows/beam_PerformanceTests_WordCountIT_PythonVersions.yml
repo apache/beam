@@ -89,7 +89,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/wordCountIT_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/wordCountIT_Python.txt
           arguments: |
             --job_name=performance-tests-wordcount-python${{steps.set_py_ver_clean.outputs.py_ver_clean}}-batch-1gb$(date '+%m%d%H%M%S' --utc)
             --metrics_table=wordcount_py${{steps.set_py_ver_clean.outputs.py_ver_clean}}_pkb_results

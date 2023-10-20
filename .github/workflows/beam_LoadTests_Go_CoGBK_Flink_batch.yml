@@ -85,9 +85,9 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_CoGBK_Flink_Batch_MultipleKey.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_CoGBK_Flink_Batch_Reiteration_10KB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_CoGBK_Flink_Batch_Reiteration_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Flink_Batch_MultipleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Flink_Batch_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_CoGBK_Flink_Batch_Reiteration_2MB.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-cogbk-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5

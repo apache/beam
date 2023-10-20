@@ -85,9 +85,9 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_Combine_Flink_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_Combine_Flink_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_Combine_Flink_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Flink_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Flink_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Flink_Batch_Fanout_8.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-combine-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5

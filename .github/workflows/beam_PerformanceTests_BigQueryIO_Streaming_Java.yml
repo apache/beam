@@ -75,7 +75,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/bigQueryIO_Streaming_Java.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/bigQueryIO_Streaming_Java.txt
           arguments: |
             --testBigQueryTable=bqio_write_10GB_java_stream_$(date '+%m%d%H%M%S' --utc)
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

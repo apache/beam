@@ -75,10 +75,10 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Streaming_2GB_SingleKey.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Streaming_2GB_MultipleKey.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Streaming_2GB_Reiteration_10KB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Streaming_2GB_Reiteration_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_SingleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_MultipleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_Reiteration_2MB.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK Dataflow Streaming Java Load Test 1 (single key)
         uses: ./.github/actions/gradle-command-self-hosted-action

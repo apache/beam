@@ -96,8 +96,8 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/kafka_IO_Streaming.txt
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/kafka_IO_Batch.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/kafka_IO_Streaming.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/kafka_IO_Batch.txt
           arguments: |
             --kafkaBootstrapServerAddresses=${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_0 }}:${{ env.KAFKA_SERVICE_PORT }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_1 }}:${{ env.KAFKA_SERVICE_PORT }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_2 }}:${{ env.KAFKA_SERVICE_PORT }}
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

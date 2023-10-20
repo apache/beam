@@ -85,8 +85,8 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_SideInput_Flink_Batch_First_Iterable.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_SideInput_Flink_Batch_Iterable.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_SideInput_Flink_Batch_First_Iterable.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_SideInput_Flink_Batch_Iterable.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-sideinput-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 10

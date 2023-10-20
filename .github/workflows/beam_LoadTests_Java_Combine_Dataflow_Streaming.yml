@@ -75,9 +75,9 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Streaming_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Streaming_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_Dataflow_Streaming_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_Dataflow_Streaming_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_Dataflow_Streaming_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_Dataflow_Streaming_Fanout_8.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Combine Dataflow Streaming Java Load Test 1 (10 b records)
         uses: ./.github/actions/gradle-command-self-hosted-action

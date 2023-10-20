@@ -79,7 +79,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_FnApiRunner_Microbenchmark.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_FnApiRunner_Microbenchmark.txt
       - name: run FnApiRunner Microbenchmark Python Load Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

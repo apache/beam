@@ -79,7 +79,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/spannerIO_Read_2GB_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/spannerIO_Read_2GB_Python.txt
           arguments: |
             --job_name=performance-tests-spanner-read-python-2gb$(date '+%m%d%H%M%S' --utc)
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
