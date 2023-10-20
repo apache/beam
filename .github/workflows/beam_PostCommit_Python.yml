@@ -19,12 +19,12 @@ name: PostCommit Python
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 5/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -50,7 +50,7 @@ env:
 
 jobs:
   beam_PostCommit_Python:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     strategy:
@@ -74,7 +74,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{matrix.python_version}}
+          python-version: ${{ matrix.python_version }}
       - name: Install docker compose
         run: |
           sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
@@ -96,6 +96,7 @@ jobs:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"

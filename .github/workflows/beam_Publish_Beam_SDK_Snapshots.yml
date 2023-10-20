@@ -45,7 +45,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  docker_registry: gcr.io/apache-beam-testing/beam-sdk
+  docker_registry: gcr.io
 
 jobs:
   beam_Publish_Beam_SDK_Snapshots:
