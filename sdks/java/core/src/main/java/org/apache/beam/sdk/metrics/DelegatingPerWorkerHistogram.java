@@ -35,8 +35,7 @@ public class DelegatingPerWorkerHistogram implements Metric, Histogram, Serializ
     this.processWideContainer = processWideContainer;
   }
 
-  public DelegatingPerWorkerHistogram(
-      MetricName name, HistogramData.BucketType bucketType) {
+  public DelegatingPerWorkerHistogram(MetricName name, HistogramData.BucketType bucketType) {
     this(name, bucketType, false);
   }
 

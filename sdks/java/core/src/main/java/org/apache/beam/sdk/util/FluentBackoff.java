@@ -19,8 +19,8 @@ package org.apache.beam.sdk.util;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 
@@ -92,7 +92,12 @@ public final class FluentBackoff {
   public FluentBackoff withExponent(double exponent) {
     checkArgument(exponent > 0, "exponent %s must be greater than 0", exponent);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries, throttledTimeCounter);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -109,7 +114,12 @@ public final class FluentBackoff {
         "initialBackoff %s must be at least 1 millisecond",
         initialBackoff);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries, throttledTimeCounter);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -124,7 +134,12 @@ public final class FluentBackoff {
     checkArgument(
         maxBackoff.getMillis() > 0, "maxBackoff %s must be at least 1 millisecond", maxBackoff);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries, throttledTimeCounter);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -141,7 +156,12 @@ public final class FluentBackoff {
         "maxCumulativeBackoff %s must be at least 1 millisecond",
         maxCumulativeBackoff);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries, throttledTimeCounter);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   /**
@@ -156,12 +176,22 @@ public final class FluentBackoff {
   public FluentBackoff withMaxRetries(int maxRetries) {
     checkArgument(maxRetries >= 0, "maxRetries %s cannot be negative", maxRetries);
     return new FluentBackoff(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries, throttledTimeCounter);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   public FluentBackoff withThrottledTimeCounter(Counter throttledTimeCounter) {
     return new FluentBackoff(
-      exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries, throttledTimeCounter);
+        exponent,
+        initialBackoff,
+        maxBackoff,
+        maxCumulativeBackoff,
+        maxRetries,
+        throttledTimeCounter);
   }
 
   @Override
