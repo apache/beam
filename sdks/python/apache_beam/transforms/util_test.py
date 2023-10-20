@@ -463,6 +463,7 @@ class BatchElementsTest(unittest.TestCase):
 
 
 class StatefulBatchElementsTest(unittest.TestCase):
+  # TODO(jrmccluskey): create a streaming case
   def test_constant_batch(self):
     # Assumes a single bundle...
     p = TestPipeline()
