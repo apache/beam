@@ -26,6 +26,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.rules.ExternalResource;
 import redis.clients.jedis.JedisPooled;
 
+/**
+ * {@link org.junit.runners.JUnit4} {@link org.junit.Rule} for {@link JedisPooled} based clients.
+ */
 class RedisExternalResourcesRule extends ExternalResource {
 
   private final Supplier<URI> configurationSupplier;
