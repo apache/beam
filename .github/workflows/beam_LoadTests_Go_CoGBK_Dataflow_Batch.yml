@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests CoGBK Dataflow Batch Go
+name: LoadTests Go CoGBK Dataflow Batch
 
 on:
   schedule:

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests Combine Dataflow Batch Python
+name: LoadTests Python Combine Dataflow Batch
 
 on:
   schedule:

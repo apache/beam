@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Java InfluxDbIO Integration Test
+name: PostCommit Java InfluxDbIO Integration Test
 
 on:
   schedule:
