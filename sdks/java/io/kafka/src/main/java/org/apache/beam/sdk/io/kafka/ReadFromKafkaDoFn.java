@@ -182,7 +182,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private final @Nullable Map<String, Object> offsetConsumerConfig;
 
-  private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
+  private final @Nullable CheckStopReadingFn checkStopReadingFn;
 
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
       consumerFactoryFn;
@@ -514,6 +514,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     keyDeserializerInstance = keyDeserializerProvider.getDeserializer(consumerConfig, true);
     valueDeserializerInstance = valueDeserializerProvider.getDeserializer(consumerConfig, false);
     offsetEstimatorCache = new HashMap<>();
+    if (checkStopReadingFn != null) {
+      checkStopReadingFn.setup();
+    }
   }
 
   @Teardown
@@ -531,6 +534,9 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     if (offsetEstimatorCache != null) {
       offsetEstimatorCache.clear();
+    }
+    if (checkStopReadingFn != null) {
+      checkStopReadingFn.teardown();
     }
   }
 

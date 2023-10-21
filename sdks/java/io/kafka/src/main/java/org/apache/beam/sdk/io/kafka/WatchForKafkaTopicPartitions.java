@@ -63,7 +63,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
       kafkaConsumerFactoryFn;
   private final Map<String, Object> kafkaConsumerConfig;
-  private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
+  private final @Nullable CheckStopReadingFn checkStopReadingFn;
   private final Set<String> topics;
   private final @Nullable Pattern topicPattern;
   private final @Nullable Instant startReadTime;
@@ -73,7 +73,7 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
       @Nullable Duration checkDuration,
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> kafkaConsumerFactoryFn,
       Map<String, Object> kafkaConsumerConfig,
-      @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
+      @Nullable CheckStopReadingFn checkStopReadingFn,
       Set<String> topics,
       @Nullable Pattern topicPattern,
       @Nullable Instant startReadTime,
@@ -104,12 +104,12 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
   private static class ConvertToDescriptor
       extends DoFn<KV<byte[], TopicPartition>, KafkaSourceDescriptor> {
 
-    private final @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
+    private final @Nullable CheckStopReadingFn checkStopReadingFn;
     private final @Nullable Instant startReadTime;
     private final @Nullable Instant stopReadTime;
 
     private ConvertToDescriptor(
-        @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
+        @Nullable CheckStopReadingFn checkStopReadingFn,
         @Nullable Instant startReadTime,
         @Nullable Instant stopReadTime) {
       this.checkStopReadingFn = checkStopReadingFn;
@@ -129,6 +129,20 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
         receiver.output(
             KafkaSourceDescriptor.of(
                 topicPartition, null, startReadTime, null, stopReadTime, null));
+      }
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      if (checkStopReadingFn != null) {
+        checkStopReadingFn.setup();
+      }
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      if (checkStopReadingFn != null) {
+        checkStopReadingFn.teardown();
       }
     }
   }

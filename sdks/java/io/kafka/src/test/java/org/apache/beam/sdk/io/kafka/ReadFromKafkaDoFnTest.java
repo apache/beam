@@ -432,7 +432,7 @@ public class ReadFromKafkaDoFnTest {
             makeReadSourceDescriptor(consumer)
                 .toBuilder()
                 .setCheckStopReadingFn(
-                    new SerializableFunction<TopicPartition, Boolean>() {
+                    new CheckStopReadingFn() {
                       @Override
                       public Boolean apply(TopicPartition input) {
                         assertTrue(input.equals(topicPartition));
