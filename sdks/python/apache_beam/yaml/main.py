@@ -20,6 +20,7 @@ import argparse
 import yaml
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_transform
@@ -43,8 +44,8 @@ def _pipeline_spec_from_args(known_args):
     raise ValueError(
         "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
   elif known_args.pipeline_spec_file:
-    with open(known_args.pipeline_spec_file) as fin:
-      pipeline_yaml = fin.read()
+    with FileSystems.open(known_args.pipeline_spec_file) as fin:
+      pipeline_yaml = fin.read().decode()
   elif known_args.pipeline_spec:
     pipeline_yaml = known_args.pipeline_spec
   else:

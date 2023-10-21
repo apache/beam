@@ -72,10 +72,10 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Smoke_GroupByKey_Direct.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Smoke_GroupByKey_Dataflow.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Smoke_GroupByKey_Flink.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Smoke_GroupByKey_Spark.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Smoke_GroupByKey_Direct.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Smoke_GroupByKey_Dataflow.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Smoke_GroupByKey_Flink.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Smoke_GroupByKey_Spark.txt
       - name: Set current datetime
         id: datetime
         run: |
