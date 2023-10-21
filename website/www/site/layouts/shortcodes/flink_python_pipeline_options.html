@@ -53,6 +53,11 @@ Should be called before running the tests.
   <td>Default: <code>false</code></td>
 </tr>
 <tr>
+  <td><code>enable_stable_input_drain</code></td>
+  <td>Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,the RequiresStableInput contract might be violated if there any processing related failures in the DoFn operator.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
   <td><code>execution_mode_for_batch</code></td>
   <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672</td>
   <td>Default: <code>PIPELINED</code></td>
