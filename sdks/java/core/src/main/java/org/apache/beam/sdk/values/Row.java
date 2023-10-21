@@ -786,12 +786,12 @@ public abstract class Row implements Serializable {
     // withFieldValue or
     // withFieldValues.
 
-    public Builder addValue(@Nullable Object values) {
-      this.values.add(values);
+    public Builder addValue(@Nullable Object value) {
+      this.values.add(value);
       return this;
     }
 
-    public Builder addValues(List<Object> values) {
+    public Builder addValues(List<@Nullable Object> values) {
       this.values.addAll(values);
       return this;
     }
@@ -822,7 +822,7 @@ public abstract class Row implements Serializable {
     // method is largely
     // used internal to Beam.
     @Internal
-    public Row attachValues(List<Object> attachedValues) {
+    public Row attachValues(List<@Nullable Object> attachedValues) {
       checkState(this.values.isEmpty());
       return new RowWithStorage(schema, attachedValues);
     }

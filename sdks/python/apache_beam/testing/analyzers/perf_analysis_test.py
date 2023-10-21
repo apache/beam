@@ -160,7 +160,9 @@ class TestChangePointAnalysis(unittest.TestCase):
       get_fake_data_with_no_change_point)
   def test_no_alerts_when_no_change_points(self):
     test_config_container = analysis.get_test_config_container(
-        params=self.params, test_id=self.test_id)
+        params=self.params,
+        test_id=self.test_id,
+        metric_name=self.params['metric_name'])
     is_alert = analysis.run_change_point_analysis(
         test_config_container=test_config_container,
         big_query_metrics_fetcher=BigQueryMetricsFetcher())
@@ -183,7 +185,9 @@ class TestChangePointAnalysis(unittest.TestCase):
       return_value=(0, ''))
   def test_alert_on_data_with_change_point(self, *args):
     test_config_container = analysis.get_test_config_container(
-        params=self.params, test_id=self.test_id)
+        params=self.params,
+        test_id=self.test_id,
+        metric_name=self.params['metric_name'])
     is_alert = analysis.run_change_point_analysis(
         test_config_container=test_config_container,
         big_query_metrics_fetcher=BigQueryMetricsFetcher())
@@ -205,7 +209,9 @@ class TestChangePointAnalysis(unittest.TestCase):
       return_value=(0, ''))
   def test_alert_on_data_with_reported_change_point(self, *args):
     test_config_container = analysis.get_test_config_container(
-        params=self.params, test_id=self.test_id)
+        params=self.params,
+        test_id=self.test_id,
+        metric_name=self.params['metric_name'])
     is_alert = analysis.run_change_point_analysis(
         test_config_container=test_config_container,
         big_query_metrics_fetcher=BigQueryMetricsFetcher())

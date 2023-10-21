@@ -463,7 +463,7 @@ public class CoderRegistryTest {
     CoderRegistry registry = CoderRegistry.createDefault();
 
     // DefaultCoder precedes CoderProviderRegistrar
-    assertEquals(AvroCoder.of(MyValueA.class), registry.getCoder(MyValueA.class));
+    assertEquals(MockDefaultCoder.of(MyValueA.class), registry.getCoder(MyValueA.class));
 
     // CoderProviderRegistrar precedes SerializableCoder
     assertEquals(MyValueBCoder.INSTANCE, registry.getCoder(MyValueB.class));
@@ -472,7 +472,7 @@ public class CoderRegistryTest {
     assertEquals(SerializableCoder.of(MyValueC.class), registry.getCoder(MyValueC.class));
   }
 
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(MockDefaultCoder.class)
   private static class MyValueA implements Serializable {}
 
   private static class MyValueB implements Serializable {}

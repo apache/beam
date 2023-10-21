@@ -244,12 +244,10 @@ class MainTest(unittest.TestCase):
     expected = f'''
       type: composite
       name: Chain
-      input: {{}}
       transforms:
       - type: Create
         config:
           elements: [0,1,2]
-        input: {{}}
       - type: PyMap
         config:
           fn: 'lambda x: x*x'

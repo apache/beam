@@ -22,16 +22,16 @@ on:
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java11.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: [sdks/java/extensions/sql/**]
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 3/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -96,7 +96,7 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -PskipCheckerFramework \
             -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Archive JUnit Test Results
@@ -114,6 +114,7 @@ jobs:
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'
@@ -121,5 +122,5 @@ jobs:
         uses: jwgmeligmeyling/spotbugs-github-action@v1.2
         if: always()
         with:
-          name: SpotBugs
+          name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
