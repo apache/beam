@@ -60,7 +60,16 @@ jobs:
       matrix:
         job_name: ["beam_Publish_Beam_SDK_Snapshots"]
         job_phrase: ["N/A"]
-        container_task: ["go:container", "java:container:java8", "java:container:java11", "java:container:java17", "python:container:py38", "python:container:py39", "python:container:py310", "python:container:py311"]
+        container_task:
+          - "go:container"
+          - "java:container:java8"
+          - "java:container:java11"
+          - "java:container:java17"
+          - "java:container:java21"
+          - "python:container:py38"
+          - "python:container:py39"
+          - "python:container:py310"
+          - "python:container:py311"
     steps:
       - uses: actions/checkout@v3
       - name: Setup repository
