@@ -201,7 +201,7 @@ positive cases on a specific day with data provided by the
 </span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl><span class=c1># The covidtracking project has stopped collecting new data, current data ends on 2021-03-07</span>
-</span></span><span class=line><span class=cl><span class=n>json_current</span><span class=o>=</span><span class=s1>&#39;https://covidtracking.com/api/v1/states/current.json&#39;</span>
+</span></span><span class=line><span class=cl><span class=n>json_current</span><span class=o>=</span><span class=s1>&#39;https://api.covidtracking.com/v1/states/current.json&#39;</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>get_json_data</span><span class=p>(</span><span class=n>url</span><span class=p>):</span>
 </span></span><span class=line><span class=cl>  <span class=k>with</span> <span class=n>requests</span><span class=o>.</span><span class=n>Session</span><span class=p>()</span> <span class=k>as</span> <span class=n>session</span><span class=p>:</span>
