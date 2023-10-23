@@ -42,6 +42,7 @@ dependencies {
     testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
 }
 /*
 Removed due to lack of Thrift on Jenkins workers.

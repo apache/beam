@@ -1,0 +1,61 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath group: 'org.yaml', name: 'snakeyaml', version: '2.2'
+  }
+}
+
+/** check that yml are valid */
+task check {
+  doLast {
+    fileTree("${project.projectDir}/workflows").matching {
+      include "*.yml"
+      include "*.yaml"
+    }.each {
+      def fname = it.getName()
+      // attempt load yml to make sure its valid
+      def workflow = new org.yaml.snakeyaml.Yaml().load(it.newInputStream())
+
+      // additional guards for running all tests functionality
+      // TODO(yathu) expand this also to post commits prior teardown Jenkins postcommits
+      if ( fname.startsWith("beam_PreCommit")) {
+        List paths
+        try {
+          paths = workflow.getAt(true).pull_request_target.paths as List
+        } catch (Exception e) {
+          throw new GradleException("Fail to get the trigger path for ${fname}. " +
+                  "Make sure precommit has a pull_request_target trigger.", e)
+        }
+        // precommit should triggered by this specific file
+        if (paths != null && !paths.contains('release/trigger_all_tests.json')) {
+          throw new GradleException("Error validating ${fname}: " +
+                  "Please add 'release/trigger_all_tests.json' to the trigger path for release verification run properly")
+        }
+      }
+    }
+  }
+}
+
+task preCommit {
+  dependsOn check
+}

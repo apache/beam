@@ -61,6 +61,8 @@ _METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: {}"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 _PERF_ALERT_LABEL = 'perf-alert'
 
+_REQUEST_TIMEOUT_SECS = 60
+
 
 def create_issue(
     title: str,
@@ -89,7 +91,10 @@ def create_issue(
   if labels:
     data['labels'].extend(labels)  # type: ignore
   response = requests.post(
-      url=url, data=json.dumps(data), headers=_HEADERS).json()
+      url=url,
+      data=json.dumps(data),
+      headers=_HEADERS,
+      timeout=_REQUEST_TIMEOUT_SECS).json()
   return response['number'], response['html_url']
 
 
@@ -118,7 +123,8 @@ def comment_on_issue(issue_number: int,
           'issue_number': issue_number
       },
                  default=str),
-      headers=_HEADERS).json()
+      headers=_HEADERS,
+      timeout=_REQUEST_TIMEOUT_SECS).json()
   if open_issue_response['state'] == 'open':
     data = {
         'owner': _GITHUB_REPO_OWNER,
@@ -128,7 +134,10 @@ def comment_on_issue(issue_number: int,
     }
 
     response = requests.post(
-        open_issue_response['comments_url'], json.dumps(data), headers=_HEADERS)
+        open_issue_response['comments_url'],
+        json.dumps(data),
+        headers=_HEADERS,
+        timeout=_REQUEST_TIMEOUT_SECS)
     return True, response.json()['html_url']
   return False, ''
 
@@ -137,7 +146,10 @@ def add_awaiting_triage_label(issue_number: int):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
       _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME, issue_number)
   requests.post(
-      url, json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}), headers=_HEADERS)
+      url,
+      json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}),
+      headers=_HEADERS,
+      timeout=_REQUEST_TIMEOUT_SECS)
 
 
 def get_issue_description(

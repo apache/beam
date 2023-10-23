@@ -45,6 +45,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import List
+from typing import Union
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -101,7 +102,8 @@ class DisplayData(object):
   ):
     # type: (...) -> None
     self.namespace = namespace
-    self.items = []  # type: List[DisplayDataItem]
+    self.items = [
+    ]  # type: List[Union[DisplayDataItem, beam_runner_api_pb2.DisplayData]]
     self._populate_items(display_data_dict)
 
   def _populate_items(self, display_data_dict):
@@ -112,26 +114,31 @@ class DisplayData(object):
         subcomponent_display_data = DisplayData(
             element._get_display_data_namespace(), element.display_data())
         self.items += subcomponent_display_data.items
-        continue
 
-      if isinstance(element, DisplayDataItem):
+      elif isinstance(element, DisplayDataItem):
         if element.should_drop():
           continue
         element.key = key
         element.namespace = self.namespace
         self.items.append(element)
-        continue
 
-      # If it's not a HasDisplayData element,
-      # nor a dictionary, then it's a simple value
-      self.items.append(
-          DisplayDataItem(element, namespace=self.namespace, key=key))
+      elif isinstance(element, beam_runner_api_pb2.DisplayData):
+        self.items.append(element)
+
+      else:
+        # If it's not a HasDisplayData element,
+        # nor a dictionary, then it's a simple value
+        self.items.append(
+            DisplayDataItem(element, namespace=self.namespace, key=key))
 
   def to_proto(self):
     # type: (...) -> List[beam_runner_api_pb2.DisplayData]
 
     """Returns a List of Beam proto representation of Display data."""
     def create_payload(dd):
+      if isinstance(dd, beam_runner_api_pb2.DisplayData):
+        return dd
+
       display_data_dict = None
       try:
         display_data_dict = dd.get_dict()

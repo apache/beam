@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.11.3"
 }
 
 
@@ -175,6 +175,7 @@ include(":sdks:java:container:agent")
 include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
+include(":sdks:java:container:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -331,6 +332,8 @@ include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
+include("beam-test-gha")
+project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")

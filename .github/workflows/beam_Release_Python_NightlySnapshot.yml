@@ -43,7 +43,7 @@ env:
 
 jobs:
   beam_Release_Python_NightlySnapshot:
-    name: ${{matrix.job_name}}  (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -57,9 +57,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          github_job: ${{matrix.job_name}}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

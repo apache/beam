@@ -110,7 +110,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
         .setRowSchema(getSchema());
   }
 
-  KafkaIO.Read<byte[], byte[]> createKafkaRead() {
+  protected KafkaIO.Read<byte[], byte[]> createKafkaRead() {
     KafkaIO.Read<byte[], byte[]> kafkaRead;
     if (topics != null) {
       kafkaRead =

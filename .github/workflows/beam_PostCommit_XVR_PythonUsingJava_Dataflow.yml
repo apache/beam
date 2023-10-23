@@ -17,7 +17,7 @@ name: PostCommit XVR PythonUsingJava Dataflow
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 5/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -54,7 +54,7 @@ jobs:
       github.event.comment.body == 'Run XVR_PythonUsingJava_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     strategy:
       matrix:
         job_name: ["beam_PostCommit_XVR_PythonUsingJava_Dataflow"]
@@ -86,5 +86,5 @@ jobs:
         uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: archiveJunit
+          name: python-code-coverage-report
           path: "**/pytest*.xml"

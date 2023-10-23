@@ -94,7 +94,8 @@ public class Environments {
   public enum JavaVersion {
     java8("java", "1.8", 8),
     java11("java11", "11", 11),
-    java17("java17", "17", 17);
+    java17("java17", "17", 17),
+    java21("java21", "21", 21);
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -119,6 +120,7 @@ public class Environments {
       return this.specification;
     }
 
+    /** Return the LTS java version given the Java specification version. */
     public static JavaVersion forSpecification(String specification) {
       for (JavaVersion ver : JavaVersion.values()) {
         if (ver.specification.equals(specification)) {
@@ -137,7 +139,7 @@ public class Environments {
         }
       }
       LOG.warn(
-          "unsupported Java version: {}, falling back to: {}",
+          "Unsupported Java version: {}, falling back to: {}",
           specification,
           fallback.specification);
       return fallback;
