@@ -38,8 +38,6 @@ except ImportError:
 if not tft:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
-z_score_expected = {'x_mean': 3.5, 'x_var': 2.9166666666666665}
-
 
 class ScaleZScoreTest(unittest.TestCase):
   def setUp(self) -> None:
@@ -576,6 +574,17 @@ class BagOfWordsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
+  def validate_count_per_key(self):
+    import os
+    key_vocab_location = os.path.join(
+        self.artifact_location, 'transform_fn/assets/key_vocab')
+    with open(key_vocab_location, 'r'):
+      key_vocab_list = [line.strip() for line in f]
+
+    expected_data = ['2 yum', '4 Apple', '1 like', '1 I', '4 pie', '2 Banana']
+    actual_data = key_vocab_list
+    self.assertEqual(expected_data, actual_data)
+
   def test_bag_of_words_on_list_seperated_words_default_ngrams(self):
     data = [{
         'x': ['I', 'like', 'pie', 'pie', 'pie'],
@@ -691,10 +700,6 @@ class BagOfWordsTest(unittest.TestCase):
       assert_that(result, equal_to(expected_data, equals_fn=np.array_equal))
 
   def test_count_per_key_on_list(self):
-    def map_element_to_count(elements, counts):
-      d = {elements[i]: counts[i] for i in range(len(elements))}
-      return d
-
     data = [{
         'x': ['I', 'like', 'pie', 'pie', 'pie'],
     }, {
@@ -703,24 +708,29 @@ class BagOfWordsTest(unittest.TestCase):
         'x': ['Banana', 'Banana', 'Apple', 'Apple', 'Apple', 'Apple']
     }]
     with beam.Pipeline() as p:
-      result = (
+      _ = (
           p
           | "Create" >> beam.Create(data)
           | "MLTransform" >> base.MLTransform(
               write_artifact_location=self.artifact_location,
               transforms=[
-                  tft.BagOfWords(columns=['x'], compute_word_count=True)
+                  tft.BagOfWords(
+                      columns=['x'],
+                      compute_word_count=True,
+                      key_vocab_filename='my_vocab')
               ]))
-      # the unique elements and counts are artifacts and will be
-      # stored in the result and same for all the elements in the
-      # PCollection.
-      result = result | beam.Map(
-          lambda x: map_element_to_count(x.x_unique_elements, x.x_counts))
 
-      expected_data = [{
-          b'Apple': 4, b'Banana': 2, b'I': 1, b'like': 1, b'pie': 4, b'yum': 2
-      }] * 3  # since there are 3 elements in input.
-      assert_that(result, equal_to(expected_data))
+    def validate_count_per_key(key_vocab_filename):
+      import os
+      key_vocab_location = os.path.join(
+          self.artifact_location, 'transform_fn/assets', key_vocab_filename)
+      with open(key_vocab_location, 'r') as f:
+        key_vocab_list = [line.strip() for line in f]
+      return key_vocab_list
+
+    expected_data = ['2 yum', '4 Apple', '1 like', '1 I', '4 pie', '2 Banana']
+    actual_data = validate_count_per_key('my_vocab')
+    self.assertEqual(expected_data, actual_data)
 
 
 if __name__ == '__main__':

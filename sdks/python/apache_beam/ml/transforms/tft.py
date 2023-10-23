@@ -527,6 +527,7 @@ class BagOfWords(TFTOperation):
       ngram_range: Tuple[int, int] = (1, 1),
       ngrams_separator: Optional[str] = None,
       compute_word_count: bool = False,
+      key_vocab_filename: str = 'key_vocab_mapping',
       name: Optional[str] = None,
   ):
     """
@@ -547,9 +548,9 @@ class BagOfWords(TFTOperation):
         n-gram sizes.
       seperator: A string that will be inserted between each ngram.
       compute_word_count: A boolean that specifies whether to compute
-        the unique word count and add it as an artifact to the output.
-        Note that the count will be computed over the entire dataset so
-        it will be the same value for all inputs.
+        the unique word count over the entire dataset. Defaults to False.
+      key_vocab_filename: The file name for the key vocabulary file when
+        compute_word_count is True.
       name: A name for the operation (optional).
 
     Note that original order of the input may not be preserved.
@@ -560,6 +561,7 @@ class BagOfWords(TFTOperation):
     self.ngrams_separator = ngrams_separator
     self.name = name
     self.split_string_by_delimiter = split_string_by_delimiter
+    self.key_vocab_filename = key_vocab_filename
     if compute_word_count:
       self.compute_word_count_fn = count_unqiue_words
     else:
@@ -575,18 +577,11 @@ class BagOfWords(TFTOperation):
           data, self.split_string_by_delimiter)
     output = tft.bag_of_words(
         data, self.ngram_range, self.ngrams_separator, self.name)
+    # word counts are written to the key_vocab_filename
+    self.compute_word_count_fn(data, self.key_vocab_filename)
     return {output_col_name: output}
-
-  def get_artifacts(self, data: tf.SparseTensor,
-                    col_name: str) -> Dict[str, tf.Tensor]:
-    return self.compute_word_count_fn(data, col_name)
 
 
 def count_unqiue_words(data: tf.SparseTensor,
-                       output_col_name: str) -> Dict[str, tf.Tensor]:
-  keys, count = tft.count_per_key(data)
-  shape = [tf.shape(data)[0], tf.shape(keys)[0]]
-  return {
-      output_col_name + '_unique_elements': tf.broadcast_to(keys, shape),
-      output_col_name + '_counts': tf.broadcast_to(count, shape)
-  }
+                       output_vocab_name: str) -> Dict[str, tf.Tensor]:
+  tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)
