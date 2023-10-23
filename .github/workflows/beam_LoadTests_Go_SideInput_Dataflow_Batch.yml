@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests SideInput Dataflow Batch Go
+name: LoadTests Go SideInput Dataflow Batch
 
 on:
   schedule:
