@@ -42,7 +42,6 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
-  implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:extensions:arrow")
   implementation library.java.avro
   implementation library.java.bigdataoss_util

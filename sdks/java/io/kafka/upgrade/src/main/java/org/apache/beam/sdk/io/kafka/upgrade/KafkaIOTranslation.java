@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka.upgrade;
 
-import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
-import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -32,9 +32,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.io.kafka.DeserializerProvider;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
@@ -51,6 +48,9 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
