@@ -30,6 +30,7 @@ on:
       - "sdks/java/io/cdap/**"
       - "sdks/java/io/hadoop-common/**"
       - "sdks/java/io/hadoop-format/**"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

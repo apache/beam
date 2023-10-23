@@ -264,7 +264,12 @@ public class DataflowOperationContext implements OperationContext {
           .append(" for at least ")
           .append(formatDuration(lullDuration))
           .append(" without outputting or completing in state ")
-          .append(getStateName());
+          .append(getStateName())
+          .append(" in thread ")
+          .append(trackedThread.getName())
+          .append(" with id ")
+          .append(trackedThread.getId());
+
       message.append("\n");
 
       message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));

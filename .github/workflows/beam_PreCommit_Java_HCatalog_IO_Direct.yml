@@ -28,6 +28,7 @@ on:
     paths:
       - "sdks/java/io/hcatalog/**"
       - "sdks/java/io/hadoop-common/**"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

@@ -45,9 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch_test_arguments_1: ''
-  beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch_test_arguments_2: ''
-  beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch_test_arguments_3: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch:
@@ -76,9 +75,10 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_SparkStructuredStreaming_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_SparkStructuredStreaming_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_SparkStructuredStreaming_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_SparkStructuredStreaming_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_SparkStructuredStreaming_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_SparkStructuredStreaming_Batch_Fanout_8.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Combine SparkStructuredStreaming Batch Java Load Test 1 (10b records)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

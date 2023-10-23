@@ -28,6 +28,7 @@ on:
     paths:
       - "sdks/java/io/neo4j/**"
       - "sdks/java/testing/test-utils/**"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

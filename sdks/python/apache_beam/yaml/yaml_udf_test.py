@@ -55,7 +55,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: MapToFields
-      input: input
       config:
         language: javascript
         fields:
@@ -79,7 +78,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: MapToFields
-      input: input
       config:
         language: python
         fields:
@@ -103,7 +101,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: javascript
         keep:
@@ -123,7 +120,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: python
         keep:
@@ -143,7 +139,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: javascript
         keep:
@@ -162,7 +157,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: python
         keep:
@@ -194,7 +188,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           f'''
         type: Filter
-        input: input
         config:
           language: javascript
           keep:
@@ -226,7 +219,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           f'''
         type: Filter
-        input: input
         config:
           language: python
           keep:

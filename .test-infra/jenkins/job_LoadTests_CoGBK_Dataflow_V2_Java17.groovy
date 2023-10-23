@@ -188,7 +188,7 @@ def loadTestConfigurations = { mode, isStreaming ->
 
 def final JOB_SPECIFIC_SWITCHES = [
   '-Prunner.version="V2"',
-  '-PcompileAndRunTestsWithJava17',
+  '-PtestJavaVersion=17',
   "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
 ]
 

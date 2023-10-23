@@ -45,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Go_GBK_Dataflow_Batch:
@@ -73,13 +75,13 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_100b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_100kb.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_Fanout_8.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_Reiteration_10KB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Dataflow_Batch_Reiteration_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_100b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_100kb.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Dataflow_Batch_Reiteration_2MB.txt
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

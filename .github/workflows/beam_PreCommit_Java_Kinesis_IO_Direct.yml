@@ -44,6 +44,7 @@ on:
       - "gradlew"
       - "gradle.bat"
       - "settings.gradle.kts"
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:

@@ -45,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-go-pardo-flink-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
@@ -83,10 +85,10 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Flink_Batch_10_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Flink_Batch_200_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Flink_Batch_10_counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_ParDo_Flink_Batch_100_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Flink_Batch_10_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Flink_Batch_200_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Flink_Batch_10_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_ParDo_Flink_Batch_100_counters.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-pardo-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5

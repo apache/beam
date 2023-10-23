@@ -45,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Python_FnApiRunner_Microbenchmark:
@@ -77,7 +79,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_FnApiRunner_Python_Microbenchmark.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_FnApiRunner_Microbenchmark.txt
       - name: run FnApiRunner Microbenchmark Python Load Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

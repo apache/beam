@@ -77,11 +77,9 @@ jobs:
             11
             8
       - name: run jar Java8 script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:flink:1.15:jar :runners:flink:1.15:testJar
-          arguments: |
-            -Dorg.gradle.java.home=$JAVA_HOME_8_X64 \
+        run: |
+          ./gradlew :runners:flink:1.15:jar :runners:flink:1.15:testJar \
+          -Dorg.gradle.java.home=$JAVA_HOME_8_X64
       - name: run validatesRunner Java11 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -107,6 +105,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          large_files: true
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'

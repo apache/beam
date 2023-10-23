@@ -22,7 +22,7 @@ on:
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java17.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: [sdks/java/extensions/sql/**]
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   schedule:
@@ -101,7 +101,7 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PcompileAndRunTestsWithJava17 \
+            -PtestJavaVersion=17 \
             -PskipCheckerFramework \
             -Pjava17Home=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results

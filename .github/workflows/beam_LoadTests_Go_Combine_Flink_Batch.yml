@@ -45,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-go-combine-flink-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
@@ -83,9 +85,9 @@ jobs:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_Combine_Flink_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_Combine_Flink_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_Combine_Flink_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Flink_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Flink_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Flink_Batch_Fanout_8.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-combine-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5
