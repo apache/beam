@@ -61,6 +61,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
@@ -1352,7 +1353,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public StreamAppendClient getStreamAppendClient(
-        String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+        String streamName,
+        DescriptorProtos.DescriptorProto descriptor,
+        boolean useConnectionPool,
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
         throws Exception {
       ProtoSchema protoSchema = ProtoSchema.newBuilder().setProtoDescriptor(descriptor).build();
 
@@ -1384,6 +1388,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .setMaxInflightRequests(storageWriteMaxInflightRequests)
               .setMaxInflightBytes(storageWriteMaxInflightBytes)
               .setTraceId(traceId)
+              .setDefaultMissingValueInterpretation(missingValueInterpretation)
               .build();
       return new StreamAppendClient() {
         private int pins = 0;

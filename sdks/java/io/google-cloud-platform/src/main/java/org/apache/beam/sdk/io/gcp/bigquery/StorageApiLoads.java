@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
@@ -63,8 +64,9 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final boolean allowAutosharding;
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
-
   private final boolean usesCdc;
+
+  private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
@@ -80,7 +82,8 @@ public class StorageApiLoads<DestinationT, ElementT>
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
       boolean propagateSuccessfulStorageApiWrites,
-      boolean usesCdc) {
+      boolean usesCdc,
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
     this.destinationCoder = destinationCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.rowUpdateFn = rowUpdateFn;
@@ -97,6 +100,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       this.successfulWrittenRowsTag = new TupleTag<>("successfulPublishedRowsTag");
     }
     this.usesCdc = usesCdc;
+    this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
   }
 
   public TupleTag<BigQueryStorageApiInsertError> getFailedRowsTag() {
@@ -156,7 +160,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     ignoreUnknownValues,
                     createDisposition,
                     kmsKey,
-                    usesCdc));
+                    usesCdc,
+                    defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -243,7 +248,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 failedRowsTag,
                 successfulWrittenRowsTag,
                 autoUpdateSchema,
-                ignoreUnknownValues));
+                ignoreUnknownValues,
+                defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -331,7 +337,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     ignoreUnknownValues,
                     createDisposition,
                     kmsKey,
-                    usesCdc));
+                    usesCdc,
+                    defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))

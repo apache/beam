@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -49,6 +50,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
+  private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -61,7 +63,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
-      boolean usesCdc) {
+      boolean usesCdc,
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -73,6 +76,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
+    this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
   }
 
   @Override
@@ -103,7 +107,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         ignoreUnknownValues,
                         createDisposition,
                         kmsKey,
-                        usesCdc))
+                        usesCdc,
+                        defaultMissingValueInterpretation))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);

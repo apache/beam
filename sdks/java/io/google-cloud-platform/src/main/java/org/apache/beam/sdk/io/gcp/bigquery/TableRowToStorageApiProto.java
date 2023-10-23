@@ -213,10 +213,15 @@ public class TableRowToStorageApiProto {
           .put(TableFieldSchema.Type.JSON, "JSON")
           .build();
 
-  public static TableFieldSchema.Mode modeToProtoMode(String mode) {
+  public static TableFieldSchema.Mode modeToProtoMode(
+      @Nullable String defaultValueExpression, String mode) {
+    // If there is a default value expression, treat this field as if it were nullable.
+    if (defaultValueExpression != null) {
+      return TableFieldSchema.Mode.NULLABLE;
+    }
     return Optional.ofNullable(mode)
         .map(Mode::valueOf)
-        .map(m -> MODE_MAP_JSON_PROTO.get(m))
+        .map(MODE_MAP_JSON_PROTO::get)
         .orElse(TableFieldSchema.Mode.NULLABLE);
   }
 
@@ -310,7 +315,7 @@ public class TableRowToStorageApiProto {
     if (field.getMaxLength() != null) {
       builder.setMaxLength(field.getMaxLength());
     }
-    builder.setMode(modeToProtoMode(field.getMode()));
+    builder.setMode(modeToProtoMode(field.getDefaultValueExpression(), field.getMode()));
     if (field.getPrecision() != null) {
       builder.setPrecision(field.getPrecision());
     }

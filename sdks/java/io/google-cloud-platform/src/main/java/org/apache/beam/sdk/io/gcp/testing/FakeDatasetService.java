@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
@@ -600,7 +601,10 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public StreamAppendClient getStreamAppendClient(
-      String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+      String streamName,
+      DescriptorProtos.DescriptorProto descriptor,
+      boolean useConnectionPool,
+      AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
       throws Exception {
     return new StreamAppendClient() {
       private Descriptor protoDescriptor;
