@@ -1,0 +1,33 @@
+fixtures:
+  - name: TEMP_DIR
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+              - {label: "389a", rank: 2}
+        - type: WriteToJson
+          config:
+            path: "{TEMP_DIR}/out.json"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJson
+          config:
+            path: "{TEMP_DIR}/out.json*"
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+              - {label: "389a", rank: 2}

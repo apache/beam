@@ -44,6 +44,8 @@ import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -585,6 +587,15 @@ def create_builtin_provider():
     logging.info(x)
     return x
 
+  class AssertEqual(beam.PTransform):
+    def __init__(self, elements):
+      self._elements = elements
+
+    def expand(self, pcoll):
+      return assert_that(
+          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
+          equal_to(dicts_to_rows(self._elements)))
+
   return InlineProvider({
       'Create': create,
       'LogForTesting': lambda: beam.Map(log_and_return),
@@ -592,6 +603,7 @@ def create_builtin_provider():
       'WithSchemaExperimental': with_schema,
       'Flatten': Flatten,
       'WindowInto': WindowInto,
+      'AssertEqual': AssertEqual,
   },
                         no_input_transforms=('Create', ))
 

@@ -301,12 +301,12 @@ def assert_that(
       if not use_global_window:
         plain_actual = plain_actual | 'AddWindow' >> ParDo(AddWindow())
 
-      plain_actual = plain_actual | 'Match' >> Map(matcher)
+      return plain_actual | 'Match' >> Map(matcher)
 
     def default_label(self):
       return label
 
-  actual | AssertThat()  # pylint: disable=expression-not-assigned
+  return actual | AssertThat()
 
 
 @ptransform_fn
