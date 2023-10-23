@@ -300,14 +300,14 @@ if [[ ("$python_leaderboard_direct" = true \
   cd ${LOCAL_BEAM_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.tar.gz ]]; then
     { echo "Fail to download Python Staging RC files." ;exit 1; }
   fi
 
   echo "--------------------------Verifying Hashes------------------------------------"
-  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+  sha512sum -c apache-beam-${RELEASE_VER}.tar.gz.sha512
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
@@ -378,7 +378,7 @@ if [[ ("$python_leaderboard_direct" = true \
     pip install --upgrade pip setuptools wheel
 
     echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip[gcp]
+    pip install apache-beam-${RELEASE_VER}.tar.gz[gcp]
 
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then
@@ -434,7 +434,7 @@ if [[ ("$python_leaderboard_direct" = true \
       --dataset ${LEADERBOARD_DF_DATASET} \
       --runner DataflowRunner \
       --temp_location=${USER_GCS_BUCKET}/temp/ \
-      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      --sdk_location apache-beam-${RELEASE_VER}.tar.gz; \
       exec bash"
 
       echo "***************************************************************"
@@ -509,7 +509,7 @@ if [[ ("$python_leaderboard_direct" = true \
       --dataset ${GAMESTATS_DF_DATASET} \
       --runner DataflowRunner \
       --temp_location=${USER_GCS_BUCKET}/temp/ \
-      --sdk_location apache-beam-${RELEASE_VER}.zip \
+      --sdk_location apache-beam-${RELEASE_VER}.tar.gz \
       --fixed_window_duration ${FIXED_WINDOW_DURATION}; exec bash"
 
       echo "***************************************************************"
@@ -566,14 +566,14 @@ if [[ ("$python_xlang_quickstart" = true) \
   cd ${LOCAL_BEAM_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.tar.gz ]]; then
     { echo "Failed to download Python Staging RC files." ;exit 1; }
   fi
 
   echo "--------------------------Verifying Hashes------------------------------------"
-  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+  sha512sum -c apache-beam-${RELEASE_VER}.tar.gz.sha512
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
@@ -593,7 +593,7 @@ if [[ ("$python_xlang_quickstart" = true) \
     ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
 
     echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip
+    pip install apache-beam-${RELEASE_VER}.tar.gz
 
     echo '************************************************************';
     echo '* Running Python Multi-language Quickstart with DirectRunner';
@@ -672,14 +672,14 @@ if [[ ("$java_xlang_quickstart" = true) \
   cd ${LOCAL_BEAM_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.tar.gz ]]; then
     { echo "Failed to download Python Staging RC files." ;exit 1; }
   fi
 
   echo "--------------------------Verifying Hashes------------------------------------"
-  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+  sha512sum -c apache-beam-${RELEASE_VER}.tar.gz.sha512
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
@@ -699,7 +699,7 @@ if [[ ("$java_xlang_quickstart" = true) \
     ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
 
     echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip[dataframe]
+    pip install apache-beam-${RELEASE_VER}.tar.gz[dataframe]
 
     # Deacrivating in the main shell. We will reactivate the virtual environment new shells
     # for the expansion service and the job server.
@@ -768,14 +768,14 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
   cd ${LOCAL_BEAM_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.tar.gz ]]; then
     { echo "Fail to download Python Staging RC files." ;exit 1; }
   fi
 
   echo "--------------------------Verifying Hashes------------------------------------"
-  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+  sha512sum -c apache-beam-${RELEASE_VER}.tar.gz.sha512
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
@@ -807,7 +807,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
     ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
 
     echo "--------------------------Installing Python SDK-------------------------------"
-    pip install apache-beam-${RELEASE_VER}.zip[gcp]
+    pip install apache-beam-${RELEASE_VER}.tar.gz[gcp]
 
     echo "----------------Starting XLang Kafka Taxi with DataflowRunner---------------------"
     if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
@@ -837,7 +837,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       --temp_location=${USER_GCS_BUCKET}/temp/ \
       --with_metadata \
       --beam_services=\"{\\\"sdks:java:io:expansion-service:shadowJar\\\": \\\"${KAFKA_EXPANSION_SERVICE_JAR}\\\"}\" \
-      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      --sdk_location apache-beam-${RELEASE_VER}.tar.gz; \
       exec bash"
 
       echo "***************************************************************"
@@ -882,7 +882,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       --temp_location=${USER_GCS_BUCKET}/temp/ \
       --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
       --beam_services=\"{\\\":sdks:java:extensions:sql:expansion-service:shadowJar\\\": \\\"${SQL_EXPANSION_SERVICE_JAR}\\\"}\" \
-      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      --sdk_location apache-beam-${RELEASE_VER}.tar.gz; \
       exec bash"
 
       echo "***************************************************************"
