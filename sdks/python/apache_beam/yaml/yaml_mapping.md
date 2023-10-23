@@ -234,6 +234,10 @@ a `{type: 'basic_type_name'}` nesting.
         type:
           type: 'object'
           properties:
-            a: {type: 'string'}
-            b: {type: 'array', items: {type: 'number'}}
+            a: 
+              type: 'string'
+            b: 
+              type: 'array'
+              items: 
+                type: 'number'
 ```
