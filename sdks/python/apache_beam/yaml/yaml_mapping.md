@@ -214,7 +214,7 @@ type, e.g.
     fields:
       new_col:
         expression: "col1.upper()"
-        type: string
+        output_type: string
 ```
 
 The expected type is given in json schema notation, with the addition that
@@ -228,10 +228,10 @@ a `{type: 'basic_type_name'}` nesting.
     fields:
       new_col:
         expression: "col1.upper()"
-        type: string
+        output_type: string
       another_col:
         expression: "beam.Row(a=col1, b=[col2])"
-        type:
+        output_type:
           type: 'object'
           properties:
             a:

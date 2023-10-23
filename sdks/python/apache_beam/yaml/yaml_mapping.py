@@ -172,7 +172,7 @@ def _as_callable(original_fields, expr, transform_name, language):
   if not isinstance(expr, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
-  explicit_type = expr.pop('type', None)
+  explicit_type = expr.pop('output_type', None)
   _check_mapping_arguments(transform_name, **expr)
 
   if language == "javascript":

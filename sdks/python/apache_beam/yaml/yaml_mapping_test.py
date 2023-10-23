@@ -153,7 +153,7 @@ class YamlMappingTest(unittest.TestCase):
               fields:
                 bad:
                   expression: "a + c"
-                  type: string  # This is a lie.
+                  output_type: string  # This is a lie.
             ''')
         self.assertEqual(result.element_type._fields[0][1], str)
 
