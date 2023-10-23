@@ -227,8 +227,13 @@ class DataInputOperation(RunnerIOOperation):
         if self.index == self.stop - 1:
           return
         self.index += 1
-      decoded_value = self.windowed_coder_impl.decode_from_stream(
-          input_stream, True)
+      try:
+        decoded_value = self.windowed_coder_impl.decode_from_stream(
+            input_stream, True)
+      except Exception as exn:
+        raise ValueError(
+            "Error decoding input stream with coder " +
+            str(self.windowed_coder)) from exn
       self.output(decoded_value)
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):

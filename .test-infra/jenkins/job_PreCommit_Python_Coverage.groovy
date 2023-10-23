@@ -22,6 +22,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python_Coverage',
     gradleTask: ':sdks:python:test-suites:tox:py38:preCommitPyCoverage',
+    gradleSwitches: [
+      '-PuseWheelDistribution'
+    ],
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',

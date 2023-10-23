@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 public class ImpulseTranslation {
   private static class ImpulseTranslator implements TransformPayloadTranslator<Impulse> {
     @Override
-    public String getUrn(Impulse transform) {
+    public String getUrn() {
       return PTransformTranslation.IMPULSE_TRANSFORM_URN;
     }
 

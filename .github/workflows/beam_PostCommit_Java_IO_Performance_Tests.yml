@@ -23,7 +23,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-  - cron: '0 */6 * * *'
+  - cron: '0 4/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -44,7 +44,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login }}-${{ github.event.schedule }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -65,7 +65,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_Java_IO_Performance_Tests"]
         job_phrase: ["Run Java PostCommit IO Performance Tests"]
-        test_case: ["GCSPerformanceTest", "BigTablePerformanceTest"]
+        test_case: ["GCSPerformanceTest", "BigTablePerformanceTest", "BigQueryStorageApiStreamingPerformanceTest"]
     steps:
     - uses: actions/checkout@v4
     - name: Setup repository

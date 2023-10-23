@@ -219,11 +219,13 @@ public class BigtableIOTest {
             .withTableId("table")
             .withInstanceId("instance")
             .withProjectId("project")
+            .withAppProfileId("app-profile")
             .withBigtableOptionsConfigurator(PORT_CONFIGURATOR);
     assertEquals("options_project", read.getBigtableOptions().getProjectId());
     assertEquals("options_instance", read.getBigtableOptions().getInstanceId());
     assertEquals("instance", read.getBigtableConfig().getInstanceId().get());
     assertEquals("project", read.getBigtableConfig().getProjectId().get());
+    assertEquals("app-profile", read.getBigtableConfig().getAppProfileId().get());
     assertEquals("table", read.getTableId());
     assertEquals(PORT_CONFIGURATOR, read.getBigtableConfig().getBigtableOptionsConfigurator());
   }
@@ -373,12 +375,14 @@ public class BigtableIOTest {
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId("table")
             .withInstanceId("instance")
-            .withProjectId("project");
+            .withProjectId("project")
+            .withAppProfileId("app-profile");
     assertEquals("table", write.getBigtableWriteOptions().getTableId().get());
     assertEquals("options_project", write.getBigtableOptions().getProjectId());
     assertEquals("options_instance", write.getBigtableOptions().getInstanceId());
     assertEquals("instance", write.getBigtableConfig().getInstanceId().get());
     assertEquals("project", write.getBigtableConfig().getProjectId().get());
+    assertEquals("app-profile", write.getBigtableConfig().getAppProfileId().get());
   }
 
   @Test
@@ -760,6 +764,39 @@ public class BigtableIOTest {
             null /*size*/);
     List<BigtableSource> splits =
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    // Test num splits and split equality.
+    assertThat(splits, hasSize(numSamples));
+    assertSourcesEqualReferenceSource(source, splits, null /* options */);
+  }
+
+  /**
+   * Regression test for <a href="https://github.com/apache/beam/issues/28793">[Bug]: BigtableSource
+   * "Desired bundle size 0 bytes must be greater than 0" #28793</a>.
+   */
+  @Test
+  public void testSplittingWithDesiredBundleSizeZero() throws Exception {
+    final String table = "TEST-SPLIT-DESIRED-BUNDLE-SIZE-ZERO-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 1L;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
+            null /*size*/);
+    List<BigtableSource> splits = source.split(0, null /* options */);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSamples));

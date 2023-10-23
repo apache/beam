@@ -29,4 +29,5 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
 }

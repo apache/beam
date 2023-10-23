@@ -673,6 +673,9 @@ class Row(object):
   def as_dict(self):
     return dict(self.__dict__)
 
+  # For compatibility with named tuples.
+  _asdict = as_dict
+
   def __iter__(self):
     for _, value in self.__dict__.items():
       yield value

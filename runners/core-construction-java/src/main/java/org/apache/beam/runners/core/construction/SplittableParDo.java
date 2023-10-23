@@ -395,7 +395,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     private ProcessKeyedElementsTranslator() {}
 
     @Override
-    public String getUrn(ProcessKeyedElements<?, ?, ?, ?> transform) {
+    public String getUrn() {
       return PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
     }
 

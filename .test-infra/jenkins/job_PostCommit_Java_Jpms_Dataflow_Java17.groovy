@@ -42,7 +42,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Dataflow_Java17', 
           tasks(':sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest')
           commonJobProperties.setGradleSwitches(delegate)
           switches("-PskipCheckerFramework")
-          switches("-PcompileAndRunTestsWithJava17")
+          switches("-PtestJavaVersion=17")
           switches("-Pjava17Home=${commonJobProperties.JAVA_17_HOME}")
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
           switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')

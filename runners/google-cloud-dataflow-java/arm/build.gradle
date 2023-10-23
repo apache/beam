@@ -76,10 +76,8 @@ dependencies {
 }
 
 def javaVer = "java8"
-if(project.hasProperty('compileAndRunTestsWithJava17')) {
-  javaVer = "java17"
-} else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-  javaVer = "java11"
+if (project.hasProperty('testJavaVersion')) {
+  javaVer = "java${project.getProperty('testJavaVersion')}"
 }
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
@@ -128,8 +126,9 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptionsARM)
 
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
+  include '**/*IT.class'
+  // TODO(https://github.com/apache/beam/issues/20593): test times out.
+  exclude '**/FhirIOReadIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest

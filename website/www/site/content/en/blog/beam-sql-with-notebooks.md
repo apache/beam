@@ -420,7 +420,7 @@ import json
 import requests
 
 # The covidtracking project has stopped collecting new data, current data ends on 2021-03-07
-json_current='https://covidtracking.com/api/v1/states/current.json'
+json_current='https://api.covidtracking.com/v1/states/current.json'
 
 def get_json_data(url):
   with requests.Session() as session:
