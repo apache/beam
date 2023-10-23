@@ -145,8 +145,8 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
     element_validator = _validator(beam_type.iterable_type.element_type)
     return lambda value: all(element_validator(e) for e in value)
   elif type_info == "map_type":
-    key_validator = _validator(beam_type.iterable_type.key_type)
-    value_validator = _validator(beam_type.iterable_type.value_type)
+    key_validator = _validator(beam_type.map_type.key_type)
+    value_validator = _validator(beam_type.map_type.value_type)
     return lambda value: all(
         key_validator(k) and value_validator(v) for (k, v) in value.items())
   elif type_info == "row_type":
@@ -165,7 +165,6 @@ def _as_callable(original_fields, expr, transform_name, language):
   if expr in original_fields:
     return expr
 
-  # TODO(yaml): support a type parameter
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
   if isinstance(expr, str):
