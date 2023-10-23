@@ -108,6 +108,11 @@ class RedisClient implements SetupTeardown {
     }
   }
 
+  /** Query whether the Redis list is empty. Calls {@link #llen} to determine this. */
+  boolean isEmpty(String key) throws UserCodeExecutionException {
+    return this.llen(key) == 0L;
+  }
+
   /**
    * Pushes items to the back ('right') of the list. Naming of this method preserves that of the
    * underlying {@link JedisPooled} client and performs a null check prior to execution.

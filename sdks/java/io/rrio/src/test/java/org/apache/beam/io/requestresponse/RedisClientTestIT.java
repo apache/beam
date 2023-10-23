@@ -29,11 +29,14 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AllPrimitiveDataTypes;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -143,6 +146,23 @@ public class RedisClientTestIT {
 
     assertEquals(value, storedValue);
     assertEquals(0L, externalClients.getActualClient().llen(key));
+  }
+
+  @Test
+  public void rpushAndlPopYieldsFIFOOrder() throws UserCodeExecutionException {
+    String key = UUID.randomUUID().toString();
+    List<String> want = ImmutableList.of("1", "2", "3", "4", "5");
+
+    for (String item : want) {
+      externalClients.getActualClient().rpush(key, item.getBytes(StandardCharsets.UTF_8));
+    }
+    List<String> got = new ArrayList<>();
+    while (!externalClients.getActualClient().isEmpty(key)) {
+      byte[] bytes = externalClients.getActualClient().lpop(key);
+      got.add(new String(bytes, StandardCharsets.UTF_8));
+    }
+
+    assertEquals(want, got);
   }
 
   @Test
