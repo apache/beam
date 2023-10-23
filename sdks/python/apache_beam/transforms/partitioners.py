@@ -74,13 +74,14 @@ class Top(beam.PTransform):
         sample
         | beam.Map(lambda sample_list: set(ele[1] for ele in sample_list)))
 
-    def elem_is_sampled(elem, sampled_set):
-      return elem[1] in sampled_set
+    def elem_is_not_sampled(elem, sampled_set):
+      return elem[1] not in sampled_set
 
     remaining = (
         inputs_with_ids
         | beam.Filter(
-            elem_is_sampled, sampled_set=beam.pvalue.AsSingleton(sample_ids))
+            elem_is_not_sampled,
+            sampled_set=beam.pvalue.AsSingleton(sample_ids))
         | beam.Map(_strip_uuid))
     sample_as_pcoll = (
         sample
