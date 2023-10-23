@@ -68,6 +68,7 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import Union
+import uuid
 
 from google.protobuf import message
 
@@ -771,21 +772,9 @@ class Pipeline(object):
 
     """
     Given a transform, generate a unique label for it based on current label.
-    
-    Note that the generated label is only guaranteed to be unique relative
-    to the current _current_transform()
     """
-    counter = 1
-
-    full_label_wo_prefix = '/'.join(
-        [self._current_transform().full_label, transform.label]).lstrip('/')
-
-    full_label = '%s_%d' % (full_label_wo_prefix, counter)
-    while full_label in self.applied_labels:
-      counter += 1
-      full_label = '%s_%d' % (full_label_wo_prefix, counter)
-    label = full_label.rsplit('/', maxsplit=1)[-1]
-    return label
+    unique_suffix = uuid.uuid4().hex[:6]
+    return '%s_%s' % (transform.label, unique_suffix)
 
 
   def _infer_result_type(

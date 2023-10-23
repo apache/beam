@@ -273,16 +273,16 @@ class PipelineTest(unittest.TestCase):
     with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
       mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
       mock_uuid_gen.side_effect = mock_uuids
-    with TestPipeline(options=opts) as pipeline:
-      pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
+      with TestPipeline(options=opts) as pipeline:
+        pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
 
-      def identity(x):
-        return x
+        def identity(x):
+          return x
 
-      pcoll2 = pcoll | Map(identity)
-      pcoll3 = pcoll2 | Map(identity)
-      pcoll4 = pcoll3 | Map(identity)
-      assert_that(pcoll4, equal_to([1, 2, 3]))
+        pcoll2 = pcoll | Map(identity)
+        pcoll3 = pcoll2 | Map(identity)
+        pcoll4 = pcoll3 | Map(identity)
+        assert_that(pcoll4, equal_to([1, 2, 3]))
 
     map_id_full_labels = {
         label
