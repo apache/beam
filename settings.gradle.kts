@@ -326,6 +326,8 @@ include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-mock-apis")
+project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
 include("beam-test-infra-pipelines")
 project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
