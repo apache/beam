@@ -1,5 +1,6 @@
 import uuid
 import apache_beam as beam
+from apache_beam import pvalue
 from typing import Optional, TypeVar
 from typing import Tuple
 from typing import Any
@@ -15,7 +16,7 @@ class Top(beam.PTransform):
     input PCollection, and the second PCollection contains the remaining
     elements of the input PCollection.
 
-    Parameters: 
+    Parameters:
         n: The number of elements to take from the input PCollection.
         key: A function that takes an element of the input PCollection and
             returns a value to compare for the purpose of determining the top n
@@ -32,6 +33,10 @@ class Top(beam.PTransform):
         ...     # top will contain [7, 8, 9]
         ...     # remaining will contain [0, 1, 2, 3, 4, 5, 6]
 
+    .. note::
+
+        This transform requires that the top PCollection fit into memory.
+
     """
   def __init__(
       self, n: int, key: Optional[Callable[[Any], Any]] = None, reverse=False):
@@ -40,7 +45,8 @@ class Top(beam.PTransform):
     self.key = key
     self.reverse = reverse
 
-  def expand(self, pcoll):
+  def expand(self,
+             pcoll) -> Tuple[pvalue.PCollection[T], pvalue.PCollection[T]]:
     # **Illustrative Example:**
     # Our goal is to return two pcollections, top and
     # remaining.
