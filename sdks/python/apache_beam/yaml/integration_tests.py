@@ -37,6 +37,8 @@ from yaml.loader import SafeLoader
 
 import apache_beam as beam
 from apache_beam.io import filesystems
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
 from apache_beam.yaml import yaml_mapping
@@ -51,6 +53,19 @@ def gcs_temp_dir(bucket):
   gcs_tempdir = bucket + '/yaml-' + str(uuid.uuid4())
   yield gcs_tempdir
   filesystems.FileSystems.delete([gcs_tempdir])
+
+
+@contextlib.contextmanager
+def temp_bigquery_table(project, prefix='yaml_bq_it_'):
+  bigquery_client = BigQueryWrapper()
+  dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
+  bigquery_client.get_or_create_dataset(project, dataset_id)
+  logging.info("Created dataset %s in project %s", dataset_id, project)
+  yield f'{project}:{dataset_id}.tmp_table'
+  request = bigquery.BigqueryDatasetsDeleteRequest(
+      projectId=project, datasetId=dataset_id, deleteContents=True)
+  logging.info("Deleting dataset %s in project %s", dataset_id, project)
+  bigquery_client.client.datasets.Delete(request)
 
 
 def replace_recursive(spec, vars):
@@ -109,7 +124,7 @@ def provider_sets(spec, require_available=False):
       if len(filter_to_available(t, standard_providers[t])) > 1
   }
   if not multiple_providers:
-    return None, standard_providers
+    return 'only', standard_providers
   else:
     names, provider_lists = zip(*sorted(multiple_providers.items()))
     for ix, c in enumerate(itertools.product(*provider_lists)):
@@ -145,28 +160,22 @@ def create_test_methods(spec):
             yaml_transform.expand_pipeline(
                 p, replace_recursive(pipeline_spec, vars))
 
-    yield suffix, test
+    yield f'test_{suffix}', test
 
 
 def parse_test_files(filepattern):
   for path in glob.glob(filepattern):
     with open(path) as fin:
-      base_name = f'test_{os.path.basename(path)}'.replace('.', '_')
-      for suffix, func in create_test_methods(
-          yaml.load(fin, Loader=yaml_transform.SafeLineLoader)):
-        if suffix:
-          yield f'{base_name}_{suffix}', func
-        else:
-          yield base_name, func
+      suite_name = os.path.splitext(os.path.basename(path))[0].title() + 'Test'
+      print(path, suite_name)
+      methods = dict(
+          create_test_methods(
+              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
-def createTestSuite(name, filepattern):
-  return type(name, (unittest.TestCase, ), dict(parse_test_files(filepattern)))
-
-
-IntegrationTests = createTestSuite(
-    'IntegrationTests',
-    os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
+logging.getLogger().setLevel(logging.INFO)
+parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
