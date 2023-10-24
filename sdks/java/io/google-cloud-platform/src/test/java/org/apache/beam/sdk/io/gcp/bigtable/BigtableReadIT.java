@@ -39,10 +39,7 @@ public class BigtableReadIT {
     BigtableTestOptions options =
         TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
 
-    String project = options.getBigtableProject();
-    if (project.equals("")) {
-      project = options.as(GcpOptions.class).getProject();
-    }
+    String project = options.as(GcpOptions.class).getProject();
 
     BigtableOptions.Builder bigtableOptionsBuilder =
         new BigtableOptions.Builder().setProjectId(project).setInstanceId(options.getInstanceId());

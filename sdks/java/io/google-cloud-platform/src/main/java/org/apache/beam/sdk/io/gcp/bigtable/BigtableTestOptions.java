@@ -28,10 +28,4 @@ public interface BigtableTestOptions extends TestPipelineOptions {
   String getInstanceId();
 
   void setInstanceId(String value);
-
-  @Description("Project for Bigtable")
-  @Default.String("")
-  String getBigtableProject();
-
-  void setBigtableProject(String value);
 }
