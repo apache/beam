@@ -89,6 +89,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed (CVE-2023-39325)[https://www.cve.org/CVERecord?id=CVE-2023-39325] (Java/Python/Go) ([#29118](https://github.com/apache/beam/issues/29118)).
 
 ## Known Issues
 
