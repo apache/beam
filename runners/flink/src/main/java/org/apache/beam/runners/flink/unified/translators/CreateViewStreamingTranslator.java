@@ -23,7 +23,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;

@@ -31,14 +31,11 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDo
 import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.flink.streaming.api.datastream.DataStream;
 
 public class SplittableProcessElementsStreamingTranslator<
     InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>

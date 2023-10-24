@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
 import java.util.List;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;

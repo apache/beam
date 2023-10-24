@@ -34,7 +34,6 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKey
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
-import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;

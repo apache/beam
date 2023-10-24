@@ -27,7 +27,6 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKey
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
-import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
