@@ -500,6 +500,8 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
 
     removed_arg_names = removed_args if removed_args is not None else []
 
+    # We would need to add position only arguments if they ever become a thing
+    # in Pandas (as of 2.1 currently they aren't).
     base_arg_spec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
     base_arg_names = base_arg_spec.args
     # Some arguments are keyword only and we still want to check against those.
@@ -514,6 +516,9 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+      if len(args) > len(base_arg_names):
+        raise TypeError(f"{func.__name__} got too many positioned arguments.")
+
       for name, value in zip(base_arg_names, args):
         if name in kwargs:
           raise TypeError(
@@ -523,7 +528,7 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
       # Still have to populate these for the Beam function signature.
       if removed_args:
         for name in removed_args:
-          if not name in kwargs:
+          if name not in kwargs:
             kwargs[name] = None
       return func(**kwargs)
 
@@ -646,13 +651,18 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
       return func
 
     base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
-    if not base_argspec.defaults:
+    if not base_argspec.defaults and not base_argspec.kwonlydefaults:
       return func
 
-    arg_to_default = dict(
-        zip(
-            base_argspec.args[-len(base_argspec.defaults):],
-            base_argspec.defaults))
+    arg_to_default = {}
+    if base_argspec.defaults:
+      arg_to_default.update(
+          zip(
+              base_argspec.args[-len(base_argspec.defaults):],
+              base_argspec.defaults))
+
+    if base_argspec.kwonlydefaults:
+      arg_to_default.update(base_argspec.kwonlydefaults)
 
     unwrapped_func = unwrap(func)
     # args that do not have defaults in func, but do have defaults in base
@@ -664,11 +674,19 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
     if removed_args:
       defaults_to_populate -= set(removed_args)
 
+    # In pandas 2, many methods rely on the default copy=None
+    # to mean that copy is the value of copy_on_write. Since
+    # copy_on_write will always be true for Beam, just fill it
+    # in here. In pandas 1, the default was True anyway.
+    if 'copy' in arg_to_default and arg_to_default['copy'] is None:
+      arg_to_default['copy'] = True
+
     @functools.wraps(func)
     def wrapper(**kwargs):
       for name in defaults_to_populate:
         if name not in kwargs:
           kwargs[name] = arg_to_default[name]
+
       return func(**kwargs)
 
     return wrapper

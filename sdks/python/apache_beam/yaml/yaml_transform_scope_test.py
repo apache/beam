@@ -60,11 +60,9 @@ class ScopeTest(unittest.TestCase):
           - type: Create
             config:
               elements: [0, 1, 3, 4]
-          - type: PyMap
+          - type: LogForTesting
             name: Square
             input: Create
-            config:
-              fn: "lambda x: x*x"
         '''
 
     scope, spec = self.get_scope_by_spec(p, spec)
@@ -77,30 +75,31 @@ class ScopeTest(unittest.TestCase):
         "PCollection[Square.None]", str(scope.get_pcollection("Square")))
 
     self.assertEqual(
-        "PCollection[Square.None]", str(scope.get_pcollection("PyMap")))
+        "PCollection[Square.None]", str(scope.get_pcollection("LogForTesting")))
 
     self.assertTrue(
-        scope.get_pcollection("Square") == scope.get_pcollection("PyMap"))
+        scope.get_pcollection("Square") == scope.get_pcollection(
+            "LogForTesting"))
 
   def test_create_ptransform(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       spec = '''
         transforms:
-          - type: PyMap
+          - type: Create
             config:
-              fn: "lambda x: x*x"
+              elements: [1, 2, 3]
         '''
       scope, spec = self.get_scope_by_spec(p, spec)
 
       result = scope.create_ptransform(spec['transforms'][0], [])
-      self.assertIsInstance(result, beam.transforms.ParDo)
-      self.assertEqual(result.label, 'Map(lambda x: x*x)')
+      self.assertIsInstance(result, beam.transforms.Create)
+      self.assertEqual(result.label, 'Create')
 
       result_annotations = {**result.annotations()}
       target_annotations = {
-          'yaml_type': 'PyMap',
-          'yaml_args': '{"fn": "lambda x: x*x"}',
+          'yaml_type': 'Create',
+          'yaml_args': '{"elements": [1, 2, 3]}',
           'yaml_provider': '{"type": "InlineProvider"}'
       }
 
@@ -109,33 +108,6 @@ class ScopeTest(unittest.TestCase):
           result_annotations, {
               **result_annotations, **target_annotations
           })
-
-  def test_create_ptransform_with_inputs(self):
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      spec = '''
-        transforms:
-          - type: PyMap
-            config:
-              fn: "lambda x: x*x"
-        '''
-      scope, spec = self.get_scope_by_spec(p, spec)
-
-      result = scope.create_ptransform(spec['transforms'][0], [])
-      self.assertIsInstance(result, beam.transforms.ParDo)
-      self.assertEqual(result.label, 'Map(lambda x: x*x)')
-
-      result_annotations = {
-          key: value
-          for (key, value) in result.annotations().items()
-          if key.startswith('yaml')
-      }
-      target_annotations = {
-          'yaml_type': 'PyMap',
-          'yaml_args': '{"fn": "lambda x: x*x"}',
-          'yaml_provider': '{"type": "InlineProvider"}'
-      }
-      self.assertDictEqual(result_annotations, target_annotations)
 
 
 class TestProvider(yaml_provider.InlineProvider):

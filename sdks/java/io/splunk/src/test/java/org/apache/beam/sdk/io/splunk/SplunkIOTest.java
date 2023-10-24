@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.splunk;
 
+import com.google.gson.JsonObject;
 import java.util.List;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -63,7 +64,8 @@ public class SplunkIOTest {
     int testPort = mockServerRule.getPort();
     String url = Joiner.on(':').join("http://localhost", testPort);
     String token = "test-token";
-
+    JsonObject fields = new JsonObject();
+    fields.addProperty("customfield", 1);
     List<SplunkEvent> testEvents =
         ImmutableList.of(
             SplunkEvent.newBuilder()
@@ -73,6 +75,7 @@ public class SplunkIOTest {
                 .withSource("test-source-1")
                 .withSourceType("test-source-type-1")
                 .withTime(12345L)
+                .withFields(fields)
                 .create(),
             SplunkEvent.newBuilder()
                 .withEvent("test-event-2")
@@ -81,11 +84,12 @@ public class SplunkIOTest {
                 .withSource("test-source-2")
                 .withSourceType("test-source-type-2")
                 .withTime(12345L)
+                .withFields(fields)
                 .create());
 
     PCollection<SplunkWriteError> actual =
         pipeline
-            .apply("Create Input data", Create.of(testEvents)) // .withCoder(SplunkEventCoder.of()))
+            .apply("Create Input data", Create.of(testEvents))
             .apply(
                 "SplunkIO",
                 SplunkIO.write(url, token).withParallelism(1).withBatchCount(testEvents.size()));
@@ -132,7 +136,7 @@ public class SplunkIOTest {
 
     PCollection<SplunkWriteError> actual =
         pipeline
-            .apply("Create Input data", Create.of(testEvents)) // .withCoder(SplunkEventCoder.of()))
+            .apply("Create Input data", Create.of(testEvents))
             .apply(
                 "SplunkIO",
                 SplunkIO.write(url, token)
@@ -182,7 +186,7 @@ public class SplunkIOTest {
 
     PCollection<SplunkWriteError> actual =
         pipeline
-            .apply("Create Input data", Create.of(testEvents)) // .withCoder(SplunkEventCoder.of()))
+            .apply("Create Input data", Create.of(testEvents))
             .apply(
                 "SplunkIO",
                 SplunkIO.write(url, token).withParallelism(testParallelism).withBatchCount(1));

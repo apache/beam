@@ -384,6 +384,36 @@ class TranslationsTest(unittest.TestCase):
         'multiple-small-combines/min-4-globally/CombinePerKey',
         optimized_stage_names)
 
+  def test_combineperkey_annotation_propagation(self):
+    """
+    Test that the CPK component transforms inherit annotations from the
+    source CPK
+    """
+    class MyCombinePerKey(beam.CombinePerKey):
+      def annotations(self):
+        return {"my_annotation": b""}
+
+    with TestPipeline() as pipeline:
+      _ = pipeline | beam.Create([(1, 2)]) | MyCombinePerKey(min)
+
+    # Verify the annotations are propagated to the split up
+    # CPK transforms
+    proto = pipeline.to_runner_api(
+        default_environment=environments.EmbeddedPythonEnvironment(
+            capabilities=environments.python_sdk_capabilities()))
+    optimized = translations.optimize_pipeline(
+        proto,
+        phases=[translations.lift_combiners],
+        known_runner_urns=frozenset(),
+        partial=True)
+    for transform_id in ['MyCombinePerKey(min)/Precombine',
+                         'MyCombinePerKey(min)/Group',
+                         'MyCombinePerKey(min)/Merge',
+                         'MyCombinePerKey(min)/ExtractOutputs']:
+      assert (
+          "my_annotation" in
+          optimized.components.transforms[transform_id].annotations)
+
   def test_conditionally_packed_combiners(self):
     class RecursiveCombine(beam.PTransform):
       def __init__(self, labels):

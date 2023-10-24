@@ -39,7 +39,7 @@ import org.apache.hadoop.conf.Configuration;
 @AutoService(FileSystemRegistrar.class)
 public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
-  private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs");
+  private static final List<String> HA_SCHEMES = Arrays.asList("hdfs", "webhdfs", "viewfs");
 
   // Using hard-coded value to avoid incompatibility between HDFS client
   // (org.apache.hadoop:hadoop-dfs-client) version 2.7's DFSConfigKeys and version 2.8's

@@ -25,8 +25,62 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
+
+
+class CreateTimestamped(beam.PTransform):
+  _yaml_requires_inputs = False
+
+  def __init__(self, elements):
+    self._elements = elements
+
+  def expand(self, p):
+    return (
+        p
+        | beam.Create(self._elements)
+        | beam.Map(lambda x: beam.transforms.window.TimestampedValue(x, x)))
+
+
+class CreateInts(beam.PTransform):
+  _yaml_requires_inputs = False
+
+  def __init__(self, elements):
+    self._elements = elements
+
+  def expand(self, p):
+    return p | beam.Create(self._elements)
+
+
+class SumGlobally(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.CombineGlobally(sum).without_defaults()
+
+
+class SizeLimiter(beam.PTransform):
+  def __init__(self, limit, error_handling):
+    self._limit = limit
+    self._error_handling = error_handling
+
+  def expand(self, pcoll):
+    def raise_on_big(row):
+      if len(row.element) > self._limit:
+        raise ValueError(row.element)
+      else:
+        return row.element
+
+    good, bad = pcoll | beam.Map(raise_on_big).with_exception_handling()
+    return {'small_elements': good, self._error_handling['output']: bad}
+
+
+TEST_PROVIDERS = {
+    'CreateInts': CreateInts,
+    'CreateTimestamped': CreateTimestamped,
+    'SumGlobally': SumGlobally,
+    'SizeLimiter': SizeLimiter,
+    'PyMap': lambda fn: beam.Map(python_callable.PythonCallableWithSource(fn)),
+}
 
 
 class YamlTransformE2ETest(unittest.TestCase):
@@ -55,7 +109,8 @@ class YamlTransformE2ETest(unittest.TestCase):
               input: [Square, Cube]
           output:
               Flatten
-          ''')
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([1, 4, 9, 1, 8, 27]))
 
   def test_chain_with_input(self):
@@ -74,7 +129,8 @@ class YamlTransformE2ETest(unittest.TestCase):
             - type: PyMap
               config:
                   fn: "lambda x: x + 41"
-          ''')
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
   def test_chain_with_source_sink(self):
@@ -84,7 +140,7 @@ class YamlTransformE2ETest(unittest.TestCase):
           '''
           type: chain
           source:
-            type: Create
+            type: CreateInts
             config:
                 elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
           transforms:
@@ -95,7 +151,8 @@ class YamlTransformE2ETest(unittest.TestCase):
             type: PyMap
             config:
                 fn: "lambda x: x + 41"
-          ''')
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
   def test_chain_with_root(self):
@@ -105,7 +162,7 @@ class YamlTransformE2ETest(unittest.TestCase):
           '''
           type: chain
           transforms:
-            - type: Create
+            - type: CreateInts
               config:
                   elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             - type: PyMap
@@ -114,7 +171,8 @@ class YamlTransformE2ETest(unittest.TestCase):
             - type: PyMap
               config:
                   fn: "lambda x: x + 41"
-          ''')
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
   def create_has_schema(self):
@@ -132,10 +190,7 @@ class YamlTransformE2ETest(unittest.TestCase):
                   language: python
                   fields:
                       repeated: a * b
-            - type: PyMap
-              config:
-                  fn: "lambda x: x.repeated"
-          ''')
+          ''') | beam.Map(lambda x: x.repeated)
       assert_that(result, equal_to(['x', 'yy']))
 
   def test_implicit_flatten(self):
@@ -156,9 +211,10 @@ class YamlTransformE2ETest(unittest.TestCase):
             - type: PyMap
               input: [CreateBig, CreateSmall]
               config:
-                  fn: "lambda x: x * x"
+                  fn: "lambda x: x.element * x.element"
           output: PyMap
-          ''')
+          ''',
+          providers=TEST_PROVIDERS)
       assert_that(result, equal_to([1, 4, 9, 10000, 40000]))
 
   def test_csv_to_json(self):
@@ -214,15 +270,16 @@ class YamlTransformE2ETest(unittest.TestCase):
                 name: Create
                 config:
                     elements: [0, 1, 3, 4]
-              - type: PyFilter
-                name: Filter
+              - type: PyMap
+                name: PyMap
                 config:
-                    keep: "lambda elem: elem > 2"
+                    fn: "lambda row: row.element * row.element"
                 input: Create
-            output: Filter
-            ''')
+            output: PyMap
+            ''',
+          providers=TEST_PROVIDERS)
       # No exception raised
-      assert_that(result, equal_to([3, 4]))
+      assert_that(result, equal_to([0, 1, 9, 16]))
 
   def test_name_is_ambiguous(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -237,18 +294,64 @@ class YamlTransformE2ETest(unittest.TestCase):
                 name: CreateData
                 config:
                     elements: [0, 1, 3, 4]
-              - type: PyFilter
-                name: PyFilter
+              - type: PyMap
+                name: PyMap
                 config:
-                    keep: "lambda elem: elem > 2"
+                    fn: "lambda elem: elem + 2"
                 input: CreateData
-              - type: PyFilter
-                name: AnotherFilter
+              - type: PyMap
+                name: AnotherMap
                 config:
-                    keep: "lambda elem: elem > 3"
-                input: PyFilter
-            output: AnotherFilter
+                    fn: "lambda elem: elem + 3"
+                input: PyMap
+            output: AnotherMap
+            ''',
+            providers=TEST_PROVIDERS)
+
+  def test_empty_inputs_throws_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with self.assertRaisesRegex(ValueError,
+                                  'Missing inputs for transform at '
+                                  '"EmptyInputOkButYamlDoesntKnow" at line .*'):
+        _ = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: PyTransform
+                name: EmptyInputOkButYamlDoesntKnow
+                config:
+                  constructor: apache_beam.Impulse
             ''')
+
+  def test_empty_inputs_ok_in_source(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # Does not throw an error like it does above.
+      _ = p | YamlTransform(
+          '''
+          type: composite
+          source:
+            type: PyTransform
+            name: EmptyInputOkButYamlDoesntKnow
+            config:
+              constructor: apache_beam.Impulse
+          ''')
+
+  def test_empty_inputs_ok_if_explicit(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # Does not throw an error like it does above.
+      _ = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: PyTransform
+              name: EmptyInputOkButYamlDoesntKnow
+              input: {}
+              config:
+                constructor: apache_beam.Impulse
+          ''')
 
   def test_annotations(self):
     t = LinearTransform(5, b=100)
@@ -266,45 +369,6 @@ class YamlTransformE2ETest(unittest.TestCase):
               config: %s
           ''' % (annotations['yaml_type'], annotations['yaml_args']))
       assert_that(result, equal_to([100, 105, 110, 115]))
-
-
-class CreateTimestamped(beam.PTransform):
-  def __init__(self, elements):
-    self._elements = elements
-
-  def expand(self, p):
-    return (
-        p
-        | beam.Create(self._elements)
-        | beam.Map(lambda x: beam.transforms.window.TimestampedValue(x, x)))
-
-
-class SumGlobally(beam.PTransform):
-  def expand(self, pcoll):
-    return pcoll | beam.CombineGlobally(sum).without_defaults()
-
-
-class SizeLimiter(beam.PTransform):
-  def __init__(self, limit, error_handling):
-    self._limit = limit
-    self._error_handling = error_handling
-
-  def expand(self, pcoll):
-    def raise_on_big(element):
-      if len(element) > self._limit:
-        raise ValueError(element)
-      else:
-        return element
-
-    good, bad = pcoll | beam.Map(raise_on_big).with_exception_handling()
-    return {'small_elements': good, self._error_handling['output']: bad}
-
-
-TEST_PROVIDERS = {
-    'CreateTimestamped': CreateTimestamped,
-    'SumGlobally': SumGlobally,
-    'SizeLimiter': SizeLimiter,
-}
 
 
 class ErrorHandlingTest(unittest.TestCase):
@@ -367,26 +431,35 @@ class ErrorHandlingTest(unittest.TestCase):
             - type: Create
               config:
                   elements: [0, 1, 2, 4]
-            - type: PyMap
+            - type: MapToFields
               name: ToRow
               input: Create
               config:
-                  fn: "lambda x: beam.Row(num=x, str='a' * x or 'bbb')"
+                  language: python
+                  fields:
+                      num: element
+                      str: "'a' * element or 'bbb'"
+            - type: Filter
+              input: ToRow
+              config:
+                  language: python
+                  keep:
+                    str[1] >= 'a'
+                  error_handling:
+                    output: errors
             - type: MapToFields
               name: MapWithErrorHandling
-              input: ToRow
+              input: Filter
               config:
                   language: python
                   fields:
                     num: num
                     inverse: float(1 / num)
-                  keep:
-                    str[1] >= 'a'
                   error_handling:
                     output: errors
             - type: PyMap
               name: TrimErrors
-              input: MapWithErrorHandling.errors
+              input: [MapWithErrorHandling.errors, Filter.errors]
               config:
                   fn: "lambda x: x.msg"
             - type: MapToFields
@@ -525,7 +598,8 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
   """
   def __init__(self, name, transform_names):
     super().__init__({
-        transform_name: lambda: beam.Map(lambda x: (x or ()) + (name, ))
+        transform_name:
+        lambda: beam.Map(lambda x: (x if type(x) == tuple else ()) + (name, ))
         for transform_name in transform_names.strip().split()
     })
     self._name = name
@@ -658,7 +732,7 @@ class LinearTransform(beam.PTransform):
   def expand(self, pcoll):
     a = self._a
     b = self._b
-    return pcoll | beam.Map(lambda x: a * x + b)
+    return pcoll | beam.Map(lambda x: a * x.element + b)
 
 
 if __name__ == '__main__':

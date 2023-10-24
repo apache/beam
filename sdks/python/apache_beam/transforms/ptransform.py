@@ -1101,6 +1101,22 @@ class _NamedPTransform(PTransform):
   def expand(self, pvalue):
     raise RuntimeError("Should never be expanded directly.")
 
+  def __getattr__(self, attr):
+    transform_attr = getattr(self.transform, attr)
+    if callable(transform_attr):
+
+      @wraps(transform_attr)
+      def wrapper(*args, **kwargs):
+        result = transform_attr(*args, **kwargs)
+        if isinstance(result, PTransform):
+          return _NamedPTransform(result, self.label)
+        else:
+          return result
+
+      return wrapper
+    else:
+      return transform_attr
+
 
 # Defined here to avoid circular import issues for Beam library transforms.
 def annotate_yaml(constructor):

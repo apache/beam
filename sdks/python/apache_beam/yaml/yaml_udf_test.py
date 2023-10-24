@@ -28,6 +28,10 @@ from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
+def AsRows():
+  return beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict()))
+
+
 class YamlUDFMappingTest(unittest.TestCase):
   def __init__(self, method_name='runYamlMappingTest'):
     super().__init__(method_name)
@@ -51,7 +55,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: MapToFields
-      input: input
       config:
         language: javascript
         fields:
@@ -59,12 +62,11 @@ class YamlUDFMappingTest(unittest.TestCase):
             callable: "function label_map(x) {return x.label + 'x'}"
           conductor:
             callable: "function conductor_map(x) {return x.conductor + 1}"
-        keep:
-          callable: "function filter(x) {return x.rank > 0}"
       ''')
       assert_that(
           result,
           equal_to([
+              beam.Row(label='11ax', conductor=12),
               beam.Row(label='37ax', conductor=38),
               beam.Row(label='389ax', conductor=390),
           ]))
@@ -76,7 +78,6 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: MapToFields
-      input: input
       config:
         language: python
         fields:
@@ -84,12 +85,11 @@ class YamlUDFMappingTest(unittest.TestCase):
             callable: "lambda x: x.label + 'x'"
           conductor:
             callable: "lambda x: x.conductor + 1"
-        keep: 
-          callable: "lambda x: x.rank > 0"
       ''')
       assert_that(
           result,
           equal_to([
+              beam.Row(label='11ax', conductor=12),
               beam.Row(label='37ax', conductor=38),
               beam.Row(label='389ax', conductor=390),
           ]))
@@ -101,14 +101,13 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: javascript
-        keep: 
+        keep:
           callable: "function filter(x) {return x.rank > 0}"
       ''')
       assert_that(
-          result,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
@@ -121,14 +120,13 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: python
-        keep: 
+        keep:
           callable: "lambda x: x.rank > 0"
       ''')
       assert_that(
-          result,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
@@ -141,14 +139,14 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: javascript
-        keep: 
+        keep:
           expression: "label.toUpperCase().indexOf('3') == -1 && conductor"
       ''')
       assert_that(
-          result, equal_to([
+          result | AsRows(),
+          equal_to([
               beam.Row(label='11a', conductor=11, rank=0),
           ]))
 
@@ -159,14 +157,14 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
       type: Filter
-      input: input
       config:
         language: python
-        keep: 
+        keep:
           expression: "'3' not in label"
       ''')
       assert_that(
-          result, equal_to([
+          result | AsRows(),
+          equal_to([
               beam.Row(label='11a', conductor=11, rank=0),
           ]))
 
@@ -175,7 +173,7 @@ class YamlUDFMappingTest(unittest.TestCase):
     function f(x) {
       return x.rank > 0
     }
-    
+
     function g(x) {
       return x.rank > 1
     }
@@ -190,15 +188,14 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           f'''
         type: Filter
-        input: input
         config:
           language: javascript
-          keep: 
+          keep:
             path: {path}
             name: "f"
         ''')
       assert_that(
-          result,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),
@@ -222,15 +219,14 @@ class YamlUDFMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           f'''
         type: Filter
-        input: input
         config:
           language: python
-          keep: 
+          keep:
             path: {path}
             name: "f"
         ''')
       assert_that(
-          result,
+          result | AsRows(),
           equal_to([
               beam.Row(label='37a', conductor=37, rank=1),
               beam.Row(label='389a', conductor=389, rank=2),

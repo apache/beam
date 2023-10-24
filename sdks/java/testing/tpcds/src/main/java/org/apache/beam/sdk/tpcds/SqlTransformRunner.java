@@ -283,7 +283,8 @@ public class SqlTransformRunner {
 
     // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
     Pipeline[] pipelines = new Pipeline[queryNames.length];
-    CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
+    CSVFormat csvFormat =
+        CSVFormat.MYSQL.withDelimiter('|').withTrailingDelimiter().withNullString("");
 
     // Execute all queries, transform each result into a PCollection<String>, write them into
     // the txt file and store in a GCP directory.

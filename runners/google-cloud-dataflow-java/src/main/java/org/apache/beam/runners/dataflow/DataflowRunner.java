@@ -398,10 +398,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Adding the Java version to the SDK name for user's and support convenience.
     String agentJavaVer = "(JRE 8 environment)";
-    if (Environments.getJavaVersion() == Environments.JavaVersion.java17) {
-      agentJavaVer = "(JRE 17 environment)";
-    } else if (Environments.getJavaVersion() == Environments.JavaVersion.java11) {
-      agentJavaVer = "(JRE 11 environment)";
+    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+      agentJavaVer =
+          String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
     }
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
@@ -1755,7 +1754,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.isEnableStreamingEngine(),
         "Runner determined sharding not available in Dataflow for GroupIntoBatches for"
             + " non-Streaming-Engine jobs. In order to use runner determined sharding, please use"
-            + " --streaming --enable_streaming_engine");
+            + " --streaming --experiments=enable_streaming_engine");
     pCollectionsPreservedKeys.add(pcol);
     pcollectionsRequiringAutoSharding.add(pcol);
   }
@@ -2570,6 +2569,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public String getUrn(PTransform transform) {
       return "dataflow_stub:" + transform.getClass().getName();
+    }
+
+    @Override
+    public String getUrn() {
+      throw new UnsupportedOperationException(
+          "URN of DataflowPayloadTranslator depends on the transform. Please use 'getUrn(PTransform transform)' instead.");
     }
 
     @Override

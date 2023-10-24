@@ -38,6 +38,7 @@ from apache_beam.typehints import typehints
 T = TypeVariable('T')
 # Name is 'T' so it converts to a beam type with the same name.
 # mypy requires that the name of the variable match, so we must ignore this.
+# pylint: disable=typevar-name-mismatch
 T_typing = typing.TypeVar('T')  # type: ignore
 
 
