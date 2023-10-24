@@ -558,7 +558,7 @@ class BagOfWords(TFTOperation):
     if compute_word_count:
       self.compute_word_count_fn = count_unqiue_words
     else:
-      self.compute_word_count_fn = lambda *args, **kwargs: {}
+      self.compute_word_count_fn = lambda *args, **kwargs: None
 
     if ngram_range != (1, 1) and not ngrams_separator:
       raise ValueError(
