@@ -460,6 +460,13 @@ PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
 }
 
 
+def element_to_rows(e):
+  if isinstance(e, dict):
+    return dicts_to_rows(e)
+  else:
+    return beam.Row(element=dicts_to_rows(e))
+
+
 def dicts_to_rows(o):
   if isinstance(o, dict):
     return beam.Row(**{k: dicts_to_rows(v) for k, v in o.items()})
@@ -487,7 +494,7 @@ def create_builtin_provider():
         reshuffle (optional): Whether to introduce a reshuffle if there is more
             than one element in the collection. Defaults to True.
     """
-    return beam.Create(dicts_to_rows(elements), reshuffle)
+    return beam.Create([element_to_rows(e) for e in elements], reshuffle)
 
   def with_schema(**args):
     # TODO: This is preliminary.

@@ -64,11 +64,11 @@ class SizeLimiter(beam.PTransform):
     self._error_handling = error_handling
 
   def expand(self, pcoll):
-    def raise_on_big(element):
-      if len(element) > self._limit:
-        raise ValueError(element)
+    def raise_on_big(row):
+      if len(row.element) > self._limit:
+        raise ValueError(row.element)
       else:
-        return element
+        return row.element
 
     good, bad = pcoll | beam.Map(raise_on_big).with_exception_handling()
     return {'small_elements': good, self._error_handling['output']: bad}
@@ -211,7 +211,7 @@ class YamlTransformE2ETest(unittest.TestCase):
             - type: PyMap
               input: [CreateBig, CreateSmall]
               config:
-                  fn: "lambda x: x * x"
+                  fn: "lambda x: x.element * x.element"
           output: PyMap
           ''',
           providers=TEST_PROVIDERS)
@@ -273,7 +273,7 @@ class YamlTransformE2ETest(unittest.TestCase):
               - type: PyMap
                 name: PyMap
                 config:
-                    fn: "lambda elem: elem * elem"
+                    fn: "lambda row: row.element * row.element"
                 input: Create
             output: PyMap
             ''',
@@ -431,11 +431,14 @@ class ErrorHandlingTest(unittest.TestCase):
             - type: Create
               config:
                   elements: [0, 1, 2, 4]
-            - type: PyMap
+            - type: MapToFields
               name: ToRow
               input: Create
               config:
-                  fn: "lambda x: beam.Row(num=x, str='a' * x or 'bbb')"
+                  language: python
+                  fields:
+                      num: element
+                      str: "'a' * element or 'bbb'"
             - type: Filter
               input: ToRow
               config:
@@ -595,7 +598,8 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
   """
   def __init__(self, name, transform_names):
     super().__init__({
-        transform_name: lambda: beam.Map(lambda x: (x or ()) + (name, ))
+        transform_name:
+        lambda: beam.Map(lambda x: (x if type(x) == tuple else ()) + (name, ))
         for transform_name in transform_names.strip().split()
     })
     self._name = name
@@ -728,7 +732,7 @@ class LinearTransform(beam.PTransform):
   def expand(self, pcoll):
     a = self._a
     b = self._b
-    return pcoll | beam.Map(lambda x: a * x + b)
+    return pcoll | beam.Map(lambda x: a * x.element + b)
 
 
 if __name__ == '__main__':
