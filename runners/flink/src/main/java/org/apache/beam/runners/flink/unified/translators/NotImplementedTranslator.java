@@ -21,7 +21,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator;
 import org.apache.beam.runners.flink.unified.FlinkUnifiedPipelineTranslator.UnifiedTranslationContext;
-import org.apache.commons.lang3.NotImplementedException;
 
 public class NotImplementedTranslator<ElemT, ViewT>
     implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
@@ -36,6 +35,6 @@ public class NotImplementedTranslator<ElemT, ViewT>
   @Override
   public void translate(
       PTransformNode transform, Pipeline pipeline, UnifiedTranslationContext context) {
-    throw new NotImplementedException(String.format("Translator for %s is not implemented.", urn));
+    throw new RuntimeException(String.format("Translator for %s is not implemented.", urn));
   }
 }

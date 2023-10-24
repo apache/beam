@@ -31,10 +31,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -46,22 +44,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the
@@ -72,113 +65,10 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
+class FlinkStreamingPipelineTranslator {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
+  public FlinkStreamingPipelineTranslator() {}
 
-  /** The necessary context in the case of a straming job. */
-  private final FlinkStreamingTranslationContext streamingContext;
-
-  private int depth = 0;
-
-  public FlinkStreamingPipelineTranslator(
-      StreamExecutionEnvironment env,
-      PipelineOptions options,
-      boolean isStreaming) {
-    this.streamingContext = new FlinkStreamingTranslationContext(env, options, isStreaming);
-  }
-
-  @Override
-  public void translate(Pipeline pipeline) {
-    // Ensure all outputs of all reads are consumed.
-    UnconsumedReads.ensureAllReadsConsumed(pipeline);
-    super.translate(pipeline);
-  }
-
-  // --------------------------------------------------------------------------------------------
-  //  Pipeline Visitor Methods
-  // --------------------------------------------------------------------------------------------
-
-  @Override
-  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    LOG.info("{} enterCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
-    this.depth++;
-
-    PTransform<?, ?> transform = node.getTransform();
-    if (transform != null) {
-      StreamTransformTranslator<?> translator =
-          FlinkStreamingTransformTranslators.getTranslator(transform);
-
-      if (translator != null && applyCanTranslate(transform, node, translator)) {
-        applyStreamingTransform(transform, node, translator);
-        LOG.info("{} translated- {}", genSpaces(this.depth), node.getFullName());
-        return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
-      }
-    }
-    return CompositeBehavior.ENTER_TRANSFORM;
-  }
-
-  @Override
-  public void leaveCompositeTransform(TransformHierarchy.Node node) {
-    this.depth--;
-    LOG.info("{} leaveCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
-  }
-
-  @Override
-  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    LOG.info("{} visitPrimitiveTransform- {}", genSpaces(this.depth), node.getFullName());
-    // get the transformation corresponding to hte node we are
-    // currently visiting and translate it into its Flink alternative.
-
-    PTransform<?, ?> transform = node.getTransform();
-    StreamTransformTranslator<?> translator =
-        FlinkStreamingTransformTranslators.getTranslator(transform);
-
-    if (translator == null || !applyCanTranslate(transform, node, translator)) {
-      String transformUrn = PTransformTranslation.urnForTransform(transform);
-      LOG.info(transformUrn);
-      throw new UnsupportedOperationException(
-          "The transform " + transformUrn + " is currently not supported.");
-    }
-    applyStreamingTransform(transform, node, translator);
-  }
-
-  @Override
-  public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    // do nothing here
-  }
-
-  private <T extends PTransform<?, ?>> void applyStreamingTransform(
-      PTransform<?, ?> transform,
-      TransformHierarchy.Node node,
-      StreamTransformTranslator<?> translator) {
-
-    @SuppressWarnings("unchecked")
-    T typedTransform = (T) transform;
-
-    @SuppressWarnings("unchecked")
-    StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
-
-    // create the applied PTransform on the streamingContext
-    streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-    typedTranslator.translateNode(typedTransform, streamingContext);
-  }
-
-  private <T extends PTransform<?, ?>> boolean applyCanTranslate(
-      PTransform<?, ?> transform,
-      TransformHierarchy.Node node,
-      StreamTransformTranslator<?> translator) {
-
-    @SuppressWarnings("unchecked")
-    T typedTransform = (T) transform;
-
-    @SuppressWarnings("unchecked")
-    StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
-
-    streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-
-    return typedTranslator.canTranslate(typedTransform, streamingContext);
-  }
 
   /**
    * The interface that every Flink translator of a Beam operator should implement. This interface
