@@ -79,10 +79,10 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python-cogbk/python_CoGBK_Dataflow_Streaming_100b_Single_Key.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python-cogbk/python_CoGBK_Dataflow_Streaming_100b_Multiple_Keys.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python-cogbk/python_CoGBK_Dataflow_Streaming_10kB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python-cogbk/python_CoGBK_Dataflow_Streaming_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Streaming_100b_Single_Key.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Streaming_100b_Multiple_Keys.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Streaming_10kB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Streaming_2MB.txt
       - name: Set current datetime
         id: datetime
         run: |
