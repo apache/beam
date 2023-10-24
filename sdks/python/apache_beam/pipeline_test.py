@@ -22,6 +22,7 @@
 import copy
 import platform
 import unittest
+import uuid
 
 import mock
 import pytest
@@ -265,6 +266,32 @@ class PipelineTest(unittest.TestCase):
         'A transform with label "CustomTransform" already exists in the '
         'pipeline. To apply a transform with a specified label write '
         'pvalue | "label" >> transform')
+
+  def test_auto_unique_labels(self):
+
+    opts = PipelineOptions(["--auto_unique_labels"])
+    with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
+      mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
+      mock_uuid_gen.side_effect = mock_uuids
+      with TestPipeline(options=opts) as pipeline:
+        pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
+
+        def identity(x):
+          return x
+
+        pcoll2 = pcoll | Map(identity)
+        pcoll3 = pcoll2 | Map(identity)
+        pcoll4 = pcoll3 | Map(identity)
+        assert_that(pcoll4, equal_to([1, 2, 3]))
+
+    map_id_full_labels = {
+        label
+        for label in pipeline.applied_labels if "Map(identity)" in label
+    }
+    map_id_leaf_labels = {label.split(":")[-1] for label in map_id_full_labels}
+    # Only the first 6 chars of the UUID hex should be used
+    assert map_id_leaf_labels == set(
+        ["Map(identity)", "Map(identity)_UUID01", "Map(identity)_UUID02"])
 
   def test_reuse_cloned_custom_transform_instance(self):
     with TestPipeline() as pipeline:
