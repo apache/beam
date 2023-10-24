@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import os
 import shutil
 import tempfile
 import unittest
@@ -574,17 +575,6 @@ class BagOfWordsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.artifact_location)
 
-  def validate_count_per_key(self):
-    import os
-    key_vocab_location = os.path.join(
-        self.artifact_location, 'transform_fn/assets/key_vocab')
-    with open(key_vocab_location, 'r'):
-      key_vocab_list = [line.strip() for line in f]
-
-    expected_data = ['2 yum', '4 Apple', '1 like', '1 I', '4 pie', '2 Banana']
-    actual_data = key_vocab_list
-    self.assertEqual(expected_data, actual_data)
-
   def test_bag_of_words_on_list_seperated_words_default_ngrams(self):
     data = [{
         'x': ['I', 'like', 'pie', 'pie', 'pie'],
@@ -721,7 +711,6 @@ class BagOfWordsTest(unittest.TestCase):
               ]))
 
     def validate_count_per_key(key_vocab_filename):
-      import os
       key_vocab_location = os.path.join(
           self.artifact_location, 'transform_fn/assets', key_vocab_filename)
       with open(key_vocab_location, 'r') as f:
