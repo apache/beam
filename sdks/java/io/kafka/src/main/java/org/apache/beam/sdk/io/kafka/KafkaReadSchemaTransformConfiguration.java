@@ -39,7 +39,7 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
 
-  public static final String VALID_FORMATS_STR = "raw,avro,json";
+  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -48,14 +48,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     assert startOffset == null || VALID_START_OFFSET_VALUES.contains(startOffset)
         : "Valid Kafka Start offset values are " + VALID_START_OFFSET_VALUES;
     final String dataFormat = this.getFormat();
-    assert dataFormat == null || isValidDataFormat(dataFormat)
-        : "Valid data formats are " + VALID_FORMATS_STR;
-  }
-
-  private boolean isValidDataFormat(String dataFormat) {
-    // Convert the input dataFormat to lowercase for case-insensitive comparison
-    String lowercaseDataFormat = dataFormat.toLowerCase();
-    return VALID_DATA_FORMATS.contains(lowercaseDataFormat);
+    assert dataFormat == null || VALID_DATA_FORMATS.contains(dataFormat)
+        : "Valid data formats are " + VALID_DATA_FORMATS;
   }
 
   /** Instantiates a {@link KafkaReadSchemaTransformConfiguration.Builder} instance. */

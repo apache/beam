@@ -115,14 +115,10 @@ public class KafkaReadSchemaTransformProvider
 
     String format = configuration.getFormat();
 
-    if (format == null || format.isEmpty()) {
-      format = "raw";
-    }
-
-    if (format.equalsIgnoreCase("raw")) {
-      if (inputSchema != null && !inputSchema.isEmpty()) {
+    if (format != null && format.equals("RAW")) {
+      if (inputSchema != null) {
         throw new IllegalArgumentException(
-            "To read from Kafka in raw format, you can't provide a schema.");
+            "To read from Kafka in RAW format, you can't provide a schema.");
       }
       Schema rawSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
       SerializableFunction<byte[], Row> valueMapper = getRawBytesToRowFunction(rawSchema);
@@ -162,11 +158,11 @@ public class KafkaReadSchemaTransformProvider
               + "Schema Registry, but not both.";
 
       final Schema beamSchema =
-          Objects.equals(format.toLowerCase(), "json")
+          Objects.equals(format, "JSON")
               ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
               : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
       SerializableFunction<byte[], Row> valueMapper =
-          Objects.equals(format.toLowerCase(), "json")
+          Objects.equals(format, "JSON")
               ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
               : AvroUtils.getAvroBytesToRowFunction(beamSchema);
       return new SchemaTransform() {

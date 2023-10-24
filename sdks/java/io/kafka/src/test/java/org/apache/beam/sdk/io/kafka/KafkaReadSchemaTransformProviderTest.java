@@ -120,7 +120,6 @@ public class KafkaReadSchemaTransformProviderTest {
         KafkaReadSchemaTransformConfiguration.builder()
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
-            .setFormat("avro")
             .setSchema(AVRO_SCHEMA)
             .build());
   }
@@ -139,7 +138,7 @@ public class KafkaReadSchemaTransformProviderTest {
         KafkaReadSchemaTransformConfiguration.builder()
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
-            .setFormat("json")
+            .setFormat("JSON")
             .setSchema(
                 new String(
                     ByteStreams.toByteArray(
@@ -163,7 +162,7 @@ public class KafkaReadSchemaTransformProviderTest {
         KafkaReadSchemaTransformConfiguration.builder()
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
-            .setFormat("raw")
+            .setFormat("RAW")
             .build());
   }
 }
