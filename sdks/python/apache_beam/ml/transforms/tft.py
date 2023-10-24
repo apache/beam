@@ -575,6 +575,5 @@ class BagOfWords(TFTOperation):
     return {output_col_name: output}
 
 
-def count_unqiue_words(data: tf.SparseTensor,
-                       output_vocab_name: str) -> Dict[str, tf.Tensor]:
+def count_unqiue_words(data: tf.SparseTensor, output_vocab_name: str) -> None:
   tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)
