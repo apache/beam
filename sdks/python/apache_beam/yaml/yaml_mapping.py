@@ -32,8 +32,8 @@ import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
-from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import schemas
+from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
