@@ -54,6 +54,7 @@ import re
 import shutil
 import tempfile
 import unicodedata
+import uuid
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
@@ -68,7 +69,6 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import Union
-import uuid
 
 from google.protobuf import message
 
