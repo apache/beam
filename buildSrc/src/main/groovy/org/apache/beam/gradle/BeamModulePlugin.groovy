@@ -1543,7 +1543,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (project.hasProperty('testJavaVersion')) {
+      if (['11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
