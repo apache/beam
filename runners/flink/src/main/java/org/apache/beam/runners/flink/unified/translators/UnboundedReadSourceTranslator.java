@@ -51,195 +51,192 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.Collector;
 
 public class UnboundedReadSourceTranslator<T>
-      implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
+    implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
 
-    static class ValueWithRecordIdKeySelector<T>
-        implements KeySelector<WindowedValue<ValueWithRecordId<T>>, ByteBuffer>,
-            ResultTypeQueryable<ByteBuffer> {
+  static class ValueWithRecordIdKeySelector<T>
+      implements KeySelector<WindowedValue<ValueWithRecordId<T>>, ByteBuffer>,
+          ResultTypeQueryable<ByteBuffer> {
 
-      @Override
-      public ByteBuffer getKey(WindowedValue<ValueWithRecordId<T>> value) throws Exception {
-        return ByteBuffer.wrap(value.getValue().getId());
-      }
-
-      @Override
-      public TypeInformation<ByteBuffer> getProducedType() {
-        return new GenericTypeInfo<>(ByteBuffer.class);
-      }
-    }
-
-    public static class StripIdsMap<T>
-        extends RichFlatMapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>> {
-
-      private final SerializablePipelineOptions options;
-
-      StripIdsMap(PipelineOptions options) {
-        this.options = new SerializablePipelineOptions(options);
-      }
-
-      @Override
-      public void open(Configuration parameters) {
-        // Initialize FileSystems for any coders which may want to use the FileSystem,
-        // see https://issues.apache.org/jira/browse/BEAM-8303
-        FileSystems.setDefaultPipelineOptions(options.get());
-      }
-
-      @Override
-      public void flatMap(
-          WindowedValue<ValueWithRecordId<T>> value, Collector<WindowedValue<T>> collector)
-          throws Exception {
-        collector.collect(value.withValue(value.getValue().getValue()));
-      }
+    @Override
+    public ByteBuffer getKey(WindowedValue<ValueWithRecordId<T>> value) throws Exception {
+      return ByteBuffer.wrap(value.getValue().getId());
     }
 
     @Override
-    public void translate(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
-          DataStream<WindowedValue<T>> source;
+    public TypeInformation<ByteBuffer> getProducedType() {
+      return new GenericTypeInfo<>(ByteBuffer.class);
+    }
+  }
 
-          if(context.isPortableRunnerExec()) {
-            source = translatePortable(transform, pipeline, context);
-          } else {
-            source = translateLegacy(transform, pipeline, context);
-          }
+  public static class StripIdsMap<T>
+      extends RichFlatMapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>> {
 
-          String outputPCollectionId =
-            Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
+    private final SerializablePipelineOptions options;
 
-          context.addDataStream(outputPCollectionId, source);
-        }
+    StripIdsMap(PipelineOptions options) {
+      this.options = new SerializablePipelineOptions(options);
+    }
 
-    private DataStream<WindowedValue<T>> getDedupedSource(
+    @Override
+    public void open(Configuration parameters) {
+      // Initialize FileSystems for any coders which may want to use the FileSystem,
+      // see https://issues.apache.org/jira/browse/BEAM-8303
+      FileSystems.setDefaultPipelineOptions(options.get());
+    }
+
+    @Override
+    public void flatMap(
+        WindowedValue<ValueWithRecordId<T>> value, Collector<WindowedValue<T>> collector)
+        throws Exception {
+      collector.collect(value.withValue(value.getValue().getValue()));
+    }
+  }
+
+  @Override
+  public void translate(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+    DataStream<WindowedValue<T>> source;
+
+    if (context.isPortableRunnerExec()) {
+      source = translatePortable(transform, pipeline, context);
+    } else {
+      source = translateLegacy(transform, pipeline, context);
+    }
+
+    String outputPCollectionId =
+        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
+
+    context.addDataStream(outputPCollectionId, source);
+  }
+
+  private DataStream<WindowedValue<T>> getDedupedSource(
       RunnerApi.PTransform pTransform,
       TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo,
       TypeInformation<WindowedValue<T>> sdkTypeInformation,
       FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
 
-      DataStream<WindowedValue<T>> source;
-      RunnerApi.ReadPayload payload;
-      try {
-        payload = RunnerApi.ReadPayload.parseFrom(pTransform.getSpec().getPayload());
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to parse ReadPayload from transform", e);
-      }
+    DataStream<WindowedValue<T>> source;
+    RunnerApi.ReadPayload payload;
+    try {
+      payload = RunnerApi.ReadPayload.parseFrom(pTransform.getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to parse ReadPayload from transform", e);
+    }
 
-      UnboundedSource<T, ?> rawSource =
+    UnboundedSource<T, ?> rawSource =
         (UnboundedSource) ReadTranslation.unboundedSourceFromProto(payload);
 
-      String fullName = pTransform.getUniqueName();
+    String fullName = pTransform.getUniqueName();
 
-      int parallelism =
+    int parallelism =
         context.getExecutionEnvironment().getMaxParallelism() > 0
             ? context.getExecutionEnvironment().getMaxParallelism()
             : context.getExecutionEnvironment().getParallelism();
 
-      FlinkUnboundedSource<T> unboundedSource =
+    FlinkUnboundedSource<T> unboundedSource =
         FlinkSource.unbounded(
             pTransform.getUniqueName(),
             rawSource,
             new SerializablePipelineOptions(context.getPipelineOptions()),
             parallelism);
 
-      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource =
-          context
+    DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource =
+        context
             .getExecutionEnvironment()
             .fromSource(unboundedSource, WatermarkStrategy.noWatermarks(), fullName, withIdTypeInfo)
             .uid(fullName);
 
-      if (rawSource.requiresDeduping()) {
-        source =
-            nonDedupSource
-                .keyBy(new ValueWithRecordIdKeySelector<>())
-                .transform(
-                    "deduping",
-                    sdkTypeInformation,
-                    new DedupingOperator<>(context.getPipelineOptions()))
-                .uid(format("%s/__deduplicated__", fullName));
-      } else {
-        source =
-            nonDedupSource
-                .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
-                .returns(sdkTypeInformation);
-      }
-      return source;
+    if (rawSource.requiresDeduping()) {
+      source =
+          nonDedupSource
+              .keyBy(new ValueWithRecordIdKeySelector<>())
+              .transform(
+                  "deduping",
+                  sdkTypeInformation,
+                  new DedupingOperator<>(context.getPipelineOptions()))
+              .uid(format("%s/__deduplicated__", fullName));
+    } else {
+      source =
+          nonDedupSource
+              .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
+              .returns(sdkTypeInformation);
     }
+    return source;
+  }
 
-    private DataStream<WindowedValue<T>> translatePortable(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+  private DataStream<WindowedValue<T>> translatePortable(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
 
-        RunnerApi.PTransform pTransform = transform.getTransform();
+    RunnerApi.PTransform pTransform = transform.getTransform();
 
-        PipelineOptions pipelineOptions = context.getPipelineOptions();
+    PipelineOptions pipelineOptions = context.getPipelineOptions();
 
-        String outputPCollectionId =
-          Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+    String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
 
-        WindowingStrategy<?, ?> windowStrategy =
-          context.getWindowingStrategy(pipeline, outputPCollectionId);
-
-        @SuppressWarnings("unchecked")
-        WindowedValue.FullWindowedValueCoder<T> wireCoder =
-            (WindowedValue.FullWindowedValueCoder)
-                PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
-
-        WindowedValue.FullWindowedValueCoder<T> sdkCoder =
-          context.getSdkCoder(outputPCollectionId, pipeline.getComponents());
-
-        CoderTypeInformation<WindowedValue<T>> outputTypeInfo =
-            new CoderTypeInformation<>(wireCoder, pipelineOptions);
-
-        CoderTypeInformation<WindowedValue<T>> sdkTypeInformation =
-            new CoderTypeInformation<>(sdkCoder, pipelineOptions);
-
-        TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
-            new CoderTypeInformation<>(
-                WindowedValue.getFullCoder(
-                    ValueWithRecordId.ValueWithRecordIdCoder.of(sdkCoder.getValueCoder()),
-                    windowStrategy.getWindowFn().windowCoder()),
-                pipelineOptions);
-
-        DataStream<WindowedValue<T>> source =
-          getDedupedSource(pTransform, withIdTypeInfo, sdkTypeInformation, context);
-
-        return source
-            .map(value -> ReadSourceTranslator.intoWireTypes(sdkCoder, wireCoder, value))
-            .returns(outputTypeInfo);
-
-    }
-
-    private DataStream<WindowedValue<T>> translateLegacy(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
-
-      RunnerApi.PTransform pTransform = transform.getTransform();
-
-      String outputPCollectionId =
-        Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-        context.getTypeInfo(pipeline, outputPCollectionId);
-
-      WindowingStrategy<?, ?> windowingStrategy =
+    WindowingStrategy<?, ?> windowStrategy =
         context.getWindowingStrategy(pipeline, outputPCollectionId);
 
-      WindowedValueCoder<T> windowedOutputCoder =
+    @SuppressWarnings("unchecked")
+    WindowedValue.FullWindowedValueCoder<T> wireCoder =
+        (WindowedValue.FullWindowedValueCoder)
+            PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
+
+    WindowedValue.FullWindowedValueCoder<T> sdkCoder =
+        context.getSdkCoder(outputPCollectionId, pipeline.getComponents());
+
+    CoderTypeInformation<WindowedValue<T>> outputTypeInfo =
+        new CoderTypeInformation<>(wireCoder, pipelineOptions);
+
+    CoderTypeInformation<WindowedValue<T>> sdkTypeInformation =
+        new CoderTypeInformation<>(sdkCoder, pipelineOptions);
+
+    TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
+        new CoderTypeInformation<>(
+            WindowedValue.getFullCoder(
+                ValueWithRecordId.ValueWithRecordIdCoder.of(sdkCoder.getValueCoder()),
+                windowStrategy.getWindowFn().windowCoder()),
+            pipelineOptions);
+
+    DataStream<WindowedValue<T>> source =
+        getDedupedSource(pTransform, withIdTypeInfo, sdkTypeInformation, context);
+
+    return source
+        .map(value -> ReadSourceTranslator.intoWireTypes(sdkCoder, wireCoder, value))
+        .returns(outputTypeInfo);
+  }
+
+  private DataStream<WindowedValue<T>> translateLegacy(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+
+    RunnerApi.PTransform pTransform = transform.getTransform();
+
+    String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+
+    TypeInformation<WindowedValue<T>> outputTypeInfo =
+        context.getTypeInfo(pipeline, outputPCollectionId);
+
+    WindowingStrategy<?, ?> windowingStrategy =
+        context.getWindowingStrategy(pipeline, outputPCollectionId);
+
+    WindowedValueCoder<T> windowedOutputCoder =
         context.getWindowedInputCoder(pipeline, outputPCollectionId);
 
-      Coder<T> coder = windowedOutputCoder.getValueCoder();
+    Coder<T> coder = windowedOutputCoder.getValueCoder();
 
-      CoderTypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
-          new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
-                  ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
-                  windowingStrategy.getWindowFn().windowCoder()),
-              context.getPipelineOptions());
+    CoderTypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
+        new CoderTypeInformation<>(
+            WindowedValue.getFullCoder(
+                ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
+                windowingStrategy.getWindowFn().windowCoder()),
+            context.getPipelineOptions());
 
-      return getDedupedSource(pTransform, withIdTypeInfo, outputTypeInfo, context);
-    }
+    return getDedupedSource(pTransform, withIdTypeInfo, outputTypeInfo, context);
   }
+}

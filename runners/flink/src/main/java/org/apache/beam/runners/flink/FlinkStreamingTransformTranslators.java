@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
@@ -66,14 +65,14 @@ class FlinkStreamingTransformTranslators {
           .<Class<? extends PTransform>, PTransformTranslation.TransformPayloadTranslator>builder()
           .put(
               CreateStreamingFlinkView.CreateFlinkPCollectionView.class,
-              new  CreateFlinkPCollectionViewTranslator())
+              new CreateFlinkPCollectionViewTranslator())
           .put(
-            SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
-            new JustURNTranslator<SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?>>(
-                SplittableParDo.SPLITTABLE_GBKIKWI_URN))
+              SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
+              new JustURNTranslator<SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?>>(
+                  SplittableParDo.SPLITTABLE_GBKIKWI_URN))
           .put(
-            SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-            new ProcessElementsTranslator())
+              SplittableParDoViaKeyedWorkItems.ProcessElements.class,
+              new ProcessElementsTranslator())
           .build();
     }
   }
@@ -95,20 +94,16 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public final RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, T> transform,
-        SdkComponents components) throws IOException {
-      return RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(getUrn())
-        .build();
+        AppliedPTransform<?, ?, T> transform, SdkComponents components) throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn()).build();
     }
   }
 
   private static class CreateFlinkPCollectionViewTranslator
       implements PTransformTranslation.TransformPayloadTranslator<
-        CreateStreamingFlinkView.CreateFlinkPCollectionView<?,?>> {
+          CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?>> {
 
-    private CreateFlinkPCollectionViewTranslator() {
-    }
+    private CreateFlinkPCollectionViewTranslator() {}
 
     @Override
     public String getUrn() {
@@ -117,30 +112,28 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public final RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, CreateStreamingFlinkView.CreateFlinkPCollectionView<?,?>> transform,
-        SdkComponents components) throws IOException {
+        AppliedPTransform<?, ?, CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?>>
+            transform,
+        SdkComponents components)
+        throws IOException {
 
-      PCollectionView<?> inputPCollectionView =
-        transform
-          .getTransform()
-          .getView();
+      PCollectionView<?> inputPCollectionView = transform.getTransform().getView();
 
-      ByteString payload = ByteString.copyFrom(
-        SerializableUtils.serializeToByteArray(inputPCollectionView));
+      ByteString payload =
+          ByteString.copyFrom(SerializableUtils.serializeToByteArray(inputPCollectionView));
 
       return RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN)
-        .setPayload(payload)
-        .build();
+          .setUrn(CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN)
+          .setPayload(payload)
+          .build();
     }
   }
 
   private static class ProcessElementsTranslator
       implements PTransformTranslation.TransformPayloadTranslator<
-        SplittableParDoViaKeyedWorkItems.ProcessElements<?,?,?,?,?>> {
+          SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?>> {
 
-    private ProcessElementsTranslator() {
-    }
+    private ProcessElementsTranslator() {}
 
     @Override
     public String getUrn() {
@@ -149,11 +142,13 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public final RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, SplittableParDoViaKeyedWorkItems.ProcessElements<?,?,?,?,?>> transform,
-        SdkComponents components) throws IOException {
+        AppliedPTransform<?, ?, SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?>>
+            transform,
+        SdkComponents components)
+        throws IOException {
 
-      SplittableParDoViaKeyedWorkItems.ProcessElements<?,?,?,?,?> process =
-        transform.getTransform();
+      SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?> process =
+          transform.getTransform();
 
       DoFn<?, ?> fn = process.newProcessFn((DoFn) process.getFn());
       Map<String, PCollectionView<?>> sideInputs = process.getSideInputMapping();
@@ -161,32 +156,31 @@ class FlinkStreamingTransformTranslators {
       TupleTagList additionalOutputTags = process.getAdditionalOutputTags();
 
       ParDo.MultiOutput<?, ?> parDo =
-        new ParDo.MultiOutput(
-          fn,
-          sideInputs,
-          mainOutputTag,
-          additionalOutputTags,
-          DisplayData.item("fn", process.getFn().getClass()).withLabel("Transform Function"));
+          new ParDo.MultiOutput(
+              fn,
+              sideInputs,
+              mainOutputTag,
+              additionalOutputTags,
+              DisplayData.item("fn", process.getFn().getClass()).withLabel("Transform Function"));
 
       PCollection<?> mainInput =
-        Iterables.getOnlyElement(transform.getMainInputs().entrySet()).getValue();
+          Iterables.getOnlyElement(transform.getMainInputs().entrySet()).getValue();
 
       final DoFnSchemaInformation doFnSchemaInformation =
-        ParDo.getDoFnSchemaInformation(fn, mainInput);
+          ParDo.getDoFnSchemaInformation(fn, mainInput);
 
       RunnerApi.ParDoPayload payload =
-        ParDoTranslation.translateParDo(
-          (ParDo.MultiOutput) parDo,
-          mainInput,
-          doFnSchemaInformation,
-          transform.getPipeline(),
-          components);
+          ParDoTranslation.translateParDo(
+              (ParDo.MultiOutput) parDo,
+              mainInput,
+              doFnSchemaInformation,
+              transform.getPipeline(),
+              components);
 
       return RunnerApi.FunctionSpec.newBuilder()
-        .setUrn(SplittableParDo.SPLITTABLE_PROCESS_URN)
-        .setPayload(payload.toByteString())
-        .build();
+          .setUrn(SplittableParDo.SPLITTABLE_PROCESS_URN)
+          .setPayload(payload.toByteString())
+          .build();
     }
   }
-
 }

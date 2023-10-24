@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
-
 public class TestStreamTranslator<T>
     implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
@@ -58,8 +56,7 @@ public class TestStreamTranslator<T>
 
     RunnerApi.PTransform pTransform = transform.getTransform();
     String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-    Coder<WindowedValue<T>> coder =
-      context.getWindowedInputCoder(pipeline, outputPCollectionId);
+    Coder<WindowedValue<T>> coder = context.getWindowedInputCoder(pipeline, outputPCollectionId);
 
     DataStream<WindowedValue<T>> source =
         context

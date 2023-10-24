@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.unified;
 
-
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.HashMap;
@@ -76,10 +75,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /** Translate a pipeline representation into a Flink pipeline representation. */
 public class FlinkUnifiedPipelineTranslator
-    implements FlinkPortablePipelineTranslator<FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
+    implements FlinkPortablePipelineTranslator<
+        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkUnifiedPipelineTranslator.class);
 
@@ -100,11 +99,7 @@ public class FlinkUnifiedPipelineTranslator
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(
             pipelineOptions, filesToStage, confDir);
     return new UnifiedTranslationContext(
-      jobInfo,
-      pipelineOptions,
-      executionEnvironment,
-      isStreaming,
-      isPortableRunnerExec);
+        jobInfo, pipelineOptions, executionEnvironment, isStreaming, isPortableRunnerExec);
   }
 
   public UnifiedTranslationContext createTranslationContext(
@@ -112,15 +107,10 @@ public class FlinkUnifiedPipelineTranslator
       FlinkPipelineOptions pipelineOptions,
       StreamExecutionEnvironment executionEnvironment,
       boolean isStreaming,
-      boolean isPortableRunnerExec){
+      boolean isPortableRunnerExec) {
 
     return new UnifiedTranslationContext(
-          jobInfo,
-          pipelineOptions,
-          executionEnvironment,
-          isStreaming,
-          isPortableRunnerExec);
-
+        jobInfo, pipelineOptions, executionEnvironment, isStreaming, isPortableRunnerExec);
   }
 
   public static class UnifiedTranslationContext
@@ -133,8 +123,7 @@ public class FlinkUnifiedPipelineTranslator
     private final Map<String, DataStream<?>> dataStreams;
     private final Map<PCollectionView<?>, DataStream<?>> sideInputs;
     private final Map<String, PipelineNode.PTransformNode> producers = new HashMap<>();
-    @Nullable
-    private PipelineNode.PTransformNode currentTransform;
+    @Nullable private PipelineNode.PTransformNode currentTransform;
     private final boolean isStreaming;
     private final boolean isPortableRunnerExec;
 
@@ -205,7 +194,7 @@ public class FlinkUnifiedPipelineTranslator
       if (current != null) {
         previousProducer = producers.put(pCollectionId, current);
         Preconditions.checkArgument(
-          previousProducer == null, "PValue can only have a single producer.");
+            previousProducer == null, "PValue can only have a single producer.");
       }
       dataStreams.put(pCollectionId, dataStream);
     }
@@ -214,7 +203,7 @@ public class FlinkUnifiedPipelineTranslator
       DataStream<T> dataStream = (DataStream) dataStreams.get(pCollectionId);
       if (dataStream == null) {
         throw new IllegalArgumentException(
-          String.format("Unknown datastream for pCollectionId %s.", pCollectionId));
+            String.format("Unknown datastream for pCollectionId %s.", pCollectionId));
       }
       return dataStream;
     }
@@ -226,8 +215,7 @@ public class FlinkUnifiedPipelineTranslator
     public <T> DataStream<T> getSideInputDataStream(PCollectionView<T> view) {
       DataStream<T> dataStream = (DataStream) sideInputs.get(view);
       if (dataStream == null) {
-        throw new IllegalArgumentException(
-          String.format("Unknown datastream for view %s.", view));
+        throw new IllegalArgumentException(String.format("Unknown datastream for view %s.", view));
       }
       return dataStream;
     }
@@ -260,8 +248,8 @@ public class FlinkUnifiedPipelineTranslator
     }
 
     /**
-     * Get SDK coder for given PCollection. The SDK coder is the coder that the SDK-harness would have
-     * used to encode data before passing it to the runner over {@link SdkHarnessClient}.
+     * Get SDK coder for given PCollection. The SDK coder is the coder that the SDK-harness would
+     * have used to encode data before passing it to the runner over {@link SdkHarnessClient}.
      *
      * @param pCollectionId ID of PCollection in components
      * @param components the Pipeline components (proto)
@@ -290,15 +278,20 @@ public class FlinkUnifiedPipelineTranslator
       }
     }
 
-    public <T> WindowedValueCoder<T> getWindowedInputCoder(RunnerApi.Pipeline pipeline, String pCollectionId) {
-        if(isPortableRunnerExec()) {
-          // In case if portable execution, we use the wire coder provided by PipelineTranslatorUtils.
-          return (WindowedValueCoder) PipelineTranslatorUtils.instantiateCoder(pCollectionId, pipeline.getComponents());
-        } else {
-          // In case of legacy execution, return the SDK Coder
-          LOG.debug(String.format("Coder for %s is %s", pCollectionId, getSdkCoder(pCollectionId, pipeline.getComponents())));
-          return getSdkCoder(pCollectionId, pipeline.getComponents());
-        }
+    public <T> WindowedValueCoder<T> getWindowedInputCoder(
+        RunnerApi.Pipeline pipeline, String pCollectionId) {
+      if (isPortableRunnerExec()) {
+        // In case if portable execution, we use the wire coder provided by PipelineTranslatorUtils.
+        return (WindowedValueCoder)
+            PipelineTranslatorUtils.instantiateCoder(pCollectionId, pipeline.getComponents());
+      } else {
+        // In case of legacy execution, return the SDK Coder
+        LOG.debug(
+            String.format(
+                "Coder for %s is %s",
+                pCollectionId, getSdkCoder(pCollectionId, pipeline.getComponents())));
+        return getSdkCoder(pCollectionId, pipeline.getComponents());
+      }
     }
 
     public <T> TypeInformation<WindowedValue<T>> getTypeInfo(
@@ -313,36 +306,37 @@ public class FlinkUnifiedPipelineTranslator
   }
 
   protected FlinkUnifiedPipelineTranslator(
-    Map<String, PTransformTranslator<FlinkUnifiedPipelineTranslator.UnifiedTranslationContext>> translatorMap,
-    boolean isStreaming,
-    boolean isPortableRunnerExec) {
+      Map<String, PTransformTranslator<FlinkUnifiedPipelineTranslator.UnifiedTranslationContext>>
+          translatorMap,
+      boolean isStreaming,
+      boolean isPortableRunnerExec) {
 
     this.urnToTransformTranslator = translatorMap;
     this.isStreaming = isStreaming;
     this.isPortableRunnerExec = isPortableRunnerExec;
   }
 
-  private static Map<String, PTransformTranslator<UnifiedTranslationContext>> getPortableTranslators() {
+  private static Map<String, PTransformTranslator<UnifiedTranslationContext>>
+      getPortableTranslators() {
     return ImmutableMap.<String, PTransformTranslator<UnifiedTranslationContext>>builder()
-      .put(ExecutableStage.URN, new ExecutableStageTranslator<>())
-      .build();
+        .put(ExecutableStage.URN, new ExecutableStageTranslator<>())
+        .build();
   }
 
-  private static Map<String, PTransformTranslator<UnifiedTranslationContext>> getNativeTranslators() {
+  private static Map<String, PTransformTranslator<UnifiedTranslationContext>>
+      getNativeTranslators() {
     return ImmutableMap.<String, PTransformTranslator<UnifiedTranslationContext>>builder()
-      .put(PTransformTranslation.PAR_DO_TRANSFORM_URN,
-        new ParDoTranslator<>())
-      .put(SplittableParDo.SPLITTABLE_GBKIKWI_URN,
-        new GBKIntoKeyedWorkItemsTranslator<>())
-      .put(SplittableParDo.SPLITTABLE_PROCESS_URN,
-        new SplittableProcessElementsStreamingTranslator<>())
-      .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-        new WindowAssignTranslator<>())
-      .put(CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN,
-        new CreateViewStreamingTranslator<>())
-      .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN,
-        new CombinePerKeyTranslator<>())
-      .build();
+        .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslator<>())
+        .put(SplittableParDo.SPLITTABLE_GBKIKWI_URN, new GBKIntoKeyedWorkItemsTranslator<>())
+        .put(
+            SplittableParDo.SPLITTABLE_PROCESS_URN,
+            new SplittableProcessElementsStreamingTranslator<>())
+        .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator<>())
+        .put(
+            CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN,
+            new CreateViewStreamingTranslator<>())
+        .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslator<>())
+        .build();
   }
 
   /** @deprecated Legacy non-portable source which can be replaced by a DoFn with timers. */
@@ -351,19 +345,18 @@ public class FlinkUnifiedPipelineTranslator
       "flink:transform:streaming_impulse:v1";
 
   public static FlinkUnifiedPipelineTranslator createTranslator(
-    boolean isStreaming,
-    boolean isPortableRunnerExec) {
+      boolean isStreaming, boolean isPortableRunnerExec) {
     ImmutableMap.Builder<String, PTransformTranslator<UnifiedTranslationContext>> translatorMap =
         ImmutableMap.builder();
 
     // Common transforms
     translatorMap
-      .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenTranslator<>())
-      .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
-      .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
-      .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>());
+        .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenTranslator<>())
+        .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
+        .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+        .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>());
 
-    if(isPortableRunnerExec) {
+    if (isPortableRunnerExec) {
       translatorMap.putAll(getPortableTranslators());
     } else {
       translatorMap.putAll(getNativeTranslators());
@@ -373,16 +366,17 @@ public class FlinkUnifiedPipelineTranslator
     // Streaming only transforms
     // TODO Legacy transforms which need to be removed
     // Consider removing now that timers are supported
-    translatorMap.put(STREAMING_IMPULSE_TRANSFORM_URN, new NotImplementedTranslator<>(STREAMING_IMPULSE_TRANSFORM_URN))
-    // Remove once unbounded Reads can be wrapped in SDFs
-      .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslator<>())
-    // For testing only
-      .put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new TestStreamTranslator<>());
+    translatorMap
+        .put(
+            STREAMING_IMPULSE_TRANSFORM_URN,
+            new NotImplementedTranslator<>(STREAMING_IMPULSE_TRANSFORM_URN))
+        // Remove once unbounded Reads can be wrapped in SDFs
+        .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslator<>())
+        // For testing only
+        .put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new TestStreamTranslator<>());
 
     return new FlinkUnifiedPipelineTranslator(
-      translatorMap.build(),
-      isStreaming,
-      isPortableRunnerExec);
+        translatorMap.build(), isStreaming, isPortableRunnerExec);
   }
 
   @Override
@@ -422,31 +416,34 @@ public class FlinkUnifiedPipelineTranslator
     QueryablePipeline p = QueryablePipeline.forPipeline(pipeline);
 
     List<PipelineNode.PTransformNode> expandedTopologicalOrder =
-      StreamSupport.stream(p.getTopologicallyOrderedTransforms().spliterator(), false)
-        .flatMap(n -> expandNode(n, pipeline.getComponents()))
-        .collect(Collectors.toList());
+        StreamSupport.stream(p.getTopologicallyOrderedTransforms().spliterator(), false)
+            .flatMap(n -> expandNode(n, pipeline.getComponents()))
+            .collect(Collectors.toList());
 
     for (PipelineNode.PTransformNode transform : expandedTopologicalOrder) {
       context.setCurrentTransform(transform);
       String urn = transform.getTransform().getSpec().getUrn();
-      urnToTransformTranslator.getOrDefault(urn, this::urnNotFound)
-        .translate(transform, pipeline, context);
+      urnToTransformTranslator
+          .getOrDefault(urn, this::urnNotFound)
+          .translate(transform, pipeline, context);
     }
 
     return context;
   }
 
-  private Stream<PipelineNode.PTransformNode> expandNode(PipelineNode.PTransformNode node, RunnerApi.Components components) {
-    if(node.getTransform().getSubtransformsCount() > 0) {
+  private Stream<PipelineNode.PTransformNode> expandNode(
+      PipelineNode.PTransformNode node, RunnerApi.Components components) {
+    if (node.getTransform().getSubtransformsCount() > 0) {
       Map<String, RunnerApi.PTransform> transforms = components.getTransformsMap();
       return node.getTransform().getSubtransformsList().stream()
-          .map(s -> {
-            RunnerApi.PTransform t = transforms.get(s);
-            if(t == null) {
-              throw new IllegalStateException("Transform not found");
-            }
-            return PipelineNode.pTransform(s, t);
-          })
+          .map(
+              s -> {
+                RunnerApi.PTransform t = transforms.get(s);
+                if (t == null) {
+                  throw new IllegalStateException("Transform not found");
+                }
+                return PipelineNode.pTransform(s, t);
+              })
           .flatMap(n -> expandNode(n, components));
     } else {
       return Stream.of(node);

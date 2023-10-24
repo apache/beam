@@ -27,54 +27,54 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 
 public class ReadSourceTranslator<T>
-      implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
+    implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
 
-    private final BoundedReadSourceTranslator<T> boundedTranslator =
-        new BoundedReadSourceTranslator<>();
-    private final UnboundedReadSourceTranslator<T> unboundedTranslator =
-        new UnboundedReadSourceTranslator<>();
+  private final BoundedReadSourceTranslator<T> boundedTranslator =
+      new BoundedReadSourceTranslator<>();
+  private final UnboundedReadSourceTranslator<T> unboundedTranslator =
+      new UnboundedReadSourceTranslator<>();
 
-    /**
-     * Transform types from SDK types to runner types. The runner uses byte array representation for
-     * non {@link ModelCoders} coders.
-     *
-     * @param inCoder the input coder (SDK-side)
-     * @param outCoder the output coder (runner-side)
-     * @param value encoded value
-     * @param <InputT> SDK-side type
-     * @param <OutputT> runer-side type
-     * @return re-encoded {@link WindowedValue}
-     */
-    public static <InputT, OutputT> WindowedValue<OutputT> intoWireTypes(
-        Coder<WindowedValue<InputT>> inCoder,
-        Coder<WindowedValue<OutputT>> outCoder,
-        WindowedValue<InputT> value) {
+  /**
+   * Transform types from SDK types to runner types. The runner uses byte array representation for
+   * non {@link ModelCoders} coders.
+   *
+   * @param inCoder the input coder (SDK-side)
+   * @param outCoder the output coder (runner-side)
+   * @param value encoded value
+   * @param <InputT> SDK-side type
+   * @param <OutputT> runer-side type
+   * @return re-encoded {@link WindowedValue}
+   */
+  public static <InputT, OutputT> WindowedValue<OutputT> intoWireTypes(
+      Coder<WindowedValue<InputT>> inCoder,
+      Coder<WindowedValue<OutputT>> outCoder,
+      WindowedValue<InputT> value) {
 
-      try {
-        return CoderUtils.decodeFromByteArray(outCoder, CoderUtils.encodeToByteArray(inCoder, value));
-      } catch (CoderException ex) {
-        throw new IllegalStateException("Could not transform element into wire types", ex);
-      }
-    }
-
-    @Override
-    public void translate(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
-
-      RunnerApi.ReadPayload payload;
-      try {
-        payload = RunnerApi.ReadPayload.parseFrom(transform.getTransform().getSpec().getPayload());
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to parse ReadPayload from transform", e);
-      }
-
-      if (payload.getIsBounded() == RunnerApi.IsBounded.Enum.BOUNDED) {
-        boundedTranslator.translate(transform, pipeline, context);
-      } else {
-        unboundedTranslator.translate(transform, pipeline, context);
-      }
+    try {
+      return CoderUtils.decodeFromByteArray(outCoder, CoderUtils.encodeToByteArray(inCoder, value));
+    } catch (CoderException ex) {
+      throw new IllegalStateException("Could not transform element into wire types", ex);
     }
   }
+
+  @Override
+  public void translate(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+
+    RunnerApi.ReadPayload payload;
+    try {
+      payload = RunnerApi.ReadPayload.parseFrom(transform.getTransform().getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to parse ReadPayload from transform", e);
+    }
+
+    if (payload.getIsBounded() == RunnerApi.IsBounded.Enum.BOUNDED) {
+      boundedTranslator.translate(transform, pipeline, context);
+    } else {
+      unboundedTranslator.translate(transform, pipeline, context);
+    }
+  }
+}

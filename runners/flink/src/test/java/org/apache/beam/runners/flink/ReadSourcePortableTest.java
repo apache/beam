@@ -108,8 +108,8 @@ public class ReadSourcePortableTest implements Serializable {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> result =
         p.apply(Read.from(new Source(10)))
-          // FIXME: the test fails without this
-          .apply(Window.into(FixedWindows.of(Duration.millis(1))));
+            // FIXME: the test fails without this
+            .apply(Window.into(FixedWindows.of(Duration.millis(1))));
 
     PAssert.that(result)
         .containsInAnyOrder(ImmutableList.of(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L));
@@ -201,6 +201,5 @@ public class ReadSourcePortableTest implements Serializable {
       // use SerializableCoder to test custom java coders work
       return SerializableCoder.of(Long.class);
     }
-
   }
 }

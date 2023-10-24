@@ -156,8 +156,7 @@ public class GroupByKeyTranslator<K, V>
             windowingStrategy.getWindowFn().windowCoder());
 
     WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, byte[]>> windowedWorkItemCoder =
-        WindowedValue.getFullCoder(
-            workItemCoder, windowingStrategy.getWindowFn().windowCoder());
+        WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
     CoderTypeInformation<WindowedValue<KeyedWorkItem<K, byte[]>>> workItemTypeInfo =
         new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());

@@ -78,6 +78,7 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.OutputTag;
+
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
@@ -129,8 +130,7 @@ public class ExecutableStageTranslator<InputT, OutputT>
       }
 
       // TODO: Should use context.getWindowedInputCoder ?
-       Coder<WindowedValue<Object>> coder0 =
-        instantiateCoder(collectionId, components);
+      Coder<WindowedValue<Object>> coder0 = instantiateCoder(collectionId, components);
 
       // side input materialization via GBK (T -> Iterable<T>)
       WindowedValueCoder<Object> wvCoder = (WindowedValueCoder<Object>) coder0;

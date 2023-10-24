@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
-
 public class CreateViewStreamingTranslator<ElemT, ViewT>
     implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
@@ -41,13 +40,13 @@ public class CreateViewStreamingTranslator<ElemT, ViewT>
 
     try {
       PCollectionView<?> originalView =
-        (PCollectionView) SerializableUtils.deserializeFromByteArray(
-          transform.getSpec().getPayload().toByteArray(), "PCollectionView");
+          (PCollectionView)
+              SerializableUtils.deserializeFromByteArray(
+                  transform.getSpec().getPayload().toByteArray(), "PCollectionView");
 
       // just forward
       DataStream<WindowedValue<List<ElemT>>> inputDataStream =
-          context.getDataStreamOrThrow(
-              Iterables.getOnlyElement(transform.getInputsMap().values()));
+          context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
 
       context.addSideInputDataStream(originalView, inputDataStream);
     } catch (Exception e) {

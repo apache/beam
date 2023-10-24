@@ -37,113 +37,112 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 public class BoundedReadSourceTranslator<T>
-      implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
+    implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
 
-    private DataStream<WindowedValue<T>> getSource(
+  private DataStream<WindowedValue<T>> getSource(
       RunnerApi.PTransform pTransform,
       TypeInformation<WindowedValue<T>> sdkTypeInformation,
       FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
 
-        RunnerApi.ReadPayload payload;
-        try {
-          payload = RunnerApi.ReadPayload.parseFrom(pTransform.getSpec().getPayload());
-        } catch (IOException e) {
-          throw new RuntimeException("Failed to parse ReadPayload from transform", e);
-        }
+    RunnerApi.ReadPayload payload;
+    try {
+      payload = RunnerApi.ReadPayload.parseFrom(pTransform.getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to parse ReadPayload from transform", e);
+    }
 
-        BoundedSource<T> rawSource;
-        try {
-          rawSource = (BoundedSource) ReadTranslation.boundedSourceFromProto(payload);
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException(e);
-        }
+    BoundedSource<T> rawSource;
+    try {
+      rawSource = (BoundedSource) ReadTranslation.boundedSourceFromProto(payload);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
 
-        String fullName = pTransform.getUniqueName();
+    String fullName = pTransform.getUniqueName();
 
-        int parallelism =
-            context.getExecutionEnvironment().getMaxParallelism() > 0
-                ? context.getExecutionEnvironment().getMaxParallelism()
-                : context.getExecutionEnvironment().getParallelism();
+    int parallelism =
+        context.getExecutionEnvironment().getMaxParallelism() > 0
+            ? context.getExecutionEnvironment().getMaxParallelism()
+            : context.getExecutionEnvironment().getParallelism();
 
-        FlinkBoundedSource<T> flinkBoundedSource =
-          FlinkSource.bounded(
+    FlinkBoundedSource<T> flinkBoundedSource =
+        FlinkSource.bounded(
             pTransform.getUniqueName(),
             rawSource,
             new SerializablePipelineOptions(context.getPipelineOptions()),
             parallelism);
 
-        try {
-          return context
-            .getExecutionEnvironment()
-            .fromSource(flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, sdkTypeInformation)
-            .uid(fullName);
-        } catch (Exception e) {
-          throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
-        }
-    }
-
-    public DataStream<WindowedValue<T>> translateLegacy(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
-
-        RunnerApi.PTransform pTransform =
-          transform.getTransform();
-
-        String outputPCollectionId =
-          Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-        TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(pipeline, outputPCollectionId);
-
-        return getSource(transform.getTransform(), outputTypeInfo, context);
-    }
-
-    public DataStream<WindowedValue<T>> translatePortable(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
-
-        String outputPCollectionId =
-          Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
-
-        PipelineOptions pipelineOptions = context.getPipelineOptions();
-
-        WindowedValue.FullWindowedValueCoder<T> wireCoder =
-        (WindowedValue.FullWindowedValueCoder)
-          PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
-
-        WindowedValue.FullWindowedValueCoder<T> sdkCoder =
-          context.getSdkCoder(outputPCollectionId, pipeline.getComponents());
-
-        CoderTypeInformation<WindowedValue<T>> outputTypeInfo =
-            new CoderTypeInformation<>(wireCoder, pipelineOptions);
-
-        CoderTypeInformation<WindowedValue<T>> sdkTypeInfo =
-            new CoderTypeInformation<>(sdkCoder, pipelineOptions);
-
-        return getSource(transform.getTransform(), sdkTypeInfo, context)
-              .map(value -> ReadSourceTranslator.intoWireTypes(sdkCoder, wireCoder, value))
-              .returns(outputTypeInfo);
-    }
-
-    @Override
-    public void translate(
-        PTransformNode transform,
-        RunnerApi.Pipeline pipeline,
-        FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
-
-      String outputPCollectionId =
-        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
-
-      DataStream<WindowedValue<T>> source;
-      if(context.isPortableRunnerExec()) {
-        source = translatePortable(transform, pipeline, context);
-      } else {
-        source = translateLegacy(transform, pipeline, context);
-      }
-
-      context.addDataStream(outputPCollectionId, source);
+    try {
+      return context
+          .getExecutionEnvironment()
+          .fromSource(
+              flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, sdkTypeInformation)
+          .uid(fullName);
+    } catch (Exception e) {
+      throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
     }
   }
+
+  public DataStream<WindowedValue<T>> translateLegacy(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+
+    RunnerApi.PTransform pTransform = transform.getTransform();
+
+    String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+
+    TypeInformation<WindowedValue<T>> outputTypeInfo =
+        context.getTypeInfo(pipeline, outputPCollectionId);
+
+    return getSource(transform.getTransform(), outputTypeInfo, context);
+  }
+
+  public DataStream<WindowedValue<T>> translatePortable(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+
+    String outputPCollectionId =
+        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
+
+    PipelineOptions pipelineOptions = context.getPipelineOptions();
+
+    WindowedValue.FullWindowedValueCoder<T> wireCoder =
+        (WindowedValue.FullWindowedValueCoder)
+            PipelineTranslatorUtils.instantiateCoder(outputPCollectionId, pipeline.getComponents());
+
+    WindowedValue.FullWindowedValueCoder<T> sdkCoder =
+        context.getSdkCoder(outputPCollectionId, pipeline.getComponents());
+
+    CoderTypeInformation<WindowedValue<T>> outputTypeInfo =
+        new CoderTypeInformation<>(wireCoder, pipelineOptions);
+
+    CoderTypeInformation<WindowedValue<T>> sdkTypeInfo =
+        new CoderTypeInformation<>(sdkCoder, pipelineOptions);
+
+    return getSource(transform.getTransform(), sdkTypeInfo, context)
+        .map(value -> ReadSourceTranslator.intoWireTypes(sdkCoder, wireCoder, value))
+        .returns(outputTypeInfo);
+  }
+
+  @Override
+  public void translate(
+      PTransformNode transform,
+      RunnerApi.Pipeline pipeline,
+      FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+
+    String outputPCollectionId =
+        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
+
+    DataStream<WindowedValue<T>> source;
+    if (context.isPortableRunnerExec()) {
+      source = translatePortable(transform, pipeline, context);
+    } else {
+      source = translateLegacy(transform, pipeline, context);
+    }
+
+    context.addDataStream(outputPCollectionId, source);
+  }
+}

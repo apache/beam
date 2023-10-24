@@ -103,14 +103,11 @@ public class ParDoTranslator<InputT, OutputT>
     }
 
     private static String getMainInput(
-      Map<String, String> inputsMap,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+        Map<String, String> inputsMap, Map<String, PCollectionView<?>> sideInputMapping) {
       List<Map.Entry<String, String>> ins =
-        inputsMap
-          .entrySet()
-          .stream()
-          .filter(i -> !sideInputMapping.containsKey(i.getKey()))
-          .collect(Collectors.toList());
+          inputsMap.entrySet().stream()
+              .filter(i -> !sideInputMapping.containsKey(i.getKey()))
+              .collect(Collectors.toList());
 
       return Iterables.getOnlyElement(ins).getValue();
     }
@@ -132,49 +129,40 @@ public class ParDoTranslator<InputT, OutputT>
         DoFnOperatorFactory<InputT, OutputT> doFnOperatorFactory) {
 
       RunnerApi.PTransform pTransform = transform.getTransform();
-      String inputPCollectionId =
-        getMainInput(pTransform.getInputsMap(), sideInputMapping);
+      String inputPCollectionId = getMainInput(pTransform.getInputsMap(), sideInputMapping);
 
       String transformName = pTransform.getUniqueName();
 
       // we assume that the transformation does not change the windowing strategy.
       WindowingStrategy<?, ?> windowingStrategy =
-        context.getWindowingStrategy(pipeline, inputPCollectionId);
+          context.getWindowingStrategy(pipeline, inputPCollectionId);
 
       Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newHashMap();
       SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
 
       Coder<WindowedValue<InputT>> windowedInputCoder =
-        context.getWindowedInputCoder(pipeline, inputPCollectionId);
+          context.getWindowedInputCoder(pipeline, inputPCollectionId);
 
       // TupleTag to outputs PCollection IDs
       Map<TupleTag<?>, String> outputs =
-        pTransform
-          .getOutputsMap()
-          .entrySet()
-          .stream()
-          .collect(Collectors.toMap(x -> new TupleTag<>(x.getKey()), Map.Entry::getValue));
+          pTransform.getOutputsMap().entrySet().stream()
+              .collect(Collectors.toMap(x -> new TupleTag<>(x.getKey()), Map.Entry::getValue));
 
       Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
-        outputs
-          .entrySet()
-          .stream()
-          .collect(Collectors.toMap(
-            Map.Entry::getKey,
-            x -> (Coder) context.getWindowedInputCoder(pipeline, x.getValue())));
+          outputs.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey,
+                      x -> (Coder) context.getWindowedInputCoder(pipeline, x.getValue())));
 
       // TODO: Are tagsToCoders and outputCoders really the same ?
       Map<TupleTag<?>, Coder<?>> outputCoders = (Map) tagsToCoders;
 
       Map<String, String> sortedOutputs =
-        outputs.entrySet()
-            .stream()
-            .collect(Collectors.toMap(
-              x -> x.getKey().getId(),
-              Map.Entry::getValue,
-              (x, y) -> x,
-              TreeMap::new
-              ));
+          outputs.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      x -> x.getKey().getId(), Map.Entry::getValue, (x, y) -> x, TreeMap::new));
 
       // We associate output tags with ids, the Integer is easier to serialize than TupleTag.
       Map<TupleTag<?>, Integer> tagsToIds = Maps.newHashMap();
@@ -183,16 +171,16 @@ public class ParDoTranslator<InputT, OutputT>
       for (Map.Entry<String, String> entry : sortedOutputs.entrySet()) {
         if (!tagsToOutputTags.containsKey(new TupleTag<>(entry.getKey()))) {
           tagsToOutputTags.put(
-            new TupleTag<>(entry.getKey()),
-            new OutputTag<WindowedValue<?>>(
-                entry.getKey(),
-                (TypeInformation) context.getTypeInfo(pipeline, entry.getValue())));
+              new TupleTag<>(entry.getKey()),
+              new OutputTag<WindowedValue<?>>(
+                  entry.getKey(),
+                  (TypeInformation) context.getTypeInfo(pipeline, entry.getValue())));
           tagsToIds.put(new TupleTag<>(entry.getKey()), idCount++);
         }
       }
 
       DataStream<WindowedValue<InputT>> inputDataStream =
-        context.getDataStreamOrThrow(inputPCollectionId);
+          context.getDataStreamOrThrow(inputPCollectionId);
 
       Coder<?> keyCoder = null;
       KeySelector<WindowedValue<InputT>, ByteBuffer> keySelector = null;
@@ -203,11 +191,12 @@ public class ParDoTranslator<InputT, OutputT>
           || !signature.timerFamilyDeclarations().isEmpty()) {
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed
-        Coder<KV<?, ?>> inputKvCoder = ((WindowedValueCoder<KV<?, ?>>) windowedInputCoder).getValueCoder();
+        Coder<KV<?, ?>> inputKvCoder =
+            ((WindowedValueCoder<KV<?, ?>>) windowedInputCoder).getValueCoder();
         keyCoder = ((KvCoder) inputKvCoder).getKeyCoder();
         keySelector =
             new KvToByteBufferKeySelector(
-              keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
 
         final PipelineNode.PTransformNode producer = context.getProducer(inputPCollectionId);
         final String previousUrn =
@@ -233,7 +222,7 @@ public class ParDoTranslator<InputT, OutputT>
       }
 
       TypeInformation<WindowedValue<OutputT>> outputTypeInformation =
-        context.<OutputT>getTypeInfo(pipeline, outputs.get(mainOutputTag));
+          context.<OutputT>getTypeInfo(pipeline, outputs.get(mainOutputTag));
 
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT> doFnOperator =
@@ -317,23 +306,20 @@ public class ParDoTranslator<InputT, OutputT>
       }
 
       outputStream.uid(transformName);
-      context.addDataStream(
-        outputs.get(mainOutputTag), outputStream);
+      context.addDataStream(outputs.get(mainOutputTag), outputStream);
 
       for (Map.Entry<TupleTag<?>, String> entry : outputs.entrySet()) {
         if (!entry.getKey().equals(mainOutputTag)) {
           context.addDataStream(
-              entry.getValue(),
-              outputStream.getSideOutput(tagsToOutputTags.get(entry.getKey())));
+              entry.getValue(), outputStream.getSideOutput(tagsToOutputTags.get(entry.getKey())));
         }
       }
     }
   }
 
   private static Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>>
-      transformSideInputs(Collection<PCollectionView<?>> sideInputs, UnifiedTranslationContext context) {
-
-
+      transformSideInputs(
+          Collection<PCollectionView<?>> sideInputs, UnifiedTranslationContext context) {
 
     // collect all side inputs
     Map<TupleTag<?>, Integer> tagToIntMapping = new HashMap<>();
@@ -370,7 +356,7 @@ public class ParDoTranslator<InputT, OutputT>
     for (PCollectionView<?> sideInput : sideInputs) {
       TupleTag<?> tag = sideInput.getTagInternal();
       Integer integerTag = tagToIntMapping.get(tag);
-      if(integerTag == null) {
+      if (integerTag == null) {
         throw new IllegalStateException("Tag to mapping should never return null");
       }
       final int intTag = integerTag;
@@ -393,7 +379,6 @@ public class ParDoTranslator<InputT, OutputT>
 
     return new Tuple2<>(intToViewMapping, sideInputUnion);
   }
-
 
   @Override
   public void translate(
@@ -421,10 +406,9 @@ public class ParDoTranslator<InputT, OutputT>
     }
 
     Map<String, PCollectionView<?>> sideInputMapping =
-      ParDoTranslation.getSideInputMapping(parDoPayload);
+        ParDoTranslation.getSideInputMapping(parDoPayload);
 
-    List<PCollectionView<?>> sideInputs =
-      ImmutableList.copyOf(sideInputMapping.values());
+    List<PCollectionView<?>> sideInputs = ImmutableList.copyOf(sideInputMapping.values());
 
     TupleTagList additionalOutputTags;
     try {

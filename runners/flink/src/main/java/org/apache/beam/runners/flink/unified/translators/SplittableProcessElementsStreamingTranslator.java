@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class SplittableProcessElementsStreamingTranslator<
-    InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+        InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     implements FlinkUnifiedPipelineTranslator.PTransformTranslator<
         FlinkUnifiedPipelineTranslator.UnifiedTranslationContext> {
 
@@ -58,7 +58,9 @@ public class SplittableProcessElementsStreamingTranslator<
 
     DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> doFn;
     try {
-      doFn = (DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>) ParDoTranslation.getDoFn(parDoPayload);
+      doFn =
+          (DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>)
+              ParDoTranslation.getDoFn(parDoPayload);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -71,10 +73,9 @@ public class SplittableProcessElementsStreamingTranslator<
     }
 
     Map<String, PCollectionView<?>> sideInputMapping =
-      ParDoTranslation.getSideInputMapping(parDoPayload);
+        ParDoTranslation.getSideInputMapping(parDoPayload);
 
-    List<PCollectionView<?>> sideInputs =
-      ImmutableList.copyOf(sideInputMapping.values());
+    List<PCollectionView<?>> sideInputs = ImmutableList.copyOf(sideInputMapping.values());
 
     TupleTagList additionalOutputTags;
     try {
@@ -87,50 +88,50 @@ public class SplittableProcessElementsStreamingTranslator<
         ParDoTranslation.getSchemaInformation(parDoPayload);
 
     ParDoTranslator.ParDoTranslationHelper.translateParDo(
-      pipeline,
-      pTransform,
-      doFn,
-      sideInputs,
-      mainOutputTag,
-      additionalOutputTags.getAll(),
-      doFnSchemaInformation,
-      sideInputMapping,
-      context,
-          (doFn1,
-              stepName,
-              sideInputs1,
-              mainOutputTag1,
-              additionalOutputTags1,
-              context1,
-              windowingStrategy,
-              tagsToOutputTags,
-              tagsToCoders,
-              tagsToIds,
-              windowedInputCoder,
-              outputCoders1,
-              keyCoder,
-              keySelector,
-              transformedSideInputs,
-              doFnSchemaInformation1,
-              sideInputMapping1) ->
-              new SplittableDoFnOperator<>(
-                  doFn1,
-                  stepName,
-                  windowedInputCoder,
-                  outputCoders1,
-                  mainOutputTag1,
-                  additionalOutputTags1,
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                      mainOutputTag1,
-                      tagsToOutputTags,
-                      tagsToCoders,
-                      tagsToIds,
-                      new SerializablePipelineOptions(context.getPipelineOptions())),
-                  windowingStrategy,
-                  transformedSideInputs,
-                  sideInputs1,
-                  context1.getPipelineOptions(),
-                  keyCoder,
-                  keySelector));
+        pipeline,
+        pTransform,
+        doFn,
+        sideInputs,
+        mainOutputTag,
+        additionalOutputTags.getAll(),
+        doFnSchemaInformation,
+        sideInputMapping,
+        context,
+        (doFn1,
+            stepName,
+            sideInputs1,
+            mainOutputTag1,
+            additionalOutputTags1,
+            context1,
+            windowingStrategy,
+            tagsToOutputTags,
+            tagsToCoders,
+            tagsToIds,
+            windowedInputCoder,
+            outputCoders1,
+            keyCoder,
+            keySelector,
+            transformedSideInputs,
+            doFnSchemaInformation1,
+            sideInputMapping1) ->
+            new SplittableDoFnOperator<>(
+                doFn1,
+                stepName,
+                windowedInputCoder,
+                outputCoders1,
+                mainOutputTag1,
+                additionalOutputTags1,
+                new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                    mainOutputTag1,
+                    tagsToOutputTags,
+                    tagsToCoders,
+                    tagsToIds,
+                    new SerializablePipelineOptions(context.getPipelineOptions())),
+                windowingStrategy,
+                transformedSideInputs,
+                sideInputs1,
+                context1.getPipelineOptions(),
+                keyCoder,
+                keySelector));
   }
 }

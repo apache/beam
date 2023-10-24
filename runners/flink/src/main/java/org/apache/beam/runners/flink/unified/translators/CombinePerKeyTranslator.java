@@ -100,7 +100,6 @@ public class CombinePerKeyTranslator<K, InputT, OutputT>
     }
   }
 
-
   @Override
   public void translate(
       PTransformNode transform, Pipeline pipeline, UnifiedTranslationContext context) {
@@ -115,11 +114,9 @@ public class CombinePerKeyTranslator<K, InputT, OutputT>
         context.getWindowingStrategy(pipeline, inputPCollectionId);
 
     WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
-        (WindowedValueCoder)
-          context.getWindowedInputCoder(pipeline, inputPCollectionId);
+        (WindowedValueCoder) context.getWindowedInputCoder(pipeline, inputPCollectionId);
 
-    KvCoder<K, InputT> inputKvCoder =
-      (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();
+    KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();
 
     SingletonKeyedWorkItemCoder<K, InputT> workItemCoder =
         SingletonKeyedWorkItemCoder.of(
@@ -128,11 +125,10 @@ public class CombinePerKeyTranslator<K, InputT, OutputT>
             windowingStrategy.getWindowFn().windowCoder());
 
     DataStream<WindowedValue<KV<K, InputT>>> inputDataStream =
-      context.getDataStreamOrThrow(inputPCollectionId);
+        context.getDataStreamOrThrow(inputPCollectionId);
 
     WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedWorkItemCoder =
-        WindowedValue.getFullCoder(
-            workItemCoder, windowingStrategy.getWindowFn().windowCoder());
+        WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
     CoderTypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> workItemTypeInfo =
         new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
@@ -163,25 +159,24 @@ public class CombinePerKeyTranslator<K, InputT, OutputT>
     // see: https://github.com/apache/beam/pull/4924
     @SuppressWarnings("unchecked")
     GlobalCombineFn<? super InputT, ?, OutputT> combineFn =
-      (GlobalCombineFn)
-        SerializableUtils.deserializeFromByteArray(
-          combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
+        (GlobalCombineFn)
+            SerializableUtils.deserializeFromByteArray(
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     Coder<?> accumulatorCoder;
     try {
-      accumulatorCoder = context.getComponents(pipeline).getCoder(combinePayload.getAccumulatorCoderId());
+      accumulatorCoder =
+          context.getComponents(pipeline).getCoder(combinePayload.getAccumulatorCoderId());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
 
     @SuppressWarnings("unchecked")
     AppliedCombineFn<K, InputT, ?, OutputT> appliedCombineFn =
-      AppliedCombineFn.withAccumulatorCoder(combineFn, (Coder) accumulatorCoder);
+        AppliedCombineFn.withAccumulatorCoder(combineFn, (Coder) accumulatorCoder);
 
     SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn =
-        SystemReduceFn.combining(
-            inputKvCoder.getKeyCoder(),
-            appliedCombineFn);
+        SystemReduceFn.combining(inputKvCoder.getKeyCoder(), appliedCombineFn);
     // TODO: EOF not sure this is correct
 
     Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
@@ -216,6 +211,5 @@ public class CombinePerKeyTranslator<K, InputT, OutputT>
         keyedWorkItemStream.transform(fullName, outputTypeInfo, doFnOperator).uid(fullName);
 
     context.addDataStream(outputPCollectionId, outDataStream);
-
   }
 }

@@ -68,7 +68,6 @@ public class ImpulseTranslator
             .returns(typeInfo);
 
     context.addDataStream(
-        Iterables.getOnlyElement(pTransform.getTransform().getOutputsMap().values()),
-        source);
+        Iterables.getOnlyElement(pTransform.getTransform().getOutputsMap().values()), source);
   }
 }

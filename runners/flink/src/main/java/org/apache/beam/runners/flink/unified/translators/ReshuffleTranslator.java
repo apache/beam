@@ -36,8 +36,7 @@ public class ReshuffleTranslator<K, V>
       FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
     RunnerApi.PTransform transform = pTransform.getTransform();
     DataStream<WindowedValue<KV<K, V>>> inputDataStream =
-        context.getDataStreamOrThrow(
-            Iterables.getOnlyElement(transform.getInputsMap().values()));
+        context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
     context.addDataStream(
         Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());
   }

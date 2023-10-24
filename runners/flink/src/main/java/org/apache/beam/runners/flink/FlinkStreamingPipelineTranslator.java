@@ -69,7 +69,6 @@ class FlinkStreamingPipelineTranslator {
 
   public FlinkStreamingPipelineTranslator() {}
 
-
   /**
    * The interface that every Flink translator of a Beam operator should implement. This interface
    * is for <b>streaming</b> jobs. For examples of such translators see {@link
