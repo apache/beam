@@ -55,10 +55,10 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** End-to-end tests of Bigtable Change Stream. */
 @SuppressWarnings("FutureReturnValueIgnored")
 @RunWith(JUnit4.class)
 public class BigtableChangeStreamIT {
-
   private static final Logger LOG = LoggerFactory.getLogger(BigtableChangeStreamIT.class);
   private static final String COLUMN_FAMILY1 = "CF";
   private static final String COLUMN_FAMILY2 = "CF2";
@@ -105,10 +105,9 @@ public class BigtableChangeStreamIT {
             EnhancedBigtableStubSettings.defaultGrpcTransportProviderBuilder()
                 .setAttemptDirectPath(false)
                 .build());
-    if (bigtableClientOverride.isValid()) {
-      bigtableClientOverride.updateDataClientSettings(dataSettingsBuilder);
-      bigtableClientOverride.updateTableAdminClientSettings(tableAdminSettingsBuilder);
-    }
+
+    bigtableClientOverride.updateDataClientSettings(dataSettingsBuilder);
+    bigtableClientOverride.updateTableAdminClientSettings(tableAdminSettingsBuilder);
 
     // These clients are used to modify the table and write to it
     dataClient = BigtableDataClient.create(dataSettingsBuilder.build());

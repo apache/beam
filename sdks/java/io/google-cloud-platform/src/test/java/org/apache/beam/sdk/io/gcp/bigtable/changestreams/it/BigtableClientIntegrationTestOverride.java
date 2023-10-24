@@ -29,10 +29,12 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverr
 final class BigtableClientIntegrationTestOverride implements Serializable, BigtableClientOverride {
   private static final long serialVersionUID = 4188505491566837311L;
 
-  // The address of the admin API endpoint. Required for a test environment to be considered valid.
-  private static final String ADMIN_ENDPOINT_ENV_VAR = getenv("BIGTABLE_ENV_ADMIN_ENDPOINT");
-  // The address of the data API endpoint. Required for a test environment to be considered valid.
-  private static final String DATA_ENDPOINT_ENV_VAR = getenv("BIGTABLE_ENV_DATA_ENDPOINT");
+  // The address of the admin API endpoint.
+  private static final String ADMIN_ENDPOINT_ENV_VAR =
+      getenv("BIGTABLE_ENV_ADMIN_ENDPOINT", "bigtableadmin.googleapis.com:443");
+  // The address of the data API endpoint.
+  private static final String DATA_ENDPOINT_ENV_VAR =
+      getenv("BIGTABLE_ENV_DATA_ENDPOINT", "bigtable.googleapis.com:443");
 
   private final String adminEndpoint;
   private final String dataEndpoint;
@@ -45,11 +47,6 @@ final class BigtableClientIntegrationTestOverride implements Serializable, Bigta
         + ", dataEndpoint="
         + dataEndpoint
         + "}";
-  }
-
-  /** Returns whether these endpoints are considered valid, as configured. */
-  public boolean isValid() {
-    return !adminEndpoint.isEmpty() && !dataEndpoint.isEmpty();
   }
 
   /** Applies the test environment settings to the builder. */
@@ -70,13 +67,13 @@ final class BigtableClientIntegrationTestOverride implements Serializable, Bigta
     builder.stubSettings().setEndpoint(dataEndpoint);
   }
 
-  /** Returns the value of the environment variable, or empty string if not found. */
-  private static String getenv(String name) {
+  /** Returns the value of the environment variable, or default string if not found. */
+  private static String getenv(String name, String defaultValue) {
     final String value = System.getenv(name);
     if (value != null) {
       return value;
     }
-    return "";
+    return defaultValue;
   }
 
   BigtableClientIntegrationTestOverride() {
