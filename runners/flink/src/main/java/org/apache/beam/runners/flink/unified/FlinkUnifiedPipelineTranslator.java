@@ -69,6 +69,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -181,7 +182,11 @@ public class FlinkUnifiedPipelineTranslator
 
     @Override
     public JobExecutionResult execute(String jobName) throws Exception {
-      return getExecutionEnvironment().execute(jobName);
+      StreamExecutionEnvironment env = getExecutionEnvironment();
+      if(!getPipelineOptions().isStreaming()){
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+      }
+      return env.execute(jobName);
     }
 
     public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -423,6 +428,7 @@ public class FlinkUnifiedPipelineTranslator
     for (PipelineNode.PTransformNode transform : expandedTopologicalOrder) {
       context.setCurrentTransform(transform);
       String urn = transform.getTransform().getSpec().getUrn();
+      LOG.debug("Translating " + urn + "with " + urnToTransformTranslator.getOrDefault(urn, this::urnNotFound).getClass());
       urnToTransformTranslator
           .getOrDefault(urn, this::urnNotFound)
           .translate(transform, pipeline, context);
