@@ -55,6 +55,7 @@ class _TestPair(typing.NamedTuple('TestTuple', [('first', T), ('second', T)]),
 
 
 class NativeTypeCompatibilityTest(unittest.TestCase):
+
   def test_convert_to_beam_type(self):
     test_cases = [
         ('raw bytes', bytes, bytes),
@@ -171,14 +172,8 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
               'mapping not caught',
               collections.abc.Mapping[str, int],
               collections.abc.Mapping[str, int]),
-          (
-            'set',
-            collections.abc.Set[str],
-            typehints.Set[str]),
-          (
-            'mutable set',
-            collections.abc.MutableSet[int],
-            typehints.Set[int]),
+          ('set', collections.abc.Set[str], typehints.Set[str]),
+          ('mutable set', collections.abc.MutableSet[int], typehints.Set[int]),
       ]
 
       for test_case in test_cases:

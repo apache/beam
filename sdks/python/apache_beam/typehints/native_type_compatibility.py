@@ -46,8 +46,8 @@ _BUILTINS_TO_TYPING = {
 }
 
 _CONVERTED_COLLECTIONS = [
-  collections.abc.Set,
-  collections.abc.MutableSet,
+    collections.abc.Set,
+    collections.abc.MutableSet,
 ]
 
 
@@ -154,7 +154,7 @@ def _match_is_union(user_type):
 
 
 def match_is_set(user_type):
-  if  _safe_issubclass(user_type, typing.Set):
+  if _safe_issubclass(user_type, typing.Set):
     return True
   elif getattr(user_type, '__origin__', None) != None:
     return _safe_issubclass(user_type.__origin__, collections.abc.Set)
@@ -296,9 +296,7 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.List),
           arity=1,
           beam_type=typehints.List),
-      _TypeMapEntry(
-          match=match_is_set, arity=1,
-          beam_type=typehints.Set),
+      _TypeMapEntry(match=match_is_set, arity=1, beam_type=typehints.Set),
       _TypeMapEntry(
           match=_match_issubclass(typing.FrozenSet),
           arity=1,
