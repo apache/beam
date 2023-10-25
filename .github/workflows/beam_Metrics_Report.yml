@@ -90,11 +90,13 @@ jobs:
           name: Metrics Report
           path: "${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html"
       - name: Generate Date
+        if: always()
         run: |
           date=$(date -u +"%Y-%m-%d")
           echo "date=$date" >> $GITHUB_ENV
       - name: Send mail
         uses: dawidd6/action-send-mail@v3
+        if: always()
         with:
           server_address: smtp.gmail.com
           server_port: 465
