@@ -30,6 +30,7 @@ env:
   docker_repo: apache-beam-testing/beam-github-actions/beam-arc-runner
 jobs:
   build-and-version-runner:
+    if: github.repository == 'apache/beam'
     env:
         working-directory: .github/gh-actions-self-hosted-runners/arc/images/
     runs-on: [self-hosted, ubuntu-20.04]
