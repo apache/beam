@@ -3372,9 +3372,16 @@ class Select(PTransform):
                    for name, expr in self._fields}))).as_result()
 
   def infer_output_type(self, input_type):
+    def extract_return_type(expr):
+      expr_hints = get_type_hints(expr)
+      if (expr_hints and expr_hints.has_simple_output_type() and
+          expr_hints.simple_output_type(None) != typehints.Any):
+        return expr_hints.simple_output_type(None)
+      else:
+        return trivial_inference.infer_return_type(expr, [input_type])
+
     return row_type.RowTypeConstraint.from_fields([
-        (name, trivial_inference.infer_return_type(expr, [input_type]))
-        for (name, expr) in self._fields
+        (name, extract_return_type(expr)) for (name, expr) in self._fields
     ])
 
 
