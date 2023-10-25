@@ -2972,14 +2972,18 @@ public class BigQueryIO {
       return toBuilder().setPrimaryKey(primaryKey).build();
     }
 
-      /** Specify how missing values should be interpreted when there is a default value in the schema. Options are to
-       * take the default value or to write an explicit null (not an option of the field is also required.). Note: this
-       * is only used when using one of the storage write API insert methods.
-       */
+    /**
+     * Specify how missing values should be interpreted when there is a default value in the schema.
+     * Options are to take the default value or to write an explicit null (not an option of the
+     * field is also required.). Note: this is only used when using one of the storage write API
+     * insert methods.
+     */
     public Write<T> withDefaultMissingValueInterpretation(
         AppendRowsRequest.MissingValueInterpretation missingValueInterpretation) {
-        checkArgument(missingValueInterpretation == AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE ||
-        missingValueInterpretation == AppendRowsRequest.MissingValueInterpretation.NULL_VALUE);
+      checkArgument(
+          missingValueInterpretation == AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE
+              || missingValueInterpretation
+                  == AppendRowsRequest.MissingValueInterpretation.NULL_VALUE);
       return toBuilder().setDefaultMissingValueInterpretation(missingValueInterpretation).build();
     }
 
