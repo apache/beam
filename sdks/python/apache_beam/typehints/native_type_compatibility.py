@@ -156,7 +156,7 @@ def _match_is_union(user_type):
 def match_is_set(user_type):
   if _safe_issubclass(user_type, typing.Set):
     return True
-  elif getattr(user_type, '__origin__', None) != None:
+  elif getattr(user_type, '__origin__', None) is not None:
     return _safe_issubclass(user_type.__origin__, collections.abc.Set)
   else:
     return False
@@ -272,8 +272,10 @@ def convert_to_beam_type(typ):
   elif (typ_module != 'typing') and (typ_module != 'collections.abc'):
     # Only translate types from the typing and collections.abc modules.
     return typ
-  if typ_module == 'collections.abc' and typ.__origin__ not in _CONVERTED_COLLECTIONS:
-    # TODO(https://github.com/apache/beam/issues/29135): Support more collections types
+  if (typ_module == 'collections.abc' and
+      typ.__origin__ not in _CONVERTED_COLLECTIONS):
+    # TODO(https://github.com/apache/beam/issues/29135):
+    # Support more collections types
     return typ
 
   type_map = [
