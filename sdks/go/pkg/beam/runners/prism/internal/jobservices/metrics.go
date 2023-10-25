@@ -475,8 +475,8 @@ func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
 		m.shortIDsToKeys[short] = key
 	}
 	for d, payloads := range m.unprocessedPayloads {
-		m.contributeMetrics(durability(d), payloads)
 		m.unprocessedPayloads[d] = nil
+		m.contributeMetrics(durability(d), payloads)
 	}
 }
 

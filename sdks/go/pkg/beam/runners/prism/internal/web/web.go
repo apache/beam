@@ -230,6 +230,9 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		var msecMets []string
 		// TODO: Figure out where uniquename or id is being used in prism. It should be all global transform ID to faciliate lookups.
+		for _, msec := range msecs[id] {
+			msecMets = append(msecMets, fmt.Sprintf("\n- %+v", msec.Result()))
+		}
 		for _, msec := range msecs[pt.GetUniqueName()] {
 			msecMets = append(msecMets, fmt.Sprintf("\n- %+v", msec.Result()))
 		}
@@ -239,6 +242,12 @@ func (h *jobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var userMetrics []string
+		for _, ctr := range counters[id] {
+			userMetrics = append(userMetrics, fmt.Sprintf("\n- %s.%s: %v", ctr.Namespace(), ctr.Name(), ctr.Result()))
+		}
+		for _, dist := range distributions[id] {
+			userMetrics = append(userMetrics, fmt.Sprintf("\n- %s.%s: %+v", dist.Namespace(), dist.Name(), dist.Result()))
+		}
 		for _, ctr := range counters[pt.GetUniqueName()] {
 			userMetrics = append(userMetrics, fmt.Sprintf("\n- %s.%s: %v", ctr.Namespace(), ctr.Name(), ctr.Result()))
 		}
