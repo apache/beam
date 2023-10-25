@@ -19,7 +19,7 @@ name: PostCommit Java Nexmark Dataflow
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 4/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -73,7 +73,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_Nexmark_Dataflow:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     strategy:
@@ -95,6 +95,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Nexmark Dataflow (${{ matrix.streaming }} ${{ matrix.queryLanguage }}) script
         if: matrix.queryLanguage != 'none'
         uses: ./.github/actions/gradle-command-self-hosted-action

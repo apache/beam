@@ -32,10 +32,11 @@ on:
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
       - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 2/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -87,6 +88,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run validatesPortableRunnerBatch script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

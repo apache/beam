@@ -19,7 +19,7 @@ name: PostCommit Java SingleStoreIO IT
 
 on:
   schedule:
-    - cron: '0 */23 * * *'
+    - cron: '30 4/6 * * *'
   workflow_dispatch:
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -50,7 +50,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_SingleStoreIO_IT:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
@@ -71,6 +71,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1

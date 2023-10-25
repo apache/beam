@@ -34,6 +34,14 @@ public interface MetricsContainer extends Serializable {
   Counter getCounter(MetricName metricName);
 
   /**
+   * Return the {@link Counter} that should be used for implementing the given per-worker {@code metricName)
+   * in this container.
+   */
+  default Counter getPerWorkerCounter(MetricName metricName) {
+    return NoOpCounter.getInstance();
+  }
+
+  /**
    * Return the {@link Distribution} that should be used for implementing the given {@code
    * metricName} in this container.
    */
@@ -51,6 +59,14 @@ public interface MetricsContainer extends Serializable {
    */
   default Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
     throw new RuntimeException("Histogram metric is not supported yet.");
+  }
+  /**
+   * Return the {@link Histogram} that should be used for implementing the given per-worker {@code
+   * metricName} in this container.
+   */
+  default Histogram getPerWorkerHistogram(
+      MetricName metricName, HistogramData.BucketType bucketType) {
+    return NoOpHistogram.getInstance();
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */

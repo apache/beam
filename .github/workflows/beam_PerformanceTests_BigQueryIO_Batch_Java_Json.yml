@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Performance Tests BigQueryIO Batch Java Json
+name: PerformanceTests BigQueryIO Batch Java Json
 
 on:
   schedule:
-    - cron: '30 8,20 * * *'
+    - cron: '10 9/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_BigQueryIO_Batch_Java_Json:
@@ -67,14 +69,18 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Prepare config
-        id: set_config
-        shell: bash
-        run: |
-          CURDATE=$(date '+%m%d%H%M%S' --utc)
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/performance-tests-job-configs/config_BigQueryIO_Batch_Java_Json.txt | tr '\n' ' ')
-          CONFIGWITHDATE=$(echo "${CURCONFIG/bqio_write_10GB_java_json_/bqio_write_10GB_java_json_$CURDATE}")
-          echo "prepared_config=$CONFIGWITHDATE" >> $GITHUB_OUTPUT
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: performance
+          test-language: java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/bigQueryIO_Batch_Java_Json.txt
+          arguments: |
+            --testBigQueryTable=bqio_write_10GB_java_json_$(date '+%m%d%H%M%S' --utc)
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Java BigQueryIO Batch Json Performance Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -83,7 +89,7 @@ jobs:
             --tests org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT \
             --info \
             -DintegrationTestRunner=dataflow \
-            -DintegrationTestPipelineOptions=${{ steps.set_config.outputs.prepared_config }} \
+            -DintegrationTestPipelineOptions='[${{ env.beam_PerformanceTests_BigQueryIO_Batch_Java_Json_test_arguments_1 }}]' \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()

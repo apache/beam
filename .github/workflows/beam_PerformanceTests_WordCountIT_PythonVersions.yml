@@ -17,7 +17,7 @@ name: PerformanceTests WordCountIT PythonVersions
 
 on:
   schedule:
-    - cron: '12 3 * * *'
+    - cron: '50 11/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,7 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_WordCountIT_PythonVersions:
@@ -56,7 +57,7 @@ jobs:
         endswith(github.event.comment.body, 'WordCountIT Performance Test'))
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }}${{matrix.python_version}} ${{ matrix.job_phrase_2 }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
     strategy:
       fail-fast: false
       matrix:
@@ -69,13 +70,13 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase_1 }}${{matrix.python_version}} ${{ matrix.job_phrase_2 }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }}${{matrix.python_version}} ${{ matrix.job_phrase_2 }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: ${{matrix.python_version}}
+          python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
@@ -88,11 +89,12 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/wordCountIT_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/wordCountIT_Python.txt
           arguments: |
             --job_name=performance-tests-wordcount-python${{steps.set_py_ver_clean.outputs.py_ver_clean}}-batch-1gb$(date '+%m%d%H%M%S' --utc)
             --metrics_table=wordcount_py${{steps.set_py_ver_clean.outputs.py_ver_clean}}_pkb_results
             --influx_measurement=wordcount_py${{steps.set_py_ver_clean.outputs.py_ver_clean}}_results
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Run test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -101,3 +103,16 @@ jobs:
             --info \
             -Ptest=apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it \
             "-Ptest-pipeline-options=${{ env.beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1 }}"
+      - name: Archive Python Test Results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: Python Test Results
+          path: '**/pytest*.xml'
+      - name: Publish Python Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/pytest*.xml'

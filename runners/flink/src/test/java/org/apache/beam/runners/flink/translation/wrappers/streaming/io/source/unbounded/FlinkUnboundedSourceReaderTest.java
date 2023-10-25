@@ -303,9 +303,10 @@ public class FlinkUnboundedSourceReaderTest
     SourceReaderContext mockContext = createSourceReaderContext(metricGroup);
     if (executor != null) {
       return new FlinkUnboundedSourceReader<>(
-          mockContext, pipelineOptions, executor, timestampExtractor);
+          "FlinkUnboundedReader", mockContext, pipelineOptions, executor, timestampExtractor);
     } else {
-      return new FlinkUnboundedSourceReader<>(mockContext, pipelineOptions, timestampExtractor);
+      return new FlinkUnboundedSourceReader<>(
+          "FlinkUnboundedReader", mockContext, pipelineOptions, timestampExtractor);
     }
   }
 

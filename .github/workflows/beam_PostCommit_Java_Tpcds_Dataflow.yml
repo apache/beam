@@ -17,7 +17,7 @@ name: PostCommit Java Tpcds Dataflow
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 4/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -92,6 +92,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Tpcds Dataflow script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

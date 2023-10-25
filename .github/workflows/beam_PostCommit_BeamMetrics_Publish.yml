@@ -19,7 +19,6 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['.github/workflows/beam_PostCommit_BeamMetrics_Publish.yml']
   schedule:
     - cron: '24 2 * * *'
   workflow_dispatch:
@@ -54,10 +53,11 @@ env:
 jobs:
   beam_PostCommit_BeamMetrics_Publish:
     if: |
-      github.event_name == 'push' ||
+      (github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Beam Metrics Deployment'
+      github.event.comment.body == 'Run Beam Metrics Deployment') &&
+      github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
@@ -73,6 +73,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
