@@ -53,6 +53,10 @@ message ExpansionRequest {
   // coders for the output PCollections. Note that the request
   // may not be fulfilled.
   map<string, string> output_coder_requests = 4;
+
+  // (Optional) A set of Pipeline Options that should be used
+  // when expanding this transform.
+  google.protobuf.Struct pipeline_options = 5;
 }
 
 message ExpansionResponse {

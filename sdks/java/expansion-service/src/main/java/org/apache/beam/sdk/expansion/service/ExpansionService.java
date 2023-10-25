@@ -48,6 +48,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -559,7 +560,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
-    Pipeline pipeline = createPipeline();
+    Pipeline pipeline =
+        createPipeline(PipelineOptionsTranslation.fromProto(request.gtPipelineOptions()));
     boolean isUseDeprecatedRead =
         ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
             || ExperimentalOptions.hasExperiment(
@@ -672,7 +674,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .build();
   }
 
-  protected Pipeline createPipeline() {
+  protected Pipeline createPipeline(PipelineOptions requestOptions) {
     // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
@@ -693,6 +695,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExpansionServiceOptions.class)
         .setExpansionServiceConfig(
             pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
+    PortablePipelineOptions portableRequestOptions =
+        requestOptions.as(PortablePipelineOptions.class);
+    // TODO(https://github.com/apache/beam/issues/20090): Figure out the correct subset of options
+    // to propagate.
+    if (portableRequestOptions.getUpdateCompatibilityVersion() != null) {
+      effectiveOpts
+          .as(PortablePipelineOptions.class)
+          .setUpdateCompatibilityVersion(portableRequestOptions.getUpdateCompatibilityVersion());
+    }
     return Pipeline.create(effectiveOpts);
   }
 

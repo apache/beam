@@ -36,6 +36,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import proto_utils
 
 __all__ = [
     'PipelineOptions',
@@ -385,6 +386,35 @@ class PipelineOptions(HasDisplayData):
         _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
+
+  def to_runner_api(self):
+    def to_struct_value(o):
+      if isinstance(v, (bool, int, str)):
+        return o
+      elif isinstance(o, (tuple, list)):
+        return [to_struct_value(e) for e in o]
+      elif isinstance(o, dict):
+        return {str(k): to_struct_value(v) for k, v in o.items()}
+      else:
+        return str(o)  # Best effort.
+
+    return proto_utils.pack_Struct(
+        **{
+            f'beam:option:{k}:v1': to_struct_value(v)
+            for (k, v) in self.get_all_options(
+                drop_default=True, retain_unknown_options=True) if v is not None
+        })
+
+  @classmethod
+  def from_runner_api(cls, proto_options):
+    def from_urn(key):
+      assert key.startswith('beam:option:')
+      assert key.endswith(':v1')
+      return key[12:-3]
+
+    return cls(
+        **{from_urn(key): value
+           for (key, value) in proto_options.items()})
 
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
@@ -771,6 +801,13 @@ class GoogleCloudOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Update an existing streaming Cloud Dataflow job. '
+        'See https://cloud.google.com/dataflow/docs/guides/'
+        'updating-a-pipeline')
+    parser.add_argument(
+        '--update_compatibility_version',
+        default=None,
+        help='Attempt to produce a pipeline compatible with the given prior '
+        'version of the Beam SDK. '
         'See https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
