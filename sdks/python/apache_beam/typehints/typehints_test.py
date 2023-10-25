@@ -847,14 +847,16 @@ class SetHintTestCase(BaseSetHintTest.CommonTests):
   string_type = 'Set'
 
   def test_builtin_compatibility(self):
-    self.assertCompatible(set[int], collections.abc.Set[int])
-    self.assertCompatible(set[int], collections.abc.MutableSet[int])
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(set[int], collections.abc.Set[int])
+      self.assertCompatible(set[int], collections.abc.MutableSet[int])
 
   def test_collections_compatibility(self):
-    self.assertCompatible(
-        collections.abc.Set[int], collections.abc.MutableSet[int])
-    self.assertCompatible(
-        collections.abc.MutableSet[int], collections.abc.Set[int])
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(
+          collections.abc.Set[int], collections.abc.MutableSet[int])
+      self.assertCompatible(
+          collections.abc.MutableSet[int], collections.abc.Set[int])
 
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
