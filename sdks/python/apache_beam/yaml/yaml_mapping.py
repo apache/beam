@@ -37,6 +37,7 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
+from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
 
 
@@ -313,6 +314,9 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+  if language == 'javascript':
+    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+
   try:
     input_schema = dict(named_fields_from_element_type(pcoll.element_type))
   except (TypeError, ValueError) as exn:
@@ -383,6 +387,9 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
   input_schema, fields = normalize_fields(
       pcoll, language=language, **mapping_args)
+  if language == 'javascript':
+    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+
   original_fields = list(input_schema.keys())
 
   return pcoll | beam.Select(

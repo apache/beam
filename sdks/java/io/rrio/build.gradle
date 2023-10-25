@@ -18,17 +18,16 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.rrio'
+        automaticModuleName: 'org.apache.beam.sdk.io.requestresponse'
 )
 
 description = "Apache Beam :: SDKS :: Java :: IO :: RequestResponseIO (RRIO)"
 ext.summary = "Support to read from and write to Web APIs"
 
 dependencies {
-    // TODO(damondouglas): revert to implementation after project is more fully developed
-    permitUnusedDeclared project(path: ":sdks:java:core", configuration: "shadow")
-    permitUnusedDeclared library.java.joda_time
-    permitUnusedDeclared library.java.vendored_guava_32_1_2_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.joda_time
+    implementation library.java.vendored_guava_32_1_2_jre
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit

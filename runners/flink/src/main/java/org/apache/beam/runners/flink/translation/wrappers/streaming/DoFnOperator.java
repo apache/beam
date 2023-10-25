@@ -199,6 +199,12 @@ public class DoFnOperator<InputT, OutputT>
   /** If true, we must process elements only after a checkpoint is finished. */
   final boolean requiresStableInput;
 
+  /**
+   * If both requiresStableInput and this parameter are true, we must flush the buffer during drain
+   * operation.
+   */
+  final boolean enableStableInputDrain;
+
   final int numConcurrentCheckpoints;
 
   private final boolean usesOnWindowExpiration;
@@ -322,6 +328,8 @@ public class DoFnOperator<InputT, OutputT>
           flinkOptions.getCheckpointingInterval()
               + Math.max(0, flinkOptions.getMinPauseBetweenCheckpoints()));
     }
+
+    this.enableStableInputDrain = flinkOptions.getEnableStableInputDrain();
 
     this.numConcurrentCheckpoints = flinkOptions.getNumConcurrentCheckpoints();
 
@@ -625,6 +633,12 @@ public class DoFnOperator<InputT, OutputT>
     // Make sure to finish the current bundle
     while (bundleStarted) {
       invokeFinishBundle();
+    }
+    if (requiresStableInput && enableStableInputDrain) {
+      // Flush any buffered events here before draining the pipeline. Note that this is best-effort
+      // and requiresStableInput contract might be violated in cases where buffer processing fails.
+      bufferingDoFnRunner.checkpointCompleted(Long.MAX_VALUE);
+      updateOutputWatermark();
     }
     if (currentOutputWatermark < Long.MAX_VALUE) {
       throw new RuntimeException(

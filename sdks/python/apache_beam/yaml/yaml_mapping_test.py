@@ -40,7 +40,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: MapToFields
-          input: input
           config:
               language: python
               fields:
@@ -62,7 +61,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: MapToFields
-          input: input
           config:
               fields: {}
               append: true
@@ -83,7 +81,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: Filter
-          input: input
           config:
               language: python
               keep: "rank > 0"
@@ -106,7 +103,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: chain
-          input: input
           transforms:
             - type: MapToFields
               config:

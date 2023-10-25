@@ -138,9 +138,10 @@ public class FlinkBoundedSourceReaderTest
     SourceReaderContext mockContext = createSourceReaderContext(testMetricGroup);
     if (executor != null) {
       return new FlinkBoundedSourceReader<>(
-          mockContext, pipelineOptions, executor, timestampExtractor);
+          "FlinkBoundedSource", mockContext, pipelineOptions, executor, timestampExtractor);
     } else {
-      return new FlinkBoundedSourceReader<>(mockContext, pipelineOptions, timestampExtractor);
+      return new FlinkBoundedSourceReader<>(
+          "FlinkBoundedSource", mockContext, pipelineOptions, timestampExtractor);
     }
   }
 }
