@@ -241,3 +241,6 @@ a `{type: 'basic_type_name'}` nesting.
               items:
                 type: 'number'
 ```
+
+This can be especially useful to resolve errors involving the inability to
+handle the `beam:logical:pythonsdk_any:v1` type.
