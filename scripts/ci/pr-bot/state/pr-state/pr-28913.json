@@ -1,7 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "Abacn"
+    "java": "Abacn",
+    "build": "damccorm"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
