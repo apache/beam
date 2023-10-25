@@ -55,7 +55,6 @@ class _TestPair(typing.NamedTuple('TestTuple', [('first', T), ('second', T)]),
 
 
 class NativeTypeCompatibilityTest(unittest.TestCase):
-
   def test_convert_to_beam_type(self):
     test_cases = [
         ('raw bytes', bytes, bytes),
