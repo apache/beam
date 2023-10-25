@@ -2259,6 +2259,10 @@ class _PValueWithErrors(object):
     self._upstream_errors = upstream_errors
 
   @property
+  def pipeline(self):
+    return self._pvalue.pipeline
+
+  @property
   def element_type(self):
     return self._pcoll.element_type
 
@@ -2323,6 +2327,10 @@ class _MaybePValueWithErrors(object):
       self._pvalue = pvalue
     else:
       self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  @property
+  def pipeline(self):
+    return self._pvalue.pipeline
 
   @property
   def element_type(self):
