@@ -147,6 +147,9 @@ public class BigtableTestUtils {
     return builder.build();
   }
 
+  // We have to build the pipeline at this package level and not changestreams package because
+  // endTime is package private and we can only create a pipeline with endTime here. Setting endTime
+  // allows the tests to predictably terminate.
   public static BigtableIO.ReadChangeStream buildTestPipelineInput(
       String projectId,
       String instanceId,
