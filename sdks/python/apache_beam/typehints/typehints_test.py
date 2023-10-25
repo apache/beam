@@ -852,9 +852,9 @@ class SetHintTestCase(BaseSetHintTest.CommonTests):
 
   def test_collections_compatibility(self):
     self.assertCompatible(
-      collections.abc.Set[int], collections.abc.MutableSet[int])
+        collections.abc.Set[int], collections.abc.MutableSet[int])
     self.assertCompatible(
-      collections.abc.MutableSet[int], collections.abc.Set[int])
+        collections.abc.MutableSet[int], collections.abc.Set[int])
 
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
