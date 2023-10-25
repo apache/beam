@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import collections.abc
 import functools
 import sys
 import typing
@@ -844,6 +845,16 @@ class SetHintTestCase(BaseSetHintTest.CommonTests):
   py_type = set
   beam_type = typehints.Set
   string_type = 'Set'
+
+  def test_builtin_compatibility(self):
+    self.assertCompatible(set[int], collections.abc.Set[int])
+    self.assertCompatible(set[int], collections.abc.MutableSet[int])
+  
+  def test_collections_compatibility(self):
+    self.assertCompatible(collections.abc.Set[int], 
+                          collections.abc.MutableSet[int])
+    self.assertCompatible(collections.abc.MutableSet[int], 
+                          collections.abc.Set[int])
 
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
