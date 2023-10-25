@@ -296,11 +296,12 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.List),
           arity=1,
           beam_type=typehints.List),
-      _TypeMapEntry(match=match_is_set, arity=1, beam_type=typehints.Set),
+      # FrozenSets are a specific instance of a set, so we check this first.
       _TypeMapEntry(
           match=_match_issubclass(typing.FrozenSet),
           arity=1,
           beam_type=typehints.FrozenSet),
+      _TypeMapEntry(match=match_is_set, arity=1, beam_type=typehints.Set),
       # NamedTuple is a subclass of Tuple, but it needs special handling.
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
