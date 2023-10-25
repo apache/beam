@@ -103,7 +103,9 @@ public class JdbcWriteSchemaTransformProvider
       } else {
         StringBuilder statement = new StringBuilder("INSERT INTO ");
         statement.append(config.getLocation());
-        statement.append(" VALUES(");
+        statement.append(" (");
+        statement.append(String.join(", ", schema.getFieldNames()));
+        statement.append(") VALUES(");
         for (int i = 0; i < schema.getFieldCount() - 1; i++) {
           statement.append("?, ");
         }
