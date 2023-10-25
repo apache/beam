@@ -171,6 +171,14 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
               'mapping not caught',
               collections.abc.Mapping[str, int],
               collections.abc.Mapping[str, int]),
+          (
+            'set',
+            collections.abc.Set[str],
+            typehints.Set[str]),
+          (
+            'mutable set',
+            collections.abc.MutableSet[int],
+            typehints.Set[int]),
       ]
 
       for test_case in test_cases:
