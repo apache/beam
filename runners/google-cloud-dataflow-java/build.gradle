@@ -304,6 +304,7 @@ def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
       commandLine "docker", "rmi", "--force", "${dockerJavaImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
     }
     exec {
