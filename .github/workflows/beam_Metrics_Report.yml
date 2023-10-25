@@ -18,8 +18,6 @@
 name: Beam Metrics Report
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 11 * * 2'
   workflow_dispatch:
