@@ -55,6 +55,26 @@ class Workflow:
     self.filename = filename
     self.runs = []
 
+def get_dashboard_category(workflow_name):
+  workflow_name = workflow_name.lower()
+  lang = ''
+  if 'java' in workflow_name:
+    lang = 'java'
+  elif 'python' in workflow_name:
+    lang = 'python'
+  elif 'go' in workflow_name:
+    lang = 'go'
+  else:
+    # If no language found, toss in miscellaneous bucket
+    return 'misc'
+  if 'dataflow' in workflow_name:
+    return f'dataflow_{lang}'
+  if 'spark' in workflow_name:
+    return f'spark_{lang}'
+  if 'flink' in workflow_name:
+    return f'flink_{lang}'
+  return f'core_{lang}'
+
 async def github_workflows_dashboard_sync():
   print('Started')
   print('Updating table with recent workflow runs')
@@ -247,7 +267,8 @@ def database_operations(connection, workflows):
   CREATE TABLE IF NOT EXISTS {workflows_table_name} (
     workflow_id integer NOT NULL PRIMARY KEY,
     job_name text NOT NULL,
-    job_yml_filename text NOT NULL"""
+    job_yml_filename text NOT NULL,
+    dashboard_category text NOT NULL"""
   for i in range(int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)):
     create_table_query += f""",
     run{i+1} text,
@@ -256,12 +277,14 @@ def database_operations(connection, workflows):
   cursor.execute(create_table_query)
   insert_query = f"INSERT INTO {workflows_table_name} VALUES "
   for workflow in workflows:
+    category = get_dashboard_category(workflow.name)
     row_insert =\
-      f"(\'{workflow.id}\',\'{workflow.name}\',\'{workflow.filename}\'"
+      f"(\'{workflow.id}\',\'{workflow.name}\',\'{workflow.filename}\',\'{category}\'"
     for _, status, url in workflow.runs:
       row_insert += f",\'{status}\',\'{url}\'"
     insert_query += f"{row_insert}),"
   insert_query = insert_query[:-1] + ";"
+  print(insert_query)
   cursor.execute(insert_query)
   cursor.close()
   connection.commit()
