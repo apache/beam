@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections.abc
+import enum
 import sys
 import typing
 import unittest
@@ -52,6 +53,11 @@ class _TestGeneric(typing.Generic[T]):
 class _TestPair(typing.NamedTuple('TestTuple', [('first', T), ('second', T)]),
                 typing.Generic[T]):
   pass
+
+
+class _TestEnum(enum.Enum):
+  FOO = enum.auto()
+  BAR = enum.auto()
 
 
 class NativeTypeCompatibilityTest(unittest.TestCase):
@@ -106,6 +112,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
          typehints.List[_TestGeneric[int]]),
         ('nested generic with any', typing.List[_TestPair[typing.Any]],
          typehints.List[_TestPair[typing.Any]]),
+        ('raw enum', _TestEnum, _TestEnum),
     ]
 
     for test_case in test_cases:
@@ -126,6 +133,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
                     ('builtin list', list[str], typehints.List[str]),
                     ('builtin tuple', tuple[str], typehints.Tuple[str]),
                     ('builtin set', set[str], typehints.Set[str]),
+                    ('builtin frozenset', frozenset[int], typehints.FrozenSet[int]),
                     (
                         'nested builtin',
                         dict[str, list[tuple[float]]],
@@ -173,6 +181,8 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
               collections.abc.Mapping[str, int]),
           ('set', collections.abc.Set[str], typehints.Set[str]),
           ('mutable set', collections.abc.MutableSet[int], typehints.Set[int]),
+          ('enum set', collections.abc.Set[_TestEnum], typehints.Set[_TestEnum]),
+          ('enum mutable set', collections.abc.MutableSet[_TestEnum], typehints.Set[_TestEnum])
       ]
 
       for test_case in test_cases:
