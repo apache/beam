@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -27,16 +27,18 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
-import org.apache.beam.runners.dataflow.worker.windmill.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequestExtension;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream.WorkItemReceiver;
+import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
@@ -44,7 +46,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class GrpcGetWorkStream
+public final class GrpcGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
 
@@ -79,7 +81,7 @@ final class GrpcGetWorkStream
     this.inflightBytes = new AtomicLong();
   }
 
-  static GrpcGetWorkStream create(
+  public static GrpcGetWorkStream create(
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -188,6 +190,19 @@ final class GrpcGetWorkStream
   @Override
   protected void startThrottleTimer() {
     getWorkThrottleTimer.start();
+  }
+
+  @Override
+  public void adjustBudget(long itemsDelta, long bytesDelta) {
+    // no-op
+  }
+
+  @Override
+  public GetWorkBudget remainingBudget() {
+    return GetWorkBudget.builder()
+        .setBytes(request.getMaxBytes() - inflightBytes.get())
+        .setItems(request.getMaxItems() - inflightMessages.get())
+        .build();
   }
 
   private class WorkItemBuffer {

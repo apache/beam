@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;

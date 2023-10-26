@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -68,9 +68,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Value;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
@@ -99,10 +99,7 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Unit tests for {@link
- * org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcWindmillServer}.
- */
+/** Unit tests for {@link GrpcWindmillServer}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -114,7 +111,7 @@ public class GrpcWindmillServerTest {
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
-  private org.apache.beam.runners.dataflow.worker.windmill.grpcclient.GrpcWindmillServer client;
+  private GrpcWindmillServer client;
   private int remainingErrors = 20;
 
   @Before

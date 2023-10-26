@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.joda.time.Instant;
 
 /** Superclass for streams returned by streaming Windmill methods. */
@@ -41,16 +41,11 @@ public interface WindmillStream {
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {
-    /** Functional interface for receiving WorkItems. */
-    @FunctionalInterface
-    interface WorkItemReceiver {
-      void receiveWork(
-          String computation,
-          @Nullable Instant inputDataWatermark,
-          @Nullable Instant synchronizedProcessingTime,
-          Windmill.WorkItem workItem,
-          Collection<Windmill.LatencyAttribution> getWorkStreamLatencies);
-    }
+    /** Adjusts the {@link GetWorkBudget} for the stream. */
+    void adjustBudget(long itemsDelta, long bytesDelta);
+
+    /** Returns the remaining in-flight {@link GetWorkBudget}. */
+    GetWorkBudget remainingBudget();
   }
 
   /** Interface for streaming GetDataRequests to Windmill. */
