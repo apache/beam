@@ -80,6 +80,9 @@ dependencies {
   for (String runner : preCommitRunners) {
     delegate.add(runner + "PreCommit", project(path: ":examples:kotlin", configuration: "testRuntimeMigration"))
   }
+  directRunnerPreCommit project(project.path)
+  flinkRunnerPreCommit project(project.path)
+  sparkRunnerPreCommit project(project.path)
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
   sparkRunnerPreCommit project(":runners:spark:3")
@@ -106,10 +109,7 @@ for (String runner : preCommitRunners) {
        "--runner=" + preCommitRunnerClass[runner],
     ]
     classpath = configurations."${runner}PreCommit"
-    include "**/WordCountIT.class"
-    if (!"sparkRunner".equals(runner)) {
-      include "**/WindowedWordCountIT.class"
-    }
+    include "**/kotlin/**/*Test.class"
     forkEvery 1
     maxParallelForks 4
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
@@ -136,4 +136,3 @@ compileTestKotlin {
 repositories {
   mavenCentral()
 }
-

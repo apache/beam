@@ -67,16 +67,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
       inputs: input data.
     """
 
-  @abc.abstractmethod
-  def get_artifacts(
-      self, data: OperationInputT,
-      output_column_prefix: str) -> Optional[Dict[str, OperationOutputT]]:
-    """
-    If the operation generates any artifacts, they can be returned from this
-    method.
-    """
-    pass
-
   def __call__(self, data: OperationInputT,
                output_column_name: str) -> Dict[str, OperationOutputT]:
     """
@@ -84,9 +74,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     This method will invoke the apply() method of the class.
     """
     transformed_data = self.apply_transform(data, output_column_name)
-    artifacts = self.get_artifacts(data, output_column_name)
-    if artifacts:
-      transformed_data = {**transformed_data, **artifacts}
     return transformed_data
 
   def get_counter(self):

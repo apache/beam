@@ -45,6 +45,11 @@ _BUILTINS_TO_TYPING = {
     frozenset: typing.FrozenSet,
 }
 
+_CONVERTED_COLLECTIONS = [
+    collections.abc.Set,
+    collections.abc.MutableSet,
+]
+
 
 def _get_args(typ):
   """Returns a list of arguments to the given type.
@@ -148,6 +153,15 @@ def _match_is_union(user_type):
   return False
 
 
+def match_is_set(user_type):
+  if _safe_issubclass(user_type, typing.Set):
+    return True
+  elif getattr(user_type, '__origin__', None) is not None:
+    return _safe_issubclass(user_type.__origin__, collections.abc.Set)
+  else:
+    return False
+
+
 def is_any(typ):
   return typ is typing.Any
 
@@ -232,6 +246,7 @@ def convert_to_beam_type(typ):
                                             None) == 'collections.abc':
     typ = convert_collections_to_typing(typ)
 
+  typ_module = getattr(typ, '__module__', None)
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
     # Also, identity must be preserved through conversion (i.e. the same
@@ -254,8 +269,13 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
     _LOGGER.info('Converting NewType type hint to Any: "%s"', typ)
     return typehints.Any
-  elif getattr(typ, '__module__', None) != 'typing':
-    # Only translate types from the typing module.
+  elif (typ_module != 'typing') and (typ_module != 'collections.abc'):
+    # Only translate types from the typing and collections.abc modules.
+    return typ
+  if (typ_module == 'collections.abc' and
+      typ.__origin__ not in _CONVERTED_COLLECTIONS):
+    # TODO(https://github.com/apache/beam/issues/29135):
+    # Support more collections types
     return typ
 
   type_map = [
@@ -278,13 +298,12 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.List),
           arity=1,
           beam_type=typehints.List),
-      _TypeMapEntry(
-          match=_match_issubclass(typing.Set), arity=1,
-          beam_type=typehints.Set),
+      # FrozenSets are a specific instance of a set, so we check this first.
       _TypeMapEntry(
           match=_match_issubclass(typing.FrozenSet),
           arity=1,
           beam_type=typehints.FrozenSet),
+      _TypeMapEntry(match=match_is_set, arity=1, beam_type=typehints.Set),
       # NamedTuple is a subclass of Tuple, but it needs special handling.
       # We just convert it to Any for now.
       # This MUST appear before the entry for the normal Tuple.
