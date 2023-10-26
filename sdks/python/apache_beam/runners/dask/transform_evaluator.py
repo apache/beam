@@ -138,6 +138,26 @@ class Create(DaskBagOp):
     return db.from_sequence(items)
 
 
+def apply_dofn_to_bundle(
+    items, do_fn_invoker_args, do_fn_invoker_kwargs, tagged_receivers):
+
+  do_fn_invoker = DoFnInvoker.create_invoker(
+      *do_fn_invoker_args, **do_fn_invoker_kwargs)
+
+  do_fn_invoker.invoke_setup()
+  do_fn_invoker.invoke_start_bundle()
+
+  for it in items:
+    do_fn_invoker.invoke_process(it)
+
+  results = [v.value for v in tagged_receivers.values]
+
+  do_fn_invoker.invoke_finish_bundle()
+  do_fn_invoker.invoke_teardown()
+
+  return results
+
+
 class ParDo(DaskBagOp):
   """Apply a pure function in an embarrassingly-parallel way.
 
@@ -152,47 +172,34 @@ class ParDo(DaskBagOp):
     window_fn = main_input.windowing.windowfn if hasattr(
         main_input, "windowing") else None
 
-    context = DoFnContext(transform.label, state=None)
-    bundle_finalizer_param = DoFn.BundleFinalizerParam()
-    do_fn_signature = DoFnSignature(transform.fn)
-
     tagged_receivers = OneReceiver()
 
-    output_processor = _OutputHandler(
-        window_fn=window_fn,
-        main_receivers=tagged_receivers[None],
-        tagged_receivers=tagged_receivers,
-        per_element_output_counter=None,
-        output_batch_converter=None,
-        process_yields_batches=False,
-        process_batch_yields_elements=False)
-
-    do_fn_invoker = DoFnInvoker.create_invoker(
-        do_fn_signature,
-        output_processor,
-        context,
-        None,
-        args,
-        kwargs,
+    do_fn_invoker_args = [
+        DoFnSignature(transform.fn),
+        _OutputHandler(
+            window_fn=window_fn,
+            main_receivers=tagged_receivers[None],
+            tagged_receivers=tagged_receivers,
+            per_element_output_counter=None,
+            output_batch_converter=None,
+            process_yields_batches=False,
+            process_batch_yields_elements=False),
+    ]
+    do_fn_invoker_kwargs = dict(
+        context=DoFnContext(transform.label, state=None),
+        side_inputs=None,
+        input_args=args,
+        input_kwargs=kwargs,
         user_state_context=None,
-        bundle_finalizer_param=bundle_finalizer_param)
+        bundle_finalizer_param=DoFn.BundleFinalizerParam(),
+    )
 
-    def apply_dofn_to_bundle(items):
-      do_fn_invoker.invoke_setup()
-      do_fn_invoker.invoke_start_bundle()
-
-      for it in items:
-        do_fn_invoker.invoke_process(it)
-
-      results = [v.value for v in tagged_receivers.values]
-
-      do_fn_invoker.invoke_finish_bundle()
-      do_fn_invoker.invoke_teardown()
-
-      return results
-
-    return input_bag.map(get_windowed_value,
-                         window_fn).map_partitions(apply_dofn_to_bundle)
+    return input_bag.map(get_windowed_value, window_fn).map_partitions(
+        apply_dofn_to_bundle,
+        do_fn_invoker_args,
+        do_fn_invoker_kwargs,
+        tagged_receivers,
+    )
 
 
 class GroupByKey(DaskBagOp):
