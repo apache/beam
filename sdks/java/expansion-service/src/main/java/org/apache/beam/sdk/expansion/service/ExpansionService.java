@@ -561,7 +561,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
     Pipeline pipeline =
-        createPipeline(PipelineOptionsTranslation.fromProto(request.gtPipelineOptions()));
+        createPipeline(PipelineOptionsTranslation.fromProto(request.getPipelineOptions()));
     boolean isUseDeprecatedRead =
         ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
             || ExperimentalOptions.hasExperiment(

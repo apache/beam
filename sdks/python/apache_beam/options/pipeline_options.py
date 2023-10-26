@@ -389,7 +389,7 @@ class PipelineOptions(HasDisplayData):
 
   def to_runner_api(self):
     def to_struct_value(o):
-      if isinstance(v, (bool, int, str)):
+      if isinstance(o, (bool, int, str)):
         return o
       elif isinstance(o, (tuple, list)):
         return [to_struct_value(e) for e in o]
@@ -808,7 +808,7 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         help='Attempt to produce a pipeline compatible with the given prior '
         'version of the Beam SDK. '
-        'See https://cloud.google.com/dataflow/docs/guides/'
+        'See for example, https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
         '--transform_name_mapping',

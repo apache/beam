@@ -143,9 +143,9 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
 
   @Description(
       "If set, attempts to produce a pipeline compatible with this prior version of the Beam SDK."
-          + " See https://cloud.google.com/dataflow/docs/guides/updating-a-pipeline.")
+          + " See, for example, https://cloud.google.com/dataflow/docs/guides/updating-a-pipeline.")
   @Nullable
   String getUpdateCompatibilityVersion();
 
-  void setUpdateCompatibilityVersion(String updateCompatibilityVersion);
+  void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
 }
