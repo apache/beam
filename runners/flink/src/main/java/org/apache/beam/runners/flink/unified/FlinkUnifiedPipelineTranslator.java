@@ -183,7 +183,7 @@ public class FlinkUnifiedPipelineTranslator
     @Override
     public JobExecutionResult execute(String jobName) throws Exception {
       StreamExecutionEnvironment env = getExecutionEnvironment();
-      if(!getPipelineOptions().isStreaming()){
+      if (!getPipelineOptions().isStreaming()) {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
       }
       return env.execute(jobName);
@@ -428,7 +428,11 @@ public class FlinkUnifiedPipelineTranslator
     for (PipelineNode.PTransformNode transform : expandedTopologicalOrder) {
       context.setCurrentTransform(transform);
       String urn = transform.getTransform().getSpec().getUrn();
-      LOG.debug("Translating " + urn + "with " + urnToTransformTranslator.getOrDefault(urn, this::urnNotFound).getClass());
+      LOG.debug(
+          "Translating "
+              + urn
+              + "with "
+              + urnToTransformTranslator.getOrDefault(urn, this::urnNotFound).getClass());
       urnToTransformTranslator
           .getOrDefault(urn, this::urnNotFound)
           .translate(transform, pipeline, context);

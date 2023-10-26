@@ -101,7 +101,8 @@ public class ReadSourcePortableTest implements Serializable {
 
   @Test(timeout = 120_000)
   // This test is weird. It makes no sense to test an Unbounded source in Batch mode
-  // And in streaming mode, an Unbouded source will never stop, which effectively prevents the test from ever finishing.
+  // And in streaming mode, an Unbouded source will never stop, which effectively prevents the test
+  // from ever finishing.
   @Ignore
   public void testExecution() throws Exception {
     PipelineOptions options =

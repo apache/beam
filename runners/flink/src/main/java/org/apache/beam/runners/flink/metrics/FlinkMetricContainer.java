@@ -64,5 +64,4 @@ public class FlinkMetricContainer extends FlinkMetricContainerBase {
     }
     metricsAccumulator.add(metricsContainers);
   }
-
 }
