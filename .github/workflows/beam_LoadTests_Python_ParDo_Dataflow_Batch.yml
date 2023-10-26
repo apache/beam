@@ -20,7 +20,7 @@ on:
     - cron: '10 16 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+  #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: read
@@ -67,7 +67,8 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -89,6 +90,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run ParDo Dataflow Batch Python Load Test 1 (10 iterations)
+        id: run_pardo_dataflow_batch_python_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -98,6 +100,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-pardo-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Batch Python Load Test 2 (200 iterations)
+        id: run_pardo_dataflow_batch_python_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -107,6 +110,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-pardo-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Batch Python Load Test 3 (10 counters)
+        id: run_pardo_dataflow_batch_python_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -116,6 +120,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-pardo-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Dataflow Batch Python Load Test 4 (100 counters)
+        id: run_pardo_dataflow_batch_python_load_test_4
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

@@ -27,7 +27,6 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: write
@@ -93,11 +92,14 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Nexmark Dataflow (${{ matrix.streaming }} ${{ matrix.queryLanguage }}) script
+        id: run-postcommit-java-nexmarx-dataflow-script-query
         if: matrix.queryLanguage != 'none'
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -106,6 +108,7 @@ jobs:
             -Pnexmark.runner=:runners:google-cloud-dataflow-java \
              "${{ env.GRADLE_COMMAND_ARGUMENTS }}--streaming=${{ matrix.streaming }} --queryLanguage=${{ matrix.queryLanguage }}" \
       - name: run PostCommit Java Nexmark Dataflow (${{ matrix.streaming }}) script
+        id: run-postcommit-java-nexmarx-dataflow-script
         if: matrix.queryLanguage == 'none'
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

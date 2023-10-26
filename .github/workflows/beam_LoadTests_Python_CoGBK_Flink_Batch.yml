@@ -20,21 +20,6 @@ on:
     - cron: '10 15 * * *'
   workflow_dispatch:
 
-# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
-permissions:
-  actions: write
-  pull-requests: read
-  checks: read
-  contents: read
-  deployments: read
-  id-token: none
-  issues: read
-  discussions: read
-  packages: read
-  pages: read
-  repository-projects: read
-  security-events: read
-  statuses: read
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -58,6 +43,22 @@ env:
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink1.15_job_server:latest
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-loadtests-python-cogbk-flink-batch-${{ github.run_id }}
 
+# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
 jobs:
   beam_LoadTests_Python_CoGBK_Flink_Batch:
     if: |
@@ -77,7 +78,8 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -103,6 +105,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB of 100B records with a single key
+        id: run_cogbk_2gb_of_100b_records_with_a_single_key
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -112,6 +115,7 @@ jobs:
             -Prunner=FlinkRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_1 }} --job_name=load-tests-python-flink-batch-cogbk-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK 2GB of 100B records with multiple keys
+        id: run_cogbk_2gb_of_100b_records_with_multiple_keys
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -121,6 +125,7 @@ jobs:
             -Prunner=FlinkRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-cogbk-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK reiterate 4 times 10kB values
+        id: run_cogbk_reiterate_4_times_10kb_values
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

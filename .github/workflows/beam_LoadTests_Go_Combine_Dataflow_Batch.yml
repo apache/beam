@@ -67,8 +67,10 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
@@ -84,6 +86,7 @@ jobs:
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: run Combine Dataflow Batch Go Load Test 1 (single key)
+        id: run_combine_dataflow_batch_go_load_test_1
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -92,6 +95,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_Combine_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-go-dataflow-batch-combine-1-${{env.NOW_UTC}}' \
       - name: run Combine Dataflow Batch Go Load Test 2 (multiple keys)
+        id: run_combine_dataflow_batch_go_load_test_2
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run
@@ -100,6 +104,7 @@ jobs:
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_Combine_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-go-dataflow-batch-combine-2-${{env.NOW_UTC}}' \
       - name: run Combine Dataflow Batch Go Load Test 3 (reiterate 10KB)
+        id: run_combine_dataflow_batch_go_load_test_3
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:load:run

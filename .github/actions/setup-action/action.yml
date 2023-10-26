@@ -21,13 +21,19 @@ inputs:
   comment_phrase:
     description: "The comment phrase in the PR"
     required: true
-  github_token:
-    description: "The GitHub token"
+  gh_app_id:
+    description: "GitHub app id"
     required: true
+  gh_app_private_key:
+    description: "GitHub app private key"
+    required: true  
   github_job:
     description: "The GitHub job"
     required: false
     default: ''
+  steps_context:
+    description: 'The steps context'
+    required: true
 
 runs:
   using: composite
@@ -56,15 +62,22 @@ runs:
           git fetch --depth=1 origin +refs/pull/${{ github.event.issue.number }}/merge:refs/remotes/pull/${{ github.event.issue.number }}/merge || \
           git fetch --depth=1 origin +refs/pull/${{ github.event.issue.number }}/head:refs/remotes/pull/${{ github.event.issue.number }}/head
           git checkout pull/${{ github.event.issue.number }}/merge || git checkout pull/${{ github.event.issue.number }}/head
+    - name: Generate a token
+      id: generate_token
+      uses: actions/create-github-app-token@v1
+      with:
+        app_id: ${{ inputs.gh_app_id }}
+        private_key: ${{ inputs.gh_app_private_key }}
     - name: Rerun if comment phrase
       if: ${{ github.event.comment.body == inputs.comment_phrase }}
       uses: ./.github/actions/rerun-job-action
       with:
-        github_token: ${{ inputs.github_token }}
+        github_token: ${{ steps.generate_token.outputs.token }}
         github_job: ${{ inputs.github_job || github.job }}
         github_repository: ${{ github.repository }}     
         github_current_run_id: ${{ github.run_id }}
         pull_request_url: ${{ github.event.issue.pull_request.url }}
+        steps_context: ${{ inputs.steps_context }}
     ## Used for jobs that spawn docker containers and need to mount gcloud config directory
     - name: expose gcloud path
       shell: bash

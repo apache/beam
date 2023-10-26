@@ -18,6 +18,13 @@ name: LoadTests Java GBK Smoke
 on:
   workflow_dispatch:
 
+
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.comment.body || github.event.sender.login }}'
+  cancel-in-progress: true
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -32,12 +39,6 @@ permissions:
   pages: read
   repository-projects: read
   security-events: read
-  statuses: read
-
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.comment.body || github.event.sender.login }}'
-  cancel-in-progress: true
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
@@ -64,7 +65,8 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -84,6 +86,7 @@ jobs:
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run GroupByKey load test Direct
+        id: run_groupbykey_load_test_direct
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -92,6 +95,7 @@ jobs:
             -Prunner=:runners:direct-java  \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_1 }}' \
       - name: run GroupByKey load test Dataflow
+        id: run_groupbykey_load_test_dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -100,6 +104,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_2 }}' \
       - name: run GroupByKey load test Flink
+        id: run_groupbykey_load_test_flink
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -109,6 +114,7 @@ jobs:
             -Prunner=:runners:flink:1.15 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_3 }}' \
       - name: run GroupByKey load test Spark
+        id: run_groupbykey_load_test_spark
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run

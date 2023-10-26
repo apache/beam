@@ -22,7 +22,6 @@ on:
     - cron: '50 3 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: read
@@ -69,8 +68,10 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
       - name: Setup Python environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -90,6 +91,7 @@ jobs:
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: run Pytorch Vision Classification with Resnet 101
+        id: run_pytorch_vision_classification_resnet_101
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -101,6 +103,7 @@ jobs:
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_1 }} --job_name=benchmark-tests-pytorch-imagenet-python-101-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet101-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Imagenet Classification with Resnet 152
+        id: run_pytorch_imagenet_classification_resnet_152
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -112,6 +115,7 @@ jobs:
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_2 }} --job_name=benchmark-tests-pytorch-imagenet-python-152-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Language Modeling using Hugging face bert-base-uncased model
+        id: run_pytorch_language_modeling_bert_base_uncased
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -123,6 +127,7 @@ jobs:
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_3 }} --job_name=benchmark-tests-pytorch-language-modeling-bert-base-uncased-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Langauge Modeling using Hugging Face bert-large-uncased model
+        id: run_pytorch_language_modeling_bert_large_uncased
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -134,6 +139,7 @@ jobs:
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_4 }} --job_name=benchmark-tests-pytorch-language-modeling-bert-large-uncased-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU
+        id: run_pytorch_imagenet_classification_resnet_152_gpu
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:

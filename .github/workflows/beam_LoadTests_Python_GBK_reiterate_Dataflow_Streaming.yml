@@ -67,7 +67,8 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -85,6 +86,7 @@ jobs:
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run reiterate 4 times 10kB values test
+        id: run_reiterate_4_times_10kb_values_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
@@ -94,6 +96,7 @@ jobs:
             -PpythonVersion=3.8 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_reiterate_Dataflow_Streaming_test_arguments_1 }} --job_name=load-tests-python-dataflow-streaming-gbk-6-${{env.NOW_UTC}}' \
       - name: run reiterate 4 times 2MB values test
+        id: run_reiterate_4_times_2mb_values_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

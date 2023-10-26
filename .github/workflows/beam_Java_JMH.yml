@@ -20,6 +20,18 @@ on:
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_HOST: http://10.128.0.96:8086
+  INFLUXDB_DATABASE: beam_test_metrics
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -36,18 +48,6 @@ permissions:
   security-events: read
   statuses: read
 
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
-  cancel-in-progress: true
-
-env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  INFLUXDB_HOST: http://10.128.0.96:8086
-  INFLUXDB_DATABASE: beam_test_metrics
-
 jobs:
   beam_Java_JMH:
     if: |
@@ -61,10 +61,12 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: run the Java JMH micro-benchmark harness suite
+        id: run_the_java_jmh_micro_benchmark_harness_suite
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:harness:jmh:jmh
       - name: run the Java JMH micro-benchmark core suite
+        id: run_the_java_jmh_micro_benchmark_core_suite
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:core:jmh:jmh

@@ -77,7 +77,8 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -91,6 +92,7 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: run Python Integration PreCommit batch script
+        id: run_python_integration_precommit_batch_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_batch
@@ -98,6 +100,7 @@ jobs:
             -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: run Python Integration PreCommit streaming script
+        id: run_python_integration_precommit_streaming_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitIT_streaming

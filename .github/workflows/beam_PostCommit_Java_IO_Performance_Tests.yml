@@ -26,21 +26,7 @@ on:
   - cron: '0 4/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
-permissions:
-  actions: write
-  pull-requests: read
-  checks: read
-  contents: read
-  deployments: read
-  id-token: none
-  issues: read
-  discussions: read
-  packages: read
-  pages: read
-  repository-projects: read
-  security-events: read
-  statuses: read
+
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -72,7 +58,8 @@ jobs:
       uses: ./.github/actions/setup-action
       with:
         comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_case }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        gh_app_id: ${{ secrets.GH_APP_ID }}
+        gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
     - name: Checkout release branch
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
@@ -92,6 +79,7 @@ jobs:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         export_default_credentials: true
     - name: run scheduled javaPostcommitIOPerformanceTests script
+      id: run_scheduled_javapostcommitioperformancetests_script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
@@ -100,6 +88,7 @@ jobs:
         exportDataset: performance_tests
         exportTable: io_performance_metrics
     - name: run triggered javaPostcommitIOPerformanceTests script
+      id: run_triggered_javapostcommitioperformancetests_script
       if: github.event_name != 'schedule'
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:

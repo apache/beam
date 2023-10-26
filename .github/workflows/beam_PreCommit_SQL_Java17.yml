@@ -76,8 +76,10 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
 # The test requires Java 17 and Java 8 versions.
 # Java 8 is installed second because JAVA_HOME needs to point to Java 8.
       - name: Setup environment
@@ -88,6 +90,7 @@ jobs:
             8
           python-version: 3.8
       - name: Build and Test
+        id: build_and_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sqlPreCommit

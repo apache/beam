@@ -20,21 +20,7 @@ on:
     - cron: '0 13 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
-permissions:
-  actions: write
-  pull-requests: read
-  checks: read
-  contents: read
-  deployments: read
-  id-token: none
-  issues: read
-  discussions: read
-  packages: read
-  pages: read
-  repository-projects: read
-  security-events: read
-  statuses: read
+
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -63,11 +49,17 @@ jobs:
         job_phrase: ["Publish Docker Snapshots"]
     steps:
       - uses: actions/checkout@v3
+      - name: Generate a token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate_token.outputs.token }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -81,6 +73,7 @@ jobs:
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
+          steps_context: ${{ toJson(steps) }}
       - name: run Publish Docker Snapshots script for Spark
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

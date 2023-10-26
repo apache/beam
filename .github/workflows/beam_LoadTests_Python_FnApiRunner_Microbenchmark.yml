@@ -67,8 +67,10 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -81,6 +83,7 @@ jobs:
           argument-file-paths: |
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_FnApiRunner_Microbenchmark.txt
       - name: run FnApiRunner Microbenchmark Python Load Test
+        id: run_fnapirunner_microbenchmark_python_load_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run

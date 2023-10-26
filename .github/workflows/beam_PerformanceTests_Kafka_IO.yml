@@ -20,7 +20,6 @@ on:
     - cron: '10 10/12 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
   pull-requests: write
@@ -69,8 +68,10 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
@@ -110,6 +111,7 @@ jobs:
             --kafkaBootstrapServerAddresses=${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_0 }}:${{ env.KAFKA_SERVICE_PORT }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_1 }}:${{ env.KAFKA_SERVICE_PORT }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_2 }}:${{ env.KAFKA_SERVICE_PORT }}
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Run Java KafkaIO Performance Streaming Test
+        id: run_java_kafkaio_performance_streaming_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:kafka:integrationTest
@@ -119,6 +121,7 @@ jobs:
             -DintegrationTestRunner=dataflow \
             -DintegrationTestPipelineOptions='[${{env.beam_PerformanceTests_Kafka_IO_test_arguments_1}}]' \
       - name: Run Java KafkaIO Performance Batch Test
+        id: run_java_kafkaio_performance_batch_test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:kafka:integrationTest

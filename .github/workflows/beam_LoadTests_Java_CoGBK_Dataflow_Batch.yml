@@ -67,7 +67,8 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
@@ -83,6 +84,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_2MB.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB 100  byte records - single key
+        id: run_cogbk_2gb_100_byte_records_single_key
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -91,6 +93,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Batch_test_arguments_1 }} --appName=load_tests_Java_Dataflow_batch_CoGBK_1' \
       - name: run CoGBK 2GB 100 byte records - multiple keys
+        id: run_cogbk_2gb_100_byte_records_multiple_keys
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -99,6 +102,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Batch_test_arguments_2 }} --appName=load_tests_Java_Dataflow_batch_CoGBK_2' \
       - name: run CoGBK 2GB reiteration 10kB value
+        id: run_cogbk_2gb_reiteration_10kb_value
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
@@ -107,6 +111,7 @@ jobs:
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Batch_test_arguments_3 }} --appName=load_tests_Java_Dataflow_batch_CoGBK_3' \
       - name: run CoGBK 2GB reiteration 2MB value
+        id: run_cogbk_2gb_reiteration_2mb_value
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run

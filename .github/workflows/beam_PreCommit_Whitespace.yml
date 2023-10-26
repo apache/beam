@@ -29,20 +29,7 @@ on:
     - cron: '15 3/6 * * *'
   workflow_dispatch:
 
-permissions:
-  actions: write
-  pull-requests: read
-  checks: read
-  contents: read
-  deployments: read
-  id-token: none
-  issues: read
-  discussions: read
-  packages: read
-  pages: read
-  repository-projects: read
-  security-events: read
-  statuses: read
+
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -75,14 +62,17 @@ jobs:
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_app_id: ${{ secrets.GH_APP_ID }}
+          gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          steps_context: ${{ toJson(steps) }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: 8
           python-version: 3.8
       - name: run whitespacePreCommit script
+        id: run_whitespaceprecommit_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :whitespacePreCommit
