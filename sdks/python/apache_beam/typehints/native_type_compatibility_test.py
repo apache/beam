@@ -132,8 +132,8 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       test_cases = [
           ('builtin dict', dict[str, int], typehints.Dict[str, int]),
           ('builtin list', list[str], typehints.List[str]),
-          ('builtin tuple', tuple[str], typehints.Tuple[str]),
-          ('builtin set', set[str], typehints.Set[str]),
+          ('builtin tuple', tuple[str],
+           typehints.Tuple[str]), ('builtin set', set[str], typehints.Set[str]),
           ('builtin frozenset', frozenset[int], typehints.FrozenSet[int]),
           (
               'nested builtin',
