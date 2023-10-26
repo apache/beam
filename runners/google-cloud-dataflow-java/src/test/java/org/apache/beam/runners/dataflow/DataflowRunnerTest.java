@@ -242,7 +242,7 @@ public class DataflowRunnerTest implements Serializable {
     mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
   }
 
-  private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
+  private static Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
     options.setStableUniqueNames(CheckEnabled.ERROR);
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
@@ -256,7 +256,7 @@ public class DataflowRunnerTest implements Serializable {
     return p;
   }
 
-  private Pipeline buildDataflowPipelineWithLargeGraph(DataflowPipelineOptions options) {
+  private static Pipeline buildDataflowPipelineWithLargeGraph(DataflowPipelineOptions options) {
     options.setStableUniqueNames(CheckEnabled.ERROR);
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
