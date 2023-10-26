@@ -96,7 +96,7 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
       // translator = FlinkUnifiedPipelineTranslator.createTranslator(false, true);
       translator = FlinkBatchPortablePipelineTranslator.createTranslator();
     } else {
-      translator = new FlinkStreamingPortablePipelineTranslator();
+      translator = FlinkUnifiedPipelineTranslator.createTranslator(true, true);
     }
     return runPipelineWithTranslator(pipeline, jobInfo, translator);
   }
