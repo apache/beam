@@ -145,30 +145,27 @@ public class ReadSourcePortableTest implements Serializable {
     }
   }
 
-  private static class Source extends BoundedSource<Long> {
+  private static class Source extends UnboundedSource<Long, Source.Checkpoint> {
 
     private final int count;
+    private final Instant now = Instant.now();
 
     Source(int count) {
       this.count = count;
     }
 
     @Override
-    public List<? extends BoundedSource<Long>> split(
-        long desiredBundleSizeBytes, PipelineOptions options) {
+    public List<? extends UnboundedSource<Long, Checkpoint>> split(
+        int desiredNumSplits, PipelineOptions options) {
 
       return Collections.singletonList(this);
     }
 
     @Override
-    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      return -1;
-    }
+    public UnboundedReader<Long> createReader(
+        PipelineOptions options, @Nullable Checkpoint checkpointMark) {
 
-    @Override
-    public BoundedReader<Long> createReader(PipelineOptions options) {
-
-      return new BoundedReader<Long>() {
+      return new UnboundedReader<Long>() {
         int pos = -1;
 
         @Override
@@ -182,7 +179,19 @@ public class ReadSourcePortableTest implements Serializable {
         }
 
         @Override
-        public BoundedSource<Long> getCurrentSource() {
+        public Instant getWatermark() {
+          return pos < count
+              ? BoundedWindow.TIMESTAMP_MIN_VALUE
+              : BoundedWindow.TIMESTAMP_MAX_VALUE;
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          return new Checkpoint(pos);
+        }
+
+        @Override
+        public UnboundedSource<Long, ?> getCurrentSource() {
           return Source.this;
         }
 
@@ -192,14 +201,40 @@ public class ReadSourcePortableTest implements Serializable {
         }
 
         @Override
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          return now;
+        }
+
+        @Override
         public void close() {}
       };
+    }
+
+    @Override
+    public boolean requiresDeduping() {
+      return false;
     }
 
     @Override
     public Coder<Long> getOutputCoder() {
       // use SerializableCoder to test custom java coders work
       return SerializableCoder.of(Long.class);
+    }
+
+    @Override
+    public Coder<Checkpoint> getCheckpointMarkCoder() {
+      return SerializableCoder.of(Checkpoint.class);
+    }
+
+    private static class Checkpoint implements CheckpointMark, Serializable {
+      final int pos;
+
+      Checkpoint(int pos) {
+        this.pos = pos;
+      }
+
+      @Override
+      public void finalizeCheckpoint() {}
     }
   }
 }

@@ -96,9 +96,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
       // translator = FlinkUnifiedPipelineTranslator.createTranslator(false, true);
       translator = FlinkBatchPortablePipelineTranslator.createTranslator();
     } else {
-      translator = FlinkUnifiedPipelineTranslator.createTranslator(true, true);
+      translator = new FlinkStreamingPortablePipelineTranslator();
     }
-
     return runPipelineWithTranslator(pipeline, jobInfo, translator);
   }
 
@@ -132,7 +131,6 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
         translator.translate(
             translator.createTranslationContext(jobInfo, pipelineOptions, confDir, filesToStage),
             fusedPipeline);
-
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return createPortablePipelineResult(result, pipelineOptions);
