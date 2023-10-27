@@ -105,6 +105,10 @@ class DaskRunnerResult(PipelineResult):
         # Convert milliseconds to seconds
         duration /= 1000
       distributed.wait(self.futures, timeout=duration)
+      # worker errors are not raised on client without gathering,
+      # so we need to gather to ensure there are no errors, see:
+      # https://distributed.dask.org/en/stable/resilience.html#user-code-failures
+      self.client.gather(self.futures)
       self._state = PipelineState.DONE
     except:  # pylint: disable=broad-except
       self._state = PipelineState.FAILED
