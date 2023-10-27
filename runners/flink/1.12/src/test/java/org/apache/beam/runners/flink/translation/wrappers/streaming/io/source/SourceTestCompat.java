@@ -33,12 +33,25 @@ public class SourceTestCompat {
   public static class TestMetricGroup
       extends UnregisteredMetricGroups.UnregisteredOperatorMetricGroup {
     public final Map<String, Gauge<?>> registeredGauge = new HashMap<>();
+    public final Map<String, Counter> registeredCounter = new HashMap<>();
     public final Counter numRecordsInCounter = new SimpleCounter();
 
     @Override
     public <T, GaugeT extends Gauge<T>> GaugeT gauge(String name, GaugeT gauge) {
       registeredGauge.put(name, gauge);
       return gauge;
+    }
+
+    @Override
+    public Counter counter(String name) {
+      // The OperatorIOMetricsGroup will register some IO metrics in the constructor.
+      // At that time, the construction of this class has not finihsed yet, so we
+      // need to delegate the call to the parent class.
+      if (registeredCounter != null) {
+        return registeredCounter.computeIfAbsent(name, ignored -> super.counter(name));
+      } else {
+        return super.counter(name);
+      }
     }
 
     @Override

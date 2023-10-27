@@ -29,6 +29,9 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -40,6 +43,9 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
  * An implementation of {@link org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider} for
  * writing to a JDBC connections using {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 @AutoService(SchemaTransformProvider.class)
 public class JdbcWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
@@ -82,6 +88,11 @@ public class JdbcWriteSchemaTransformProvider
         dsConfig = dsConfig.withConnectionInitSqls(initialSql);
       }
 
+      String driverJars = config.getDriverJars();
+      if (driverJars != null) {
+        dsConfig = dsConfig.withDriverJars(config.getDriverJars());
+      }
+
       return dsConfig;
     }
 
@@ -92,7 +103,9 @@ public class JdbcWriteSchemaTransformProvider
       } else {
         StringBuilder statement = new StringBuilder("INSERT INTO ");
         statement.append(config.getLocation());
-        statement.append(" VALUES(");
+        statement.append(" (");
+        statement.append(String.join(", ", schema.getFieldNames()));
+        statement.append(") VALUES(");
         for (int i = 0; i < schema.getFieldCount() - 1; i++) {
           statement.append("?, ");
         }
@@ -101,19 +114,30 @@ public class JdbcWriteSchemaTransformProvider
       }
     }
 
+    private static class NoOutputDoFn<T> extends DoFn<T, Row> {
+      @ProcessElement
+      public void process(ProcessContext c) {}
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      JdbcIO.Write<Row> writeRows =
+      JdbcIO.WriteVoid<Row> writeRows =
           JdbcIO.<Row>write()
               .withDataSourceConfiguration(dataSourceConfiguration())
               .withStatement(writeStatement(input.get("input").getSchema()))
-              .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+              .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter())
+              .withResults();
       Boolean autosharding = config.getAutosharding();
       if (autosharding != null && autosharding) {
         writeRows = writeRows.withAutoSharding();
       }
-      input.get("input").apply(writeRows);
-      return PCollectionRowTuple.empty(input.getPipeline());
+      PCollection<Row> postWrite =
+          input
+              .get("input")
+              .apply(writeRows)
+              .apply("post-write", ParDo.of(new NoOutputDoFn<>()))
+              .setRowSchema(Schema.of());
+      return PCollectionRowTuple.of("post_write", postWrite);
     }
   }
 
@@ -164,6 +188,9 @@ public class JdbcWriteSchemaTransformProvider
     @Nullable
     public abstract Boolean getAutosharding();
 
+    @Nullable
+    public abstract String getDriverJars();
+
     public void validate() throws IllegalArgumentException {
       if (Strings.isNullOrEmpty(getDriverClassName())) {
         throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
@@ -210,6 +237,8 @@ public class JdbcWriteSchemaTransformProvider
       public abstract Builder setWriteStatement(String value);
 
       public abstract Builder setAutosharding(Boolean value);
+
+      public abstract Builder setDriverJars(String value);
 
       public abstract JdbcWriteSchemaTransformConfiguration build();
     }

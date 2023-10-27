@@ -25,6 +25,8 @@ plugins {
 // overwrite javaVersion before applyJavaNature
 if (project.hasProperty("testJavaVersion")) {
   javaVersion = "1.${project.getProperty('testJavaVersion')}" as String
+} else {
+  javaVersion = "1.11"
 }
 
 applyJavaNature(
@@ -44,9 +46,9 @@ project.tasks.compileJava {
     options.fork = true
     options.forkOptions.javaHome = project.findProperty("java${project.getProperty('testJavaVersion')}Home") as File
     if (project.getProperty('testJavaVersion') == '17') {
-      setJava17Options(options)
+      setJavaVerOptions(options, '17')
     } else if (project.getProperty('testJavaVersion') == '21') {
-      setJava21Options(options)
+      setJavaVerOptions(options, '21')
     }
   }
 }
@@ -116,7 +118,9 @@ plugins.withType(JavaPlugin).configureEach{
   }
 }
 
-// JPMS requires JDK > 8
+// JPMS requires JDK > 8. Test tasks enabled when either
+// (i) testJavaVersion property specified (assumed to be >8) or;
+// (ii) current Java version is greater than 8
 project.tasks.each {
   it.onlyIf {
     project.hasProperty('testJavaVersion')
