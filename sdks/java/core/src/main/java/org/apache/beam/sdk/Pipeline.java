@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.transform;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +31,8 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.errorhandling.ErrorHandler.PTransformErrorHandler;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -318,6 +321,7 @@ public class Pipeline {
     LOG.debug("Running {} via {}", this, runner);
     try {
       validate(options);
+      validateErrorHandlers();
       return runner.run(this);
     } catch (UserCodeException e) {
       // This serves to replace the stack with one that ends here and
@@ -341,6 +345,12 @@ public class Pipeline {
       schemaRegistry = SchemaRegistry.createDefault();
     }
     return schemaRegistry;
+  }
+
+  public <E,T extends POutput> ErrorHandler<E,T> registerErrorHandler(PTransform<PCollection<E>,T> sinkTransform){
+    ErrorHandler<E,T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
+    errorHandlers.add(errorHandler);
+    return errorHandler;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -510,6 +520,8 @@ public class Pipeline {
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final PipelineOptions defaultOptions;
+
+  private final List<ErrorHandler<?,?>> errorHandlers = new ArrayList<>();
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     this.transforms = transforms;
@@ -713,6 +725,15 @@ public class Pipeline {
     @Override
     public boolean apply(@Nonnull final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;
+    }
+  }
+
+  private void validateErrorHandlers(){
+    for (ErrorHandler<?,?> errorHandler : errorHandlers){
+      if (!errorHandler.isClosed()){
+        throw new IllegalStateException("One or more ErrorHandlers aren't closed, and this pipeline"
+            + "cannot be run. See the ErrorHandler documentation for expected usage");
+      }
     }
   }
 }
