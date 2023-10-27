@@ -561,10 +561,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">
       ✔
-      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2@v2.51.0/go/pkg/beam/io/bigtableio">native</a> (sink)
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigtableio">native</a> (sink)
       <br>
       ✔
-      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2@v2.51.0/go/pkg/beam/io/xlang/bigtableio">via X-language</a>
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio">via X-language</a>
     </td>
     <td>Not available</td>
     <td class="present">✔</td>
