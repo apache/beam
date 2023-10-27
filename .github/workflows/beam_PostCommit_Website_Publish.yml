@@ -63,3 +63,4 @@ jobs:
         with:
           gradle-command: :website:clean :website:publishWebsite
           arguments: -PgitPublishRemote="https://github.com/apache/beam.git"
+      - uses: actions/checkout@v4 # Extra checkout to make sure we're on master for post steps.
