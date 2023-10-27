@@ -36,6 +36,7 @@ from urllib.request import urlopen
 
 import grpc
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
@@ -272,7 +273,10 @@ class JavaJarServer(SubprocessServer):
           os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
-          url_read = urlopen(url)
+          try:
+            url_read = FileSystems.open(url)
+          except ValueError:
+            url_read = urlopen(url)
           with open(cached_jar + '.tmp', 'wb') as jar_write:
             shutil.copyfileobj(url_read, jar_write, length=1 << 20)
           os.rename(cached_jar + '.tmp', cached_jar)
