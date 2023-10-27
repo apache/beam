@@ -112,7 +112,7 @@ runs:
       echo run_id=$RUN_ID >> $GITHUB_ENV
 
   - name: Get Self Run ID
-    if: ${{env.no_check == 'true'}} || ${{env.manual_check == 'true'}}
+    if: ${{env.no_check == 'true' || env.manual_check == 'true'}}
     shell: bash
     run: |
       SELF_RUN_ID=${{ github.run_id }}
