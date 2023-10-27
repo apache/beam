@@ -143,3 +143,6 @@ playground/cloudfunction.zip
 
 # Exception to .gitignore .test-infra/pipelines related files
 !.test-infra/pipelines/**/apache-beam-testing.tfvars
+
+# Ignore .test-infra/mock-apis related files
+.test-infra/mock-apis/**/charts/

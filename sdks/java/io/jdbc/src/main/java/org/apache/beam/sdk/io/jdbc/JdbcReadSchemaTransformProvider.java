@@ -38,6 +38,9 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
  * An implementation of {@link org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider} for
  * reading from JDBC connections using {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 @AutoService(SchemaTransformProvider.class)
 public class JdbcReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
@@ -78,6 +81,11 @@ public class JdbcReadSchemaTransformProvider
           config.getConnectionInitSql();
       if (initialSql != null && initialSql.size() > 0) {
         dsConfig = dsConfig.withConnectionInitSqls(initialSql);
+      }
+
+      String driverJars = config.getDriverJars();
+      if (driverJars != null) {
+        dsConfig = dsConfig.withDriverJars(config.getDriverJars());
       }
 
       return dsConfig;
@@ -152,6 +160,9 @@ public class JdbcReadSchemaTransformProvider
     @Nullable
     public abstract Boolean getOutputParallelization();
 
+    @Nullable
+    public abstract String getDriverJars();
+
     public void validate() throws IllegalArgumentException {
       if (Strings.isNullOrEmpty(getDriverClassName())) {
         throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
@@ -198,6 +209,8 @@ public class JdbcReadSchemaTransformProvider
       public abstract Builder setFetchSize(Short value);
 
       public abstract Builder setOutputParallelization(Boolean value);
+
+      public abstract Builder setDriverJars(String value);
 
       public abstract JdbcReadSchemaTransformConfiguration build();
     }
