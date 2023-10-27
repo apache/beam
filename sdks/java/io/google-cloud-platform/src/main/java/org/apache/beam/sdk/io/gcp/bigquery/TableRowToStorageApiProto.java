@@ -215,14 +215,20 @@ public class TableRowToStorageApiProto {
 
   public static TableFieldSchema.Mode modeToProtoMode(
       @Nullable String defaultValueExpression, String mode) {
-    // If there is a default value expression, treat this field as if it were nullable.
-    if (defaultValueExpression != null) {
-      return TableFieldSchema.Mode.NULLABLE;
+    TableFieldSchema.Mode resultMode =
+        Optional.ofNullable(mode)
+            .map(Mode::valueOf)
+            .map(MODE_MAP_JSON_PROTO::get)
+            .orElse(TableFieldSchema.Mode.NULLABLE);
+    if (defaultValueExpression == null) {
+      return resultMode;
+    } else {
+      // If there is a default value expression, treat this field as if it were nullable or
+      // repeated.
+      return resultMode.equals(TableFieldSchema.Mode.REPEATED)
+          ? resultMode
+          : TableFieldSchema.Mode.NULLABLE;
     }
-    return Optional.ofNullable(mode)
-        .map(Mode::valueOf)
-        .map(MODE_MAP_JSON_PROTO::get)
-        .orElse(TableFieldSchema.Mode.NULLABLE);
   }
 
   public static String protoModeToJsonMode(TableFieldSchema.Mode protoMode) {

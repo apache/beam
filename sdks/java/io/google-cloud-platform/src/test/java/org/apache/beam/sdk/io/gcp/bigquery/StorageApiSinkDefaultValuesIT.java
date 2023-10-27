@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
@@ -30,6 +31,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -45,6 +47,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -146,6 +149,11 @@ public class StorageApiSinkDefaultValuesIT {
                       new TableFieldSchema().setName("key2").setType("STRING"),
                       new TableFieldSchema().setName("value").setType("STRING"),
                       new TableFieldSchema()
+                          .setName("defaultrepeated")
+                          .setType("STRING")
+                          .setMode("REPEATED")
+                          .setDefaultValueExpression("['a','b', 'c']"),
+                      new TableFieldSchema()
                           .setName("defaultliteral")
                           .setType("INT64")
                           .setDefaultValueExpression("42")
@@ -163,6 +171,11 @@ public class StorageApiSinkDefaultValuesIT {
                       new TableFieldSchema().setName("id").setType("STRING"),
                       new TableFieldSchema().setName("key2").setType("STRING"),
                       new TableFieldSchema().setName("value").setType("STRING"),
+                      new TableFieldSchema()
+                          .setName("defaultrepeated")
+                          .setType("STRING")
+                          .setMode("REPEATED")
+                          .setDefaultValueExpression("['a','b', 'c']"),
                       new TableFieldSchema()
                           .setName("defaultliteral")
                           .setType("INT64")
@@ -187,7 +200,8 @@ public class StorageApiSinkDefaultValuesIT {
             .set("id", "row1")
             .set("key2", "bar0")
             .set("value", "1")
-            .set("defaultliteral", 12);
+            .set("defaultliteral", 12)
+            .set("defaultrepeated", Lists.newArrayList("foo", "bar"));
     final TableRow row2 = new TableRow().set("id", "row2").set("key2", "bar1").set("value", "1");
     final TableRow row3 = new TableRow().set("id", "row3").set("key2", "bar2").set("value", "2");
 
@@ -245,34 +259,57 @@ public class StorageApiSinkDefaultValuesIT {
 
       if (sinkKnowsDefaultFields) {
         assertThat(resultRow1.get("defaultliteral"), equalTo("12"));
+        assertThat(
+            (Collection<String>) resultRow1.get("defaultrepeated"),
+            containsInAnyOrder("foo", "bar"));
         if (takeDefault) {
           assertNotNull(resultRow1.get("defaulttime"));
           assertNotNull(resultRow2.get("defaulttime"));
           assertThat(resultRow2.get("defaultliteral"), equalTo("42"));
+          assertThat(
+              (Collection<String>) resultRow2.get("defaultrepeated"),
+              containsInAnyOrder("a", "b", "c"));
           assertNotNull(resultRow3.get("defaulttime"));
           assertThat(resultRow3.get("defaultliteral"), equalTo("42"));
+          assertThat(
+              (Collection<String>) resultRow3.get("defaultrepeated"),
+              containsInAnyOrder("a", "b", "c"));
         } else {
           assertNull(resultRow1.get("defaulttime"));
           assertNull(resultRow2.get("defaulttime"));
           assertNull(resultRow2.get("defaultliteral"));
+          assertThat((Collection<String>) resultRow2.get("defaultrepeated"), Matchers.empty());
           assertNull(resultRow3.get("defaulttime"));
-          assertNull(resultRow2.get("defaultliteral"));
+          assertNull(resultRow3.get("defaultliteral"));
+          assertThat((Collection<String>) resultRow3.get("defaultrepeated"), Matchers.empty());
         }
       } else {
         if (takeDefault) {
           assertNotNull(resultRow1.get("defaulttime"));
           assertThat(resultRow1.get("defaultliteral"), equalTo("42"));
+          assertThat(
+              (Collection<String>) resultRow1.get("defaultrepeated"),
+              containsInAnyOrder("a", "b", "c"));
           assertNotNull(resultRow2.get("defaulttime"));
           assertThat(resultRow2.get("defaultliteral"), equalTo("42"));
+          assertThat(
+              (Collection<String>) resultRow2.get("defaultrepeated"),
+              containsInAnyOrder("a", "b", "c"));
           assertNotNull(resultRow3.get("defaulttime"));
           assertThat(resultRow3.get("defaultliteral"), equalTo("42"));
+          assertThat(
+              (Collection<String>) resultRow3.get("defaultrepeated"),
+              containsInAnyOrder("a", "b", "c"));
         } else {
           assertNull(resultRow1.get("defaulttime"));
           assertNull(resultRow1.get("defaultliteral"));
+          assertThat((Collection<String>) resultRow1.get("defaultrepeated"), Matchers.empty());
           assertNull(resultRow2.get("defaulttime"));
           assertNull(resultRow2.get("defaultliteral"));
+          assertThat((Collection<String>) resultRow2.get("defaultrepeated"), Matchers.empty());
           assertNull(resultRow3.get("defaulttime"));
-          assertNull(resultRow2.get("defaultliteral"));
+          assertNull(resultRow3.get("defaultliteral"));
+          assertThat((Collection<String>) resultRow3.get("defaultrepeated"), Matchers.empty());
         }
       }
     }
