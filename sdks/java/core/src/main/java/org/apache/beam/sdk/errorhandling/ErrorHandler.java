@@ -111,6 +111,7 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
 
     @Override
     public void close() {
+      closed = true;
       if (errorCollections.isEmpty()) {
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
         return;
@@ -118,7 +119,6 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
       sinkOutput = PCollectionList.of(errorCollections)
           .apply(Flatten.pCollections())
           .apply(sinkTransform);
-      closed = true;
     }
   }
 

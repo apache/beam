@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.errorhandling;
 
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,6 +38,7 @@ public class ErrorHandlerTest {
 
 
   @Test
+  @Category(NeedsRunner.class)
   public void testGoodErrorHandlerUsage() throws Exception {
     try (ErrorHandler<String, PCollection<String>> eh = pipeline.registerErrorHandler(new DummySinkTransform<>())){
 
@@ -55,6 +58,7 @@ public class ErrorHandlerTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testDLQEnabledPTransform(){
     PCollection<Integer> record = pipeline.apply(Create.of(1,2,3,4));
     record.apply(new DLQEnabledPTransform());
@@ -62,6 +66,7 @@ public class ErrorHandlerTest {
     pipeline.run();
   }
   @Test
+  @Category(NeedsRunner.class)
   public void testErrorHandlerWithDLQTransform() throws Exception {
     PCollection<Integer> record = pipeline.apply(Create.of(1,2,3,4));
     try (ErrorHandler<DeadLetter, PCollection<DeadLetter>> eh = pipeline.registerErrorHandler(new DummySinkTransform<>())){

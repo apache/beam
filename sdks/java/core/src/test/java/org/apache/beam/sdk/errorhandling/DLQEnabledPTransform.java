@@ -18,7 +18,11 @@
 package org.apache.beam.sdk.errorhandling;
 
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.errorhandling.ErrorHandler.NoOpErrorHandler;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -26,6 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Dummy PTransform that is configurable with a DLQ
@@ -53,9 +58,24 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
         input.apply("NoOpDoFn", ParDo.of(new NoOpDoFn(deadLetterHandler))
             .withOutputTags(RECORDS, TupleTagList.of(DeadLetterHandler.deadLetterTag)));
 
-    errorHandler.addErrorCollection(pCollectionTuple.get(DeadLetterHandler.deadLetterTag));
+    Coder<DeadLetter> deadLetterCoder;
 
-    return pCollectionTuple.get(RECORDS);
+    try {
+      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+      deadLetterCoder =
+          SchemaCoder.of(
+              schemaRegistry.getSchema(DeadLetter.class),
+              TypeDescriptor.of(DeadLetter.class),
+              schemaRegistry.getToRowFunction(DeadLetter.class),
+              schemaRegistry.getFromRowFunction(DeadLetter.class));
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
+
+    errorHandler.addErrorCollection(
+        pCollectionTuple.get(DeadLetterHandler.deadLetterTag).setCoder(deadLetterCoder));
+
+    return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
 
 

@@ -44,7 +44,6 @@ public abstract class DeadLetter implements Serializable {
   @Nullable
   public abstract String getException();
 
-
   /**The description of what was being attempted when the failure occurred*/
   public abstract String getDescription();
 
@@ -59,6 +58,7 @@ public abstract class DeadLetter implements Serializable {
   public abstract static class Builder {
     public abstract Builder setHumanReadableRecord(String humanReadableRecord);
 
+    @SuppressWarnings("mutable")
     public abstract Builder setEncodedRecord(@Nullable byte[] encodedRecord);
 
     public abstract Builder setCoder(@Nullable String coder);
@@ -68,6 +68,7 @@ public abstract class DeadLetter implements Serializable {
     public abstract Builder setDescription(String description);
 
     public abstract Builder setFailingTransform(String failingTransform);
+
     public abstract DeadLetter build();
   }
 }

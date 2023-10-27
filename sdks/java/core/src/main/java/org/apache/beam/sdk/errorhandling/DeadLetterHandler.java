@@ -37,12 +37,12 @@ public interface DeadLetterHandler {
 
   TupleTag<DeadLetter> deadLetterTag = new TupleTag<>();
 
-  <T> void handle(DoFn<?,?>.ProcessContext c,  T record,@Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform) throws Exception;
+  <T> void handle(DoFn<?,?>.ProcessContext c,  T record, @Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform) throws Exception;
 
   class ThrowingDeadLetterHandler implements DeadLetterHandler {
 
     @Override
-    public <T> void handle(DoFn<?,?>.ProcessContext c, T record,@Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform)
+    public <T> void handle(DoFn<?,?>.ProcessContext c, T record, @Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform)
         throws Exception {
       if (exception != null) throw exception;
     }
