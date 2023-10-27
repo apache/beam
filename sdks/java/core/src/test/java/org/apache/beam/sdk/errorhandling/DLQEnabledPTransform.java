@@ -32,9 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * Dummy PTransform that is configurable with a DLQ
- */
+/** Dummy PTransform that is configurable with a DLQ */
 public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
   private ErrorHandler<DeadLetter, ?> errorHandler = new NoOpErrorHandler<>();
@@ -43,8 +41,7 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
 
   private static final TupleTag<Integer> RECORDS = new TupleTag<>();
 
-  public DLQEnabledPTransform() {
-  }
+  public DLQEnabledPTransform() {}
 
   public DLQEnabledPTransform withDeadLetterQueue(ErrorHandler<DeadLetter, ?> errorHandler) {
     this.errorHandler = errorHandler;
@@ -55,8 +52,10 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
   @Override
   public PCollection<Integer> expand(PCollection<Integer> input) {
     PCollectionTuple pCollectionTuple =
-        input.apply("NoOpDoFn", ParDo.of(new NoOpDoFn(deadLetterHandler))
-            .withOutputTags(RECORDS, TupleTagList.of(DeadLetterHandler.deadLetterTag)));
+        input.apply(
+            "NoOpDoFn",
+            ParDo.of(new NoOpDoFn(deadLetterHandler))
+                .withOutputTags(RECORDS, TupleTagList.of(DeadLetterHandler.deadLetterTag)));
 
     Coder<DeadLetter> deadLetterCoder;
 
@@ -78,12 +77,11 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
 
-
   public static class NoOpDoFn extends DoFn<Integer, Integer> {
 
     private DeadLetterHandler deadLetterHandler;
 
-    public NoOpDoFn(DeadLetterHandler deadLetterHandler){
+    public NoOpDoFn(DeadLetterHandler deadLetterHandler) {
       this.deadLetterHandler = deadLetterHandler;
     }
 
@@ -93,9 +91,14 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
       if (element % 2 == 0) {
         context.output(element);
       } else {
-        deadLetterHandler.handle(context,element, BigEndianIntegerCoder.of(), new RuntimeException(), "Integer was odd", "NoOpDoFn");
+        deadLetterHandler.handle(
+            context,
+            element,
+            BigEndianIntegerCoder.of(),
+            new RuntimeException(),
+            "Integer was odd",
+            "NoOpDoFn");
       }
-
     }
   }
 }

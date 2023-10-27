@@ -30,24 +30,26 @@ public abstract class DeadLetter implements Serializable {
   /** The failing record, encoded as JSON */
   public abstract String getHumanReadableRecord();
 
-  /**Nullable to account for failing to encode, or if there is no coder for the record
-  at the time of failure */
+  /**
+   * Nullable to account for failing to encode, or if there is no coder for the record at the time
+   * of failure
+   */
   @Nullable
   @SuppressWarnings("mutable")
   public abstract byte[] getEncodedRecord();
 
-  /**The coder for the record, or null if there is no coder */
+  /** The coder for the record, or null if there is no coder */
   @Nullable
   public abstract String getCoder();
 
-  /**The exception itself, e.g. IOException. Null if there is a failure without an exception*/
+  /** The exception itself, e.g. IOException. Null if there is a failure without an exception */
   @Nullable
   public abstract String getException();
 
-  /**The description of what was being attempted when the failure occurred*/
+  /** The description of what was being attempted when the failure occurred */
   public abstract String getDescription();
 
-  /**The particular sub-transform that failed.*/
+  /** The particular sub-transform that failed. */
   public abstract String getFailingTransform();
 
   public static Builder builder() {

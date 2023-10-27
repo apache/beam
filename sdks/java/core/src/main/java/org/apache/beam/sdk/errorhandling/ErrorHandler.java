@@ -34,23 +34,21 @@ import org.slf4j.LoggerFactory;
  * An Error Handler is a utility object used for plumbing error PCollections to a configured sink
  * Error Handlers must be closed before a pipeline is run to properly pipe error collections to the
  * sink, and the pipeline will be rejected if any handlers aren't closed.
- * @param <E> The type of the error object. This will usually be a {@link DeadLetter}, but can
- * be any type
+ *
+ * @param <E> The type of the error object. This will usually be a {@link DeadLetter}, but can be
+ *     any type
  * @param <T> The return type of the sink PTransform.
- * <p>
- * Usage of Error Handlers:
- * <p>
- * Simple usage with one DLQ
- * <pre>{@code
+ *     <p>Usage of Error Handlers:
+ *     <p>Simple usage with one DLQ
+ *     <pre>{@code
  * PCollection<?> records = ...;
  * try (ErrorHandler<E,T> errorHandler = pipeline.registerErrorHandler(SomeSink.write())) {
  *  PCollection<?> results = records.apply(SomeIO.write().withDeadLetterQueue(errorHandler));
  * }
  * results.apply(SomeOtherTransform);
  * }</pre>
- *
- * Usage with multiple DLQ stages
- * <pre>{@code
+ *     Usage with multiple DLQ stages
+ *     <pre>{@code
  * PCollection<?> records = ...;
  * try (ErrorHandler<E,T> errorHandler = pipeline.registerErrorHandler(SomeSink.write())) {
  *  PCollection<?> results = records.apply(SomeIO.write().withDeadLetterQueue(errorHandler))
@@ -67,15 +65,14 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
 
   T getOutput();
 
-  class PTransformErrorHandler<E,T extends POutput> implements ErrorHandler<E,T> {
+  class PTransformErrorHandler<E, T extends POutput> implements ErrorHandler<E, T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
     private final PTransform<PCollection<E>, T> sinkTransform;
 
     private final List<PCollection<E>> errorCollections = new ArrayList<>();
 
-    @Nullable
-    private T sinkOutput = null;
+    @Nullable private T sinkOutput = null;
 
     private boolean closed = false;
 
@@ -104,7 +101,7 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
         throw new IllegalStateException(
             "ErrorHandler must be finalized before the output can be returned");
       }
-      //make the static analysis checker happy
+      // make the static analysis checker happy
       Preconditions.checkArgumentNotNull(sinkOutput);
       return sinkOutput;
     }
@@ -116,18 +113,16 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
         return;
       }
-      sinkOutput = PCollectionList.of(errorCollections)
-          .apply(Flatten.pCollections())
-          .apply(sinkTransform);
+      sinkOutput =
+          PCollectionList.of(errorCollections).apply(Flatten.pCollections()).apply(sinkTransform);
     }
   }
 
   @Internal
-  class NoOpErrorHandler<E,T extends POutput> implements ErrorHandler<E,T> {
+  class NoOpErrorHandler<E, T extends POutput> implements ErrorHandler<E, T> {
 
     @Override
-    public void addErrorCollection(PCollection<E> errorCollection) {
-    }
+    public void addErrorCollection(PCollection<E> errorCollection) {}
 
     @Override
     public boolean isClosed() {

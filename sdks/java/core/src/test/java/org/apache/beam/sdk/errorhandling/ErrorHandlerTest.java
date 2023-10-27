@@ -31,24 +31,20 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ErrorHandlerTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(NeedsRunner.class)
   public void testGoodErrorHandlerUsage() throws Exception {
-    try (ErrorHandler<String, PCollection<String>> eh = pipeline.registerErrorHandler(new DummySinkTransform<>())){
-
-    }
+    try (ErrorHandler<String, PCollection<String>> eh =
+        pipeline.registerErrorHandler(new DummySinkTransform<>())) {}
 
     pipeline.run();
   }
 
   @Test
-  public void testBadErrorHandlerUsage(){
+  public void testBadErrorHandlerUsage() {
 
     pipeline.registerErrorHandler(new DummySinkTransform<PCollection<String>>());
 
@@ -59,23 +55,26 @@ public class ErrorHandlerTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDLQEnabledPTransform(){
-    PCollection<Integer> record = pipeline.apply(Create.of(1,2,3,4));
+  public void testDLQEnabledPTransform() {
+    PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     record.apply(new DLQEnabledPTransform());
 
     pipeline.run();
   }
+
   @Test
   @Category(NeedsRunner.class)
   public void testErrorHandlerWithDLQTransform() throws Exception {
-    PCollection<Integer> record = pipeline.apply(Create.of(1,2,3,4));
-    try (ErrorHandler<DeadLetter, PCollection<DeadLetter>> eh = pipeline.registerErrorHandler(new DummySinkTransform<>())){
+    PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
+    try (ErrorHandler<DeadLetter, PCollection<DeadLetter>> eh =
+        pipeline.registerErrorHandler(new DummySinkTransform<>())) {
       record.apply(new DLQEnabledPTransform().withDeadLetterQueue(eh));
     }
 
     pipeline.run();
   }
-  public static class DummySinkTransform<T extends PCollection<?>> extends PTransform<T,T> {
+
+  public static class DummySinkTransform<T extends PCollection<?>> extends PTransform<T, T> {
 
     @Override
     public T expand(T input) {

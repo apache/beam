@@ -37,12 +37,25 @@ public interface DeadLetterHandler {
 
   TupleTag<DeadLetter> deadLetterTag = new TupleTag<>();
 
-  <T> void handle(DoFn<?,?>.ProcessContext c,  T record, @Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform) throws Exception;
+  <T> void handle(
+      DoFn<?, ?>.ProcessContext c,
+      T record,
+      @Nullable Coder<T> coder,
+      @Nullable Exception exception,
+      String description,
+      String failingTransform)
+      throws Exception;
 
   class ThrowingDeadLetterHandler implements DeadLetterHandler {
 
     @Override
-    public <T> void handle(DoFn<?,?>.ProcessContext c, T record, @Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform)
+    public <T> void handle(
+        DoFn<?, ?>.ProcessContext c,
+        T record,
+        @Nullable Coder<T> coder,
+        @Nullable Exception exception,
+        String description,
+        String failingTransform)
         throws Exception {
       if (exception != null) throw exception;
     }
@@ -53,24 +66,32 @@ public interface DeadLetterHandler {
     private static final Logger LOG = LoggerFactory.getLogger(RecordingDeadLetterHandler.class);
 
     @Override
-    public <T> void handle(DoFn<?,?>.ProcessContext c, T record, @Nullable Coder<T> coder, @Nullable Exception exception, String description, String failingTransform)
+    public <T> void handle(
+        DoFn<?, ?>.ProcessContext c,
+        T record,
+        @Nullable Coder<T> coder,
+        @Nullable Exception exception,
+        String description,
+        String failingTransform)
         throws Exception {
       Preconditions.checkArgumentNotNull(record);
       ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-      DeadLetter.Builder deadLetterBuilder = DeadLetter.builder()
-          .setHumanReadableRecord(objectWriter.writeValueAsString(record))
-          .setDescription(description)
-          .setFailingTransform(failingTransform);
+      DeadLetter.Builder deadLetterBuilder =
+          DeadLetter.builder()
+              .setHumanReadableRecord(objectWriter.writeValueAsString(record))
+              .setDescription(description)
+              .setFailingTransform(failingTransform);
 
-      //Its possible for us to want to handle an error scenario where no actual exception objet exists
-      if (exception != null){
+      // Its possible for us to want to handle an error scenario where no actual exception objet
+      // exists
+      if (exception != null) {
         deadLetterBuilder.setException(exception.toString());
       }
 
-      //We will sometimes not have a coder for a failing record, for example if it has already been
-      //modified within the dofn.
-      if (coder != null){
+      // We will sometimes not have a coder for a failing record, for example if it has already been
+      // modified within the dofn.
+      if (coder != null) {
         deadLetterBuilder.setCoder(coder.toString());
 
         try {
@@ -78,14 +99,15 @@ public interface DeadLetterHandler {
           coder.encode(record, stream);
           byte[] bytes = stream.toByteArray();
           deadLetterBuilder.setEncodedRecord(bytes);
-        } catch (IOException e){
-          LOG.error("Unable to encode failing record using provided coder."
-              + " DeadLetter will be published without encoded bytes", e);
+        } catch (IOException e) {
+          LOG.error(
+              "Unable to encode failing record using provided coder."
+                  + " DeadLetter will be published without encoded bytes",
+              e);
         }
       }
       DeadLetter deadLetter = deadLetterBuilder.build();
-      c.output(deadLetterTag,deadLetter);
+      c.output(deadLetterTag, deadLetter);
     }
   }
-
 }

@@ -347,8 +347,9 @@ public class Pipeline {
     return schemaRegistry;
   }
 
-  public <E,T extends POutput> ErrorHandler<E,T> registerErrorHandler(PTransform<PCollection<E>,T> sinkTransform){
-    ErrorHandler<E,T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
+  public <E, T extends POutput> ErrorHandler<E, T> registerErrorHandler(
+      PTransform<PCollection<E>, T> sinkTransform) {
+    ErrorHandler<E, T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
     errorHandlers.add(errorHandler);
     return errorHandler;
   }
@@ -521,7 +522,7 @@ public class Pipeline {
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final PipelineOptions defaultOptions;
 
-  private final List<ErrorHandler<?,?>> errorHandlers = new ArrayList<>();
+  private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     this.transforms = transforms;
@@ -728,11 +729,12 @@ public class Pipeline {
     }
   }
 
-  private void validateErrorHandlers(){
-    for (ErrorHandler<?,?> errorHandler : errorHandlers){
-      if (!errorHandler.isClosed()){
-        throw new IllegalStateException("One or more ErrorHandlers aren't closed, and this pipeline"
-            + "cannot be run. See the ErrorHandler documentation for expected usage");
+  private void validateErrorHandlers() {
+    for (ErrorHandler<?, ?> errorHandler : errorHandlers) {
+      if (!errorHandler.isClosed()) {
+        throw new IllegalStateException(
+            "One or more ErrorHandlers aren't closed, and this pipeline"
+                + "cannot be run. See the ErrorHandler documentation for expected usage");
       }
     }
   }
