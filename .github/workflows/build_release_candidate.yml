@@ -291,7 +291,7 @@ jobs:
         with:
           python-version: '3.8'
       - name: Install node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Install Java 8
