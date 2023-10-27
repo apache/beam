@@ -27,31 +27,11 @@ from typing import Optional
 from typing import Union
 
 import js2py
-from js2py.base import JsObjectWrapper
-from js2py.base import PyJsArray
-from js2py.base import PyJsArrayBuffer
-from js2py.base import PyJsBoolean
-from js2py.base import PyJsError
-from js2py.base import PyJsFloat32Array
-from js2py.base import PyJsFloat64Array
-from js2py.base import PyJsInt16Array
-from js2py.base import PyJsInt32Array
-from js2py.base import PyJsInt8Array
-from js2py.base import PyJsNull
-from js2py.base import PyJsNumber
-from js2py.base import PyJsObject
-from js2py.base import PyJsString
-from js2py.base import PyJsUint16Array
-from js2py.base import PyJsUint32Array
-from js2py.base import PyJsUint8Array
-from js2py.base import PyJsUint8ClampedArray
-from js2py.base import PyJsUndefined
-from js2py.base import to_python
-from js2py.constructors.jsdate import PyJsDate
-from js2py.internals.simplex import JsException
+from js2py import base
+from js2py.constructors import jsdate
+from js2py.internals import simplex
 
 import apache_beam as beam
-from apache_beam import Row
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -100,16 +80,13 @@ class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
 
 
 def row_to_dict(row):
-  if (str(type(row).__name__).startswith('BeamSchema_') or
-      isinstance(row, Row)):
+  if ((isinstance(row, tuple) and hasattr(row, '_asdict')) or
+      isinstance(row, beam.Row)):
     row = row._asdict()
   if isinstance(row, dict):
-    for key, value in row.items():
-      row[key] = row_to_dict(value)
+    return {key: row_to_dict(value) for key, value in row.items()}
   elif not isinstance(row, str) and isinstance(row, Iterable):
-    row_list = list(row)
-    for idx in range(len(row_list)):
-      row_list[idx] = row_to_dict(row_list[idx])
+    return [row_to_dict(value) for value in list(row)]
   return row
 
 
@@ -119,36 +96,35 @@ def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
 
   js_array_type = (
-      PyJsArray,
-      PyJsArrayBuffer,
-      PyJsInt8Array,
-      PyJsUint8Array,
-      PyJsUint8ClampedArray,
-      PyJsInt16Array,
-      PyJsUint16Array,
-      PyJsInt32Array,
-      PyJsUint32Array,
-      PyJsFloat32Array,
-      PyJsFloat64Array)
+      base.PyJsArray,
+      base.PyJsArrayBuffer,
+      base.PyJsInt8Array,
+      base.PyJsUint8Array,
+      base.PyJsUint8ClampedArray,
+      base.PyJsInt16Array,
+      base.PyJsUint16Array,
+      base.PyJsInt32Array,
+      base.PyJsUint32Array,
+      base.PyJsFloat32Array,
+      base.PyJsFloat64Array)
 
   def _js_object_to_py_object(obj):
-    if isinstance(obj, (PyJsNumber, PyJsString, PyJsBoolean)):
-      obj = to_python(obj)
+    if isinstance(obj, (base.PyJsNumber, base.PyJsString, base.PyJsBoolean)):
+      return base.to_python(obj)
     elif isinstance(obj, js_array_type):
       return [_js_object_to_py_object(value) for value in obj.to_list()]
-    elif isinstance(obj, PyJsDate):
-      obj = obj.to_utc_dt()
-    elif isinstance(obj, (PyJsNull, PyJsUndefined)):
+    elif isinstance(obj, jsdate.PyJsDate):
+      return obj.to_utc_dt()
+    elif isinstance(obj, (base.PyJsNull, base.PyJsUndefined)):
       return None
-    elif isinstance(obj, PyJsError):
+    elif isinstance(obj, base.PyJsError):
       raise RuntimeError(obj['message'])
-    elif isinstance(obj, PyJsObject):
+    elif isinstance(obj, base.PyJsObject):
       return {
           key: _js_object_to_py_object(value['value'])
-          for key,
-          value in obj.own.items()
+          for (key, value) in obj.own.items()
       }
-    elif isinstance(obj, JsObjectWrapper):
+    elif isinstance(obj, base.JsObjectWrapper):
       return _js_object_to_py_object(obj._obj)
 
     return obj
@@ -156,7 +132,7 @@ def _expand_javascript_mapping_func(
   def _catch_js_errors(func):
     try:
       result = func()
-    except JsException as e:
+    except simplex.JsException as e:
       result = getattr(e, 'mes')
     return result
 
