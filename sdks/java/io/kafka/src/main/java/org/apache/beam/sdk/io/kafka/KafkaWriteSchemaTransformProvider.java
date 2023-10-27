@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -60,7 +61,7 @@ public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
 
-  public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
+  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
@@ -70,6 +71,8 @@ public class KafkaWriteSchemaTransformProvider
       Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
+
+  private static final String PAYLOAD = "payload";
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
@@ -131,10 +134,18 @@ public class KafkaWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
-      final SerializableFunction<Row, byte[]> toBytesFn =
-          configuration.getFormat().equals("JSON")
-              ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-              : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      final SerializableFunction<Row, byte[]> toBytesFn;
+      if (configuration.getFormat().equals("RAW")) {
+        if (!inputSchema.hasField(PAYLOAD)) {
+          throw new IllegalArgumentException(
+              "To write to Kafka in RAW format, the input schema must provide the payload attribute.");
+        }
+        toBytesFn = getRowToRawBytesFunction();
+      } else if (configuration.getFormat().equals("JSON")) {
+        toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
+      } else {
+        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      }
 
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       PCollectionTuple outputTuple =
@@ -161,6 +172,19 @@ public class KafkaWriteSchemaTransformProvider
       return PCollectionRowTuple.of(
           "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
+  }
+
+  public static SerializableFunction<Row, byte[]> getRowToRawBytesFunction() {
+    return new SimpleFunction<Row, byte[]>() {
+      @Override
+      public byte[] apply(Row input) {
+        byte[] rawBytes = input.getBytes(PAYLOAD);
+        if (rawBytes == null) {
+          throw new NullPointerException();
+        }
+        return rawBytes;
+      }
+    };
   }
 
   @Override
@@ -193,7 +217,7 @@ public class KafkaWriteSchemaTransformProvider
     @SchemaFieldDescription(
         "A list of host/port pairs to use for establishing the initial connection to the"
             + " Kafka cluster. The client will make use of all servers irrespective of which servers are specified"
-            + " here for bootstrapping—this list only impacts the initial hosts used to discover the full set"
+            + " here for bootstrappingâ€”this list only impacts the initial hosts used to discover the full set"
             + " of servers. | Format: host1:port1,host2:port2,...")
     public abstract String getBootstrapServers();
 

@@ -49,6 +49,7 @@
 - type: renaming
   transforms:
     'ReadFromKafka': 'ReadFromKafka'
+    'WriteToKafka': 'WriteToKafka'
   config:
     mappings:
       'ReadFromKafka':
@@ -60,10 +61,16 @@
         'confluent_schema_registry_url': 'confluentSchemaRegistryUrl'
         'confluent_schema_registry_subject': 'confluentSchemaRegistrySubject'
         'auto_offset_reset_config': 'autoOffsetResetConfig'
+      'WriteToKafka':
+        'format': 'format'
+        'topic': 'topic'
+        'bootstrap_servers': 'bootstrapServers'
+        'producer_config_updates': 'ProducerConfigUpdates'
     underlying_provider:
       type: beamJar
       transforms:
         'ReadFromKafka': 'beam:schematransform:org.apache.beam:kafka_read:v1'
+        'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
