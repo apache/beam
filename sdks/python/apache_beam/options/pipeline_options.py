@@ -402,7 +402,8 @@ class PipelineOptions(HasDisplayData):
         **{
             f'beam:option:{k}:v1': to_struct_value(v)
             for (k, v) in self.get_all_options(
-                drop_default=True, retain_unknown_options=True) if v is not None
+                drop_default=True, retain_unknown_options=True).items()
+            if v is not None
         })
 
   @classmethod
@@ -552,6 +553,18 @@ class StandardOptions(PipelineOptions):
         help='Whether to automatically generate unique transform labels '
         'for every transform. The default behavior is to raise an '
         'exception if a transform is created with a non-unique label.')
+
+
+class StreamingOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--update_compatibility_version',
+        default=None,
+        help='Attempt to produce a pipeline compatible with the given prior '
+        'version of the Beam SDK. '
+        'See for example, https://cloud.google.com/dataflow/docs/guides/'
+        'updating-a-pipeline')
 
 
 class CrossLanguageOptions(PipelineOptions):
@@ -802,13 +815,6 @@ class GoogleCloudOptions(PipelineOptions):
         action='store_true',
         help='Update an existing streaming Cloud Dataflow job. '
         'See https://cloud.google.com/dataflow/docs/guides/'
-        'updating-a-pipeline')
-    parser.add_argument(
-        '--update_compatibility_version',
-        default=None,
-        help='Attempt to produce a pipeline compatible with the given prior '
-        'version of the Beam SDK. '
-        'See for example, https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
     parser.add_argument(
         '--transform_name_mapping',

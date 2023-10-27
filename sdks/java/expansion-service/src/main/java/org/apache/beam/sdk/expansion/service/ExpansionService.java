@@ -66,6 +66,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -695,14 +696,13 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExpansionServiceOptions.class)
         .setExpansionServiceConfig(
             pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
-    PortablePipelineOptions portableRequestOptions =
-        requestOptions.as(PortablePipelineOptions.class);
     // TODO(https://github.com/apache/beam/issues/20090): Figure out the correct subset of options
     // to propagate.
-    if (portableRequestOptions.getUpdateCompatibilityVersion() != null) {
+    if (requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion() != null) {
       effectiveOpts
-          .as(PortablePipelineOptions.class)
-          .setUpdateCompatibilityVersion(portableRequestOptions.getUpdateCompatibilityVersion());
+          .as(StreamingOptions.class)
+          .setUpdateCompatibilityVersion(
+              requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion());
     }
     return Pipeline.create(effectiveOpts);
   }
