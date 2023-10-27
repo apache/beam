@@ -263,12 +263,13 @@ In order to meaningfully aggregate elements in a streaming pipeline,
 some kind of windowing is typically required. Beam's
 [windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
 and [triggering](https://beam.apache.org/documentation/programming-guide/#triggers)
-can be be declared using the same WindowInto transform available in all other
+can be declared using the same WindowInto transform available in all other
 SDKs.
 
 ```
 pipeline:
   type: chain
+  streaming: true
   transforms:
     - type: ReadFromPubSub
       config:
@@ -290,6 +291,7 @@ transform itself with a specified windowing which will cause its inputs
 ```
 pipeline:
   type: chain
+  streaming: true
   transforms:
     - type: ReadFromPubSub
       config:
@@ -311,6 +313,7 @@ grouping to be done per window.
 ```
 pipeline:
   type: chain
+  streaming: true
   transforms:
     - type: ReadFromPubSub
       config:
@@ -331,6 +334,7 @@ a join per window.
 
 ```
 pipeline:
+  streaming: true
   transforms:
     - type: ReadFromPubSub
       name: ReadLeft
@@ -360,6 +364,7 @@ consuming operations. This is especially useful for root operations like Read.
 ```
 pipeline:
   type: chain
+  streaming: true
   transforms:
     - type: ReadFromPubSub
       config:
@@ -383,6 +388,7 @@ and can be an effective way to apply it everywhere.
 ```
 pipeline:
   type: chain
+  streaming: true
   transforms:
     - type: ReadFromPubSub
       config:
@@ -404,6 +410,7 @@ and `sink` syntax as well
 ```
 pipeline:
   type: chain
+  streaming: true
 
   source:
     type: ReadFromPubSub

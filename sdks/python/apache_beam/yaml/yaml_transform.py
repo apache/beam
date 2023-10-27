@@ -32,6 +32,7 @@ import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
 
@@ -884,7 +885,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
             f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
 
-  def preprocess_langauges(spec):
+  def preprocess_languages(spec):
     if spec['type'] in ('Filter', 'MapToFields'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
@@ -900,7 +901,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
 
   for phase in [
       ensure_transforms_have_types,
-      preprocess_langauges,
+      preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
@@ -933,6 +934,7 @@ class YamlTransform(beam.PTransform):
     self._providers = yaml_provider.merge_providers(
         providers, yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
+    self._is_streaming = spec.get('streaming', False)
     self._was_chain = spec['type'] == 'chain'
 
   def expand(self, pcolls):
@@ -951,6 +953,8 @@ class YamlTransform(beam.PTransform):
       root = next(iter(pcolls.values())).pipeline
       if not self._spec['input']:
         self._spec['input'] = {name: name for name in pcolls.keys()}
+    options = root.pipeline.options.view_as(StandardOptions)
+    options.streaming = self._is_streaming
     result = expand_transform(
         self._spec,
         Scope(
