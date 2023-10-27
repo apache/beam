@@ -97,7 +97,7 @@ function download_files() {
 
     wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" $RC_STAGING_URL
   else
-    BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION.zip"
+    BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION.tar.gz"
     wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" $RC_STAGING_URL
   fi
 }
@@ -128,7 +128,7 @@ function get_sha512_name() {
   if [[ $1 = *"wheel"* ]]; then
     echo $(ls | grep "/*.whl.sha512$")
   else
-    echo $(ls | grep "/*.zip.sha512$")
+    echo $(ls | grep "/*.tar.gz.sha512$")
   fi
 }
 
@@ -142,7 +142,7 @@ function get_asc_name() {
   if [[ $1 = *"wheel"* ]]; then
     echo $(ls | grep "/*.whl.asc$")
   else
-    echo $(ls | grep "/*.zip.asc$")
+    echo $(ls | grep "/*.tar.gz.asc$")
   fi
 }
 

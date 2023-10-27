@@ -141,8 +141,8 @@ python3 "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
 
 cd "${PYTHON_ARTIFACTS_DIR}"
 
-echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC_NUMBER}.zip-----"
-sha512sum -c "apache-beam-${RELEASE}rc${RC_NUMBER}.zip.sha512"
+echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC_NUMBER}.tar.gz-----"
+sha512sum -c "apache-beam-${RELEASE}rc${RC_NUMBER}.tar.gz.sha512"
 
 for artifact in *.whl; do
   echo "----------Checking Hash Value for ${artifact} wheel-----------"
