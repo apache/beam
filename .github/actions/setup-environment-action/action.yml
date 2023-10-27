@@ -30,6 +30,10 @@ inputs:
     required: false
     description: 'Install Go version'
     default: ''
+  disable-cache:
+    required: false
+    description: 'Whether to disable the gradle cache'
+    default: false
 
 runs:
   using: "composite"
@@ -49,6 +53,7 @@ runs:
       uses: gradle/gradle-build-action@v2
       with:
         cache-read-only: false
+        cache-disabled: ${{ inputs.disable-cache }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v3
