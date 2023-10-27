@@ -70,7 +70,9 @@ should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add `UseDataStreamForBatch` pipeline option to the Flink runner. When it is set to true, Flink runner will run batch
+  jobs using the DataStream API. By default the option is set to false, so the batch jobs are still executed
+  using the DataSet API.
 * `upload_graph` as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK ([PR#28621](https://github.com/apache/beam/pull/28621).
 
 ## Breaking Changes

@@ -72,6 +72,8 @@ public class FlinkSubmissionTest {
   /** Counter which keeps track of the number of jobs submitted. */
   private static int expectedNumberOfJobs;
 
+  public static boolean useDataStreamForBatch;
+
   @BeforeClass
   public static void beforeClass() throws Exception {
     Configuration config = new Configuration();
@@ -105,12 +107,24 @@ public class FlinkSubmissionTest {
   }
 
   @Test
+  public void testSubmissionBatchUseDataStream() throws Exception {
+    FlinkSubmissionTest.useDataStreamForBatch = true;
+    runSubmission(false, false);
+  }
+
+  @Test
   public void testSubmissionStreaming() throws Exception {
     runSubmission(false, true);
   }
 
   @Test
   public void testDetachedSubmissionBatch() throws Exception {
+    runSubmission(true, false);
+  }
+
+  @Test
+  public void testDetachedSubmissionBatchUseDataStream() throws Exception {
+    FlinkSubmissionTest.useDataStreamForBatch = true;
     runSubmission(true, false);
   }
 
@@ -164,6 +178,7 @@ public class FlinkSubmissionTest {
   /** The Flink program which is executed by the CliFrontend. */
   public static void main(String[] args) {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setUseDataStreamForBatch(useDataStreamForBatch);
     options.setRunner(FlinkRunner.class);
     options.setStreaming(streaming);
     options.setParallelism(1);
