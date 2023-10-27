@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -112,16 +113,56 @@ public class KafkaReadSchemaTransformProvider
     consumerConfigs.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
     consumerConfigs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
 
+    String format = configuration.getFormat();
+
+    if (format != null && format.equals("RAW")) {
+      if (inputSchema != null) {
+        throw new IllegalArgumentException(
+            "To read from Kafka in RAW format, you can't provide a schema.");
+      }
+      Schema rawSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
+      SerializableFunction<byte[], Row> valueMapper = getRawBytesToRowFunction(rawSchema);
+      return new SchemaTransform() {
+        @Override
+        public PCollectionRowTuple expand(PCollectionRowTuple input) {
+          KafkaIO.Read<byte[], byte[]> kafkaRead =
+              KafkaIO.readBytes()
+                  .withConsumerConfigUpdates(consumerConfigs)
+                  .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
+                  .withTopic(configuration.getTopic())
+                  .withBootstrapServers(configuration.getBootstrapServers());
+          if (isTest) {
+            kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSecs));
+          }
+
+          PCollection<byte[]> kafkaValues =
+              input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
+
+          PCollectionTuple outputTuple =
+              kafkaValues.apply(
+                  ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+          return PCollectionRowTuple.of(
+              "output",
+              outputTuple.get(OUTPUT_TAG).setRowSchema(rawSchema),
+              "errors",
+              outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
+        }
+      };
+    }
+
     if (inputSchema != null && !inputSchema.isEmpty()) {
       assert Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
           : "To read from Kafka, a schema must be provided directly or though Confluent "
               + "Schema Registry, but not both.";
+
       final Schema beamSchema =
-          Objects.equals(configuration.getFormat(), "JSON")
+          Objects.equals(format, "JSON")
               ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
               : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
       SerializableFunction<byte[], Row> valueMapper =
-          Objects.equals(configuration.getFormat(), "JSON")
+          Objects.equals(format, "JSON")
               ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
               : AvroUtils.getAvroBytesToRowFunction(beamSchema);
       return new SchemaTransform() {
@@ -191,6 +232,15 @@ public class KafkaReadSchemaTransformProvider
         }
       };
     }
+  }
+
+  public static SerializableFunction<byte[], Row> getRawBytesToRowFunction(Schema rawSchema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        return Row.withSchema(rawSchema).addValue(input).build();
+      }
+    };
   }
 
   @Override
