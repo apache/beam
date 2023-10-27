@@ -104,11 +104,16 @@ class DaskRunnerResult(PipelineResult):
       if duration is not None:
         # Convert milliseconds to seconds
         duration /= 1000
-      distributed.wait(self.futures, timeout=duration)
-      # worker errors are not raised on client without gathering,
-      # so we need to gather to ensure there are no errors, see:
-      # https://distributed.dask.org/en/stable/resilience.html#user-code-failures
-      self.client.gather(self.futures)
+      for _ in distributed.as_completed(self.futures,
+                                        timeout=duration,
+                                        with_results=True):
+        # without gathering results, worker errors are not raised on the client:
+        # https://distributed.dask.org/en/stable/resilience.html#user-code-failures
+        # so we want to gather results to raise errors client-side, but we do
+        # not actually need to use the results here, so we just pass. to gather,
+        # we use the iterative `as_completed(..., with_results=True)`, instead
+        # of aggregate `client.gather`, to minimize memory footprint of results.
+        pass
       self._state = PipelineState.DONE
     except:  # pylint: disable=broad-except
       self._state = PipelineState.FAILED
