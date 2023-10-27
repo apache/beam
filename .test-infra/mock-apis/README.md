@@ -113,4 +113,97 @@ Follow these steps to run the services on your local machine.
 
 # Deployment
 
-TODO: See https://github.com/apache/beam/issues/28709
+The following has already been performed for the `apache-beam-testing` project
+and only needs to be done for a different Google Cloud project.
+
+To deploy the APIs and dependent services, run the following commands.
+
+## 1. Provision dependent resources in Google Cloud.
+
+```
+terraform -chdir=infrastructure/terraform init
+terraform -chdir=infrastructure/terraform apply -var-file=apache-beam-testing.tfvars
+```
+
+## 2. Set the KO_DOCKER_REPO environment variable.
+
+After the terraform module completes, you will need to set the following:
+
+```
+export KO_DOCKER_REPO=<region>-docker.pkg.dev/<project>/<repository>
+```
+
+where:
+
+- `region` - is the GCP compute region
+- `project` - is the GCP project id i.e. `apache-beam-testing`
+- `repository` - is the repository name created by the terraform module. To
+find this run:
+`gcloud artifacts repositories list --project=<project> --location=<region>`.
+For example,
+`gcloud artifacts repositories list --project=apache-beam-testing --location=us-west1`
+
+## 3. Connect to the Kubernetes cluster
+
+Run the following command to setup credentials to the Kubernetes cluster.
+
+```
+gcloud container clusters get-credentials <cluster> --region <region> --project <project>
+```
+
+where:
+- `region` - is the GCP compute region
+- `project` - is the GCP project id i.e. `apache-beam-testing`
+- `<cluster>` - is the name of the cluster created by the terraform module.
+You can find this by running `gcloud container clusters list --project=<project> --region=<region>`
+
+## 4. Provision the Redis instance
+
+```
+kubectl kustomize --enable-helm infrastructure/kubernetes/redis | kubectl apply -f -
+```
+
+**You will initially see "Unschedulable" while the cluster is applying the helm
+chart. It's important to wait until the helm chart completely provisions resources
+before proceeding. Using Google Kubernetes Engine (GKE) autopilot may take some
+time before this autoscales appropriately. **
+
+## 5. Provision the Echo service
+
+Run the following command to provision the Echo service.
+
+```
+kubectl kustomize infrastructure/kubernetes/echo | ko resolve -f - | kubectl apply -f -
+```
+
+Like previously, you may see "Does not have minimum availability" message
+showing on the status. It may take some time for GKE autopilot
+to scale the node pool.
+
+## 6. Provision the Refresher services
+
+The Refresher service relies on [kustomize](https://kustomize.io) overlays
+which are located at [infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays).
+
+Each folder contained in [infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays)
+corresponds to an individual Refresher instance that is identified by the UUID.
+You will need to deploy each one individually.
+
+For example:
+```
+kubectl kustomize infrastructure/kubernetes/refresher/overlays/f588787b-28f8-4e5f-8335-f862379daf59 | ko resolve -f - | kubectl apply -f -
+```
+
+Like previously, you may see "Does not have minimum availability" message
+showing on the status. It may take some time for GKE autopilot
+to scale the node pool.
+
+## Additional note for creating a new Refresher service instance
+
+Each Refresher service instance relies on a unique UUID, where
+the [kustomize](https://kustomize.io) overlay replaces in the
+[infrastructure/kubernetes/refresher/base](infrastructure/kubernetes/refresher/base)
+template.
+
+You can copy the entire folder and paste into a new one with a unique UUID
+and then perform a find-replace of the old UUID with the new one.
