@@ -403,11 +403,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String userAgentName = dataflowRunnerInfo.getName();
+    Preconditions.checkArgument(
+        !userAgentName.equals(""), "Dataflow runner's `name` property cannot be empty.");
+    String userAgentVersion = dataflowRunnerInfo.getVersion();
+    Preconditions.checkArgument(
+        !userAgentVersion.equals(""), "Dataflow runner's `version` property cannot be empty.");
     String userAgent =
-        String.format(
-                "%s/%s%s",
-                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), agentJavaVer)
-            .replace(" ", "_");
+        String.format("%s/%s%s", userAgentName, userAgentVersion, agentJavaVer).replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
