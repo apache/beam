@@ -3,10 +3,7 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "datasource",
-          "uid": "grafana"
-        },
+        "datasource": "-- Grafana --",
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -29,10 +26,7 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -931,10 +925,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -957,23 +947,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -998,10 +971,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1900,10 +1870,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -1926,23 +1892,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -1967,10 +1916,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2869,10 +2815,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -2895,23 +2837,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -2936,10 +2861,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3838,10 +3760,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -3864,23 +3782,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -3905,10 +3806,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4807,10 +4705,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -4833,23 +4727,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -4874,10 +4751,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5776,10 +5650,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -5802,23 +5672,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -5843,10 +5696,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -6745,10 +6595,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -6771,23 +6617,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -6812,10 +6641,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -7714,10 +7540,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -7740,23 +7562,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -7781,10 +7586,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -8683,10 +8485,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -8709,23 +8507,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -8750,10 +8531,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -9652,10 +9430,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -9678,23 +9452,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -9719,10 +9476,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -10621,10 +10375,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -10647,23 +10397,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -10688,10 +10421,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -11590,10 +11320,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -11616,23 +11342,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -11657,10 +11366,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -12559,10 +12265,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -12585,23 +12287,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
