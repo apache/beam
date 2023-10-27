@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_LoadTests_Python_FnApiRunner_Microbenchmark"]
         job_phrase: ["Run Python Load Tests FnApiRunner Microbenchmark"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

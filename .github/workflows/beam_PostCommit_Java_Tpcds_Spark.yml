@@ -81,7 +81,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Tpcds_Spark"]
         job_phrase: ["Run Spark Runner Tpcds Tests"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
