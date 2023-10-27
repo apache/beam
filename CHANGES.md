@@ -71,6 +71,7 @@ should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* `upload_graph` as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK ([PR#28621](https://github.com/apache/beam/pull/28621).
 
 ## Breaking Changes
 
