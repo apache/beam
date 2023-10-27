@@ -52,8 +52,7 @@ runs:
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:
-        cache-read-only: false
-        cache-disabled: ${{ inputs.disable-cache }}
+        cache-read-only: ${{ inputs.disable-cache }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v3
