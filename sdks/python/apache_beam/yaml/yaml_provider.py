@@ -457,7 +457,7 @@ class SqlBackedProvider(Provider):
   def __init__(
       self,
       transforms: Mapping[str, Callable[..., beam.PTransform]],
-      sql_provider: Provider = None):
+      sql_provider: Optional[Provider] = None):
     self._transforms = transforms
     if sql_provider is None:
       sql_provider = beam_jar(

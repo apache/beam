@@ -49,16 +49,16 @@ def normalize_combine(spec):
   verbose for simple cases.)  We do this here so that it doesn't need to be done
   per language.  The following are all equivalent::
 
-  dest: fn_type
+      dest: fn_type
 
-  dest:
-    value: dest
-    fn: fn_type
+      dest:
+        value: dest
+        fn: fn_type
 
-  dest:
-    value: dest
-    fn:
-      type: fn_type
+      dest:
+        value: dest
+        fn:
+          type: fn_type
   """
   from apache_beam.yaml.yaml_transform import SafeLineLoader
   if spec['type'] == 'Combine':

@@ -21,7 +21,6 @@ from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Dict
-from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Union

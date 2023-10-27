@@ -33,7 +33,6 @@ from yaml.loader import SafeLoader
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
-from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
