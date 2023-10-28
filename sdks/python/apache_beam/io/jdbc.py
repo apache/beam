@@ -360,6 +360,9 @@ class ReadFromJdbc(ExternalTransform):
         expansion_service or default_io_expansion_service(classpath),
     )
 
+# TODO(https://github.com/apache/beam/issues/28359) The following logical type
+# definitions and registrations are workaround for #28359. Remove them when
+# switched to portable Data and Time type for JdbcIO.
 
 @LogicalType.register_logical_type
 class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
@@ -455,3 +458,7 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
   @classmethod
   def _from_typing(cls, typ):
     return cls()
+
+# Register MillisInstant logical type to override the mapping from Timestamp
+# originally handled by MicrosInstant.
+LogicalType.register_logical_type(MillisInstant)
