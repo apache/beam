@@ -86,16 +86,15 @@ ARG TARGETARCH
 # copy commands
 COPY --from=python-base /bin /bin
 
-# copy python to distroless
-COPY --from=python-base /usr/local/lib /usr/local/lib
-COPY --from=python-base /etc/ld.so.cache /etc/ld.so.cache
-COPY --from=python-base /usr/local/gcloud /usr/local/gcloud
-COPY --from=python-base /usr/local/bin /usr/local/bin
-COPY --from=python-base /usr/bin/which /usr/bin/which
-ENV PATH="/usr/local/bin:/usr/local/gcloud/google-cloud-sdk/bin:$PATH"
+# copy packages to distroless
+COPY --from=python-base /usr/local/lib/ /usr/local/lib/ \
+     --from=python-base /etc/ld.so.cache /etc/ \
+     --from=python-base /usr/local/gcloud/ /usr/local/gcloud/ \
+     --from=python-base /usr/local/bin /usr/local/bin \
+     --from=python-base /usr/bin/which /usr/bin/ \
+     --from=python-base /lib/ lib/
 
-# required by lots of packages - e.g. six, numpy, wsgi
-COPY --from=python-base /lib /lib
+ENV PATH="/usr/local/bin:/usr/local/gcloud/google-cloud-sdk/bin:$PATH"
 
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
