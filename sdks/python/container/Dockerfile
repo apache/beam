@@ -83,16 +83,17 @@ LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
 
-# copy commands
+# copy commands & libs to distroless
 COPY --from=python-base /bin /bin
+COPY --from=python-base /lib lib
+COPY --from=python-base /usr/bin/which /usr/bin/which
+COPY --from=python-base /etc/ld.so.cache /etc/ld.so.cache
+COPY --from=python-base /usr/bin/which /usr/bin/which
 
 # copy packages to distroless
-COPY --from=python-base /usr/local/lib/ /usr/local/lib/ \
-     --from=python-base /etc/ld.so.cache /etc/ \
-     --from=python-base /usr/local/gcloud/ /usr/local/gcloud/ \
-     --from=python-base /usr/local/bin /usr/local/bin \
-     --from=python-base /usr/bin/which /usr/bin/ \
-     --from=python-base /lib/ lib/
+COPY --from=python-base /usr/local/lib /usr/local/lib
+COPY --from=python-base /usr/local/gcloud /usr/local/gcloud
+COPY --from=python-base /usr/local/bin /usr/local/bin
 
 ENV PATH="/usr/local/bin:/usr/local/gcloud/google-cloud-sdk/bin:$PATH"
 
