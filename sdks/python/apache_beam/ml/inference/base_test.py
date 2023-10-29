@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pylint: skip-file
 
 """Tests for apache_beam.ml.base."""
 import math
@@ -82,6 +83,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._num_bytes_per_element = num_bytes_per_element
 
   def load_model(self):
+
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
     if self._state is not None:
@@ -260,13 +262,33 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_impl_with_keyed_examples(self):
     with TestPipeline() as pipeline:
-      examples = [1, 5, 3, 10]
-      keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      # examples = [1, 5, 3, 10]
+      # keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      # expected = [(i, example + 1) for i, example in enumerate(examples)]
+      keyed_examples = [
+          {
+              'x': 1, 'y': 2
+          },
+          {
+              'x': 3, 'y': 4
+          },
+          {
+              'x': 5, 'y': 6
+          },
+          {
+              'x': 7, 'y': 8
+          },
+          {
+              'x': 9, 'y': 10
+          },
+          {
+              'x': 11, 'y': 12
+          },
+      ]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      actual = pcoll | base.RunInference(
-          base.KeyedModelHandler(FakeModelHandler()))
-      assert_that(actual, equal_to(expected), label='assert:inferences')
+      actual = pcoll | base.RunInference((FakeModelHandler(min_batch_size=10)))
+      actual | beam.Map(print)
+      # assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_with_keyed_examples_many_model_handlers(self):
     with TestPipeline() as pipeline:

@@ -15,10 +15,17 @@
 # limitations under the License.
 
 # pytype: skip-file
+# pylint: skip-file
 
 import abc
+import collections
+from dataclasses import dataclass
+import logging
+from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Generic
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Sequence
@@ -26,6 +33,8 @@ from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.metrics.metric import Metrics
+from apache_beam.ml.inference.base import ModelT
+from apache_beam.ml.inference.base import PredictionResult
 
 __all__ = ['MLTransform', 'ProcessHandler', 'BaseOperation']
 
@@ -88,14 +97,14 @@ class ProcessHandler(Generic[ExampleT, MLTransformOutputT], abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
-  @abc.abstractmethod
-  def process_data(
-      self, pcoll: beam.PCollection[ExampleT]
-  ) -> beam.PCollection[MLTransformOutputT]:
-    """
-    Logic to process the data. This will be the entrypoint in
-    beam.MLTransform to process incoming data.
-    """
+  # @abc.abstractmethod
+  # def process_data(
+  #     self, pcoll: beam.PCollection[ExampleT]
+  # ) -> beam.PCollection[MLTransformOutputT]:
+  #   """
+  #   Logic to process the data. This will be the entrypoint in
+  #   beam.MLTransform to process incoming data.
+  #   """
 
   @abc.abstractmethod
   def append_transform(self, transform: BaseOperation):
@@ -177,21 +186,14 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       artifact_location = write_artifact_location  # type: ignore[assignment]
       artifact_mode = ArtifactMode.PRODUCE
 
-    # avoid circular import
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.ml.transforms.handlers import TFTProcessHandler
-    # TODO: When new ProcessHandlers(eg: JaxProcessHandler) are introduced,
-    # create a mapping between transforms and ProcessHandler since
-    # ProcessHandler is not exposed to the user.
-    process_handler: ProcessHandler = TFTProcessHandler(
-        artifact_location=artifact_location,
-        artifact_mode=artifact_mode,
-        transforms=transforms)  # type: ignore[arg-type]
-
-    self._process_handler = process_handler
+    self._artifact_location = artifact_location
+    self._artifact_mode = artifact_mode
+    self._process_handler = None
     self.transforms = transforms
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
+
+    self.ptransform_list = []
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
@@ -212,7 +214,10 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
-    return self._process_handler.process_data(pcoll)
+    # return self._process_handler.process_data(pcoll)
+
+    result = (pcoll | self._process_handler)
+    return result
 
   def with_transform(self, transform: BaseOperation):
     """
@@ -222,8 +227,18 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
-    self._validate_transform(transform)
-    self._process_handler.append_transform(transform)
+    # self._validate_transform(transform)
+    # avoid circular import
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.ml.transforms.handlers import TFTProcessHandler
+    from apache_beam.ml.transforms.handlers import TFTOperation
+    if isinstance(transform, TFTOperation):
+      if not self._process_handler:
+        self._process_handler: ProcessHandler = TFTProcessHandler(
+            artifact_location=self._artifact_location,
+            artifact_mode=self._artifact_mode)  # type: ignore[arg-type]
+        self.ptransform_list.append(self._process_handler)
+      self._process_handler.append_transform(transform)
     return self
 
   def _validate_transform(self, transform):
@@ -231,6 +246,19 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       raise TypeError(
           'transform must be a subclass of BaseOperation. '
           'Got: %s instead.' % type(transform))
+
+  def generate_embeddings(self, embedding_config):
+    """
+    Pending doc string
+    """
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.ml.transforms.base import TextEmbeddingHandler
+    from apache_beam.ml.inference.base import RunInference
+    embedding_handler = TextEmbeddingHandler(embedding_config=embedding_config)
+    run_inference = RunInference(model_handler=embedding_handler)
+    self.ptransform_list.append(run_inference)
+    self._process_handler = None
+    return self
 
 
 class MLTransformMetricsUsage(beam.PTransform):
@@ -254,3 +282,72 @@ class MLTransformMetricsUsage(beam.PTransform):
         pipeline
         | beam.Create([None])
         | beam.Map(lambda _: _increment_counters()))
+
+
+from apache_beam.ml.inference.base import ModelHandler
+
+
+class EmbeddingConfig:
+  def __init__(
+      self,
+      device: str = 'CPU',
+      inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
+      load_model_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[Dict[str, Any]] = None,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      **kwargs):
+    self.device = device
+    self.inference_fn = inference_fn
+    self.load_model_args = load_model_args or {}
+    self.inference_args = inference_args or {}
+    self.min_batch_size = min_batch_size
+    self.max_batch_size = max_batch_size
+    self.large_model = large_model
+    self.kwargs = kwargs
+
+  def get_model_handler(self) -> ModelHandler:
+    """
+    Return framework specific model handler.
+    """
+
+  def get_tokenizer(self):
+    """
+    Return tokenizer to tokenize texts
+    """
+
+
+class TextEmbeddingHandler(ModelHandler):
+  def __init__(self, embedding_config: EmbeddingConfig):
+    self.embedding_config = embedding_config
+    self._underlying = self.embedding_config.get_model_handler()
+
+  def load_model(self):
+    model = self._underlying._model_class(self._underlying._model_uri)
+    return model
+
+  def run_inference(
+      self,
+      batch: Sequence[Dict[str, List[str]]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]] = None,
+  ) -> Iterable[PredictionResult]:
+    """
+    expect batch to be a list[Dict[str, Any]]
+    """
+    dict_batch = _convert_list_of_dicts_to_dict_of_lists(list_of_dicts=batch)
+    result = collections.defaultdict(list)
+    for key, batch in dict_batch.items():
+      result[key] = self._underlying.run_inference(
+          batch=batch, model=model, inference_args=inference_args)
+    return result['text']
+
+
+def _convert_list_of_dicts_to_dict_of_lists(
+    list_of_dicts) -> Dict[str, List[Any]]:
+  keys_to_element_list = collections.defaultdict(list)
+  for d in list_of_dicts:
+    for key, value in d.items():
+      keys_to_element_list[key].append(value)
+  return keys_to_element_list

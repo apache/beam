@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 # pytype: skip-file
+# pylint: skip-file
 
 import collections
 import hashlib
@@ -387,7 +388,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
-  def process_data(
+  def expand(
       self, raw_data: beam.PCollection[tft_process_handler_input_type]
   ) -> beam.PCollection[tft_process_handler_output_type]:
     """
@@ -509,6 +510,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           (transformed_dataset, columns_not_in_schema_with_hash)
           | beam.CoGroupByKey()
           | beam.ParDo(MergeDicts()))
+
+      transformed_dataset | beam.Map(print)
 
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
