@@ -1128,15 +1128,16 @@ class WorkerOptions(PipelineOptions):
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.')
     parser.add_argument(
-        '--state_cache_size',
-        '--state_cache_size_mb',
-        dest='state_cache_size',
+        '--max_cache_memory_usage_mb',
+        dest='max_cache_memory_usage_mb',
         type=int,
         default=None,
         help=(
-            'Size of the state cache in MB. Default is 100MB.'
-            'State cache is per process and is shared between all threads '
-            'within the process.'))
+            'Size of the SdkHarness/Sdk Process cache in MB. Default is 100MB.'
+            'This cache is used to store the user state and side input '
+            'elements. If the cache is full, the least recently used '
+            'elements will be evicted. This cache will be per SdkHarness/Sdk '
+            'Process. SDKHarness is a python process that runs the user code.'))
 
   def validate(self, validator):
     errors = []
