@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** Dummy PTransform that is configurable with a DLQ */
+/** Dummy PTransform that is configurable with a DLQ. */
 public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
   private ErrorHandler<DeadLetter, ?> errorHandler = new NoOpErrorHandler<>();
