@@ -700,11 +700,11 @@ class RenamingProvider(Provider):
     for transform in transforms.keys():
       if transform not in mappings:
         raise ValueError(f'Missing transform {transform} in mappings.')
-    self._mappings = self.get_mappings_from_transform(mappings)
+    self._mappings = self.expand_mappings(mappings)
     self._defaults = defaults or {}
 
   @staticmethod
-  def get_mappings_from_transform(mappings):
+  def expand_mappings(mappings):
     if not isinstance(mappings, dict):
       raise ValueError(
           "RenamingProvider mappings must be dict of transform "
