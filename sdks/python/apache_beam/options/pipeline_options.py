@@ -1133,11 +1133,12 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'Size of the SdkHarness/Sdk Process cache in MB. Default is 100MB.'
-            'This cache is used to store the user state and side input '
-            'elements. If the cache is full, the least recently used '
-            'elements will be evicted. This cache will be per SdkHarness/Sdk '
-            'Process. SDKHarness is a python process that runs the user code.'))
+            'Size of the SdkHarness cache to store user state and side inputs '
+            'in MB. Default is 100MB. If the cache is full, least recently '
+            'used elements will be evicted. This cache will be per '
+            'SdkHarness/Sdk Process. SDKHarness is a python process,'
+            'responsible for executing the user code '
+            ' and communicating with the runner through the Fn API. '))
 
   def validate(self, validator):
     errors = []
