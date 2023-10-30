@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,6 +46,9 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Ste
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -62,7 +66,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
@@ -86,7 +90,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
   private final String computationId;
-  private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
+  private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
   // Per-key cache of active Reader objects in use by this process.
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
@@ -104,7 +108,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   private Windmill.WorkItem work;
   private WindmillComputationKey computationKey;
-  private StateFetcher stateFetcher;
+  private SideInputStateFetcher sideInputStateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
   private volatile long backlogBytes;
@@ -145,20 +149,20 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       @Nullable Instant outputDataWatermark,
       @Nullable Instant synchronizedProcessingTime,
       WindmillStateReader stateReader,
-      StateFetcher stateFetcher,
+      SideInputStateFetcher sideInputStateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
     this.computationKey =
         WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
-    this.stateFetcher = stateFetcher;
+    this.sideInputStateFetcher = sideInputStateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();
 
     Instant processingTime = Instant.now();
     // Ensure that the processing time is greater than any fired processing time
-    // timers.  Otherwise a trigger could ignore the timer and orphan the window.
+    // timers.  Otherwise, a trigger could ignore the timer and orphan the window.
     for (Windmill.Timer timer : work.getTimers().getTimersList()) {
       if (timer.getType() == Windmill.Timer.Type.REALTIME) {
         Instant inferredFiringTime =
@@ -208,42 +212,67 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return StreamingModeSideInputReader.of(views, this);
   }
 
+  @SuppressWarnings("deprecation")
+  private <T> TupleTag<?> getInternalTag(PCollectionView<T> view) {
+    return view.getTagInternal();
+  }
+
   /**
    * Fetches the requested sideInput, and maintains a view of the cache that doesn't remove items
    * until the active work item is finished.
    *
-   * <p>If the side input was not ready, throws {@code IllegalStateException} if the state is
-   * {@literal CACHED_IN_WORKITEM} or returns null otherwise.
-   *
-   * <p>If the side input was ready and null, returns {@literal Optional.absent()}. If the side
-   * input was ready and non-null returns {@literal Optional.present(...)}.
+   * <p>If the side input was not cached, throws {@code IllegalStateException} if the state is
+   * {@literal CACHED_IN_WORK_ITEM} or returns {@link SideInput<T>} which contains {@link
+   * Optional<T>}.
    */
-  private @Nullable <T> Optional<T> fetchSideInput(
+  private <T> SideInput<T> fetchSideInput(
+      PCollectionView<T> view,
+      BoundedWindow sideInputWindow,
+      @Nullable String stateFamily,
+      SideInputState state,
+      @Nullable Supplier<Closeable> scopedReadStateSupplier) {
+    TupleTag<?> viewInternalTag = getInternalTag(view);
+    Map<BoundedWindow, SideInput<?>> tagCache =
+        sideInputCache.computeIfAbsent(viewInternalTag, k -> new HashMap<>());
+
+    @SuppressWarnings("unchecked")
+    Optional<SideInput<T>> cachedSideInput =
+        Optional.ofNullable((SideInput<T>) tagCache.get(sideInputWindow));
+
+    if (cachedSideInput.isPresent()) {
+      return cachedSideInput.get();
+    }
+
+    if (state == SideInputState.CACHED_IN_WORK_ITEM) {
+      throw new IllegalStateException(
+          "Expected side input to be cached. Tag: " + viewInternalTag.getId());
+    }
+
+    return fetchSideInputFromWindmill(
+        view,
+        sideInputWindow,
+        Preconditions.checkNotNull(stateFamily),
+        state,
+        Preconditions.checkNotNull(scopedReadStateSupplier),
+        tagCache);
+  }
+
+  private <T> SideInput<T> fetchSideInputFromWindmill(
       PCollectionView<T> view,
       BoundedWindow sideInputWindow,
       String stateFamily,
-      StateFetcher.SideInputState state,
-      Supplier<Closeable> scopedReadStateSupplier) {
-    Map<BoundedWindow, Object> tagCache =
-        sideInputCache.computeIfAbsent(view.getTagInternal(), k -> new HashMap<>());
+      SideInputState state,
+      Supplier<Closeable> scopedReadStateSupplier,
+      Map<BoundedWindow, SideInput<?>> tagCache) {
+    SideInput<T> fetched =
+        sideInputStateFetcher.fetchSideInput(
+            view, sideInputWindow, stateFamily, state, scopedReadStateSupplier);
 
-    if (tagCache.containsKey(sideInputWindow)) {
-      @SuppressWarnings("unchecked")
-      T typed = (T) tagCache.get(sideInputWindow);
-      return Optional.fromNullable(typed);
-    } else {
-      if (state == StateFetcher.SideInputState.CACHED_IN_WORKITEM) {
-        throw new IllegalStateException(
-            "Expected side input to be cached. Tag: " + view.getTagInternal().getId());
-      }
-      Optional<T> fetched =
-          stateFetcher.fetchSideInput(
-              view, sideInputWindow, stateFamily, state, scopedReadStateSupplier);
-      if (fetched != null) {
-        tagCache.put(sideInputWindow, fetched.orNull());
-      }
-      return fetched;
+    if (fetched.isReady()) {
+      tagCache.put(sideInputWindow, fetched);
     }
+
+    return fetched;
   }
 
   public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
@@ -378,8 +407,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   interface StreamingModeStepContext {
 
-    boolean issueSideInputFetch(
-        PCollectionView<?> view, BoundedWindow w, StateFetcher.SideInputState s);
+    boolean issueSideInputFetch(PCollectionView<?> view, BoundedWindow w, SideInputState s);
 
     void addBlockingSideInput(Windmill.GlobalDataRequest blocked);
 
@@ -412,10 +440,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // 2. The reporting thread calls extractUpdate which reads the current sum *AND* sets it to 0.
     private final AtomicLong totalMillisInState = new AtomicLong();
 
-    // The worker that created this state.  Used to report lulls back to the worker.
-    @SuppressWarnings("unused") // Affects a public api
-    private final StreamingDataflowWorker worker;
-
+    @SuppressWarnings("unused")
     public StreamingModeExecutionState(
         NameContext nameContext,
         String stateName,
@@ -424,7 +449,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         StreamingDataflowWorker worker) {
       // TODO: Take in the requesting step name and side input index for streaming.
       super(nameContext, stateName, null, null, metricsContainer, profileScope);
-      this.worker = worker;
     }
 
     /**
@@ -513,8 +537,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
 
     @Override
-    public boolean issueSideInputFetch(
-        PCollectionView<?> view, BoundedWindow w, StateFetcher.SideInputState s) {
+    public boolean issueSideInputFetch(PCollectionView<?> view, BoundedWindow w, SideInputState s) {
       return wrapped.issueSideInputFetch(view, w, s);
     }
 
@@ -609,9 +632,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               view,
               window,
               null /* unused stateFamily */,
-              StateFetcher.SideInputState.CACHED_IN_WORKITEM,
+              SideInputState.CACHED_IN_WORK_ITEM,
               null /* unused readStateSupplier */)
-          .orNull();
+          .value()
+          .orElse(null);
     }
 
     @Override
@@ -883,10 +907,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Fetch the given side input asynchronously and return true if it is present. */
     @Override
     public boolean issueSideInputFetch(
-        PCollectionView<?> view, BoundedWindow mainInputWindow, StateFetcher.SideInputState state) {
+        PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
       BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       return fetchSideInput(view, sideInputWindow, stateFamily, state, scopedReadStateSupplier)
-          != null;
+          .isReady();
     }
 
     /** Note that there is data on the current key that is blocked on the given side input. */

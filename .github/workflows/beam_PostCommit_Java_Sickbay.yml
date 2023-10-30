@@ -19,7 +19,7 @@ name: PostCommit Java Sickbay
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '30 4/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -50,7 +50,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_Sickbay:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
@@ -69,6 +69,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Sickbay script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

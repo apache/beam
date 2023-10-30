@@ -261,16 +261,6 @@ for each release.
 See if https://go.dev/doc/devel/release has a newer release. Update throughout
 Beam. See example at https://github.com/apache/beam/pull/27900/files
 
-#### Update the Java BOM
-
-Google releases a BOM that pins compatible versions of their Java libraries.
-Ideally, this update happens as far in advance of the release as possible, such
-as just after a release. But if that was not done, consider doing it before
-cutting the release branch.
-
-To do so, follow instructions at
-https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md.
-
 ### Cut the release branch
 
 > **Note**
@@ -367,9 +357,11 @@ issues that would block the creation of the release candidate.
        ```
        (cd release/src/main/scripts && ./verify_release_build.sh)
        ```
-    4. Trigger all Jenkins PostCommit jobs from the PR created by the previous step.
+    4. Trigger all Github Action and Jenkins PostCommit jobs from the PR created by the previous step.
+       For GitHub Action jobs, they should be triggered by the pull_request_target event of a specific placeholder file
+       added to the PR (`release/trigger_all_tests.json`), so no additional action should be needed.
        You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
-       Or manually add one trigger phrase per PR comment.
+       Or manually add one trigger phrase per PR comment for Jenkins tests, or rerun the workflow for GitHub Action tests.
        See [jenkins_jobs.txt](https://github.com/apache/beam/blob/master/release/src/main/scripts/jenkins_jobs.txt)
        for a full list of phrases.
 
@@ -809,8 +801,8 @@ You can (optionally) also do additional verification by:
   signature/checksum files of Java artifacts may not contain filenames. Hence
   you might need to compare checksums/signatures manually or modify the files by
   appending the filenames.)
-- [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc
-  apache-beam-1.2.3-python.zip`)
+- [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.tar.gz.asc
+  apache-beam-1.2.3-python.tar.gz`)
 - [ ] `grep` for legal headers in each file.
 - [ ] Run all jenkins suites and include links to passing tests in the voting
   email.
@@ -1026,14 +1018,14 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   * **Verify the hashes**
 
     ```
-    sha512sum -c apache-beam-2.5.0-python.zip.sha512
-    sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
+    sha512sum -c apache-beam-2.5.0-python.tar.gz.sha512
+    sha512sum -c apache-beam-2.5.0-source-release.tar.gz.sha512
     ```
   * **Build SDK**
 
     ```
     sudo apt-get install unzip
-    unzip apache-beam-2.5.0-source-release.zip
+    unzip apache-beam-2.5.0-source-release.tar.gz
     python setup.py sdist
     ```
   * **Setup virtual environment**
@@ -1355,6 +1347,42 @@ Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wik
 ## Post-Release Tasks
 
 At the end of the release, go to the GitHub milestones page and mark the recently released version as closed.
+
+#### Update the Java BOM
+
+Google releases a BOM that pins compatible versions of their Java libraries.
+After the release, try updating the BOM to the latest version.
+
+To do so, create a draft PR and run test suites following the instructions at
+https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md.
+
+Triage the test failures and rerun any tests that seem potentially unrelated to the upgrade.
+If there are no test failures due to the BOM upgrade, request review and merge the PR as normal.
+
+If there are test failures due to the BOM upgrade, email the dev list and ask for a volunteer to take the update forward.
+It is not your responsibility to fix the BOM issues or to find a volunteer (though you are welcome to take it forward).
+If nobody volunteers, that is OK and this issue can roll forward to the next release.
+You can optionally use the following template for your email to the dev list:
+
+```
+From: Release Manager
+To: dev@beam.apache.org
+Subject: Java BOM Update X.Y.Z
+
+Hi everyone,
+
+Following the instructions in https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md#post-release-tasks
+I've attempted to update the Java Google BOM and have run into test issues caused by the upgrade [1].
+Since the Java Google BOM update is best effort for a release manager, I'm handing this piece off to the community.
+If you would like to volunteer to help, you can get started by following the instructions in
+https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md#google-cloud-related-dependency-upgrades
+otherwise this will roll over to the next release.
+
+Thanks,
+Release Manager
+
+[1] https://github.com/apache/beam/pull/123
+```
 
 ### Update Beam Playground
 

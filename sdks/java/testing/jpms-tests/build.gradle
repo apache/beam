@@ -23,10 +23,10 @@ plugins {
 }
 
 // overwrite javaVersion before applyJavaNature
-if (project.hasProperty("compileAndRunTestsWithJava17")) {
-  javaVersion = '1.17'
+if (project.hasProperty("testJavaVersion")) {
+  javaVersion = "1.${project.getProperty('testJavaVersion')}" as String
 } else {
-  javaVersion = '1.11'
+  javaVersion = "1.11"
 }
 
 applyJavaNature(
@@ -42,13 +42,14 @@ ext.summary = "E2E test for Java 9 modules"
 
 // direct compileJava to use specified java version.
 project.tasks.compileJava {
-  if (project.hasProperty("compileAndRunTestsWithJava11")) {
+  if (project.hasProperty('testJavaVersion')) {
     options.fork = true
-    options.forkOptions.javaHome = project.findProperty("java11Home") as File
-  } else if (project.hasProperty("compileAndRunTestsWithJava17")) {
-    options.fork = true
-    options.forkOptions.javaHome = project.findProperty("java17Home") as File
-    setJava17Options(options)
+    options.forkOptions.javaHome = project.findProperty("java${project.getProperty('testJavaVersion')}Home") as File
+    if (project.getProperty('testJavaVersion') == '17') {
+      setJavaVerOptions(options, '17')
+    } else if (project.getProperty('testJavaVersion') == '21') {
+      setJavaVerOptions(options, '21')
+    }
   }
 }
 
@@ -117,10 +118,12 @@ plugins.withType(JavaPlugin).configureEach{
   }
 }
 
-// JPMS requires JDK > 8
+// JPMS requires JDK > 8. Test tasks enabled when either
+// (i) testJavaVersion property specified (assumed to be >8) or;
+// (ii) current Java version is greater than 8
 project.tasks.each {
   it.onlyIf {
-    project.hasProperty("compileAndRunTestsWithJava17")
+    project.hasProperty('testJavaVersion')
             || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
   }
 }

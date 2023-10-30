@@ -54,20 +54,22 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
   private int currentSplitId;
 
   public FlinkBoundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<WindowedValue<T>, Long> timestampExtractor) {
-    super(context, pipelineOptions, timestampExtractor);
+    super(stepName, context, pipelineOptions, timestampExtractor);
     currentSplitId = -1;
   }
 
   @VisibleForTesting
   protected FlinkBoundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       ScheduledExecutorService executor,
       @Nullable Function<WindowedValue<T>, Long> timestampExtractor) {
-    super(executor, context, pipelineOptions, timestampExtractor);
+    super(stepName, executor, context, pipelineOptions, timestampExtractor);
     currentSplitId = -1;
   }
 
@@ -105,7 +107,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       // If the advance() invocation throws exception here, the job will just fail over and read
       // everything again from
       // the beginning. So the failover granularity is the entire Flink job.
-      if (!tempCurrentReader.advance()) {
+      if (!invocationUtil.invokeAdvance(tempCurrentReader)) {
         finishSplit(currentSplitId);
         currentReader = null;
         currentSplitId = -1;
@@ -133,7 +135,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
     Optional<ReaderAndOutput> readerAndOutput;
     while ((readerAndOutput = createAndTrackNextReader()).isPresent()) {
       ReaderAndOutput rao = readerAndOutput.get();
-      if (rao.reader.start()) {
+      if (invocationUtil.invokeStart(rao.reader)) {
         currentSplitId = Integer.parseInt(rao.splitId);
         currentReader = rao.reader;
         return true;

@@ -384,9 +384,10 @@ public class FnHarness {
       }
       processBundleHandler.shutdown();
     } catch (Exception e) {
-      System.out.println("Shutting down harness due to exception: " + e.toString());
+      LOG.error("Shutting down harness due to exception", e);
+      e.printStackTrace();
     } finally {
-      System.out.println("Shutting SDK harness down.");
+      LOG.info("Shutting SDK harness down.");
       executionStateSampler.stop();
       executorService.shutdown();
     }

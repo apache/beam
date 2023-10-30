@@ -94,6 +94,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.State;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
@@ -228,7 +229,7 @@ public class StreamingDataflowWorker {
   private final Thread commitThread;
   private final AtomicLong activeCommitBytes = new AtomicLong();
   private final AtomicBoolean running = new AtomicBoolean();
-  private final StateFetcher stateFetcher;
+  private final SideInputStateFetcher sideInputStateFetcher;
   private final StreamingDataflowWorkerOptions options;
   private final boolean windmillServiceEnabled;
   private final long clientId;
@@ -422,7 +423,7 @@ public class StreamingDataflowWorker {
     this.metricTrackingWindmillServer =
         new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
     this.metricTrackingWindmillServer.start();
-    this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
+    this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer);
     this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
@@ -480,6 +481,11 @@ public class StreamingDataflowWorker {
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
+
+    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to WMW.
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
+        options.isEnableStreamingEngine()
+            && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
@@ -1089,7 +1095,7 @@ public class StreamingDataflowWorker {
                   }
                 };
               });
-      StateFetcher localStateFetcher = stateFetcher.byteTrackingView();
+      SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into a userland
       // key object and provide it to the execution context for use with per-key state.
@@ -1125,7 +1131,7 @@ public class StreamingDataflowWorker {
               outputDataWatermark,
               synchronizedProcessingTime,
               stateReader,
-              localStateFetcher,
+              localSideInputStateFetcher,
               outputBuilder);
 
       // Blocks while executing work.
@@ -1195,7 +1201,7 @@ public class StreamingDataflowWorker {
           shuffleBytesRead += message.getSerializedSize();
         }
       }
-      long stateBytesRead = stateReader.getBytesRead() + localStateFetcher.getBytesRead();
+      long stateBytesRead = stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead();
       windmillShuffleBytesRead.addValue(shuffleBytesRead);
       windmillStateBytesRead.addValue(stateBytesRead);
       windmillStateBytesWritten.addValue(stateBytesWritten);

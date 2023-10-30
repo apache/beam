@@ -17,7 +17,7 @@ name: PerformanceTests SpannerIO Read 2GB Python
 
 on:
   schedule:
-    - cron: '30 4 * * *'
+    - cron: '30 10 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,7 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_SpannerIO_Read_2GB_Python_test_arguments_1: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_SpannerIO_Read_2GB_Python:
@@ -78,9 +79,10 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/spannerIO_Read_2GB_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/spannerIO_Read_2GB_Python.txt
           arguments: |
             --job_name=performance-tests-spanner-read-python-2gb$(date '+%m%d%H%M%S' --utc)
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Performance SpannerIO Read 2GB Test Python
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

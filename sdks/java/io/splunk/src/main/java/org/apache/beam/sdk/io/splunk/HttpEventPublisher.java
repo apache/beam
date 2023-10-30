@@ -22,9 +22,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GZipEncoding;
 import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpBackOffIOExceptionHandler;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler.BackOffRequired;
 import com.google.api.client.http.HttpContent;
+import com.google.api.client.http.HttpIOExceptionHandler;
 import com.google.api.client.http.HttpMediaType;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
@@ -139,6 +141,9 @@ abstract class HttpEventPublisher {
     responseHandler.setBackOffRequired(BackOffRequired.ON_SERVER_ERROR);
 
     request.setUnsuccessfulResponseHandler(responseHandler);
+    HttpIOExceptionHandler ioExceptionHandler =
+        new HttpBackOffIOExceptionHandler(getConfiguredBackOff());
+    request.setIOExceptionHandler(ioExceptionHandler);
     setHeaders(request, token());
 
     return request.execute();
@@ -180,6 +185,10 @@ abstract class HttpEventPublisher {
    */
   private void setHeaders(HttpRequest request, String token) {
     request.getHeaders().setAuthorization(String.format(AUTHORIZATION_SCHEME, token));
+
+    if (enableGzipHttpCompression()) {
+      request.getHeaders().setContentEncoding("gzip");
+    }
   }
 
   /**

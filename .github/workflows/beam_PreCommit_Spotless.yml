@@ -35,10 +35,11 @@ on:
       - 'examples/java/**'
       - 'examples/kotlin/**'
       - '.test-infra/jenkins/'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 3/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -69,7 +70,7 @@ env:
 
 jobs:
   beam_PreCommit_Spotless:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     timeout-minutes: 120
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
@@ -91,6 +92,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run Spotless PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

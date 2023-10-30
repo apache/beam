@@ -58,6 +58,8 @@ jobs:
     name: "beam_Java_JMH"
     steps:
       - uses: actions/checkout@v3
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run the Java JMH micro-benchmark harness suite
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
