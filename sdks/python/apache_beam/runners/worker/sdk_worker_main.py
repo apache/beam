@@ -243,10 +243,10 @@ def _parse_pipeline_options(options_json):
 
 
 def _get_state_cache_size_bytes(options):
-  """Return the maximun size of state cache in bytes.
+  """Return the maximum size of state cache in bytes.
 
   Returns:
-    an int indicating the maximum number of megabytes to cache.
+    an int indicating the maximum number of bytes to cache.
       Default is 100 MB
   """
   max_cache_memory_usage_mb = options.view_as(
