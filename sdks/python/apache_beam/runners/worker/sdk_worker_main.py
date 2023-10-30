@@ -47,7 +47,6 @@ from apache_beam.utils import profiler
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
-_STATE_CACHE_SIZE_BYTES = 100 << 20
 
 
 def _import_beam_plugins(plugins):
@@ -251,16 +250,14 @@ def _get_state_cache_size_bytes(options):
   """
   max_cache_memory_usage_mb = options.view_as(
       WorkerOptions).max_cache_memory_usage_mb
-  if not max_cache_memory_usage_mb:
-    # to maintain backward compatibility
-    experiments = options.view_as(DebugOptions).experiments or []
-    for experiment in experiments:
-      # There should only be 1 match so returning from the loop
-      if re.match(r'state_cache_size=', experiment):
-        return int(
-            re.match(r'state_cache_size=(?P<state_cache_size>.*)',
-                     experiment).group('state_cache_size')) << 20
-    return _STATE_CACHE_SIZE_BYTES
+  # to maintain backward compatibility
+  experiments = options.view_as(DebugOptions).experiments or []
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'state_cache_size=', experiment):
+      return int(
+          re.match(r'state_cache_size=(?P<state_cache_size>.*)',
+                   experiment).group('state_cache_size')) << 20
   return max_cache_memory_usage_mb << 20
 
 

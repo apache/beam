@@ -236,16 +236,16 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   @unittest.mock.patch.dict(os.environ, {"JOB_NAME": "sample_job"}, clear=True)
   def test_pipeline_option_max_cache_memory_usage_mb(self):
-    options = PipelineOptions(flags=['--max_cache_memory_usage_mb=100'])
+    options = PipelineOptions(flags=['--max_cache_memory_usage_mb=50'])
 
     cache_size = sdk_worker_main._get_state_cache_size_bytes(options)
-    self.assertEqual(cache_size, sdk_worker_main._STATE_CACHE_SIZE_BYTES)
+    self.assertEqual(cache_size, 50 << 20)
 
   @unittest.mock.patch.dict(os.environ, {"JOB_NAME": "sample_job"}, clear=True)
   def test_pipeline_option_max_cache_memory_usage_mb_with_experiments(self):
-    options = PipelineOptions(flags=['--experiments=state_cache_size=100'])
+    options = PipelineOptions(flags=['--experiments=state_cache_size=50'])
     cache_size = sdk_worker_main._get_state_cache_size_bytes(options)
-    self.assertEqual(cache_size, sdk_worker_main._STATE_CACHE_SIZE_BYTES)
+    self.assertEqual(cache_size, 50 << 20)
 
 
 if __name__ == '__main__':

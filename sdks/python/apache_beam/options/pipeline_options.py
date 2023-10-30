@@ -1139,7 +1139,7 @@ class WorkerOptions(PipelineOptions):
         '--max_cache_memory_usage_mb',
         dest='max_cache_memory_usage_mb',
         type=int,
-        default=None,
+        default=100,
         help=(
             'Size of the SdkHarness cache to store user state and side inputs '
             'in MB. Default is 100MB. If the cache is full, least recently '
