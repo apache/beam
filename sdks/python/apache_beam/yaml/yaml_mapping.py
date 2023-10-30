@@ -79,15 +79,16 @@ class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
     self.__dict__.update(state)
 
 
-def row_to_dict(row):
-  if ((isinstance(row, tuple) and hasattr(row, '_asdict')) or
-      isinstance(row, beam.Row)):
-    row = row._asdict()
-  if isinstance(row, dict):
-    return {key: row_to_dict(value) for key, value in row.items()}
-  elif not isinstance(row, str) and isinstance(row, Iterable):
-    return [row_to_dict(value) for value in list(row)]
-  return row
+def py_value_to_js_dict(py_value):
+  if ((isinstance(py_value, tuple) and hasattr(py_value, '_asdict')) or
+      isinstance(py_value, beam.Row)):
+    py_value = py_value._asdict()
+  if isinstance(py_value, dict):
+    return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
+  elif not isinstance(py_value, str) and isinstance(py_value, Iterable):
+    return [py_value_to_js_dict(value) for value in list(py_value)]
+  else:
+    return py_value
 
 
 # TODO(yaml) Consider adding optional language version parameter to support
@@ -129,23 +130,15 @@ def _expand_javascript_mapping_func(
 
     return obj
 
-  def _catch_js_errors(func):
-    try:
-      result = func()
-    except simplex.JsException as e:
-      result = getattr(e, 'mes')
-    return result
-
   if expression:
-    args = ', '.join(original_fields)
-    js_func = f'function fn({args}) {{return ({expression})}}'
-    js_expr_callable = _CustomJsObjectWrapper(js2py.eval_js(js_func))
-    fn = lambda __row__: lambda: js_expr_callable(
-        *row_to_dict(__row__).values())
+    source = '\n'.join(['function(row) {'] + [
+        f'  {name} = row.{name}'
+        for name in original_fields if name in expression
+    ] + ['  return (' + expression + ')'] + ['}'])
+    js_func = _CustomJsObjectWrapper(js2py.eval_js(source))
 
   elif callable:
-    js_callable = _CustomJsObjectWrapper(js2py.eval_js(callable))
-    fn = lambda __row__: lambda: js_callable(row_to_dict(__row__))
+    js_func = _CustomJsObjectWrapper(js2py.eval_js(callable))
 
   else:
     if not path.endswith('.js'):
@@ -153,11 +146,19 @@ def _expand_javascript_mapping_func(
     udf_code = FileSystems.open(path).read().decode()
     js = js2py.EvalJs()
     js.eval(udf_code)
-    js_file_callable = _CustomJsObjectWrapper(getattr(js, name))
-    fn = lambda __row__: lambda: js_file_callable(row_to_dict(__row__))
+    js_func = _CustomJsObjectWrapper(getattr(js, name))
 
-  return lambda __row__: dicts_to_rows(
-      _js_object_to_py_object(_catch_js_errors(fn(__row__))))
+  def js_wrapper(row):
+    row_as_dict = py_value_to_js_dict(row)
+    try:
+      js_result = js_func(row_as_dict)
+    except simplex.JsException as exn:
+      raise RuntimeError(
+          f"Error evaluating javascript expression: "
+          f"{exn.mes['message']}") from exn
+    return dicts_to_rows(_js_object_to_py_object(js_result))
+
+  return js_wrapper
 
 
 def _expand_python_mapping_func(

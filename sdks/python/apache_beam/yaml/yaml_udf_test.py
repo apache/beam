@@ -25,13 +25,14 @@ from apache_beam.io import localfilesystem
 from apache_beam.options import pipeline_options
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.yaml_mapping import row_to_dict
+from apache_beam.yaml.yaml_mapping import py_value_to_js_dict
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 def AsRows():
-  return beam.Map(lambda named_tuple: dicts_to_rows(row_to_dict(named_tuple)))
+  return beam.Map(
+      lambda named_tuple: dicts_to_rows(py_value_to_js_dict(named_tuple)))
 
 
 class YamlUDFMappingTest(unittest.TestCase):
