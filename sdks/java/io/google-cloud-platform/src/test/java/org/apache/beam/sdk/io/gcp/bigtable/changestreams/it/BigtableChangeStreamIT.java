@@ -35,8 +35,8 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.common.IOITHelper;
-import org.apache.beam.sdk.io.gcp.bigtable.BigtableTestOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.BigtableChangeStreamTestOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -72,15 +72,15 @@ public class BigtableChangeStreamIT {
   private static BigtableDataClient dataClient;
   private static BigtableClientIntegrationTestOverride bigtableClientOverride;
   private static Batcher<RowMutationEntry, Void> mutationBatcher;
-  private static BigtableTestOptions options;
+  private static BigtableChangeStreamTestOptions options;
   private transient TestPipeline pipeline;
 
   @BeforeClass
   public static void beforeClass() throws IOException {
-    options = IOITHelper.readIOTestPipelineOptions(BigtableTestOptions.class);
+    options = IOITHelper.readIOTestPipelineOptions(BigtableChangeStreamTestOptions.class);
     LOG.info("Pipeline options: {}", options);
     projectId = options.as(GcpOptions.class).getProject();
-    instanceId = options.getInstanceId();
+    instanceId = options.getBigtableInstanceId();
 
     long randomId = Instant.now().getMillis();
     tableId = "beam-change-stream-test-" + randomId;
