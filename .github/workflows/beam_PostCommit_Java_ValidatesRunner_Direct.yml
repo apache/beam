@@ -18,15 +18,13 @@
 name: PostCommit Java ValidatesRunner Direct
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 4/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -52,7 +50,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_ValidatesRunner_Direct:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
@@ -71,15 +69,12 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
+          java-version: 8
       - name: run validatesRunner script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:direct-java:validatesRunner
+        run: ./gradlew :runners:direct-java:validatesRunner
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()

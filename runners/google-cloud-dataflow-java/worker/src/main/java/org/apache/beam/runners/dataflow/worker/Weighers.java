@@ -28,7 +28,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Weigher;
  * <p>Package-private here so that the dependency on Guava does not leak into the public API
  * surface.
  */
-class Weighers {
+public class Weighers {
   public static Weigher<Object, Weighted> fixedWeightKeys(final int keyWeight) {
     return (key, value) -> (int) Math.min(keyWeight + value.getWeight(), Integer.MAX_VALUE);
   }

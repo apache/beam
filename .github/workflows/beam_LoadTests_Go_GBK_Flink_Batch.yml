@@ -16,10 +16,8 @@
 name: LoadTests Go GBK Flink Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '20 1 * * *'
+    - cron: '50 12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -40,13 +38,15 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-go-gbk-flink-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
@@ -79,18 +79,20 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_100b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_100kb.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_Fanout_8.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_GBK_Flink_Batch_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Flink_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Flink_Batch_100b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Flink_Batch_100kb.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Flink_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Flink_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_GBK_Flink_Batch_Reiteration_10KB.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-gbk-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 5

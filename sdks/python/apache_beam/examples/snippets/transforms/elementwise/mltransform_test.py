@@ -31,7 +31,7 @@ try:
   import tensorflow_transform as tft  # pylint: disable=unused-import
   from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_scale_to_0_1
   from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_compute_and_apply_vocabulary
-  from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_compute_and_apply_vocabulary_with_non_columnar_data
+  from apache_beam.examples.snippets.transforms.elementwise.mltransform import mltransform_compute_and_apply_vocabulary_with_scalar
 except ImportError:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
@@ -46,8 +46,8 @@ Row(x=array([0, 2, 3]))
 
 def check_mltransform_scale_to_0_1():
   expected = '''[START mltransform_scale_to_0_1]
-Row(x=array([0.       , 0.5714286, 0.2857143], dtype=float32), x_max=array([8.], dtype=float32), x_min=array([1.], dtype=float32))
-Row(x=array([0.42857143, 0.14285715, 1.        ], dtype=float32), x_max=array([8.], dtype=float32), x_min=array([1.], dtype=float32))
+Row(x=array([0.       , 0.5714286, 0.2857143], dtype=float32))
+Row(x=array([0.42857143, 0.14285715, 1.        ], dtype=float32))
   [END mltransform_scale_to_0_1] '''.splitlines()[1:-1]
   return expected
 
@@ -80,7 +80,7 @@ class MLTransformStdOutTest(unittest.TestCase):
     self.assertEqual(predicted, expected)
 
   def test_mltransform_compute_and_apply_vocab_scalar(self, mock_stdout):
-    mltransform_compute_and_apply_vocabulary_with_non_columnar_data()
+    mltransform_compute_and_apply_vocabulary_with_scalar()
     predicted = mock_stdout.getvalue().splitlines()
     expected = check_mltransform_compute_and_apply_vocabulary_with_scalar()
     self.assertEqual(predicted, expected)

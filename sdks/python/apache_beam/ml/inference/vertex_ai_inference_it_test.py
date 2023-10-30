@@ -65,8 +65,7 @@ class VertexAIInference(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
 
-  @pytest.mark.uses_vertex_ai
-  @pytest.mark.it_postcommit
+  @pytest.mark.vertex_ai_postcommit
   def test_vertex_ai_run_llm_text_classification(self):
     output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
 

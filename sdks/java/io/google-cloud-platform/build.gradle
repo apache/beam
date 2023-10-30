@@ -307,8 +307,8 @@ task spannerCodeCoverageReport(type: JacocoReport, dependsOn: test) {
   sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
   executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
   reports {
-    html.enabled true
-    html.destination file("${buildDir}/reports/jacoco/spanner/")
+    html.getRequired().set(true)
+    html.getOutputLocation().set(file("${buildDir}/reports/jacoco/spanner/"))
   }
 }
 

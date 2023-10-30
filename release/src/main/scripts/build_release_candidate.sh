@@ -193,19 +193,19 @@ if [[ $confirmation = "y" ]]; then
   echo "----------------Downloading Source Release-------------------"
   # GitHub strips the "v" from "v2.29.0" in naming zip and the dir inside it
   RC_DIR="beam-${RELEASE}-RC${RC_NUM}"
-  RC_ZIP="${RC_DIR}.zip"
+  RC_ZIP="${RC_DIR}.tar.gz"
   # We want to strip the -RC1 suffix from the directory name inside the zip
   RELEASE_DIR="beam-${RELEASE}"
 
-  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.tar.gz"
   # Check whether there is an existing dist dir
   if (svn ls "${SOURCE_RELEASE_ZIP}"); then
     echo "Removing existing ${SOURCE_RELEASE_ZIP}."
     svn delete "${SOURCE_RELEASE_ZIP}"
   fi
 
-  echo "Downloading: ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip"
-  wget ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip  -O "${RC_ZIP}"
+  echo "Downloading: ${GIT_BEAM_ARCHIVE}/${RC_TAG}.tar.gz"
+  wget ${GIT_BEAM_ARCHIVE}/${RC_TAG}.tar.gz  -O "${RC_ZIP}"
 
   unzip "$RC_ZIP"
   rm "$RC_ZIP"
@@ -268,11 +268,11 @@ if [[ $confirmation = "y" ]]; then
 
   cd "${SVN_ARTIFACTS_DIR}"
 
-  echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
-  sha512sum -c "apache-beam-${RELEASE}.zip.sha512"
+  echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
+  sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
 
-  echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
-  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.zip"
+  echo "------Signing Source Release apache-beam-${RELEASE}.tar.gz------"
+  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
 
   for artifact in *.whl; do
     echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -346,7 +346,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-  cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+  cd sdks/python && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 

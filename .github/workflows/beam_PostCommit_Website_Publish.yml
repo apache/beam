@@ -17,7 +17,7 @@ name: PostCommit Website Publish
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 5/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -56,8 +56,13 @@ jobs:
     name: beam_PostCommit_Website_Publish
     steps:
       - uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          disable-cache: true
       - name: run PostCommit Website Publish script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :website:clean :website:publishWebsite
           arguments: -PgitPublishRemote="https://github.com/apache/beam.git"
+      - uses: actions/checkout@v4 # Extra checkout to make sure we're on master for post steps.

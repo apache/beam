@@ -515,6 +515,14 @@ class StandardOptions(PipelineOptions):
             'at transform level. Interpretation of hints is defined by '
             'Beam runners.'))
 
+    parser.add_argument(
+        '--auto_unique_labels',
+        default=False,
+        action='store_true',
+        help='Whether to automatically generate unique transform labels '
+        'for every transform. The default behavior is to raise an '
+        'exception if a transform is created with a non-unique label.')
+
 
 class CrossLanguageOptions(PipelineOptions):
   @classmethod

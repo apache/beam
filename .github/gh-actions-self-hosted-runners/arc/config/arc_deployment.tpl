@@ -22,6 +22,9 @@ metadata:
   name: ${name}
 spec:
   template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
       %{~ if selector == true  ~}
       nodeSelector:

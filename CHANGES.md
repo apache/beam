@@ -57,8 +57,12 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Previously deprecated Avro-dependent code (Beam Release 2.46.0) has been finally removed from Java SDK "core" package.
+Please, use `beam-sdks-java-extensions-avro` instead. This will allow to easily update Avro version in user code without
+potential breaking changes in Beam "core" since the Beam Avro extension already supports the latest Avro versions and
+should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
+* Publishing Java 21 SDK container images now supported as part of Apache Beam release process. ([#28120](https://github.com/apache/beam/issues/28120))
+  * Direct Runner and Dataflow Runner V2 support running pipeline on Java21. Support for other runners are planned in upcoming versions.
 
 ## I/Os
 
@@ -66,11 +70,19 @@
 
 ## New Features / Improvements
 
+* Add `UseDataStreamForBatch` pipeline option to the Flink runner. When it is set to true, Flink runner will run batch
+  jobs using the DataStream API. By default the option is set to false, so the batch jobs are still executed
+  using the DataSet API.
+* `upload_graph` as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK ([PR#28621](https://github.com/apache/beam/pull/28621).
 * state cache has been enabled to a default of 100 MB. Use `--max_cache_memory_usage_mb=X` to provide cache size. (Python) ([#28770](https://github.com/apache/beam/issues/28770)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* `org.apache.beam.sdk.io.CountingSource.CounterMark` uses custom `CounterMarkCoder` as a default coder since all Avro-dependent
+classes finally moved to `extensions/avro`. In case if it's still required to use `AvroCoder` for `CounterMark`, then,
+as a workaround, a copy of "old" `CountingSource` class should be placed into a project code and used directly
+([#25252](https://github.com/apache/beam/issues/25252)).
 
 ## Deprecations
 
@@ -78,31 +90,26 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed "Desired bundle size 0 bytes must be greater than 0" in Java SDK's BigtableIO.BigtableSource when you have more cores than bytes to read (Java) [#28793](https://github.com/apache/beam/issues/28793).
+* `watch_file_pattern` arg of the [RunInference](https://github.com/apache/beam/blob/104c10b3ee536a9a3ea52b4dbf62d86b669da5d9/sdks/python/apache_beam/ml/inference/base.py#L997) arg had no effect prior to 2.52.0. To use the behavior of arg `watch_file_pattern` prior to 2.52.0, follow the documentation at https://beam.apache.org/documentation/ml/side-input-updates/ and use `WatchFilePattern` PTransform as a SideInput. ([#28948](https://github.com/apache/beam/pulls/28948))
+* `MLTransform` doesn't output artifacts such as min, max and quantiles. Instead, `MLTransform` will add a feature to output these artifacts as human readable format - [#29017](https://github.com/apache/beam/issues/29017). For now, to use the artifacts such as min and max that were produced by the eariler `MLTransform`, use `read_artifact_location` of `MLTransform`, which reads artifacts that were produced earlier in a different `MLTransform` ([#29016](https://github.com/apache/beam/pull/29016/))
 
 ## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-2023-39325](https://www.cve.org/CVERecord?id=CVE-2023-39325) (Java/Python/Go) ([#29118](https://github.com/apache/beam/issues/29118)).
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.51.0] - Unreleased
-
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-
-## I/Os
-
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+# [2.51.0] - 2023-10-03
 
 ## New Features / Improvements
 
 * In Python, [RunInference](https://beam.apache.org/documentation/sdks/python-machine-learning/#why-use-the-runinference-api) now supports loading many models in the same transform using a [KeyedModelHandler](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler) ([#27628](https://github.com/apache/beam/issues/27628)).
 * In Python, the [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vertex_ai_inference.html#apache_beam.ml.inference.vertex_ai_inference.VertexAIModelHandlerJSON) now supports passing in inference_args. These will be passed through to the Vertex endpoint as parameters.
 * Added support to run `mypy` on user pipelines ([#27906](https://github.com/apache/beam/issues/27906))
+
 
 ## Breaking Changes
 
@@ -111,9 +118,6 @@
 * Removed the parameter `t reflect.Type` from `parquetio.Write`. The element type is derived from the input PCollection (Go) ([#28490](https://github.com/apache/beam/issues/28490))
 * Refactor BeamSqlSeekableTable.setUp adding a parameter joinSubsetType. [#28283](https://github.com/apache/beam/issues/28283)
 
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
@@ -128,7 +132,8 @@
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* Python pipelines using BigQuery Storage Read API must pin `fastavro`
+  dependency to 1.8.3 or earlier: [#28811](https://github.com/apache/beam/issues/28811)
 
 # [2.50.0] - 2023-08-30
 

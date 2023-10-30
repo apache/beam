@@ -2978,6 +2978,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   agg = aggregate
 
   applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
+  if PD_VERSION >= (2, 1):
+    map = frame_base._elementwise_method('map', base=pd.DataFrame)
   add_prefix = frame_base._elementwise_method('add_prefix', base=pd.DataFrame)
   add_suffix = frame_base._elementwise_method('add_suffix', base=pd.DataFrame)
 

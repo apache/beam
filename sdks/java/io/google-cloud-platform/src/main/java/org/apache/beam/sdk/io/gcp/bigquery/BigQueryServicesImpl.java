@@ -1364,11 +1364,14 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .setChannelsPerCpu(2)
               .build();
 
-      String traceId = String.format("Dataflow:%s:%s:%s",
-          bqIOMetadata.getBeamJobName() == null ? options.getJobName()
-              : bqIOMetadata.getBeamJobName(),
-          bqIOMetadata.getBeamJobId() == null ? "" : bqIOMetadata.getBeamJobId(),
-          bqIOMetadata.getBeamWorkerId() == null ? "" : bqIOMetadata.getBeamWorkerId());
+      String traceId =
+          String.format(
+              "Dataflow:%s:%s:%s",
+              bqIOMetadata.getBeamJobName() == null
+                  ? options.getJobName()
+                  : bqIOMetadata.getBeamJobName(),
+              bqIOMetadata.getBeamJobId() == null ? "" : bqIOMetadata.getBeamJobId(),
+              bqIOMetadata.getBeamWorkerId() == null ? "" : bqIOMetadata.getBeamWorkerId());
 
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName, newWriteClient)

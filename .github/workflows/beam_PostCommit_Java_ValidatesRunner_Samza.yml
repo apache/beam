@@ -16,10 +16,8 @@
 name: PostCommit Java ValidatesRunner Samza
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 4/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -40,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -69,11 +67,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
+          java-version: 8
       - name: run validatesRunner script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

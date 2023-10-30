@@ -16,10 +16,8 @@
 name: LoadTests Java GBK Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '10 6 * * *'
+    - cron: '50 13 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -40,13 +38,15 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Java_GBK_Dataflow_Batch:
@@ -69,19 +69,21 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_2GB_of_10B_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_2GB_of_100B_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_2GB_of_100kB_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_fanout_4_times_with_2GB_10-byte_records_total.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_fanout_8_times_with_2GB_10-byte_records_total.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_reiterate_4_times_10kB_values.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_Batch_reiterate_4_times_2MB_values.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_2GB_of_10B_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_2GB_of_100B_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_2GB_of_100kB_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_fanout_4_times_with_2GB_10-byte_records_total.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_fanout_8_times_with_2GB_10-byte_records_total.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_reiterate_4_times_10kB_values.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_Batch_reiterate_4_times_2MB_values.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Load test 2GB of 10B records
         uses: ./.github/actions/gradle-command-self-hosted-action

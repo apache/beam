@@ -115,14 +115,13 @@ This method requires building image artifacts from Beam source. For additional i
   ./gradlew :sdks:java:container:java11:docker
   ./gradlew :sdks:java:container:java17:docker
   ./gradlew :sdks:go:container:docker
-  ./gradlew :sdks:python:container:py36:docker
   ./gradlew :sdks:python:container:py38:docker
   ./gradlew :sdks:python:container:py39:docker
   ./gradlew :sdks:python:container:py310:docker
   ./gradlew :sdks:python:container:py311:docker
 
   # Shortcut for building all Python SDKs
-  ./gradlew :sdks:python:container buildAll
+  ./gradlew :sdks:python:container:buildAll
   ```
 
 4. Verify the images you built were created by running `docker images`.
