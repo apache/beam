@@ -32,20 +32,20 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** Dummy PTransform that is configurable with a DLQ. */
-public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+/** Dummy PTransform that is configurable with a Bad Record Handler. */
+public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
-  private ErrorHandler<DeadLetter, ?> errorHandler = new NoOpErrorHandler<>();
+  private ErrorHandler<BadRecord, ?> errorHandler = new NoOpErrorHandler<>();
 
-  private DeadLetterHandler deadLetterHandler = DeadLetterHandler.THROWING_HANDLER;
+  private BadRecordHandler badRecordHandler = BadRecordHandler.THROWING_HANDLER;
 
   private static final TupleTag<Integer> RECORDS = new TupleTag<>();
 
-  public DLQEnabledPTransform() {}
+  public BRHEnabledPTransform() {}
 
-  public DLQEnabledPTransform withDeadLetterQueue(ErrorHandler<DeadLetter, ?> errorHandler) {
+  public BRHEnabledPTransform withBadRecordHandler(ErrorHandler<BadRecord, ?> errorHandler) {
     this.errorHandler = errorHandler;
-    this.deadLetterHandler = DeadLetterHandler.RECORDING_HANDLER;
+    this.badRecordHandler = BadRecordHandler.RECORDING_HANDLER;
     return this;
   }
 
@@ -54,35 +54,35 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     PCollectionTuple pCollectionTuple =
         input.apply(
             "NoOpDoFn",
-            ParDo.of(new NoOpDoFn(deadLetterHandler))
-                .withOutputTags(RECORDS, TupleTagList.of(DeadLetterHandler.DEAD_LETTER_TAG)));
+            ParDo.of(new NoOpDoFn(badRecordHandler))
+                .withOutputTags(RECORDS, TupleTagList.of(BadRecordHandler.BAD_RECORD_TAG)));
 
-    Coder<DeadLetter> deadLetterCoder;
+    Coder<BadRecord> badRecordCoder;
 
     try {
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-      deadLetterCoder =
+      badRecordCoder =
           SchemaCoder.of(
-              schemaRegistry.getSchema(DeadLetter.class),
-              TypeDescriptor.of(DeadLetter.class),
-              schemaRegistry.getToRowFunction(DeadLetter.class),
-              schemaRegistry.getFromRowFunction(DeadLetter.class));
+              schemaRegistry.getSchema(BadRecord.class),
+              TypeDescriptor.of(BadRecord.class),
+              schemaRegistry.getToRowFunction(BadRecord.class),
+              schemaRegistry.getFromRowFunction(BadRecord.class));
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
 
     errorHandler.addErrorCollection(
-        pCollectionTuple.get(DeadLetterHandler.DEAD_LETTER_TAG).setCoder(deadLetterCoder));
+        pCollectionTuple.get(BadRecordHandler.BAD_RECORD_TAG).setCoder(badRecordCoder));
 
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
 
   public static class NoOpDoFn extends DoFn<Integer, Integer> {
 
-    private DeadLetterHandler deadLetterHandler;
+    private BadRecordHandler badRecordHandler;
 
-    public NoOpDoFn(DeadLetterHandler deadLetterHandler) {
-      this.deadLetterHandler = deadLetterHandler;
+    public NoOpDoFn(BadRecordHandler badRecordHandler) {
+      this.badRecordHandler = badRecordHandler;
     }
 
     @ProcessElement
@@ -91,7 +91,7 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
       if (element % 2 == 0) {
         context.output(element);
       } else {
-        deadLetterHandler.handle(
+        badRecordHandler.handle(
             context,
             element,
             BigEndianIntegerCoder.of(),

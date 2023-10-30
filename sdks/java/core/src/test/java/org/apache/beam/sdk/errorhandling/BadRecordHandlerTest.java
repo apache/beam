@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.errorhandling;
 
-import static org.apache.beam.sdk.errorhandling.DeadLetterHandler.DEAD_LETTER_TAG;
+import static org.apache.beam.sdk.errorhandling.BadRecordHandler.BAD_RECORD_TAG;
+import static org.apache.beam.sdk.errorhandling.BadRecordHandler.DEAD_LETTER_TAG;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 @RunWith(JUnit4.class)
-public class DeadLetterHandlerTest {
+public class BadRecordHandlerTest {
 
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
@@ -48,7 +49,7 @@ public class DeadLetterHandlerTest {
 
   @Test
   public void testThrowingHandlerWithException() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.THROWING_HANDLER;
+    BadRecordHandler handler = BadRecordHandler.THROWING_HANDLER;
 
     thrown.expect(RuntimeException.class);
 
@@ -57,20 +58,20 @@ public class DeadLetterHandlerTest {
 
   @Test
   public void testThrowingHandlerWithNoException() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.THROWING_HANDLER;
+    BadRecordHandler handler = BadRecordHandler.THROWING_HANDLER;
 
     handler.handle(processContext, new Object(), null, null, "desc", "transform");
   }
 
   @Test
   public void testRecordingHandler() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.RECORDING_HANDLER;
+    BadRecordHandler handler = BadRecordHandler.RECORDING_HANDLER;
 
     handler.handle(
         processContext, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc", "transform");
 
-    DeadLetter expected =
-        DeadLetter.builder()
+    BadRecord expected =
+        BadRecord.builder()
             .setHumanReadableRecord("5")
             .setEncodedRecord(new byte[] {0, 0, 0, 5})
             .setCoder("BigEndianIntegerCoder")
@@ -79,29 +80,29 @@ public class DeadLetterHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(DEAD_LETTER_TAG, expected);
+    verify(processContext).output(BAD_RECORD_TAG, expected);
   }
 
   @Test
   public void testNoCoder() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.RECORDING_HANDLER;
+    BadRecordHandler handler = BadRecordHandler.RECORDING_HANDLER;
 
     handler.handle(processContext, 5, null, new RuntimeException(), "desc", "transform");
 
-    DeadLetter expected =
-        DeadLetter.builder()
+    BadRecord expected =
+        BadRecord.builder()
             .setHumanReadableRecord("5")
             .setException("java.lang.RuntimeException")
             .setDescription("desc")
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(DEAD_LETTER_TAG, expected);
+    verify(processContext).output(BAD_RECORD_TAG, expected);
   }
 
   @Test
   public void testFailingCoder() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.RECORDING_HANDLER;
+    BadRecordHandler handler = BadRecordHandler.RECORDING_HANDLER;
 
     Coder<Integer> failingCoder =
         new Coder<Integer>() {
@@ -127,8 +128,8 @@ public class DeadLetterHandlerTest {
 
     handler.handle(processContext, 5, failingCoder, new RuntimeException(), "desc", "transform");
 
-    DeadLetter expected =
-        DeadLetter.builder()
+    BadRecord expected =
+        BadRecord.builder()
             .setHumanReadableRecord("5")
             .setCoder(failingCoder.toString())
             .setException("java.lang.RuntimeException")
@@ -136,6 +137,6 @@ public class DeadLetterHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(DEAD_LETTER_TAG, expected);
+    verify(processContext).output(BAD_RECORD_TAG, expected);
   }
 }

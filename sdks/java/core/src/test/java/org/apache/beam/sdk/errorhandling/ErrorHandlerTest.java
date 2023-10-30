@@ -55,20 +55,20 @@ public class ErrorHandlerTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDLQEnabledPTransform() {
+  public void testBRHEnabledPTransform() {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
-    record.apply(new DLQEnabledPTransform());
+    record.apply(new BRHEnabledPTransform());
 
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testErrorHandlerWithDLQTransform() throws Exception {
+  public void testErrorHandlerWithBRHTransform() throws Exception {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
-    try (ErrorHandler<DeadLetter, PCollection<DeadLetter>> eh =
+    try (ErrorHandler<BadRecord, PCollection<BadRecord>> eh =
         pipeline.registerErrorHandler(new DummySinkTransform<>())) {
-      record.apply(new DLQEnabledPTransform().withDeadLetterQueue(eh));
+      record.apply(new BRHEnabledPTransform().withBadRecordHandler(eh));
     }
 
     pipeline.run();

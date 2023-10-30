@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * Error Handlers must be closed before a pipeline is run to properly pipe error collections to the
  * sink, and the pipeline will be rejected if any handlers aren't closed.
  *
- * @param <X> The type of the error object. This will usually be a {@link DeadLetter}, but can be
+ * @param <X> The type of the error object. This will usually be a {@link BadRecord}, but can be
  *     any type
  * @param <T> The return type of the sink PTransform.
  *     <p>Usage of Error Handlers:

@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
-public abstract class DeadLetter implements Serializable {
+public abstract class BadRecord implements Serializable {
 
   /** The failing record, encoded as JSON. */
   public abstract String getHumanReadableRecord();
@@ -53,7 +53,7 @@ public abstract class DeadLetter implements Serializable {
   public abstract String getFailingTransform();
 
   public static Builder builder() {
-    return new AutoValue_DeadLetter.Builder();
+    return new AutoValue_BadRecord.Builder();
   }
 
   @AutoValue.Builder
@@ -71,6 +71,6 @@ public abstract class DeadLetter implements Serializable {
 
     public abstract Builder setFailingTransform(String failingTransform);
 
-    public abstract DeadLetter build();
+    public abstract BadRecord build();
   }
 }

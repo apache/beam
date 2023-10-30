@@ -30,13 +30,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface DeadLetterHandler extends Serializable {
+public interface BadRecordHandler extends Serializable {
 
-  DeadLetterHandler THROWING_HANDLER = new ThrowingDeadLetterHandler();
+  BadRecordHandler THROWING_HANDLER = new ThrowingBadRecordHandler();
 
-  DeadLetterHandler RECORDING_HANDLER = new RecordingDeadLetterHandler();
+  BadRecordHandler RECORDING_HANDLER = new RecordingBadRecordHandler();
 
-  TupleTag<DeadLetter> DEAD_LETTER_TAG = new TupleTag<>();
+  TupleTag<BadRecord> BAD_RECORD_TAG = new TupleTag<>();
 
   <T> void handle(
       DoFn<?, ?>.ProcessContext c,
@@ -47,7 +47,7 @@ public interface DeadLetterHandler extends Serializable {
       String failingTransform)
       throws Exception;
 
-  class ThrowingDeadLetterHandler implements DeadLetterHandler {
+  class ThrowingBadRecordHandler implements BadRecordHandler {
 
     @Override
     public <T> void handle(
@@ -64,9 +64,9 @@ public interface DeadLetterHandler extends Serializable {
     }
   }
 
-  class RecordingDeadLetterHandler implements DeadLetterHandler {
+  class RecordingBadRecordHandler implements BadRecordHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(RecordingDeadLetterHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RecordingBadRecordHandler.class);
 
     @Override
     public <T> void handle(
@@ -80,8 +80,8 @@ public interface DeadLetterHandler extends Serializable {
       Preconditions.checkArgumentNotNull(record);
       ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-      DeadLetter.Builder deadLetterBuilder =
-          DeadLetter.builder()
+      BadRecord.Builder deadLetterBuilder =
+          BadRecord.builder()
               .setHumanReadableRecord(objectWriter.writeValueAsString(record))
               .setDescription(description)
               .setFailingTransform(failingTransform);
@@ -109,8 +109,8 @@ public interface DeadLetterHandler extends Serializable {
               e);
         }
       }
-      DeadLetter deadLetter = deadLetterBuilder.build();
-      c.output(DEAD_LETTER_TAG, deadLetter);
+      BadRecord badRecord = deadLetterBuilder.build();
+      c.output(BAD_RECORD_TAG, badRecord);
     }
   }
 }
