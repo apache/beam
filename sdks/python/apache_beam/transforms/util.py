@@ -393,7 +393,7 @@ class _BatchSizeEstimator(object):
   def record_time(self, batch_size):
     start = self._clock()
     yield
-    elapsed = self._clock() - start
+    elapsed = float(self._clock() - start)
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
     if self._record_metrics:
       self._size_distribution.update(batch_size)
@@ -650,7 +650,8 @@ class _WindowAwareBatchingDoFn(DoFn):
 def _pardo_stateful_batch_elements(
     input_coder: coders.Coder,
     batch_size_estimator: _BatchSizeEstimator,
-    max_buffering_duration_secs: int):
+    max_buffering_duration_secs: int,
+    clock=time.time):
   ELEMENT_STATE = BagStateSpec('values', input_coder)
   COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
   BATCH_SIZE_STATE = ReadModifyWriteStateSpec('batch_size', input_coder)
@@ -691,7 +692,7 @@ def _pardo_stateful_batch_elements(
 
       if count == 1 and max_buffering_duration_secs > 0:
         # First element in batch, start buffering timer
-        buffering_timer.set(time.time() + max_buffering_duration_secs)
+        buffering_timer.set(clock() + max_buffering_duration_secs)
 
       if count >= target_size:
         return self.flush_batch(
@@ -744,11 +745,12 @@ def _pardo_stateful_batch_elements(
       element_state.clear()
       count_state.clear()
       batch_estimator = batch_estimator_state.read()
-      batch_estimator.record_time(len(batch))
+      with batch_estimator.record_time(len(batch)):
+        print("flushing batch: ", batch)
+        yield batch
       batch_size_state.write(batch_estimator.next_batch_size())
       batch_estimator_state.write(batch_estimator)
       buffering_timer.clear()
-      yield batch
 
   return _StatefulBatchElementsDoFn()
 
@@ -903,6 +905,7 @@ class StatefulBatchElements(PTransform):
         record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
     self._max_batch_dur = max_batch_duration_secs
+    self._clock = clock
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
@@ -910,7 +913,8 @@ class StatefulBatchElements(PTransform):
     coder = coders.registry.get_coder(pcoll)
     return pcoll | WithKeys(0) | ParDo(
         _pardo_stateful_batch_elements(
-            coder, self._batch_size_estimator, self._max_batch_dur))
+            coder, self._batch_size_estimator, self._max_batch_dur,
+            self._clock))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):
