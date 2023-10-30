@@ -227,7 +227,7 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // Optionally, a ParDo transform can produce zero or multiple output
 // PCollections. Note the use of ParDo2 to specfic 2 outputs. For example:
 //
-//	func partitionAtCutoff(word string, cutoff int, small,big func(string)) {
+//	func partitionAtCutoff(word string, cutoff int, small, big func(string)) {
 //		if len(word) < cutoff {
 //			small(word)
 //		} else {
