@@ -746,7 +746,6 @@ def _pardo_stateful_batch_elements(
       count_state.clear()
       batch_estimator = batch_estimator_state.read()
       with batch_estimator.record_time(len(batch)):
-        print("flushing batch: ", batch)
         yield batch
       batch_size_state.write(batch_estimator.next_batch_size())
       batch_estimator_state.write(batch_estimator)
