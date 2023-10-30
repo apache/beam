@@ -37,7 +37,7 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
 
   private ErrorHandler<DeadLetter, ?> errorHandler = new NoOpErrorHandler<>();
 
-  private DeadLetterHandler deadLetterHandler = DeadLetterHandler.throwingHandler;
+  private DeadLetterHandler deadLetterHandler = DeadLetterHandler.THROWING_HANDLER;
 
   private static final TupleTag<Integer> RECORDS = new TupleTag<>();
 
@@ -45,7 +45,7 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
 
   public DLQEnabledPTransform withDeadLetterQueue(ErrorHandler<DeadLetter, ?> errorHandler) {
     this.errorHandler = errorHandler;
-    this.deadLetterHandler = DeadLetterHandler.recordingHandler;
+    this.deadLetterHandler = DeadLetterHandler.RECORDING_HANDLER;
     return this;
   }
 
@@ -55,7 +55,7 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
         input.apply(
             "NoOpDoFn",
             ParDo.of(new NoOpDoFn(deadLetterHandler))
-                .withOutputTags(RECORDS, TupleTagList.of(DeadLetterHandler.deadLetterTag)));
+                .withOutputTags(RECORDS, TupleTagList.of(DeadLetterHandler.DEAD_LETTER_TAG)));
 
     Coder<DeadLetter> deadLetterCoder;
 
@@ -72,7 +72,7 @@ public class DLQEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     }
 
     errorHandler.addErrorCollection(
-        pCollectionTuple.get(DeadLetterHandler.deadLetterTag).setCoder(deadLetterCoder));
+        pCollectionTuple.get(DeadLetterHandler.DEAD_LETTER_TAG).setCoder(deadLetterCoder));
 
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }

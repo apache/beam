@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.errorhandling;
 
-import static org.apache.beam.sdk.errorhandling.DeadLetterHandler.deadLetterTag;
+import static org.apache.beam.sdk.errorhandling.DeadLetterHandler.DEAD_LETTER_TAG;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -48,7 +48,7 @@ public class DeadLetterHandlerTest {
 
   @Test
   public void testThrowingHandlerWithException() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.throwingHandler;
+    DeadLetterHandler handler = DeadLetterHandler.THROWING_HANDLER;
 
     thrown.expect(RuntimeException.class);
 
@@ -57,14 +57,14 @@ public class DeadLetterHandlerTest {
 
   @Test
   public void testThrowingHandlerWithNoException() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.throwingHandler;
+    DeadLetterHandler handler = DeadLetterHandler.THROWING_HANDLER;
 
     handler.handle(processContext, new Object(), null, null, "desc", "transform");
   }
 
   @Test
   public void testRecordingHandler() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.recordingHandler;
+    DeadLetterHandler handler = DeadLetterHandler.RECORDING_HANDLER;
 
     handler.handle(
         processContext, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc", "transform");
@@ -79,12 +79,12 @@ public class DeadLetterHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(deadLetterTag, expected);
+    verify(processContext).output(DEAD_LETTER_TAG, expected);
   }
 
   @Test
   public void testNoCoder() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.recordingHandler;
+    DeadLetterHandler handler = DeadLetterHandler.RECORDING_HANDLER;
 
     handler.handle(processContext, 5, null, new RuntimeException(), "desc", "transform");
 
@@ -96,12 +96,12 @@ public class DeadLetterHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(deadLetterTag, expected);
+    verify(processContext).output(DEAD_LETTER_TAG, expected);
   }
 
   @Test
   public void testFailingCoder() throws Exception {
-    DeadLetterHandler handler = DeadLetterHandler.recordingHandler;
+    DeadLetterHandler handler = DeadLetterHandler.RECORDING_HANDLER;
 
     Coder<Integer> failingCoder =
         new Coder<Integer>() {
@@ -136,6 +136,6 @@ public class DeadLetterHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(deadLetterTag, expected);
+    verify(processContext).output(DEAD_LETTER_TAG, expected);
   }
 }

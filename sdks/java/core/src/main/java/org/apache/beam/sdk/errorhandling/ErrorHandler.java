@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * Error Handlers must be closed before a pipeline is run to properly pipe error collections to the
  * sink, and the pipeline will be rejected if any handlers aren't closed.
  *
- * @param <E> The type of the error object. This will usually be a {@link DeadLetter}, but can be
+ * @param <X> The type of the error object. This will usually be a {@link DeadLetter}, but can be
  *     any type
  * @param <T> The return type of the sink PTransform.
  *     <p>Usage of Error Handlers:
@@ -57,20 +57,20 @@ import org.slf4j.LoggerFactory;
  * results.apply(SomeOtherTransform);
  * }</pre>
  */
-public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
+public interface ErrorHandler<X, T extends POutput> extends AutoCloseable {
 
-  void addErrorCollection(PCollection<E> errorCollection);
+  void addErrorCollection(PCollection<X> errorCollection);
 
   boolean isClosed();
 
   T getOutput();
 
-  class PTransformErrorHandler<E, T extends POutput> implements ErrorHandler<E, T> {
+  class PTransformErrorHandler<X, T extends POutput> implements ErrorHandler<X, T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
-    private final PTransform<PCollection<E>, T> sinkTransform;
+    private final PTransform<PCollection<X>, T> sinkTransform;
 
-    private final List<PCollection<E>> errorCollections = new ArrayList<>();
+    private final List<PCollection<X>> errorCollections = new ArrayList<>();
 
     @Nullable private T sinkOutput = null;
 
@@ -81,12 +81,12 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
      * pipeline.registerErrorHandler to ensure safe pipeline construction
      */
     @Internal
-    public PTransformErrorHandler(PTransform<PCollection<E>, T> sinkTransform) {
+    public PTransformErrorHandler(PTransform<PCollection<X>, T> sinkTransform) {
       this.sinkTransform = sinkTransform;
     }
 
     @Override
-    public void addErrorCollection(PCollection<E> errorCollection) {
+    public void addErrorCollection(PCollection<X> errorCollection) {
       errorCollections.add(errorCollection);
     }
 
@@ -119,10 +119,10 @@ public interface ErrorHandler<E, T extends POutput> extends AutoCloseable {
   }
 
   @Internal
-  class NoOpErrorHandler<E, T extends POutput> implements ErrorHandler<E, T> {
+  class NoOpErrorHandler<X, T extends POutput> implements ErrorHandler<X, T> {
 
     @Override
-    public void addErrorCollection(PCollection<E> errorCollection) {}
+    public void addErrorCollection(PCollection<X> errorCollection) {}
 
     @Override
     public boolean isClosed() {

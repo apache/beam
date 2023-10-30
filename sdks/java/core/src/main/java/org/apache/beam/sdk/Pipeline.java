@@ -347,9 +347,9 @@ public class Pipeline {
     return schemaRegistry;
   }
 
-  public <E, T extends POutput> ErrorHandler<E, T> registerErrorHandler(
-      PTransform<PCollection<E>, T> sinkTransform) {
-    ErrorHandler<E, T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
+  public <X, T extends POutput> ErrorHandler<X, T> registerErrorHandler(
+      PTransform<PCollection<X>, T> sinkTransform) {
+    ErrorHandler<X, T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
     errorHandlers.add(errorHandler);
     return errorHandler;
   }

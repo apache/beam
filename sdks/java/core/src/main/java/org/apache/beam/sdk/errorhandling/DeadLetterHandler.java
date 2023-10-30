@@ -31,11 +31,11 @@ import org.slf4j.LoggerFactory;
 
 public interface DeadLetterHandler {
 
-  DeadLetterHandler throwingHandler = new ThrowingDeadLetterHandler();
+  DeadLetterHandler THROWING_HANDLER = new ThrowingDeadLetterHandler();
 
-  DeadLetterHandler recordingHandler = new RecordingDeadLetterHandler();
+  DeadLetterHandler RECORDING_HANDLER = new RecordingDeadLetterHandler();
 
-  TupleTag<DeadLetter> deadLetterTag = new TupleTag<>();
+  TupleTag<DeadLetter> DEAD_LETTER_TAG = new TupleTag<>();
 
   <T> void handle(
       DoFn<?, ?>.ProcessContext c,
@@ -57,7 +57,9 @@ public interface DeadLetterHandler {
         String description,
         String failingTransform)
         throws Exception {
-      if (exception != null) throw exception;
+      if (exception != null) {
+        throw exception;
+      }
     }
   }
 
@@ -107,7 +109,7 @@ public interface DeadLetterHandler {
         }
       }
       DeadLetter deadLetter = deadLetterBuilder.build();
-      c.output(deadLetterTag, deadLetter);
+      c.output(DEAD_LETTER_TAG, deadLetter);
     }
   }
 }
