@@ -51,9 +51,10 @@ env:
 jobs:
   beam_PerformanceTests_Cdap:
     if: |
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Java CdapIO Performance Test'
+      github.event.comment.body == 'Run Java CdapIO Performance Test') &&
+      github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
