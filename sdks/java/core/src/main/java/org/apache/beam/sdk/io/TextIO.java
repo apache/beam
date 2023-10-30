@@ -402,7 +402,7 @@ public class TextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
-    public Read withRemoveHeader(boolean removeHeader){
+    public Read withRemoveHeader(boolean removeHeader) {
       return toBuilder().setRemoveHeader(removeHeader).build();
     }
 
@@ -432,7 +432,9 @@ public class TextIO {
               FileIO.readMatches()
                   .withCompression(getCompression())
                   .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()).withRemoveHeader(getRemoveHeader()));
+          .apply(
+              "Via ReadFiles",
+              readFiles().withDelimiter(getDelimiter()).withRemoveHeader(getRemoveHeader()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -441,7 +443,8 @@ public class TextIO {
               new TextSource(
                   getFilepattern(),
                   getMatchConfiguration().getEmptyMatchTreatment(),
-                  getDelimiter(), getRemoveHeader()))
+                  getDelimiter(),
+                  getRemoveHeader()))
           .withCompression(getCompression());
     }
 
@@ -489,6 +492,7 @@ public class TextIO {
       abstract Builder setCompression(Compression compression);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
+
       abstract Builder setRemoveHeader(boolean removeHeader);
 
       abstract ReadAll build();
@@ -598,7 +602,7 @@ public class TextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
-    public ReadFiles withRemoveHeader(boolean removeHeader){
+    public ReadFiles withRemoveHeader(boolean removeHeader) {
       return toBuilder().setRemoveHeader(removeHeader).build();
     }
 

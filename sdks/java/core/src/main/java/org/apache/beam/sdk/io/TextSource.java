@@ -59,13 +59,17 @@ public class TextSource extends FileBasedSource<String> {
   boolean removeHeader;
 
   public TextSource(
-      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter, boolean removeHeader) {
+      ValueProvider<String> fileSpec,
+      EmptyMatchTreatment emptyMatchTreatment,
+      byte[] delimiter,
+      boolean removeHeader) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
     this.removeHeader = removeHeader;
   }
 
-  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter, boolean removeHeader) {
+  public TextSource(
+      MatchResult.Metadata metadata, long start, long end, byte[] delimiter, boolean removeHeader) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
     this.removeHeader = removeHeader;
@@ -191,7 +195,7 @@ public class TextSource extends FileBasedSource<String> {
         if (fileStartsWithBom()) {
           startOfNextRecord = bufferPosn = UTF8_BOM.size();
         }
-        if(removeHeader) {
+        if (removeHeader) {
           readNextRecord();
           currentValue = null;
         }

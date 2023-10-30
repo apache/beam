@@ -116,7 +116,8 @@ public abstract class TextRowCountEstimator {
           new TextSource(
               ValueProvider.StaticValueProvider.of(file.getMetadata().resourceId().toString()),
               getEmptyMatchTreatment(),
-              getDelimiters(), getRemoveHeader());
+              getDelimiters(),
+              getRemoveHeader());
       FileBasedSource<String> source =
           CompressedSource.from(textSource).withCompression(file.getCompression());
       try (BoundedSource.BoundedReader<String> reader =

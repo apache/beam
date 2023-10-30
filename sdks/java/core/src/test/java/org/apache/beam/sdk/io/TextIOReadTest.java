@@ -245,15 +245,23 @@ public class TextIOReadTest {
   }
 
   private static TextSource prepareSource(
-      TemporaryFolder temporaryFolder, byte[] data, @Nullable byte[] delimiter, boolean removeHeader) throws IOException {
+      TemporaryFolder temporaryFolder,
+      byte[] data,
+      @Nullable byte[] delimiter,
+      boolean removeHeader)
+      throws IOException {
     Path path = temporaryFolder.newFile().toPath();
     Files.write(path, data);
     return getTextSource(path.toString(), delimiter, removeHeader);
   }
 
-  public static TextSource getTextSource(String path, @Nullable byte[] delimiter, boolean removeHeader) {
+  public static TextSource getTextSource(
+      String path, @Nullable byte[] delimiter, boolean removeHeader) {
     return new TextSource(
-        ValueProvider.StaticValueProvider.of(path), EmptyMatchTreatment.DISALLOW, delimiter, removeHeader);
+        ValueProvider.StaticValueProvider.of(path),
+        EmptyMatchTreatment.DISALLOW,
+        delimiter,
+        removeHeader);
   }
 
   private static String getFileSuffix(Compression compression) {
@@ -444,7 +452,6 @@ public class TextIOReadTest {
     }
   }
 
-
   /** Tests for reading files with/without header */
   @RunWith(Parameterized.class)
   public static class ReadWithoutHeaderTest {
@@ -516,7 +523,8 @@ public class TextIOReadTest {
     @Test
     public void testReadLinesWithCustomDelimiter() throws Exception {
       SourceTestUtils.assertSplitAtFractionExhaustive(
-          TextIOReadTest.prepareSource(tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}, false),
+          TextIOReadTest.prepareSource(
+              tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}, false),
           PipelineOptionsFactory.create());
     }
 
@@ -1016,7 +1024,8 @@ public class TextIOReadTest {
               new TextSource(
                   ValueProvider.StaticValueProvider.of(input),
                   EmptyMatchTreatment.DISALLOW,
-                  new byte[] {'\n'}, false);
+                  new byte[] {'\n'},
+                  false);
 
       PCollection<KV<String, String>> lines =
           p.apply(
