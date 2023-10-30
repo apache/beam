@@ -630,7 +630,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">
       ✔
-      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio">via X-language</a>
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio">native</a>
     </td>
     <td>Not available</td>
     <td class="present">✔</td>
