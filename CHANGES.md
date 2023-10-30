@@ -66,7 +66,7 @@
 
 ## New Features / Improvements
 
-* state cache has been enabled to a default of 100 MB (Python) ([#28770](https://github.com/apache/beam/issues/28770)).
+* state cache has been enabled to a default of 100 MB. Use `--max_cache_memory_usage_mb=X` to provide cache size. (Python) ([#28770](https://github.com/apache/beam/issues/28770)).
 
 ## Breaking Changes
 
