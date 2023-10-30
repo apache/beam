@@ -452,7 +452,7 @@ public class TextIOReadTest {
     }
   }
 
-  /** Tests for reading files with/without header */
+  /** Tests for reading files with/without header. */
   @RunWith(Parameterized.class)
   public static class ReadWithoutHeaderTest {
     private static final ImmutableList<String> EXPECTED = ImmutableList.of("asdf", "hjkl", "xyz");
