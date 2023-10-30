@@ -22,9 +22,9 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 public interface BigtableChangeStreamTestOptions extends TestPipelineOptions {
-  @Description("Instance ID for Bigtable")
+  @Description("Instance ID for Bigtable Change Stream")
   @Default.String("beam-test")
-  String getBigtableInstanceId();
+  String getBigtableChangeStreamInstanceId();
 
-  void setBigtableInstanceId(String value);
+  void setBigtableChangeStreamInstanceId(String value);
 }

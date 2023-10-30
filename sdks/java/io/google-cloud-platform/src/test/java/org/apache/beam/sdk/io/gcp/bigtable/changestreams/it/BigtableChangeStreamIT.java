@@ -80,7 +80,7 @@ public class BigtableChangeStreamIT {
     options = IOITHelper.readIOTestPipelineOptions(BigtableChangeStreamTestOptions.class);
     LOG.info("Pipeline options: {}", options);
     projectId = options.as(GcpOptions.class).getProject();
-    instanceId = options.getBigtableInstanceId();
+    instanceId = options.getBigtableChangeStreamInstanceId();
 
     long randomId = Instant.now().getMillis();
     tableId = "beam-change-stream-test-" + randomId;
