@@ -98,4 +98,3 @@ func TestHintExtractor(t *testing.T) {
 		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, hints)
 	}
 }
-
