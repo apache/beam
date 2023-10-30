@@ -56,26 +56,30 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class TextSource extends FileBasedSource<String> {
   byte[] delimiter;
 
+  boolean removeHeader;
+
   public TextSource(
-      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
+      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter, boolean removeHeader) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
+    this.removeHeader = removeHeader;
   }
 
-  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter, boolean removeHeader) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
+    this.removeHeader = removeHeader;
   }
 
   @Override
   protected FileBasedSource<String> createForSubrangeOfFile(
       MatchResult.Metadata metadata, long start, long end) {
-    return new TextSource(metadata, start, end, delimiter);
+    return new TextSource(metadata, start, end, delimiter, removeHeader);
   }
 
   @Override
   protected FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
-    return new TextBasedReader(this, delimiter);
+    return new TextBasedReader(this, delimiter, removeHeader);
   }
 
   @Override
@@ -98,6 +102,7 @@ public class TextSource extends FileBasedSource<String> {
     private static final byte LF = '\n';
 
     private final byte @Nullable [] delimiter;
+    private final boolean removeHeader;
     private final ByteArrayOutputStream str;
     private final byte[] buffer;
     private final ByteBuffer byteBuffer;
@@ -111,12 +116,13 @@ public class TextSource extends FileBasedSource<String> {
     private int bufferPosn = 0; // the current position in the buffer
     private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
-    private TextBasedReader(TextSource source, byte[] delimiter) {
+    private TextBasedReader(TextSource source, byte[] delimiter, boolean removeHeader) {
       super(source);
       this.buffer = new byte[READ_BUFFER_SIZE];
       this.str = new ByteArrayOutputStream();
       this.byteBuffer = ByteBuffer.wrap(buffer);
       this.delimiter = delimiter;
+      this.removeHeader = removeHeader;
     }
 
     @Override
@@ -184,6 +190,10 @@ public class TextSource extends FileBasedSource<String> {
         // Check to see if we start with the UTF_BOM bytes skipping them if present.
         if (fileStartsWithBom()) {
           startOfNextRecord = bufferPosn = UTF8_BOM.size();
+        }
+        if(removeHeader) {
+          readNextRecord();
+          currentValue = null;
         }
       }
     }

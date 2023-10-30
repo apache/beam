@@ -191,6 +191,7 @@ public class TextIO {
     return new AutoValue_TextIO_Read.Builder()
         .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
+        .setRemoveHeader(false)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .build();
   }
@@ -214,6 +215,7 @@ public class TextIO {
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
         .setCompression(Compression.AUTO)
+        .setRemoveHeader(false)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .build();
   }
@@ -286,6 +288,8 @@ public class TextIO {
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
+    abstract boolean getRemoveHeader();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -299,6 +303,8 @@ public class TextIO {
       abstract Builder setCompression(Compression compression);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
+
+      abstract Builder setRemoveHeader(boolean removeHeader);
 
       abstract Read build();
     }
@@ -396,6 +402,10 @@ public class TextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
+    public Read withRemoveHeader(boolean removeHeader){
+      return toBuilder().setRemoveHeader(removeHeader).build();
+    }
+
     static boolean isSelfOverlapping(byte[] s) {
       // s self-overlaps if v exists such as s = vu = wv with u and w non empty
       for (int i = 1; i < s.length - 1; ++i) {
@@ -422,7 +432,7 @@ public class TextIO {
               FileIO.readMatches()
                   .withCompression(getCompression())
                   .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()));
+          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()).withRemoveHeader(getRemoveHeader()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -431,7 +441,7 @@ public class TextIO {
               new TextSource(
                   getFilepattern(),
                   getMatchConfiguration().getEmptyMatchTreatment(),
-                  getDelimiter()))
+                  getDelimiter(), getRemoveHeader()))
           .withCompression(getCompression());
     }
 
@@ -468,6 +478,8 @@ public class TextIO {
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
+    abstract boolean getRemoveHeader();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -477,6 +489,7 @@ public class TextIO {
       abstract Builder setCompression(Compression compression);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
+      abstract Builder setRemoveHeader(boolean removeHeader);
 
       abstract ReadAll build();
     }
@@ -560,6 +573,8 @@ public class TextIO {
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
+    abstract boolean getRemoveHeader();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -567,6 +582,8 @@ public class TextIO {
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
+
+      abstract Builder setRemoveHeader(boolean removeHeader);
 
       abstract ReadFiles build();
     }
@@ -581,13 +598,17 @@ public class TextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
+    public ReadFiles withRemoveHeader(boolean removeHeader){
+      return toBuilder().setRemoveHeader(removeHeader).build();
+    }
+
     @Override
     public PCollection<String> expand(PCollection<FileIO.ReadableFile> input) {
       return input.apply(
           "Read all via FileBasedSource",
           new ReadAllViaFileBasedSource<>(
               getDesiredBundleSizeBytes(),
-              new CreateTextSourceFn(getDelimiter()),
+              new CreateTextSourceFn(getDelimiter(), getRemoveHeader()),
               StringUtf8Coder.of()));
     }
 
@@ -602,15 +623,17 @@ public class TextIO {
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
       private byte[] delimiter;
+      private boolean removeHeader;
 
-      private CreateTextSourceFn(byte[] delimiter) {
+      private CreateTextSourceFn(byte[] delimiter, boolean removeHeader) {
         this.delimiter = delimiter;
+        this.removeHeader = removeHeader;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
         return new TextSource(
-            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter);
+            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter, removeHeader);
       }
     }
   }
