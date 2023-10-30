@@ -24,6 +24,9 @@ import json
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Optional
+
+import jsonschema
 
 import apache_beam as beam
 from apache_beam.portability.api import schema_pb2
@@ -131,15 +134,48 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
-def json_parser(beam_schema: schema_pb2.Schema) -> Callable[[bytes], beam.Row]:
+def json_parser(
+    beam_schema: schema_pb2.Schema,
+    json_schema: Optional[Dict[str,
+                               Any]] = None) -> Callable[[bytes], beam.Row]:
   """Returns a callable converting Json strings to Beam rows of the given type.
 
   The input to the returned callable is expected to conform to the Json schema
   corresponding to this Beam type.
   """
+  if json_schema is None:
+    validate_fn = None
+  else:
+    cls = jsonschema.validators.validator_for(json_schema)
+    cls.check_schema(json_schema)
+    validate_fn = _PicklableFromConstructor(
+        lambda: jsonschema.validators.validator_for(json_schema)
+        (json_schema).validate)
+
   to_row = json_to_row(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
-  return lambda s: to_row(json.loads(s))
+
+  def parse(s: bytes):
+    o = json.loads(s)
+    if validate_fn is not None:
+      validate_fn(o)
+    return to_row(o)
+
+  return parse
+
+
+class _PicklableFromConstructor:
+  def __init__(self, constructor):
+    self._constructor = constructor
+    self._value = None
+
+  def __call__(self, o):
+    if self._value is None:
+      self._value = self._constructor()
+    return self._value(o)
+
+  def __getstate__(self):
+    return {'_constructor': self._constructor, '_value': None}
 
 
 def row_to_json(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:

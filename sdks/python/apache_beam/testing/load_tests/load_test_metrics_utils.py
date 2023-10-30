@@ -535,7 +535,8 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
       self.options.http_auth_enabled() else None
 
     try:
-      response = requests.post(url, params=query_str, data=payload, auth=auth)
+      response = requests.post(
+          url, params=query_str, data=payload, auth=auth, timeout=60)
     except requests.exceptions.RequestException as e:
       _LOGGER.warning('Failed to publish metrics to InfluxDB: ' + str(e))
     else:

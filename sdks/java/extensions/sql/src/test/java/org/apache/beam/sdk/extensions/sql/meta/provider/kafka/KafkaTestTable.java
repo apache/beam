@@ -61,7 +61,7 @@ public class KafkaTestTable extends BeamKafkaTable {
   }
 
   @Override
-  KafkaIO.Read<byte[], byte[]> createKafkaRead() {
+  protected KafkaIO.Read<byte[], byte[]> createKafkaRead() {
     return super.createKafkaRead().withConsumerFactoryFn(this::mkMockConsumer);
   }
 

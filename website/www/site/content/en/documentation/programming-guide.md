@@ -1212,10 +1212,13 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful
  information to pipeline developers such as the constraints that
  apply to the objects or particular cases such as failover or
- instance reuse. They also give instantiation use cases. Two key points
- to note are that (1) teardown is done on a best effort basis and thus
- isn't guaranteed and (2) the number of DoFn instances is runner
- dependent.
+ instance reuse. They also give instantiation use cases. Three key points
+ to note are that:
+ 1. Teardown is done on a best effort basis and thus
+ isn't guaranteed.
+ 2. The number of DoFn instances created at runtime is runner-dependent.
+ 3. For the Python SDK, the pipeline contents such as DoFn user code,
+ is [serialized into a bytecode](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pickling-and-managing-the-main-session). Therefore, `DoFn`s should not reference objects that are not serializable, such as locks. To manage a single instance of an object across multiple `DoFn` instances in the same process, use utilities in the [shared.py](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.shared.html) module.
 
 <!-- The source for the sequence diagram can be found in the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)

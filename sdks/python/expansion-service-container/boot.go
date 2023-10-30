@@ -18,8 +18,10 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -31,16 +33,15 @@ import (
 )
 
 var (
-	id   = flag.String("id", "", "Local identifier (required)")
-	port = flag.Int("port", 0, "Port for the expansion service (required)")
+	id                = flag.String("id", "", "Local identifier (required)")
+	port              = flag.Int("port", 0, "Port for the expansion service (required)")
+	requirements_file = flag.String("requirements_file", "", "A requirement file with extra packages to be made available to the transforms being expanded. Path should be relative to the 'dependencies_dir'")
+	dependencies_dir  = flag.String("dependencies_dir", "", "A directory that stores locally available extra packages.")
 )
 
 const (
 	expansionServiceEntrypoint = "apache_beam.runners.portability.expansion_service_main"
 	venvDirectory              = "beam_venv" // This should match the venv directory name used in the Dockerfile.
-	requirementsFile           = "requirements.txt"
-	beamSDKArtifact            = "apache-beam-sdk.tar.gz"
-	beamSDKOptions             = "[gcp,dataframe]"
 )
 
 func main() {
@@ -58,6 +59,79 @@ func main() {
 	}
 }
 
+func getLines(fileNameToRead string) ([]string, error) {
+	fileToRead, err := os.Open(fileNameToRead)
+	if err != nil {
+		return nil, err
+	}
+	defer fileToRead.Close()
+
+	sc := bufio.NewScanner(fileToRead)
+	lines := make([]string, 0)
+
+	// Read through 'tokens' until an EOF is encountered.
+	for sc.Scan() {
+		lines = append(lines, sc.Text())
+	}
+
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return lines, nil
+}
+
+func installExtraPackages(requirementsFile string) error {
+	extraPackages, err := getLines(requirementsFile)
+	if err != nil {
+		return err
+	}
+
+	for _, extraPackage := range extraPackages {
+		log.Printf("Installing extra package %v", extraPackage)
+		// We expect 'pip' command in virtual env to be already available at the top of the PATH.
+		args := []string{"install", extraPackage}
+		if err := execx.Execute("pip", args...); err != nil {
+			return fmt.Errorf("Could not install the package %s: %s", extraPackage, err)
+		}
+	}
+	return nil
+}
+
+func getUpdatedRequirementsFile(oldRequirementsFileName string, dependenciesDir string) (string, error) {
+	oldExtraPackages, err := getLines(filepath.Join(dependenciesDir, oldRequirementsFileName))
+	if err != nil {
+		return "", err
+	}
+	var updatedExtraPackages = make([]string, 0)
+	for _, extraPackage := range oldExtraPackages {
+		// TODO update
+		potentialLocalFilePath := filepath.Join(dependenciesDir, extraPackage)
+		_, err := os.Stat(potentialLocalFilePath)
+		if err == nil {
+			// Package exists locally so using that.
+			extraPackage = potentialLocalFilePath
+			log.Printf("Using locally available extra package %v", extraPackage)
+		}
+		updatedExtraPackages = append(updatedExtraPackages, extraPackage)
+	}
+
+	updatedRequirementsFile, err := ioutil.TempFile("/opt/apache/beam", "requirements*.txt")
+	if err != nil {
+		return "", err
+	}
+
+	updatedRequirementsFileName := updatedRequirementsFile.Name()
+
+	datawriter := bufio.NewWriter(updatedRequirementsFile)
+	for _, extraPackage := range updatedExtraPackages {
+		_, _ = datawriter.WriteString(extraPackage + "\n")
+	}
+	datawriter.Flush()
+	updatedRequirementsFile.Close()
+
+	return updatedRequirementsFileName, nil
+}
+
 func launchExpansionServiceProcess() error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
@@ -70,6 +144,24 @@ func launchExpansionServiceProcess() error {
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
+
+	if *requirements_file != "" {
+		log.Printf("Received the requirements file %v", *requirements_file)
+		updatedRequirementsFileName, err := getUpdatedRequirementsFile(*requirements_file, *dependencies_dir)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(updatedRequirementsFileName)
+		log.Printf("Updated requirements file is %v", updatedRequirementsFileName)
+		// Provide the requirements file to the expansion service so that packages get staged by runners.
+		args = append(args, "--requirements_file", updatedRequirementsFileName)
+		// Install packages locally so that they can be used by the expansion service during transform
+		// expansion if needed.
+		err = installExtraPackages(updatedRequirementsFileName)
+		if err != nil {
+			return err
+		}
+	}
 	if err := execx.Execute(pythonVersion, args...); err != nil {
 		return fmt.Errorf("could not start the expansion service: %s", err)
 	}

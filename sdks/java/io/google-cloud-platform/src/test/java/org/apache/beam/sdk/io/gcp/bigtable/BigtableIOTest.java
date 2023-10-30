@@ -219,11 +219,13 @@ public class BigtableIOTest {
             .withTableId("table")
             .withInstanceId("instance")
             .withProjectId("project")
+            .withAppProfileId("app-profile")
             .withBigtableOptionsConfigurator(PORT_CONFIGURATOR);
     assertEquals("options_project", read.getBigtableOptions().getProjectId());
     assertEquals("options_instance", read.getBigtableOptions().getInstanceId());
     assertEquals("instance", read.getBigtableConfig().getInstanceId().get());
     assertEquals("project", read.getBigtableConfig().getProjectId().get());
+    assertEquals("app-profile", read.getBigtableConfig().getAppProfileId().get());
     assertEquals("table", read.getTableId());
     assertEquals(PORT_CONFIGURATOR, read.getBigtableConfig().getBigtableOptionsConfigurator());
   }
@@ -373,12 +375,14 @@ public class BigtableIOTest {
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId("table")
             .withInstanceId("instance")
-            .withProjectId("project");
+            .withProjectId("project")
+            .withAppProfileId("app-profile");
     assertEquals("table", write.getBigtableWriteOptions().getTableId().get());
     assertEquals("options_project", write.getBigtableOptions().getProjectId());
     assertEquals("options_instance", write.getBigtableOptions().getInstanceId());
     assertEquals("instance", write.getBigtableConfig().getInstanceId().get());
     assertEquals("project", write.getBigtableConfig().getProjectId().get());
+    assertEquals("app-profile", write.getBigtableConfig().getAppProfileId().get());
   }
 
   @Test
@@ -768,7 +772,7 @@ public class BigtableIOTest {
 
   /**
    * Regression test for <a href="https://github.com/apache/beam/issues/28793">[Bug]: BigtableSource
-   * "Desired bundle size 0 bytes must be greater than 0" #28793 </a>.
+   * "Desired bundle size 0 bytes must be greater than 0" #28793</a>.
    */
   @Test
   public void testSplittingWithDesiredBundleSizeZero() throws Exception {

@@ -32,8 +32,14 @@ applyJavaNature(
 dependencies {
     implementation project(path: ":sdks:java:expansion-service")
     permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
+    implementation project(":sdks:java:extensions:google-cloud-platform-core")
+    permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core") // BEAM-11761
+    implementation project(":sdks:java:io:csv")
+    permitUnusedDeclared project(path: ":sdks:java:io:csv") // BEAM-11761
     implementation project(":sdks:java:io:jdbc")
     permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
+    implementation project(":sdks:java:io:json")
+    permitUnusedDeclared project(path: ":sdks:java:io:json") // BEAM-11761
     implementation library.java.postgres
     permitUnusedDeclared library.java.postgres // BEAM-11761
     implementation project(path: ":model:pipeline", configuration: "shadow")

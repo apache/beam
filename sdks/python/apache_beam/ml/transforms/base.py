@@ -25,6 +25,7 @@ from typing import Sequence
 from typing import TypeVar
 
 import apache_beam as beam
+from apache_beam.metrics.metric import Metrics
 
 __all__ = ['MLTransform', 'ProcessHandler', 'BaseOperation']
 
@@ -32,8 +33,8 @@ TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
 
 # Input/Output types to the MLTransform.
-ExampleT = TypeVar('ExampleT')
 MLTransformOutputT = TypeVar('MLTransformOutputT')
+ExampleT = TypeVar('ExampleT')
 
 # Input to the apply() method of BaseOperation.
 OperationInputT = TypeVar('OperationInputT')
@@ -66,16 +67,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
       inputs: input data.
     """
 
-  @abc.abstractmethod
-  def get_artifacts(
-      self, data: OperationInputT,
-      output_column_prefix: str) -> Optional[Dict[str, OperationOutputT]]:
-    """
-    If the operation generates any artifacts, they can be returned from this
-    method.
-    """
-    pass
-
   def __call__(self, data: OperationInputT,
                output_column_name: str) -> Dict[str, OperationOutputT]:
     """
@@ -83,10 +74,14 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     This method will invoke the apply() method of the class.
     """
     transformed_data = self.apply_transform(data, output_column_name)
-    artifacts = self.get_artifacts(data, output_column_name)
-    if artifacts:
-      transformed_data = {**transformed_data, **artifacts}
     return transformed_data
+
+  def get_counter(self):
+    """
+    Returns the counter name for the operation.
+    """
+    counter_name = self.__class__.__name__
+    return Metrics.counter(MLTransform, f'BeamML_{counter_name}')
 
 
 class ProcessHandler(Generic[ExampleT, MLTransformOutputT], abc.ABC):
@@ -194,6 +189,9 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         transforms=transforms)  # type: ignore[arg-type]
 
     self._process_handler = process_handler
+    self.transforms = transforms
+    self._counter = Metrics.counter(
+        MLTransform, f'BeamML_{self.__class__.__name__}')
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
@@ -209,8 +207,11 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Args:
       pcoll: A PCollection of ExampleT type.
     Returns:
-      A PCollection of MLTransformOutputT type.
+      A PCollection of MLTransformOutputT type
     """
+    _ = (
+        pcoll.pipeline
+        | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
     return self._process_handler.process_data(pcoll)
 
   def with_transform(self, transform: BaseOperation):
@@ -230,3 +231,26 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       raise TypeError(
           'transform must be a subclass of BaseOperation. '
           'Got: %s instead.' % type(transform))
+
+
+class MLTransformMetricsUsage(beam.PTransform):
+  def __init__(self, ml_transform: MLTransform):
+    self._ml_transform = ml_transform
+    self._ml_transform._counter.inc()
+
+  def expand(self, pipeline):
+    def _increment_counters():
+      # increment for MLTransform.
+      self._ml_transform._counter.inc()
+      # increment if data processing transforms are passed.
+      transforms = (
+          self._ml_transform.transforms or
+          self._ml_transform._process_handler.transforms)
+      if transforms:
+        for transform in transforms:
+          transform.get_counter().inc()
+
+    _ = (
+        pipeline
+        | beam.Create([None])
+        | beam.Map(lambda _: _increment_counters()))

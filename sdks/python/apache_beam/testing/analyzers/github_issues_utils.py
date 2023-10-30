@@ -21,10 +21,11 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-import pandas as pd
 import requests
 
 from apache_beam.testing.analyzers import constants
+from apache_beam.testing.analyzers.perf_analysis_utils import MetricContainer
+from apache_beam.testing.analyzers.perf_analysis_utils import TestConfigContainer
 
 try:
   _GITHUB_TOKEN: Optional[str] = os.environ['GITHUB_TOKEN']
@@ -60,6 +61,8 @@ _METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: {}"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 _PERF_ALERT_LABEL = 'perf-alert'
 
+_REQUEST_TIMEOUT_SECS = 60
+
 
 def create_issue(
     title: str,
@@ -88,7 +91,10 @@ def create_issue(
   if labels:
     data['labels'].extend(labels)  # type: ignore
   response = requests.post(
-      url=url, data=json.dumps(data), headers=_HEADERS).json()
+      url=url,
+      data=json.dumps(data),
+      headers=_HEADERS,
+      timeout=_REQUEST_TIMEOUT_SECS).json()
   return response['number'], response['html_url']
 
 
@@ -117,7 +123,8 @@ def comment_on_issue(issue_number: int,
           'issue_number': issue_number
       },
                  default=str),
-      headers=_HEADERS).json()
+      headers=_HEADERS,
+      timeout=_REQUEST_TIMEOUT_SECS).json()
   if open_issue_response['state'] == 'open':
     data = {
         'owner': _GITHUB_REPO_OWNER,
@@ -127,7 +134,10 @@ def comment_on_issue(issue_number: int,
     }
 
     response = requests.post(
-        open_issue_response['comments_url'], json.dumps(data), headers=_HEADERS)
+        open_issue_response['comments_url'],
+        json.dumps(data),
+        headers=_HEADERS,
+        timeout=_REQUEST_TIMEOUT_SECS)
     return True, response.json()['html_url']
   return False, ''
 
@@ -136,29 +146,25 @@ def add_awaiting_triage_label(issue_number: int):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
       _GITHUB_REPO_OWNER, _GITHUB_REPO_NAME, issue_number)
   requests.post(
-      url, json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}), headers=_HEADERS)
+      url,
+      json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}),
+      headers=_HEADERS,
+      timeout=_REQUEST_TIMEOUT_SECS)
 
 
 def get_issue_description(
-    test_id: str,
-    test_name: Optional[str],
-    metric_name: str,
-    timestamps: List[pd.Timestamp],
-    metric_values: List,
+    test_config_container: TestConfigContainer,
+    metric_container: MetricContainer,
     change_point_index: int,
     max_results_to_display: int = 5,
-    test_description: Optional[str] = None,
 ) -> str:
   """
   Args:
-   metric_name: Metric name used for the Change Point Analysis.
-   timestamps: Timestamps of the metrics when they were published to the
-    Database. Timestamps are expected in ascending order.
-   metric_values: metric values for the previous runs.
-   change_point_index: Index for the change point. The element in the
-    index of the metric_values would be the change point.
-   max_results_to_display: Max number of results to display from the change
-    point index, in both directions of the change point index.
+    test_config_container: TestConfigContainer containing test metadata.
+    metric_container: MetricContainer containing metric data.
+    change_point_index: Index of the change point in the metric data.
+    max_results_to_display: Max number of results to display from the change
+      point index, in both directions of the change point index.
 
   Returns:
     str: Description used to fill the GitHub issues description.
@@ -168,25 +174,30 @@ def get_issue_description(
 
   description = []
 
-  description.append(_ISSUE_DESCRIPTION_TEMPLATE.format(test_id, metric_name))
+  description.append(
+      _ISSUE_DESCRIPTION_TEMPLATE.format(
+          test_config_container.test_id, test_config_container.metric_name))
 
-  if test_name:
-    description.append(("`test_name:` " + f'{test_name}'))
+  if test_config_container.test_name:
+    description.append(("`test_name:` " + f'{test_config_container.test_name}'))
 
-  if test_description:
-    description.append(("`Test description:` " + f'{test_description}'))
+  if test_config_container.test_description:
+    description.append(
+        ("`Test description:` " + f'{test_config_container.test_description}'))
 
   description.append('```')
 
   runs_to_display = []
   max_timestamp_index = min(
-      change_point_index + max_results_to_display, len(metric_values) - 1)
+      change_point_index + max_results_to_display,
+      len(metric_container.values) - 1)
   min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
   # run in reverse to display the most recent runs first.
   for i in reversed(range(min_timestamp_index, max_timestamp_index + 1)):
     row_template = _METRIC_INFO_TEMPLATE.format(
-        timestamps[i].ctime(), format(metric_values[i], '.2f'))
+        metric_container.timestamps[i].ctime(),
+        format(metric_container.values[i], '.2f'))
     if i == change_point_index:
       row_template += constants._ANOMALY_MARKER
     runs_to_display.append(row_template)

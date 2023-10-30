@@ -41,20 +41,22 @@ public class FlinkBoundedSource<T> extends FlinkSource<T, WindowedValue<T>> {
   protected final @Nullable TimestampExtractor<WindowedValue<T>> timestampExtractor;
 
   public FlinkBoundedSource(
+      String stepName,
       BoundedSource<T> beamSource,
       SerializablePipelineOptions serializablePipelineOptions,
       Boundedness boundedness,
       int numSplits) {
-    this(beamSource, serializablePipelineOptions, boundedness, numSplits, null);
+    this(stepName, beamSource, serializablePipelineOptions, boundedness, numSplits, null);
   }
 
   public FlinkBoundedSource(
+      String stepName,
       BoundedSource<T> beamSource,
       SerializablePipelineOptions serializablePipelineOptions,
       Boundedness boundedness,
       int numSplits,
       @Nullable TimestampExtractor<WindowedValue<T>> timestampExtractor) {
-    super(beamSource, serializablePipelineOptions, boundedness, numSplits);
+    super(stepName, beamSource, serializablePipelineOptions, boundedness, numSplits);
     this.timestampExtractor = timestampExtractor;
   }
 
@@ -62,6 +64,6 @@ public class FlinkBoundedSource<T> extends FlinkSource<T, WindowedValue<T>> {
   public SourceReader<WindowedValue<T>, FlinkSourceSplit<T>> createReader(
       SourceReaderContext readerContext) throws Exception {
     return new FlinkBoundedSourceReader<>(
-        readerContext, serializablePipelineOptions.get(), timestampExtractor);
+        stepName, readerContext, serializablePipelineOptions.get(), timestampExtractor);
   }
 }

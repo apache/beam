@@ -311,9 +311,9 @@ class PyarrowBatchConverter(BatchConverter):
       element_type = RowTypeConstraint.from_user_type(element_type)
       if element_type is None:
         raise TypeError(
-            "Element type must be compatible with Beam Schemas ("
-            "https://beam.apache.org/documentation/programming-guide/#schemas) "
-            "for batch type pa.Table.")
+            f"Element type {element_type} must be compatible with Beam Schemas "
+            "(https://beam.apache.org/documentation/programming-guide/#schemas)"
+            " for batch type pa.Table.")
 
     return PyarrowBatchConverter(element_type)
 

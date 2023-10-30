@@ -53,12 +53,21 @@ if [[ "$JENKINS_HOME" != "" ]]; then
   export PY_COLORS=1
 fi
 
-if [[ ! -z $2 ]]; then
+# Determine if the second argument is SDK_LOCATION or posargs
+if [[ -f "$1" ]]; then  # Check if the argument corresponds to a file
   SDK_LOCATION="$1"
-  shift;
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
-else
-  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT"
+  shift
+fi
+
+# If SDK_LOCATION is identified and there are still arguments left, those are posargs.
+if [[ ! -z "$SDK_LOCATION" ]]; then
+  if [[ $# -gt 0 ]]; then  # There are posargs
+    tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
+  else
+    tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION"
+  fi
+else  # No SDK_LOCATION; all arguments are posargs
+  tox -c tox.ini run --recreate -e "$TOX_ENVIRONMENT" -- "$@"
 fi
 
 exit_code=$?

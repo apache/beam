@@ -72,3 +72,4 @@ _SCHEMA = [{
            }]
 
 _ANOMALY_MARKER = ' <---- Anomaly'
+_EDGE_SEGMENT_SIZE = 3

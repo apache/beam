@@ -43,7 +43,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_TransformService_Direct',
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(':sdks:python:test-suites:direct:xlang:transformServicePythonUsingJava')
             commonJobProperties.setGradleSwitches(delegate)
-            switches '-PcompileAndRunTestsWithJava11'
+            switches '-PtestJavaVersion=11'
             switches "-Pjava11Home=${commonJobProperties.JAVA_11_HOME}"
             switches("-PuseWheelDistribution")
             switches("-PpythonVersion=${pythonVersion}")

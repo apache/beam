@@ -58,8 +58,6 @@ These are the optional parameters that can be added to the test config in additi
 
 - `test_target`: Identifies the test responsible for the regression.
 
-- `test_description`: Provides a brief overview of the test's function.
-
 - `test_name`: Denotes the name of the test as stored in the BigQuery table.
 
 **Note**: The tool, by default, pulls metrics from BigQuery tables. Ensure that the values for `metrics_dataset`, `metrics_table`, `project`, and `metric_name` align with those defined for performance/load tests. The provided example utilizes this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30) to populate the necessary values for data retrieval.

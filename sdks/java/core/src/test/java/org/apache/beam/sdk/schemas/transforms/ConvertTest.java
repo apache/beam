@@ -20,12 +20,10 @@ package org.apache.beam.sdk.schemas.transforms;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -133,9 +131,6 @@ public class ConvertTest {
           .addArray(ImmutableList.of(EXPECTED_ROW1_NESTED, EXPECTED_ROW1_NESTED))
           .addValue(ImmutableMap.of("first", EXPECTED_ROW1_NESTED, "second", EXPECTED_ROW1_NESTED))
           .build();
-
-  private static final GenericRecord EXPECTED_GENERICRECORD1 =
-      AvroUtils.toGenericRecord(EXPECTED_ROW1, AvroUtils.toAvroSchema(EXPECTED_SCHEMA1));
 
   /** Test outer POJO. Different but equivalent schema. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -246,15 +241,6 @@ public class ConvertTest {
             .apply(Select.fieldNames("field2"))
             .apply(Convert.to(TypeDescriptors.longs()));
     PAssert.that(longs).containsInAnyOrder((Long) EXPECTED_ROW1.getValue("field2"));
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testToGenericRecords() {
-    PCollection<GenericRecord> records =
-        pipeline.apply(Create.of(new POJO1())).apply(Convert.to(GenericRecord.class));
-    PAssert.that(records).containsInAnyOrder(EXPECTED_GENERICRECORD1);
     pipeline.run();
   }
 }

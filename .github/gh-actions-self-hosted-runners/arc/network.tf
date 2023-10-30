@@ -18,15 +18,21 @@
 #
 
 resource "google_compute_network" "actions-runner-network" {
+  count = var.existing_vpc_name == "" ? 1 : 0
   project = var.project_id
   name    = "${var.environment}-actions-runner-network"
   auto_create_subnetworks = false
 }
+data "google_compute_network" "actions-runner-network" {
+  name = var.existing_vpc_name == "" ? google_compute_network.actions-runner-network[0].name : var.existing_vpc_name
+  project = var.project_id
+}
+
 
 resource "google_compute_subnetwork" "actions-runner-subnetwork" {
-  ip_cidr_range            = local.subnetwork_cidr_range
+  ip_cidr_range            = var.subnetwork_cidr_range
   name                     = "${var.environment}-actions-runner-subnetwork"
-  network                  = google_compute_network.actions-runner-network.id
+  network                  = data.google_compute_network.actions-runner-network.id
   region                   = var.region
   project                  = var.project_id
 }

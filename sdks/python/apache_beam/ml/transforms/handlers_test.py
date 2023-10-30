@@ -58,14 +58,6 @@ class _MultiplyOperation(TFTOperation):
     return {output_column_name: inputs * 10}
 
 
-class _FakeOperationWithArtifacts(TFTOperation):
-  def apply_transform(self, inputs, output_column_name, **kwargs):
-    return {output_column_name: inputs}
-
-  def get_artifacts(self, data, col_name):
-    return {'artifact': tf.convert_to_tensor([1])}
-
-
 class IntType(NamedTuple):
   x: int
 
@@ -104,16 +96,6 @@ class TFTProcessHandlerTest(unittest.TestCase):
     process_handler = handlers.TFTProcessHandler(
         transforms=[add_fn, mul_fn], artifact_location=self.artifact_location)
     actual_result = process_handler.process_data_fn(inputs)
-    self.assertDictEqual(actual_result, expected_result)
-
-  def test_preprocessing_fn_with_artifacts(self):
-    process_handler = handlers.TFTProcessHandler(
-        transforms=[_FakeOperationWithArtifacts(columns=['x'])],
-        artifact_location=self.artifact_location)
-    inputs = {'x': [1, 2, 3]}
-    preprocessing_fn = process_handler.process_data_fn
-    actual_result = preprocessing_fn(inputs)
-    expected_result = {'x': [1, 2, 3], 'artifact': tf.convert_to_tensor([1])}
     self.assertDictEqual(actual_result, expected_result)
 
   def test_input_type_from_schema_named_tuple_pcoll(self):

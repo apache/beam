@@ -522,7 +522,7 @@ def chain_as_composite(spec):
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
-  composite_spec = normalize_inputs_outputs(spec)
+  composite_spec = normalize_inputs_outputs(tag_explicit_inputs(spec))
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
     if any(io in transform for io in ('input', 'output')):
@@ -539,6 +539,8 @@ def chain_as_composite(spec):
         pass
       elif is_explicitly_empty(composite_spec['input']):
         transform['input'] = composite_spec['input']
+      elif is_empty(composite_spec['input']):
+        del composite_spec['input']
       else:
         transform['input'] = {
             key: key
@@ -931,6 +933,7 @@ class YamlTransform(beam.PTransform):
     self._providers = yaml_provider.merge_providers(
         providers, yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
+    self._was_chain = spec['type'] == 'chain'
 
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
@@ -939,8 +942,15 @@ class YamlTransform(beam.PTransform):
     elif isinstance(pcolls, beam.PCollection):
       root = pcolls.pipeline
       pcolls = {'input': pcolls}
+      if not self._spec['input']:
+        self._spec['input'] = {'input': 'input'}
+        if self._was_chain and self._spec['transforms']:
+          # This should have been copied as part of the composite-to-chain.
+          self._spec['transforms'][0]['input'] = self._spec['input']
     else:
       root = next(iter(pcolls.values())).pipeline
+      if not self._spec['input']:
+        self._spec['input'] = {name: name for name in pcolls.keys()}
     result = expand_transform(
         self._spec,
         Scope(

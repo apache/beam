@@ -460,6 +460,13 @@ PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
 }
 
 
+def element_to_rows(e):
+  if isinstance(e, dict):
+    return dicts_to_rows(e)
+  else:
+    return beam.Row(element=dicts_to_rows(e))
+
+
 def dicts_to_rows(o):
   if isinstance(o, dict):
     return beam.Row(**{k: dicts_to_rows(v) for k, v in o.items()})
@@ -487,7 +494,7 @@ def create_builtin_provider():
         reshuffle (optional): Whether to introduce a reshuffle if there is more
             than one element in the collection. Defaults to True.
     """
-    return beam.Create(dicts_to_rows(elements), reshuffle)
+    return beam.Create([element_to_rows(e) for e in elements], reshuffle)
 
   def with_schema(**args):
     # TODO: This is preliminary.
@@ -684,7 +691,7 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider):
+  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)
@@ -694,6 +701,7 @@ class RenamingProvider(Provider):
       if transform not in mappings:
         raise ValueError(f'Missing transform {transform} in mappings.')
     self._mappings = mappings
+    self._defaults = defaults or {}
 
   def available(self) -> bool:
     return self._underlying_provider.available()
@@ -731,6 +739,9 @@ class RenamingProvider(Provider):
         mappings.get(key, key): value
         for key, value in args.items()
     }
+    for key, value in self._defaults.get(typ, {}).items():
+      if key not in remapped_args:
+        remapped_args[key] = value
     return self._underlying_provider.create_transform(
         self._transforms[typ], remapped_args, yaml_create_transform)
 
