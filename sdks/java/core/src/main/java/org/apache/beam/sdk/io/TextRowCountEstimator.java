@@ -64,7 +64,8 @@ public abstract class TextRowCountEstimator {
         .setNumSampledBytesPerFile(DEFAULT_NUM_BYTES_PER_FILE)
         .setCompression(DEFAULT_COMPRESSION)
         .setDirectoryTreatment(DEFAULT_DIRECTORY_TREATMENT)
-        .setEmptyMatchTreatment(DEFAULT_EMPTY_MATCH_TREATMENT);
+        .setEmptyMatchTreatment(DEFAULT_EMPTY_MATCH_TREATMENT)
+        .setRemoveHeader(false);
   }
 
   /**
