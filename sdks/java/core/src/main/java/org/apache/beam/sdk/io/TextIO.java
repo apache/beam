@@ -230,6 +230,7 @@ public class TextIO {
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setRemoveHeader(false)
         .build();
   }
 
