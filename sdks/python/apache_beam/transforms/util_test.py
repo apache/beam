@@ -502,7 +502,8 @@ class StatefulBatchElementsTest(unittest.TestCase):
   def test_in_global_window(self):
     with TestPipeline() as pipeline:
       collection = pipeline \
-                   | beam.Create(StatefulBatchElementsTest._create_test_data()) \
+                   | beam.Create(
+                     StatefulBatchElementsTest._create_test_data()) \
                    | util.StatefulBatchElements(
                      min_batch_size=StatefulBatchElementsTest.BATCH_SIZE,
                      max_batch_size=StatefulBatchElementsTest.BATCH_SIZE)
