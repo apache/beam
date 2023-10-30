@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/contextreg"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
@@ -273,10 +274,19 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 		subtransforms = append(subtransforms, id)
 	}
 
+	var annotations map[string][]byte
+	if s.Scope.Scope.Context != nil {
+		as := contextreg.Default().ExtractAnnotations(s.Scope.Scope.Context)
+		if len(as) > 0 {
+			annotations = as
+		}
+	}
+
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
+		Annotations:   annotations,
 	}
 
 	if err := m.updateIfCombineComposite(s, transform); err != nil {

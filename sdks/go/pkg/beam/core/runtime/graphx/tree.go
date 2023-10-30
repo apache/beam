@@ -77,6 +77,12 @@ func (t *treeBuilder) addScope(s *graph.Scope) *ScopeTree {
 		return tree
 	}
 
+	// TODO(https://github.com/apache/beam/issues/23893):
+	// Need to plumb the "current" environment as we're passing them
+	// down to children, so any additional child environments can inherit defaults.
+	// Probably by plumbing through the scope tree to the children here.
+	// And then ensuring all children under this scope use this environment.
+
 	tree := &ScopeTree{Scope: NamedScope{Name: s.Label, Scope: s}}
 	t.id2tree[s.ID()] = tree
 

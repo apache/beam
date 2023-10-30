@@ -16,6 +16,8 @@
 package beam
 
 import (
+	"context"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 )
@@ -45,6 +47,16 @@ func (s Scope) Scope(name string) Scope {
 	}
 	scope := s.real.NewScope(s.scope, name)
 	return Scope{scope: scope, real: s.real}
+}
+
+// WithContext creates a named subscope with an attached context for the
+// represented composite transform. Used in combination with RegisterContextAnnotations
+// and RegisterContextResourceHints to set annotations on all transforms within it's scope,
+// or hint they best run on environments with certain properties.
+func (s Scope) WithContext(ctx context.Context, name string) Scope {
+	newS := s.Scope(name)
+	newS.scope.Context = ctx
+	return newS
 }
 
 func (s Scope) String() string {

@@ -37,7 +37,7 @@ type Graph struct {
 
 // New returns an empty graph with the scope set to the root.
 func New() *Graph {
-	root := &Scope{0, "root", nil}
+	root := &Scope{id: 0, Label: "root", Parent: nil}
 	return &Graph{root: root}
 }
 
