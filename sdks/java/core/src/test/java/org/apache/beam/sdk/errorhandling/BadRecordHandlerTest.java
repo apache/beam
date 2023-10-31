@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.errorhandling;
 
 import static org.apache.beam.sdk.errorhandling.BadRecordHandler.BAD_RECORD_TAG;
-import static org.apache.beam.sdk.errorhandling.BadRecordHandler.DEAD_LETTER_TAG;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
