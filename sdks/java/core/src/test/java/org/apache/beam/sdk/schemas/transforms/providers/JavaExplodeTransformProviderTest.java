@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms.providers;
 
-import static org.junit.Assert.*;
-
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
