@@ -633,9 +633,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     self._task = task
     self._model = model
-    self._device = 'cuda:1'
-    if device != 'GPU' or not is_gpu_available_torch():
-      self._device = 'cpu'
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
     self._inference_args = inference_args if inference_args else {}
@@ -647,13 +644,29 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._large_model = large_model
-    if 'device' not in self._load_pipeline_args:
-      self._load_pipeline_args['device'] = self._device
-    else:
-      _LOGGER.warning(
-          '`device` specified in `load_pipeline_args`. `device` '
-          'parameter for HuggingFacePipelineModelHandler will be ignored.')
+
+    # Check if the device is specified twice. If true then the device parameter
+    # of model handler is overridden.
+    self._deduplicate_device_value(device)
     _validate_constructor_args_hf_pipeline(self._task, self._model)
+
+  def _deduplicate_device_value(self, device: str):
+    if 'device' not in self._load_pipeline_args:
+      if device == 'CPU':
+        self._load_pipeline_args['device'] = 'cpu'
+      else:
+        if is_gpu_available_torch():
+          self._load_pipeline_args['device'] = 'cuda:1'
+        else:
+          _LOGGER.warning(
+              "HuggingFaceModelHandler specified a 'GPU' device, "
+              "but GPUs are not available. Switching to CPU.")
+          self._load_pipeline_args['device'] = 'cpu'
+    else:
+      if device:
+        _LOGGER.warning(
+            '`device` specified in `load_pipeline_args`. `device` '
+            'parameter for HuggingFacePipelineModelHandler will be ignored.')
 
   def load_model(self):
     """Loads and initializes the pipeline for processing."""
