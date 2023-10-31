@@ -606,6 +606,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
           model_handler = HuggingFacePipelineModelHandler(
             task="text-generation", model="meta-llama/Llama-2-7b-hf",
             load_pipeline_args={'model_kwargs':{'quantization_map':config}})
+
       device (str): the device on which you wish to run the pipeline. Defaults
         to GPU. If GPU is not available then it falls back to CPU. You can also
         use advanced option like `device_map` with key-value pair as you would
