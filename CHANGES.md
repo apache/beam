@@ -82,6 +82,7 @@ should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 classes finally moved to `extensions/avro`. In case if it's still required to use `AvroCoder` for `CounterMark`, then,
 as a workaround, a copy of "old" `CountingSource` class should be placed into a project code and used directly
 ([#25252](https://github.com/apache/beam/issues/25252)).
+* Renamed `host` to `firestoreHost` in `FirestoreOptions` to avoid potential conflict of command line arguments (Java) ([#29201](https://github.com/apache/beam/pull/29201)).
 
 ## Deprecations
 
