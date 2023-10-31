@@ -1144,7 +1144,7 @@ class WorkerOptions(PipelineOptions):
             'Size of the SdkHarness cache to store user state and side inputs '
             'in MB. Default is 100MB. If the cache is full, least recently '
             'used elements will be evicted. This cache will be per '
-            'SdkHarness/Sdk Process. SDKHarness is a python process,'
+            'SdkHarness. SDKHarness is a python process,'
             'responsible for executing the user code and communicating with '
             'the runner through the Fn API. Depending on the runner, '
             'there may be more than 1 process running on the same worker node.'
