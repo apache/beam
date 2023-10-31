@@ -246,7 +246,6 @@ def _get_state_cache_size_bytes(options):
 
   Returns:
     an int indicating the maximum number of bytes to cache.
-      Default is 100 MB
   """
   max_cache_memory_usage_mb = options.view_as(
       WorkerOptions).max_cache_memory_usage_mb

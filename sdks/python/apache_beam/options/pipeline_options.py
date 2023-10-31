@@ -1141,14 +1141,16 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=100,
         help=(
-            'Size of the SdkHarness cache to store user state and side inputs '
-            'in MB. Default is 100MB. If the cache is full, least recently '
-            'used elements will be evicted. This cache will be per '
-            'SdkHarness. SDKHarness is a python process,'
+            'Size of the SDK Harness cache to store user state and side '
+            'inputs in MB. Default is 100MB. If the cache is full, least '
+            'recently used elements will be evicted. This cache is per '
+            'each SDK Harness instance. SDK Harness is a component '
             'responsible for executing the user code and communicating with '
-            'the runner through the Fn API. Depending on the runner, '
-            'there may be more than 1 process running on the same worker node.'
-        ))
+            'the runner. Depending on the runner, there may be more than one '
+            'SDK Harness process running on the same worker node. Increasing '
+            'cache size might improve performance of some pipelines, but can '
+            'lead to an increase in memory consumption and OOM errors if '
+            'workers are not appropriately provisioned.'))
 
   def validate(self, validator):
     errors = []
