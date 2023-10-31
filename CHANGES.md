@@ -62,7 +62,7 @@ Please, use `beam-sdks-java-extensions-avro` instead. This will allow to easily 
 potential breaking changes in Beam "core" since the Beam Avro extension already supports the latest Avro versions and
 should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 * Publishing Java 21 SDK container images now supported as part of Apache Beam release process. ([#28120](https://github.com/apache/beam/issues/28120))
-  * Direct Runner and Dataflow Runner V2 support running pipeline on Java21. Support for other runners are planned in upcoming versions.
+  * Direct Runner and Dataflow Runner support running pipelines on Java21 (experimental until tests fully setup). For other runners (Flink, Spark, Samza, etc) support status depend on runner projects.
 
 ## I/Os
 
