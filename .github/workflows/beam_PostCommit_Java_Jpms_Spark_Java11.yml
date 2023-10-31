@@ -50,7 +50,7 @@ jobs:
   beam_PostCommit_Java_Jpms_Spark_Java11:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Jpms Spark Java 11 PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240

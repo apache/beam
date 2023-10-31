@@ -96,7 +96,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
       self.table.delete()
       self.instance.delete()
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           "Failed to clean up table [%s] and instance [%s]",
           self.table.table_id,
           self.instance.instance_id)
@@ -160,8 +160,8 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    instance_id = '%s-%s-%s' % (
-        cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+    timestr = "".join(filter(str.isdigit, str(datetime.datetime.utcnow())))
+    instance_id = '%s-%s-%s' % (cls.INSTANCE, timestr, secrets.token_hex(3))
 
     cls.client = client.Client(admin=True, project=cls.project)
     # create cluster and instance
@@ -190,7 +190,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _LOGGER.info("Deleting table [%s]", self.table.table_id)
       self.table.delete()
     except HttpError:
-      _LOGGER.debug("Failed to clean up table [%s]", self.table.table_id)
+      _LOGGER.warning("Failed to clean up table [%s]", self.table.table_id)
 
   @classmethod
   def tearDownClass(cls):
@@ -198,7 +198,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _LOGGER.info("Deleting instance [%s]", cls.instance.instance_id)
       cls.instance.delete()
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           "Failed to clean up instance [%s]", cls.instance.instance_id)
 
   def run_pipeline(self, rows):

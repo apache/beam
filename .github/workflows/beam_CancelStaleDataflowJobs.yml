@@ -58,7 +58,7 @@ jobs:
         job_name: [beam_CancelStaleDataflowJobs]
         job_phrase: [Run Cancel Stale Dataflow Jobs]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Cancel Stale Dataflow Jobs'
     steps:

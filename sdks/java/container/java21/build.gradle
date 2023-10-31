@@ -17,8 +17,6 @@
  */
 
 project.ext {
-    // TODO(https://github.com/apache/beam/issues/28120) switch to temurin once available
-    javaBaseImage = 'openjdk'
     imageJavaVersion = '21'
 }
 

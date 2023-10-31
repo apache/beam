@@ -49,7 +49,7 @@ env:
 jobs:
   beam_PostCommit_Python_ValidatesContainer_Dataflow_With_RC:
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python RC Dataflow ValidatesContainer')
     runs-on: [self-hosted, ubuntu-20.04, main]

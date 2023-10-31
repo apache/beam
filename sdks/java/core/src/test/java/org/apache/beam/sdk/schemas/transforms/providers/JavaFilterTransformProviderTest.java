@@ -32,8 +32,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 public class JavaFilterTransformProviderTest {
-    @Rule
-    public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)

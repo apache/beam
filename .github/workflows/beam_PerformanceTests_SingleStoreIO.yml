@@ -63,7 +63,7 @@ jobs:
         job_phrase: [Run Java SingleStoreIO Performance Test]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO Performance Test'
     steps:
@@ -105,7 +105,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_PerformanceTests_SingleStoreIO.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/config_PerformanceTests_SingleStoreIO.txt
           arguments: |
             --singleStoreServerName=${{ steps.install_singlestore.outputs.lb_ip }}
       # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_SpannerIO_Read_2GB_Python:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run SpannerIO Read 2GB Performance Test Python'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 480

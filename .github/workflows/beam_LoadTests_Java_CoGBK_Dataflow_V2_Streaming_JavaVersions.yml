@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_JavaVersions:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Load Tests Java') &&
          contains(github.event.comment.body, 'CoGBK Dataflow V2 Streaming'))
     runs-on: [self-hosted, ubuntu-20.04, main]

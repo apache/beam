@@ -59,7 +59,7 @@ jobs:
         job_phrase: [Run Java Dataflow V2 ValidatesRunner Streaming]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java Dataflow V2 ValidatesRunner Streaming'
     steps:
       - uses: actions/checkout@v4

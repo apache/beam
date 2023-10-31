@@ -50,7 +50,7 @@ jobs:
   beam_PostCommit_Python_MongoDBIO_IT:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Python MongoDBIO_IT'
     runs-on: [self-hosted, ubuntu-20.04, main]

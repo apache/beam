@@ -21,7 +21,7 @@ BUCKET=gs://beam-python-nightly-snapshots
 VERSION=$(awk '/__version__/{print $3}' $WORKSPACE/sdks/python/apache_beam/version.py)
 VERSION=$(echo $VERSION | cut -c 2- | rev | cut -c 2- | rev)
 time=$(date +"%Y-%m-%dT%H:%M:%S")
-SNAPSHOT="apache-beam-$VERSION-$time.zip"
+SNAPSHOT="apache-beam-$VERSION-$time.tar.gz"
 
 DEP_SNAPSHOT_ROOT="$BUCKET/dependency_requirements_snapshot"
 DEP_SNAPSHOT_FILE_NAME="beam-py-requirements-$time.txt"
@@ -30,8 +30,8 @@ DEP_SNAPSHOT_FILE_NAME="beam-py-requirements-$time.txt"
 # and located under Gradle build directory.
 cd $WORKSPACE/sdks/python/build
 
-# Rename the file to be apache-beam-{VERSION}-{datetime}.zip
-for file in "apache-beam-$VERSION*.zip"; do
+# Rename the file to be apache-beam-{VERSION}-{datetime}.tar.gz
+for file in "apache-beam-$VERSION*.tar.gz"; do
   mv $file $SNAPSHOT
 done
 

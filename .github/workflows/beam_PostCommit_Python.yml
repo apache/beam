@@ -51,7 +51,7 @@ env:
 jobs:
   beam_PostCommit_Python:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     timeout-minutes: 240
     strategy:
       fail-fast: false
@@ -61,7 +61,7 @@ jobs:
         python_version: ['3.8', '3.9', '3.10', '3.11']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Python PostCommit 3.')
     steps:
       - uses: actions/checkout@v4

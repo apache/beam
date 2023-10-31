@@ -54,6 +54,10 @@ configurations.sparkRunnerPreCommit {
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation library.java.vendored_guava_32_1_2_jre
+  if (project.findProperty('testJavaVersion') == '21' || JavaVersion.current().equals(JavaVersion.VERSION_21)) {
+    // this dependency is somehow needed for compile only under Java21
+    compileOnly library.java.kafka
+  }
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")

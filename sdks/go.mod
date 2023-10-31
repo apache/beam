@@ -31,7 +31,7 @@ require (
 	cloud.google.com/go/spanner v1.51.0
 	cloud.google.com/go/storage v1.33.0
 	github.com/aws/aws-sdk-go-v2 v1.21.2
-	github.com/aws/aws-sdk-go-v2/config v1.19.0
+	github.com/aws/aws-sdk-go-v2/config v1.19.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.43
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.91
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.40.2
@@ -41,7 +41,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang/protobuf v1.5.3 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.4.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
@@ -67,7 +67,7 @@ require (
 )
 
 require (
-	github.com/fsouza/fake-gcs-server v1.47.5
+	github.com/fsouza/fake-gcs-server v1.47.6
 	golang.org/x/exp v0.0.0-20230807204917-050eac23e9de
 )
 
@@ -88,7 +88,7 @@ require (
 	cloud.google.com/go v0.110.8 // indirect
 	cloud.google.com/go/compute v1.23.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
-	cloud.google.com/go/iam v1.1.2 // indirect
+	cloud.google.com/go/iam v1.1.3 // indirect
 	cloud.google.com/go/longrunning v0.5.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
@@ -118,7 +118,7 @@ require (
 	github.com/containerd/containerd v1.7.6 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-	github.com/docker/docker v24.0.6+incompatible // but required to resolve issue docker has with go1.20
+	github.com/docker/docker v24.0.7+incompatible // but required to resolve issue docker has with go1.20
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.11.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.2 // indirect

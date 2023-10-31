@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms.providers;
 
-import avro.shaded.com.google.common.collect.ImmutableList;
-import avro.shaded.com.google.common.primitives.Booleans;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
@@ -38,6 +36,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Booleans;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Explode.

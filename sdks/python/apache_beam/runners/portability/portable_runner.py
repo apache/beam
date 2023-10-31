@@ -415,7 +415,8 @@ class PortableRunner(runner.PipelineRunner):
         portable_options.environment_config, server = (
             worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
                 state_cache_size=
-                sdk_worker_main._get_state_cache_size(experiments),
+                sdk_worker_main._get_state_cache_size_bytes(
+                  options=options),
                 data_buffer_time_limit_ms=
                 sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
                 use_process=use_loopback_process_worker))
