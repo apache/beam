@@ -27,10 +27,10 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @DefaultSchema(AutoValueSchema.class)
 public abstract class BadRecord implements Serializable {
 
-  /** Information about the record that failed */
+  /** Information about the record that failed. */
   public abstract Record getRecord();
 
-  /** Information about why the record failed */
+  /** Information about why the record failed. */
   public abstract Failure getFailure();
 
   public static Builder builder() {

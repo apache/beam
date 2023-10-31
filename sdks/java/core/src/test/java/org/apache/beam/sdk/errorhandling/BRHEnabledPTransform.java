@@ -54,7 +54,7 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     PCollectionTuple pCollectionTuple =
         input.apply(
             "NoOpDoFn",
-            ParDo.of(new NoOpDoFn(badRecordRouter))
+            ParDo.of(new OddIsBad(badRecordRouter))
                 .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
 
     Coder<BadRecord> badRecordCoder;
@@ -77,11 +77,11 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
 
-  public static class NoOpDoFn extends DoFn<Integer, Integer> {
+  public static class OddIsBad extends DoFn<Integer, Integer> {
 
     private BadRecordRouter badRecordRouter;
 
-    public NoOpDoFn(BadRecordRouter badRecordRouter) {
+    public OddIsBad(BadRecordRouter badRecordRouter) {
       this.badRecordRouter = badRecordRouter;
     }
 
