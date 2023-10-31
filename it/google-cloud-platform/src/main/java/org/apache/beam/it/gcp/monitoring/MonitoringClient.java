@@ -150,8 +150,8 @@ public final class MonitoringClient {
     Aggregation aggregation =
         Aggregation.newBuilder()
             .setAlignmentPeriod(Duration.newBuilder().setSeconds(60).build())
-            .setPerSeriesAligner(Aggregation.Aligner.ALIGN_MEAN)
-            .setCrossSeriesReducer(Aggregation.Reducer.REDUCE_MEAN)
+            .setPerSeriesAligner(Aligner.ALIGN_MEAN)
+            .setCrossSeriesReducer(Reducer.REDUCE_MEAN)
             .addGroupByFields("resource.instance_id")
             .build();
     ListTimeSeriesRequest request =
@@ -188,7 +188,7 @@ public final class MonitoringClient {
     Aggregation aggregation =
         Aggregation.newBuilder()
             .setAlignmentPeriod(Duration.newBuilder().setSeconds(60).build())
-            .setPerSeriesAligner(Aggregation.Aligner.ALIGN_MEAN)
+            .setPerSeriesAligner(Aligner.ALIGN_MEAN)
             .setCrossSeriesReducer(Reducer.REDUCE_MAX)
             .build();
     ListTimeSeriesRequest request =
@@ -225,7 +225,7 @@ public final class MonitoringClient {
     Aggregation aggregation =
         Aggregation.newBuilder()
             .setAlignmentPeriod(Duration.newBuilder().setSeconds(60).build())
-            .setPerSeriesAligner(Aggregation.Aligner.ALIGN_MEAN)
+            .setPerSeriesAligner(Aligner.ALIGN_MEAN)
             .setCrossSeriesReducer(Reducer.REDUCE_MAX)
             .build();
     ListTimeSeriesRequest request =
@@ -269,7 +269,7 @@ public final class MonitoringClient {
     Aggregation aggregation =
         Aggregation.newBuilder()
             .setAlignmentPeriod(Duration.newBuilder().setSeconds(60).build())
-            .setPerSeriesAligner(Aggregation.Aligner.ALIGN_RATE)
+            .setPerSeriesAligner(Aligner.ALIGN_RATE)
             .build();
     ListTimeSeriesRequest request =
         ListTimeSeriesRequest.newBuilder()
@@ -312,7 +312,7 @@ public final class MonitoringClient {
     Aggregation aggregation =
         Aggregation.newBuilder()
             .setAlignmentPeriod(Duration.newBuilder().setSeconds(60).build())
-            .setPerSeriesAligner(Aggregation.Aligner.ALIGN_RATE)
+            .setPerSeriesAligner(Aligner.ALIGN_RATE)
             .build();
     ListTimeSeriesRequest request =
         ListTimeSeriesRequest.newBuilder()
