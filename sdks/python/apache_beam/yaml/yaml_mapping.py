@@ -21,7 +21,6 @@ from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Dict
-from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Union
@@ -399,62 +398,14 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
       })
 
 
-class SqlMappingProvider(yaml_provider.Provider):
-  def __init__(self, sql_provider=None):
-    if sql_provider is None:
-      sql_provider = yaml_provider.beam_jar(
-          urns={'Sql': 'beam:external:java:sql:v1'},
-          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
-    self._sql_provider = sql_provider
-
-  def available(self):
-    return self._sql_provider.available()
-
-  def cache_artifacts(self):
-    return self._sql_provider.cache_artifacts()
-
-  def provided_transforms(self) -> Iterable[str]:
-    return [
-        'Filter-sql',
-        'Filter-calcite',
-        'MapToFields-sql',
-        'MapToFields-calcite'
-    ]
-
-  def create_transform(
-      self,
-      typ: str,
-      args: Mapping[str, Any],
-      yaml_create_transform: Callable[
-          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
-  ) -> beam.PTransform:
-    if typ.startswith('Filter-'):
-      return _SqlFilterTransform(
-          self._sql_provider, yaml_create_transform, **args)
-    if typ.startswith('MapToFields-'):
-      return _SqlMapToFieldsTransform(
-          self._sql_provider, yaml_create_transform, **args)
-    else:
-      raise NotImplementedError(typ)
-
-  def underlying_provider(self):
-    return self._sql_provider
-
-  def to_json(self):
-    return {'type': "SqlMappingProvider"}
+@beam.ptransform.ptransform_fn
+def _SqlFilterTransform(pcoll, sql_transform_constructor, keep, language):
+  return pcoll | sql_transform_constructor(
+      f'SELECT * FROM PCOLLECTION WHERE {keep}')
 
 
 @beam.ptransform.ptransform_fn
-def _SqlFilterTransform(
-    pcoll, sql_provider, yaml_create_transform, keep, language):
-  return pcoll | sql_provider.create_transform(
-      'Sql', {'query': f'SELECT * FROM PCOLLECTION WHERE {keep}'},
-      yaml_create_transform)
-
-
-@beam.ptransform.ptransform_fn
-def _SqlMapToFieldsTransform(
-    pcoll, sql_provider, yaml_create_transform, **mapping_args):
+def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
   _, fields = normalize_fields(pcoll, **mapping_args)
 
   def extract_expr(name, v):
@@ -470,8 +421,7 @@ def _SqlMapToFieldsTransform(
       for (name, expr) in fields.items()
   ]
   query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
-  return pcoll | sql_provider.create_transform(
-      'Sql', {'query': query}, yaml_create_transform)
+  return pcoll | sql_transform_constructor(query)
 
 
 def create_mapping_providers():
@@ -487,5 +437,10 @@ def create_mapping_providers():
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
       }),
-      SqlMappingProvider(),
+      yaml_provider.SqlBackedProvider({
+          'Filter-sql': _SqlFilterTransform,
+          'Filter-calcite': _SqlFilterTransform,
+          'MapToFields-sql': _SqlMapToFieldsTransform,
+          'MapToFields-calcite': _SqlMapToFieldsTransform,
+      }),
   ]
