@@ -255,6 +255,11 @@ def _get_state_cache_size_bytes(options):
   for experiment in experiments:
     # There should only be 1 match so returning from the loop
     if re.match(r'state_cache_size=', experiment):
+      _LOGGER.warning(
+          '--experiments=state_cache_size=X is deprecated and will be removed '
+          'in future releases.'
+          'Please use --max_cache_memory_usage_mb=X to set the cache size for '
+          'user state API and side inputs.')
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
                    experiment).group('state_cache_size')) << 20
