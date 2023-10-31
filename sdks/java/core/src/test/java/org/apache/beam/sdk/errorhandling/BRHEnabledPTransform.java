@@ -37,7 +37,7 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
 
   private ErrorHandler<BadRecord, ?> errorHandler = new NoOpErrorHandler<>();
 
-  private BadRecordHandler badRecordHandler = BadRecordHandler.THROWING_HANDLER;
+  private BadRecordRouter badRecordRouter = BadRecordRouter.THROWING_ROUTER;
 
   private static final TupleTag<Integer> RECORDS = new TupleTag<>();
 
@@ -45,7 +45,7 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
 
   public BRHEnabledPTransform withBadRecordHandler(ErrorHandler<BadRecord, ?> errorHandler) {
     this.errorHandler = errorHandler;
-    this.badRecordHandler = BadRecordHandler.RECORDING_HANDLER;
+    this.badRecordRouter = BadRecordRouter.RECORDING_ROUTER;
     return this;
   }
 
@@ -54,8 +54,8 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     PCollectionTuple pCollectionTuple =
         input.apply(
             "NoOpDoFn",
-            ParDo.of(new NoOpDoFn(badRecordHandler))
-                .withOutputTags(RECORDS, TupleTagList.of(BadRecordHandler.BAD_RECORD_TAG)));
+            ParDo.of(new NoOpDoFn(badRecordRouter))
+                .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
 
     Coder<BadRecord> badRecordCoder;
 
@@ -72,27 +72,26 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     }
 
     errorHandler.addErrorCollection(
-        pCollectionTuple.get(BadRecordHandler.BAD_RECORD_TAG).setCoder(badRecordCoder));
+        pCollectionTuple.get(BadRecordRouter.BAD_RECORD_TAG).setCoder(badRecordCoder));
 
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
 
   public static class NoOpDoFn extends DoFn<Integer, Integer> {
 
-    private BadRecordHandler badRecordHandler;
+    private BadRecordRouter badRecordRouter;
 
-    public NoOpDoFn(BadRecordHandler badRecordHandler) {
-      this.badRecordHandler = badRecordHandler;
+    public NoOpDoFn(BadRecordRouter badRecordRouter) {
+      this.badRecordRouter = badRecordRouter;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) throws Exception {
-      Integer element = context.element();
+    public void processElement(@Element Integer element, MultiOutputReceiver receiver) throws Exception {
       if (element % 2 == 0) {
-        context.output(element);
+        receiver.get(RECORDS).output(element);
       } else {
-        badRecordHandler.handle(
-            context,
+        badRecordRouter.route(
+            receiver,
             element,
             BigEndianIntegerCoder.of(),
             new RuntimeException(),

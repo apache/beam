@@ -24,22 +24,22 @@ import java.io.IOException;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface BadRecordHandler extends Serializable {
+public interface BadRecordRouter extends Serializable {
 
-  BadRecordHandler THROWING_HANDLER = new ThrowingBadRecordHandler();
+  BadRecordRouter THROWING_ROUTER = new ThrowingBadRecordRouter();
 
-  BadRecordHandler RECORDING_HANDLER = new RecordingBadRecordHandler();
+  BadRecordRouter RECORDING_ROUTER = new RecordingBadRecordRouter();
 
   TupleTag<BadRecord> BAD_RECORD_TAG = new TupleTag<>();
 
-  <T> void handle(
-      DoFn<?, ?>.ProcessContext c,
+  <T> void route(
+      MultiOutputReceiver outputReceiver,
       T record,
       @Nullable Coder<T> coder,
       @Nullable Exception exception,
@@ -47,11 +47,11 @@ public interface BadRecordHandler extends Serializable {
       String failingTransform)
       throws Exception;
 
-  class ThrowingBadRecordHandler implements BadRecordHandler {
+  class ThrowingBadRecordRouter implements BadRecordRouter {
 
     @Override
-    public <T> void handle(
-        DoFn<?, ?>.ProcessContext c,
+    public <T> void route(
+        MultiOutputReceiver outputReceiver,
         T record,
         @Nullable Coder<T> coder,
         @Nullable Exception exception,
@@ -64,13 +64,13 @@ public interface BadRecordHandler extends Serializable {
     }
   }
 
-  class RecordingBadRecordHandler implements BadRecordHandler {
+  class RecordingBadRecordRouter implements BadRecordRouter {
 
-    private static final Logger LOG = LoggerFactory.getLogger(RecordingBadRecordHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RecordingBadRecordRouter.class);
 
     @Override
-    public <T> void handle(
-        DoFn<?, ?>.ProcessContext c,
+    public <T> void route(
+        MultiOutputReceiver outputReceiver,
         T record,
         @Nullable Coder<T> coder,
         @Nullable Exception exception,
@@ -80,7 +80,7 @@ public interface BadRecordHandler extends Serializable {
       Preconditions.checkArgumentNotNull(record);
       ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-      BadRecord.Builder deadLetterBuilder =
+      BadRecord.Builder badRecordBuilder =
           BadRecord.builder()
               .setHumanReadableRecord(objectWriter.writeValueAsString(record))
               .setDescription(description)
@@ -89,28 +89,28 @@ public interface BadRecordHandler extends Serializable {
       // Its possible for us to want to handle an error scenario where no actual exception objet
       // exists
       if (exception != null) {
-        deadLetterBuilder.setException(exception.toString());
+        badRecordBuilder.setException(exception.toString());
       }
 
       // We will sometimes not have a coder for a failing record, for example if it has already been
       // modified within the dofn.
       if (coder != null) {
-        deadLetterBuilder.setCoder(coder.toString());
+        badRecordBuilder.setCoder(coder.toString());
 
         try {
           ByteArrayOutputStream stream = new ByteArrayOutputStream();
           coder.encode(record, stream);
           byte[] bytes = stream.toByteArray();
-          deadLetterBuilder.setEncodedRecord(bytes);
+          badRecordBuilder.setEncodedRecord(bytes);
         } catch (IOException e) {
           LOG.error(
               "Unable to encode failing record using provided coder."
-                  + " DeadLetter will be published without encoded bytes",
+                  + " BadRecord will be published without encoded bytes",
               e);
         }
       }
-      BadRecord badRecord = deadLetterBuilder.build();
-      c.output(BAD_RECORD_TAG, badRecord);
+      BadRecord badRecord = badRecordBuilder.build();
+      outputReceiver.get(BAD_RECORD_TAG).output(badRecord);
     }
   }
 }

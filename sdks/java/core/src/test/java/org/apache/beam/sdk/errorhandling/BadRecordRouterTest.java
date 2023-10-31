@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.errorhandling;
 
-import static org.apache.beam.sdk.errorhandling.BadRecordHandler.BAD_RECORD_TAG;
+import static org.apache.beam.sdk.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +28,8 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -38,36 +40,40 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 @RunWith(JUnit4.class)
-public class BadRecordHandlerTest {
+public class BadRecordRouterTest {
 
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock private ProcessContext processContext;
+  @Mock private MultiOutputReceiver outputReceiver;
+
+  @Mock private OutputReceiver<BadRecord> badRecordOutputReceiver;
 
   @Test
   public void testThrowingHandlerWithException() throws Exception {
-    BadRecordHandler handler = BadRecordHandler.THROWING_HANDLER;
+    BadRecordRouter handler = BadRecordRouter.THROWING_ROUTER;
 
     thrown.expect(RuntimeException.class);
 
-    handler.handle(processContext, new Object(), null, new RuntimeException(), "desc", "transform");
+    handler.route(outputReceiver, new Object(), null, new RuntimeException(), "desc", "transform");
   }
 
   @Test
   public void testThrowingHandlerWithNoException() throws Exception {
-    BadRecordHandler handler = BadRecordHandler.THROWING_HANDLER;
+    BadRecordRouter handler = BadRecordRouter.THROWING_ROUTER;
 
-    handler.handle(processContext, new Object(), null, null, "desc", "transform");
+    handler.route(outputReceiver, new Object(), null, null, "desc", "transform");
   }
 
   @Test
   public void testRecordingHandler() throws Exception {
-    BadRecordHandler handler = BadRecordHandler.RECORDING_HANDLER;
+    when(outputReceiver.get(BAD_RECORD_TAG)).thenReturn(badRecordOutputReceiver);
 
-    handler.handle(
-        processContext, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc", "transform");
+    BadRecordRouter handler = BadRecordRouter.RECORDING_ROUTER;
+
+    handler.route(
+        outputReceiver, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc", "transform");
 
     BadRecord expected =
         BadRecord.builder()
@@ -79,14 +85,16 @@ public class BadRecordHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(BAD_RECORD_TAG, expected);
+    verify(badRecordOutputReceiver).output(expected);
   }
 
   @Test
   public void testNoCoder() throws Exception {
-    BadRecordHandler handler = BadRecordHandler.RECORDING_HANDLER;
+    when(outputReceiver.get(BAD_RECORD_TAG)).thenReturn(badRecordOutputReceiver);
 
-    handler.handle(processContext, 5, null, new RuntimeException(), "desc", "transform");
+    BadRecordRouter handler = BadRecordRouter.RECORDING_ROUTER;
+
+    handler.route(outputReceiver, 5, null, new RuntimeException(), "desc", "transform");
 
     BadRecord expected =
         BadRecord.builder()
@@ -96,12 +104,14 @@ public class BadRecordHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(BAD_RECORD_TAG, expected);
+    verify(badRecordOutputReceiver).output(expected);
   }
 
   @Test
   public void testFailingCoder() throws Exception {
-    BadRecordHandler handler = BadRecordHandler.RECORDING_HANDLER;
+    when(outputReceiver.get(BAD_RECORD_TAG)).thenReturn(badRecordOutputReceiver);
+
+    BadRecordRouter handler = BadRecordRouter.RECORDING_ROUTER;
 
     Coder<Integer> failingCoder =
         new Coder<Integer>() {
@@ -125,7 +135,7 @@ public class BadRecordHandlerTest {
           public void verifyDeterministic() throws NonDeterministicException {}
         };
 
-    handler.handle(processContext, 5, failingCoder, new RuntimeException(), "desc", "transform");
+    handler.route(outputReceiver, 5, failingCoder, new RuntimeException(), "desc", "transform");
 
     BadRecord expected =
         BadRecord.builder()
@@ -136,6 +146,6 @@ public class BadRecordHandlerTest {
             .setFailingTransform("transform")
             .build();
 
-    verify(processContext).output(BAD_RECORD_TAG, expected);
+    verify(badRecordOutputReceiver).output(expected);
   }
 }
