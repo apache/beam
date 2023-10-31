@@ -38,21 +38,13 @@ public class PostgresResourceManager extends AbstractJDBCResourceManager<Postgre
   // https://hub.docker.com/_/postgres/tags?tab=tags
   private static final String DEFAULT_POSTGRES_CONTAINER_TAG = "15.1";
 
-  private PostgresResourceManager(PostgresResourceManager.Builder builder) {
-    this(
-        new PostgreSQLContainer<>(
-            DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag)),
-        builder);
-  }
-
   @VisibleForTesting
-  PostgresResourceManager(
-      PostgreSQLContainer<?> container, PostgresResourceManager.Builder builder) {
+  PostgresResourceManager(PostgreSQLContainer<?> container, Builder builder) {
     super(container, builder);
   }
 
-  public static PostgresResourceManager.Builder builder(String testId) {
-    return new PostgresResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   @Override
@@ -80,7 +72,11 @@ public class PostgresResourceManager extends AbstractJDBCResourceManager<Postgre
 
     @Override
     public PostgresResourceManager build() {
-      return new PostgresResourceManager(this);
+      PostgreSQLContainer<?> container =
+          new PostgreSQLContainer<>(
+              DockerImageName.parse(containerImageName).withTag(containerImageTag));
+      container.setCommand("postgres", "-c", "fsync=off", "-c", "max_connections=1000");
+      return new PostgresResourceManager(container, this);
     }
   }
 }
