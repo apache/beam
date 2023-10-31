@@ -120,6 +120,10 @@ public class TextSource extends FileBasedSource<String> {
     private int bufferPosn = 0; // the current position in the buffer
     private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
+    private TextBasedReader(TextSource source, byte[] delimiter) {
+      this(source, delimiter, false);
+    }
+
     private TextBasedReader(TextSource source, byte[] delimiter, boolean removeHeader) {
       super(source);
       this.buffer = new byte[READ_BUFFER_SIZE];
