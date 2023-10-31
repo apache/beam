@@ -138,6 +138,14 @@
   transforms:
     'ReadFromJdbc': 'ReadFromJdbc'
     'WriteToJdbc': 'WriteToJdbc'
+    'ReadFromMySql': 'ReadFromJdbc'
+    'WriteToMySql': 'WriteToJdbc'
+    'ReadFromPostgres': 'ReadFromJdbc'
+    'WriteToPostgres': 'WriteToJdbc'
+    'ReadFromOracle': 'ReadFromJdbc'
+    'WriteToOracle': 'WriteToJdbc'
+    'ReadFromSqlServer': 'ReadFromJdbc'
+    'WriteToSqlServer': 'WriteToJdbc'
   config:
     mappings:
       'ReadFromJdbc':
@@ -159,10 +167,43 @@
         driver_jars: 'driverJars'
         connection_properties: 'connectionProperties'
         connection_init_sql: 'connectionInitSql'
+      'ReadFromMySql': 'ReadFromJdbc'
+      'WriteToMySql': 'WriteToJdbc'
+      'ReadFromPostgres': 'ReadFromJdbc'
+      'WriteToPostgres': 'WriteToJdbc'
+      'ReadFromOracle':  'ReadFromJdbc'
+      'WriteToOracle': 'WriteToJdbc'
+      'ReadFromSqlServer': 'ReadFromJdbc'
+      'WriteToSqlServer': 'WriteToJdbc'
+    defaults:
+      'ReadFromMySql':
+        driverClassName: 'com.mysql.jdbc.Driver'
+      'WriteToMySql':
+        driverClassName: 'com.mysql.jdbc.Driver'
+      'ReadFromPostgres':
+        driverClassName: 'org.postgresql.Driver'
+      'WriteToPostgres':
+        driverClassName: 'org.postgresql.Driver'
+      'ReadFromOracle':
+        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+      'WriteToOracle':
+        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+      'ReadFromSqlServer':
+        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+      'WriteToSqlServer':
+        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
     underlying_provider:
       type: beamJar
       transforms:
         'ReadFromJdbc': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
         'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromMySql': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToMySql': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromPostgres': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToPostgres': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromOracle': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToOracle': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromSqlServer': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToSqlServer': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
