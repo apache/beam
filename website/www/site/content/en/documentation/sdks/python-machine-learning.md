@@ -37,7 +37,7 @@ limitations under the License.
 </table>
 
 
-Use the RunInference API with your Apache Beam pipelines to run inference with machine learning (ML) models. The RunInference API lets you create transforms optimized for machine learning inferences.
+Use the RunInference API with your Apache Beam pipelines to run inference with machine learning (ML) models. The RunInference API is a `PTransform` optimized for machine learning inferences.
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
 
@@ -56,7 +56,7 @@ For more infomation about machine learning with Apache Beam, see:
 
 ## Why use the RunInference API?
 
-RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
+RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
 
 ### BatchElements PTransform
 
