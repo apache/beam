@@ -112,10 +112,10 @@ public abstract class Coder<T> implements Serializable {
   }
 
   /**
-   * Encodes the given value of type {@code T} onto the given output stream.
-   * Multiple elements can be encoded next to each other on the output stream,
-   * each coder should encode information to know how many bytes to read when decoding.
-   * A common approach is to prefix the encoding with the elemen's encoded length.
+   * Encodes the given value of type {@code T} onto the given output stream. Multiple elements can
+   * be encoded next to each other on the output stream, each coder should encode information to
+   * know how many bytes to read when decoding. A common approach is to prefix the encoding with the
+   * element's encoded length.
    *
    * @throws IOException if writing to the {@code OutputStream} fails for some reason
    * @throws CoderException if the value could not be encoded for some reason
@@ -137,10 +137,9 @@ public abstract class Coder<T> implements Serializable {
 
   /**
    * Decodes a value of type {@code T} from the given input stream in the given context. Returns the
-   * decoded value.
-   * Multiple elements can be encoded next to each other on the input stream,
-   * each coder should encode information to know how many bytes to read when decoding.
-   * A common approach is to prefix the encoding with the elemen's encoded length.
+   * decoded value. Multiple elements can be encoded next to each other on the input stream, each
+   * coder should encode information to know how many bytes to read when decoding. A common approach
+   * is to prefix the encoding with the element's encoded length.
    *
    * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
