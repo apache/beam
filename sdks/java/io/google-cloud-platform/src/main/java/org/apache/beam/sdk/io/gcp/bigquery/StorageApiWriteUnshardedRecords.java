@@ -37,6 +37,7 @@ import io.grpc.Status;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -66,7 +67,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -1077,6 +1080,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 BigQueryStorageApiInsertError output, org.joda.time.Instant timestamp) {
               context.output(failedRowsTag, output, timestamp, GlobalWindow.INSTANCE);
             }
+
+            @Override
+            public void outputWindowedValue(
+                BigQueryStorageApiInsertError output,
+                org.joda.time.Instant timestamp,
+                Collection<? extends BoundedWindow> windows,
+                PaneInfo paneInfo) {
+              throw new UnsupportedOperationException("outputWindowedValue not supported");
+            }
           };
       @Nullable OutputReceiver<TableRow> successfulRowsReceiver = null;
       if (successfulRowsTag != null) {
@@ -1090,6 +1102,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               @Override
               public void outputWithTimestamp(TableRow output, org.joda.time.Instant timestamp) {
                 context.output(successfulRowsTag, output, timestamp, GlobalWindow.INSTANCE);
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  TableRow output,
+                  org.joda.time.Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                throw new UnsupportedOperationException("outputWindowedValue not supported");
               }
             };
       }

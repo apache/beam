@@ -20,12 +20,15 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -58,6 +61,16 @@ public class DoFnOutputReceivers {
     public void outputWithTimestamp(Row output, Instant timestamp) {
       outputReceiver.outputWithTimestamp(schemaCoder.getFromRowFunction().apply(output), timestamp);
     }
+
+    @Override
+    public void outputWindowedValue(
+        Row output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      outputReceiver.outputWindowedValue(
+          schemaCoder.getFromRowFunction().apply(output), timestamp, windows, paneInfo);
+    }
   }
 
   private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
@@ -85,6 +98,20 @@ public class DoFnOutputReceivers {
         context.outputWithTimestamp(outputTag, output, timestamp);
       } else {
         ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
+      }
+    }
+
+    @Override
+    public void outputWindowedValue(
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      if (outputTag != null) {
+        context.outputWindowedValue(outputTag, output, timestamp, windows, paneInfo);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context)
+            .outputWindowedValue(output, timestamp, windows, paneInfo);
       }
     }
   }

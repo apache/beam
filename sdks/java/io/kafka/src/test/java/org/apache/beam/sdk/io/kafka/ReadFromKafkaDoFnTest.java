@@ -46,6 +46,8 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -268,6 +270,15 @@ public class ReadFromKafkaDoFnTest {
         KV<KafkaSourceDescriptor, KafkaRecord<String, String>> output,
         @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
       records.add(output);
+    }
+
+    @Override
+    public void outputWindowedValue(
+        KV<KafkaSourceDescriptor, KafkaRecord<String, String>> output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      throw new UnsupportedOperationException("Not expecting outputWindowedValue");
     }
 
     public List<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> getOutputs() {
