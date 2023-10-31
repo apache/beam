@@ -274,19 +274,17 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 		subtransforms = append(subtransforms, id)
 	}
 
-	var annotations map[string][]byte
+	var metadata contextreg.TransformMetadata
 	if s.Scope.Scope.Context != nil {
-		as := contextreg.Default().ExtractAnnotations(s.Scope.Scope.Context)
-		if len(as) > 0 {
-			annotations = as
-		}
+		metadata = contextreg.Default().ExtractPTransformMetadata(s.Scope.Scope.Context)
 	}
 
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
-		Annotations:   annotations,
+		Annotations:   metadata.Annotations,
+		// DisplayData: metadata.DisplayData,
 	}
 
 	if err := m.updateIfCombineComposite(s, transform); err != nil {

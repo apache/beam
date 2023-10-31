@@ -17,7 +17,7 @@
 // ptransform annotations or environment resource hints from context.Context attached to
 // scopes.
 //
-// Intended for beam internal use only.
+// For beam internal use only. API subject to change.
 package contextreg
 
 import (
@@ -37,48 +37,74 @@ func Default() *Registry {
 //
 // This type is exported to allow simpler testing of new extractors, and their interaction with the registry.
 type Registry struct {
-	mu                    sync.Mutex
-	annotations, envHints []func(context.Context) map[string][]byte
+	mu         sync.Mutex
+	transforms []func(context.Context) TransformMetadata
+	envs       []func(context.Context) EnvironmentMetadata
 }
 
-// AnnotationExtractor registers an annotation extractor.
-func (r *Registry) AnnotationExtractor(ext func(context.Context) map[string][]byte) {
+type TransformMetadata struct {
+	Annotations map[string][]byte
+	// DisplayData []*pipepb.DisplayData
+}
+
+type EnvironmentMetadata struct {
+	ResourceHints map[string][]byte
+	// DisplayData   []*pipepb.DisplayData
+	// Dependencies  []*pipepb.ArtifactInformation
+}
+
+// TransformExtractor registers an annotation extractor.
+func (r *Registry) TransformExtractor(ext func(context.Context) TransformMetadata) {
 	r.mu.Lock()
-	r.annotations = append(r.annotations, ext)
+	r.transforms = append(r.transforms, ext)
 	r.mu.Unlock()
 }
 
-// HintExtractor registers a resource hint extractor.
-func (r *Registry) HintExtractor(ext func(context.Context) map[string][]byte) {
+// EnvExtrator registers a resource hint extractor.
+func (r *Registry) EnvExtrator(ext func(context.Context) EnvironmentMetadata) {
 	r.mu.Lock()
-	r.envHints = append(r.envHints, ext)
+	r.envs = append(r.envs, ext)
 	r.mu.Unlock()
 }
 
-func (r *Registry) extract(ctx context.Context, exts []func(context.Context) map[string][]byte) map[string][]byte {
+// ExtractPTransformMetadata runs all registered ptransform extractors on the provided context,
+// and returns the resulting metadata.
+//
+// A metadata field will be nil if there's no data.
+func (r *Registry) ExtractPTransformMetadata(ctx context.Context) TransformMetadata {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	ret := map[string][]byte{}
-	for _, ext := range exts {
+
+	ret := TransformMetadata{
+		Annotations: map[string][]byte{},
+	}
+	for _, ext := range r.transforms {
 		k := ext(ctx)
-		maps.Copy(ret, k)
+		maps.Copy(ret.Annotations, k.Annotations)
+	}
+	if len(ret.Annotations) == 0 {
+		ret.Annotations = nil
 	}
 	return ret
 }
 
-// ExtractAnnotations runs all registered annotation extractors on the provided context,
-// and returns the resulting map.
+// ExtractEnvironmentMetadata runs all registered environment extractors on the provided context,
+// and returns the resulting metadata.
 //
-// Callers must check the length of the returned map. If 0, then no values exist.
-func (r *Registry) ExtractAnnotations(ctx context.Context) map[string][]byte {
-	return r.extract(ctx, r.annotations)
-}
+// A metadata field will be nil if there's no data.
+func (r *Registry) ExtractEnvironmentMetadata(ctx context.Context) EnvironmentMetadata {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-// ExtractHints runs all registered resource hint extractors on the provided context,
-// and returns the resulting map.
-//
-// Callers must check the length of the returned map. If 0, then no values exist, and no
-// additional environment should be created.
-func (r *Registry) ExtractHints(ctx context.Context) map[string][]byte {
-	return r.extract(ctx, r.envHints)
+	ret := EnvironmentMetadata{
+		ResourceHints: map[string][]byte{},
+	}
+	for _, ext := range r.envs {
+		k := ext(ctx)
+		maps.Copy(ret.ResourceHints, k.ResourceHints)
+	}
+	if len(ret.ResourceHints) == 0 {
+		ret.ResourceHints = nil
+	}
+	return ret
 }

@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestAnnotationExtractor(t *testing.T) {
+func TestPTransformExtractor(t *testing.T) {
 	reg := &Registry{}
 
 	type keyType string
@@ -28,23 +28,29 @@ func TestAnnotationExtractor(t *testing.T) {
 	key2 := keyType("annotation2")
 	key3 := keyType("annotation3")
 
-	reg.AnnotationExtractor(func(ctx context.Context) map[string][]byte {
+	reg.TransformExtractor(func(ctx context.Context) TransformMetadata {
 		v := ctx.Value(key1).(string)
-		return map[string][]byte{
-			"beam:test:annotation": []byte(v),
+		return TransformMetadata{
+			Annotations: map[string][]byte{
+				"beam:test:annotation": []byte(v),
+			},
 		}
 	})
-	reg.AnnotationExtractor(func(ctx context.Context) map[string][]byte {
+	reg.TransformExtractor(func(ctx context.Context) TransformMetadata {
 		v := ctx.Value(key2).(string)
-		return map[string][]byte{
-			"beam:test:annotation2": []byte(v),
+		return TransformMetadata{
+			Annotations: map[string][]byte{
+				"beam:test:annotation2": []byte(v),
+			},
 		}
 	})
 	// Override the extaction for result annotation to use the last set version.
-	reg.AnnotationExtractor(func(ctx context.Context) map[string][]byte {
+	reg.TransformExtractor(func(ctx context.Context) TransformMetadata {
 		v := ctx.Value(key3).(string)
-		return map[string][]byte{
-			"beam:test:annotation": []byte(v),
+		return TransformMetadata{
+			Annotations: map[string][]byte{
+				"beam:test:annotation": []byte(v),
+			},
 		}
 	})
 
@@ -56,18 +62,18 @@ func TestAnnotationExtractor(t *testing.T) {
 	want3 := "want_value3"
 	ctx = context.WithValue(ctx, key3, want3)
 
-	anns := reg.ExtractAnnotations(ctx)
+	ptrans := reg.ExtractPTransformMetadata(ctx)
 
 	key := "beam:test:annotation"
-	if got, want := string(anns[key]), want3; got != want {
+	if got, want := string(ptrans.Annotations[key]), want3; got != want {
 		t.Errorf("extracted annotation %q = %q, want %q", key, got, want)
 	}
 	key = "beam:test:annotation2"
-	if got, want := string(anns[key]), want2; got != want {
+	if got, want := string(ptrans.Annotations[key]), want2; got != want {
 		t.Errorf("extracted annotation %q = %q, want %q", key, got, want)
 	}
-	if got, want := len(anns), 2; got != want {
-		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, anns)
+	if got, want := len(ptrans.Annotations), 2; got != want {
+		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, ptrans)
 	}
 }
 
@@ -77,10 +83,12 @@ func TestHintExtractor(t *testing.T) {
 	type keyType string
 	hintKey := keyType("hint")
 
-	reg.HintExtractor(func(ctx context.Context) map[string][]byte {
+	reg.EnvExtrator(func(ctx context.Context) EnvironmentMetadata {
 		v := ctx.Value(hintKey).(string)
-		return map[string][]byte{
-			"beam:test:hint": []byte(v),
+		return EnvironmentMetadata{
+			ResourceHints: map[string][]byte{
+				"beam:test:hint": []byte(v),
+			},
 		}
 	})
 
@@ -88,13 +96,13 @@ func TestHintExtractor(t *testing.T) {
 	wantedHint := "hint"
 	ctx = context.WithValue(ctx, hintKey, wantedHint)
 
-	hints := reg.ExtractHints(ctx)
+	env := reg.ExtractEnvironmentMetadata(ctx)
 
 	key := "beam:test:hint"
-	if got, want := string(hints[key]), wantedHint; got != want {
+	if got, want := string(env.ResourceHints[key]), wantedHint; got != want {
 		t.Errorf("extracted annotation %q = %q, want %q", key, got, want)
 	}
-	if got, want := len(hints), 1; got != want {
-		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, hints)
+	if got, want := len(env.ResourceHints), 1; got != want {
+		t.Errorf("extracted annotation %q = %q, want %q - have %v", key, got, want, env)
 	}
 }
