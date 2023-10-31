@@ -59,7 +59,7 @@ jobs:
         job_phrase: [Run Java Flink PortableValidatesRunner Streaming]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java Flink PortableValidatesRunner Streaming'
     steps:
       - uses: actions/checkout@v4

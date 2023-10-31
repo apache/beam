@@ -75,7 +75,7 @@ jobs:
   beam_PostCommit_Java_Tpcds_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Dataflow Runner Tpcds Tests'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240

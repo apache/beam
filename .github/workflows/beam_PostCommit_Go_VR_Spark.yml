@@ -50,7 +50,7 @@ jobs:
   beam_PostCommit_Go_VR_Spark:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Go Spark ValidatesRunner'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100

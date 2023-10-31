@@ -60,7 +60,7 @@ jobs:
         job_phrase: [Run Java SingleStoreIO_IT]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO_IT'
     steps:

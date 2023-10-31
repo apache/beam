@@ -50,7 +50,7 @@ jobs:
   beam_PostCommit_TransformService_Direct:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run TransformService_Direct PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120

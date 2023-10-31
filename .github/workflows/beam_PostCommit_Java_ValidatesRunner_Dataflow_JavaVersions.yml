@@ -61,7 +61,7 @@ jobs:
         java_version: ['11','17']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Dataflow ValidatesRunner Java')
     steps:
       - uses: actions/checkout@v4

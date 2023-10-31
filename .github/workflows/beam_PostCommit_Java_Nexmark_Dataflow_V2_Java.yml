@@ -86,7 +86,7 @@ jobs:
         java_version: ['11','17']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Dataflow Runner V2 Java') &&
          contains(github.event.comment.body, 'Nexmark Tests'))
     steps:
