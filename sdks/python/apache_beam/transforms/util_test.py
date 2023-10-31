@@ -498,14 +498,15 @@ class BatchElementsTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-  def test_in_global_window(self):
+  def test_stateful_in_global_window(self):
     with TestPipeline() as pipeline:
       collection = pipeline \
                    | beam.Create(
                      BatchElementsTest._create_test_data()) \
-                   | util.StatefulBatchElements(
+                   | util.BatchElements(
                      min_batch_size=BatchElementsTest.BATCH_SIZE,
-                     max_batch_size=BatchElementsTest.BATCH_SIZE)
+                     max_batch_size=BatchElementsTest.BATCH_SIZE,
+                     max_batch_duration_secs=100)
       num_batches = collection | beam.combiners.Count.Globally()
       assert_that(
           num_batches,
