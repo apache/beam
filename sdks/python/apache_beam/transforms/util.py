@@ -785,6 +785,9 @@ class BatchElements(PTransform):
         in seconds, excluding fixed cost
     target_batch_duration_secs_including_fixed_cost: (optional) a target for
         total time per bundle, in seconds, including fixed cost
+    max_batch_duration_secs: (optional) the maximum amount of time to buffer
+        a batch before emitting. Setting this argument to be non-none uses the
+        stateful implementation of BatchElements.
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
@@ -804,6 +807,7 @@ class BatchElements(PTransform):
       target_batch_overhead=.05,
       target_batch_duration_secs=10,
       target_batch_duration_secs_including_fixed_cost=None,
+      max_batch_duration_secs=None,
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
@@ -820,10 +824,20 @@ class BatchElements(PTransform):
         clock=clock,
         record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
+    self._max_batch_dur = max_batch_duration_secs
+    self._clock = clock
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
+    elif self._max_batch_dur is not None:
+      coder = coders.registry.get_coder(pcoll)
+      return pcoll | WithKeys(0) | ParDo(
+          _pardo_stateful_batch_elements(
+              coder,
+              self._batch_size_estimator,
+              self._max_batch_dur,
+              self._clock))
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.

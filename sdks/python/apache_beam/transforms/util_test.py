@@ -190,6 +190,30 @@ class FakeClock(object):
 
 
 class BatchElementsTest(unittest.TestCase):
+  NUM_ELEMENTS = 10
+  BATCH_SIZE = 5
+
+  @staticmethod
+  def _create_test_data():
+    scientists = [
+        "Einstein",
+        "Darwin",
+        "Copernicus",
+        "Pasteur",
+        "Curie",
+        "Faraday",
+        "Newton",
+        "Bohr",
+        "Galilei",
+        "Maxwell"
+    ]
+
+    data = []
+    for i in range(BatchElementsTest.NUM_ELEMENTS):
+      index = i % len(scientists)
+      data.append(scientists[index])
+    return data
+
   def test_constant_batch(self):
     # Assumes a single bundle...
     p = TestPipeline()
@@ -461,39 +485,14 @@ class BatchElementsTest(unittest.TestCase):
     self._run_regression_test(
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
-
-class StatefulBatchElementsTest(unittest.TestCase):
-  NUM_ELEMENTS = 10
-  BATCH_SIZE = 5
-
-  @staticmethod
-  def _create_test_data():
-    scientists = [
-        "Einstein",
-        "Darwin",
-        "Copernicus",
-        "Pasteur",
-        "Curie",
-        "Faraday",
-        "Newton",
-        "Bohr",
-        "Galilei",
-        "Maxwell"
-    ]
-
-    data = []
-    for i in range(StatefulBatchElementsTest.NUM_ELEMENTS):
-      index = i % len(scientists)
-      data.append(scientists[index])
-    return data
-
-  def test_constant_batch(self):
+  def test_stateful_constant_batch(self):
     # Assumes a single bundle...
     p = TestPipeline()
     output = (
         p
         | beam.Create(range(35))
-        | util.StatefulBatchElements(min_batch_size=10, max_batch_size=10)
+        | util.BatchElements(
+            min_batch_size=10, max_batch_size=10, max_batch_duration_secs=100)
         | beam.Map(len))
     assert_that(output, equal_to([10, 10, 10, 5]))
     res = p.run()
@@ -503,21 +502,21 @@ class StatefulBatchElementsTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       collection = pipeline \
                    | beam.Create(
-                     StatefulBatchElementsTest._create_test_data()) \
+                     BatchElementsTest._create_test_data()) \
                    | util.StatefulBatchElements(
-                     min_batch_size=StatefulBatchElementsTest.BATCH_SIZE,
-                     max_batch_size=StatefulBatchElementsTest.BATCH_SIZE)
+                     min_batch_size=BatchElementsTest.BATCH_SIZE,
+                     max_batch_size=BatchElementsTest.BATCH_SIZE)
       num_batches = collection | beam.combiners.Count.Globally()
       assert_that(
           num_batches,
           equal_to([
               int(
                   math.ceil(
-                      StatefulBatchElementsTest.NUM_ELEMENTS /
-                      StatefulBatchElementsTest.BATCH_SIZE))
+                      BatchElementsTest.NUM_ELEMENTS /
+                      BatchElementsTest.BATCH_SIZE))
           ]))
 
-  def test_buffering_timer_in_fixed_window_streaming(self):
+  def test_stateful_buffering_timer_in_fixed_window_streaming(self):
     window_duration = 6
     max_buffering_duration_secs = 100
 
@@ -525,7 +524,7 @@ class StatefulBatchElementsTest(unittest.TestCase):
     test_stream = (
         TestStream().add_elements([
             TimestampedValue(value, start_time + i) for i,
-            value in enumerate(StatefulBatchElementsTest._create_test_data())
+            value in enumerate(BatchElementsTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -539,9 +538,9 @@ class StatefulBatchElementsTest(unittest.TestCase):
       num_elements_per_batch = (
           pipeline | test_stream
           | "fixed window" >> WindowInto(FixedWindows(window_duration))
-          | util.StatefulBatchElements(
-              min_batch_size=StatefulBatchElementsTest.BATCH_SIZE,
-              max_batch_size=StatefulBatchElementsTest.BATCH_SIZE,
+          | util.BatchElements(
+              min_batch_size=BatchElementsTest.BATCH_SIZE,
+              max_batch_size=BatchElementsTest.BATCH_SIZE,
               max_batch_duration_secs=max_buffering_duration_secs,
               clock=fake_clock)
           | "count elements in batch" >> Map(lambda x: (None, len(x)))
@@ -563,24 +562,24 @@ class StatefulBatchElementsTest(unittest.TestCase):
           equal_to([expected_0, expected_1, expected_2]),
           "assert2")
 
-  def test_buffering_timer_in_global_window_streaming(self):
+  def test_stateful_buffering_timer_in_global_window_streaming(self):
     max_buffering_duration_secs = 42
 
     start_time = timestamp.Timestamp(0)
     test_stream = TestStream().advance_watermark_to(start_time)
-    for i, value in enumerate(StatefulBatchElementsTest._create_test_data()):
+    for i, value in enumerate(BatchElementsTest._create_test_data()):
       test_stream.add_elements(
           [TimestampedValue(value, start_time + i)]) \
         .advance_processing_time(5)
     test_stream.advance_watermark_to(
-        start_time + StatefulBatchElementsTest.NUM_ELEMENTS + 1) \
+        start_time + BatchElementsTest.NUM_ELEMENTS + 1) \
       .advance_watermark_to_infinity()
 
     with TestPipeline(options=StandardOptions(streaming=True)) as pipeline:
       # Set a batch size larger than the total number of elements.
       # Since we're in a global window, we would have been waiting
       # for all the elements to arrive without the buffering time limit.
-      batch_size = StatefulBatchElementsTest.NUM_ELEMENTS * 2
+      batch_size = BatchElementsTest.NUM_ELEMENTS * 2
 
       # To trigger the processing time timer, use a fake clock with start time
       # being Timestamp(0). Since the fake clock never really advances during
@@ -594,7 +593,7 @@ class StatefulBatchElementsTest(unittest.TestCase):
               GlobalWindows(),
               trigger=Repeatedly(AfterCount(1)),
               accumulation_mode=trigger.AccumulationMode.DISCARDING)
-          | util.StatefulBatchElements(
+          | util.BatchElements(
               min_batch_size=batch_size,
               max_batch_size=batch_size,
               max_batch_duration_secs=max_buffering_duration_secs,
@@ -607,14 +606,17 @@ class StatefulBatchElementsTest(unittest.TestCase):
       # the global window ends.
       assert_that(num_elements_per_batch, equal_to([9, 1]))
 
-  def test_grows_to_max_batch(self):
+  def test_stateful_grows_to_max_batch(self):
     # Assumes a single bundle...
     with TestPipeline() as p:
       res = (
           p
           | beam.Create(range(164))
-          | util.StatefulBatchElements(
-              min_batch_size=1, max_batch_size=50, clock=FakeClock())
+          | util.BatchElements(
+              min_batch_size=1,
+              max_batch_size=50,
+              max_batch_duration_secs=100,
+              clock=FakeClock())
           | beam.Map(len))
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
