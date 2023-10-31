@@ -486,7 +486,7 @@ class StatefulBatchElementsTest(unittest.TestCase):
       index = i % len(scientists)
       data.append(scientists[index])
     return data
-  
+
   def test_constant_batch(self):
     # Assumes a single bundle...
     p = TestPipeline()
