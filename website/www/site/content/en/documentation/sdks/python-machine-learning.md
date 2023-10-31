@@ -50,9 +50,9 @@ For more infomation about machine learning with Apache Beam, see:
 ## Support and limitations
 
 - The RunInference API is supported in Apache Beam 2.40.0 and later versions.
-- PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
+- Model handlers are available for PyTorch, scikit-learn, TensorFlow, ONNX, and TensorRT. You can also use a custom model handler.
 - The RunInference API supports batch and streaming pipelines.
-- The RunInference API supports local and remote inference.
+- The RunInference API supports both remote inference and inteference local to the runner worker.
 
 ## Why use the RunInference API?
 
