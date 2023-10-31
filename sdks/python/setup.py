@@ -398,6 +398,9 @@ if __name__ == '__main__':
               'dask >= 2022.6',
               'distributed >= 2022.6',
           ],
+          'yaml': [
+              'pyyaml>=3.12,<7.0.0',
+          ] + dataframe_dependency
       },
       zip_safe=False,
       # PyPI package information.
