@@ -72,8 +72,6 @@ public class KafkaWriteSchemaTransformProvider
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
-  private static final String PAYLOAD = "payload";
-
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
       configurationClass() {
@@ -136,11 +134,11 @@ public class KafkaWriteSchemaTransformProvider
       Schema inputSchema = input.get("input").getSchema();
       final SerializableFunction<Row, byte[]> toBytesFn;
       if (configuration.getFormat().equals("RAW")) {
-        if (!inputSchema.hasField(PAYLOAD)) {
-          throw new IllegalArgumentException(
-              "To write to Kafka in RAW format, the input schema must provide the payload attribute.");
+        int numFields = inputSchema.getFields().size();
+        if (numFields != 1) {
+          throw new IllegalArgumentException("Expecting exactly one field, found " + numFields);
         }
-        toBytesFn = getRowToRawBytesFunction();
+        toBytesFn = getRowToRawBytesFunction(inputSchema.getField(0).getName());
       } else if (configuration.getFormat().equals("JSON")) {
         toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
       } else {
@@ -174,11 +172,11 @@ public class KafkaWriteSchemaTransformProvider
     }
   }
 
-  public static SerializableFunction<Row, byte[]> getRowToRawBytesFunction() {
+  public static SerializableFunction<Row, byte[]> getRowToRawBytesFunction(String rowFieldName) {
     return new SimpleFunction<Row, byte[]>() {
       @Override
       public byte[] apply(Row input) {
-        byte[] rawBytes = input.getBytes(PAYLOAD);
+        byte[] rawBytes = input.getBytes(rowFieldName);
         if (rawBytes == null) {
           throw new NullPointerException();
         }
@@ -217,7 +215,7 @@ public class KafkaWriteSchemaTransformProvider
     @SchemaFieldDescription(
         "A list of host/port pairs to use for establishing the initial connection to the"
             + " Kafka cluster. The client will make use of all servers irrespective of which servers are specified"
-            + " here for bootstrappingâ€”this list only impacts the initial hosts used to discover the full set"
+            + " here for bootstrapping—this list only impacts the initial hosts used to discover the full set"
             + " of servers. | Format: host1:port1,host2:port2,...")
     public abstract String getBootstrapServers();
 

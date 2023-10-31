@@ -80,7 +80,7 @@ public class KafkaWriteSchemaTransformProviderTest {
   final SerializableFunction<Row, byte[]> valueMapper =
       JsonUtils.getRowToJsonBytesFunction(BEAMSCHEMA);
 
-  final SerializableFunction<Row, byte[]> valueRawMapper = getRowToRawBytesFunction();
+  final SerializableFunction<Row, byte[]> valueRawMapper = getRowToRawBytesFunction("payload");
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
