@@ -573,6 +573,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       task: Union[str, PipelineTask] = "",
       model: str = "",
       *,
+      device: str = 'GPU',
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_pipeline_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
@@ -605,7 +606,11 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
           model_handler = HuggingFacePipelineModelHandler(
             task="text-generation", model="meta-llama/Llama-2-7b-hf",
             load_pipeline_args={'model_kwargs':{'quantization_map':config}})
-
+      device (str): the device on which you wish to run the pipeline. Defaults
+        to GPU. If GPU is not available then it falls back to CPU. You can also
+        use advanced option like `device_map` with key-value pair as you would
+        do in the usual Hugging Face pipeline using `load_pipeline_args`.
+        Ex: load_pipeline_args={'device_map':auto}).
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
@@ -627,6 +632,9 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     self._task = task
     self._model = model
+    self._device = 'cuda:1'
+    if device != 'GPU' or not is_gpu_available_torch():
+      self._device = 'cpu'
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
     self._inference_args = inference_args if inference_args else {}
@@ -638,6 +646,12 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._large_model = large_model
+    if 'device' not in self._load_pipeline_args:
+      self._load_pipeline_args['device'] = self._device
+    else:
+      _LOGGER.warning(
+          '`device` specified in `load_pipeline_args`. `device` '
+          'parameter for HuggingFacePipelineModelHandler will be ignored.')
     _validate_constructor_args_hf_pipeline(self._task, self._model)
 
   def load_model(self):
