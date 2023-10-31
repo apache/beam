@@ -58,7 +58,7 @@ jobs:
         job_name: [beam_PostCommit_Java_InfluxDbIO_IT]
         job_phrase: [Run Java InfluxDbIO_IT]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java InfluxDbIO_IT'
     steps:

@@ -59,7 +59,7 @@ jobs:
         job_phrase: [Run Java Spark PortableValidatesRunner Batch]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository

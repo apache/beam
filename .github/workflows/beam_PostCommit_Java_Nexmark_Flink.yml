@@ -79,7 +79,7 @@ jobs:
         queryLanguage: [sql, zetasql, none]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Flink Runner Nexmark Tests'
     steps:
       - uses: actions/checkout@v4

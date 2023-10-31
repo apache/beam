@@ -72,7 +72,7 @@ jobs:
   beam_PostCommit_Java_Tpcds_Flink:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Flink Runner Tpcds Tests'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240

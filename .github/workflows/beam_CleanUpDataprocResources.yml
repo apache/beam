@@ -50,7 +50,7 @@ jobs:
   beam_CleanUpDataprocResources:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: "beam_CleanUpDataprocResources"

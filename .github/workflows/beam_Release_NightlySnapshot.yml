@@ -50,9 +50,8 @@ jobs:
         job_name: [beam_Release_NightlySnapshot]
         job_phrase: [Release Nightly Snapshot]
     if: |
-      (github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule') &&
-      github.repository == 'apache/beam'
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository

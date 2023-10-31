@@ -85,7 +85,7 @@ jobs:
         streaming: [false, true]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Dataflow Runner V2 Nexmark Tests'
     steps:
       - uses: actions/checkout@v4

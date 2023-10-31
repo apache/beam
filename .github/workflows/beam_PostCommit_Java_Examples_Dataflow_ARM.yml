@@ -74,7 +74,7 @@ jobs:
         java_version: ['8','11','17']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github. event_name == 'workflow_dispatch' ||
       startswith(github.event.comment.body, 'Run Java_Examples_Dataflow_ARM PostCommit')
     steps:

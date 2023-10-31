@@ -102,7 +102,7 @@ jobs:
         query: [0, 2, 3, 5, 7, 8, 10, 11]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python Direct Runner Nexmark Tests'
     steps:
       - uses: actions/checkout@v4

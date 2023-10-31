@@ -57,7 +57,7 @@ jobs:
         job_phrase: [Run ULR Loopback ValidatesRunner]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run ULR Loopback ValidatesRunner'
     steps:
       - uses: actions/checkout@v4

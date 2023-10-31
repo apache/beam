@@ -49,10 +49,9 @@ jobs:
       matrix:
         job_name: [beam_Release_Python_NightlySnapshot]
         job_phrase: [Release Nightly Snapshot Python]
-    if: (github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'schedule') &&
-        github.repository == 'apache/beam'
-
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository

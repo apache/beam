@@ -59,7 +59,7 @@ jobs:
         job_phrase: [Run Flink ValidatesRunner Java 11]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Flink ValidatesRunner Java 11')
     steps:
       - uses: actions/checkout@v4

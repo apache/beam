@@ -50,7 +50,7 @@ jobs:
   beam_PostCommit_Python_Xlang_IO_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python_Xlang_IO_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
