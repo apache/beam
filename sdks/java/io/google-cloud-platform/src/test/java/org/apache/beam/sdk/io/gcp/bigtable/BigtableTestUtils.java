@@ -31,12 +31,14 @@ import com.google.bigtable.v2.Family;
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
 import java.util.List;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
+import org.joda.time.Instant;
 
-class BigtableTestUtils {
+public class BigtableTestUtils {
 
   static final String BOOL_COLUMN = "boolColumn";
   static final String LONG_COLUMN = "longColumn";
@@ -143,5 +145,28 @@ class BigtableTestUtils {
       builder.addAllLabels(ImmutableList.copyOf(labels));
     }
     return builder.build();
+  }
+
+  // We have to build the pipeline at this package level and not changestreams package because
+  // endTime is package private and we can only create a pipeline with endTime here. Setting endTime
+  // allows the tests to predictably terminate.
+  public static BigtableIO.ReadChangeStream buildTestPipelineInput(
+      String projectId,
+      String instanceId,
+      String tableId,
+      String appProfileId,
+      String metadataTableName,
+      Instant startTime,
+      Instant endTime,
+      BigtableClientOverride clientOverride) {
+    return BigtableIO.readChangeStream()
+        .withProjectId(projectId)
+        .withInstanceId(instanceId)
+        .withTableId(tableId)
+        .withAppProfileId(appProfileId)
+        .withMetadataTableTableId(metadataTableName)
+        .withStartTime(startTime)
+        .withEndTime(endTime)
+        .withBigtableClientOverride(clientOverride);
   }
 }
