@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
+package org.apache.beam.runners.dataflow.worker.windmill.client.throttling;
 
 import org.joda.time.Instant;
 
@@ -25,7 +25,7 @@ import org.joda.time.Instant;
  * CommitWork are both blocked for x, totalTime will be 2x. However, if 2 GetWork streams are both
  * blocked for x totalTime will be x. All methods are thread safe.
  */
-class ThrottleTimer {
+public final class ThrottleTimer {
   // This is -1 if not currently being throttled or the time in
   // milliseconds when throttling for this type started.
   private long startTime = -1;
@@ -36,7 +36,7 @@ class ThrottleTimer {
   /**
    * Starts the timer if it has not been started and does nothing if it has already been started.
    */
-  synchronized void start() {
+  public synchronized void start() {
     if (!throttled()) { // This timer is not started yet so start it now.
       startTime = Instant.now().getMillis();
     }

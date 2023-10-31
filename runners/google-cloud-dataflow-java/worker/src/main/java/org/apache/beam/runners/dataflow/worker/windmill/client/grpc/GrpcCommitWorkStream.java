@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.grpcclient;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -27,15 +27,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.apache.beam.runners.dataflow.worker.windmill.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
