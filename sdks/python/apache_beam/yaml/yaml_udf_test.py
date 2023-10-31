@@ -50,7 +50,8 @@ class YamlUDFMappingTest(unittest.TestCase):
 
   def test_map_to_fields_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
@@ -96,7 +97,8 @@ class YamlUDFMappingTest(unittest.TestCase):
 
   def test_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
@@ -134,7 +136,8 @@ class YamlUDFMappingTest(unittest.TestCase):
 
   def test_filter_expression_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           '''
@@ -183,7 +186,8 @@ class YamlUDFMappingTest(unittest.TestCase):
     self.fs.create(path).write(data.encode('utf8'))
 
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
       elements = p | beam.Create(self.data)
       result = elements | YamlTransform(
           f'''

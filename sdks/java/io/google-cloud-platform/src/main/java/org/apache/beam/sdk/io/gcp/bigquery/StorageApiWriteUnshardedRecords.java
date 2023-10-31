@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
@@ -109,6 +110,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
+  private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
   /**
    * The Guava cache object is thread-safe. However our protocol requires that client pin the
@@ -166,7 +168,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
-      boolean usesCdc) {
+      boolean usesCdc,
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -178,6 +181,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
+    this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
   }
 
   @Override
@@ -210,7 +214,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         ignoreUnknownValues,
                         createDisposition,
                         kmsKey,
-                        usesCdc))
+                        usesCdc,
+                        defaultMissingValueInterpretation))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -240,6 +245,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final BigQueryIO.Write.CreateDisposition createDisposition;
     private final @Nullable String kmsKey;
     private final boolean usesCdc;
+    private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
     static class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
       long offset;
@@ -390,7 +396,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       .withAppendClient(
                           Preconditions.checkStateNotNull(maybeDatasetService),
                           () -> streamName,
-                          usingMultiplexing));
+                          usingMultiplexing,
+                          defaultMissingValueInterpretation));
               Preconditions.checkStateNotNull(appendClientInfo.get().getStreamAppendClient());
               return null;
             },
@@ -839,7 +846,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         boolean ignoreUnknownValues,
         BigQueryIO.Write.CreateDisposition createDisposition,
         @Nullable String kmsKey,
-        boolean usesCdc) {
+        boolean usesCdc,
+        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -855,6 +863,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.createDisposition = createDisposition;
       this.kmsKey = kmsKey;
       this.usesCdc = usesCdc;
+      this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
     }
 
     boolean shouldFlush() {

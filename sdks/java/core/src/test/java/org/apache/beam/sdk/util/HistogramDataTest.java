@@ -205,7 +205,7 @@ public class HistogramDataTest {
 
   // The following tests cover exponential buckets.
   @Test
-  public void testExponentialBuckets_PostiveScaleRecord() {
+  public void testExponentialBuckets_PositiveScaleRecord() {
     // Buckets will be:
     // Index        Range
     // Underflow    (-inf, 0)

@@ -110,10 +110,12 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeService;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -198,6 +200,12 @@ public class DoFnOperator<InputT, OutputT>
 
   /** If true, we must process elements only after a checkpoint is finished. */
   final boolean requiresStableInput;
+
+  /**
+   * If both requiresStableInput and this parameter are true, we must flush the buffer during drain
+   * operation.
+   */
+  final boolean enableStableInputDrain;
 
   final int numConcurrentCheckpoints;
 
@@ -322,6 +330,8 @@ public class DoFnOperator<InputT, OutputT>
           flinkOptions.getCheckpointingInterval()
               + Math.max(0, flinkOptions.getMinPauseBetweenCheckpoints()));
     }
+
+    this.enableStableInputDrain = flinkOptions.getEnableStableInputDrain();
 
     this.numConcurrentCheckpoints = flinkOptions.getNumConcurrentCheckpoints();
 
@@ -626,6 +636,12 @@ public class DoFnOperator<InputT, OutputT>
     while (bundleStarted) {
       invokeFinishBundle();
     }
+    if (requiresStableInput && enableStableInputDrain) {
+      // Flush any buffered events here before draining the pipeline. Note that this is best-effort
+      // and requiresStableInput contract might be violated in cases where buffer processing fails.
+      bufferingDoFnRunner.checkpointCompleted(Long.MAX_VALUE);
+      updateOutputWatermark();
+    }
     if (currentOutputWatermark < Long.MAX_VALUE) {
       throw new RuntimeException(
           String.format(
@@ -672,6 +688,7 @@ public class DoFnOperator<InputT, OutputT>
   @Override
   public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
+    LOG.trace("Processing element {} in {}", streamRecord.getValue().getValue(), doFn.getClass());
     long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
@@ -754,6 +771,7 @@ public class DoFnOperator<InputT, OutputT>
 
   @Override
   public final void processWatermark(Watermark mark) throws Exception {
+    LOG.trace("Processing watermark {} in {}", mark.getTimestamp(), doFn.getClass());
     processWatermark1(mark);
   }
 
@@ -1442,8 +1460,10 @@ public class DoFnOperator<InputT, OutputT>
       BiConsumerWithException<TimerData, Long, Exception> consumer =
           (timerData, stamp) ->
               keyedStateInternals.addWatermarkHoldUsage(timerData.getOutputTimestamp());
-      timerService.forEachEventTimeTimer(consumer);
-      timerService.forEachProcessingTimeTimer(consumer);
+      if (timerService instanceof InternalTimerServiceImpl) {
+        timerService.forEachEventTimeTimer(consumer);
+        timerService.forEachProcessingTimeTimer(consumer);
+      }
     }
 
     private String constructTimerId(String timerFamilyId, String timerId) {
@@ -1494,6 +1514,7 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     private void registerTimer(TimerData timer, String contextTimerId) throws Exception {
+      LOG.debug("Registering timer {}", timer);
       pendingTimersById.put(contextTimerId, timer);
       long time = timer.getTimestamp().getMillis();
       switch (timer.getDomain()) {
@@ -1604,7 +1625,31 @@ public class DoFnOperator<InputT, OutputT>
 
     @Override
     public Instant currentInputWatermarkTime() {
-      return new Instant(getEffectiveInputWatermark());
+      if (timerService instanceof BatchExecutionInternalTimeService) {
+        // In batch mode, this method will only either return BoundedWindow.TIMESTAMP_MIN_VALUE,
+        // or BoundedWindow.TIMESTAMP_MAX_VALUE.
+        //
+        // For batch execution mode, the currentInputWatermark variable will never be updated
+        // until all the records are processed. However, every time when a record with a new
+        // key arrives, the Flink timer service watermark will be set to
+        // MAX_WATERMARK(LONG.MAX_VALUE) so that all the timers associated with the current
+        // key can fire. After that the Flink timer service watermark will be reset to
+        // LONG.MIN_VALUE, so the next key will start from a fresh env as if the previous
+        // records of a different key never existed. So the watermark is either Long.MIN_VALUE
+        // or long MAX_VALUE. So we should just use the Flink time service watermark in batch mode.
+        //
+        // In Flink the watermark ranges from
+        // [LONG.MIN_VALUE (-9223372036854775808), LONG.MAX_VALUE (9223372036854775807)] while the
+        // beam
+        // watermark range is [BoundedWindow.TIMESTAMP_MIN_VALUE (-9223372036854775),
+        // BoundedWindow.TIMESTAMP_MAX_VALUE (9223372036854775)]. To ensure the timestamp visible to
+        // the users follow the Beam convention, we just use the Beam range instead.
+        return timerService.currentWatermark() == Long.MAX_VALUE
+            ? new Instant(Long.MAX_VALUE)
+            : BoundedWindow.TIMESTAMP_MIN_VALUE;
+      } else {
+        return new Instant(getEffectiveInputWatermark());
+      }
     }
 
     @Override

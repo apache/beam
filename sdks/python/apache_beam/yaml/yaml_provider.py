@@ -453,11 +453,57 @@ class MetaInlineProvider(InlineProvider):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
+class SqlBackedProvider(Provider):
+  def __init__(
+      self,
+      transforms: Mapping[str, Callable[..., beam.PTransform]],
+      sql_provider: Optional[Provider] = None):
+    self._transforms = transforms
+    if sql_provider is None:
+      sql_provider = beam_jar(
+          urns={'Sql': 'beam:external:java:sql:v1'},
+          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+    self._sql_provider = sql_provider
+
+  def sql_provider(self):
+    return self._sql_provider
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def available(self):
+    return self.sql_provider().available()
+
+  def cache_artifacts(self):
+    return self.sql_provider().cache_artifacts()
+
+  def underlying_provider(self):
+    return self.sql_provider()
+
+  def to_json(self):
+    return {'type': "SqlBackedProvider"}
+
+  def create_transform(
+      self, typ: str, args: Mapping[str, Any],
+      yaml_create_transform: Any) -> beam.PTransform:
+    return self._transforms[typ](
+        lambda query: self.sql_provider().create_transform(
+            'Sql', {'query': query}, yaml_create_transform),
+        **args)
+
+
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
     py_type.__name__: schema_type
     for (py_type, schema_type) in schemas.PRIMITIVE_TO_ATOMIC_TYPE.items()
     if py_type.__module__ != 'typing'
 }
+
+
+def element_to_rows(e):
+  if isinstance(e, dict):
+    return dicts_to_rows(e)
+  else:
+    return beam.Row(element=dicts_to_rows(e))
 
 
 def dicts_to_rows(o):
@@ -487,7 +533,7 @@ def create_builtin_provider():
         reshuffle (optional): Whether to introduce a reshuffle if there is more
             than one element in the collection. Defaults to True.
     """
-    return beam.Create(dicts_to_rows(elements), reshuffle)
+    return beam.Create([element_to_rows(e) for e in elements], reshuffle)
 
   def with_schema(**args):
     # TODO: This is preliminary.
@@ -774,6 +820,7 @@ def merge_providers(*provider_sets):
 
 
 def standard_providers():
+  from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
@@ -783,6 +830,7 @@ def standard_providers():
   return merge_providers(
       create_builtin_provider(),
       create_mapping_providers(),
+      create_combine_providers(),
       io_providers(),
       parse_providers(standard_providers))
 

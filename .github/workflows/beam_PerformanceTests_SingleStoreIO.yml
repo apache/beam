@@ -105,7 +105,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_PerformanceTests_SingleStoreIO.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/config_PerformanceTests_SingleStoreIO.txt
           arguments: |
             --singleStoreServerName=${{ steps.install_singlestore.outputs.lb_ip }}
       # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

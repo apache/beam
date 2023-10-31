@@ -50,8 +50,9 @@ env:
 jobs:
   beam_Publish_Beam_SDK_Snapshots:
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      (github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule') &&
+      github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
