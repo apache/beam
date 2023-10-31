@@ -37,7 +37,7 @@ limitations under the License.
 </table>
 
 
-You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
+Use the RunInference API with your Apache Beam pipelines to run inference with machine learning (ML) models. The RunInference API lets you create transforms optimized for machine learning inferences.
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
 
@@ -46,6 +46,13 @@ For more infomation about machine learning with Apache Beam, see:
 * [Get started with AI/ML](/documentation/ml/overview)
 * [About Beam ML](/documentation/ml/about-ml)
 * [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
+
+## Support and limitations
+
+- The RunInference API is supported in Apache Beam 2.40.0 and later versions.
+- PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
+- The RunInference API supports batch and streaming pipelines.
+- The RunInference API supports local and remote inference.
 
 ## Why use the RunInference API?
 
