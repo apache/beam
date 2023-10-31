@@ -17,6 +17,7 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+from collections import abc
 from typing import Any
 from typing import Callable
 from typing import Collection
@@ -79,13 +80,14 @@ class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
     self.__dict__.update(state)
 
 
+# TODO(yaml) Improve type inferencing for JS UDF's
 def py_value_to_js_dict(py_value):
   if ((isinstance(py_value, tuple) and hasattr(py_value, '_asdict')) or
       isinstance(py_value, beam.Row)):
     py_value = py_value._asdict()
   if isinstance(py_value, dict):
     return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
-  elif not isinstance(py_value, str) and isinstance(py_value, Iterable):
+  elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
     return [py_value_to_js_dict(value) for value in list(py_value)]
   else:
     return py_value
@@ -131,8 +133,8 @@ def _expand_javascript_mapping_func(
     return obj
 
   if expression:
-    source = '\n'.join(['function(row) {'] + [
-        f'  {name} = row.{name}'
+    source = '\n'.join(['function(__row__) {'] + [
+        f'  {name} = __row__.{name}'
         for name in original_fields if name in expression
     ] + ['  return (' + expression + ')'] + ['}'])
     js_func = _CustomJsObjectWrapper(js2py.eval_js(source))
