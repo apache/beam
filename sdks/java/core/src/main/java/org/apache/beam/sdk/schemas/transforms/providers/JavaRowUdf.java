@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -30,6 +32,9 @@ import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +43,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -50,6 +56,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 public class JavaRowUdf implements Serializable {
   private final Configuration config;
@@ -240,6 +247,18 @@ public class JavaRowUdf implements Serializable {
   })
   private static FunctionAndType createFunctionFromName(String name, String path)
       throws ReflectiveOperationException, MalformedURLException {
+    if (path != null && !new File(path).exists()) {
+      try (ReadableByteChannel inChannel =
+          FileSystems.open(FileSystems.matchNewResource(path, false))) {
+        File tmpJar = File.createTempFile("map-to-fields-" + name, ".jar");
+        try (FileChannel outChannel = FileChannel.open(tmpJar.toPath(), StandardOpenOption.WRITE)) {
+          ByteStreams.copy(inChannel, outChannel);
+        }
+        path = tmpJar.getPath();
+      } catch (IOException exn) {
+        throw new RuntimeException(exn);
+      }
+    }
     ClassLoader classLoader =
         path == null
             ? ClassLoader.getSystemClassLoader()
