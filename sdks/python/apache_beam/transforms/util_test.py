@@ -496,7 +496,7 @@ class StatefulBatchElementsTest(unittest.TestCase):
     data = []
     for i in range(StatefulBatchElementsTest.NUM_ELEMENTS):
       index = i % len(scientists)
-      data.append(("key", scientists[index]))
+      data.append(scientists[index])
     return data
 
   def test_in_global_window(self):
