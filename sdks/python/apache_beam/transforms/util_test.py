@@ -463,18 +463,6 @@ class BatchElementsTest(unittest.TestCase):
 
 
 class StatefulBatchElementsTest(unittest.TestCase):
-  def test_constant_batch(self):
-    # Assumes a single bundle...
-    p = TestPipeline()
-    output = (
-        p
-        | beam.Create(range(35))
-        | util.StatefulBatchElements(min_batch_size=10, max_batch_size=10)
-        | beam.Map(len))
-    assert_that(output, equal_to([10, 10, 10, 5]))
-    res = p.run()
-    res.wait_until_finish()
-
   NUM_ELEMENTS = 10
   BATCH_SIZE = 5
 
@@ -498,6 +486,18 @@ class StatefulBatchElementsTest(unittest.TestCase):
       index = i % len(scientists)
       data.append(scientists[index])
     return data
+  
+  def test_constant_batch(self):
+    # Assumes a single bundle...
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.StatefulBatchElements(min_batch_size=10, max_batch_size=10)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
 
   def test_in_global_window(self):
     with TestPipeline() as pipeline:
