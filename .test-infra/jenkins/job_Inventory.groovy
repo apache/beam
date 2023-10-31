@@ -50,7 +50,7 @@ nums.each {
       }
       stringParam {
         name("tmp_unaccessed_for")
-        defaultValue("48")
+        defaultValue("24")
         description("Files from /tmp dir that were not accessed for last `tmp_unaccessed_for` hours will be deleted.")
         trim(true)
       }
