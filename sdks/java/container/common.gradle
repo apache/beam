@@ -36,13 +36,13 @@ description = "Apache Beam :: SDKs :: Java :: Container :: Java ${imageJavaVersi
 
 configurations {
     dockerDependency
-    sdkHarnessLauncher
+    javaHarnessLauncher
     pulledLicenses
 }
 
 dependencies {
     dockerDependency project(path: ":sdks:java:container", configuration: "dockerDependency")
-    sdkHarnessLauncher project(path: ":sdks:java:container", configuration: "sdkHarnessLauncher")
+    javaHarnessLauncher project(path: ":sdks:java:container", configuration: "javaHarnessLauncher")
 }
 
 task copyDockerfileDependencies(type: Copy) {
@@ -67,7 +67,7 @@ task copySdkHarnessLauncher(type: Copy) {
     // if licenses are required, they should be present before this task run.
     mustRunAfter ":sdks:java:container:pullLicenses"
 
-    from configurations.sdkHarnessLauncher
+    from configurations.javaHarnessLauncher
     into "build/target"
 }
 
