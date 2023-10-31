@@ -28,6 +28,8 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.errorhandling.BadRecord.Failure;
+import org.apache.beam.sdk.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.junit.Rule;
@@ -77,12 +79,18 @@ public class BadRecordRouterTest {
 
     BadRecord expected =
         BadRecord.builder()
-            .setHumanReadableRecord("5")
-            .setEncodedRecord(new byte[] {0, 0, 0, 5})
-            .setCoder("BigEndianIntegerCoder")
-            .setException("java.lang.RuntimeException")
-            .setDescription("desc")
-            .setFailingTransform("transform")
+            .setRecord(
+                Record.builder()
+                    .setHumanReadableRecord("5")
+                    .setEncodedRecord(new byte[] {0, 0, 0, 5})
+                    .setCoder("BigEndianIntegerCoder")
+                    .build())
+            .setFailure(
+                Failure.builder()
+                    .setException("java.lang.RuntimeException")
+                    .setDescription("desc")
+                    .setFailingTransform("transform")
+                    .build())
             .build();
 
     verify(badRecordOutputReceiver).output(expected);
@@ -98,10 +106,13 @@ public class BadRecordRouterTest {
 
     BadRecord expected =
         BadRecord.builder()
-            .setHumanReadableRecord("5")
-            .setException("java.lang.RuntimeException")
-            .setDescription("desc")
-            .setFailingTransform("transform")
+            .setRecord(Record.builder().setHumanReadableRecord("5").build())
+            .setFailure(
+                Failure.builder()
+                    .setException("java.lang.RuntimeException")
+                    .setDescription("desc")
+                    .setFailingTransform("transform")
+                    .build())
             .build();
 
     verify(badRecordOutputReceiver).output(expected);
@@ -139,11 +150,17 @@ public class BadRecordRouterTest {
 
     BadRecord expected =
         BadRecord.builder()
-            .setHumanReadableRecord("5")
-            .setCoder(failingCoder.toString())
-            .setException("java.lang.RuntimeException")
-            .setDescription("desc")
-            .setFailingTransform("transform")
+            .setRecord(
+                Record.builder()
+                    .setHumanReadableRecord("5")
+                    .setCoder(failingCoder.toString())
+                    .build())
+            .setFailure(
+                Failure.builder()
+                    .setException("java.lang.RuntimeException")
+                    .setDescription("desc")
+                    .setFailingTransform("transform")
+                    .build())
             .build();
 
     verify(badRecordOutputReceiver).output(expected);

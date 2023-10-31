@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.errorhandling.BadRecord.Failure;
+import org.apache.beam.sdk.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
@@ -80,28 +82,27 @@ public interface BadRecordRouter extends Serializable {
       Preconditions.checkArgumentNotNull(record);
       ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-      BadRecord.Builder badRecordBuilder =
-          BadRecord.builder()
-              .setHumanReadableRecord(objectWriter.writeValueAsString(record))
-              .setDescription(description)
-              .setFailingTransform(failingTransform);
+      BadRecord.Record.Builder recordBuilder =
+          Record.builder().setHumanReadableRecord(objectWriter.writeValueAsString(record));
+      BadRecord.Failure.Builder failureBuilder =
+          Failure.builder().setDescription(description).setFailingTransform(failingTransform);
 
       // Its possible for us to want to handle an error scenario where no actual exception objet
       // exists
       if (exception != null) {
-        badRecordBuilder.setException(exception.toString());
+        failureBuilder.setException(exception.toString());
       }
 
       // We will sometimes not have a coder for a failing record, for example if it has already been
       // modified within the dofn.
       if (coder != null) {
-        badRecordBuilder.setCoder(coder.toString());
+        recordBuilder.setCoder(coder.toString());
 
         try {
           ByteArrayOutputStream stream = new ByteArrayOutputStream();
           coder.encode(record, stream);
           byte[] bytes = stream.toByteArray();
-          badRecordBuilder.setEncodedRecord(bytes);
+          recordBuilder.setEncodedRecord(bytes);
         } catch (IOException e) {
           LOG.error(
               "Unable to encode failing record using provided coder."
@@ -109,7 +110,11 @@ public interface BadRecordRouter extends Serializable {
               e);
         }
       }
-      BadRecord badRecord = badRecordBuilder.build();
+      BadRecord badRecord =
+          BadRecord.builder()
+              .setRecord(recordBuilder.build())
+              .setFailure(failureBuilder.build())
+              .build();
       outputReceiver.get(BAD_RECORD_TAG).output(badRecord);
     }
   }

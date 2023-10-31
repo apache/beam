@@ -86,7 +86,8 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
     }
 
     @ProcessElement
-    public void processElement(@Element Integer element, MultiOutputReceiver receiver) throws Exception {
+    public void processElement(@Element Integer element, MultiOutputReceiver receiver)
+        throws Exception {
       if (element % 2 == 0) {
         receiver.get(RECORDS).output(element);
       } else {

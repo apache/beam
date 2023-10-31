@@ -27,30 +27,11 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @DefaultSchema(AutoValueSchema.class)
 public abstract class BadRecord implements Serializable {
 
-  /** The failing record, encoded as JSON. */
-  public abstract String getHumanReadableRecord();
+  /** Information about the record that failed */
+  public abstract Record getRecord();
 
-  /**
-   * Nullable to account for failing to encode, or if there is no coder for the record at the time
-   * of failure.
-   */
-  @Nullable
-  @SuppressWarnings("mutable")
-  public abstract byte[] getEncodedRecord();
-
-  /** The coder for the record, or null if there is no coder. */
-  @Nullable
-  public abstract String getCoder();
-
-  /** The exception itself, e.g. IOException. Null if there is a failure without an exception. */
-  @Nullable
-  public abstract String getException();
-
-  /** The description of what was being attempted when the failure occurred. */
-  public abstract String getDescription();
-
-  /** The particular sub-transform that failed. */
-  public abstract String getFailingTransform();
+  /** Information about why the record failed */
+  public abstract Failure getFailure();
 
   public static Builder builder() {
     return new AutoValue_BadRecord.Builder();
@@ -58,19 +39,79 @@ public abstract class BadRecord implements Serializable {
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setHumanReadableRecord(String humanReadableRecord);
 
-    @SuppressWarnings("mutable")
-    public abstract Builder setEncodedRecord(@Nullable byte[] encodedRecord);
+    public abstract Builder setRecord(Record record);
 
-    public abstract Builder setCoder(@Nullable String coder);
-
-    public abstract Builder setException(@Nullable String exception);
-
-    public abstract Builder setDescription(String description);
-
-    public abstract Builder setFailingTransform(String failingTransform);
+    public abstract Builder setFailure(Failure error);
 
     public abstract BadRecord build();
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class Record implements Serializable {
+
+    /** The failing record, encoded as JSON. */
+    public abstract String getHumanReadableRecord();
+
+    /**
+     * Nullable to account for failing to encode, or if there is no coder for the record at the time
+     * of failure.
+     */
+    @Nullable
+    @SuppressWarnings("mutable")
+    public abstract byte[] getEncodedRecord();
+
+    /** The coder for the record, or null if there is no coder. */
+    @Nullable
+    public abstract String getCoder();
+
+    public static Builder builder() {
+      return new AutoValue_BadRecord_Record.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setHumanReadableRecord(String humanReadableRecord);
+
+      @SuppressWarnings("mutable")
+      public abstract Builder setEncodedRecord(@Nullable byte[] encodedRecord);
+
+      public abstract Builder setCoder(@Nullable String coder);
+
+      public abstract Record build();
+    }
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class Failure implements Serializable {
+
+    /** The exception itself, e.g. IOException. Null if there is a failure without an exception. */
+    @Nullable
+    public abstract String getException();
+
+    /** The description of what was being attempted when the failure occurred. */
+    public abstract String getDescription();
+
+    /** The particular sub-transform that failed. */
+    public abstract String getFailingTransform();
+
+    public static Builder builder() {
+      return new AutoValue_BadRecord_Failure.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setException(@Nullable String exception);
+
+      public abstract Builder setDescription(String description);
+
+      public abstract Builder setFailingTransform(String failingTransform);
+
+      public abstract Failure build();
+    }
   }
 }
