@@ -338,21 +338,23 @@ public class ExecutionStateSampler {
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
-              || lullTimeMs > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
+              || lullTimeMs
+                  > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
           ) {
             lastLullReport = lullTimeMs;
             Thread thread = trackedThread.get();
             if (thread == null) {
               LOG.warn(
                   String.format(
-                      "Operation ongoing in bundle %s for at least %s without outputting or completing "
-                          + "(stack trace unable to be generated).",
+                      "Operation ongoing in bundle %s for at least %s without outputting "
+                          + "or completing (stack trace unable to be generated).",
                       processBundleId.get(),
                       DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod())));
             } else if (currentExecutionState == null) {
               LOG.warn(
                   String.format(
-                      "Operation ongoing in bundle %s for at least %s without outputting or completing:%n  at %s",
+                      "Operation ongoing in bundle %s for at least %s without outputting "
+                          + "or completing:%n  at %s",
                       processBundleId.get(),
                       DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
                       Joiner.on("\n  at ").join(thread.getStackTrace())));
