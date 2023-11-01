@@ -67,7 +67,7 @@ public class JavaMapToFieldsTransformProvider
 
   @Override
   public String identifier() {
-    return String.format("beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1");
+    return "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1";
   }
 
   @Override

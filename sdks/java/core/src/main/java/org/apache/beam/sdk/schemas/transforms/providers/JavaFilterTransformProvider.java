@@ -65,7 +65,7 @@ public class JavaFilterTransformProvider
 
   @Override
   public String identifier() {
-    return String.format("beam:schematransform:org.apache.beam:yaml:filter-java:v1");
+    return "beam:schematransform:org.apache.beam:yaml:filter-java:v1";
   }
 
   @Override

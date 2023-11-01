@@ -67,7 +67,7 @@ public class JavaExplodeTransformProvider
 
   @Override
   public String identifier() {
-    return String.format("beam:schematransform:org.apache.beam:yaml:explode-java:v1");
+    return "beam:schematransform:org.apache.beam:yaml:explode:v1";
   }
 
   @Override
