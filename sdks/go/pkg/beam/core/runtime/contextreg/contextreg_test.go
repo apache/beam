@@ -62,7 +62,7 @@ func TestPTransformExtractor(t *testing.T) {
 	want3 := "want_value3"
 	ctx = context.WithValue(ctx, key3, want3)
 
-	ptrans := reg.ExtractPTransformMetadata(ctx)
+	ptrans := reg.ExtractTransformMetadata(ctx)
 
 	key := "beam:test:annotation"
 	if got, want := string(ptrans.Annotations[key]), want3; got != want {
