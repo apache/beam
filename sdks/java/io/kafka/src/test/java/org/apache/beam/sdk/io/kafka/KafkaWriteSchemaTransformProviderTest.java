@@ -67,8 +67,12 @@ public class KafkaWriteSchemaTransformProviderTest {
     try {
       RAW_ROWS =
           Arrays.asList(
-              Row.withSchema(BEAM_RAW_SCHEMA).withFieldValue("payload", "a".getBytes("UTF8")).build(),
-              Row.withSchema(BEAM_RAW_SCHEMA).withFieldValue("payload", "b".getBytes("UTF8")).build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "a".getBytes("UTF8"))
+                  .build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "b".getBytes("UTF8"))
+                  .build(),
               Row.withSchema(BEAM_RAW_SCHEMA)
                   .withFieldValue("payload", "c".getBytes("UTF8"))
                   .build());
