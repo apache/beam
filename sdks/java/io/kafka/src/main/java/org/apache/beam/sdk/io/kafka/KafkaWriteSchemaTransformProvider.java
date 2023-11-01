@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -60,7 +61,7 @@ public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
 
-  public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
+  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
@@ -131,10 +132,18 @@ public class KafkaWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
-      final SerializableFunction<Row, byte[]> toBytesFn =
-          configuration.getFormat().equals("JSON")
-              ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-              : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      final SerializableFunction<Row, byte[]> toBytesFn;
+      if (configuration.getFormat().equals("RAW")) {
+        int numFields = inputSchema.getFields().size();
+        if (numFields != 1) {
+          throw new IllegalArgumentException("Expecting exactly one field, found " + numFields);
+        }
+        toBytesFn = getRowToRawBytesFunction(inputSchema.getField(0).getName());
+      } else if (configuration.getFormat().equals("JSON")) {
+        toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
+      } else {
+        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      }
 
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       PCollectionTuple outputTuple =
@@ -161,6 +170,19 @@ public class KafkaWriteSchemaTransformProvider
       return PCollectionRowTuple.of(
           "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
+  }
+
+  public static SerializableFunction<Row, byte[]> getRowToRawBytesFunction(String rowFieldName) {
+    return new SimpleFunction<Row, byte[]>() {
+      @Override
+      public byte[] apply(Row input) {
+        byte[] rawBytes = input.getBytes(rowFieldName);
+        if (rawBytes == null) {
+          throw new NullPointerException();
+        }
+        return rawBytes;
+      }
+    };
   }
 
   @Override

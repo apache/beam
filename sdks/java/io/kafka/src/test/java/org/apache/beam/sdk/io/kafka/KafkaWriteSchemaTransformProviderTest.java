@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
+
+import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
@@ -47,6 +50,9 @@ public class KafkaWriteSchemaTransformProviderTest {
 
   private static final Schema BEAMSCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
+
+  private static final Schema BEAMRAWSCHEMA =
+      Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
   private static final Schema ERRORSCHEMA = KafkaWriteSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final List<Row> ROWS =
@@ -55,8 +61,26 @@ public class KafkaWriteSchemaTransformProviderTest {
           Row.withSchema(BEAMSCHEMA).withFieldValue("name", "b").build(),
           Row.withSchema(BEAMSCHEMA).withFieldValue("name", "c").build());
 
+  private static final List<Row> RAW_ROWS;
+
+  static {
+    try {
+      RAW_ROWS =
+          Arrays.asList(
+              Row.withSchema(BEAMRAWSCHEMA).withFieldValue("payload", "a".getBytes("UTF8")).build(),
+              Row.withSchema(BEAMRAWSCHEMA).withFieldValue("payload", "b".getBytes("UTF8")).build(),
+              Row.withSchema(BEAMRAWSCHEMA)
+                  .withFieldValue("payload", "c".getBytes("UTF8"))
+                  .build());
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   final SerializableFunction<Row, byte[]> valueMapper =
       JsonUtils.getRowToJsonBytesFunction(BEAMSCHEMA);
+
+  final SerializableFunction<Row, byte[]> valueRawMapper = getRowToRawBytesFunction("payload");
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
@@ -72,6 +96,26 @@ public class KafkaWriteSchemaTransformProviderTest {
     PCollectionTuple output =
         input.apply(
             ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueMapper))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testKafkaErrorFnRawSuccess() throws Exception {
+    List<KV<byte[], byte[]>> msg =
+        Arrays.asList(
+            KV.of(new byte[1], "a".getBytes("UTF8")),
+            KV.of(new byte[1], "b".getBytes("UTF8")),
+            KV.of(new byte[1], "c".getBytes("UTF8")));
+
+    PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
