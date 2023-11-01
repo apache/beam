@@ -239,8 +239,6 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   return expand
 
 
-# TODO(yaml): This should be available in all environments, in which case
-# we choose the one that matches best.
 class _Explode(beam.PTransform):
   def __init__(
       self,
@@ -289,11 +287,12 @@ class _Explode(beam.PTransform):
           copy[field] = values[ix]
         yield beam.Row(**copy)
 
+    cross_product = self._cross_product
     return (
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if self._cross_product else explode_zip)
+            (explode_cross_product if cross_product else explode_zip)
             ({name: getattr(row, name)
               for name in all_fields}, to_explode)))
 

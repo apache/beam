@@ -20,10 +20,8 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.net.MalformedURLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -40,7 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * An implementation of {@link TypedSchemaTransformProvider} for MapToFields for the java language.
+ * An implementation of {@link TypedSchemaTransformProvider} for Filter for the java language.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -50,8 +48,8 @@ import org.apache.beam.sdk.values.TupleTagList;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @AutoService(SchemaTransformProvider.class)
-public class JavaMapToFieldsTransformProvider
-    extends TypedSchemaTransformProvider<JavaMapToFieldsTransformProvider.Configuration> {
+public class JavaFilterTransformProvider
+    extends TypedSchemaTransformProvider<JavaFilterTransformProvider.Configuration> {
   protected static final String INPUT_ROWS_TAG = "input";
   protected static final String OUTPUT_ROWS_TAG = "output";
 
@@ -62,12 +60,12 @@ public class JavaMapToFieldsTransformProvider
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
-    return new JavaMapToFieldsTransform(configuration);
+    return new JavaFilterTransform(configuration);
   }
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1";
+    return "beam:schematransform:org.apache.beam:yaml:filter-java:v1";
   }
 
   @Override
@@ -86,19 +84,13 @@ public class JavaMapToFieldsTransformProvider
     @Nullable
     public abstract String getLanguage();
 
-    @Nullable
-    public abstract Boolean getAppend();
-
-    @Nullable
-    public abstract List<String> getDrop();
-
-    public abstract Map<String, JavaRowUdf.Configuration> getFields();
+    public abstract JavaRowUdf.Configuration getKeep();
 
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
     public static Builder builder() {
-      return new AutoValue_JavaMapToFieldsTransformProvider_Configuration.Builder();
+      return new AutoValue_JavaFilterTransformProvider_Configuration.Builder();
     }
 
     @AutoValue.Builder
@@ -106,11 +98,7 @@ public class JavaMapToFieldsTransformProvider
 
       public abstract Builder setLanguage(String language);
 
-      public abstract Builder setAppend(Boolean append);
-
-      public abstract Builder setDrop(List<String> drop);
-
-      public abstract Builder setFields(Map<String, JavaRowUdf.Configuration> fields);
+      public abstract Builder setKeep(JavaRowUdf.Configuration keep);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
@@ -118,62 +106,32 @@ public class JavaMapToFieldsTransformProvider
     }
   }
 
-  /** A {@link SchemaTransform} for MapToFields-java. */
-  protected static class JavaMapToFieldsTransform extends SchemaTransform {
+  /** A {@link SchemaTransform} for Filter-java. */
+  protected static class JavaFilterTransform extends SchemaTransform {
 
     private final Configuration configuration;
 
-    JavaMapToFieldsTransform(Configuration configuration) {
+    JavaFilterTransform(Configuration configuration) {
       this.configuration = configuration;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get(INPUT_ROWS_TAG).getSchema();
-      Schema.Builder outputSchemaBuilder = new Schema.Builder();
-      // TODO(yaml): Consider allowing the full java schema naming syntax
-      // (perhaps as a different dialect/language).
-      boolean append = configuration.getAppend() != null && configuration.getAppend();
-      List<String> toDrop =
-          configuration.getDrop() == null ? Collections.emptyList() : configuration.getDrop();
-      List<JavaRowUdf> udfs = new ArrayList<>();
-      if (append) {
-        for (Schema.Field field : inputSchema.getFields()) {
-          if (!toDrop.contains(field.getName())) {
-            try {
-              udfs.add(
-                  new JavaRowUdf(
-                      JavaRowUdf.Configuration.builder().setExpression(field.getName()).build(),
-                      inputSchema));
-            } catch (MalformedURLException
-                | ReflectiveOperationException
-                | StringCompiler.CompileException exn) {
-              throw new RuntimeException(exn);
-            }
-            outputSchemaBuilder = outputSchemaBuilder.addField(field);
-          }
-        }
+      JavaRowUdf keepFn;
+      try {
+        keepFn = new JavaRowUdf(this.configuration.getKeep(), inputSchema);
+      } catch (MalformedURLException
+          | ReflectiveOperationException
+          | StringCompiler.CompileException exn) {
+        throw new RuntimeException(exn);
       }
-      for (Map.Entry<String, JavaRowUdf.Configuration> entry :
-          configuration.getFields().entrySet()) {
-        if (!"java".equals(configuration.getLanguage())) {
-          String expr = entry.getValue().getExpression();
-          if (expr == null || !inputSchema.hasField(expr)) {
-            throw new IllegalArgumentException(
-                "Unknown field or missing language specification for '" + entry.getKey() + "'");
-          }
-        }
-        try {
-          JavaRowUdf udf = new JavaRowUdf(entry.getValue(), inputSchema);
-          udfs.add(udf);
-          outputSchemaBuilder = outputSchemaBuilder.addField(entry.getKey(), udf.getOutputType());
-        } catch (MalformedURLException
-            | ReflectiveOperationException
-            | StringCompiler.CompileException exn) {
-          throw new RuntimeException(exn);
-        }
+      if (!keepFn.getOutputType().withNullable(false).equals(Schema.FieldType.BOOLEAN)) {
+        throw new RuntimeException(
+            String.format(
+                "KeepFn %s must return a boolean, but returns %s instead.",
+                this.configuration.getKeep(), keepFn.getOutputType()));
       }
-      Schema outputSchema = outputSchemaBuilder.build();
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
 
@@ -181,45 +139,40 @@ public class JavaMapToFieldsTransformProvider
           input
               .get(INPUT_ROWS_TAG)
               .apply(
-                  "MapToFields",
-                  ParDo.of(createDoFn(udfs, outputSchema, errorSchema, handleErrors))
-                      .withOutputTags(mappedValues, TupleTagList.of(errorValues)));
-      pcolls.get(mappedValues).setRowSchema(outputSchema);
+                  "Filter",
+                  ParDo.of(createDoFn(keepFn, errorSchema, handleErrors))
+                      .withOutputTags(filteredValues, TupleTagList.of(errorValues)));
+      pcolls.get(filteredValues).setRowSchema(inputSchema);
       pcolls.get(errorValues).setRowSchema(errorSchema);
 
       PCollectionRowTuple result =
-          PCollectionRowTuple.of(OUTPUT_ROWS_TAG, pcolls.get(mappedValues));
+          PCollectionRowTuple.of(OUTPUT_ROWS_TAG, pcolls.get(filteredValues));
       if (handleErrors) {
         result = result.and(configuration.getErrorHandling().getOutput(), pcolls.get(errorValues));
       }
       return result;
     }
 
-    private static final TupleTag<Row> mappedValues = new TupleTag<Row>() {};
+    private static final TupleTag<Row> filteredValues = new TupleTag<Row>() {};
     private static final TupleTag<Row> errorValues = new TupleTag<Row>() {};
 
     private static DoFn<Row, Row> createDoFn(
-        List<JavaRowUdf> udfs, Schema outputSchema, Schema errorSchema, boolean handleErrors) {
+        JavaRowUdf keepFn, Schema errorSchema, boolean handleErrors) {
       return new DoFn<Row, Row>() {
         @ProcessElement
         public void processElement(@Element Row inputRow, MultiOutputReceiver out) {
-          Row outputRow;
+          boolean keep = false;
           try {
-            Row.Builder builder = Row.withSchema(outputSchema);
-            for (JavaRowUdf udf : udfs) {
-              builder.addValue(udf.getFunction().apply(inputRow));
-            }
-            outputRow = builder.build();
+            keep = (boolean) keepFn.getFunction().apply(inputRow);
           } catch (Exception exn) {
             if (handleErrors) {
               out.get(errorValues).output(ErrorHandling.errorRecord(errorSchema, inputRow, exn));
-              outputRow = null;
             } else {
               throw new RuntimeException(exn);
             }
           }
-          if (outputRow != null) {
-            out.get(mappedValues).output(outputRow);
+          if (keep) {
+            out.get(filteredValues).output(inputRow);
           }
         }
       };

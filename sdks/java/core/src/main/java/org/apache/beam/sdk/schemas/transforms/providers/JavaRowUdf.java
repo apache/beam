@@ -313,6 +313,8 @@ public class JavaRowUdf implements Serializable {
           .put(Schema.TypeName.FLOAT, Float.class)
           .put(Schema.TypeName.DOUBLE, Double.class)
           .put(Schema.TypeName.BOOLEAN, Boolean.class)
+          .put(Schema.TypeName.BYTES, byte[].class)
+          .put(Schema.TypeName.STRING, String.class)
           .put(Schema.TypeName.DECIMAL, BigDecimal.class)
           .build();
 
@@ -325,6 +327,8 @@ public class JavaRowUdf implements Serializable {
           .put(Schema.TypeName.FLOAT, float.class)
           .put(Schema.TypeName.DOUBLE, double.class)
           .put(Schema.TypeName.BOOLEAN, boolean.class)
+          .put(Schema.TypeName.BYTES, byte[].class)
+          .put(Schema.TypeName.STRING, String.class)
           .put(Schema.TypeName.DECIMAL, BigDecimal.class)
           .build();
 

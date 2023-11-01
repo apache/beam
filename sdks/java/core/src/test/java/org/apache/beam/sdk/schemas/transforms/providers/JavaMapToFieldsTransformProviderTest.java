@@ -171,11 +171,7 @@ public class JavaMapToFieldsTransformProviderTest {
                                                 + "  }"
                                                 + "}")
                                         .build()))
-                            .setErrorHandling(
-                                JavaMapToFieldsTransformProvider.Configuration.ErrorHandling
-                                    .builder()
-                                    .setOutput("errors")
-                                    .build())
+                            .setErrorHandling(ErrorHandling.builder().setOutput("errors").build())
                             .build()));
 
     PCollection<Row> sqrts = result.get(JavaMapToFieldsTransformProvider.OUTPUT_ROWS_TAG);
