@@ -41,8 +41,6 @@ type ScopeTree struct {
 	// Edges are the named edges directly under this scope.
 	Edges []NamedEdge
 
-	EnvID string
-
 	// Children are the scopes directly under this scope.
 	Children []*ScopeTree
 }
@@ -78,20 +76,6 @@ func (t *treeBuilder) addScope(s *graph.Scope) *ScopeTree {
 	if tree, exists := t.id2tree[s.ID()]; exists {
 		return tree
 	}
-
-	// TODO(https://github.com/apache/beam/issues/23893):
-	// Need to plumb the "current" environment as we're passing them
-	// down to children, so any additional child environments can inherit defaults.
-	// Probably by plumbing through the scope tree to the children here.
-	// And then ensuring all children under this scope use this environment.
-
-	// var envHints map[string][]byte
-	// if s.Context != nil {
-	// 	as := contextreg.Default().ExtractEnvironmentMetadata(s.Context)
-	// 	if len(as) > 0 {
-	// 		envHints = as
-	// 	}
-	// }
 
 	tree := &ScopeTree{Scope: NamedScope{Name: s.Label, Scope: s}}
 	t.id2tree[s.ID()] = tree
