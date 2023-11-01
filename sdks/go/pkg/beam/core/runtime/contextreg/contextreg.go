@@ -42,36 +42,42 @@ type Registry struct {
 	envs       []func(context.Context) EnvironmentMetadata
 }
 
+// TransformMetadata represents additional information on transforms to be added to the Pipeline proto graph.
 type TransformMetadata struct {
 	Annotations map[string][]byte
 	// DisplayData []*pipepb.DisplayData
 }
 
+// EnvironmentMetadata represent additional information on environmental requirements to be added to the Pipeline
+// proto graph.
 type EnvironmentMetadata struct {
 	ResourceHints map[string][]byte
 	// DisplayData   []*pipepb.DisplayData
 	// Dependencies  []*pipepb.ArtifactInformation
 }
 
-// TransformExtractor registers an annotation extractor.
+// TransformExtractor registers a transform metadata extractor to this registry.
+// These will be set on the current composite transform scope.
+// They are accessible to runners via the transform hypergraph.
 func (r *Registry) TransformExtractor(ext func(context.Context) TransformMetadata) {
 	r.mu.Lock()
 	r.transforms = append(r.transforms, ext)
 	r.mu.Unlock()
 }
 
-// EnvExtrator registers a resource hint extractor.
+// EnvExtrator registers an environment metadata extractor to this registry.
+// When non-empty extraction occurs, a new environment will be derived from the parent scopes environment.
 func (r *Registry) EnvExtrator(ext func(context.Context) EnvironmentMetadata) {
 	r.mu.Lock()
 	r.envs = append(r.envs, ext)
 	r.mu.Unlock()
 }
 
-// ExtractPTransformMetadata runs all registered ptransform extractors on the provided context,
+// ExtractTransformMetadata runs all registered transform extractors on the provided context,
 // and returns the resulting metadata.
 //
-// A metadata field will be nil if there's no data.
-func (r *Registry) ExtractPTransformMetadata(ctx context.Context) TransformMetadata {
+// A metadata field will be nil if there's no data. A nil context bypasses extractor execution.
+func (r *Registry) ExtractTransformMetadata(ctx context.Context) TransformMetadata {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if ctx == nil {
@@ -93,7 +99,7 @@ func (r *Registry) ExtractPTransformMetadata(ctx context.Context) TransformMetad
 // ExtractEnvironmentMetadata runs all registered environment extractors on the provided context,
 // and returns the resulting metadata.
 //
-// A metadata field will be nil if there's no data.
+// A metadata field will be nil if there's no data. A nil context bypasses extractor execution.
 func (r *Registry) ExtractEnvironmentMetadata(ctx context.Context) EnvironmentMetadata {
 	r.mu.Lock()
 	defer r.mu.Unlock()

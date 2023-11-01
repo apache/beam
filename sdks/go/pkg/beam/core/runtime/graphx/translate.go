@@ -286,7 +286,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 		subtransforms = append(subtransforms, id)
 	}
 
-	metadata := m.opt.GetContextReg().ExtractPTransformMetadata(s.Scope.Scope.Context)
+	metadata := m.opt.GetContextReg().ExtractTransformMetadata(s.Scope.Scope.Context)
 
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
