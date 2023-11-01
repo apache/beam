@@ -573,7 +573,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       task: Union[str, PipelineTask] = "",
       model: str = "",
       *,
-      device: str = 'GPU',
+      device: Optional[str] = None,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_pipeline_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
@@ -603,11 +603,11 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
             task="text-generation", model="meta-llama/Llama-2-7b-hf",
             load_pipeline_args={'model_kwargs':{'quantization_map':config}})
 
-      device (str): the device on which you wish to run the pipeline. Defaults
-        to GPU. If GPU is not available then it falls back to CPU. You can also
-        use advanced option like `device_map` with key-value pair as you would
-        do in the usual Hugging Face pipeline using `load_pipeline_args`.
-        Ex: load_pipeline_args={'device_map':auto}).
+      device (str): the device (`"CPU"` or `"GPU"`) on which you wish to run
+        the pipeline. Defaults to GPU. If GPU is not available then it falls
+        back to CPU. You can also use advanced option like `device_map` with
+        key-value pair as you would do in the usual Hugging Face pipeline using
+        `load_pipeline_args`. Ex: load_pipeline_args={'device_map':auto}).
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
@@ -647,8 +647,15 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     _validate_constructor_args_hf_pipeline(self._task, self._model)
 
   def _deduplicate_device_value(self, device: str):
+    current_device = device.upper() if device else None
     if 'device' not in self._load_pipeline_args:
-      if device == 'CPU':
+      if (not current_device and current_device != 'CPU' and
+          current_device != 'GPU'):
+        raise ValueError(
+            f"Invalid device value: {device}. Please specify "
+            "either CPU or GPU. Defaults to GPU if no value "
+            "is provided.")
+      elif current_device == 'CPU':
         self._load_pipeline_args['device'] = 'cpu'
       else:
         if is_gpu_available_torch():
@@ -659,7 +666,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
               "but GPUs are not available. Switching to CPU.")
           self._load_pipeline_args['device'] = 'cpu'
     else:
-      if device:
+      if current_device:
         _LOGGER.warning(
             '`device` specified in `load_pipeline_args`. `device` '
             'parameter for HuggingFacePipelineModelHandler will be ignored.')
