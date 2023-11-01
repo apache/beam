@@ -45,8 +45,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -69,6 +67,9 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 @AutoService(SchemaTransformProvider.class)
 public class KafkaReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<KafkaReadSchemaTransformConfiguration> {
@@ -114,6 +115,7 @@ public class KafkaReadSchemaTransformProvider
     consumerConfigs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
 
     String format = configuration.getFormat();
+    boolean failOnError = configuration.getErrorHandling() == null;
 
     if (format != null && format.equals("RAW")) {
       if (inputSchema != null) {
@@ -140,14 +142,17 @@ public class KafkaReadSchemaTransformProvider
 
           PCollectionTuple outputTuple =
               kafkaValues.apply(
-                  ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+                  ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper, failOnError))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-          return PCollectionRowTuple.of(
-              "output",
-              outputTuple.get(OUTPUT_TAG).setRowSchema(rawSchema),
-              "errors",
-              outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
+          PCollectionRowTuple outputRows =
+              PCollectionRowTuple.of("output", outputTuple.get(OUTPUT_TAG).setRowSchema(rawSchema));
+
+          PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
+          if (!failOnError) {
+            outputRows = outputRows.and(configuration.getErrorHandling().getOutput(), errorOutput);
+          }
+          return outputRows;
         }
       };
     }
@@ -183,14 +188,18 @@ public class KafkaReadSchemaTransformProvider
 
           PCollectionTuple outputTuple =
               kafkaValues.apply(
-                  ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+                  ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper, failOnError))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-          return PCollectionRowTuple.of(
-              "output",
-              outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
-              "errors",
-              outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
+          PCollectionRowTuple outputRows =
+              PCollectionRowTuple.of(
+                  "output", outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema));
+
+          PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
+          if (!failOnError) {
+            outputRows = outputRows.and(configuration.getErrorHandling().getOutput(), errorOutput);
+          }
+          return outputRows;
         }
       };
     } else {
@@ -262,10 +271,13 @@ public class KafkaReadSchemaTransformProvider
     private SerializableFunction<byte[], Row> valueMapper;
     private Counter errorCounter;
     private Long errorsInBundle = 0L;
+    private final boolean failOnError;
 
-    public ErrorFn(String name, SerializableFunction<byte[], Row> valueMapper) {
+    public ErrorFn(
+        String name, SerializableFunction<byte[], Row> valueMapper, boolean failOnError) {
       this.errorCounter = Metrics.counter(KafkaReadSchemaTransformProvider.class, name);
       this.valueMapper = valueMapper;
+      this.failOnError = failOnError;
     }
 
     @ProcessElement
@@ -273,6 +285,9 @@ public class KafkaReadSchemaTransformProvider
       try {
         receiver.get(OUTPUT_TAG).output(valueMapper.apply(msg));
       } catch (Exception e) {
+        if (failOnError) {
+          throw new RuntimeException(e.getMessage());
+        }
         errorsInBundle += 1;
         LOG.warn("Error while parsing the element", e);
         receiver

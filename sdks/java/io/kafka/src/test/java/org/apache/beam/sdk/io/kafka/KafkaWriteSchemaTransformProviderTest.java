@@ -95,7 +95,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply(Create.of(ROWS));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueMapper))
+            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueMapper, false))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
@@ -115,7 +115,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper))
+            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper, false))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);

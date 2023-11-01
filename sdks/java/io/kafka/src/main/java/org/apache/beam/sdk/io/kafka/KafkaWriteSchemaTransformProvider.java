@@ -36,13 +36,14 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -56,6 +57,9 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 @AutoService(SchemaTransformProvider.class)
 public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
@@ -103,10 +107,13 @@ public class KafkaWriteSchemaTransformProvider
       private SerializableFunction<Row, byte[]> toBytesFn;
       private Counter errorCounter;
       private Long errorsInBundle = 0L;
+      private final boolean failOnError;
 
-      public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
+      public ErrorCounterFn(
+          String name, SerializableFunction<Row, byte[]> toBytesFn, boolean failOnError) {
         this.toBytesFn = toBytesFn;
-        errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
+        this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
+        this.failOnError = failOnError;
       }
 
       @ProcessElement
@@ -114,6 +121,9 @@ public class KafkaWriteSchemaTransformProvider
         try {
           receiver.get(OUTPUT_TAG).output(KV.of(new byte[1], toBytesFn.apply(row)));
         } catch (Exception e) {
+          if (failOnError) {
+            throw new RuntimeException(e.getMessage());
+          }
           errorsInBundle += 1;
           LOG.warn("Error while processing the element", e);
           receiver
@@ -127,6 +137,11 @@ public class KafkaWriteSchemaTransformProvider
         errorCounter.inc(errorsInBundle);
         errorsInBundle = 0L;
       }
+    }
+
+    private static class NoOutputDoFn<T> extends DoFn<T, Row> {
+      @ProcessElement
+      public void process(ProcessContext c) {}
     }
 
     @Override
@@ -145,13 +160,14 @@ public class KafkaWriteSchemaTransformProvider
         toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
       }
 
+      boolean failOnError = configuration.getErrorHandling() == null;
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       PCollectionTuple outputTuple =
           input
               .get("input")
               .apply(
                   "Map rows to Kafka messages",
-                  ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
+                  ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn, failOnError))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       outputTuple
@@ -167,8 +183,18 @@ public class KafkaWriteSchemaTransformProvider
                   .withKeySerializer(ByteArraySerializer.class)
                   .withValueSerializer(ByteArraySerializer.class));
 
-      return PCollectionRowTuple.of(
-          "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
+      PCollection<Row> postWrite =
+          outputTuple
+              .get(OUTPUT_TAG)
+              .apply("post-write", ParDo.of(new NoOutputDoFn<>()))
+              .setRowSchema(Schema.of());
+      PCollectionRowTuple outputRows = PCollectionRowTuple.of("post_write", postWrite);
+
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
+      if (!failOnError) {
+        outputRows = outputRows.and(configuration.getErrorHandling().getOutput(), errorOutput);
+      }
+      return outputRows;
     }
   }
 
@@ -227,6 +253,10 @@ public class KafkaWriteSchemaTransformProvider
     @Nullable
     public abstract Map<String, String> getProducerConfigUpdates();
 
+    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+    @Nullable
+    public abstract ErrorHandling getErrorHandling();
+
     public static Builder builder() {
       return new AutoValue_KafkaWriteSchemaTransformProvider_KafkaWriteSchemaTransformConfiguration
           .Builder();
@@ -241,6 +271,8 @@ public class KafkaWriteSchemaTransformProvider
       public abstract Builder setBootstrapServers(String bootstrapServers);
 
       public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
+
+      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
       public abstract KafkaWriteSchemaTransformConfiguration build();
     }

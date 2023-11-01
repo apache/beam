@@ -77,7 +77,7 @@ public class KafkaDlqTest {
     PCollection<byte[]> input = p.apply(Create.of(messages));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+            ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper, false))
                 .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
 
     output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
@@ -100,7 +100,7 @@ public class KafkaDlqTest {
     PCollection<byte[]> input = p.apply(Create.of(messagesWithError));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper))
+            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper, false))
                 .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
 
     output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
