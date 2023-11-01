@@ -131,7 +131,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     }
 
     @FeatureMetrics.ErrorHandler
-    public static class WriteErrorMetrics<ErrorT> extends PTransform<PCollection<ErrorT>, PCollection<ErrorT>> {
+    public static class WriteErrorMetrics<ErrorT>
+        extends PTransform<PCollection<ErrorT>, PCollection<ErrorT>> {
 
       private final Counter errorCounter;
 
