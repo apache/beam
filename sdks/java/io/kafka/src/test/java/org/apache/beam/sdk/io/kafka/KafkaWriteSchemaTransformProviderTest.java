@@ -48,18 +48,18 @@ public class KafkaWriteSchemaTransformProviderTest {
       KafkaWriteSchemaTransformProvider.OUTPUT_TAG;
   private static final TupleTag<Row> ERROR_TAG = KafkaWriteSchemaTransformProvider.ERROR_TAG;
 
-  private static final Schema BEAMSCHEMA =
+  private static final Schema BEAM_SCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
 
-  private static final Schema BEAMRAWSCHEMA =
+  private static final Schema BEAM_RAW_SCHEMA =
       Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
-  private static final Schema ERRORSCHEMA = KafkaWriteSchemaTransformProvider.ERROR_SCHEMA;
+  private static final Schema ERROR_SCHEMA = KafkaWriteSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final List<Row> ROWS =
       Arrays.asList(
-          Row.withSchema(BEAMSCHEMA).withFieldValue("name", "a").build(),
-          Row.withSchema(BEAMSCHEMA).withFieldValue("name", "b").build(),
-          Row.withSchema(BEAMSCHEMA).withFieldValue("name", "c").build());
+          Row.withSchema(BEAM_SCHEMA).withFieldValue("name", "a").build(),
+          Row.withSchema(BEAM_SCHEMA).withFieldValue("name", "b").build(),
+          Row.withSchema(BEAM_SCHEMA).withFieldValue("name", "c").build());
 
   private static final List<Row> RAW_ROWS;
 
@@ -67,9 +67,9 @@ public class KafkaWriteSchemaTransformProviderTest {
     try {
       RAW_ROWS =
           Arrays.asList(
-              Row.withSchema(BEAMRAWSCHEMA).withFieldValue("payload", "a".getBytes("UTF8")).build(),
-              Row.withSchema(BEAMRAWSCHEMA).withFieldValue("payload", "b".getBytes("UTF8")).build(),
-              Row.withSchema(BEAMRAWSCHEMA)
+              Row.withSchema(BEAM_RAW_SCHEMA).withFieldValue("payload", "a".getBytes("UTF8")).build(),
+              Row.withSchema(BEAM_RAW_SCHEMA).withFieldValue("payload", "b".getBytes("UTF8")).build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
                   .withFieldValue("payload", "c".getBytes("UTF8"))
                   .build());
     } catch (UnsupportedEncodingException e) {
@@ -98,7 +98,7 @@ public class KafkaWriteSchemaTransformProviderTest {
             ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueMapper))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -118,7 +118,7 @@ public class KafkaWriteSchemaTransformProviderTest {
             ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
