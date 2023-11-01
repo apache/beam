@@ -155,6 +155,18 @@ type Options struct {
 
 	// PipelineResourceHints for setting defaults across the whole pipeline.
 	PipelineResourceHints resource.Hints
+
+	// ContextReg is an override for the context extractor registry for testing.
+	ContextReg *contextreg.Registry
+}
+
+// GetContextReg returns the default context registry if the option is
+// unset, and the field version otherwise.
+func (opts *Options) GetContextReg() *contextreg.Registry {
+	if opts.ContextReg == nil {
+		return contextreg.Default()
+	}
+	return opts.ContextReg
 }
 
 // Marshal converts a graph to a model pipeline.
@@ -274,10 +286,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 		subtransforms = append(subtransforms, id)
 	}
 
-	var metadata contextreg.TransformMetadata
-	if s.Scope.Scope.Context != nil {
-		metadata = contextreg.Default().ExtractPTransformMetadata(s.Scope.Scope.Context)
-	}
+	metadata := m.opt.GetContextReg().ExtractPTransformMetadata(s.Scope.Scope.Context)
 
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,

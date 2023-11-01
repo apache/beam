@@ -74,7 +74,9 @@ func (r *Registry) EnvExtrator(ext func(context.Context) EnvironmentMetadata) {
 func (r *Registry) ExtractPTransformMetadata(ctx context.Context) TransformMetadata {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
+	if ctx == nil {
+		return TransformMetadata{}
+	}
 	ret := TransformMetadata{
 		Annotations: map[string][]byte{},
 	}
@@ -95,7 +97,9 @@ func (r *Registry) ExtractPTransformMetadata(ctx context.Context) TransformMetad
 func (r *Registry) ExtractEnvironmentMetadata(ctx context.Context) EnvironmentMetadata {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
+	if ctx == nil {
+		return EnvironmentMetadata{}
+	}
 	ret := EnvironmentMetadata{
 		ResourceHints: map[string][]byte{},
 	}
