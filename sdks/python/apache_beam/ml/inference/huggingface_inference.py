@@ -646,7 +646,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._deduplicate_device_value(device)
     _validate_constructor_args_hf_pipeline(self._task, self._model)
 
-  def _deduplicate_device_value(self, device: str):
+  def _deduplicate_device_value(self, device: Optional[str]):
     current_device = device.upper() if device else None
     if (current_device and current_device != 'CPU' and current_device != 'GPU'):
       raise ValueError(
