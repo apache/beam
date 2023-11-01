@@ -23,6 +23,7 @@ import (
 	"testing"
 )
 
+// Run a testing.M, first calling flag.Parse if not flag.Parsed.
 func Run(m *testing.M) {
 	if !flag.Parsed() {
 		flag.Parse()
