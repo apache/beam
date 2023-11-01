@@ -815,7 +815,7 @@ public class AvroUtils {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
       Map<String, String> mapping = getMapping(schema);
-      List<Method> methods = ReflectUtils.getMethods(clazz);
+      List<Method> methods = ReflectUtils.getSortedPublicInstanceMethods(clazz);
       List<FieldValueTypeInformation> types = Lists.newArrayList();
       for (int i = 0; i < methods.size(); ++i) {
         Method method = methods.get(i);
@@ -865,7 +865,7 @@ public class AvroUtils {
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      List<java.lang.reflect.Field> classFields = ReflectUtils.getFields(clazz);
+      List<java.lang.reflect.Field> classFields = ReflectUtils.getSortedPublicInstanceFields(clazz);
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (int i = 0; i < classFields.size(); ++i) {
         java.lang.reflect.Field f = classFields.get(i);

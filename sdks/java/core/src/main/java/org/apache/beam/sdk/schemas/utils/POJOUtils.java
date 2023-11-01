@@ -63,6 +63,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -107,7 +108,7 @@ public class POJOUtils {
           List<FieldValueGetter> getters =
               types.stream()
                   .map(t -> createGetter(t, typeConversionsFactory))
-                  .collect(Collectors.toList());
+                  .collect(ImmutableList.toImmutableList());
           if (getters.size() != schema.getFieldCount()) {
             throw new RuntimeException(
                 "Was not able to generate getters for schema: " + schema + " class: " + clazz);
