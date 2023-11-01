@@ -160,8 +160,9 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    timestr = "".join(filter(str.isdigit, str(datetime.datetime.utcnow())))
-    instance_id = '%s-%s-%s' % (cls.INSTANCE, timestr, secrets.token_hex(3))
+    timestr = "".join(filter(str.isdigit, str(datetime.utcnow().date())))
+    # instance id length needs to be within [6, 33]
+    instance_id = '%s-%s-%s' % (cls.INSTANCE, timestr, secrets.token_hex(4))
 
     cls.client = client.Client(admin=True, project=cls.project)
     # create cluster and instance
