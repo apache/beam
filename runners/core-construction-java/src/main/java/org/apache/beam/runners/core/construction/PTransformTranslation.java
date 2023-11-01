@@ -21,6 +21,8 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -500,6 +502,10 @@ public class PTransformTranslation {
             CONFIG_ROW_SCHEMA_KEY,
             ByteString.copyFrom(
                 SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
+      }
+
+      for (Annotation annotation : appliedPTransform.getTransform().getClass().getDeclaredAnnotations()) {
+        transformBuilder.putAnnotations(annotation.annotationType().getName(),ByteString.copyFrom(annotation.toString(),StandardCharsets.UTF_8));
       }
 
       return transformBuilder.build();

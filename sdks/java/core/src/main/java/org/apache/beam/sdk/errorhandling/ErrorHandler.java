@@ -20,9 +20,14 @@ package org.apache.beam.sdk.errorhandling;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.FeatureMetrics;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -35,9 +40,9 @@ import org.slf4j.LoggerFactory;
  * Error Handlers must be closed before a pipeline is run to properly pipe error collections to the
  * sink, and the pipeline will be rejected if any handlers aren't closed.
  *
- * @param <X> The type of the error object. This will usually be a {@link BadRecord}, but can be any
+ * @param <ErrorT> The type of the error object. This will usually be a {@link BadRecord}, but can be any
  *     type
- * @param <T> The return type of the sink PTransform.
+ * @param <OutputT> The return type of the sink PTransform.
  *     <p>Usage of Error Handlers:
  *     <p>Simple usage with one DLQ
  *     <pre>{@code
@@ -57,22 +62,22 @@ import org.slf4j.LoggerFactory;
  * results.apply(SomeOtherTransform);
  * }</pre>
  */
-public interface ErrorHandler<X, T extends POutput> extends AutoCloseable {
+public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoCloseable {
 
-  void addErrorCollection(PCollection<X> errorCollection);
+  void addErrorCollection(PCollection<ErrorT> errorCollection);
 
   boolean isClosed();
 
-  T getOutput();
+  OutputT getOutput();
 
-  class PTransformErrorHandler<X, T extends POutput> implements ErrorHandler<X, T> {
+  class PTransformErrorHandler<ErrorT, OutputT extends POutput> implements ErrorHandler<ErrorT, OutputT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
-    private final PTransform<PCollection<X>, T> sinkTransform;
+    private final PTransform<PCollection<ErrorT>, OutputT> sinkTransform;
 
-    private final List<PCollection<X>> errorCollections = new ArrayList<>();
+    private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
-    @Nullable private T sinkOutput = null;
+    @Nullable private OutputT sinkOutput = null;
 
     private boolean closed = false;
 
@@ -81,12 +86,12 @@ public interface ErrorHandler<X, T extends POutput> extends AutoCloseable {
      * pipeline.registerErrorHandler to ensure safe pipeline construction
      */
     @Internal
-    public PTransformErrorHandler(PTransform<PCollection<X>, T> sinkTransform) {
+    public PTransformErrorHandler(PTransform<PCollection<ErrorT>, OutputT> sinkTransform) {
       this.sinkTransform = sinkTransform;
     }
 
     @Override
-    public void addErrorCollection(PCollection<X> errorCollection) {
+    public void addErrorCollection(PCollection<ErrorT> errorCollection) {
       errorCollections.add(errorCollection);
     }
 
@@ -96,7 +101,7 @@ public interface ErrorHandler<X, T extends POutput> extends AutoCloseable {
     }
 
     @Override
-    public T getOutput() {
+    public OutputT getOutput() {
       if (!this.isClosed()) {
         throw new IllegalStateException(
             "ErrorHandler must be finalized before the output can be returned");
@@ -113,16 +118,46 @@ public interface ErrorHandler<X, T extends POutput> extends AutoCloseable {
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
         return;
       }
+      LOG.debug("{} error collections are being sent to {}", errorCollections.size(), sinkTransform.getName());
       sinkOutput =
-          PCollectionList.of(errorCollections).apply(Flatten.pCollections()).apply(sinkTransform);
+          PCollectionList.of(errorCollections).apply(Flatten.pCollections()).apply(new WriteErrorMetrics(sinkTransform)).apply(sinkTransform);
+    }
+
+    @FeatureMetrics.ErrorHandler
+    public class WriteErrorMetrics extends PTransform<PCollection<ErrorT>,PCollection<ErrorT>> {
+
+      private final Counter errorCounter;
+
+      public WriteErrorMetrics(PTransform<?,?> sinkTransform){
+        errorCounter = Metrics.counter("ErrorMetrics", sinkTransform.getName() + "-input");
+      }
+
+      @Override
+      public PCollection<ErrorT> expand(PCollection<ErrorT> input) {
+        return input.apply(ParDo.of(new CountErrors(errorCounter)));
+      }
+
+      public class CountErrors extends DoFn<ErrorT, ErrorT> {
+
+        private final Counter errorCounter;
+
+        public CountErrors(Counter errorCounter){
+          this.errorCounter = errorCounter;
+        }
+        @ProcessElement
+        public void processElement(@Element ErrorT error, OutputReceiver<ErrorT> receiver){
+          errorCounter.inc();
+          receiver.output(error);
+        }
+      }
     }
   }
 
   @Internal
-  class NoOpErrorHandler<X, T extends POutput> implements ErrorHandler<X, T> {
+  class NoOpErrorHandler<ErrorT, OutputT extends POutput> implements ErrorHandler<ErrorT, OutputT> {
 
     @Override
-    public void addErrorCollection(PCollection<X> errorCollection) {}
+    public void addErrorCollection(PCollection<ErrorT> errorCollection) {}
 
     @Override
     public boolean isClosed() {
@@ -130,7 +165,7 @@ public interface ErrorHandler<X, T extends POutput> extends AutoCloseable {
     }
 
     @Override
-    public T getOutput() {
+    public OutputT getOutput() {
       throw new IllegalArgumentException("No Op handler has no output");
     }
 

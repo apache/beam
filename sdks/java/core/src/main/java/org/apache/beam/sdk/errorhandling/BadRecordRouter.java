@@ -40,10 +40,10 @@ public interface BadRecordRouter extends Serializable {
 
   TupleTag<BadRecord> BAD_RECORD_TAG = new TupleTag<>();
 
-  <T> void route(
+  <RecordT> void route(
       MultiOutputReceiver outputReceiver,
-      T record,
-      @Nullable Coder<T> coder,
+      RecordT record,
+      @Nullable Coder<RecordT> coder,
       @Nullable Exception exception,
       String description,
       String failingTransform)
@@ -52,10 +52,10 @@ public interface BadRecordRouter extends Serializable {
   class ThrowingBadRecordRouter implements BadRecordRouter {
 
     @Override
-    public <T> void route(
+    public <RecordT> void route(
         MultiOutputReceiver outputReceiver,
-        T record,
-        @Nullable Coder<T> coder,
+        RecordT record,
+        @Nullable Coder<RecordT> coder,
         @Nullable Exception exception,
         String description,
         String failingTransform)
@@ -71,10 +71,10 @@ public interface BadRecordRouter extends Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(RecordingBadRecordRouter.class);
 
     @Override
-    public <T> void route(
+    public <RecordT> void route(
         MultiOutputReceiver outputReceiver,
-        T record,
-        @Nullable Coder<T> coder,
+        RecordT record,
+        @Nullable Coder<RecordT> coder,
         @Nullable Exception exception,
         String description,
         String failingTransform)
