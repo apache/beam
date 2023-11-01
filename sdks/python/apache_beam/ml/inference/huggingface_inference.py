@@ -648,14 +648,13 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
 
   def _deduplicate_device_value(self, device: str):
     current_device = device.upper() if device else None
+    if (current_device and current_device != 'CPU' and current_device != 'GPU'):
+      raise ValueError(
+          f"Invalid device value: {device}. Please specify "
+          "either CPU or GPU. Defaults to GPU if no value "
+          "is provided.")
     if 'device' not in self._load_pipeline_args:
-      if (not current_device and current_device != 'CPU' and
-          current_device != 'GPU'):
-        raise ValueError(
-            f"Invalid device value: {device}. Please specify "
-            "either CPU or GPU. Defaults to GPU if no value "
-            "is provided.")
-      elif current_device == 'CPU':
+      if current_device == 'CPU':
         self._load_pipeline_args['device'] = 'cpu'
       else:
         if is_gpu_available_torch():
@@ -667,7 +666,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
           self._load_pipeline_args['device'] = 'cpu'
     else:
       if current_device:
-        _LOGGER.warning(
+        raise ValueError(
             '`device` specified in `load_pipeline_args`. `device` '
             'parameter for HuggingFacePipelineModelHandler will be ignored.')
 
