@@ -15,12 +15,12 @@
 
 # Configures the overlay for .test-infra/mock-apis/infrastructure/kubernetes/refresher/base
 # Using the Quota Id:
-# f588787b-28f8-4e5f-8335-f862379daf59
+# echo-should-exceed-quota
 
 resources:
 - ../../base
 
-nameSuffix: -f588787b-28f8-4e5f-8335-f862379daf59
+nameSuffix: -echo-should-exceed-quota
 
 patches:
 - path: configmap.yaml

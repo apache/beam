@@ -18,10 +18,10 @@
 
 - op: replace
   path: /metadata/labels/quota-id
-  value: 123079b5-1e58-4b28-a185-66702e2b10c3
+  value: echo-should-exceed-quota
 - op: replace
   path: /spec/selector/matchLabels/quota-id
-  value: 123079b5-1e58-4b28-a185-66702e2b10c3
+  value: echo-should-exceed-quota
 - op: replace
   path: /spec/template/metadata/labels/quota-id
-  value: 123079b5-1e58-4b28-a185-66702e2b10c3
+  value: echo-should-exceed-quota
