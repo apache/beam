@@ -671,21 +671,15 @@ def _pardo_stateful_batch_elements(
         batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
         window_timer=DoFn.TimerParam(WINDOW_TIMER),
         buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
-      state_estimator = batch_estimator_state.read()
-      if state_estimator is not None:
-        batch_estimator = state_estimator
-      else:
-        # Should only happen on the first element
-        batch_estimator = batch_size_estimator
-
       window_timer.set(window.end)
       # Drop the fixed key since we don't care about it
       element_state.add(element[1])
       count_state.add(1)
       count = count_state.read()
       target_size = batch_size_state.read()
-      # Should also only happen on the first element
+      # Should only happen on the first element
       if target_size is None:
+        batch_estimator = batch_size_estimator
         target_size = batch_estimator.next_batch_size()
         batch_size_state.write(target_size)
         batch_estimator_state.write(batch_estimator)
