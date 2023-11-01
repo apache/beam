@@ -584,10 +584,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
 
-    **Note:** To specify which device to use (CPU/GPU),
-    use the load_pipeline_args with key-value as you would do in the usual
-    Hugging Face pipeline. Ex: load_pipeline_args={'device':0})
-
     Example Usage model::
       pcoll | RunInference(HuggingFacePipelineModelHandler(
         task="fill-mask"))
