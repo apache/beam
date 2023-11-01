@@ -13,22 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Configures the overlay for .test-infra/mock-apis/infrastructure/kubernetes/refresher/base
-# Using the Quota Id:
-# e1064224-3671-46fe-971d-47887fac3d4c
+# Configures patch for ../base/configmap.yaml
+# See https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patches/
 
-resources:
-- ../../base
-
-nameSuffix: -e1064224-3671-46fe-971d-47887fac3d4c
-
-patches:
-- path: configmap.yaml
-  target:
-    kind: ConfigMap
-    name: refresher
-
-- path: deployment.yaml
-  target:
-    kind: Deployment
-    name: refresher
+- op: replace
+  path: /metadata/labels/quota-id
+  value: echo-should-exceed-quota
+- op: replace
+  path: /data/QUOTA_ID
+  value: echo-should-exceed-quota
+- op: replace
+  path: /data/QUOTA_SIZE
+  # We need at least 1
+  value: "1"

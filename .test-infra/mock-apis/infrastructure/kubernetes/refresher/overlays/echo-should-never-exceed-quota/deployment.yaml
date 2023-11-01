@@ -13,12 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Configures patch for ../base/configmap.yaml
+# Configures patch for ../base/deployment.yaml
 # See https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patches/
 
 - op: replace
   path: /metadata/labels/quota-id
-  value: e1064224-3671-46fe-971d-47887fac3d4c
+  value: echo-should-never-exceed-quota
 - op: replace
-  path: /data/QUOTA_ID
-  value: e1064224-3671-46fe-971d-47887fac3d4c
+  path: /spec/selector/matchLabels/quota-id
+  value: echo-should-never-exceed-quota
+- op: replace
+  path: /spec/template/metadata/labels/quota-id
+  value: echo-should-never-exceed-quota
