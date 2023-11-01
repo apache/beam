@@ -28,7 +28,6 @@ import os
 import subprocess
 import sys
 import urllib.parse
-import uuid
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -535,46 +534,6 @@ def create_builtin_provider():
     """
     return beam.Create([element_to_rows(e) for e in elements], reshuffle)
 
-  def with_schema(**args):
-    # TODO: This is preliminary.
-    def parse_type(spec):
-      if spec in PRIMITIVE_NAMES_TO_ATOMIC_TYPE:
-        return schema_pb2.FieldType(
-            atomic_type=PRIMITIVE_NAMES_TO_ATOMIC_TYPE[spec])
-      elif isinstance(spec, list):
-        if len(spec) != 1:
-          raise ValueError("Use single-element lists to denote list types.")
-        else:
-          return schema_pb2.FieldType(
-              iterable_type=schema_pb2.IterableType(
-                  element_type=parse_type(spec[0])))
-      elif isinstance(spec, dict):
-        return schema_pb2.FieldType(
-            iterable_type=schema_pb2.RowType(schema=parse_schema(spec[0])))
-      else:
-        raise ValueError("Unknown schema type: {spec}")
-
-    def parse_schema(spec):
-      return schema_pb2.Schema(
-          fields=[
-              schema_pb2.Field(name=key, type=parse_type(value), id=ix)
-              for (ix, (key, value)) in enumerate(spec.items())
-          ],
-          id=str(uuid.uuid4()))
-
-    named_tuple = schemas.named_tuple_from_schema(parse_schema(args))
-    names = list(args.keys())
-
-    def extract_field(x, name):
-      if isinstance(x, dict):
-        return x[name]
-      else:
-        return getattr(x, name)
-
-    return 'WithSchema(%s)' % ', '.join(names) >> beam.Map(
-        lambda x: named_tuple(*[extract_field(x, name) for name in names])
-    ).with_output_types(named_tuple)
-
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
   def fully_qualified_named_transform(
@@ -635,7 +594,6 @@ def create_builtin_provider():
       'Create': create,
       'LogForTesting': lambda: beam.Map(log_and_return),
       'PyTransform': fully_qualified_named_transform,
-      'WithSchemaExperimental': with_schema,
       'Flatten': Flatten,
       'WindowInto': WindowInto,
   },
