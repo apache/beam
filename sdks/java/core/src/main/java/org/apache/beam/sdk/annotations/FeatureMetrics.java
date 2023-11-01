@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
 /** Annotations used to mark a PTransform as using a specific feature. */
 public class FeatureMetrics {
 
-  /** Signifies usage of the Error Handler */
+  /** Signifies usage of the Error Handler. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
   @Documented
