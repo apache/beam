@@ -18,6 +18,8 @@ name: PostCommit Python ValidatesRunner Samza
 on:
   schedule:
     - cron: '15 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -51,6 +53,7 @@ jobs:
     if: |
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       startsWith(github.event.comment.body, 'Run Python Samza ValidatesRunner')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100

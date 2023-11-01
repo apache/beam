@@ -18,6 +18,8 @@ name: PostCommit Java Hadoop Versions
 on:
   schedule:
     - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -57,6 +59,7 @@ jobs:
         job_phrase: [Run PostCommit_Java_Hadoop_Versions]
     if: |
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run PostCommit_Java_Hadoop_Versions'
     steps:
