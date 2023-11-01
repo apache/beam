@@ -126,12 +126,12 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
       sinkOutput =
           PCollectionList.of(errorCollections)
               .apply(Flatten.pCollections())
-              .apply(new WriteErrorMetrics(sinkTransform))
+              .apply(new WriteErrorMetrics<ErrorT>(sinkTransform))
               .apply(sinkTransform);
     }
 
     @FeatureMetrics.ErrorHandler
-    public class WriteErrorMetrics extends PTransform<PCollection<ErrorT>, PCollection<ErrorT>> {
+    public static class WriteErrorMetrics<ErrorT> extends PTransform<PCollection<ErrorT>, PCollection<ErrorT>> {
 
       private final Counter errorCounter;
 
@@ -141,10 +141,10 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
       @Override
       public PCollection<ErrorT> expand(PCollection<ErrorT> input) {
-        return input.apply(ParDo.of(new CountErrors(errorCounter)));
+        return input.apply(ParDo.of(new CountErrors<ErrorT>(errorCounter)));
       }
 
-      public class CountErrors extends DoFn<ErrorT, ErrorT> {
+      public static class CountErrors<ErrorT> extends DoFn<ErrorT, ErrorT> {
 
         private final Counter errorCounter;
 

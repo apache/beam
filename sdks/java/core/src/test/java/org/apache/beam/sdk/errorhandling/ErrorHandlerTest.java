@@ -54,7 +54,6 @@ public class ErrorHandlerTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBRHEnabledPTransform() {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     record.apply(new BRHEnabledPTransform());
