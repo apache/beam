@@ -504,8 +504,11 @@ public class PTransformTranslation {
                 SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
       }
 
-      for (Annotation annotation : appliedPTransform.getTransform().getClass().getDeclaredAnnotations()) {
-        transformBuilder.putAnnotations(annotation.annotationType().getName(),ByteString.copyFrom(annotation.toString(),StandardCharsets.UTF_8));
+      for (Annotation annotation :
+          appliedPTransform.getTransform().getClass().getDeclaredAnnotations()) {
+        transformBuilder.putAnnotations(
+            annotation.annotationType().getName(),
+            ByteString.copyFrom(annotation.toString(), StandardCharsets.UTF_8));
       }
 
       return transformBuilder.build();

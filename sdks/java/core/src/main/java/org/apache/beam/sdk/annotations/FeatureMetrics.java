@@ -28,10 +28,7 @@ public class FeatureMetrics {
 
   /** Signifies usage of the Error Handler */
   @Retention(RetentionPolicy.RUNTIME)
-  @Target({
-      ElementType.TYPE
-  })
+  @Target({ElementType.TYPE})
   @Documented
   public @interface ErrorHandler {}
-
 }

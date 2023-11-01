@@ -40,8 +40,8 @@ import org.slf4j.LoggerFactory;
  * Error Handlers must be closed before a pipeline is run to properly pipe error collections to the
  * sink, and the pipeline will be rejected if any handlers aren't closed.
  *
- * @param <ErrorT> The type of the error object. This will usually be a {@link BadRecord}, but can be any
- *     type
+ * @param <ErrorT> The type of the error object. This will usually be a {@link BadRecord}, but can
+ *     be any type
  * @param <OutputT> The return type of the sink PTransform.
  *     <p>Usage of Error Handlers:
  *     <p>Simple usage with one DLQ
@@ -70,7 +70,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
   OutputT getOutput();
 
-  class PTransformErrorHandler<ErrorT, OutputT extends POutput> implements ErrorHandler<ErrorT, OutputT> {
+  class PTransformErrorHandler<ErrorT, OutputT extends POutput>
+      implements ErrorHandler<ErrorT, OutputT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
     private final PTransform<PCollection<ErrorT>, OutputT> sinkTransform;
@@ -118,17 +119,23 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
         return;
       }
-      LOG.debug("{} error collections are being sent to {}", errorCollections.size(), sinkTransform.getName());
+      LOG.debug(
+          "{} error collections are being sent to {}",
+          errorCollections.size(),
+          sinkTransform.getName());
       sinkOutput =
-          PCollectionList.of(errorCollections).apply(Flatten.pCollections()).apply(new WriteErrorMetrics(sinkTransform)).apply(sinkTransform);
+          PCollectionList.of(errorCollections)
+              .apply(Flatten.pCollections())
+              .apply(new WriteErrorMetrics(sinkTransform))
+              .apply(sinkTransform);
     }
 
     @FeatureMetrics.ErrorHandler
-    public class WriteErrorMetrics extends PTransform<PCollection<ErrorT>,PCollection<ErrorT>> {
+    public class WriteErrorMetrics extends PTransform<PCollection<ErrorT>, PCollection<ErrorT>> {
 
       private final Counter errorCounter;
 
-      public WriteErrorMetrics(PTransform<?,?> sinkTransform){
+      public WriteErrorMetrics(PTransform<?, ?> sinkTransform) {
         errorCounter = Metrics.counter("ErrorMetrics", sinkTransform.getName() + "-input");
       }
 
@@ -141,11 +148,12 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
         private final Counter errorCounter;
 
-        public CountErrors(Counter errorCounter){
+        public CountErrors(Counter errorCounter) {
           this.errorCounter = errorCounter;
         }
+
         @ProcessElement
-        public void processElement(@Element ErrorT error, OutputReceiver<ErrorT> receiver){
+        public void processElement(@Element ErrorT error, OutputReceiver<ErrorT> receiver) {
           errorCounter.inc();
           receiver.output(error);
         }
