@@ -50,9 +50,12 @@ func (s Scope) Scope(name string) Scope {
 }
 
 // WithContext creates a named subscope with an attached context for the
-// represented composite transform. Used in combination with RegisterContextAnnotations
-// and RegisterContextResourceHints to set annotations on all transforms within it's scope,
-// or hint they best run on environments with certain properties.
+// represented composite transform. Values from that context may be
+// extracted and added to the composite PTransform or generate a new
+// environment for scoped transforms.
+//
+// If you're not sure whether these apply to your transform, use Scope
+// instead, and do not set a context.
 func (s Scope) WithContext(ctx context.Context, name string) Scope {
 	newS := s.Scope(name)
 	newS.scope.Context = ctx
