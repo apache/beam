@@ -61,6 +61,7 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import Always
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
@@ -392,7 +393,7 @@ class _BatchSizeEstimator(object):
   def record_time(self, batch_size):
     start = self._clock()
     yield
-    elapsed = self._clock() - start
+    elapsed = float(self._clock() - start)
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
     if self._record_metrics:
       self._size_distribution.update(batch_size)
@@ -646,6 +647,107 @@ class _WindowAwareBatchingDoFn(DoFn):
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
 
+def _pardo_stateful_batch_elements(
+    input_coder: coders.Coder,
+    batch_size_estimator: _BatchSizeEstimator,
+    max_buffering_duration_secs: int,
+    clock=time.time):
+  ELEMENT_STATE = BagStateSpec('values', input_coder)
+  COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
+  BATCH_SIZE_STATE = ReadModifyWriteStateSpec('batch_size', input_coder)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
+  BATCH_ESTIMATOR_STATE = ReadModifyWriteStateSpec(
+      'batch_estimator', coders.PickleCoder())
+
+  class _StatefulBatchElementsDoFn(DoFn):
+    def process(
+        self,
+        element,
+        window=DoFn.WindowParam,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      window_timer.set(window.end)
+      # Drop the fixed key since we don't care about it
+      element_state.add(element[1])
+      count_state.add(1)
+      count = count_state.read()
+      target_size = batch_size_state.read()
+      # Should only happen on the first element
+      if target_size is None:
+        batch_estimator = batch_size_estimator
+        target_size = batch_estimator.next_batch_size()
+        batch_size_state.write(target_size)
+        batch_estimator_state.write(batch_estimator)
+
+      if count == 1 and max_buffering_duration_secs > 0:
+        # First element in batch, start buffering timer
+        buffering_timer.set(clock() + max_buffering_duration_secs)
+
+      if count >= target_size:
+        return self.flush_batch(
+            element_state,
+            count_state,
+            batch_size_state,
+            batch_estimator_state,
+            buffering_timer)
+
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    def flush_batch(
+        self,
+        element_state,
+        count_state,
+        batch_size_state,
+        batch_estimator_state,
+        buffering_timer):
+      batch = [element for element in element_state.read()]
+      if not batch:
+        return
+      element_state.clear()
+      count_state.clear()
+      batch_estimator = batch_estimator_state.read()
+      with batch_estimator.record_time(len(batch)):
+        yield batch
+      batch_size_state.write(batch_estimator.next_batch_size())
+      batch_estimator_state.write(batch_estimator)
+      buffering_timer.clear()
+
+  return _StatefulBatchElementsDoFn()
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(List[T])
 class BatchElements(PTransform):
@@ -677,6 +779,9 @@ class BatchElements(PTransform):
         in seconds, excluding fixed cost
     target_batch_duration_secs_including_fixed_cost: (optional) a target for
         total time per bundle, in seconds, including fixed cost
+    max_batch_duration_secs: (optional) the maximum amount of time to buffer
+        a batch before emitting. Setting this argument to be non-none uses the
+        stateful implementation of BatchElements.
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
@@ -696,6 +801,7 @@ class BatchElements(PTransform):
       target_batch_overhead=.05,
       target_batch_duration_secs=10,
       target_batch_duration_secs_including_fixed_cost=None,
+      max_batch_duration_secs=None,
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
@@ -712,10 +818,20 @@ class BatchElements(PTransform):
         clock=clock,
         record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
+    self._max_batch_dur = max_batch_duration_secs
+    self._clock = clock
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
+    elif self._max_batch_dur is not None:
+      coder = coders.registry.get_coder(pcoll)
+      return pcoll | WithKeys(0) | ParDo(
+          _pardo_stateful_batch_elements(
+              coder,
+              self._batch_size_estimator,
+              self._max_batch_dur,
+              self._clock))
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
