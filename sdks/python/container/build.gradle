@@ -32,9 +32,20 @@ dependencies {
   sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
 }
 
+artifacts {
+  pythonHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
+}
+
 goBuild {
   goTargets = '*.go' // only build the immediate directory.
   outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
+
+  doLast {
+    def files = fileTree('./build/target/launcher/')
+    files.each { file ->
+      logger.warn("print:::::  ${file.absolutePath} name:::: ${file.name}")
+    }
+  }
 }
 
 tasks.register("buildAll") {
@@ -79,8 +90,4 @@ tasks.register("generatePythonRequirementsAll") {
   dependsOn ':sdks:python:container:py39:generatePythonRequirements'
   dependsOn ':sdks:python:container:py310:generatePythonRequirements'
   dependsOn ':sdks:python:container:py311:generatePythonRequirements'
-}
-
-artifacts {
-  pythonHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
 }

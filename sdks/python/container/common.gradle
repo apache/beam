@@ -58,11 +58,22 @@ def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
   into "build/target/license_scripts"
 }
 
+project.logger.lifecycle("print----- ${configurations.pythonHarnessLauncher.resolve().first()}")
+
 def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) {
   from configurations.pythonHarnessLauncher
   into "build/target/launcher"
+
+  project.logger.lifecycle("print+++++ ${configurations.pythonHarnessLauncher.resolve().first()}")
   if(configurations.pythonHarnessLauncher.isEmpty()) {
       throw new StopExecutionException();
+  }
+
+  doFirst {
+    def files = fileTree(configurations.pythonHarnessLauncher.resolve().first())
+    files.each { file ->
+      logger.warn("print:::::  ${file.absolutePath} name:::: ${file.name}")
+    }
   }
 }
 
