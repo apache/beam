@@ -32,6 +32,7 @@ import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
@@ -940,9 +941,11 @@ class YamlTransform(beam.PTransform):
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
       root = pcolls
+      pipeline = root.pipeline
       pcolls = {}
     elif isinstance(pcolls, beam.PCollection):
       root = pcolls.pipeline
+      pipeline = root
       pcolls = {'input': pcolls}
       if not self._spec['input']:
         self._spec['input'] = {'input': 'input'}
@@ -951,9 +954,14 @@ class YamlTransform(beam.PTransform):
           self._spec['transforms'][0]['input'] = self._spec['input']
     else:
       root = next(iter(pcolls.values())).pipeline
+      pipeline = root
       if not self._spec['input']:
         self._spec['input'] = {name: name for name in pcolls.keys()}
     python_provider = yaml_provider.InlineProvider({})
+
+    options = pipeline.options.view_as(GoogleCloudOptions)
+    options.labels = ["yaml=true"]
+
     result = expand_transform(
         self._spec,
         Scope(
