@@ -17,6 +17,7 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+from collections import abc
 from typing import Any
 from typing import Callable
 from typing import Collection
@@ -26,6 +27,9 @@ from typing import Optional
 from typing import Union
 
 import js2py
+from js2py import base
+from js2py.constructors import jsdate
+from js2py.internals import simplex
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -38,6 +42,7 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 
 def _check_mapping_arguments(
@@ -74,19 +79,67 @@ class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
     self.__dict__.update(state)
 
 
+# TODO(yaml) Improve type inferencing for JS UDF's
+def py_value_to_js_dict(py_value):
+  if ((isinstance(py_value, tuple) and hasattr(py_value, '_asdict')) or
+      isinstance(py_value, beam.Row)):
+    py_value = py_value._asdict()
+  if isinstance(py_value, dict):
+    return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
+  elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
+    return [py_value_to_js_dict(value) for value in list(py_value)]
+  else:
+    return py_value
+
+
 # TODO(yaml) Consider adding optional language version parameter to support
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
+
+  js_array_type = (
+      base.PyJsArray,
+      base.PyJsArrayBuffer,
+      base.PyJsInt8Array,
+      base.PyJsUint8Array,
+      base.PyJsUint8ClampedArray,
+      base.PyJsInt16Array,
+      base.PyJsUint16Array,
+      base.PyJsInt32Array,
+      base.PyJsUint32Array,
+      base.PyJsFloat32Array,
+      base.PyJsFloat64Array)
+
+  def _js_object_to_py_object(obj):
+    if isinstance(obj, (base.PyJsNumber, base.PyJsString, base.PyJsBoolean)):
+      return base.to_python(obj)
+    elif isinstance(obj, js_array_type):
+      return [_js_object_to_py_object(value) for value in obj.to_list()]
+    elif isinstance(obj, jsdate.PyJsDate):
+      return obj.to_utc_dt()
+    elif isinstance(obj, (base.PyJsNull, base.PyJsUndefined)):
+      return None
+    elif isinstance(obj, base.PyJsError):
+      raise RuntimeError(obj['message'])
+    elif isinstance(obj, base.PyJsObject):
+      return {
+          key: _js_object_to_py_object(value['value'])
+          for (key, value) in obj.own.items()
+      }
+    elif isinstance(obj, base.JsObjectWrapper):
+      return _js_object_to_py_object(obj._obj)
+
+    return obj
+
   if expression:
-    args = ', '.join(original_fields)
-    js_func = f'function fn({args}) {{return ({expression})}}'
-    js_callable = _CustomJsObjectWrapper(js2py.eval_js(js_func))
-    return lambda __row__: js_callable(*__row__._asdict().values())
+    source = '\n'.join(['function(__row__) {'] + [
+        f'  {name} = __row__.{name}'
+        for name in original_fields if name in expression
+    ] + ['  return (' + expression + ')'] + ['}'])
+    js_func = _CustomJsObjectWrapper(js2py.eval_js(source))
 
   elif callable:
-    js_callable = _CustomJsObjectWrapper(js2py.eval_js(callable))
-    return lambda __row__: js_callable(__row__._asdict())
+    js_func = _CustomJsObjectWrapper(js2py.eval_js(callable))
 
   else:
     if not path.endswith('.js'):
@@ -94,8 +147,19 @@ def _expand_javascript_mapping_func(
     udf_code = FileSystems.open(path).read().decode()
     js = js2py.EvalJs()
     js.eval(udf_code)
-    js_callable = _CustomJsObjectWrapper(getattr(js, name))
-    return lambda __row__: js_callable(__row__._asdict())
+    js_func = _CustomJsObjectWrapper(getattr(js, name))
+
+  def js_wrapper(row):
+    row_as_dict = py_value_to_js_dict(row)
+    try:
+      js_result = js_func(row_as_dict)
+    except simplex.JsException as exn:
+      raise RuntimeError(
+          f"Error evaluating javascript expression: "
+          f"{exn.mes['message']}") from exn
+    return dicts_to_rows(_js_object_to_py_object(js_result))
+
+  return js_wrapper
 
 
 def _expand_python_mapping_func(
