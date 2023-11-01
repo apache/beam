@@ -20,6 +20,8 @@ name: PostCommit Python
 on:
   schedule:
     - cron: '30 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -61,6 +63,7 @@ jobs:
         python_version: ['3.8', '3.9', '3.10', '3.11']
     if: |
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Python PostCommit 3.')
     steps:

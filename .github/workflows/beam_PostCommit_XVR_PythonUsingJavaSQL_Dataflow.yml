@@ -18,6 +18,8 @@ name: PostCommit XVR PythonUsingJavaSQL Dataflow
 on:
   schedule:
     - cron: '45 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -50,6 +52,7 @@ jobs:
   beam_PostCommit_XVR_PythonUsingJavaSQL_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run XVR_PythonUsingJavaSQL_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]

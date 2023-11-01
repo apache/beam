@@ -33,6 +33,8 @@ on:
     types: [created]
   schedule:
     - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -75,7 +77,8 @@ jobs:
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github. event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       startswith(github.event.comment.body, 'Run Java_Examples_Dataflow_ARM PostCommit')
     steps:
       - uses: actions/checkout@v4
