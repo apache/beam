@@ -113,7 +113,7 @@ which allows you to access the gRPC via `localhost:50051` and the HTTP via
 `http://localhost:8080/v1/echo`.
 
 When running tests on Dataflow, you supply `10.n.n.n:50051` for gRPC and
-`http://10.n.n.n:8080/v1/echo` for HTTP. 
+`http://10.n.n.n:8080/v1/echo` for HTTP.
 
 # Local Usage
 
