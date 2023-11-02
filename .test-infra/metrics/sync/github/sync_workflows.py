@@ -406,6 +406,26 @@ def get_dashboard_category(workflow_name):
     return 'misc'
   
   print(f'No category found for workflow: {workflow_name}')
+  print('Falling back to rules based assignment')
+
+  workflow_name = workflow_name.lower()
+  if 'java' in workflow_name:
+    if 'dataflow' in workflow_name:
+      return 'dataflow_java'
+    if 'spark' in workflow_name or 'flink' in workflow_name:
+      return 'runners_java'
+    if 'performancetest' in workflow_name or 'loadtest' in workflow_name:
+      return 'load_perf_java'
+    return 'core_java'
+  elif 'python' in workflow_name:
+    if 'dataflow' in workflow_name or 'spark' in workflow_name or 'flink' in workflow_name:
+      return 'runners_python'
+    if 'performancetest' in workflow_name or 'loadtest' in workflow_name:
+      return 'load_perf_python'
+    return 'core_python'
+  elif 'go' in workflow_name:
+    return 'go'
+
   return 'misc'
 
 def github_workflows_dashboard_sync(data, context):
