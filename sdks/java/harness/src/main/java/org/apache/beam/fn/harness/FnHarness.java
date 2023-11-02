@@ -390,6 +390,7 @@ public class FnHarness {
       LOG.info("Shutting SDK harness down.");
       executionStateSampler.stop();
       executorService.shutdown();
+      channelFactory.shutdown();
     }
   }
 }

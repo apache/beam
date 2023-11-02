@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.fn.channel;
 
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
@@ -34,6 +37,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 
 /** A Factory which creates {@link ManagedChannel} instances. */
 public class ManagedChannelFactory {
+  private static List<ManagedChannel> toClose = new ArrayList<>();
   /**
    * Creates a {@link ManagedChannel} relying on the {@link ManagedChannelBuilder} to choose the
    * channel type.
@@ -98,7 +102,23 @@ public class ManagedChannelFactory {
     if (directExecutor) {
       channelBuilder = channelBuilder.directExecutor();
     }
-    return channelBuilder.build();
+    ManagedChannel channel = channelBuilder.build();
+    toClose.add(channel);
+    return channel;
+  }
+
+  public void shutdown() {
+    for (ManagedChannel channel : toClose) {
+      channel.shutdownNow();
+    }
+    for (ManagedChannel channel : toClose) {
+      try {
+        channel.awaitTermination(5, TimeUnit.SECONDS);
+      } catch (InterruptedException exn) {
+        System.err.println("Timed out closing channel: " + exn);
+      }
+    }
+    toClose.clear();
   }
 
   /** The channel type. */
