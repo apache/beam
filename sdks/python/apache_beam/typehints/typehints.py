@@ -1037,8 +1037,11 @@ class CollectionHint(CompositeTypeHint):
 
     @staticmethod
     def _is_subclass_constraint(sub):
-      return isinstance(sub, CollectionTypeConstraint) or isinstance(
-          sub, SetTypeConstraint) or isinstance(sub, FrozenSetTypeConstraint)
+      return isinstance(
+          sub, (
+              CollectionTypeConstraint,
+              FrozenSetTypeConstraint,
+              SetTypeConstraint))
 
     def _consistent_with_check_(self, sub):
       if self._is_subclass_constraint(sub):
