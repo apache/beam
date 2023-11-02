@@ -28,6 +28,7 @@ ext.summary = "Support to read from and write to Web APIs"
 
 var jedisVersion = "5.0.0"
 var grpcVersion = "1.59.0"
+var protobufVersion = "3.21.5"
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -42,10 +43,10 @@ dependencies {
     testImplementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
     testImplementation "io.grpc:grpc-protobuf:${grpcVersion}"
     testImplementation "io.grpc:grpc-stub:${grpcVersion}"
+    testImplementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
 
     testImplementation platform(library.java.google_cloud_platform_libraries_bom)
     testImplementation library.java.google_http_client
-    testImplementation library.java.google_http_client_gson
     testImplementation library.java.junit
     testImplementation library.java.testcontainers_base
 
