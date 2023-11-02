@@ -735,6 +735,11 @@ public class KafkaIO {
 
       abstract Builder<K, V> setCheckStopReadingFn(CheckStopReadingFn checkStopReadingFn);
 
+      Builder<K, V> setCheckStopReadingFn(
+          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
+      }
+
       abstract Read<K, V> build();
 
       static <K, V> void setupExternalBuilder(
@@ -1269,11 +1274,22 @@ public class KafkaIO {
     }
 
     /**
-     * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
+     * A custom {@link CheckStopReadingFn} that determines whether the {@link ReadFromKafkaDoFn}
      * should stop reading from the given {@link TopicPartition}.
      */
     public Read<K, V> withCheckStopReadingFn(CheckStopReadingFn checkStopReadingFn) {
       return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
+    /**
+     * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public Read<K, V> withCheckStopReadingFn(
+        SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+      return toBuilder()
+          .setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn))
+          .build();
     }
 
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
@@ -1978,6 +1994,11 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
           @Nullable CheckStopReadingFn checkStopReadingFn);
 
+      ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
+      }
+
       abstract ReadSourceDescriptors.Builder<K, V> setKeyDeserializerProvider(
           @Nullable DeserializerProvider<K> deserializerProvider);
 
@@ -2095,12 +2116,23 @@ public class KafkaIO {
     }
 
     /**
-     * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
+     * A custom {@link CheckStopReadingFn} that determines whether the {@link ReadFromKafkaDoFn}
      * should stop reading from the given {@link TopicPartition}.
      */
     public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
         @Nullable CheckStopReadingFn checkStopReadingFn) {
       return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
+    /**
+     * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
+        @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+      return toBuilder()
+          .setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn))
+          .build();
     }
 
     /**
