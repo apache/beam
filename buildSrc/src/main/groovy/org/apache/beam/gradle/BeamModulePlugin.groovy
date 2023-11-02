@@ -2276,6 +2276,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
+      // Workaround to fix spotless groovy and groovyGradle tasks use the same intermediate dir,
+      // until Beam no longer build on Java8 and can upgrade spotless plugin.
+      project.tasks.spotlessGroovy.mustRunAfter project.tasks.spotlessGroovyGradle
     }
 
     // containerImageName returns a configurable container image name, by default a
