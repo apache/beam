@@ -248,20 +248,20 @@ public class TextIOReadTest {
       TemporaryFolder temporaryFolder,
       byte[] data,
       @Nullable byte[] delimiter,
-      boolean removeHeader)
+      int skipHeaderLines)
       throws IOException {
     Path path = temporaryFolder.newFile().toPath();
     Files.write(path, data);
-    return getTextSource(path.toString(), delimiter, removeHeader);
+    return getTextSource(path.toString(), delimiter, skipHeaderLines);
   }
 
   public static TextSource getTextSource(
-      String path, @Nullable byte[] delimiter, boolean removeHeader) {
+      String path, @Nullable byte[] delimiter, int skipHeaderLines) {
     return new TextSource(
         ValueProvider.StaticValueProvider.of(path),
         EmptyMatchTreatment.DISALLOW,
         delimiter,
-        removeHeader);
+        skipHeaderLines);
   }
 
   private static String getFileSuffix(Compression compression) {
@@ -392,7 +392,7 @@ public class TextIOReadTest {
       Files.write(path, line.getBytes(UTF_8));
       Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
       FileBasedSource source =
-          getTextSource(path.toString(), null, false)
+          getTextSource(path.toString(), null, 0)
               .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
       FileBasedReader<String> reader =
           source.createSingleFileReader(PipelineOptionsFactory.create());
@@ -441,7 +441,7 @@ public class TextIOReadTest {
     }
 
     private TextSource prepareSource(byte[] data) throws IOException {
-      return TextIOReadTest.prepareSource(tempFolder, data, null, false);
+      return TextIOReadTest.prepareSource(tempFolder, data, null, 0);
     }
 
     private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {
@@ -479,7 +479,7 @@ public class TextIOReadTest {
     }
 
     private TextSource prepareSource(byte[] data) throws IOException {
-      return TextIOReadTest.prepareSource(tempFolder, data, null, true);
+      return TextIOReadTest.prepareSource(tempFolder, data, null, 1);
     }
 
     private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {
@@ -524,7 +524,7 @@ public class TextIOReadTest {
     public void testReadLinesWithCustomDelimiter() throws Exception {
       SourceTestUtils.assertSplitAtFractionExhaustive(
           TextIOReadTest.prepareSource(
-              tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}, false),
+              tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}, 1),
           PipelineOptionsFactory.create());
     }
 
@@ -536,7 +536,7 @@ public class TextIOReadTest {
       Files.write(path, testCase.getBytes(UTF_8));
       Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
       FileBasedSource source =
-          getTextSource(path.toString(), delimiter, false)
+          getTextSource(path.toString(), delimiter, 0)
               .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
       FileBasedReader<String> reader =
           source.createSingleFileReader(PipelineOptionsFactory.create());
@@ -790,7 +790,7 @@ public class TextIOReadTest {
     }
 
     private TextSource prepareSource(byte[] data) throws IOException {
-      return TextIOReadTest.prepareSource(tempFolder, data, null, false);
+      return TextIOReadTest.prepareSource(tempFolder, data, null, 0);
     }
 
     @Test
@@ -1025,7 +1025,7 @@ public class TextIOReadTest {
                   ValueProvider.StaticValueProvider.of(input),
                   EmptyMatchTreatment.DISALLOW,
                   new byte[] {'\n'},
-                  false);
+                  0);
 
       PCollection<KV<String, String>> lines =
           p.apply(
@@ -1150,7 +1150,7 @@ public class TextIOReadTest {
             ValueProvider.StaticValueProvider.of(file.getMetadata().resourceId().getFilename());
         // Create a TextSource, passing null as the delimiter to use the default
         // delimiters ('\n', '\r', or '\r\n').
-        TextSource textSource = new TextSource(filenameProvider, null, null, false);
+        TextSource textSource = new TextSource(filenameProvider, null, null, 0);
         try {
           BoundedSource.BoundedReader<String> reader =
               textSource

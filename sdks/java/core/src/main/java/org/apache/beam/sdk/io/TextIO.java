@@ -191,7 +191,7 @@ public class TextIO {
     return new AutoValue_TextIO_Read.Builder()
         .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
-        .setRemoveHeader(false)
+        .setSkipHeaderLines(0)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .build();
   }
@@ -215,7 +215,7 @@ public class TextIO {
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
         .setCompression(Compression.AUTO)
-        .setRemoveHeader(false)
+        .setSkipHeaderLines(0)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .build();
   }
@@ -230,7 +230,7 @@ public class TextIO {
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
-        .setRemoveHeader(false)
+        .setSkipHeaderLines(0)
         .build();
   }
 
@@ -289,7 +289,7 @@ public class TextIO {
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
-    abstract boolean getRemoveHeader();
+    abstract int getSkipHeaderLines();
 
     abstract Builder toBuilder();
 
@@ -305,7 +305,7 @@ public class TextIO {
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
 
-      abstract Builder setRemoveHeader(boolean removeHeader);
+      abstract Builder setSkipHeaderLines(int skipHeaderLines);
 
       abstract Read build();
     }
@@ -403,8 +403,8 @@ public class TextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
-    public Read withRemoveHeader(boolean removeHeader) {
-      return toBuilder().setRemoveHeader(removeHeader).build();
+    public Read withSkipHeaderLines(int skipHeaderLines) {
+      return toBuilder().setSkipHeaderLines(skipHeaderLines).build();
     }
 
     static boolean isSelfOverlapping(byte[] s) {
@@ -435,7 +435,7 @@ public class TextIO {
                   .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
           .apply(
               "Via ReadFiles",
-              readFiles().withDelimiter(getDelimiter()).withRemoveHeader(getRemoveHeader()));
+              readFiles().withDelimiter(getDelimiter()).withSkipHeaderLines(getSkipHeaderLines()));
     }
 
     // Helper to create a source specific to the requested compression type.
@@ -445,7 +445,7 @@ public class TextIO {
                   getFilepattern(),
                   getMatchConfiguration().getEmptyMatchTreatment(),
                   getDelimiter(),
-                  getRemoveHeader()))
+                  getSkipHeaderLines()))
           .withCompression(getCompression());
     }
 
@@ -482,7 +482,7 @@ public class TextIO {
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
-    abstract boolean getRemoveHeader();
+    abstract int getSkipHeaderLines();
 
     abstract Builder toBuilder();
 
@@ -494,7 +494,7 @@ public class TextIO {
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
 
-      abstract Builder setRemoveHeader(boolean removeHeader);
+      abstract Builder setSkipHeaderLines(int skipHeaderLines);
 
       abstract ReadAll build();
     }
@@ -578,7 +578,7 @@ public class TextIO {
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
 
-    abstract boolean getRemoveHeader();
+    abstract int getSkipHeaderLines();
 
     abstract Builder toBuilder();
 
@@ -588,7 +588,7 @@ public class TextIO {
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
 
-      abstract Builder setRemoveHeader(boolean removeHeader);
+      abstract Builder setSkipHeaderLines(int skipHeaderLines);
 
       abstract ReadFiles build();
     }
@@ -603,8 +603,8 @@ public class TextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
-    public ReadFiles withRemoveHeader(boolean removeHeader) {
-      return toBuilder().setRemoveHeader(removeHeader).build();
+    public ReadFiles withSkipHeaderLines(int skipHeaderLines) {
+      return toBuilder().setSkipHeaderLines(skipHeaderLines).build();
     }
 
     @Override
@@ -613,7 +613,7 @@ public class TextIO {
           "Read all via FileBasedSource",
           new ReadAllViaFileBasedSource<>(
               getDesiredBundleSizeBytes(),
-              new CreateTextSourceFn(getDelimiter(), getRemoveHeader()),
+              new CreateTextSourceFn(getDelimiter(), getSkipHeaderLines()),
               StringUtf8Coder.of()));
     }
 
@@ -628,17 +628,17 @@ public class TextIO {
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
       private byte[] delimiter;
-      private boolean removeHeader;
+      private int skipHeaderLines;
 
-      private CreateTextSourceFn(byte[] delimiter, boolean removeHeader) {
+      private CreateTextSourceFn(byte[] delimiter, int skipHeaderLines) {
         this.delimiter = delimiter;
-        this.removeHeader = removeHeader;
+        this.skipHeaderLines = skipHeaderLines;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
         return new TextSource(
-            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter, removeHeader);
+            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter, skipHeaderLines);
       }
     }
   }
