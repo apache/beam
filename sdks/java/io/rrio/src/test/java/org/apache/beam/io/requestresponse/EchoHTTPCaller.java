@@ -30,7 +30,12 @@ import java.io.IOException;
 import java.net.URI;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoRequest;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoResponse;
+import org.apache.beam.testinfra.mockapis.echo.v1.EchoServiceGrpc;
 
+/**
+ * Implements {@link Caller} to call the {@link EchoServiceGrpc}'s HTTP handler. The purpose of
+ * {@link EchoHTTPCaller} is to suppport integration tests.
+ */
 class EchoHTTPCaller implements Caller<EchoRequest, EchoResponse> {
 
   static EchoHTTPCaller of(URI uri) {
@@ -49,6 +54,12 @@ class EchoHTTPCaller implements Caller<EchoRequest, EchoResponse> {
     this.uri = uri;
   }
 
+  /**
+   * Overrides {@link Caller#call} invoking the {@link EchoServiceGrpc}'s HTTP handler with a {@link
+   * EchoRequest}, returning either a successful {@link EchoResponse} or throwing either a {@link
+   * UserCodeExecutionException}, a {@link UserCodeTimeoutException}, or a {@link
+   * UserCodeQuotaException}.
+   */
   @Override
   public EchoResponse call(EchoRequest request) throws UserCodeExecutionException {
     try {
