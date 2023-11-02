@@ -137,8 +137,8 @@ docker {
     dockerfile project.file("../Dockerfile")
     files "./build/"
     buildArgs([
-            'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                    project.rootProject.hasProperty(["isRelease"]),
+            'pull_licenses': project.rootProject.hasProperty("docker-pull-licenses") ||
+                    project.rootProject.hasProperty("isRelease"),
             'base_image': javaBaseImage,
             'java_version': imageJavaVersion,
     ])
@@ -148,8 +148,8 @@ docker {
     push pushContainers
 }
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-        project.rootProject.hasProperty(["isRelease"])) {
+if (project.rootProject.hasProperty("docker-pull-licenses") ||
+        project.rootProject.hasProperty("isRelease")) {
     project.logger.lifecycle('docker-pull-licenses set, creating go-licenses')
     dockerPrepare.dependsOn copyJavaThirdPartyLicenses
     dockerPrepare.dependsOn copyGolangLicenses
