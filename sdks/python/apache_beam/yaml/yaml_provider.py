@@ -765,6 +765,9 @@ class RenamingProvider(Provider):
   def underlying_provider(self):
     return self._underlying_provider.underlying_provider()
 
+  def cache_artifacts(self):
+    self._underlying_provider.cache_artifacts()
+
 
 def parse_providers(provider_specs):
   providers = collections.defaultdict(list)
