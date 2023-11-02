@@ -30,7 +30,7 @@ public class CheckStopReadingFnWrapper implements CheckStopReadingFn {
   }
 
   public static @Nullable CheckStopReadingFnWrapper of(
-      SerializableFunction<TopicPartition, Boolean> serializableFunction) {
+          @Nullable SerializableFunction<TopicPartition, Boolean> serializableFunction) {
     return serializableFunction != null
         ? new CheckStopReadingFnWrapper(serializableFunction)
         : null;
