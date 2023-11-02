@@ -28,6 +28,10 @@ task removeStaleBqDatasets(type: Exec) {
   commandLine './stale_bq_datasets_cleaner.sh'
 }
 
+task removeStaleCbtInstances(type: Exec) {
+  commandLine './stale_cbt_instances_cleaner.sh'
+}
+
 task removeStaleK8sWorkload(type: Exec) {
   commandLine './stale_k8s_workload_cleaner.sh'
 }
@@ -35,5 +39,6 @@ task removeStaleK8sWorkload(type: Exec) {
 task cleanupOtherStaleResources {
   // declared as finalizedBy dependency so that other task continue even if one dep task fails
   finalizedBy tasks.removeStaleBqDatasets
+  finalizedBy tasks.removeStaleCbtInstances
   finalizedBy tasks.removeStaleK8sWorkload
 }
