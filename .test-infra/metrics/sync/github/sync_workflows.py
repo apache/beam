@@ -150,16 +150,12 @@ RUNNERS_JAVA_TESTS = [
   'PostCommit Java PVR Spark3 Streaming',
   'PostCommit Java ValidatesRunner Spark',
   'PostCommit Java Examples Spark',
-  'LoadTests Java ParDo SparkStructuredStreaming Batch',
   'PostCommit Java ValidatesRunner SparkStructuredStreaming',
   'PostCommit Java ValidatesRunner Spark Java11',
   'PostCommit Java PVR Spark Batch',
-  'LoadTests Java CoGBK SparkStructuredStreaming Batch',
-  'LoadTests Java Combine SparkStructuredStreaming Batch',
   'PreCommit Java Spark3 Versions',
   'PostCommit Java Tpcds Spark',
   'PostCommit Java Jpms Spark Java11',
-  'LoadTests Java GBK SparkStructuredStreaming Batch',
   'PostCommit Java Nexmark Spark',
   'PostCommit Java Examples Flink',
   'PostCommit Java Tpcds Flink',
@@ -190,6 +186,10 @@ LOAD_PERF_JAVA_TESTS = [
   'LoadTests Java ParDo Dataflow V2 Streaming JavaVersions',
   'LoadTests Java ParDo Dataflow V2 Batch JavaVersions',
   'LoadTests Java ParDo Dataflow Batch',
+  'LoadTests Java ParDo SparkStructuredStreaming Batch',
+  'LoadTests Java CoGBK SparkStructuredStreaming Batch',
+  'LoadTests Java Combine SparkStructuredStreaming Batch',
+  'LoadTests Java GBK SparkStructuredStreaming Batch',
   'PerformanceTests BigQueryIO Batch Java Avro',
   'PerformanceTests BigQueryIO Streaming Java',
   'PerformanceTests BigQueryIO Batch Java Json',
@@ -219,14 +219,12 @@ LOAD_PERF_JAVA_TESTS = [
 CORE_PYTHON_TESTS = [
   'Python Dependency Tests',
   'PreCommit Python Dataframes',
-  'Release Nightly Snapshot Python',
   'PreCommit Python Examples',
   'PreCommit Python Integration',
   'PostCommit Python ValidatesRunner Samza',
   'LoadTests Python Smoke',
   'Update Python Depedencies',
   'PreCommit Python Runners',
-  'PerformanceTests PubsubIOIT Python Streaming',
   'PreCommit Python Transforms',
   'PostCommit Python Xlang Gcp Direct',
   'Build python source distribution and wheels',
@@ -257,12 +255,7 @@ RUNNERS_PYTHON_TESTS = [
   'PostCommit Python ValidatesRunner Spark',
   'PostCommit Python Examples Spark',
   'PostCommit Python ValidatesRunner Flink',
-  'LoadTests Python ParDo Flink Batch',
-  'LoadTests Python ParDo Flink Streaming',
   'PreCommit Python PVR Flink',
-  'LoadTests Python CoGBK Flink Batch',
-  'LoadTests Python Combine Flink Batch',
-  'LoadTests Python Combine Flink Streaming',
   'PostCommit Python Examples Flink'
 ]
 
@@ -288,18 +281,22 @@ LOAD_PERF_PYTHON_TESTS = [
   'LoadTests Python GBK reiterate Dataflow Streaming',
   'LoadTests Python ParDo Dataflow Streaming',
   'CloudML Benchmarks Dataflow',
-  'LoadTests Python ParDo Dataflow Batch'
+  'LoadTests Python ParDo Dataflow Batch',
+  'LoadTests Python CoGBK Flink Batch',
+  'LoadTests Python Combine Flink Batch',
+  'LoadTests Python Combine Flink Streaming',
+  'PerformanceTests PubsubIOIT Python Streaming',
+  'LoadTests Python ParDo Flink Batch',
+  'LoadTests Python ParDo Flink Streaming'
 ]
 
 GO_TESTS = [
   'PerformanceTests MongoDBIO IT',
-  'Tour of Beam Go integration tests',
   'PreCommit Go',
   'PreCommit GoPortable',
   'PreCommit GoPrism',
   'PostCommit Go VR Samza',
   'Go tests',
-  'Tour of Beam Go unittests',
   'PostCommit Go',
   'PostCommit Go Dataflow ARM',
   'LoadTests Go CoGBK Dataflow Batch',
@@ -317,6 +314,7 @@ GO_TESTS = [
 ]
 
 CORE_INFRA_TESTS = [
+  'Release Nightly Snapshot Python',
   'Rotate Metrics Cluster Credentials',
   'Community Metrics Prober',
   'Publish Docker Snapshots',
@@ -346,6 +344,8 @@ CORE_INFRA_TESTS = [
 ]
 
 MISC_TESTS = [
+  'Tour of Beam Go integration tests',
+  'Tour of Beam Go unittests',
   'Tour Of Beam Frontend Test',
   'PostCommit XVR Spark3',
   'TypeScript Tests',
