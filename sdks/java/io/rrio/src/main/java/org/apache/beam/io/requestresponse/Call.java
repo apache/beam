@@ -19,6 +19,7 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Map;
@@ -33,8 +34,6 @@ import java.util.concurrent.TimeoutException;
 import org.apache.beam.io.requestresponse.Call.Result;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -53,11 +52,10 @@ import org.joda.time.Duration;
 
 /**
  * {@link Call} transforms a {@link RequestT} {@link PCollection} into a {@link ResponseT} {@link
- * PCollection} and {@link ApiIOError} {@link PCollection}, both wrapped in a {@link Result}. Both
- * {@link RequestT} and {@link ResponseT} {@link Coder}s must pass {@link
- * Coder#verifyDeterministic()}.
+ * PCollection} and {@link ApiIOError} {@link PCollection}, both wrapped in a {@link Result}.
  */
-class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
+class Call<RequestT, ResponseT>
+    extends PTransform<@NonNull PCollection<RequestT>, @NonNull Result<ResponseT>> {
 
   /**
    * The default {@link Duration} to wait until completion of user code. A {@link
@@ -69,9 +67,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
   /**
    * Instantiates a {@link Call} {@link PTransform} with the required {@link Caller} and {@link
    * ResponseT} {@link Coder}. Checks for the {@link Caller}'s {@link
-   * SerializableUtils#ensureSerializable} serializable errors. If {@link ResponseT}'s {@link
-   * Coder#verifyDeterministic()} does not pass, this method throws a {@link
-   * NonDeterministicException}.
+   * SerializableUtils#ensureSerializable} serializable errors.
    */
   static <RequestT, ResponseT> Call<RequestT, ResponseT> of(
       Caller<RequestT, ResponseT> caller, Coder<ResponseT> responseTCoder) {
@@ -87,8 +83,6 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
    * Instantiates a {@link Call} {@link PTransform} with an implementation of both the {@link
    * Caller} and {@link SetupTeardown} in one class and the required {@link ResponseT} {@link
    * Coder}. Checks for {@link SerializableUtils#ensureSerializable} to report serializable errors.
-   * If {@link ResponseT}'s {@link Coder#verifyDeterministic()} does not pass, this method throws a
-   * {@link NonDeterministicException}.
    */
   static <
           RequestT,
@@ -133,20 +127,13 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
   }
 
   @Override
-  public Result<ResponseT> expand(PCollection<RequestT> input) {
+  public @NonNull Result<ResponseT> expand(PCollection<RequestT> input) {
     TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
-
-    Coder<RequestT> requestTCoder = checkStateNotNull(input.getCoder());
-    try {
-      requestTCoder.verifyDeterministic();
-    } catch (NonDeterministicException e) {
-      throw new RuntimeException(e);
-    }
 
     PCollectionTuple pct =
         input.apply(
             CallFn.class.getSimpleName(),
-            ParDo.of(new CallFn<>(responseTag, configuration, requestTCoder))
+            ParDo.of(new CallFn<>(responseTag, configuration))
                 .withOutputTags(responseTag, TupleTagList.of(FAILURE_TAG)));
 
     return Result.of(configuration.getResponseCoder(), responseTag, pct);
@@ -159,14 +146,9 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
 
     private transient @MonotonicNonNull ExecutorService executor;
 
-    private final Coder<RequestT> requestTCoder;
-
     private CallFn(
-        TupleTag<ResponseT> responseTag,
-        Configuration<RequestT, ResponseT> configuration,
-        Coder<RequestT> requestTCoder) {
+        TupleTag<ResponseT> responseTag, Configuration<RequestT, ResponseT> configuration) {
       this.responseTag = responseTag;
-      this.requestTCoder = requestTCoder;
       this.caller = new CallerWithTimeout<>(configuration.getTimeout(), configuration.getCaller());
       this.setupTeardown =
           new SetupTeardownWithTimeout(
@@ -206,12 +188,12 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
 
     @ProcessElement
     public void process(@Element @NonNull RequestT request, MultiOutputReceiver receiver)
-        throws CoderException {
+        throws JsonProcessingException {
       try {
         ResponseT response = this.caller.call(request);
         receiver.get(responseTag).output(response);
       } catch (UserCodeExecutionException e) {
-        receiver.get(FAILURE_TAG).output(ApiIOError.of(e, requestTCoder, request));
+        receiver.get(FAILURE_TAG).output(ApiIOError.of(e, request));
       }
     }
   }
@@ -238,10 +220,9 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
     abstract Duration getTimeout();
 
     /**
-     * The {@link Coder} for the {@link ResponseT}. Note that the {@link RequestT} is derived from
-     * the input {@link PCollection} but can't be determined for the {@link ResponseT} and therefore
-     * requires explicit setting in the {@link Configuration}. {@link Coder#verifyDeterministic()}
-     * must pass or the {@link Builder} throws a {@link NonDeterministicException}.
+     * The {@link Coder} for the {@link ResponseT}. Note that the {@link RequestT}'s {@link Coder}
+     * is derived from the input {@link PCollection} but can't be determined for the {@link
+     * ResponseT} and therefore requires explicit setting in the {@link Configuration}.
      */
     abstract Coder<ResponseT> getResponseCoder();
 
@@ -271,17 +252,12 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
         if (!getSetupTeardown().isPresent()) {
           setSetupTeardown(new NoopSetupTeardown());
         }
+
         if (!getTimeout().isPresent()) {
           setTimeout(DEFAULT_TIMEOUT);
         }
-        Configuration<RequestT, ResponseT> result = autoBuild();
-        try {
-          result.getResponseCoder().verifyDeterministic();
-        } catch (NonDeterministicException e) {
-          throw new RuntimeException(e);
-        }
 
-        return result;
+        return autoBuild();
       }
     }
   }
@@ -318,12 +294,12 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
     }
 
     @Override
-    public Pipeline getPipeline() {
+    public @NonNull Pipeline getPipeline() {
       return this.pipeline;
     }
 
     @Override
-    public Map<TupleTag<?>, PValue> expand() {
+    public @NonNull Map<TupleTag<?>, PValue> expand() {
       return ImmutableMap.of(
           responseTag, responses,
           FAILURE_TAG, failures);
@@ -331,7 +307,9 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
 
     @Override
     public void finishSpecifyingOutput(
-        String transformName, PInput input, PTransform<?, ?> transform) {}
+        @NonNull String transformName,
+        @NonNull PInput input,
+        @NonNull PTransform<?, ?> transform) {}
   }
 
   private static class NoopSetupTeardown implements SetupTeardown {
