@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -93,12 +94,14 @@ public class KafkaWriteSchemaTransformProviderTest {
             KV.of(new byte[1], "{\"name\":\"c\"}".getBytes("UTF8")));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(ERRORSCHEMA);
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueMapper, false))
+            ParDo.of(
+                    new ErrorCounterFn("Kafka-write-error-counter", valueMapper, errorSchema, true))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -113,12 +116,15 @@ public class KafkaWriteSchemaTransformProviderTest {
             KV.of(new byte[1], "c".getBytes("UTF8")));
 
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(ERRORSCHEMA);
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper, false))
+            ParDo.of(
+                    new ErrorCounterFn(
+                        "Kafka-write-error-counter", valueRawMapper, errorSchema, true))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
