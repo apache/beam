@@ -82,15 +82,12 @@ public interface BadRecordRouter extends Serializable {
       Preconditions.checkArgumentNotNull(record);
       ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-      BadRecord.Record.Builder recordBuilder =
-          Record.builder().setHumanReadableRecord(objectWriter.writeValueAsString(record));
-      BadRecord.Failure.Builder failureBuilder =
-          Failure.builder().setDescription(description).setFailingTransform(failingTransform);
-
-      // Its possible for us to want to handle an error scenario where no actual exception objet
-      // exists
-      if (exception != null) {
-        failureBuilder.setException(exception.toString());
+      // Build up record information
+      BadRecord.Record.Builder recordBuilder = Record.builder();
+      try {
+        recordBuilder.setHumanReadableRecord(objectWriter.writeValueAsString(record));
+      } catch (Exception e) {
+        LOG.error("Unable to serialize record as JSON. Human readable record will be null", e);
       }
 
       // We will sometimes not have a coder for a failing record, for example if it has already been
@@ -110,6 +107,17 @@ public interface BadRecordRouter extends Serializable {
               e);
         }
       }
+
+      // Build up failure information
+      BadRecord.Failure.Builder failureBuilder =
+          Failure.builder().setDescription(description).setFailingTransform(failingTransform);
+
+      // Its possible for us to want to handle an error scenario where no actual exception objet
+      // exists
+      if (exception != null) {
+        failureBuilder.setException(exception.toString());
+      }
+
       BadRecord badRecord =
           BadRecord.builder()
               .setRecord(recordBuilder.build())

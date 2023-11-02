@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.errorhandling;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.FeatureMetrics;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -127,10 +127,11 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
           PCollectionList.of(errorCollections)
               .apply(Flatten.pCollections())
               .apply(new WriteErrorMetrics<ErrorT>(sinkTransform))
-              .apply(sinkTransform);
+              .apply(
+                  sinkTransform.addAnnotation(
+                      "FeatureMetric", "ErrorHandler".getBytes(StandardCharsets.UTF_8)));
     }
 
-    @FeatureMetrics.ErrorHandler
     public static class WriteErrorMetrics<ErrorT>
         extends PTransform<PCollection<ErrorT>, PCollection<ErrorT>> {
 

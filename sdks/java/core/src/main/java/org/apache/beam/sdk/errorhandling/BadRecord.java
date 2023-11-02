@@ -51,7 +51,8 @@ public abstract class BadRecord implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class Record implements Serializable {
 
-    /** The failing record, encoded as JSON. */
+    /** The failing record, encoded as JSON. Will be null if serialization as JSON fails. */
+    @Nullable
     public abstract String getHumanReadableRecord();
 
     /**
@@ -73,7 +74,7 @@ public abstract class BadRecord implements Serializable {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setHumanReadableRecord(String humanReadableRecord);
+      public abstract Builder setHumanReadableRecord(@Nullable String humanReadableRecord);
 
       @SuppressWarnings("mutable")
       public abstract Builder setEncodedRecord(@Nullable byte[] encodedRecord);
