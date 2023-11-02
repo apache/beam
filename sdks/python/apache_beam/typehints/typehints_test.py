@@ -865,6 +865,31 @@ class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
   string_type = 'FrozenSet'
 
 
+class CollectionHintTestCase(TypeHintTestCase):
+  def test_type_constraint_compatibility(self):
+    self.assertCompatible(typehints.Collection[int], typehints.Set[int])
+    self.assertCompatible(typehints.Iterable[int], typehints.Collection[int])
+    self.assertCompatible(typehints.Collection[int], typehints.FrozenSet[int])
+    self.assertCompatible(
+        typehints.Collection[typehints.Any], typehints.Collection[int])
+    self.assertCompatible(typehints.Collection[int], typehints.Tuple[int])
+
+  def test_one_way_compatibility(self):
+    self.assertNotCompatible(typehints.Set[int], typehints.Collection[int])
+    self.assertNotCompatible(
+        typehints.FrozenSet[int], typehints.Collection[int])
+    self.assertNotCompatible(typehints.Tuple[int], typehints.Collection[int])
+
+  def test_getitem_invalid_composite_type_param(self):
+    with self.assertRaises(TypeError) as e:
+      typehints.Collection[5]
+    self.assertEqual(
+        'Parameter to a Collection hint must be a '
+        'non-sequence, a type, or a TypeConstraint. 5 is '
+        'an instance of int.',
+        e.exception.args[0])
+
+
 class IterableHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError) as e:

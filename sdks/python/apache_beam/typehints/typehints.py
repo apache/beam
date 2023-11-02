@@ -82,6 +82,7 @@ __all__ = [
     'Dict',
     'Set',
     'FrozenSet',
+    'Collection',
     'Iterable',
     'Iterator',
     'Generator',
@@ -1017,6 +1018,55 @@ class FrozenSetHint(CompositeTypeHint):
 FrozenSetTypeConstraint = FrozenSetHint.FrozenSetTypeConstraint
 
 
+class CollectionHint(CompositeTypeHint):
+  """ A Collection type-hint.
+  
+  Collection[X] defines a type-hint for a collection of homogenous types. 'X'
+  may be either a built-in Python type or another nested TypeConstraint.
+
+  This represents a collections.abc.Collection type, which implements
+  __contains__, __iter__, and __len__. This acts as a parent type for
+  sets but has fewer guarantees for mixins. 
+  """
+  class CollectionTypeConstraint(SequenceTypeConstraint):
+    def __init__(self, type_param):
+      super().__init__(type_param, abc.Collection)
+
+    def __repr__(self):
+      return 'Collection[%s]' % repr(self.inner_type)
+
+    @staticmethod
+    def _is_subclass_constraint(sub):
+      return isinstance(sub, CollectionTypeConstraint) or isinstance(
+          sub, SetTypeConstraint) or isinstance(sub, FrozenSetTypeConstraint)
+
+    def _consistent_with_check_(self, sub):
+      if self._is_subclass_constraint(sub):
+        return is_consistent_with(sub.inner_type, self.inner_type)
+      elif isinstance(sub, TupleConstraint):
+        if not sub.tuple_types:
+          # The empty tuple is consistent with Iterator[T] for any T.
+          return True
+        # Each element in the hetrogenious tuple must be consistent with
+        # the iterator type.
+        # E.g. Tuple[A, B] < Iterable[C] if A < C and B < C.
+        return all(
+            is_consistent_with(elem, self.inner_type)
+            for elem in sub.tuple_types)
+      elif not isinstance(sub, TypeConstraint):
+        if getattr(sub, '__origin__', None) is not None:
+          return issubclass(sub, abc.Collection)
+      return False
+
+  def __getitem__(self, type_param):
+    validate_composite_type_param(
+        type_param, error_msg_prefix='Parameter to a Collection hint')
+    return self.CollectionTypeConstraint(type_param)
+
+
+CollectionTypeConstraint = CollectionHint.CollectionTypeConstraint
+
+
 class IterableHint(CompositeTypeHint):
   """An Iterable type-hint.
 
@@ -1187,6 +1237,7 @@ KV = KVHint()
 Dict = DictHint()
 Set = SetHint()
 FrozenSet = FrozenSetHint()
+Collection = CollectionHint()
 Iterable = IterableHint()
 Iterator = IteratorHint()
 Generator = GeneratorHint()
