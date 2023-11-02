@@ -227,7 +227,7 @@ import org.slf4j.LoggerFactory;
  * {@link Sink}, e.g. write different elements to Avro files in different directories with different
  * schemas.
  *
- * <p>This feature is supported by {@link #writeDynamic}. Use {@link Write#by} to specify how to
+ * <p>This feature is supported by {@link #writeDynamic}. Use {@link Write#by} to specify how too
  * partition the elements into groups ("destinations"). Then elements will be grouped by
  * destination, and {@link Write#withNaming(Contextful)} and {@link Write#via(Contextful)} will be
  * applied separately within each group, i.e. different groups will be written using the file naming

@@ -711,7 +711,19 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   retrieveErrorDetails(contexts));
               failedContext.failureCount += 1;
 
-              invalidateWriteStream();
+              boolean quotaError = false;
+              Throwable error = failedContext.getError();
+              Status.Code statusCode = Status.Code.OK;
+              if (error != null) {
+                statusCode = Status.fromThrowable(error).getCode();
+                quotaError = statusCode.equals(Status.Code.RESOURCE_EXHAUSTED);
+              }
+
+              if (!quotaError) {
+                // This forces us to close and reopen all gRPC connections to Storage API on error,
+                // which empirically fixes random stuckness issues.
+                invalidateWriteStream();
+              }
 
               // Maximum number of times we retry before we fail the work item.
               if (failedContext.failureCount > 5) {
@@ -720,8 +732,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               // The following errors are known to be persistent, so always fail the work item in
               // this case.
-              Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
-              Status.Code statusCode = Status.fromThrowable(error).getCode();
               if (statusCode.equals(Status.Code.OUT_OF_RANGE)
                   || statusCode.equals(Status.Code.ALREADY_EXISTS)) {
                 throw new RuntimeException(
