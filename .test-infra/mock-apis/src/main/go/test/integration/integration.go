@@ -19,9 +19,7 @@ package integration
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -29,15 +27,6 @@ import (
 func Run(m *testing.M) {
 	if !flag.Parsed() {
 		flag.Parse()
-	}
-	var missing []string
-	for _, f := range requiredFlags {
-		if flag.Lookup(f).Value.String() == "" {
-			missing = append(missing, fmt.Sprintf("-%s", f))
-		}
-	}
-	if len(missing) > 0 {
-		panic(fmt.Errorf("missing flags: %s", strings.Join(missing, " ")))
 	}
 	os.Exit(m.Run())
 }

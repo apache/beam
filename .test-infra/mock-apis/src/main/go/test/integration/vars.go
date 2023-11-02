@@ -24,7 +24,7 @@ const (
 	grpcServiceEndpointFlag = "grpc_service_endpoint"
 	httpServiceEndpointFlag = "http_service_endpoint"
 
-	moreInfoUrl = "https://github.com/apache/beam/tree/master/.test-infra/mock-apis#integration"
+	moreInfoUrl = "https://github.com/apache/beam/tree/master/.test-infra/mock-apis#writing-integration-tests"
 )
 
 var (
