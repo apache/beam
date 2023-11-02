@@ -706,7 +706,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               boolean quotaError = false;
               Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
-              if (error != null){
+              if (error != null) {
                 Status.Code statusCode = Status.fromThrowable(error).getCode();
                 quotaError = statusCode.equals(Status.Code.RESOURCE_EXHAUSTED);
               }
