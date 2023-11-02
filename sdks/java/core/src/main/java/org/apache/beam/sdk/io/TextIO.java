@@ -638,7 +638,10 @@ public class TextIO {
       @Override
       public FileBasedSource<String> apply(String input) {
         return new TextSource(
-            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter, skipHeaderLines);
+            StaticValueProvider.of(input),
+            EmptyMatchTreatment.DISALLOW,
+            delimiter,
+            skipHeaderLines);
       }
     }
   }

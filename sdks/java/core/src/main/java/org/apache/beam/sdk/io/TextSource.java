@@ -185,13 +185,13 @@ public class TextSource extends FileBasedSource<String> {
           } else {
             startOfNextRecord = bufferPosn = (int) requiredPosition;
           }
-          skipHeader(skipHeaderLines,true);
+          skipHeader(skipHeaderLines, true);
         } else {
-          skipHeader(skipHeaderLines,false);
-          if(requiredPosition>startOfNextRecord) {
+          skipHeader(skipHeaderLines, false);
+          if (requiredPosition > startOfNextRecord) {
             ((SeekableByteChannel) channel).position(requiredPosition);
             startOfNextRecord = requiredPosition;
-            bufferLength=bufferPosn=0;
+            bufferLength = bufferPosn = 0;
             // Read and discard the next record ensuring that startOfNextRecord and bufferPosn point
             // to the beginning of the next record.
             readNextRecord();
@@ -199,26 +199,25 @@ public class TextSource extends FileBasedSource<String> {
           }
         }
 
-
       } else {
         // Check to see if we start with the UTF_BOM bytes skipping them if present.
         if (fileStartsWithBom()) {
           startOfNextRecord = bufferPosn = UTF8_BOM.size();
         }
-        skipHeader(skipHeaderLines,true);
+        skipHeader(skipHeaderLines, true);
       }
     }
 
     private void skipHeader(int headerLines, boolean skipFirstLine) throws IOException {
-      if(headerLines == 1){
+      if (headerLines == 1) {
         readNextRecord();
-      }else if(headerLines > 1){
+      } else if (headerLines > 1) {
         // this will be expensive
-        ((SeekableByteChannel) inChannel ).position(0);
-        for(int line = 0; line < headerLines; ++line){
+        ((SeekableByteChannel) inChannel).position(0);
+        for (int line = 0; line < headerLines; ++line) {
           readNextRecord();
         }
-      }else if(headerLines == 0 && skipFirstLine){
+      } else if (headerLines == 0 && skipFirstLine) {
         readNextRecord();
       }
       currentValue = null;

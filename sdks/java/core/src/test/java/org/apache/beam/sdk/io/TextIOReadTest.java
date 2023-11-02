@@ -245,10 +245,7 @@ public class TextIOReadTest {
   }
 
   private static TextSource prepareSource(
-      TemporaryFolder temporaryFolder,
-      byte[] data,
-      @Nullable byte[] delimiter,
-      int skipHeaderLines)
+      TemporaryFolder temporaryFolder, byte[] data, @Nullable byte[] delimiter, int skipHeaderLines)
       throws IOException {
     Path path = temporaryFolder.newFile().toPath();
     Files.write(path, data);
