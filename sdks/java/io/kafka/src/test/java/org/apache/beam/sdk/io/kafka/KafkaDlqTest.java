@@ -48,7 +48,6 @@ public class KafkaDlqTest {
 
   private static final Schema BEAMSCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
-  private static final Schema ERRORSCHEMA = KafkaReadSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final List<Row> ROWS =
       Arrays.asList(
@@ -76,7 +75,7 @@ public class KafkaDlqTest {
     } catch (Exception e) {
     }
     PCollection<byte[]> input = p.apply(Create.of(messages));
-    Schema errorSchema = ErrorHandling.errorSchema(ERRORSCHEMA);
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
     PCollectionTuple output =
         input.apply(
             ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper, errorSchema, true))
@@ -100,7 +99,7 @@ public class KafkaDlqTest {
     } catch (Exception e) {
     }
     PCollection<byte[]> input = p.apply(Create.of(messagesWithError));
-    Schema errorSchema = ErrorHandling.errorSchema(ERRORSCHEMA);
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
     PCollectionTuple output =
         input.apply(
             ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper, errorSchema, true))

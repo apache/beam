@@ -68,8 +68,6 @@ public class KafkaWriteSchemaTransformProvider
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
       new TupleTag<KV<byte[], byte[]>>() {};
-  public static final Schema ERROR_SCHEMA =
-      Schema.builder().addNullableByteArrayField("row").build();
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
@@ -129,13 +127,7 @@ public class KafkaWriteSchemaTransformProvider
           }
           errorsInBundle += 1;
           LOG.warn("Error while processing the element", e);
-          receiver
-              .get(ERROR_TAG)
-              .output(
-                  ErrorHandling.errorRecord(
-                      errorSchema,
-                      Row.withSchema(ERROR_SCHEMA).addValue(row.toString()).build(),
-                      e));
+          receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
         }
         if (output != null) {
           receiver.get(OUTPUT_TAG).output(output);
@@ -170,7 +162,7 @@ public class KafkaWriteSchemaTransformProvider
 
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
-      Schema errorSchema = ErrorHandling.errorSchema(ERROR_SCHEMA);
+      Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
       PCollectionTuple outputTuple =
           input
               .get("input")

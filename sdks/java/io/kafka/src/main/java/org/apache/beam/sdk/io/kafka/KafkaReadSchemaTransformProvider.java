@@ -76,8 +76,6 @@ public class KafkaReadSchemaTransformProvider
 
   public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
-  public static final Schema ERROR_SCHEMA =
-      Schema.builder().addNullableByteArrayField("row").build();
 
   final Boolean isTest;
   final Integer testTimeoutSecs;
@@ -158,7 +156,7 @@ public class KafkaReadSchemaTransformProvider
           PCollection<byte[]> kafkaValues =
               input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
-          Schema errorSchema = ErrorHandling.errorSchema(ERROR_SCHEMA);
+          Schema errorSchema = ErrorHandling.errorSchemaBytes();
           PCollectionTuple outputTuple =
               kafkaValues.apply(
                   ParDo.of(
@@ -271,11 +269,7 @@ public class KafkaReadSchemaTransformProvider
         }
         errorsInBundle += 1;
         LOG.warn("Error while parsing the element", e);
-        receiver
-            .get(ERROR_TAG)
-            .output(
-                ErrorHandling.errorRecord(
-                    errorSchema, Row.withSchema(ERROR_SCHEMA).addValue(msg).build(), e));
+        receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, msg, e));
       }
       if (mappedRow != null) {
         receiver.get(OUTPUT_TAG).output(mappedRow);

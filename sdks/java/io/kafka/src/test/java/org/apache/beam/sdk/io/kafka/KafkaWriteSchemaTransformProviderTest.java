@@ -54,7 +54,6 @@ public class KafkaWriteSchemaTransformProviderTest {
 
   private static final Schema BEAMRAWSCHEMA =
       Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
-  private static final Schema ERRORSCHEMA = KafkaWriteSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final List<Row> ROWS =
       Arrays.asList(
@@ -94,7 +93,7 @@ public class KafkaWriteSchemaTransformProviderTest {
             KV.of(new byte[1], "{\"name\":\"c\"}".getBytes("UTF8")));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
-    Schema errorSchema = ErrorHandling.errorSchema(ERRORSCHEMA);
+    Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
     PCollectionTuple output =
         input.apply(
             ParDo.of(
@@ -116,7 +115,7 @@ public class KafkaWriteSchemaTransformProviderTest {
             KV.of(new byte[1], "c".getBytes("UTF8")));
 
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
-    Schema errorSchema = ErrorHandling.errorSchema(ERRORSCHEMA);
+    Schema errorSchema = ErrorHandling.errorSchema(BEAMRAWSCHEMA);
     PCollectionTuple output =
         input.apply(
             ParDo.of(
