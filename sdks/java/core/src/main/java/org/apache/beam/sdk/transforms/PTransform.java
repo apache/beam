@@ -217,7 +217,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return resourceHints;
   }
 
-  /** Returns annotations map to provide additional hints to the runner */
+  /** Returns annotations map to provide additional hints to the runner. */
   public Map<String, byte[]> getAnnotations() {
     return annotations;
   }
