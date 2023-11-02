@@ -400,6 +400,7 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'pyyaml>=3.12,<7.0.0',
+              'js2py>=0.74,<1',
           ] + dataframe_dependency
       },
       zip_safe=False,
