@@ -486,8 +486,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Upserts and deletes</h3>
  *
  * The connector also supports streaming row updates to BigQuery, with the following qualifications:
- * - The CREATE_IF_NEEDED CreateDisposition is not supported. Tables must be precreated with primary
- * keys. - Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
+ *
+ * <p>- If the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be
+ * specified using {@link Write#withPrimaryKey}.
+ *
+ * <p>- Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
  *
  * <p>Two types of updates are supported. UPSERT replaces the row with the matching primary key or
  * inserts the row if non exists. DELETE removes the row with the matching primary key. Row inserts
@@ -535,8 +538,8 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>Note that in order to use inserts or deletes, the table must bet set up with a primary key. If
- * the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be
- * specified.
+ * the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be specified
+ * using {@link Write#withPrimaryKey}.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20506)
@@ -2167,9 +2170,10 @@ public class BigQueryIO {
    * apply row updates; directly calling {@link Write#withRowMutationInformationFn} is preferred
    * when writing non TableRows types (e.g. {@link #writeGenericRecords} or a custom user type).
    *
-   * <p>This is only supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
-   * method and {@link Write.CreateDisposition#CREATE_NEVER}. The tables must be precreated with a
-   * primary key.
+   * <p>This is supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
+   * method, and with either {@link Write.CreateDisposition#CREATE_NEVER} or {@link
+   * Write.CreateDisposition#CREATE_IF_NEEDED}. For CREATE_IF_NEEDED, a primary key must be
+   * specified using {@link Write#withPrimaryKey}.
    */
   public static Write<RowMutation> applyRowMutations() {
     return BigQueryIO.<RowMutation>write()
@@ -2826,9 +2830,10 @@ public class BigQueryIO {
      * function that determines how a row is applied to BigQuery (upsert, or delete) along with a
      * sequence number for ordering operations.
      *
-     * <p>This is only supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE}
-     * insert method and {@link Write.CreateDisposition#CREATE_NEVER}. The tables must be precreated
-     * with a primary key.
+     * <p>This is supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
+     * method, and with either {@link Write.CreateDisposition#CREATE_NEVER} or {@link
+     * Write.CreateDisposition#CREATE_IF_NEEDED}. For CREATE_IF_NEEDED, a primary key must be
+     * specified using {@link Write#withPrimaryKey}.
      */
     public Write<T> withRowMutationInformationFn(
         SerializableFunction<T, RowMutationInformation> updateFn) {
