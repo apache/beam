@@ -51,10 +51,6 @@ flowchart LR
     end
 ```
 
-# Writing Integration Tests
-
-TODO: See https://github.com/apache/beam/issues/28859
-
 # Development Dependencies
 
 | Dependency                                          | Reason                                                                                 |
