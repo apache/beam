@@ -204,7 +204,7 @@ public class TextSource extends FileBasedSource<String> {
         if (fileStartsWithBom()) {
           startOfNextRecord = bufferPosn = UTF8_BOM.size();
         }
-        skipHeader(skipHeaderLines, true);
+        skipHeader(skipHeaderLines, false);
       }
     }
 
