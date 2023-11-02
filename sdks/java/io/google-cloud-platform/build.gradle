@@ -186,13 +186,15 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
   def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
-  def host = project.findProperty('host') ?: 'batch-firestore.googleapis.com:443'
+  def firestoreHost = project.findProperty('firestoreHost') ?: 'batch-firestore.googleapis.com:443'
+  def bigtableChangeStreamInstanceId = project.findProperty('bigtableChangeStreamInstanceId') ?: 'beam-test'
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
           "--firestoreDb=${firestoreDb}",
-          "--host=${host}",
+          "--firestoreHost=${firestoreHost}",
+          "--bigtableChangeStreamInstanceId=${bigtableChangeStreamInstanceId}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
@@ -220,14 +222,14 @@ task integrationTestKms(type: Test) {
   def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
   def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
   def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
-  def host = project.findProperty('host') ?: 'batch-firestore.googleapis.com:443'
+  def firestoreHost = project.findProperty('firestoreHost') ?: 'batch-firestore.googleapis.com:443'
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
           "--dataflowKmsKey=${dataflowKmsKey}",
           "--firestoreDb=${firestoreDb}",
-          "--host=${host}",
+          "--firestoreHost=${firestoreHost}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"

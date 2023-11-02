@@ -40,10 +40,15 @@ var (
 // the filter function returns false. It returns a PCollection of the same type
 // as the input. For example:
 //
+//	func lessThanThree(s string) bool {
+//		return len(s) < 3
+//	}
+//
+//	// Filter functions must be registered with Beam, and must not be closures.
+//	func init() { register.Function1x1(lessThanThree) }
+//
 //	words := beam.Create(s, "a", "b", "long", "alsolong")
-//	short := filter.Include(s, words, func(s string) bool {
-//	    return len(s) < 3
-//	})
+//	short := filter.Include(s, words, lessThanThree)
 //
 // Here, "short" will contain "a" and "b" at runtime.
 func Include(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
@@ -58,10 +63,15 @@ func Include(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 // the filter function returns true. It returns a PCollection of the same type
 // as the input. For example:
 //
+//	func lessThanThree(s string) bool {
+//		return len(s) < 3
+//	}
+//
+//	// Filter functions must be registered with Beam, and must not be closures.
+//	func init() { register.Function1x1(lessThanThree) }
+//
 //	words := beam.Create(s, "a", "b", "long", "alsolong")
-//	long := filter.Exclude(s, words, func(s string) bool {
-//	    return len(s) < 3
-//	})
+//	long := filter.Exclude(s, words, lessThanThree)
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
 func Exclude(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {

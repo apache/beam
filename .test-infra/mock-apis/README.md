@@ -75,7 +75,45 @@ go test ./src/main/go/internal/...
 
 ## Integration
 
-TODO: See https://github.com/apache/beam/issues/28859
+Integration tests require the following values.
+
+### Quota ID
+
+Each allocated quota corresponds to a unique ID known as the Quota ID.
+There exists a one-to-one relationship between the allocated quota and
+the
+[infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays).
+
+To query the Kubernetes cluster for allocated Quota IDs:
+```
+kubectl get deploy --selector=app.kubernetes.io/name=refresher -o custom-columns='QUOTA_ID:.metadata.labels.quota-id'
+```
+
+### Service Endpoint
+
+To list available endpoints, run:
+
+```
+kubectl get svc -o=custom-columns='NAME:.metadata.name,HOST:.status.loadBalancer.ingress[*].ip,PORT_NAME:.spec.ports[*].name,PORT:.spec.ports[*].port'
+```
+
+You should see something similar to:
+
+```
+NAME             HOST          PORT_NAME   PORT
+echo             10.n.n.n      grpc,http   50051,8080
+```
+
+When running tests locally, you will need to first run:
+```
+kubectl port-forward service/echo 50051:50051 8080:8080
+```
+
+which allows you to access the gRPC via `localhost:50051` and the HTTP via
+`http://localhost:8080/v1/echo`.
+
+When running tests on Dataflow, you supply `10.n.n.n:50051` for gRPC and
+`http://10.n.n.n:8080/v1/echo` for HTTP.
 
 # Local Usage
 
@@ -186,24 +224,14 @@ The Refresher service relies on [kustomize](https://kustomize.io) overlays
 which are located at [infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays).
 
 Each folder contained in [infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays)
-corresponds to an individual Refresher instance that is identified by the UUID.
-You will need to deploy each one individually.
+corresponds to an individual Refresher instance that is identified by a unique
+string id. You will need to deploy each one individually.
 
 For example:
 ```
-kubectl kustomize infrastructure/kubernetes/refresher/overlays/f588787b-28f8-4e5f-8335-f862379daf59 | ko resolve -f - | kubectl apply -f -
+kubectl kustomize infrastructure/kubernetes/refresher/overlays/echo-should-never-exceed-quota | ko resolve -f - | kubectl apply -f -
 ```
 
 Like previously, you may see "Does not have minimum availability" message
 showing on the status. It may take some time for GKE autopilot
 to scale the node pool.
-
-## Additional note for creating a new Refresher service instance
-
-Each Refresher service instance relies on a unique UUID, where
-the [kustomize](https://kustomize.io) overlay replaces in the
-[infrastructure/kubernetes/refresher/base](infrastructure/kubernetes/refresher/base)
-template.
-
-You can copy the entire folder and paste into a new one with a unique UUID
-and then perform a find-replace of the old UUID with the new one.

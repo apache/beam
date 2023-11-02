@@ -17,16 +17,19 @@
 
 """This module defines the basic MapToFields operation."""
 import itertools
+from collections import abc
 from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Dict
-from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Union
 
 import js2py
+from js2py import base
+from js2py.constructors import jsdate
+from js2py.internals import simplex
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -39,6 +42,7 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 
 def _check_mapping_arguments(
@@ -75,19 +79,67 @@ class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
     self.__dict__.update(state)
 
 
+# TODO(yaml) Improve type inferencing for JS UDF's
+def py_value_to_js_dict(py_value):
+  if ((isinstance(py_value, tuple) and hasattr(py_value, '_asdict')) or
+      isinstance(py_value, beam.Row)):
+    py_value = py_value._asdict()
+  if isinstance(py_value, dict):
+    return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
+  elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
+    return [py_value_to_js_dict(value) for value in list(py_value)]
+  else:
+    return py_value
+
+
 # TODO(yaml) Consider adding optional language version parameter to support
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
+
+  js_array_type = (
+      base.PyJsArray,
+      base.PyJsArrayBuffer,
+      base.PyJsInt8Array,
+      base.PyJsUint8Array,
+      base.PyJsUint8ClampedArray,
+      base.PyJsInt16Array,
+      base.PyJsUint16Array,
+      base.PyJsInt32Array,
+      base.PyJsUint32Array,
+      base.PyJsFloat32Array,
+      base.PyJsFloat64Array)
+
+  def _js_object_to_py_object(obj):
+    if isinstance(obj, (base.PyJsNumber, base.PyJsString, base.PyJsBoolean)):
+      return base.to_python(obj)
+    elif isinstance(obj, js_array_type):
+      return [_js_object_to_py_object(value) for value in obj.to_list()]
+    elif isinstance(obj, jsdate.PyJsDate):
+      return obj.to_utc_dt()
+    elif isinstance(obj, (base.PyJsNull, base.PyJsUndefined)):
+      return None
+    elif isinstance(obj, base.PyJsError):
+      raise RuntimeError(obj['message'])
+    elif isinstance(obj, base.PyJsObject):
+      return {
+          key: _js_object_to_py_object(value['value'])
+          for (key, value) in obj.own.items()
+      }
+    elif isinstance(obj, base.JsObjectWrapper):
+      return _js_object_to_py_object(obj._obj)
+
+    return obj
+
   if expression:
-    args = ', '.join(original_fields)
-    js_func = f'function fn({args}) {{return ({expression})}}'
-    js_callable = _CustomJsObjectWrapper(js2py.eval_js(js_func))
-    return lambda __row__: js_callable(*__row__._asdict().values())
+    source = '\n'.join(['function(__row__) {'] + [
+        f'  {name} = __row__.{name}'
+        for name in original_fields if name in expression
+    ] + ['  return (' + expression + ')'] + ['}'])
+    js_func = _CustomJsObjectWrapper(js2py.eval_js(source))
 
   elif callable:
-    js_callable = _CustomJsObjectWrapper(js2py.eval_js(callable))
-    return lambda __row__: js_callable(__row__._asdict())
+    js_func = _CustomJsObjectWrapper(js2py.eval_js(callable))
 
   else:
     if not path.endswith('.js'):
@@ -95,8 +147,19 @@ def _expand_javascript_mapping_func(
     udf_code = FileSystems.open(path).read().decode()
     js = js2py.EvalJs()
     js.eval(udf_code)
-    js_callable = _CustomJsObjectWrapper(getattr(js, name))
-    return lambda __row__: js_callable(__row__._asdict())
+    js_func = _CustomJsObjectWrapper(getattr(js, name))
+
+  def js_wrapper(row):
+    row_as_dict = py_value_to_js_dict(row)
+    try:
+      js_result = js_func(row_as_dict)
+    except simplex.JsException as exn:
+      raise RuntimeError(
+          f"Error evaluating javascript expression: "
+          f"{exn.mes['message']}") from exn
+    return dicts_to_rows(_js_object_to_py_object(js_result))
+
+  return js_wrapper
 
 
 def _expand_python_mapping_func(
@@ -240,8 +303,6 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   return expand
 
 
-# TODO(yaml): This should be available in all environments, in which case
-# we choose the one that matches best.
 class _Explode(beam.PTransform):
   def __init__(
       self,
@@ -290,11 +351,12 @@ class _Explode(beam.PTransform):
           copy[field] = values[ix]
         yield beam.Row(**copy)
 
+    cross_product = self._cross_product
     return (
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if self._cross_product else explode_zip)
+            (explode_cross_product if cross_product else explode_zip)
             ({name: getattr(row, name)
               for name in all_fields}, to_explode)))
 
@@ -399,62 +461,14 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
       })
 
 
-class SqlMappingProvider(yaml_provider.Provider):
-  def __init__(self, sql_provider=None):
-    if sql_provider is None:
-      sql_provider = yaml_provider.beam_jar(
-          urns={'Sql': 'beam:external:java:sql:v1'},
-          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
-    self._sql_provider = sql_provider
-
-  def available(self):
-    return self._sql_provider.available()
-
-  def cache_artifacts(self):
-    return self._sql_provider.cache_artifacts()
-
-  def provided_transforms(self) -> Iterable[str]:
-    return [
-        'Filter-sql',
-        'Filter-calcite',
-        'MapToFields-sql',
-        'MapToFields-calcite'
-    ]
-
-  def create_transform(
-      self,
-      typ: str,
-      args: Mapping[str, Any],
-      yaml_create_transform: Callable[
-          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
-  ) -> beam.PTransform:
-    if typ.startswith('Filter-'):
-      return _SqlFilterTransform(
-          self._sql_provider, yaml_create_transform, **args)
-    if typ.startswith('MapToFields-'):
-      return _SqlMapToFieldsTransform(
-          self._sql_provider, yaml_create_transform, **args)
-    else:
-      raise NotImplementedError(typ)
-
-  def underlying_provider(self):
-    return self._sql_provider
-
-  def to_json(self):
-    return {'type': "SqlMappingProvider"}
+@beam.ptransform.ptransform_fn
+def _SqlFilterTransform(pcoll, sql_transform_constructor, keep, language):
+  return pcoll | sql_transform_constructor(
+      f'SELECT * FROM PCOLLECTION WHERE {keep}')
 
 
 @beam.ptransform.ptransform_fn
-def _SqlFilterTransform(
-    pcoll, sql_provider, yaml_create_transform, keep, language):
-  return pcoll | sql_provider.create_transform(
-      'Sql', {'query': f'SELECT * FROM PCOLLECTION WHERE {keep}'},
-      yaml_create_transform)
-
-
-@beam.ptransform.ptransform_fn
-def _SqlMapToFieldsTransform(
-    pcoll, sql_provider, yaml_create_transform, **mapping_args):
+def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
   _, fields = normalize_fields(pcoll, **mapping_args)
 
   def extract_expr(name, v):
@@ -470,8 +484,7 @@ def _SqlMapToFieldsTransform(
       for (name, expr) in fields.items()
   ]
   query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
-  return pcoll | sql_provider.create_transform(
-      'Sql', {'query': query}, yaml_create_transform)
+  return pcoll | sql_transform_constructor(query)
 
 
 def create_mapping_providers():
@@ -487,5 +500,10 @@ def create_mapping_providers():
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
       }),
-      SqlMappingProvider(),
+      yaml_provider.SqlBackedProvider({
+          'Filter-sql': _SqlFilterTransform,
+          'Filter-calcite': _SqlFilterTransform,
+          'MapToFields-sql': _SqlMapToFieldsTransform,
+          'MapToFields-calcite': _SqlMapToFieldsTransform,
+      }),
   ]

@@ -62,7 +62,7 @@ Please, use `beam-sdks-java-extensions-avro` instead. This will allow to easily 
 potential breaking changes in Beam "core" since the Beam Avro extension already supports the latest Avro versions and
 should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 * Publishing Java 21 SDK container images now supported as part of Apache Beam release process. ([#28120](https://github.com/apache/beam/issues/28120))
-  * Direct Runner and Dataflow Runner V2 support running pipeline on Java21. Support for other runners are planned in upcoming versions.
+  * Direct Runner and Dataflow Runner support running pipelines on Java21 (experimental until tests fully setup). For other runners (Flink, Spark, Samza, etc) support status depend on runner projects.
 
 ## I/Os
 
@@ -74,7 +74,10 @@ should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
   jobs using the DataStream API. By default the option is set to false, so the batch jobs are still executed
   using the DataSet API.
 * `upload_graph` as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK ([PR#28621](https://github.com/apache/beam/pull/28621).
+* state amd side input cache has been enabled to a default of 100 MB. Use `--max_cache_memory_usage_mb=X` to provide cache size for the user state API and side inputs. (Python) ([#28770](https://github.com/apache/beam/issues/28770)).
+* Beam YAML stable release. Beam pipelines can now be written using YAML and leverage the Beam YAML framework which includes a preliminary set of IO's and turnkey transforms. More information can be found in the YAML root folder and in the [README](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md).
 * `TextIO` supports skipping header.
+
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
@@ -82,6 +85,7 @@ should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
 classes finally moved to `extensions/avro`. In case if it's still required to use `AvroCoder` for `CounterMark`, then,
 as a workaround, a copy of "old" `CountingSource` class should be placed into a project code and used directly
 ([#25252](https://github.com/apache/beam/issues/25252)).
+* Renamed `host` to `firestoreHost` in `FirestoreOptions` to avoid potential conflict of command line arguments (Java) ([#29201](https://github.com/apache/beam/pull/29201)).
 
 ## Deprecations
 

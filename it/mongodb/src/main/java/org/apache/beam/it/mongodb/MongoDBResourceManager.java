@@ -69,7 +69,7 @@ public class MongoDBResourceManager extends TestContainerResourceManager<MongoDB
   private final String connectionString;
   private final boolean usingStaticDatabase;
 
-  private MongoDBResourceManager(MongoDBResourceManager.Builder builder) {
+  private MongoDBResourceManager(Builder builder) {
     this(
         /* mongoClient= */ null,
         new MongoDBContainer(
@@ -80,9 +80,7 @@ public class MongoDBResourceManager extends TestContainerResourceManager<MongoDB
   @VisibleForTesting
   @SuppressWarnings("nullness")
   MongoDBResourceManager(
-      @Nullable MongoClient mongoClient,
-      MongoDBContainer container,
-      MongoDBResourceManager.Builder builder) {
+      @Nullable MongoClient mongoClient, MongoDBContainer container, Builder builder) {
     super(container, builder);
 
     this.usingStaticDatabase = builder.databaseName != null;
@@ -93,8 +91,8 @@ public class MongoDBResourceManager extends TestContainerResourceManager<MongoDB
     this.mongoClient = mongoClient == null ? MongoClients.create(connectionString) : mongoClient;
   }
 
-  public static MongoDBResourceManager.Builder builder(String testId) {
-    return new MongoDBResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   /** Returns the URI connection string to the MongoDB Database. */

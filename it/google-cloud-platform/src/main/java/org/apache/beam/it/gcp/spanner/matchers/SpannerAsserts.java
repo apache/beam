@@ -17,13 +17,17 @@
  */
 package org.apache.beam.it.gcp.spanner.matchers;
 
+import static org.apache.beam.it.gcp.artifacts.utils.JsonTestUtil.parseJsonString;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
 
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Type.Code;
 import com.google.cloud.spanner.Value;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +79,47 @@ public class SpannerAsserts {
                   entry.asMap().entrySet().stream()
                       .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))));
 
+      return records;
+    } catch (Exception e) {
+      throw new RuntimeException("Error converting TableResult to Records", e);
+    }
+  }
+
+  /**
+   * Convert a list of Spanner {@link Mutation} objects into a list of maps, extracting specified
+   * columns.
+   *
+   * @param mutations The list of mutations to process.
+   * @param columns The columns to extract.
+   * @return List of maps to use in {@link RecordsSubject}
+   */
+  public static List<Map<String, Object>> mutationsToRecords(
+      List<Mutation> mutations, List<String> columns) {
+    try {
+      List<Map<String, Object>> records = new ArrayList<>();
+      mutations.forEach(
+          entry -> {
+            records.add(
+                entry.asMap().entrySet().stream()
+                    .filter((e) -> columns.contains(e.getKey()))
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey,
+                            (e) -> {
+                              if (e.getValue().getType().getCode() == Code.ARRAY) {
+                                return e.getValue().getAsStringList();
+                              }
+                              if (Arrays.asList(Code.JSON, Code.PG_JSONB)
+                                  .contains(e.getValue().getType().getCode())) {
+                                try {
+                                  return parseJsonString(e.getValue().getJson());
+                                } catch (IOException ex) {
+                                  throw new RuntimeException(ex);
+                                }
+                              }
+                              return e.getValue().getAsString();
+                            })));
+          });
       return records;
     } catch (Exception e) {
       throw new RuntimeException("Error converting TableResult to Records", e);

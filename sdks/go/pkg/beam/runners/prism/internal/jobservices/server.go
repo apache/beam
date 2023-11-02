@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"sync"
 
@@ -60,7 +61,9 @@ func NewServer(port int, execute func(*Job)) *Server {
 		execute: execute,
 	}
 	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
-	var opts []grpc.ServerOption
+	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+	}
 	s.server = grpc.NewServer(opts...)
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)

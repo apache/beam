@@ -157,11 +157,14 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // struct may also define Setup, StartBundle, FinishBundle and Teardown methods.
 // The struct is JSON-serialized and may contain construction-time values.
 //
+// Functions and types used as DoFns must be registered with beam using the
+// beam `register` package, so they may execute on distributed workers.
+// Functions must not be anonymous or closures, or they will fail at execution time.
+//
 // Conceptually, when a ParDo transform is executed, the elements of the input
 // PCollection are first divided up into some number of "bundles". These are
-// farmed off to distributed worker machines (or run locally, if using the
-// direct runner). For each bundle of input elements processing proceeds as
-// follows:
+// farmed off to distributed worker machines (or locally on a local runner instance).
+// For each bundle of input elements processing proceeds as follows:
 //
 //   - If a struct, a fresh instance of the argument DoFn is created on a
 //     worker from json serialization, and the Setup method is called on this
@@ -187,10 +190,11 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 //
 // For example:
 //
+//	func stringLen(word string) int { return len(word)	}
+//	func init() { register.Function1x1(stringLen) }
+//
 //	words := beam.ParDo(s, &Foo{...}, ...)
-//	lengths := beam.ParDo(s, func (word string) int) {
-//	      return len(word)
-//	}, words)
+//	lengths := beam.ParDo(s, stringLen, words)
 //
 // Each output element has the same timestamp and is in the same windows as its
 // corresponding input element. The timestamp can be accessed and/or emitted by
@@ -207,28 +211,34 @@ func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 // options, and their contents accessible to each of the DoFn operations. For
 // example:
 //
+//	func filterLessThanCutoff(word string, cutoff int, emit func(string)) {
+//		if len(word) < cutoff {
+//			emit(word)
+//		}
+//	}
+//	func init() { register.Function3x0(filterLessThanCutoff) }
+//
 //	words := ...
 //	cufoff := ...  // Singleton PCollection<int>
-//	smallWords := beam.ParDo(s, func (word string, cutoff int, emit func(string)) {
-//	      if len(word) < cutoff {
-//	           emit(word)
-//	      }
-//	}, words, beam.SideInput{Input: cutoff})
+//	smallWords := beam.ParDo(s, filterLessThanCutoff, words, beam.SideInput{Input: cutoff})
 //
 // # Additional Outputs
 //
 // Optionally, a ParDo transform can produce zero or multiple output
 // PCollections. Note the use of ParDo2 to specfic 2 outputs. For example:
 //
+//	func partitionAtCutoff(word string, cutoff int, small, big func(string)) {
+//		if len(word) < cutoff {
+//			small(word)
+//		} else {
+//			big(word)
+//		}
+//	}
+//	func init() { register.Function4x0(partitionAtCutoff) }
+//
 //	words := ...
 //	cufoff := ...  // Singleton PCollection<int>
-//	small, big := beam.ParDo2(s, func (word string, cutoff int, small, big func(string)) {
-//	      if len(word) < cutoff {
-//	           small(word)
-//	      } else {
-//	           big(word)
-//	      }
-//	}, words, beam.SideInput{Input: cutoff})
+//	small, big := beam.ParDo2(s, partitionAtCutoff, words, beam.SideInput{Input: cutoff})
 //
 // By default, the Coders for the elements of each output PCollections is
 // inferred from the concrete type.
