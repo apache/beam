@@ -73,13 +73,13 @@ public abstract class ApiIOError {
   @AutoValue.Builder
   abstract static class Builder {
 
-    public abstract Builder setRequestAsJsonString(String value);
+    abstract Builder setRequestAsJsonString(String value);
 
-    public abstract Builder setObservedTimestamp(Instant value);
+    abstract Builder setObservedTimestamp(Instant value);
 
-    public abstract Builder setMessage(String value);
+    abstract Builder setMessage(String value);
 
-    public abstract Builder setStackTrace(String value);
+    abstract Builder setStackTrace(String value);
 
     abstract ApiIOError build();
   }
