@@ -879,6 +879,7 @@ class CollectionHintTestCase(TypeHintTestCase):
     self.assertNotCompatible(
         typehints.FrozenSet[int], typehints.Collection[int])
     self.assertNotCompatible(typehints.Tuple[int], typehints.Collection[int])
+    self.assertNotCompatible(typehints.Collection[int], typehints.Iterable[int])
 
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError) as e:
@@ -918,6 +919,7 @@ class IterableHintTestCase(TypeHintTestCase):
     self.assertCompatible(
         typehints.Iterable[typehints.Any],
         typehints.List[typehints.Tuple[int, bool]])
+    self.assertCompatible(typehints.Iterable[int], typehints.Collection[int])
 
   def test_tuple_compatibility(self):
     self.assertCompatible(typehints.Iterable[int], typehints.Tuple[int, ...])
