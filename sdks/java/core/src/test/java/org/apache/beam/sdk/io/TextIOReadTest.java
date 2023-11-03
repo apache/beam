@@ -521,7 +521,7 @@ public class TextIOReadTest {
     public void testReadLinesWithCustomDelimiter() throws Exception {
       SourceTestUtils.assertSplitAtFractionExhaustive(
           TextIOReadTest.prepareSource(
-              tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}, 1),
+              tempFolder, testCase.getBytes(UTF_8), new byte[] {'|', '*'}, 0),
           PipelineOptionsFactory.create());
     }
 
