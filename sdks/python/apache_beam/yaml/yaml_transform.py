@@ -227,6 +227,8 @@ class Scope(LightweightScope):
       outputs = self.get_outputs(transform)
       if output in outputs:
         return outputs[output]
+      elif len(outputs) == 1 and outputs[next(iter(outputs))].tag == output:
+        return outputs[next(iter(outputs))]
       else:
         raise ValueError(
             f'Unknown output {repr(output)} '
