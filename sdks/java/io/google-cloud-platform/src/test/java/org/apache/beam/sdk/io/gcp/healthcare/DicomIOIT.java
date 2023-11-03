@@ -120,7 +120,7 @@ public class DicomIOIT {
   @Test
   public void test_DicomIO_deidentify() {
     DicomConfig dicomConfig = new DicomConfig().setFilterProfile("ATTRIBUTE_CONFIDENTIALITY_BASIC_PROFILE");
-    DeidentifyConfig deidConfig = new DeidentifyConfig().set("",dicomConfig); // use default DeidentifyConfig
+    DeidentifyConfig deidConfig = new DeidentifyConfig().setDicom(dicomConfig); // use default DeidentifyConfig
     DicomIO.Deidentify.Result result =
         pipeline.apply(DicomIO.deidentify("projects/apache-beam-testing/locations/us-central1/datasets/apache-beam-integration-testing/dicomStores/dicom_it_persistent_store", "projects/apache-beam-testing/locations/us-central1/datasets/apache-beam-integration-testing/dicomStores/DICOM_store_2021-10-28_004230.486566_FR64u1FFOQ3mIN7", deidConfig));
     PAssert.that(result.getError().apply("toString", ToJson.of()))
