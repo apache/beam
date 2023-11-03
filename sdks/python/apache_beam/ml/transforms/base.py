@@ -32,6 +32,7 @@ from typing import Optional
 from typing import Sequence
 from typing import TypeVar
 import uuid
+import numpy as np
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -118,6 +119,8 @@ class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
     """
 
 
+# Create abstraction layer for how the MLTransform can split the transforms
+# and assings right artifacts/artifact location
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                                   beam.PCollection[MLTransformOutputT]],
                   Generic[ExampleT, MLTransformOutputT]):
@@ -338,6 +341,7 @@ class EmbeddingConfig:
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
+      columns: Optional[List[str]] = None,
       **kwargs):
     self.device = device
     self.inference_fn = inference_fn
@@ -347,6 +351,7 @@ class EmbeddingConfig:
     self.max_batch_size = max_batch_size
     self.large_model = large_model
     self.kwargs = kwargs
+    self.columns = columns
 
   def get_model_handler(self) -> ModelHandler:
     """
@@ -363,6 +368,8 @@ class TextEmbeddingHandler(ModelHandler):
   def __init__(self, embedding_config: EmbeddingConfig):
     self.embedding_config = embedding_config
     self._underlying = self.embedding_config.get_model_handler()
+    # these are the columns on which embeddings should be worked on.
+    self.columns = self.embedding_config.columns
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     # Once unbatched, remove the batch restriction.
@@ -384,13 +391,20 @@ class TextEmbeddingHandler(ModelHandler):
     """
     expect batch to be a list[Dict[str, Any]]
     """
+    # Works because we restricted the batch size to be 1.
     dict_batch = _convert_list_of_dicts_to_dict_of_lists(list_of_dicts=batch)
     result = collections.defaultdict(list)
     for key, batch in dict_batch.items():
-      result[key] = self._underlying.run_inference(
-          batch=batch, model=model, inference_args=inference_args)
+      if key in self.columns:
+        prediction = self._underlying.run_inference(
+            batch=batch, model=model, inference_args=inference_args)
+        if isinstance(prediction, np.ndarray):
+          prediction = prediction.tolist()[0]
+          result[key] = prediction
+      else:
+        result[key] = batch
     # unbatch and return
-    return {'text': result['text'].tolist()[0]}
+    return result
 
 
 def _convert_list_of_dicts_to_dict_of_lists(
