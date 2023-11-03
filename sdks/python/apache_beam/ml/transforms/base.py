@@ -20,8 +20,9 @@
 import abc
 import collections
 from dataclasses import dataclass
-import logging
-from typing import Any
+import jsonpickle
+import os
+from typing import Any, Mapping
 from typing import Callable
 from typing import Dict
 from typing import Generic
@@ -30,11 +31,15 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
+import uuid
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
+
+_ATTRIBUTE_FILE_NAME = 'attributes.json'
 
 __all__ = ['MLTransform', 'ProcessHandler', 'BaseOperation']
 
@@ -93,7 +98,7 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     return Metrics.counter(MLTransform, f'BeamML_{counter_name}')
 
 
-class ProcessHandler(Generic[ExampleT, MLTransformOutputT], abc.ABC):
+class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
@@ -186,9 +191,13 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       artifact_location = write_artifact_location  # type: ignore[assignment]
       artifact_mode = ArtifactMode.PRODUCE
 
-    self._artifact_location = artifact_location
+    self._parent_artifact_location = artifact_location
+
+    if read_artifact_location:
+      self.ptransform_list = self._load_ptransform_attributes_from_json()
+
     self._artifact_mode = artifact_mode
-    self._process_handler = None
+    self._process_handler: Optional[ProcessHandler] = None
     self.transforms = transforms
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
@@ -211,13 +220,23 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A PCollection of MLTransformOutputT type
     """
+    if self._artifact_mode == ArtifactMode.PRODUCE:
+      self.save_ptransform_attributes_to_json()
+
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
-    # return self._process_handler.process_data(pcoll)
 
-    result = (pcoll | self._process_handler)
-    return result
+    if self._artifact_mode == ArtifactMode.CONSUME:
+      self.ptransform_list = self._load_ptransform_attributes_from_json()
+      for i in range(len(self.ptransform_list)):
+        if hasattr(self.ptransform_list[i], 'artifact_mode'):
+          self.ptransform_list[i].artifact_mode = self._artifact_mode
+
+    for ptransform in self.ptransform_list:
+      pcoll = pcoll | ptransform
+
+    return pcoll
 
   def with_transform(self, transform: BaseOperation):
     """
@@ -233,13 +252,34 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     from apache_beam.ml.transforms.handlers import TFTProcessHandler
     from apache_beam.ml.transforms.handlers import TFTOperation
     if isinstance(transform, TFTOperation):
+      child_artifact_location = os.path.join(
+          self._parent_artifact_location, uuid.uuid4().hex)
       if not self._process_handler:
         self._process_handler: ProcessHandler = TFTProcessHandler(
-            artifact_location=self._artifact_location,
+            artifact_location=child_artifact_location,
             artifact_mode=self._artifact_mode)  # type: ignore[arg-type]
         self.ptransform_list.append(self._process_handler)
       self._process_handler.append_transform(transform)
     return self
+
+  def save_ptransform_attributes_to_json(self):
+    """
+    Save the ptransform attributes to json file.
+    """
+    # TODOa: Create a directory if it doesn't exist.
+    with open(os.path.join(self._parent_artifact_location,
+                           _ATTRIBUTE_FILE_NAME),
+              'w+') as f:
+      f.write(jsonpickle.encode(self.ptransform_list))
+
+  def _load_ptransform_attributes_from_json(self):
+    with open(os.path.join(self._parent_artifact_location,
+                           _ATTRIBUTE_FILE_NAME),
+              'r') as f:
+      return jsonpickle.decode(f.read())
+
+  def _construct_ptransforms_from_json(self, ):
+    pass
 
   def _validate_transform(self, transform):
     if not isinstance(transform, BaseOperation):
@@ -273,7 +313,8 @@ class MLTransformMetricsUsage(beam.PTransform):
       # increment if data processing transforms are passed.
       transforms = (
           self._ml_transform.transforms or
-          self._ml_transform._process_handler.transforms)
+          self._ml_transform._process_handler.transforms
+          if self._ml_transform._process_handler else None)
       if transforms:
         for transform in transforms:
           transform.get_counter().inc()
@@ -323,6 +364,13 @@ class TextEmbeddingHandler(ModelHandler):
     self.embedding_config = embedding_config
     self._underlying = self.embedding_config.get_model_handler()
 
+  def batch_elements_kwargs(self) -> Mapping[str, Any]:
+    # Once unbatched, remove the batch restriction.
+    return {
+        'min_batch_size': 1,
+        'max_batch_size': 1,
+    }
+
   def load_model(self):
     model = self._underlying._model_class(self._underlying._model_uri)
     return model
@@ -341,7 +389,8 @@ class TextEmbeddingHandler(ModelHandler):
     for key, batch in dict_batch.items():
       result[key] = self._underlying.run_inference(
           batch=batch, model=model, inference_args=inference_args)
-    return result['text']
+    # unbatch and return
+    return {'text': result['text'].tolist()[0]}
 
 
 def _convert_list_of_dicts_to_dict_of_lists(

@@ -218,6 +218,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def append_transform(self, transform):
     self.transforms.append(transform)
 
+  def get_transforms(self):
+    return self.transforms
+
   def _map_column_names_to_types(self, row_type):
     """
     Return a dictionary of column names and types.
@@ -320,6 +323,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           f"Please provide a valid type from the following: "
           f"{_default_type_to_tensor_type_map.keys()}")
     return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
+    # return tf.io.VarLenFeature()
 
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
@@ -492,7 +496,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # this is needed since new columns are included in the
       # transformed_dataset.
       del self.transformed_schema['hash_key']
-      row_type = RowTypeConstraint.from_fields(
+      self.row_type = RowTypeConstraint.from_fields(
           list(self.transformed_schema.items()))
 
       # If a non schema PCollection is passed, and one of the input columns
@@ -511,11 +515,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           | beam.CoGroupByKey()
           | beam.ParDo(MergeDicts()))
 
-      transformed_dataset | beam.Map(print)
-
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
-          transformed_dataset | "ConvertToRowType" >>
-          beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
+          transformed_dataset
+          | "ConvertToRowType" >> beam.Map(lambda x: beam.Row(**x)))
 
       return transformed_dataset

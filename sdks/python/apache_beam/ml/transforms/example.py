@@ -1,27 +1,29 @@
 # pylint: skip-file
+import apache_beam as beam
+from apache_beam.ml.transforms.base import MLTransform
 
-if __name__ == '__main__':
-  import apache_beam as beam
-  from apache_beam.ml.inference import RunInference
-  from apache_beam.ml.transforms.base import TextEmbeddingHandler
-  from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+from apache_beam.ml.transforms.tft import ScaleTo01
+from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 
-  embedding_config = SentenceTransformerEmbeddings(
-      model_uri='sentence-transformers/all-MiniLM-L6-v2')
+artifact_location = '/tmp/my_artifacts_py'
 
-  # this will be internal to the MLTransform
-  # Namee this to SentenceEmbeddingHandler.
-  embedding_handler = TextEmbeddingHandler(embedding_config=embedding_config)
+with beam.Pipeline() as p:
+  embedding_config = SentenceTransformerEmbeddings('all-MiniLM-L6-v2')
+  data = (
+      p | "CreateData" >> beam.Create([
+          # {"text": "This is a test"},
+          # {"text": "This is another test"},
+          # {"text": "This is a third test"},
+          # {"text": "This is a fourth test"}
+          {
+              'text': "Hello word"
+          }
+      ]))
 
-  with beam.Pipeline() as p:
-    text_data = (
-        p
-        | "CreateTextData" >> beam.Create([{
-            "text": "I love Apache Beam"
-        }, {
-            "text": "I love Python"
-        }]))
-    embeddings = (
-        text_data
-        | "RunInference" >> RunInference(model_handler=embedding_handler))
-    embeddings | beam.Map(print)
+  (
+      # data | "MLTransform" >> MLTransform(write_artifact_location=artifact_location).generate_embeddings(embedding_config=embedding_config
+      #  ).with_transform(ScaleTo01(columns=['text']))
+      # | beam.Map(print)
+      data | "MLTransformInference" >>
+      MLTransform(read_artifact_location=artifact_location)
+      | beam.Map(print))

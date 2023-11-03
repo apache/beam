@@ -1,5 +1,4 @@
-# from typing import Optional
-
+# pylint: skip-file
 from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
 from apache_beam.ml.transforms.base import EmbeddingConfig
 
