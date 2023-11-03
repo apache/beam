@@ -980,7 +980,12 @@ class JavaJarExpansionService(object):
     to_stage = ','.join([self._path_to_jar] + sum((
         JavaJarExpansionService._expand_jars(jar)
         for jar in self._classpath or []), []))
-    return ['{{PORT}}', f'--filesToStage={to_stage}']
+    args = ['{{PORT}}', f'--filesToStage={to_stage}']
+    # TODO(robertwb): See if it's possible to scope this per pipeline.
+    # Checks to see if the cache is being used for this server.
+    if subprocess_server.SubprocessServer._cache._live_owners:
+      args.append('--alsoStartLoopbackWorker')
+    return args
 
   def __enter__(self):
     if self._service_count == 0:

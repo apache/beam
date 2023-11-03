@@ -71,6 +71,9 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * The Python SDK now type checks `collections.abc.Collections` types properly. Some type hints that were erroneously allowed by the SDK may now fail. ([#29272](https://github.com/apache/beam/pull/29272))
+* Running multi-language pipelines locally no longer requires Docker.
+  Instead, the same (generally auto-started) subprocess used to perform the
+  expansion can also be used as the cross-language worker.
 
 ## Breaking Changes
 
