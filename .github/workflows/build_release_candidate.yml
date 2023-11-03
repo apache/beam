@@ -122,18 +122,18 @@ jobs:
             mkdir -p beam/${{ github.event.inputs.RELEASE }}
             cd beam/${{ github.event.inputs.RELEASE }}
             RC_DIR="beam-${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
-            RC_ZIP="${RC_DIR}.tar.gz"
+            RC_ZIP="${RC_DIR}.zip
             RELEASE_DIR="beam-${{ github.event.inputs.RELEASE }}"
             RC_TAG="v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
-            SOURCE_RELEASE_ZIP="apache-beam-${{ github.event.inputs.RELEASE }}-source-release.tar.gz"
+            SOURCE_RELEASE_ZIP="apache-beam-${{ github.event.inputs.RELEASE }}-source-release.zip"
               # Check whether there is an existing dist dir
             if (svn ls "${SOURCE_RELEASE_ZIP}"); then
               echo "Removing existing ${SOURCE_RELEASE_ZIP}."
               svn delete "${SOURCE_RELEASE_ZIP}"
             fi
 
-            echo "Downloading: https://github.com/apache/beam/archive/${RC_TAG}.tar.gz"
-            wget https://github.com/apache/beam/archive/${RC_TAG}.tar.gz  -O "${RC_ZIP}"
+            echo "Downloading: https://github.com/apache/beam/archive/${RC_TAG}.zip"
+            wget https://github.com/apache/beam/archive/${RC_TAG}.zip  -O "${RC_ZIP}"
 
             unzip "$RC_ZIP"
             rm "$RC_ZIP"
@@ -155,6 +155,11 @@ jobs:
     if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
       - name: Validate and mask apache id/password
         run: |
           echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
