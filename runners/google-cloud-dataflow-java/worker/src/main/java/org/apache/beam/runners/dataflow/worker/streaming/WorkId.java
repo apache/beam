@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.common.primitives.Longs;
 
 /**
  * A composite key used to identify a unit of {@link Work}. If multiple units of {@link Work} have
@@ -28,7 +27,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.common.primitives.Longs;
  * Work} is obsolete.
  */
 @AutoValue
-public abstract class WorkId implements Comparable<WorkId> {
+public abstract class WorkId {
 
   public static Builder builder() {
     return new AutoValue_WorkId.Builder();
@@ -37,19 +36,6 @@ public abstract class WorkId implements Comparable<WorkId> {
   abstract long cacheToken();
 
   abstract long workToken();
-
-  boolean isRetryOf(WorkId other) {
-    return other.workToken() == workToken() && other.cacheToken() != cacheToken();
-  }
-
-  boolean isForSameWork(WorkId other) {
-    return workToken() == other.workToken();
-  }
-
-  @Override
-  public final int compareTo(WorkId other) {
-    return Longs.compare(workToken(), other.workToken());
-  }
 
   @AutoValue.Builder
   public abstract static class Builder {
