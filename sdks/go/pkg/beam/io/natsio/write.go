@@ -38,7 +38,7 @@ func init() {
 type ProducerMessage struct {
 	Subject string
 	ID      string
-	Headers nats.Header
+	Headers map[string][]string
 	Data    []byte
 }
 

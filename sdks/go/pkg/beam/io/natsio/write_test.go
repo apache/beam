@@ -156,7 +156,7 @@ func TestWrite(t *testing.T) {
 				ProducerMessage{
 					Subject: subject,
 					ID:      "1",
-					Headers: nats.Header{"key": []string{"val"}},
+					Headers: map[string][]string{"key": {"val"}},
 					Data:    []byte("msg1"),
 				},
 			},
