@@ -190,6 +190,7 @@ class Call<RequestT, ResponseT>
     public void process(@Element @NonNull RequestT request, MultiOutputReceiver receiver)
         throws JsonProcessingException {
       try {
+        // TODO(damondouglas): https://github.com/apache/beam/issues/29248
         ResponseT response = this.caller.call(request);
         receiver.get(responseTag).output(response);
       } catch (UserCodeExecutionException e) {
