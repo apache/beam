@@ -736,7 +736,7 @@ public class KafkaIO {
       abstract Builder<K, V> setCheckStopReadingFn(@Nullable CheckStopReadingFn checkStopReadingFn);
 
       Builder<K, V> setCheckStopReadingFn(
-              @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
 
