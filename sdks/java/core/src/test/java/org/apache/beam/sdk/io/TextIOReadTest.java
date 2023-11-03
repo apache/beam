@@ -455,16 +455,17 @@ public class TextIOReadTest {
 
   /** Tests for reading files with/without header. */
   @RunWith(Parameterized.class)
-  public static class ReadWithoutHeaderTest {
+  public static class SkippingHeaderTest {
     private static final ImmutableList<String> EXPECTED = ImmutableList.of("asdf", "hjkl", "xyz");
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {"\n\n\n", ImmutableList.of("", "")})
-          .add(new Object[] {"\n", ImmutableList.of()})
-          .add(new Object[] {"header\nasdf\nhjkl\nxyz\n", EXPECTED})
+          .add(new Object[] {"\n\n\n", ImmutableList.of("", ""),1})
+          .add(new Object[] {"\n", ImmutableList.of(),1})
+          .add(new Object[] {"header\nasdf\nhjkl\nxyz\n", EXPECTED,1})
+          .add(new Object[] {"header1\nheader2\nasdf\nhjkl\nxyz\n", EXPECTED,2})
           .build();
     }
 
@@ -474,13 +475,16 @@ public class TextIOReadTest {
     @Parameterized.Parameter(1)
     public ImmutableList<String> expected;
 
+    @Parameterized.Parameter(2)
+    public int skipHeaderLines;
+
     @Test
     public void testReadLines() throws Exception {
       runTestReadWithData(line.getBytes(UTF_8), expected);
     }
 
     private TextSource prepareSource(byte[] data) throws IOException {
-      return TextIOReadTest.prepareSource(tempFolder, data, null, 1);
+      return TextIOReadTest.prepareSource(tempFolder, data, null, skipHeaderLines);
     }
 
     private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {

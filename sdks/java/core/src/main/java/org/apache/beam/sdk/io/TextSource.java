@@ -201,11 +201,12 @@ public class TextSource extends FileBasedSource<String> {
             ((SeekableByteChannel) channel).position(requiredPosition);
             startOfNextRecord = requiredPosition;
             bufferLength = bufferPosn = 0;
-            // Read and discard the next record ensuring that startOfNextRecord and bufferPosn point
-            // to the beginning of the next record.
-            readNextRecord();
-            currentValue = null;
           }
+          // Read and discard the next record ensuring that startOfNextRecord and bufferPosn point
+          // to the beginning of the next record.
+          readNextRecord();
+          currentValue = null;
+
         }
 
       } else {
