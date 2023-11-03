@@ -63,7 +63,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* TextIO now supports skipping multiple header lines ([#17990](https://github.com/apache/beam/issues/17990)).
+* TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
 
 ## New Features / Improvements
 
