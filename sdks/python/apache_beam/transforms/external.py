@@ -43,6 +43,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
+from apache_beam.transforms import environments
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import native_type_compatibility
@@ -729,8 +730,9 @@ class ExternalTransform(ptransform.PTransform):
       if response.error:
         raise RuntimeError(response.error)
       self._expanded_components = response.components
-      if any(env.dependencies
-             for env in self._expanded_components.environments.values()):
+      if any(e.dependencies
+             for env in self._expanded_components.environments.values()
+             for e in environments.expand_anyof_environments(env)):
         self._expanded_components = self._resolve_artifacts(
             self._expanded_components,
             service.artifact_service(),
@@ -783,12 +785,22 @@ class ExternalTransform(ptransform.PTransform):
         yield stub
 
   def _resolve_artifacts(self, components, service, dest):
-    for env in components.environments.values():
-      if env.dependencies:
+    def _resolve_artifacts_for(env):
+      if env.urn == common_urns.environments.ANYOF.urn:
+        env.CopyFrom(
+            environments.AnyOfEnvironment.create_proto([
+                _resolve_artifacts_for(e)
+                for e in environments.expand_anyof_environments(env)
+            ]))
+      elif env.dependencies:
         resolved = list(
             artifact_service.resolve_artifacts(env.dependencies, service, dest))
         del env.dependencies[:]
         env.dependencies.extend(resolved)
+      return env
+
+    for env in components.environments.values():
+      _resolve_artifacts_for(env)
     return components
 
   def _output_to_pvalueish(self, output_dict):
