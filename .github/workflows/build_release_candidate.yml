@@ -198,7 +198,7 @@ jobs:
           
           python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
             --github-token-var GITHUB_TOKEN \
-            --repo-url "${GIT_REPO_BASE_URL}" \
+            --repo-url "apache/beam" \
             --rc-tag "${RC_TAG}" \
             --release-commit "${RELEASE_COMMIT}" \
             --artifacts_dir "${RELEASE_DIR}/python" \
