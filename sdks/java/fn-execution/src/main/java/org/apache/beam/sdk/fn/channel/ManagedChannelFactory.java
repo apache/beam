@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
