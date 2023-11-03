@@ -389,10 +389,18 @@ public class CassandraIO {
       return builder().setRingRanges(ringRange).build();
     }
 
+    /**
+     * Optionally, specify {@link SSLOptions} configuration to utilize SSL. See
+     * https://docs.datastax.com/en/developer/java-driver/3.11/manual/ssl/#jsse-programmatic
+     */
     public Read<T> withSsl(SSLOptions sslOptions) {
       return withSsl(ValueProvider.StaticValueProvider.of(sslOptions));
     }
 
+    /**
+     * Optionally, specify {@link SSLOptions} configuration to utilize SSL. See
+     * https://docs.datastax.com/en/developer/java-driver/3.11/manual/ssl/#jsse-programmatic
+     */
     public Read<T> withSsl(ValueProvider<SSLOptions> sslOptions) {
       return builder().setSslOptions(sslOptions).build();
     }
@@ -742,10 +750,18 @@ public class CassandraIO {
       return builder().setMapperFactoryFn(mapperFactoryFn).build();
     }
 
+    /**
+     * Optionally, specify {@link SSLOptions} configuration to utilize SSL. See
+     * https://docs.datastax.com/en/developer/java-driver/3.11/manual/ssl/#jsse-programmatic
+     */
     public Write<T> withSsl(SSLOptions sslOptions) {
       return withSsl(ValueProvider.StaticValueProvider.of(sslOptions));
     }
-    
+
+    /**
+     * Optionally, specify {@link SSLOptions} configuration to utilize SSL. See
+     * https://docs.datastax.com/en/developer/java-driver/3.11/manual/ssl/#jsse-programmatic
+     */
     public Write<T> withSsl(ValueProvider<SSLOptions> sslOptions) {
       return builder().setSslOptions(sslOptions).build();
     }
