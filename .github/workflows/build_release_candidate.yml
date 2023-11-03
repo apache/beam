@@ -202,7 +202,7 @@ jobs:
             --rc-tag "${RC_TAG}" \
             --release-commit "${RELEASE_COMMIT}" \
             --artifacts_dir "${RELEASE_DIR}/python" \
-            --yes
+            --yes True
         
           cd "${RELEASE_DIR}"/python
         
