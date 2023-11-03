@@ -230,11 +230,16 @@ class FnApiRunner(runner.PipelineRunner):
     docker_env = environments.DockerEnvironment.from_container_image(
         environments.DockerEnvironment.default_docker_image()).to_runner_api(
             None)  # type: ignore[arg-type]
-    for env_id, env in pipeline_proto.components.environments.items():
-      if env == docker_env:
-        docker_env_id = env_id
-        break
-    else:
+
+    def is_python_docker_env(env):
+      return any(
+          e == docker_env for e in environments.expand_anyof_environments(env))
+
+    python_docker_environments = set(
+        env_id
+        for (env_id, env) in pipeline_proto.components.environments.items()
+        if is_python_docker_env(env))
+    if not python_docker_environments:
       # No matching docker environments.
       return pipeline_proto
 
@@ -244,12 +249,13 @@ class FnApiRunner(runner.PipelineRunner):
         break
     else:
       # No existing embedded environment.
-      pipeline_proto.components.environments[docker_env_id].CopyFrom(
-          embedded_env)
+      for docker_env_id in python_docker_environments:
+        pipeline_proto.components.environments[docker_env_id].CopyFrom(
+            embedded_env)
       return pipeline_proto
 
     for transform in pipeline_proto.components.transforms.values():
-      if transform.environment_id == docker_env_id:
+      if transform.environment_id in python_docker_environments:
         transform.environment_id = embedded_env_id
     return pipeline_proto
 
