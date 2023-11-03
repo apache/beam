@@ -157,9 +157,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
-          repository: apache/beam
       - name: Validate and mask apache id/password
         run: |
           echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
