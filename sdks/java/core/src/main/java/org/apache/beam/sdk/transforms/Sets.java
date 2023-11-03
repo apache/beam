@@ -173,7 +173,7 @@ public class Sets {
    *
    * <p>The argument should not be modified after this is called.
    *
-   * <p>The elements of the output {@link PCollection} which will follow INTESECT_ALL Semantics as
+   * <p>The elements of the output {@link PCollection} which will follow INTERSECT_ALL Semantics as
    * follows: Given there are m elements on pipeline which is constructed {@link PCollection} (left)
    * and n elements on in provided {@link PCollection} (right): - it will output MIN(m - n, 0)
    * elements of left for all elements which are present in both left and right.

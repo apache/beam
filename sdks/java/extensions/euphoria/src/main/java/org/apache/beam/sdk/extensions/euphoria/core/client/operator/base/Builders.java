@@ -63,7 +63,7 @@ public class Builders {
      * Specifies the input dataset of the operator.
      *
      * @param <InputT> the type of elements in the input dataset
-     * @param input the input dataset to recuce
+     * @param input the input dataset to reduce
      * @return the next builder to complete the setup of the operator
      */
     <InputT> Object of(PCollection<InputT> input);

@@ -243,7 +243,7 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
         CombinableBinaryFunction<AccT> mergeAccumulators,
         UnaryFunction<AccT, OutputT> outputFn,
         @Nullable TypeDescriptor<AccT> accumulatorDescriptor,
-        @Nullable TypeDescriptor<OutputT> outptuDescriptor);
+        @Nullable TypeDescriptor<OutputT> outputDescriptor);
   }
 
   /** Builder for 'valueBy' / 'reduceBy' step. */

@@ -555,7 +555,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
-    // A backoff for rate limit exceeded errors. Only retry upto approximately 2 minutes
+    // A backoff for rate limit exceeded errors. Only retry up to approximately 2 minutes
     // and propagate errors afterward. Otherwise, Dataflow UI cannot display rate limit
     // errors since they are silently retried in Callable threads.
     private static final FluentBackoff RATE_LIMIT_BACKOFF_FACTORY =
@@ -1059,7 +1059,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnkownValues,
+        boolean ignoreUnknownValues,
         boolean ignoreInsertIds,
         List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
@@ -1153,7 +1153,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     new InsertBatchofRowsCallable(
                         ref,
                         skipInvalidRows,
-                        ignoreUnkownValues,
+                        ignoreUnknownValues,
                         client,
                         rateLimitBackoffFactory,
                         rows,
@@ -1183,7 +1183,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   new InsertBatchofRowsCallable(
                       ref,
                       skipInvalidRows,
-                      ignoreUnkownValues,
+                      ignoreUnknownValues,
                       client,
                       rateLimitBackoffFactory,
                       rows,

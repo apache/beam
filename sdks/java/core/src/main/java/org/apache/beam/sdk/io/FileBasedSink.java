@@ -113,7 +113,7 @@ import org.slf4j.LoggerFactory;
  * <p>{@link FileBasedSink} can take a custom {@link FilenamePolicy} object to determine output
  * filenames, and this policy object can be used to write windowed or triggered PCollections into
  * separate files per window pane. This allows file output from unbounded PCollections, and also
- * works for bounded PCollecctions.
+ * works for bounded PCollections.
  *
  * <p>Supported file systems are those registered with {@link FileSystems}.
  *
