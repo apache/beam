@@ -180,9 +180,9 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-      - name: Install dependencies:
+      - name: Install dependencies
         run: |
-            pip install python-dateutil
+          pip install python-dateutil
       - name: stage python artifacts
         env:
           RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
