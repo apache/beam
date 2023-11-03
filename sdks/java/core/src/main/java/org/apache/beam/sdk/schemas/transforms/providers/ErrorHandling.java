@@ -53,12 +53,28 @@ public abstract class ErrorHandling {
         Schema.Field.of("error_message", Schema.FieldType.STRING));
   }
 
+  public static Schema errorSchemaBytes() {
+    return Schema.of(
+        Schema.Field.of("failed_row", Schema.FieldType.BYTES),
+        Schema.Field.of("error_message", Schema.FieldType.STRING));
+  }
+
   @SuppressWarnings({
     "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public static Row errorRecord(Schema errorSchema, Row inputRow, Throwable th) {
     return Row.withSchema(errorSchema)
         .withFieldValue("failed_row", inputRow)
+        .withFieldValue("error_message", th.getMessage())
+        .build();
+  }
+
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
+  public static Row errorRecord(Schema errorSchema, byte[] inputBytes, Throwable th) {
+    return Row.withSchema(errorSchema)
+        .withFieldValue("failed_row", inputBytes)
         .withFieldValue("error_message", th.getMessage())
         .build();
   }
