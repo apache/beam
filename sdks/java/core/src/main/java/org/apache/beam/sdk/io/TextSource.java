@@ -69,10 +69,22 @@ public class TextSource extends FileBasedSource<String> {
   }
 
   public TextSource(
+      ValueProvider<String> fileSpec,
+      EmptyMatchTreatment emptyMatchTreatment,
+      byte[] delimiter) {
+    this(fileSpec, emptyMatchTreatment, delimiter, 0);
+  }
+
+  public TextSource(
       MatchResult.Metadata metadata, long start, long end, byte[] delimiter, int skipHeaderLines) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
     this.skipHeaderLines = skipHeaderLines;
+  }
+
+  public TextSource(
+      MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+    this(metadata, start, end, delimiter, 0);
   }
 
   @Override
