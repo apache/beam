@@ -26,6 +26,7 @@ import com.datastax.driver.core.PlainTextAuthProvider;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
+import com.datastax.driver.core.SSLOptions;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.google.auto.value.AutoValue;
@@ -191,6 +192,9 @@ public class CassandraIO {
 
     @Nullable
     abstract ValueProvider<Set<RingRange>> ringRanges();
+
+    @Nullable
+    abstract ValueProvider<SSLOptions> sslOptions();
 
     abstract Builder<T> builder();
 
@@ -385,6 +389,14 @@ public class CassandraIO {
       return builder().setRingRanges(ringRange).build();
     }
 
+    public Read<T> withSsl(SSLOptions sslOptions) {
+      return withSsl(ValueProvider.StaticValueProvider.of(sslOptions));
+    }
+
+    public Read<T> withSsl(ValueProvider<SSLOptions> sslOptions) {
+      return builder().setSslOptions(sslOptions).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument((hosts() != null && port() != null), "WithHosts() and withPort() are required");
@@ -422,7 +434,8 @@ public class CassandraIO {
                 read.localDc(),
                 read.consistencyLevel(),
                 read.connectTimeout(),
-                read.readTimeout())) {
+                read.readTimeout(),
+                read.sslOptions())) {
           if (isMurmur3Partitioner(cluster)) {
             LOG.info("Murmur3Partitioner detected, splitting");
             Integer splitCount;
@@ -495,6 +508,8 @@ public class CassandraIO {
 
       abstract Builder<T> setRingRanges(ValueProvider<Set<RingRange>> ringRange);
 
+      abstract Builder<T> setSslOptions(ValueProvider<SSLOptions> sslOptions);
+
       abstract Read<T> autoBuild();
 
       public Read<T> build() {
@@ -542,6 +557,8 @@ public class CassandraIO {
     abstract @Nullable ValueProvider<Integer> connectTimeout();
 
     abstract @Nullable ValueProvider<Integer> readTimeout();
+
+    abstract @Nullable ValueProvider<SSLOptions> sslOptions();
 
     abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
 
@@ -725,6 +742,14 @@ public class CassandraIO {
       return builder().setMapperFactoryFn(mapperFactoryFn).build();
     }
 
+    public Write<T> withSsl(SSLOptions sslOptions) {
+      return withSsl(ValueProvider.StaticValueProvider.of(sslOptions));
+    }
+    
+    public Write<T> withSsl(ValueProvider<SSLOptions> sslOptions) {
+      return builder().setSslOptions(sslOptions).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       checkState(
@@ -798,6 +823,8 @@ public class CassandraIO {
       abstract Builder<T> setMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn);
 
       abstract Optional<SerializableFunction<Session, Mapper>> mapperFactoryFn();
+
+      abstract Builder<T> setSslOptions(ValueProvider<SSLOptions> sslOptions);
 
       abstract Write<T> autoBuild(); // not public
 
@@ -880,7 +907,8 @@ public class CassandraIO {
       ValueProvider<String> localDc,
       ValueProvider<String> consistencyLevel,
       ValueProvider<Integer> connectTimeout,
-      ValueProvider<Integer> readTimeout) {
+      ValueProvider<Integer> readTimeout,
+      ValueProvider<SSLOptions> sslOptions) {
 
     Cluster.Builder builder =
         Cluster.builder().addContactPoints(hosts.get().toArray(new String[0])).withPort(port.get());
@@ -913,6 +941,10 @@ public class CassandraIO {
       socketOptions.setReadTimeoutMillis(readTimeout.get());
     }
 
+    if (sslOptions != null) {
+      builder.withSSL(sslOptions.get());
+    }
+
     return builder.build();
   }
 
@@ -941,7 +973,8 @@ public class CassandraIO {
               spec.localDc(),
               spec.consistencyLevel(),
               spec.connectTimeout(),
-              spec.readTimeout());
+              spec.readTimeout(),
+              spec.sslOptions());
       this.session = cluster.connect(spec.keyspace().get());
       this.mapperFactoryFn = spec.mapperFactoryFn();
       this.mutateFutures = new ArrayList<>();
