@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	grpcServiceEndpointFlag = "grpc_service_endpoint"
-	httpServiceEndpointFlag = "http_service_endpoint"
+	GrpcServiceEndpointFlag = "grpc_service_endpoint"
+	HttpServiceEndpointFlag = "http_service_endpoint"
 
 	moreInfoUrl = "https://github.com/apache/beam/tree/master/.test-infra/mock-apis#writing-integration-tests"
 )
@@ -31,8 +31,8 @@ var (
 	moreInfo = fmt.Sprintf("See %s for more information on how to get the relevant value for your test.", moreInfoUrl)
 
 	requiredFlags = []string{
-		grpcServiceEndpointFlag,
-		httpServiceEndpointFlag,
+		GrpcServiceEndpointFlag,
+		HttpServiceEndpointFlag,
 	}
 )
 
@@ -40,10 +40,10 @@ var (
 // go test ./src/main/go/test/integration/...
 var (
 	// GRPCServiceEndpoint is the address of the deployed service.
-	GRPCServiceEndpoint = flag.String(grpcServiceEndpointFlag, "",
+	GRPCServiceEndpoint = flag.String(GrpcServiceEndpointFlag, "",
 		"The endpoint to target gRPC calls to a service. "+moreInfo)
 
 	// HTTPServiceEndpoint is the address of the deployed service.
-	HTTPServiceEndpoint = flag.String(httpServiceEndpointFlag, "",
+	HTTPServiceEndpoint = flag.String(HttpServiceEndpointFlag, "",
 		"The endpoint to target HTTP calls to a service. "+moreInfo)
 )

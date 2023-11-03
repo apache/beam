@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -45,6 +46,8 @@ const (
 	shouldExceedQuotaId      = "echo-should-exceed-quota"
 	shouldNeverExceedQuotaId = "echo-should-never-exceed-quota"
 	shouldNotExistId         = "should-not-exist"
+	refresh10Per1s           = "echo-10-per-1s-quota"
+	defaultNumCalls          = 3
 )
 
 var (
@@ -60,11 +63,12 @@ func TestEcho(t *testing.T) {
 	payload := []byte("payload")
 
 	for _, tt := range []struct {
-		tag     string
-		quotaId string
-		client  echov1.EchoServiceClient
-		want    *echov1.EchoResponse
-		wantErr error
+		tag      string
+		quotaId  string
+		client   echov1.EchoServiceClient
+		want     *echov1.EchoResponse
+		numCalls int
+		wantErr  error
 	}{
 		{
 			tag:     "http",
@@ -108,10 +112,24 @@ func TestEcho(t *testing.T) {
 				Payload: payload,
 			},
 		},
+		{
+			numCalls: 20,
+			tag:      "grpc",
+			quotaId:  refresh10Per1s,
+			client:   withGrpc(t),
+			wantErr:  status.Error(codes.ResourceExhausted, "error: resource exhausted for: echo-10-per-1s-quota"),
+		},
 	} {
 		t.Run(fmt.Sprintf("%s/%s", tt.quotaId, tt.tag), func(t *testing.T) {
 			ctx, cancel := withTimeout()
 			defer cancel()
+
+			if tt.numCalls == 0 {
+				tt.numCalls = defaultNumCalls
+			}
+
+			wg := sync.WaitGroup{}
+			wg.Add(tt.numCalls)
 
 			req := &echov1.EchoRequest{
 				Id:      tt.quotaId,
@@ -121,15 +139,20 @@ func TestEcho(t *testing.T) {
 			var resps []*echov1.EchoResponse
 			var errs []error
 
-			for i := 0; i < 3; i++ {
-				resp, err := tt.client.Echo(ctx, req)
-				if err != nil {
-					errs = append(errs, err)
-				}
-				if resp != nil {
-					resps = append(resps, resp)
-				}
+			for i := 0; i < tt.numCalls; i++ {
+				go func() {
+					resp, err := tt.client.Echo(ctx, req)
+					if err != nil {
+						errs = append(errs, err)
+					}
+					if resp != nil {
+						resps = append(resps, resp)
+					}
+					wg.Done()
+				}()
 			}
+
+			wg.Wait()
 
 			if tt.wantErr != nil && len(errs) == 0 {
 				t.Errorf("Echo(%+v) err = nil, wantErr = %v", req, tt.wantErr)
@@ -162,6 +185,10 @@ func withGrpc(t *testing.T) echov1.EchoServiceClient {
 	t.Helper()
 	ctx, cancel := withTimeout()
 	defer cancel()
+
+	if *integration.GRPCServiceEndpoint == "" {
+		t.Fatalf("missing flag: -%s", integration.GrpcServiceEndpointFlag)
+	}
 
 	conn, err := grpc.DialContext(ctx, *integration.GRPCServiceEndpoint, grpcOpts...)
 	if err != nil {
@@ -205,6 +232,9 @@ func (h *httpCaller) Echo(ctx context.Context, in *echov1.EchoRequest, _ ...grpc
 }
 
 func withHttp(t *testing.T) echov1.EchoServiceClient {
+	if *integration.HTTPServiceEndpoint == "" {
+		t.Fatalf("missing flag: -%s", integration.HttpServiceEndpointFlag)
+	}
 	p := regexp.MustCompile(`^http://`)
 	rawUrl := fmt.Sprint(*integration.HTTPServiceEndpoint, echo.PathAlias)
 	if !p.MatchString(rawUrl) {
