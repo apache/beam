@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static java.lang.Boolean.TRUE;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequest;
