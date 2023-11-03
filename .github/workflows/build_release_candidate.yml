@@ -157,6 +157,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - name: Validate and mask apache id/password
         run: |
           echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
