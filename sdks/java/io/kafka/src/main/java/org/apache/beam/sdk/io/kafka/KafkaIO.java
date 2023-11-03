@@ -733,10 +733,10 @@ public class KafkaIO {
       abstract Builder<K, V> setValueDeserializerProvider(
           DeserializerProvider<V> deserializerProvider);
 
-      abstract Builder<K, V> setCheckStopReadingFn(CheckStopReadingFn checkStopReadingFn);
+      abstract Builder<K, V> setCheckStopReadingFn(@Nullable CheckStopReadingFn checkStopReadingFn);
 
       Builder<K, V> setCheckStopReadingFn(
-          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+              @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
 
