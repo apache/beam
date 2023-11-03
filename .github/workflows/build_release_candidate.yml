@@ -183,6 +183,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install python-dateutil
+          pip install requests
       - name: stage python artifacts
         env:
           RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
