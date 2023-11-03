@@ -20,6 +20,8 @@ name: PostCommit Python Nexmark Direct
 on:
   schedule:
     - cron: '15 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -102,7 +104,8 @@ jobs:
         query: [0, 2, 3, 5, 7, 8, 10, 11]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python Direct Runner Nexmark Tests'
     steps:
       - uses: actions/checkout@v4
@@ -112,8 +115,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: 3.8
       - name: run Java Testing Nexmark (query ${{ matrix.query }})

@@ -237,6 +237,7 @@ class ValidatesRunnerConfig {
   String name
   boolean streaming
   boolean checkpointing
+  boolean useDataStreamForBatch
   ArrayList<String> sickbayTests
 }
 
@@ -255,6 +256,7 @@ def createValidatesRunnerTask(Map m) {
     description = "Validates the ${runnerType} runner"
     def pipelineOptionsArray = ["--runner=TestFlinkRunner",
                                 "--streaming=${config.streaming}",
+                                "--useDataStreamForBatch=${config.useDataStreamForBatch}",
                                 "--parallelism=2",
     ]
     if (config.checkpointing) {
@@ -314,12 +316,17 @@ def createValidatesRunnerTask(Map m) {
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
         // https://github.com/apache/beam/issues/20844
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+        if (!config.streaming) {
+          // FlinkBatchExecutionInternalTimeService does not support timer registration on timer firing.
+          excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnTimerTimestampSkew'
+        }
       }
     }
   }
 }
 
 createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false, sickbayTests: sickbayTests)
+createValidatesRunnerTask(name: "validatesRunnerBatchWithDataStream", streaming: false, useDataStreamForBatch: true, sickbayTests: sickbayTests)
 createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true, sickbayTests: sickbayTests)
 // We specifically have a variant which runs with checkpointing enabled for the
 // tests that require it since running a checkpoint variant is significantly
@@ -332,6 +339,7 @@ tasks.register('validatesRunner') {
   group = 'Verification'
   description "Validates Flink runner"
   dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerBatchWithDataStream
   dependsOn validatesRunnerStreaming
   dependsOn validatesRunnerStreamingCheckpointing
 }

@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_Compressed_TextIOIT:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java CompressedTextIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -69,6 +69,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
 # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
@@ -76,7 +78,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_Compressed_TextIOIT.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/compressed_TextIOIT.txt
           arguments: |
             --filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
       - name: run integrationTest

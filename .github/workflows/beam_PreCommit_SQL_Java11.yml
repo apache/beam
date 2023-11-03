@@ -67,7 +67,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run SQL_Java11 PreCommit'
     steps:
@@ -78,19 +78,12 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+          java-version: 11
+          python-version: 3.8
+          go-version: 1.21
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: LoadTests Python CoGBK Dataflow Flink Batch
+name: LoadTests Python CoGBK Flink Batch
 
 on:
   schedule:
@@ -62,7 +62,7 @@ jobs:
   beam_LoadTests_Python_CoGBK_Flink_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python CoGBK Flink Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -79,19 +79,19 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.8'
+          python-version: 3.8
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-cogbk/python_CoGBK_Dataflow_Flink_Batch_100b_Single_Key.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-cogbk/python_CoGBK_Dataflow_Flink_Batch_100b_Multiple_Keys.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-cogbk/python_CoGBK_Dataflow_Flink_Batch_10kB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Flink_Batch_100b_Single_Key.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Flink_Batch_100b_Multiple_Keys.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Flink_Batch_10kB.txt
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5

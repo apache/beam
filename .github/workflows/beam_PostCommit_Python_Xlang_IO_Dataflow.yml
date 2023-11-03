@@ -18,17 +18,19 @@ name: PostCommit Python Xlang IO Dataflow
 on:
   schedule:
     - cron: '30 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -50,7 +52,8 @@ jobs:
   beam_PostCommit_Python_Xlang_IO_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python_Xlang_IO_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
@@ -67,8 +70,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
             3.8
@@ -80,9 +83,16 @@ jobs:
           arguments: |
             -PuseWheelDistribution \
             -PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094 \
-      - name: Archive code coverage results
+      - name: Archive Python Test Results
         uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: Python Test Results
+          path: '**/pytest*.xml'
+      - name: Publish Python Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          name: archiveJunit
-          path: "**/pytest*.xml"
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/pytest*.xml'

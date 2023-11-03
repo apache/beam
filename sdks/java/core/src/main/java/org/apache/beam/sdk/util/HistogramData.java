@@ -79,7 +79,7 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * Returns a histogram object wiht exponential boundaries. The input parameter {@code scale}
+   * Returns a histogram object with exponential boundaries. The input parameter {@code scale}
    * determines a coefficient 'base' which species bucket boundaries.
    *
    * <pre>
@@ -381,7 +381,7 @@ public class HistogramData implements Serializable {
       return getBucketIndexZeroScale(value) >> (-getScale());
     }
 
-    // This method is valid for all 'scale' values but we fallback to more effecient methods for
+    // This method is valid for all 'scale' values but we fallback to more efficient methods for
     // non-positive scales.
     // For a value>base we would like to find an i s.t. :
     // base^i <= value < base^(i+1)

@@ -76,8 +76,8 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Smoke_GroupByKey_Direct.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Smoke_GroupByKey_Dataflow.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Smoke_GroupByKey_Direct.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Smoke_GroupByKey_Dataflow.txt
       - name: Set current datetime
         id: datetime
         run: |

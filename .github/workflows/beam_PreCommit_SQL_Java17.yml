@@ -66,7 +66,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run SQL_Java17 PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
@@ -80,20 +80,13 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
 # The test requires Java 17 and Java 8 versions.
 # Java 8 is installed second because JAVA_HOME needs to point to Java 8.
-      - name: Set up Java 17
-        uses: actions/setup-java@v3.11.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '17'
-      - name: Set up Java 8
-        uses: actions/setup-java@v3.11.0
-        with:
-          distribution: 'temurin'
-          java-version: '8'
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+          java-version: |
+            17
+            8
+          python-version: 3.8
       - name: Build and Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

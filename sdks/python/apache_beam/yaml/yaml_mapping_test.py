@@ -40,7 +40,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: MapToFields
-          input: input
           config:
               language: python
               fields:
@@ -62,7 +61,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: MapToFields
-          input: input
           config:
               fields: {}
               append: true
@@ -83,7 +81,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: Filter
-          input: input
           config:
               language: python
               keep: "rank > 0"
@@ -106,7 +103,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: chain
-          input: input
           transforms:
             - type: MapToFields
               config:
@@ -135,6 +131,27 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(a=3, b='y', c=.125, range=1),
               beam.Row(a=3, b='y', c=.125, range=2),
           ]))
+
+  def test_validate_explicit_types(self):
+    with self.assertRaisesRegex(TypeError, r'.*violates schema.*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([
+            beam.Row(a=2, b='abc', c=.25),
+            beam.Row(a=3, b='xy', c=.125),
+        ])
+        result = elements | YamlTransform(
+            '''
+            type: MapToFields
+            input: input
+            config:
+              language: python
+              fields:
+                bad:
+                  expression: "a + c"
+                  output_type: string  # This is a lie.
+            ''')
+        self.assertEqual(result.element_type._fields[0][1], str)
 
 
 YamlMappingDocTest = createTestSuite(

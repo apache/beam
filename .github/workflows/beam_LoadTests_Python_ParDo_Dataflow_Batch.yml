@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Python_ParDo_Dataflow_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python ParDo Dataflow Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 200
@@ -79,10 +79,10 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_10_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_100_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_100_Counters.txt
       - name: Set current datetime
         id: datetime
         run: |

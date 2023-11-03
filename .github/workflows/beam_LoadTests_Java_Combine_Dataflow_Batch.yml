@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests Combine Dataflow Batch Java
+name: LoadTests Java Combine Dataflow Batch
 
 on:
   schedule:
@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Java_Combine_Dataflow_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java Combine Dataflow Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -69,15 +69,17 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/config_Combine_Java_Dataflow_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_Dataflow_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_Dataflow_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_Dataflow_Batch_Fanout_8.txt
       - name: run Combine Dataflow Batch Java Load Test 1 (10 b records)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

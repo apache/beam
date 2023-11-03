@@ -31,7 +31,7 @@ import org.apache.beam.it.truthmatchers.RecordsSubject;
 public class CassandraAsserts {
 
   /**
-   * Convert Cassandra {@link com.datastax.oss.driver.api.core.cql.Row} list to a list of maps.
+   * Convert Cassandra {@link Row} list to a list of maps.
    *
    * @param rows Rows to parse.
    * @return List of maps to use in {@link RecordsSubject}.

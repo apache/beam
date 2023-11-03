@@ -89,6 +89,9 @@ applyJavaNature(
                 // Allow slf4j implementation worker for logging during pipeline execution
                 "org/slf4j/impl/**"
         ],
+        generatedClassPatterns: [
+                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/
+        ],
         shadowClosure: {
             // Each included dependency must also include all of its necessary transitive dependencies
             // or have them provided by the users pipeline during job submission. Typically a users

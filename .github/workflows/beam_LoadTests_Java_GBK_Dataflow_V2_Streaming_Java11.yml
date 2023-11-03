@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Java_GBK_Dataflow_V2_Streaming_Java11:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java 11 GBK Dataflow V2 Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
@@ -79,13 +79,13 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_2GB_of_10B_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_2GB_of_100B_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_2GB_of_100kB_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_fanout_4_times_with_2GB_10-byte_records_total.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_fanout_8_times_with_2GB_10-byte_records_total.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_reiterate_4_times_10kB_values.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_GBK_Dataflow_V2_Streaming_Java11_reiterate_4_times_2MB_values.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_2GB_of_10B_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_2GB_of_100B_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_2GB_of_100kB_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_fanout_4_times_with_2GB_10-byte_records_total.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_fanout_8_times_with_2GB_10-byte_records_total.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_reiterate_4_times_10kB_values.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_GBK_Dataflow_V2_Streaming_Java11_reiterate_4_times_2MB_values.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Load test 2GB of 10B records
         uses: ./.github/actions/gradle-command-self-hosted-action

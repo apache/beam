@@ -20,6 +20,8 @@ name: PostCommit Java ValidatesRunner Dataflow
 on:
   schedule:
     - cron: '30 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run Dataflow ValidatesRunner]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Dataflow ValidatesRunner'
     steps:
       - uses: actions/checkout@v4
@@ -69,11 +72,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
+          java-version: 8
       - name: run validatesRunner script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

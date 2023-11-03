@@ -47,13 +47,12 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
-  beam_PerformanceTests_SQLBigQueryIO_Batch_Java_test_arguments_1: ''
 
 jobs:
   beam_PerformanceTests_SQLBigQueryIO_Batch_Java:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run SQLBigQueryIO Batch Performance Test Java'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -80,7 +79,8 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/SQLBigQueryIO_Batch_Java.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/SQLBigQueryIO_Batch_Java.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: Run SQLBigQueryIO Batch Performance Test Java
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

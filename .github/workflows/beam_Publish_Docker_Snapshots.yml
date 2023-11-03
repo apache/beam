@@ -51,7 +51,7 @@ jobs:
   beam_Publish_Docker_Snapshots:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Publish Docker Snapshots'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -68,6 +68,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

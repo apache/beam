@@ -45,7 +45,7 @@ public class OracleResourceManager extends AbstractJDBCResourceManager<OracleCon
   private static final String DEFAULT_ORACLE_USERNAME = "testUser";
   private static final String DEFAULT_ORACLE_PASSWORD = "testPassword";
 
-  private OracleResourceManager(OracleResourceManager.Builder builder) {
+  private OracleResourceManager(Builder builder) {
     this(
         new OracleContainer(
             DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag)),
@@ -53,12 +53,12 @@ public class OracleResourceManager extends AbstractJDBCResourceManager<OracleCon
   }
 
   @VisibleForTesting
-  OracleResourceManager(OracleContainer container, OracleResourceManager.Builder builder) {
+  OracleResourceManager(OracleContainer container, Builder builder) {
     super(container, builder);
   }
 
-  public static OracleResourceManager.Builder builder(String testId) {
-    return new OracleResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   @Override

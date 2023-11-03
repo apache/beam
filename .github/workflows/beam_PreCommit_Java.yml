@@ -40,6 +40,7 @@ on:
       - '!sdks/java/io/elasticsearch/**'
       - '!sdks/java/io/elasticsearch-tests/**'
       - '!sdks/java/io/file-schema-transform/**'
+      - '!sdks/java/io/google-ads/**'
       - '!sdks/java/io/google-cloud-platform/**'
       - '!sdks/java/io/hadoop-common/**'
       - '!sdks/java/io/hadoop-file-system/**'
@@ -59,6 +60,7 @@ on:
       - '!sdks/java/io/pulsar/**'
       - '!sdks/java/io/rabbitmq/**'
       - '!sdks/java/io/redis/**'
+      - '!sdks/java/io/rrio/**'
       - '!sdks/java/io/singlestore/**'
       - '!sdks/java/io/snowflake/**'
       - '!sdks/java/io/solr/**'
@@ -90,6 +92,7 @@ on:
       - '!sdks/java/io/elasticsearch/**'
       - '!sdks/java/io/elasticsearch-tests/**'
       - '!sdks/java/io/file-schema-transform/**'
+      - '!sdks/java/io/google-ads/**'
       - '!sdks/java/io/google-cloud-platform/**'
       - '!sdks/java/io/hadoop-common/**'
       - '!sdks/java/io/hadoop-file-system/**'
@@ -109,6 +112,7 @@ on:
       - '!sdks/java/io/pulsar/**'
       - '!sdks/java/io/rabbitmq/**'
       - '!sdks/java/io/redis/**'
+      - '!sdks/java/io/rrio/**'
       - '!sdks/java/io/singlestore/**'
       - '!sdks/java/io/snowflake/**'
       - '!sdks/java/io/solr/**'
@@ -160,7 +164,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java PreCommit'
     steps:
@@ -171,6 +175,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

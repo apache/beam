@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_ParquetIOIT_HDFS:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java ParquetIO Performance Test HDFS'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -69,6 +69,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1
@@ -93,7 +95,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_ParquetIOIT_HDFS.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/parquetIOIT_HDFS.txt
           arguments: |
             --filenamePrefix=hdfs://${{ steps.install_hadoop.outputs.hadoop_IP }}:9000/TEXTIO_IT_
             --hdfsConfiguration=[{\\\"fs.defaultFS\\\":\\\"hdfs:${{ steps.install_hadoop.outputs.hadoop_IP }}:9000\\\",\\\"dfs.replication\\\":1}]

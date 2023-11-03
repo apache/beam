@@ -801,8 +801,8 @@ You can (optionally) also do additional verification by:
   signature/checksum files of Java artifacts may not contain filenames. Hence
   you might need to compare checksums/signatures manually or modify the files by
   appending the filenames.)
-- [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc
-  apache-beam-1.2.3-python.zip`)
+- [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.tar.gz.asc
+  apache-beam-1.2.3-python.tar.gz`)
 - [ ] `grep` for legal headers in each file.
 - [ ] Run all jenkins suites and include links to passing tests in the voting
   email.
@@ -1018,14 +1018,14 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   * **Verify the hashes**
 
     ```
-    sha512sum -c apache-beam-2.5.0-python.zip.sha512
-    sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
+    sha512sum -c apache-beam-2.5.0-python.tar.gz.sha512
+    sha512sum -c apache-beam-2.5.0-source-release.tar.gz.sha512
     ```
   * **Build SDK**
 
     ```
     sudo apt-get install unzip
-    unzip apache-beam-2.5.0-source-release.zip
+    unzip apache-beam-2.5.0-source-release.tar.gz
     python setup.py sdist
     ```
   * **Setup virtual environment**

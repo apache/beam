@@ -20,6 +20,8 @@ name: PostCommit Java Nexmark Dataflow V2 Java
 on:
   schedule:
     - cron: '0 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -86,7 +88,8 @@ jobs:
         java_version: ['11','17']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Dataflow Runner V2 Java') &&
          contains(github.event.comment.body, 'Nexmark Tests'))
     steps:
@@ -97,10 +100,9 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
-      - name: Set up Java${{ matrix.java_version }}
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
           java-version: ${{ matrix.java_version }}
       - name: run PostCommit Java ${{ matrix.java_version }} Nexmark Dataflow V2 (streaming = ${{ matrix.streaming }}) script
         uses: ./.github/actions/gradle-command-self-hosted-action

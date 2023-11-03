@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Python_Combine_Dataflow_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python Combine Dataflow Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -79,9 +79,9 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Combine_Dataflow_Streaming_2GB_10_byte_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Combine_Dataflow_Streaming_2GB_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Combine_Dataflow_Streaming_2GB_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Dataflow_Streaming_2GB_10_byte_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Dataflow_Streaming_2GB_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Dataflow_Streaming_2GB_Fanout_8.txt
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

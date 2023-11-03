@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_TextIOIT_Python:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python TextIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -79,7 +79,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/textIOIT_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/textIOIT_Python.txt
           arguments: |
             --filename_prefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}
       # The env variable is created and populated in the test-arguments-action as "beam_PerformanceTests_TextIOIT_Python_test_arguments_1"

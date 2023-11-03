@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Performance Test Java SingleStoreIO 
+name: PerformanceTests SingleStoreIO
 
 on:
   issue_comment:
@@ -23,6 +23,7 @@ on:
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
+
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -39,10 +40,9 @@ permissions:
   security-events: read
   statuses: read
 
-
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -63,7 +63,7 @@ jobs:
         job_phrase: [Run Java SingleStoreIO Performance Test]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO Performance Test'
     steps:
@@ -105,7 +105,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_PerformanceTests_SingleStoreIO.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/config_PerformanceTests_SingleStoreIO.txt
           arguments: |
             --singleStoreServerName=${{ steps.install_singlestore.outputs.lb_ip }}
       # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

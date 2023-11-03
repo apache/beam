@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Load Tests Java') &&
          contains(github.event.comment.body, 'ParDo Dataflow V2 Streaming'))
     runs-on: [self-hosted, ubuntu-20.04, main]
@@ -83,10 +83,10 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_10_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_200_times.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_10_counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_ParDo_Dataflow_V2_Streaming_JavaVersions_100_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_ParDo_Dataflow_V2_Streaming_JavaVersions_10_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_ParDo_Dataflow_V2_Streaming_JavaVersions_200_times.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_ParDo_Dataflow_V2_Streaming_JavaVersions_10_counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_ParDo_Dataflow_V2_Streaming_JavaVersions_100_counters.txt
           arguments: |
             --influxTags={\"runnerVersion\":\"v2\",\"jdk\":\"java${{ matrix.java_version }}\"}
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

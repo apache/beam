@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests CoGBK Dataflow Streaming Java
+name: LoadTests Java CoGBK Dataflow Streaming
 
 on:
   schedule:
@@ -52,14 +52,14 @@ jobs:
   beam_LoadTests_Java_CoGBK_Dataflow_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java CoGBK Dataflow Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: [ "beam_LoadTests_Java_CoGBK_Dataflow_Streaming" ]
+        job_name: ["beam_LoadTests_Java_CoGBK_Dataflow_Streaming"]
         job_phrase: ["Run Load Tests Java CoGBK Dataflow Streaming"]
     steps:
       - uses: actions/checkout@v4
@@ -69,18 +69,19 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Prepare configs
-        id: set_configs
-        shell: bash
-        run: |
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_CoGBK_Java_Streaming_2GB_SingleKey.txt | tr '\n' ' ')
-          echo "prepared_config_1=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_CoGBK_Java_Streaming_2GB_MultipleKey.txt | tr '\n' ' ')
-          echo "prepared_config_2=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_CoGBK_Java_Streaming_2GB_Reiteration_10KB.txt | tr '\n' ' ')
-          echo "prepared_config_3=$CURCONFIG" >> $GITHUB_OUTPUT
-          CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/config_CoGBK_Java_Streaming_2GB_Reiteration_2MB.txt | tr '\n' ' ')
-          echo "prepared_config_4=$CURCONFIG" >> $GITHUB_OUTPUT
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_SingleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_MultipleKey.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_Reiteration_10KB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Streaming_2GB_Reiteration_2MB.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK Dataflow Streaming Java Load Test 1 (single key)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -88,7 +89,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Streaming_test_arguments_1 }}' \
       - name: run CoGBK Dataflow Streaming Java Load Test 2 (multiple key)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -96,7 +97,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Streaming_test_arguments_2 }}' \
       - name: run CoGBK Dataflow Streaming Java Load Test 3 (reiteration 10KB value)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -104,7 +105,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_3 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Streaming_test_arguments_3 }}' \
       - name: run CoGBK Dataflow Streaming Java Load Test 4 (reiteration 2MB value)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -112,7 +113,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_4 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Streaming_test_arguments_4 }}' \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
         if: failure()

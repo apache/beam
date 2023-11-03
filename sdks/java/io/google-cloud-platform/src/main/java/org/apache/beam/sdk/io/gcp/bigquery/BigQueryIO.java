@@ -37,6 +37,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -2143,6 +2144,8 @@ public class BigQueryIO {
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
         .setDirectWriteProtos(true)
+        .setDefaultMissingValueInterpretation(
+            AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
         .build();
   }
 
@@ -2327,6 +2330,8 @@ public class BigQueryIO {
 
     abstract @Nullable List<String> getPrimaryKey();
 
+    abstract AppendRowsRequest.MissingValueInterpretation getDefaultMissingValueInterpretation();
+
     abstract Boolean getOptimizeWrites();
 
     abstract Boolean getUseBeamSchema();
@@ -2428,6 +2433,9 @@ public class BigQueryIO {
       abstract Builder<T> setKmsKey(@Nullable String kmsKey);
 
       abstract Builder<T> setPrimaryKey(@Nullable List<String> primaryKey);
+
+      abstract Builder<T> setDefaultMissingValueInterpretation(
+          AppendRowsRequest.MissingValueInterpretation missingValueInterpretation);
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
@@ -2962,6 +2970,21 @@ public class BigQueryIO {
 
     public Write<T> withPrimaryKey(List<String> primaryKey) {
       return toBuilder().setPrimaryKey(primaryKey).build();
+    }
+
+    /**
+     * Specify how missing values should be interpreted when there is a default value in the schema.
+     * Options are to take the default value or to write an explicit null (not an option of the
+     * field is also required.). Note: this is only used when using one of the storage write API
+     * insert methods.
+     */
+    public Write<T> withDefaultMissingValueInterpretation(
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation) {
+      checkArgument(
+          missingValueInterpretation == AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE
+              || missingValueInterpretation
+                  == AppendRowsRequest.MissingValueInterpretation.NULL_VALUE);
+      return toBuilder().setDefaultMissingValueInterpretation(missingValueInterpretation).build();
     }
 
     /**
@@ -3685,7 +3708,8 @@ public class BigQueryIO {
                 getAutoSchemaUpdate(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
-                getRowMutationInformationFn() != null);
+                getRowMutationInformationFn() != null,
+                getDefaultMissingValueInterpretation());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

@@ -1759,10 +1759,10 @@ public class KafkaIO {
   static class KafkaHeader {
 
     String key;
-    byte[] value;
+    byte @Nullable [] value;
 
     @SchemaCreate
-    public KafkaHeader(String key, byte[] value) {
+    public KafkaHeader(String key, byte @Nullable [] value) {
       this.key = key;
       this.value = value;
     }

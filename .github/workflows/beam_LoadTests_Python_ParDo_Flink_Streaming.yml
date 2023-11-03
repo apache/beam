@@ -62,7 +62,7 @@ jobs:
   beam_LoadTests_Python_ParDo_Flink_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python ParDo Flink Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -89,11 +89,11 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_10_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_100_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Flink_Streaming_5_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_100_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_5_Iterations.txt
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5

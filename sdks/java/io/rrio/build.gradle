@@ -24,15 +24,27 @@ applyJavaNature(
 description = "Apache Beam :: SDKS :: Java :: IO :: RequestResponseIO (RRIO)"
 ext.summary = "Support to read from and write to Web APIs"
 
+var jedisVersion = "5.0.0"
+
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.joda_time
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
+    implementation "redis.clients:jedis:$jedisVersion"
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
     testImplementation library.java.junit
+    testImplementation library.java.testcontainers_base
+
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_jdk14
+}
+
+task integrationTest(type: Test) {
+    group = "verification"
+
+    include '**/*IT.class'
 }
