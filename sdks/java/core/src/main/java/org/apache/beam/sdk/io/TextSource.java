@@ -69,9 +69,7 @@ public class TextSource extends FileBasedSource<String> {
   }
 
   public TextSource(
-      ValueProvider<String> fileSpec,
-      EmptyMatchTreatment emptyMatchTreatment,
-      byte[] delimiter) {
+      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
     this(fileSpec, emptyMatchTreatment, delimiter, 0);
   }
 
@@ -82,8 +80,7 @@ public class TextSource extends FileBasedSource<String> {
     this.skipHeaderLines = skipHeaderLines;
   }
 
-  public TextSource(
-      MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+  public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
     this(metadata, start, end, delimiter, 0);
   }
 

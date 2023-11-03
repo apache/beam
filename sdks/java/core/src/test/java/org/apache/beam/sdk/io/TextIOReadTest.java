@@ -261,8 +261,7 @@ public class TextIOReadTest {
         skipHeaderLines);
   }
 
-  public static TextSource getTextSource(
-      String path, @Nullable byte[] delimiter) {
+  public static TextSource getTextSource(String path, @Nullable byte[] delimiter) {
     return getTextSource(path, delimiter, 0);
   }
 
