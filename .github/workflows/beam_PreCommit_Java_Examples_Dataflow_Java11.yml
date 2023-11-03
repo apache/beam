@@ -38,15 +38,16 @@ on:
       - 'examples/java/**'
       - 'examples/kotlin/**'
       - 'release/**'
+      - 'release/trigger_all_tests.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 1/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -72,7 +73,7 @@ permissions:
 
 jobs:
   beam_PreCommit_Java_Examples_Dataflow_Java11:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -82,7 +83,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Examples_Dataflow_Java11 PreCommit'
     steps:
@@ -90,9 +91,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{matrix.job_phrase}})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -102,11 +103,10 @@ jobs:
           export_default_credentials: true
       # The workflow installs java 11 and as default jvm. This is different from
       # PreCommit_Java_Examples_Dataflow_Java17 where the build system and sources are compiled with Java8
-      - name: Set up Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '11'
+          java-version: 11
       - name: run javaExamplesDataflowPrecommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -115,7 +115,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PskipCheckerFramework \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3

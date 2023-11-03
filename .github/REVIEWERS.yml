@@ -40,6 +40,7 @@ labels:
       - kennknowles
       - robertwb
       - bvolpato
+      - m-trieu
     exclusionList: []
   - name: IO
     reviewers:
@@ -52,6 +53,10 @@ labels:
   - name: spanner
     reviewers:
       - nielm
+  - name: bigtable
+    reviewers:
+      - igorbernstein2
+      - mutianf
     exclusionList: []
   - name: Build
     reviewers:

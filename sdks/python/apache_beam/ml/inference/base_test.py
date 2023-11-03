@@ -1513,6 +1513,28 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
+  def test_run_inference_watch_file_pattern_side_input_label(self):
+    pipeline = TestPipeline()
+    # label of the WatchPattern transform.
+    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    file_pattern_side_input = (
+        pipeline
+        | 'WatchFilePattern' >> WatchFilePattern(file_pattern='fake/path/*'))
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    result_pcoll = pcoll | base.RunInference(
+        FakeModelHandler(), model_metadata_pcoll=file_pattern_side_input)
+    assert side_input_str in str(result_pcoll.producer.side_inputs[0])
+
+  def test_run_inference_watch_file_pattern_keyword_arg_side_input_label(self):
+    # label of the WatchPattern transform.
+    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    result_pcoll = pcoll | base.RunInference(
+        FakeModelHandler(), watch_model_pattern='fake/path/*')
+    assert side_input_str in str(result_pcoll.producer.side_inputs[0])
+
 
 if __name__ == '__main__':
   unittest.main()

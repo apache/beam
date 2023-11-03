@@ -98,9 +98,11 @@ def commonConfig = { Map args ->
                "--region=${gcpRegion}",
                "--tempRoot=${actualGcsTempRoot}",
                "--runner=TestDataflowRunner",
-               "--dataflowWorkerJar=${actualDataflowWorkerJar}",
-               "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"
-               ] + additionalOptions
+               "--dataflowWorkerJar=${actualDataflowWorkerJar}"]
+       if (actualWorkerHarnessContainerImage) {
+           preCommitBeamTestPipelineOptions += "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"
+       }
+       preCommitBeamTestPipelineOptions += additionalOptions
        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
      }
  }

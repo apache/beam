@@ -59,7 +59,7 @@ import org.junit.Test;
  * -DfailIfNoTests=false".
  *
  * <p>Example trigger command for specific test: "mvn test -pl it/google-cloud-platform -am \
- * -Dtest="BigTableIOLT#testWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
+ * -Dtest="BigTableIOLT#testBigtableWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false".
  */
 public class BigTableIOLT extends IOLoadTestBase {
@@ -67,7 +67,7 @@ public class BigTableIOLT extends IOLoadTestBase {
   private static final String COLUMN_FAMILY_NAME = "cf";
   private static final long TABLE_MAX_AGE_MINUTES = 100L;
 
-  private static BigtableResourceManager resourceManager;
+  private BigtableResourceManager resourceManager;
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private Configuration configuration;
   private String tableId;
@@ -114,7 +114,7 @@ public class BigTableIOLT extends IOLoadTestBase {
 
   /** Run integration test with configurations specified by TestProperties. */
   @Test
-  public void testWriteAndRead() throws IOException {
+  public void testBigtableWriteAndRead() throws IOException {
 
     tableId = generateTableId(testName);
     resourceManager.createTable(
@@ -205,7 +205,7 @@ public class BigTableIOLT extends IOLoadTestBase {
     return pipelineLauncher.launch(project, region, options);
   }
 
-  /** Options for Bigquery IO load test. */
+  /** Options for BigtableIO load test. */
   @AutoValue
   abstract static class Configuration {
     abstract Long getNumRows();
@@ -227,18 +227,18 @@ public class BigTableIOLT extends IOLoadTestBase {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Configuration.Builder setNumRows(long numRows);
+      abstract Builder setNumRows(long numRows);
 
-      abstract Configuration.Builder setPipelineTimeout(int timeOutMinutes);
+      abstract Builder setPipelineTimeout(int timeOutMinutes);
 
-      abstract Configuration.Builder setRunner(String runner);
+      abstract Builder setRunner(String runner);
 
-      abstract Configuration.Builder setValueSizeBytes(int valueSizeBytes);
+      abstract Builder setValueSizeBytes(int valueSizeBytes);
 
       abstract Configuration build();
     }
 
-    abstract Configuration.Builder toBuilder();
+    abstract Builder toBuilder();
   }
 
   /** Maps long number to the BigTable format record. */

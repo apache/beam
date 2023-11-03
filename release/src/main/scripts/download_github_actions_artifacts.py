@@ -44,7 +44,7 @@ def parse_arguments():
       description=
       "Script for downloading GitHub Actions artifacts from 'Build python wheels' workflow."
   )
-  parser.add_argument("--github-user", required=True)
+  parser.add_argument("--github-token-var", required=False, default='GITHUB_TOKEN')
   parser.add_argument("--repo-url", required=True)
   parser.add_argument("--rc-tag", required=True)
   parser.add_argument("--release-commit", required=True)
@@ -52,7 +52,7 @@ def parse_arguments():
   parser.add_argument("--rc_number", required=False, default="")
 
   args = parser.parse_args()
-  github_token = ask_for_github_token()
+  github_token = get_github_token(args.github_token_var)
 
   print("You passed following arguments:")
   pprint.pprint({**vars(args), **{"github_token": github_token}})
@@ -61,7 +61,6 @@ def parse_arguments():
     print("You said NO. Quitting ...")
     sys.exit(1)
 
-  user_github_id = args.github_user
   repo_url = args.repo_url
   rc_tag = args.rc_tag
   release_commit = args.release_commit
@@ -69,11 +68,14 @@ def parse_arguments():
     else os.path.abspath(args.artifacts_dir)
   rc_number = args.rc_number
 
-  return github_token, user_github_id, repo_url, rc_tag, release_commit, artifacts_dir, rc_number
+  return github_token, repo_url, rc_tag, release_commit, artifacts_dir, rc_number
 
 
-def ask_for_github_token():
-  """Ask for github token and print basic information about it."""
+def get_github_token(github_token_var):
+  """Get GitHub token from env or ask for it and print basic information about it."""
+  if github_token_var in os.environ:
+    return os.environ[github_token_var]
+
   url = "https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token"
   message = (
       f"You need to have a github access token with public_repo scope. "
@@ -321,7 +323,6 @@ if __name__ == "__main__":
   )
   (
       github_token,
-      user_github_id,
       repo_url,
       rc_tag,
       release_commit,

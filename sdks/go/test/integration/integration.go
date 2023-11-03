@@ -38,7 +38,6 @@ package integration
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -302,12 +301,6 @@ var dataflowFilters = []string{
 func CheckFilters(t *testing.T) {
 	if !ptest.MainCalled() {
 		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
-	}
-
-	// TODO(https://github.com/apache/beam/issues/28227): Grant github-actions service account permission to healthcare.fhirStores.create.
-	var user = os.Getenv("USER")
-	if user == "github-actions" {
-		dataflowFilters = append(dataflowFilters, "TestFhirIO.*")
 	}
 
 	// Check for sickbaying first.

@@ -18,15 +18,15 @@
 name: PostCommit Java Examples Dataflow V2 Java
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -52,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_Examples_Dataflow_V2_Java:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase_1}}${{matrix.job_phrase_2}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
@@ -61,10 +61,11 @@ jobs:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_V2_Java]
         job_phrase_1: [Run Java ]
         job_phrase_2: [Examples on Dataflow Runner V2]
-        java_version: ['11', '17']
+        java_version: ['11', '17', '21']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Java') &&
          contains(github.event.comment.body, 'Examples on Dataflow Runner V2'))
     steps:
@@ -72,14 +73,16 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase_1 }} ${{matrix.java_version}} ${{ matrix.job_phrase_2 }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.job_phrase_1 }} ${{matrix.java_version}} ${{ matrix.job_phrase_2 }}
-      - name: Set up Java${{ matrix.java_version }}
-        uses: actions/setup-java@v3.8.0
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.java_version }}
+          java-version: |
+            ${{ matrix.java_version }}
+            8
       - name: run PostCommit Java Examples Dataflow V2 Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -88,7 +91,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PskipCheckerFramework \
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
@@ -100,4 +103,6 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'

@@ -66,16 +66,17 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
     This command lists all packages that are installed on your machine, regardless of where they were installed from.
 
-2. Run your pipeline with the following command-line option:
+   1. Run your pipeline with the following command-line option:
 
-        --extra_package /path/to/package/package-name
+           --extra_package /path/to/package/package-name
 
-   where package-name is the package's tarball. If you have the `setup.py` for that
-   package then you can build the tarball with the following command:
+      where package-name is the package's tarball. You can build the package tarball using a command line tool called [build](https://setuptools.pypa.io/en/latest/userguide/quickstart.html#install-build).
 
-        python setup.py sdist
+            # Install build using pip
+            pip install --upgrade build
+            python -m build --sdist
 
-   See the [sdist documentation](https://docs.python.org/3/distutils/sourcedist.html) for more details on this command.
+      See the [build documentation](https://pypa-build.readthedocs.io/en/latest/index.html) for more details on this command.
 
 ## Multiple File Dependencies
 

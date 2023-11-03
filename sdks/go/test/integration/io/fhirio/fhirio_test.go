@@ -96,9 +96,9 @@ func setupFhirStore(t *testing.T, shouldPopulateStore bool) (fhirStoreInfo, func
 
 	var resourcePaths [][]byte
 	if shouldPopulateStore {
-		resourcePaths = populateStore(createdFhirStorePath)
-		if len(resourcePaths) == 0 {
-			t.Fatal("No data got populated to test")
+		resourcePaths, err = populateStore(createdFhirStorePath)
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -127,11 +127,13 @@ func deleteStore(storePath string) (*healthcare.Empty, error) {
 
 // Populates fhir store with data. Note that failure to populate some data is not
 // detrimental to the tests, so it is fine to ignore.
-func populateStore(storePath string) [][]byte {
+func populateStore(storePath string) ([][]byte, error) {
 	resourcePaths := make([][]byte, 0)
+	bufferedErrors := make([]string, 0)
 	for _, bundle := range readPrettyBundles() {
 		response, err := storeService.ExecuteBundle(storePath, strings.NewReader(bundle)).Do()
 		if err != nil {
+			bufferedErrors = append(bufferedErrors, err.Error())
 			continue
 		}
 
@@ -145,23 +147,30 @@ func populateStore(storePath string) [][]byte {
 		}
 		err = json.NewDecoder(response.Body).Decode(&body)
 		if err != nil {
+			bufferedErrors = append(bufferedErrors, err.Error())
 			continue
 		}
 
 		for _, entry := range body.Entry {
 			bundleFailedToBeCreated := !strings.Contains(entry.Response.Status, "201")
 			if bundleFailedToBeCreated {
+				bufferedErrors = append(bufferedErrors, fmt.Sprintf("Bundle creation failed with: %v", entry.Response))
 				continue
 			}
 
 			resourcePath, err := extractResourcePathFrom(entry.Response.Location)
 			if err != nil {
+				bufferedErrors = append(bufferedErrors, err.Error())
 				continue
 			}
 			resourcePaths = append(resourcePaths, resourcePath)
 		}
 	}
-	return resourcePaths
+	if len(resourcePaths) == 0 {
+		return nil, fmt.Errorf("failed to populate fhir store with any data. Errors with requests: %s", bufferedErrors)
+	}
+
+	return resourcePaths, nil
 }
 
 func readPrettyBundles() []string {

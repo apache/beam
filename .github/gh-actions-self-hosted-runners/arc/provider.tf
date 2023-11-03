@@ -19,7 +19,7 @@
 
 terraform {
    backend "gcs" {
-    prefix = "test-state"
+    prefix = "prod"
    }
 
   required_providers {
@@ -28,8 +28,8 @@ terraform {
       version = "~> 4.62.0"
     }
     kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = ">= 1.7.0"
+      source  = "alekc/kubectl"
+      version = ">= 2.0.2"
     }
   }
 }

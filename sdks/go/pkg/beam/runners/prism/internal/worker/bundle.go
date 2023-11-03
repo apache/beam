@@ -16,6 +16,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync/atomic"
@@ -126,22 +127,21 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	}
 
 	// TODO: make batching decisions.
-	for i, d := range b.InputData {
-		select {
-		case wk.DataReqs <- &fnpb.Elements{
-			Data: []*fnpb.Elements_Data{
-				{
-					InstructionId: b.InstID,
-					TransformId:   b.InputTransformID,
-					Data:          d,
-					IsLast:        i+1 == len(b.InputData),
-				},
+	dataBuf := bytes.Join(b.InputData, []byte{})
+	select {
+	case wk.DataReqs <- &fnpb.Elements{
+		Data: []*fnpb.Elements_Data{
+			{
+				InstructionId: b.InstID,
+				TransformId:   b.InputTransformID,
+				Data:          dataBuf,
+				IsLast:        true,
 			},
-		}:
-		case <-ctx.Done():
-			b.DataDone()
-			return b.DataWait
-		}
+		},
+	}:
+	case <-ctx.Done():
+		b.DataDone()
+		return b.DataWait
 	}
 	return b.DataWait
 }

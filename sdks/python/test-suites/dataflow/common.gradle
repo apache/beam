@@ -144,7 +144,9 @@ task postCommitIT {
 }
 
 task postCommitArmIT {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
@@ -153,6 +155,7 @@ task postCommitArmIT {
         "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit",
+        "py_version": project.ext.pythonVersion,
         "arch": "ARM"
     ]
     def cmdArgs = mapToArgString(argMap)

@@ -24,6 +24,5 @@ spec:
   ports:
   - protocol: TCP
     targetPort: 9094
-    port: 32402
-    nodePort: 32402
+    port: 32400
   type: LoadBalancer

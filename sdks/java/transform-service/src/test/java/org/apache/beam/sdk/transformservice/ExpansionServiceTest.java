@@ -60,6 +60,8 @@ public class ExpansionServiceTest {
     endpoints.add(endpoint2);
     clientFactory = Mockito.mock(ExpansionServiceClientFactory.class);
     expansionService = new ExpansionService(endpoints, clientFactory);
+    // We do not run actual services in unit tests.
+    expansionService.disableServiceCheck();
   }
 
   @Test
@@ -131,7 +133,10 @@ public class ExpansionServiceTest {
     ArgumentCaptor<ExpansionResponse> expansionResponseCapture =
         ArgumentCaptor.forClass(ExpansionResponse.class);
     Mockito.verify(responseObserver).onNext(expansionResponseCapture.capture());
-    assertEquals("expansion error 2", expansionResponseCapture.getValue().getError());
+
+    // Error response should contain errors from both expansion services.
+    assertTrue(expansionResponseCapture.getValue().getError().contains("expansion error 1"));
+    assertTrue(expansionResponseCapture.getValue().getError().contains("expansion error 2"));
   }
 
   @Test

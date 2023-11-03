@@ -24,8 +24,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
+  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.11.3"
 }
 
 
@@ -175,6 +175,7 @@ include(":sdks:java:container:agent")
 include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
+include(":sdks:java:container:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -244,6 +245,7 @@ include(":sdks:java:io:hbase")
 include(":sdks:java:io:hcatalog")
 include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
+include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
@@ -324,12 +326,16 @@ include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-mock-apis")
+project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
 include("beam-test-infra-pipelines")
 project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
+include("beam-test-gha")
+project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")

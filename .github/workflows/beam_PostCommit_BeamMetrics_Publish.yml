@@ -19,9 +19,6 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['.github/workflows/beam_PostCommit_BeamMetrics_Publish.yml']
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '24 2 * * *'
   workflow_dispatch:
@@ -44,7 +41,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 
@@ -58,7 +55,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Beam Metrics Deployment'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -75,6 +72,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import groovy.json.JsonOutput
 import org.apache.beam.gradle.IoPerformanceTestUtilities
 
 plugins { id 'org.apache.beam.module' }
@@ -73,9 +74,11 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation library.java.mockito_inline
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
     testRuntimeOnly library.java.slf4j_simple
 }
 
 tasks.register("GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
 tasks.register("BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
+tasks.register("BigQueryStorageApiStreamingPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryStreamingLT', ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])

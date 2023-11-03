@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.core.Every.everyItem;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -38,6 +39,8 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -68,13 +71,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkPipelineExecutionEnvironment}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
@@ -82,9 +85,22 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
+  @Parameterized.Parameter public boolean useDataStreamForBatch;
+
+  @Parameterized.Parameters(name = "UseDataStreamForBatch = {0}")
+  public static Collection<Object[]> useDataStreamForBatchJobValues() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
+
+  private FlinkPipelineOptions getDefaultPipelineOptions() {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setUseDataStreamForBatch(useDataStreamForBatch);
+    return options;
+  }
+
   @Test
   public void shouldRecognizeAndTranslateStreamingPipeline() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("[auto]");
 
@@ -136,6 +152,8 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldNotPrepareFilesToStagewhenFlinkMasterIsSetToCollection() throws IOException {
+    // StreamingExecutionEnv does not support "collection" mode.
+    assumeFalse(useDataStreamForBatch);
     FlinkPipelineOptions options = testPreparingResourcesToStage("[collection]");
 
     assertThat(options.getFilesToStage().size(), is(2));
@@ -152,7 +170,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUseDefaultTempLocationIfNoneSet() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("clusterAddress");
 
@@ -168,42 +186,33 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUsePreparedFilesOnRemoteEnvironment() throws Exception {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
-    options.setRunner(TestFlinkRunner.class);
-    options.setFlinkMaster("clusterAddress");
-
-    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    flinkEnv.translate(pipeline);
-
-    ExecutionEnvironment executionEnvironment = flinkEnv.getBatchExecutionEnvironment();
-    assertThat(executionEnvironment, instanceOf(RemoteEnvironment.class));
-
-    List<URL> jarFiles = getJars(executionEnvironment);
-
-    List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
-
-    assertThat(jarFiles, is(urlConvertedStagedFiles));
+    shouldUsePreparedFilesOnRemoteStreamEnvironment(true);
+    shouldUsePreparedFilesOnRemoteStreamEnvironment(false);
   }
 
-  @Test
-  public void shouldUsePreparedFilesOnRemoteStreamEnvironment() throws Exception {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+  public void shouldUsePreparedFilesOnRemoteStreamEnvironment(boolean streamingMode)
+      throws Exception {
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("clusterAddress");
-    options.setStreaming(true);
+    options.setStreaming(streamingMode);
 
     FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
 
     Pipeline pipeline = Pipeline.create(options);
     flinkEnv.translate(pipeline);
 
-    StreamExecutionEnvironment streamExecutionEnvironment =
-        flinkEnv.getStreamExecutionEnvironment();
-    assertThat(streamExecutionEnvironment, instanceOf(RemoteStreamEnvironment.class));
-
-    List<URL> jarFiles = getJars(streamExecutionEnvironment);
+    List<URL> jarFiles;
+    if (streamingMode || options.getUseDataStreamForBatch()) {
+      StreamExecutionEnvironment streamExecutionEnvironment =
+          flinkEnv.getStreamExecutionEnvironment();
+      assertThat(streamExecutionEnvironment, instanceOf(RemoteStreamEnvironment.class));
+      jarFiles = getJars(streamExecutionEnvironment);
+    } else {
+      ExecutionEnvironment executionEnvironment = flinkEnv.getBatchExecutionEnvironment();
+      assertThat(executionEnvironment, instanceOf(RemoteEnvironment.class));
+      jarFiles = getJars(executionEnvironment);
+    }
 
     List<URL> urlConvertedStagedFiles = convertFilesToURLs(options.getFilesToStage());
 
@@ -214,7 +223,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   public void shouldUseTransformOverrides() {
     boolean[] testParameters = {true, false};
     for (boolean streaming : testParameters) {
-      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+      FlinkPipelineOptions options = getDefaultPipelineOptions();
       options.setStreaming(streaming);
       options.setRunner(FlinkRunner.class);
       FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
@@ -234,7 +243,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldProvideParallelismToTransformOverrides() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setStreaming(true);
     options.setRunner(FlinkRunner.class);
     FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
@@ -278,7 +287,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void shouldUseStreamingTransformOverridesWithUnboundedSources() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     // no explicit streaming mode set
     options.setRunner(FlinkRunner.class);
     FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
@@ -303,7 +312,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   @Test
   public void testTranslationModeOverrideWithUnboundedSources() {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(FlinkRunner.class);
     options.setStreaming(false);
 
@@ -319,7 +328,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
   public void testTranslationModeNoOverrideWithoutUnboundedSources() {
     boolean[] testArgs = new boolean[] {true, false};
     for (boolean streaming : testArgs) {
-      FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+      FlinkPipelineOptions options = getDefaultPipelineOptions();
       options.setRunner(FlinkRunner.class);
       options.setStreaming(streaming);
 
@@ -408,7 +417,7 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
 
   private FlinkPipelineOptions setPipelineOptions(
       String flinkMaster, String tempLocation, List<String> filesToStage) {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    FlinkPipelineOptions options = getDefaultPipelineOptions();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster(flinkMaster);
     options.setTempLocation(tempLocation);

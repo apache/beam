@@ -136,9 +136,9 @@ if [[ ! -z `which hub` ]]; then
   # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
   # Note that dataflow worker containers should be built after RC has been built.
   bash "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
-  # In case the version string was not changed, append a newline to CHANGES.md
-  echo "" >> CHANGES.md
-  git add CHANGES.md
+  # add a file that will trigger all relevant GHA workflows. Need to be .json extension to be excluded from RAT check
+  echo "{}" > release/trigger_all_tests.json
+  git add release/trigger_all_tests.json
   git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} ${WORKING_BRANCH} --quiet
 
@@ -147,6 +147,6 @@ if [[ ! -z `which hub` ]]; then
   You can run many tests automatically using release/src/main/scripts/mass_comment.py."
 
   echo ""
-  echo "[NOTE]: Please make sure all test targets have been invoked."
+  echo "[NOTE]: Please make sure all test targets (GHA and Jenkins) have been invoked."
   echo "Please check the test results. If there is any failure, follow the policy in release guide."
 fi

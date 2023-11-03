@@ -40,6 +40,12 @@ public class DataflowSystemMetrics {
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
     TIME_AT_MAX_ACTIVE_THREADS("dataflow_time_at_max_active_threads"),
+    ACTIVE_THREADS("dataflow_active_threads"),
+    TOTAL_ALLOCATED_THREADS("dataflow_total_allocated_threads"),
+    OUTSTANDING_BYTES("dataflow_outstanding_bytes"),
+    MAX_OUTSTANDING_BYTES("dataflow_max_outstanding_bytes"),
+    OUTSTANDING_BUNDLES("dataflow_outstanding_bundles"),
+    MAX_OUTSTANDING_BUNDLES("dataflow_max_outstanding_bundles"),
     WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
     MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 

@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.transformservice.launcher;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -28,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
@@ -62,9 +65,9 @@ public class TransformServiceLauncher {
   private static final int STATUS_LOGGER_WAIT_TIME = 3000;
 
   @SuppressWarnings("argument")
-  private TransformServiceLauncher(@Nullable String projectName, int port) throws IOException {
-    LOG.info("Initializing the Beam Transform Service {}.", projectName);
-
+  private TransformServiceLauncher(
+      @Nullable String projectName, int port, @Nullable String pythonRequirementsFile)
+      throws IOException {
     String tmpDirLocation = System.getProperty("java.io.tmpdir");
     // We use Docker Compose project name as the name of the temporary directory to isolate
     // different transform service instances that may be running in the same machine.
@@ -83,14 +86,14 @@ public class TransformServiceLauncher {
       ByteStreams.copy(getClass().getResourceAsStream("/.env"), fout);
     }
 
+    // Setting up the credentials directory.
     File credentialsDir = Paths.get(tmpDir, "credentials_dir").toFile();
-    LOG.info(
-        "Creating a temporary directory for storing credentials: "
-            + credentialsDir.getAbsolutePath());
-
     if (credentialsDir.exists()) {
       LOG.info("Reusing the existing credentials directory " + credentialsDir.getAbsolutePath());
     } else {
+      LOG.info(
+          "Creating a temporary directory for storing credentials: "
+              + credentialsDir.getAbsolutePath());
       if (!credentialsDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing credentials: "
@@ -124,9 +127,83 @@ public class TransformServiceLauncher {
       }
     }
 
+    // Setting up the dependencies directory.
+    File dependenciesDir = Paths.get(tmpDir, "dependencies_dir").toFile();
+    Path updatedRequirementsFilePath = Paths.get(dependenciesDir.toString(), "requirements.txt");
+    if (dependenciesDir.exists()) {
+      LOG.info("Reusing the existing dependencies directory " + dependenciesDir.getAbsolutePath());
+    } else {
+      LOG.info(
+          "Creating a temporary directory for storing dependencies: "
+              + dependenciesDir.getAbsolutePath());
+      if (!dependenciesDir.mkdir()) {
+        throw new IOException(
+            "Could not create a temporary directory for storing dependencies: "
+                + dependenciesDir.getAbsolutePath());
+      }
+
+      // We create a requirements file with extra dependencies.
+      // If there are no extra dependencies, we just provide an empty requirements file.
+      File file = updatedRequirementsFilePath.toFile();
+      if (!file.createNewFile()) {
+        throw new IOException(
+            "Could not create the new requirements file " + updatedRequirementsFilePath);
+      }
+
+      // Updating dependencies.
+      if (pythonRequirementsFile != null) {
+        Path requirementsFilePath = Paths.get(pythonRequirementsFile);
+        List<String> updatedLines = new ArrayList<>();
+
+        try (Stream<String> lines = java.nio.file.Files.lines(requirementsFilePath)) {
+          lines.forEachOrdered(
+              line -> {
+                Path dependencyFilePath = Paths.get(line);
+                if (java.nio.file.Files.exists(dependencyFilePath)) {
+                  Path fileName = dependencyFilePath.getFileName();
+                  if (fileName == null) {
+                    throw new IllegalArgumentException(
+                        "Could not determine the filename of the local artifact "
+                            + dependencyFilePath);
+                  }
+                  try {
+                    java.nio.file.Files.copy(
+                        dependencyFilePath,
+                        Paths.get(dependenciesDir.toString(), fileName.toString()));
+                  } catch (IOException e) {
+                    throw new RuntimeException(e);
+                  }
+                  updatedLines.add(fileName.toString());
+                } else {
+                  updatedLines.add(line);
+                }
+              });
+        }
+
+        try (BufferedWriter writer =
+            java.nio.file.Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
+          for (String line : updatedLines) {
+            writer.write(line);
+            writer.newLine();
+          }
+          writer.flush();
+        }
+      }
+    }
+
     // Setting environment variables used by the docker-compose.yml file.
     environmentVariables.put("CREDENTIALS_VOLUME", credentialsDir.getAbsolutePath());
+    environmentVariables.put("DEPENDENCIES_VOLUME", dependenciesDir.getAbsolutePath());
     environmentVariables.put("TRANSFORM_SERVICE_PORT", String.valueOf(port));
+
+    Path updatedRequirementsFileName = updatedRequirementsFilePath.getFileName();
+    if (updatedRequirementsFileName == null) {
+      throw new IllegalArgumentException(
+          "Could not determine the file name of the updated requirements file "
+              + updatedRequirementsFilePath);
+    }
+    environmentVariables.put(
+        "PYTHON_REQUIREMENTS_FILE_NAME", updatedRequirementsFileName.toString());
 
     // Building the Docker Compose command.
     dockerComposeStartCommandPrefix.add("docker-compose");
@@ -136,21 +213,37 @@ public class TransformServiceLauncher {
     dockerComposeStartCommandPrefix.add(dockerComposeFile.getAbsolutePath());
   }
 
+  /**
+   * Specifies the Beam version to get containers for the transform service.
+   *
+   * <p>Could be a release Beam version with containers in Docker Hub or an unreleased Beam version
+   * for which containers are available locally.
+   *
+   * @param beamVersion a Beam version to get containers from.
+   */
   public void setBeamVersion(String beamVersion) {
     environmentVariables.put("BEAM_VERSION", beamVersion);
   }
 
-  public void setPythonExtraPackages(String pythonExtraPackages) {
-    environmentVariables.put("$PYTHON_EXTRA_PACKAGES", pythonExtraPackages);
-  }
-
+  /**
+   * Initializes a client for managing transform service instances.
+   *
+   * @param projectName project name for the transform service.
+   * @param port port exposed by the transform service.
+   * @param pythonRequirementsFile a requirements file with extra dependencies for the Python
+   *     expansion services.
+   * @return an initialized client for managing the transform service.
+   * @throws IOException
+   */
   public static synchronized TransformServiceLauncher forProject(
-      @Nullable String projectName, int port) throws IOException {
+      @Nullable String projectName, int port, @Nullable String pythonRequirementsFile)
+      throws IOException {
     if (projectName == null || projectName.isEmpty()) {
       projectName = DEFAULT_PROJECT_NAME;
     }
     if (!launchers.containsKey(projectName)) {
-      launchers.put(projectName, new TransformServiceLauncher(projectName, port));
+      launchers.put(
+          projectName, new TransformServiceLauncher(projectName, port, pythonRequirementsFile));
     }
     return launchers.get(projectName);
   }
@@ -200,10 +293,10 @@ public class TransformServiceLauncher {
 
   public synchronized void waitTillUp(int timeout) throws IOException, TimeoutException {
     timeout = timeout <= 0 ? DEFAULT_START_WAIT_TIME : timeout;
-    String statusFileName = getStatus();
 
     long startTime = System.currentTimeMillis();
     while (System.currentTimeMillis() - startTime < timeout) {
+      String statusFileName = getStatus();
       try {
         // We are just waiting for a local process. No need for exponential backoff.
         this.wait(1000);
@@ -226,6 +319,7 @@ public class TransformServiceLauncher {
 
   private synchronized String getStatus() throws IOException {
     File outputOverride = File.createTempFile("output_override", null);
+    outputOverride.deleteOnExit();
     runDockerComposeCommand(ImmutableList.of("ps"), outputOverride);
 
     return outputOverride.getAbsolutePath();
@@ -238,6 +332,8 @@ public class TransformServiceLauncher {
     static final String PORT_ARG_NAME = "port";
     static final String BEAM_VERSION_ARG_NAME = "beam_version";
 
+    static final String PYTHON_REQUIREMENTS_FILE_ARG_NAME = "python_requirements_file";
+
     @Option(name = "--" + PROJECT_NAME_ARG_NAME, usage = "Docker compose project name")
     private String projectName = "";
 
@@ -249,6 +345,11 @@ public class TransformServiceLauncher {
 
     @Option(name = "--" + BEAM_VERSION_ARG_NAME, usage = "Beam version to use.")
     private String beamVersion = "";
+
+    @Option(
+        name = "--" + PYTHON_REQUIREMENTS_FILE_ARG_NAME,
+        usage = "Extra Python packages in the form of an requirements file.")
+    private String pythonRequirementsFile = "";
   }
 
   public static void main(String[] args) throws IOException, TimeoutException {
@@ -288,8 +389,12 @@ public class TransformServiceLauncher {
                 : ("port " + Integer.toString(config.port) + ".")));
     System.out.println("===================================================");
 
+    String pythonRequirementsFile =
+        !config.pythonRequirementsFile.isEmpty() ? config.pythonRequirementsFile : null;
+
     TransformServiceLauncher service =
-        TransformServiceLauncher.forProject(config.projectName, config.port);
+        TransformServiceLauncher.forProject(
+            config.projectName, config.port, pythonRequirementsFile);
     if (!config.beamVersion.isEmpty()) {
       service.setBeamVersion(config.beamVersion);
     }

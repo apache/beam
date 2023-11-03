@@ -30,6 +30,7 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
@@ -213,7 +214,10 @@ public interface BigQueryServices extends Serializable {
      * first.
      */
     StreamAppendClient getStreamAppendClient(
-        String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+        String streamName,
+        DescriptorProtos.DescriptorProto descriptor,
+        boolean useConnectionPool,
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
         throws Exception;
 
     /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */

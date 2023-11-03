@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -126,6 +127,7 @@ public class FhirIOSearchIT {
     }
   }
 
+  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
@@ -155,6 +157,7 @@ public class FhirIOSearchIT {
     pipeline.run().waitUntilFinish();
   }
 
+  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearchWithGenericParameters() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);

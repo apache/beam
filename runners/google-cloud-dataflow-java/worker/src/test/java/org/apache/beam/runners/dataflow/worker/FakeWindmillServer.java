@@ -53,9 +53,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
@@ -198,8 +200,7 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public GetWorkStream getWorkStream(
-      Windmill.GetWorkRequest request, GetWorkStream.WorkItemReceiver receiver) {
+  public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
     LOG.debug("getWorkStream: {}", request.toString());
     Instant startTime = Instant.now();
     final CountDownLatch done = new CountDownLatch(1);
@@ -207,6 +208,19 @@ class FakeWindmillServer extends WindmillServerStub {
       @Override
       public void close() {
         done.countDown();
+      }
+
+      @Override
+      public void adjustBudget(long itemsDelta, long bytesDelta) {
+        // no-op.
+      }
+
+      @Override
+      public GetWorkBudget remainingBudget() {
+        return GetWorkBudget.builder()
+            .setItems(request.getMaxItems())
+            .setBytes(request.getMaxBytes())
+            .build();
       }
 
       @Override

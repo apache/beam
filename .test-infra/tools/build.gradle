@@ -24,6 +24,16 @@ task removeStaleSDKContainerImages(type: Exec) {
   commandLine './stale_dataflow_prebuilt_image_cleaner.sh'
 }
 
-task cleanupOtherStaleResources(type: Exec) {
+task removeStaleBqDatasets(type: Exec) {
   commandLine './stale_bq_datasets_cleaner.sh'
+}
+
+task removeStaleK8sWorkload(type: Exec) {
+  commandLine './stale_k8s_workload_cleaner.sh'
+}
+
+task cleanupOtherStaleResources {
+  // declared as finalizedBy dependency so that other task continue even if one dep task fails
+  finalizedBy tasks.removeStaleBqDatasets
+  finalizedBy tasks.removeStaleK8sWorkload
 }
