@@ -75,7 +75,7 @@ public class TextSourceBenchmark {
   @Benchmark
   public void benchmarkTextSource(Data data) throws Exception {
     Source.Reader<String> reader =
-        ((FileBasedSource<String>) TextIOReadTest.getTextSource(data.pathString, null, false))
+        ((FileBasedSource<String>) TextIOReadTest.getTextSource(data.pathString, null, 0))
             .createReader(PipelineOptionsFactory.create());
     int length = 0;
     int linesRead = 0;
