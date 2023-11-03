@@ -206,7 +206,6 @@ public class TextSource extends FileBasedSource<String> {
           // to the beginning of the next record.
           readNextRecord();
           currentValue = null;
-
         }
 
       } else {

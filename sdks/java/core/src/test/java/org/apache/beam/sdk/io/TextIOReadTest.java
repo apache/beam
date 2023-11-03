@@ -462,10 +462,10 @@ public class TextIOReadTest {
     @Parameterized.Parameters(name = "{index}: {0}")
     public static Iterable<Object[]> data() {
       return ImmutableList.<Object[]>builder()
-          .add(new Object[] {"\n\n\n", ImmutableList.of("", ""),1})
-          .add(new Object[] {"\n", ImmutableList.of(),1})
-          .add(new Object[] {"header\nasdf\nhjkl\nxyz\n", EXPECTED,1})
-          .add(new Object[] {"header1\nheader2\nasdf\nhjkl\nxyz\n", EXPECTED,2})
+          .add(new Object[] {"\n\n\n", ImmutableList.of("", ""), 1})
+          .add(new Object[] {"\n", ImmutableList.of(), 1})
+          .add(new Object[] {"header\nasdf\nhjkl\nxyz\n", EXPECTED, 1})
+          .add(new Object[] {"header1\nheader2\nasdf\nhjkl\nxyz\n", EXPECTED, 2})
           .build();
     }
 
