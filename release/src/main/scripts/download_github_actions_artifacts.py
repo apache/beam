@@ -50,6 +50,7 @@ def parse_arguments():
   parser.add_argument("--release-commit", required=True)
   parser.add_argument("--artifacts_dir", required=True)
   parser.add_argument("--rc_number", required=False, default="")
+  parser.add_argument("--yes", required=False, default=False)
 
   args = parser.parse_args()
   github_token = get_github_token(args.github_token_var)
@@ -57,7 +58,7 @@ def parse_arguments():
   print("You passed following arguments:")
   pprint.pprint({**vars(args), **{"github_token": github_token}})
 
-  if not get_yes_or_no_answer("Do you want to continue?"):
+  if not args.yes and not get_yes_or_no_answer("Do you want to continue?"):
     print("You said NO. Quitting ...")
     sys.exit(1)
 
