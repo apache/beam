@@ -157,8 +157,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-tags: true
       - name: Validate and mask apache id/password
         run: |
           echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
@@ -194,7 +192,8 @@ jobs:
         run: |
           svn co https://dist.apache.org/repos/dist/dev/beam
           mkdir -p "${SVN_ARTIFACTS_DIR}"
-          
+
+          git fetch --all --tags --prune
           RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
           
           python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
