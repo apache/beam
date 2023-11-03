@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/nats-io/nats.go"
@@ -31,12 +32,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestWrite(t *testing.T) {
+	stream := "STREAM"
 	subject := "subject"
 
 	tests := []struct {
-		name  string
-		input []any
-		want  []jsMsg
+		name     string
+		input    []any
+		wantAcks []any
+		wantMsgs []jsMsg
 	}{
 		{
 			name: "Write messages and deduplicate based on ID",
@@ -57,7 +60,30 @@ func TestWrite(t *testing.T) {
 					Data:    []byte("msg2"),
 				},
 			},
-			want: []jsMsg{
+			wantAcks: []any{
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "1",
+					Sequence:  1,
+					Duplicate: false,
+				},
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "1",
+					Sequence:  1,
+					Duplicate: true,
+				},
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "2",
+					Sequence:  2,
+					Duplicate: false,
+				},
+			},
+			wantMsgs: []jsMsg{
 				testMsg{
 					subject: subject,
 					headers: nats.Header{nats.MsgIdHdr: []string{"1"}},
@@ -86,7 +112,30 @@ func TestWrite(t *testing.T) {
 					Data:    []byte("msg2"),
 				},
 			},
-			want: []jsMsg{
+			wantAcks: []any{
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "",
+					Sequence:  1,
+					Duplicate: false,
+				},
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "",
+					Sequence:  2,
+					Duplicate: false,
+				},
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "",
+					Sequence:  3,
+					Duplicate: false,
+				},
+			},
+			wantMsgs: []jsMsg{
 				testMsg{
 					subject: subject,
 					data:    []byte("msg1a"),
@@ -111,7 +160,16 @@ func TestWrite(t *testing.T) {
 					Data:    []byte("msg1"),
 				},
 			},
-			want: []jsMsg{
+			wantAcks: []any{
+				PublishAck{
+					Stream:    stream,
+					Subject:   subject,
+					ID:        "1",
+					Sequence:  1,
+					Duplicate: false,
+				},
+			},
+			wantMsgs: []jsMsg{
 				testMsg{
 					subject: subject,
 					headers: nats.Header{nats.MsgIdHdr: []string{"1"}, "key": []string{"val"}},
@@ -128,7 +186,6 @@ func TestWrite(t *testing.T) {
 			conn := newConn(t, uri)
 			js := newJetStream(t, conn)
 
-			stream := "STREAM"
 			subjects := []string{subject}
 			createStream(t, ctx, js, stream, subjects)
 			cons := createConsumer(t, ctx, js, stream, subjects)
@@ -136,29 +193,30 @@ func TestWrite(t *testing.T) {
 			p, s := beam.NewPipelineWithRoot()
 
 			col := beam.Create(s, tc.input...)
-			Write(s, uri, col)
+			gotAcks := Write(s, uri, col)
 
+			passert.Equals(s, gotAcks, tc.wantAcks...)
 			ptest.RunAndValidate(t, p)
 
-			got := fetchMessages(t, cons, len(tc.input)+1)
+			gotMsgs := fetchMessages(t, cons, len(tc.input)+1)
 
-			if gotLen, wantLen := len(got), len(tc.want); gotLen != wantLen {
+			if gotLen, wantLen := len(gotMsgs), len(tc.wantMsgs); gotLen != wantLen {
 				t.Fatalf("Len() = %v, want %v", gotLen, wantLen)
 			}
 
-			for i := range got {
-				if gotSubject, wantSubject := got[i].Subject(), tc.want[i].Subject(); gotSubject != wantSubject {
+			for i := range gotMsgs {
+				if gotSubject, wantSubject := gotMsgs[i].Subject(), tc.wantMsgs[i].Subject(); gotSubject != wantSubject {
 					t.Errorf("msg %d: Subject() = %v, want %v", i, gotSubject, wantSubject)
 				}
 
-				if gotHeaders, wantHeaders := got[i].Headers(), tc.want[i].Headers(); !cmp.Equal(
+				if gotHeaders, wantHeaders := gotMsgs[i].Headers(), tc.wantMsgs[i].Headers(); !cmp.Equal(
 					gotHeaders,
 					wantHeaders,
 				) {
 					t.Errorf("msg %d: Headers() = %v, want %v", i, gotHeaders, wantHeaders)
 				}
 
-				if gotData, wantData := got[i].Data(), tc.want[i].Data(); !bytes.Equal(
+				if gotData, wantData := gotMsgs[i].Data(), tc.wantMsgs[i].Data(); !bytes.Equal(
 					gotData,
 					wantData,
 				) {

@@ -27,8 +27,11 @@ import (
 )
 
 func init() {
-	register.DoFn2x1[context.Context, ProducerMessage, error](&writeFn{})
+	register.DoFn3x1[context.Context, ProducerMessage, func(ack PublishAck), error](&writeFn{})
+	register.Emitter1[PublishAck]()
+
 	beam.RegisterType(reflect.TypeOf((*ProducerMessage)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*PublishAck)(nil)).Elem())
 }
 
 // ProducerMessage represents a message to be published to NATS.
@@ -39,11 +42,21 @@ type ProducerMessage struct {
 	Data    []byte
 }
 
-// Write writes a PCollection<ProducerMessage> to NATS JetStream. The ID field can be set
-// in the ProducerMessage to utilize JetStream's support for deduplication of messages.
+// PublishAck represents an acknowledgement from NATS after publishing a message.
+type PublishAck struct {
+	Stream    string
+	Subject   string
+	ID        string
+	Sequence  uint64
+	Duplicate bool
+}
+
+// Write writes a PCollection<ProducerMessage> to NATS JetStream and returns a
+// PCollection<PublishAck> of the acknowledged messages. The ID field can be set in the
+// ProducerMessage to utilize JetStream's support for deduplication of messages.
 // Write takes a variable number of WriteOptionFn to configure the write operation:
 //   - UserCredentials: path to the user credentials file. Defaults to empty.
-func Write(s beam.Scope, uri string, col beam.PCollection, opts ...WriteOptionFn) {
+func Write(s beam.Scope, uri string, col beam.PCollection, opts ...WriteOptionFn) beam.PCollection {
 	s = s.Scope("natsio.Write")
 
 	option := &writeOption{}
@@ -51,7 +64,7 @@ func Write(s beam.Scope, uri string, col beam.PCollection, opts ...WriteOptionFn
 		opt(option)
 	}
 
-	beam.ParDo0(s, newWriteFn(uri, option), col)
+	return beam.ParDo(s, newWriteFn(uri, option), col)
 }
 
 type writeFn struct {
@@ -67,7 +80,11 @@ func newWriteFn(uri string, option *writeOption) *writeFn {
 	}
 }
 
-func (fn *writeFn) ProcessElement(ctx context.Context, elem ProducerMessage) error {
+func (fn *writeFn) ProcessElement(
+	ctx context.Context,
+	elem ProducerMessage,
+	emit func(PublishAck),
+) error {
 	msg := &nats.Msg{
 		Subject: elem.Subject,
 		Data:    elem.Data,
@@ -79,9 +96,19 @@ func (fn *writeFn) ProcessElement(ctx context.Context, elem ProducerMessage) err
 		opts = append(opts, jetstream.WithMsgID(elem.ID))
 	}
 
-	if _, err := fn.js.PublishMsg(ctx, msg, opts...); err != nil {
+	ack, err := fn.js.PublishMsg(ctx, msg, opts...)
+	if err != nil {
 		return fmt.Errorf("error publishing message: %v", err)
 	}
+
+	pubAck := PublishAck{
+		Stream:    ack.Stream,
+		Subject:   elem.Subject,
+		ID:        elem.ID,
+		Sequence:  ack.Sequence,
+		Duplicate: ack.Duplicate,
+	}
+	emit(pubAck)
 
 	return nil
 }
