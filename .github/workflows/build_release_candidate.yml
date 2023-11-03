@@ -203,7 +203,8 @@ jobs:
             --repo-url "${GIT_REPO_BASE_URL}" \
             --rc-tag "${RC_TAG}" \
             --release-commit "${RELEASE_COMMIT}" \
-            --artifacts_dir "${RELEASE_DIR}/python"
+            --artifacts_dir "${RELEASE_DIR}/python" \
+            --yes
         
           cd "${RELEASE_DIR}"/python
         
