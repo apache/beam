@@ -3,10 +3,7 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "datasource",
-          "uid": "grafana"
-        },
+        "datasource": "-- Grafana --",
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -29,10 +26,7 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -931,10 +925,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -945,7 +935,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'core_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'core_infra'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -957,23 +947,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -986,7 +959,7 @@
           ]
         }
       ],
-      "title": "Core Java Tests",
+      "title": "Core Infrastructure",
       "transformations": [
         {
           "id": "merge",
@@ -998,10 +971,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1900,10 +1870,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -1914,7 +1880,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'dataflow_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'core_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -1926,23 +1892,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -1955,7 +1904,7 @@
           ]
         }
       ],
-      "title": "Dataflow Java Tests",
+      "title": "Core Java Tests",
       "transformations": [
         {
           "id": "merge",
@@ -1967,10 +1916,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2869,10 +2815,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -2883,7 +2825,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'spark_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'dataflow_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -2895,23 +2837,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -2924,7 +2849,7 @@
           ]
         }
       ],
-      "title": "Spark Java Tests",
+      "title": "Dataflow Java Tests",
       "transformations": [
         {
           "id": "merge",
@@ -2936,10 +2861,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3838,10 +3760,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -3852,7 +3770,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'flink_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'runners_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -3864,23 +3782,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -3893,7 +3794,7 @@
           ]
         }
       ],
-      "title": "Flink Java Tests",
+      "title": "Java Runners Tests",
       "transformations": [
         {
           "id": "merge",
@@ -3905,10 +3806,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4807,10 +4705,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -4821,7 +4715,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'core_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'load_perf_java'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -4833,23 +4727,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -4862,7 +4739,7 @@
           ]
         }
       ],
-      "title": "Core Python Tests",
+      "title": "Java Load/Perf Tests",
       "transformations": [
         {
           "id": "merge",
@@ -4874,10 +4751,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5776,10 +5650,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -5790,7 +5660,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'dataflow_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'core_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -5802,23 +5672,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -5831,7 +5684,7 @@
           ]
         }
       ],
-      "title": "Dataflow Python Tests",
+      "title": "Core Python Tests",
       "transformations": [
         {
           "id": "merge",
@@ -5843,10 +5696,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -6745,10 +6595,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -6759,7 +6605,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'spark_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'runners_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -6771,23 +6617,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -6800,7 +6629,7 @@
           ]
         }
       ],
-      "title": "Spark Python Tests",
+      "title": "Python Runners Tests",
       "transformations": [
         {
           "id": "merge",
@@ -6812,10 +6641,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -7714,10 +7540,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -7728,7 +7550,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'flink_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'load_perf_python'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -7740,23 +7562,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -7769,7 +7574,7 @@
           ]
         }
       ],
-      "title": "Flink Python Tests",
+      "title": "Python Load/Perf Tests",
       "transformations": [
         {
           "id": "merge",
@@ -7781,10 +7586,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -8683,10 +8485,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -8697,7 +8495,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'core_go'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'go'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -8709,23 +8507,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",
@@ -8738,7 +8519,7 @@
           ]
         }
       ],
-      "title": "Core Go Tests",
+      "title": "Go Tests",
       "transformations": [
         {
           "id": "merge",
@@ -8750,10 +8531,7 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
+      "datasource": "BeamPSQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -9652,2917 +9430,6 @@
         {
           "aggregation": "Last",
           "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
-          "decimals": 2,
-          "displayAliasType": "Warning / Critical",
-          "displayType": "Regular",
-          "displayValueWithAlias": "Never",
-          "editorMode": "code",
-          "format": "table",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'dataflow_go'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
-          "timeColumn": "time",
-          "units": "none",
-          "valueHandler": "Number Threshold",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Dataflow Go Tests",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {
-            "reducers": []
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "semi-dark-red",
-                  "index": 0,
-                  "text": "Fail"
-                },
-                "1": {
-                  "color": "semi-dark-green",
-                  "index": 1,
-                  "text": "Success"
-                },
-                "2": {
-                  "color": "semi-dark-yellow",
-                  "index": 2,
-                  "text": "Pending"
-                },
-                "3": {
-                  "color": "semi-dark-purple",
-                  "index": 3,
-                  "text": "Cancelled"
-                },
-                "4": {
-                  "color": "light-blue",
-                  "index": 4,
-                  "text": "None"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "semi-dark-red",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job_name"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "targetBlank": true,
-                    "title": "",
-                    "url": "https://github.com/apache/beam/actions/${__data.fields.job_yml_filename}"
-                  }
-                ]
-              },
-              {
-                "id": "custom.align",
-                "value": "auto"
-              },
-              {
-                "id": "mappings",
-                "value": []
-              },
-              {
-                "id": "displayName",
-                "value": "Job Name"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job_yml_filename"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/run\\d+id/"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_1"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run1id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_2"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run2id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 2"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_3"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run3id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 3"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_4"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run4id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 4"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_5"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run5id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 5"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_6"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run6id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 6"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_7"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run7id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 7"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_8"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run8id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 8"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_9"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run9id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 9"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_10"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run10id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 10"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 20,
-        "w": 24,
-        "x": 0,
-        "y": 200
-      },
-      "id": 5,
-      "links": [],
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "10.0.3",
-      "targets": [
-        {
-          "aggregation": "Last",
-          "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
-          "decimals": 2,
-          "displayAliasType": "Warning / Critical",
-          "displayType": "Regular",
-          "displayValueWithAlias": "Never",
-          "editorMode": "code",
-          "format": "table",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'spark_go'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
-          "timeColumn": "time",
-          "units": "none",
-          "valueHandler": "Number Threshold",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Spark Go Tests",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {
-            "reducers": []
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "semi-dark-red",
-                  "index": 0,
-                  "text": "Fail"
-                },
-                "1": {
-                  "color": "semi-dark-green",
-                  "index": 1,
-                  "text": "Success"
-                },
-                "2": {
-                  "color": "semi-dark-yellow",
-                  "index": 2,
-                  "text": "Pending"
-                },
-                "3": {
-                  "color": "semi-dark-purple",
-                  "index": 3,
-                  "text": "Cancelled"
-                },
-                "4": {
-                  "color": "light-blue",
-                  "index": 4,
-                  "text": "None"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "semi-dark-red",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job_name"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "targetBlank": true,
-                    "title": "",
-                    "url": "https://github.com/apache/beam/actions/${__data.fields.job_yml_filename}"
-                  }
-                ]
-              },
-              {
-                "id": "custom.align",
-                "value": "auto"
-              },
-              {
-                "id": "mappings",
-                "value": []
-              },
-              {
-                "id": "displayName",
-                "value": "Job Name"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job_yml_filename"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/run\\d+id/"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_1"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run1id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_2"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run2id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 2"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_3"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run3id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 3"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_4"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run4id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 4"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_5"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run5id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 5"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_6"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run6id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 6"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_7"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run7id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 7"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_8"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run8id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 8"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_9"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run9id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 9"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_10"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run10id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 10"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 20,
-        "w": 24,
-        "x": 0,
-        "y": 220
-      },
-      "id": 4,
-      "links": [],
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "10.0.3",
-      "targets": [
-        {
-          "aggregation": "Last",
-          "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
-          "decimals": 2,
-          "displayAliasType": "Warning / Critical",
-          "displayType": "Regular",
-          "displayValueWithAlias": "Never",
-          "editorMode": "code",
-          "format": "table",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with workflows as (\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'None' then 4 else 0 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'None' then 4 else 0 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'None' then 4 else 0 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'None' then 4 else 0 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'None' then 4 else 0 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'None' then 4 else 0 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'None' then 4 else 0 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'None' then 4 else 0 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'None' then 4 else 0 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'None' then 4 else 0 end as run_10\n  from\n    github_workflows\n  where\n    dashboard_category = 'flink_go'\n)\nselect\n  job_name,\n  job_yml_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
-          "timeColumn": "time",
-          "units": "none",
-          "valueHandler": "Number Threshold",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Flink Go Tests",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {
-            "reducers": []
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "fK5onAOVz"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "semi-dark-red",
-                  "index": 0,
-                  "text": "Fail"
-                },
-                "1": {
-                  "color": "semi-dark-green",
-                  "index": 1,
-                  "text": "Success"
-                },
-                "2": {
-                  "color": "semi-dark-yellow",
-                  "index": 2,
-                  "text": "Pending"
-                },
-                "3": {
-                  "color": "semi-dark-purple",
-                  "index": 3,
-                  "text": "Cancelled"
-                },
-                "4": {
-                  "color": "light-blue",
-                  "index": 4,
-                  "text": "None"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "semi-dark-red",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job_name"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "targetBlank": true,
-                    "title": "",
-                    "url": "https://github.com/apache/beam/actions/${__data.fields.job_yml_filename}"
-                  }
-                ]
-              },
-              {
-                "id": "custom.align",
-                "value": "auto"
-              },
-              {
-                "id": "mappings",
-                "value": []
-              },
-              {
-                "id": "displayName",
-                "value": "Job Name"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job_yml_filename"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/run\\d+id/"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_1"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run1id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_2"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run2id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 2"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_3"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run3id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 3"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_4"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run4id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 4"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_5"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run5id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 5"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_6"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run6id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 6"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_7"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run7id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 7"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_8"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run8id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 8"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_9"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run9id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 9"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_10"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.hidden",
-                "value": false
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "semi-dark-red",
-                      "value": null
-                    },
-                    {
-                      "color": "semi-dark-red",
-                      "value": 0
-                    },
-                    {
-                      "color": "semi-dark-green",
-                      "value": 1
-                    },
-                    {
-                      "color": "semi-dark-yellow",
-                      "value": 2
-                    },
-                    {
-                      "color": "light-blue",
-                      "value": 3
-                    },
-                    {
-                      "color": "purple",
-                      "value": 4
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "",
-                    "url": "${__data.fields.run10id}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Run 10"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 20,
-        "w": 24,
-        "x": 0,
-        "y": 240
-      },
-      "id": 14,
-      "links": [],
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "10.0.3",
-      "targets": [
-        {
-          "aggregation": "Last",
-          "alias": "job",
-          "datasource": {
-            "type": "postgres",
-            "uid": "fK5onAOVz"
-          },
           "decimals": 2,
           "displayAliasType": "Warning / Critical",
           "displayType": "Regular",
@@ -12585,23 +9452,6 @@
               }
             ]
           ],
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          },
           "timeColumn": "time",
           "units": "none",
           "valueHandler": "Number Threshold",

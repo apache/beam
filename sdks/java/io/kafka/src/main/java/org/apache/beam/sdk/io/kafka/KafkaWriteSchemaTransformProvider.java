@@ -36,12 +36,14 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -60,14 +62,12 @@ public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
 
-  public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
+  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
       new TupleTag<KV<byte[], byte[]>>() {};
-  public static final Schema ERROR_SCHEMA =
-      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
@@ -99,25 +99,38 @@ public class KafkaWriteSchemaTransformProvider
     }
 
     public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {
-      private SerializableFunction<Row, byte[]> toBytesFn;
-      private Counter errorCounter;
+      private final SerializableFunction<Row, byte[]> toBytesFn;
+      private final Counter errorCounter;
       private Long errorsInBundle = 0L;
+      private final boolean handleErrors;
+      private final Schema errorSchema;
 
-      public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
+      public ErrorCounterFn(
+          String name,
+          SerializableFunction<Row, byte[]> toBytesFn,
+          Schema errorSchema,
+          boolean handleErrors) {
         this.toBytesFn = toBytesFn;
-        errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
+        this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
+        this.handleErrors = handleErrors;
+        this.errorSchema = errorSchema;
       }
 
       @ProcessElement
       public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
+        KV<byte[], byte[]> output = null;
         try {
-          receiver.get(OUTPUT_TAG).output(KV.of(new byte[1], toBytesFn.apply(row)));
+          output = KV.of(new byte[1], toBytesFn.apply(row));
         } catch (Exception e) {
+          if (!handleErrors) {
+            throw new RuntimeException(e);
+          }
           errorsInBundle += 1;
           LOG.warn("Error while processing the element", e);
-          receiver
-              .get(ERROR_TAG)
-              .output(Row.withSchema(ERROR_SCHEMA).addValues(e.toString(), row.toString()).build());
+          receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
+        }
+        if (output != null) {
+          receiver.get(OUTPUT_TAG).output(output);
         }
       }
 
@@ -128,21 +141,36 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
+    @SuppressWarnings({
+      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    })
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
-      final SerializableFunction<Row, byte[]> toBytesFn =
-          configuration.getFormat().equals("JSON")
-              ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-              : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      final SerializableFunction<Row, byte[]> toBytesFn;
+      if (configuration.getFormat().equals("RAW")) {
+        int numFields = inputSchema.getFields().size();
+        if (numFields != 1) {
+          throw new IllegalArgumentException("Expecting exactly one field, found " + numFields);
+        }
+        toBytesFn = getRowToRawBytesFunction(inputSchema.getField(0).getName());
+      } else if (configuration.getFormat().equals("JSON")) {
+        toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
+      } else {
+        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      }
 
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
+      Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
       PCollectionTuple outputTuple =
           input
               .get("input")
               .apply(
                   "Map rows to Kafka messages",
-                  ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
+                  ParDo.of(
+                          new ErrorCounterFn(
+                              "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       outputTuple
@@ -158,9 +186,25 @@ public class KafkaWriteSchemaTransformProvider
                   .withKeySerializer(ByteArraySerializer.class)
                   .withValueSerializer(ByteArraySerializer.class));
 
+      // TODO: include output from KafkaIO Write once updated from PDone
+      PCollection<Row> errorOutput =
+          outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
       return PCollectionRowTuple.of(
-          "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
+          handleErrors ? configuration.getErrorHandling().getOutput() : "errors", errorOutput);
     }
+  }
+
+  public static SerializableFunction<Row, byte[]> getRowToRawBytesFunction(String rowFieldName) {
+    return new SimpleFunction<Row, byte[]>() {
+      @Override
+      public byte[] apply(Row input) {
+        byte[] rawBytes = input.getBytes(rowFieldName);
+        if (rawBytes == null) {
+          throw new NullPointerException();
+        }
+        return rawBytes;
+      }
+    };
   }
 
   @Override
@@ -205,6 +249,10 @@ public class KafkaWriteSchemaTransformProvider
     @Nullable
     public abstract Map<String, String> getProducerConfigUpdates();
 
+    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+    @Nullable
+    public abstract ErrorHandling getErrorHandling();
+
     public static Builder builder() {
       return new AutoValue_KafkaWriteSchemaTransformProvider_KafkaWriteSchemaTransformConfiguration
           .Builder();
@@ -219,6 +267,8 @@ public class KafkaWriteSchemaTransformProvider
       public abstract Builder setBootstrapServers(String bootstrapServers);
 
       public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
+
+      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
       public abstract KafkaWriteSchemaTransformConfiguration build();
     }

@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_WordCountIT_PythonVersions:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (startswith(github.event.comment.body, 'Run Python') &&
         endswith(github.event.comment.body, 'WordCountIT Performance Test'))
     runs-on: [self-hosted, ubuntu-20.04, main]

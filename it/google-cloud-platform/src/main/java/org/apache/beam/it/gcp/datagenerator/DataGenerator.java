@@ -61,16 +61,14 @@ public class DataGenerator {
             .build();
   }
 
-  public static DataGenerator.Builder builderWithSchemaLocation(
-      String testName, String schemaLocation) {
-    return new DataGenerator.Builder(testName + "-data-generator")
+  public static Builder builderWithSchemaLocation(String testName, String schemaLocation) {
+    return new Builder(testName + "-data-generator")
         .setSchemaLocation(schemaLocation)
         .setAutoscalingAlgorithm(AutoscalingAlgorithmType.THROUGHPUT_BASED);
   }
 
-  public static DataGenerator.Builder builderWithSchemaTemplate(
-      String testName, String schemaTemplate) {
-    return new DataGenerator.Builder(testName + "-data-generator")
+  public static Builder builderWithSchemaTemplate(String testName, String schemaTemplate) {
+    return new Builder(testName + "-data-generator")
         .setSchemaTemplate(schemaTemplate)
         .setAutoscalingAlgorithm(AutoscalingAlgorithmType.THROUGHPUT_BASED);
   }
@@ -131,27 +129,27 @@ public class DataGenerator {
       return parameters;
     }
 
-    public DataGenerator.Builder setSchemaTemplate(String value) {
+    public Builder setSchemaTemplate(String value) {
       parameters.put("schemaTemplate", value);
       return this;
     }
 
-    public DataGenerator.Builder setSchemaLocation(String value) {
+    public Builder setSchemaLocation(String value) {
       parameters.put("schemaLocation", value);
       return this;
     }
 
-    public DataGenerator.Builder setMessagesLimit(String value) {
+    public Builder setMessagesLimit(String value) {
       parameters.put(MESSAGES_LIMIT, value);
       return this;
     }
 
-    public DataGenerator.Builder setQPS(String value) {
+    public Builder setQPS(String value) {
       parameters.put("qps", value);
       return this;
     }
 
-    public DataGenerator.Builder setSinkType(String value) {
+    public Builder setSinkType(String value) {
       parameters.put("sinkType", value);
       return this;
     }
@@ -166,87 +164,87 @@ public class DataGenerator {
       return this;
     }
 
-    public DataGenerator.Builder setMaxNumWorkers(String value) {
+    public Builder setMaxNumWorkers(String value) {
       parameters.put("maxNumWorkers", value);
       return this;
     }
 
-    public DataGenerator.Builder setAutoscalingAlgorithm(AutoscalingAlgorithmType value) {
+    public Builder setAutoscalingAlgorithm(AutoscalingAlgorithmType value) {
       parameters.put("autoscalingAlgorithm", value.toString());
       return this;
     }
 
-    public DataGenerator.Builder setOutputDirectory(String value) {
+    public Builder setOutputDirectory(String value) {
       parameters.put("outputDirectory", value);
       return this;
     }
 
-    public DataGenerator.Builder setOutputType(String value) {
+    public Builder setOutputType(String value) {
       parameters.put("outputType", value);
       return this;
     }
 
-    public DataGenerator.Builder setNumShards(String value) {
+    public Builder setNumShards(String value) {
       parameters.put("numShards", value);
       return this;
     }
 
-    public DataGenerator.Builder setAvroSchemaLocation(String value) {
+    public Builder setAvroSchemaLocation(String value) {
       parameters.put("avroSchemaLocation", value);
       return this;
     }
 
-    public DataGenerator.Builder setTopic(String value) {
+    public Builder setTopic(String value) {
       parameters.put("topic", value);
       return this;
     }
 
-    public DataGenerator.Builder setProjectId(String value) {
+    public Builder setProjectId(String value) {
       parameters.put("projectId", value);
       return this;
     }
 
-    public DataGenerator.Builder setSpannerInstanceName(String value) {
+    public Builder setSpannerInstanceName(String value) {
       parameters.put("spannerInstanceName", value);
       return this;
     }
 
-    public DataGenerator.Builder setSpannerDatabaseName(String value) {
+    public Builder setSpannerDatabaseName(String value) {
       parameters.put("spannerDatabaseName", value);
       return this;
     }
 
-    public DataGenerator.Builder setSpannerTableName(String value) {
+    public Builder setSpannerTableName(String value) {
       parameters.put("spannerTableName", value);
       return this;
     }
 
-    public DataGenerator.Builder setDriverClassName(String value) {
+    public Builder setDriverClassName(String value) {
       parameters.put("driverClassName", value);
       return this;
     }
 
-    public DataGenerator.Builder setConnectionUrl(String value) {
+    public Builder setConnectionUrl(String value) {
       parameters.put("connectionUrl", value);
       return this;
     }
 
-    public DataGenerator.Builder setUsername(String value) {
+    public Builder setUsername(String value) {
       parameters.put("username", value);
       return this;
     }
 
-    public DataGenerator.Builder setPassword(String value) {
+    public Builder setPassword(String value) {
       parameters.put("password", value);
       return this;
     }
 
-    public DataGenerator.Builder setConnectionProperties(String value) {
+    public Builder setConnectionProperties(String value) {
       parameters.put("connectionProperties", value);
       return this;
     }
 
-    public DataGenerator.Builder setStatement(String value) {
+    public Builder setStatement(String value) {
       parameters.put("statement", value);
       return this;
     }

@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_PubsubIOIT_Python_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run PubsubIO Performance Test Python'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240

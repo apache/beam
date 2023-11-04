@@ -20,6 +20,8 @@ name: PostCommit Java SingleStoreIO IT
 on:
   schedule:
     - cron: '30 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -60,8 +62,9 @@ jobs:
         job_phrase: [Run Java SingleStoreIO_IT]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Java SingleStoreIO_IT'
     steps:
       - uses: actions/checkout@v3

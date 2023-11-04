@@ -195,7 +195,8 @@ class MatchFiles(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
-    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(
+        empty_match_treatment=self._empty_match_treatment)
 
 
 class MatchAll(beam.PTransform):
