@@ -487,10 +487,10 @@ import org.slf4j.LoggerFactory;
  *
  * The connector also supports streaming row updates to BigQuery, with the following qualifications:
  *
+ * <p>- Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
+ *
  * <p>- If the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be
  * specified using {@link Write#withPrimaryKey}.
- *
- * <p>- Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
  *
  * <p>Two types of updates are supported. UPSERT replaces the row with the matching primary key or
  * inserts the row if non exists. DELETE removes the row with the matching primary key. Row inserts
