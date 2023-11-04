@@ -41,7 +41,7 @@ RUN  \
        libgeos-dev \
        && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install --upgrade setuptools && \
+    pip install --upgrade setuptools wheel && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
@@ -86,7 +86,6 @@ ARG TARGETARCH
 # copy commands & libs to distroless
 COPY --from=python-base /bin /bin
 COPY --from=python-base /lib lib
-COPY --from=python-base /usr/bin/which /usr/bin/which
 COPY --from=python-base /etc/ld.so.cache /etc/ld.so.cache
 COPY --from=python-base /usr/bin/which /usr/bin/which
 
@@ -97,8 +96,6 @@ COPY --from=python-base /usr/local/bin /usr/local/bin
 
 ENV PATH="/usr/local/bin:/usr/local/gcloud/google-cloud-sdk/bin:$PATH"
 
-COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
-COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE target/LICENSE.python /opt/apache/beam/
 
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
