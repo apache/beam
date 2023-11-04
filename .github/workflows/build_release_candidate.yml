@@ -186,6 +186,7 @@ jobs:
           RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           GIT_REPO_BASE_URL: https://github.com/apache/beam
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
+          RELEASE: "${{ github.event.inputs.RELEASE }}"
           SCRIPT_DIR: release/src/main/scripts
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/python"
@@ -205,7 +206,8 @@ jobs:
             --yes True
         
           cd "${RELEASE_DIR}"/python
-        
+          ls
+
           echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
           sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
         
