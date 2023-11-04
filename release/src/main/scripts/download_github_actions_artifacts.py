@@ -68,8 +68,9 @@ def parse_arguments():
   artifacts_dir = args.artifacts_dir if os.path.isabs(args.artifacts_dir) \
     else os.path.abspath(args.artifacts_dir)
   rc_number = args.rc_number
+  skip_prompts = args.yes
 
-  return github_token, repo_url, rc_tag, release_commit, artifacts_dir, rc_number
+  return github_token, repo_url, rc_tag, release_commit, artifacts_dir, rc_number, skip_prompts
 
 
 def get_github_token(github_token_var):
@@ -242,7 +243,7 @@ def wait_for_workflow_run_to_finish(
         )
 
 
-def prepare_directory(artifacts_dir):
+def prepare_directory(artifacts_dir, skip_prompts):
   """Creates given directory and asks for confirmation if directory exists before clearing it."""
   print(f"Preparing Artifacts directory: {artifacts_dir}")
   if os.path.isdir(artifacts_dir):
@@ -250,7 +251,7 @@ def prepare_directory(artifacts_dir):
         f"Found that directory already exists.\n"
         f"Any existing content in it will be erased. Proceed?\n"
         f"Your answer")
-    if get_yes_or_no_answer(question):
+    if skip_prompts or get_yes_or_no_answer(question):
       print(f"Clearing directory: {artifacts_dir}")
       shutil.rmtree(artifacts_dir, ignore_errors=True)
     else:
@@ -329,6 +330,7 @@ if __name__ == "__main__":
       release_commit,
       artifacts_dir,
       rc_number,
+      skip_prompts,
   ) = parse_arguments()
 
   try:
@@ -336,7 +338,7 @@ if __name__ == "__main__":
     run_id = get_last_run_id(
         workflow_id, repo_url, rc_tag, release_commit, github_token)
     validate_run(run_id, repo_url, github_token)
-    prepare_directory(artifacts_dir)
+    prepare_directory(artifacts_dir, skip_prompts)
     fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_number)
     print("Script finished successfully!")
     print(f"Artifacts available in directory: {artifacts_dir}")
