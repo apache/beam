@@ -152,7 +152,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components) []*stage {
 	topological := pipelinex.TopologicalSort(ts, keptLeaves)
 	slog.Debug("topological transform ordering", slog.Any("topological", topological))
 
-	facts := computePColFacts(topological, comps)
+	facts := computeFacts(topological, comps)
 	facts.forcedRoots = forcedRoots
 
 	return greedyFusion(topological, comps, facts)
@@ -219,12 +219,12 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components) []*stage {
 // 		inputID := getOnlyValue(t.GetInputs())
 // 		outputID := getOnlyValue(t.GetOutputs())
 
-// 		parentLink := facts.pcolParents[inputID]
+// 		producerLink := facts.pcolProducers[inputID]
 
-// 		parent := comps.GetTransforms()[parentLink.transform]
+// 		producer := comps.GetTransforms()[producerLink.transform]
 
 // 		// Check if the input source is a GBK
-// 		if parent.GetSpec().GetUrn() != urns.TransformGBK {
+// 		if producer.GetSpec().GetUrn() != urns.TransformGBK {
 // 			continue
 // 		}
 
@@ -297,19 +297,21 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components) []*stage {
 // }
 
 type fusionFacts struct {
-	pcolParents          map[string]link
-	pcolConsumers        map[string][]link
-	usedAsSideInput      map[string]bool
-	directSideInputs     map[string]map[string]bool
-	downstreamSideInputs map[string]map[string]bool
-	forcedRoots          map[string]bool
+	pcolProducers        map[string]link  // global pcol ID to transform link that produces it.
+	pcolConsumers        map[string][]link // global pcol ID to all consumers of that pcollection
+	usedAsSideInput      map[string]bool // global pcol ID and if it's used as a side input
+
+	directSideInputs     map[string]map[string]bool // global transform ID and all direct side input pcollections.
+	downstreamSideInputs map[string]map[string]bool // global transform ID and all transitive side input pcollections.
+
+	forcedRoots          map[string]bool // transforms forced to be roots (not computed by pcol facts.)
 }
 
-// computePColFacts computes a map of PCollectionIDs to their parent transforms, and a map of
-// PCollectionIDs to their consuming transforms.
-func computePColFacts(topological []string, comps *pipepb.Components) fusionFacts {
+// computeFacts computes facts about the given set of transforms and components that
+// are useful for fusion.
+func computeFacts(topological []string, comps *pipepb.Components) fusionFacts {
 	ret := fusionFacts{
-		pcolParents:          map[string]link{},
+		pcolProducers:        map[string]link{},
 		pcolConsumers:        map[string][]link{},
 		usedAsSideInput:      map[string]bool{},
 		directSideInputs:     map[string]map[string]bool{}, // direct set
@@ -317,11 +319,11 @@ func computePColFacts(topological []string, comps *pipepb.Components) fusionFact
 	}
 
 	// Use the topological ids so each PCollection only has a single
-	// parent. We've already pruned out composites at this stage.
+	// producer. We've already pruned out composites at this stage.
 	for _, tID := range topological {
 		t := comps.GetTransforms()[tID]
 		for local, global := range t.GetOutputs() {
-			ret.pcolParents[global] = link{transform: tID, local: local, global: global}
+			ret.pcolProducers[global] = link{transform: tID, local: local, global: global}
 		}
 		sis, err := getSideInputs(t)
 		if err != nil {
@@ -381,20 +383,20 @@ func computeDownstreamSideInputs(tID string, comps *pipepb.Components, facts fus
 // Note, this is very similar to the work done WRT composites in pipelinex.Normalize.
 func prepareStage(stg *stage, comps *pipepb.Components, pipelineFacts fusionFacts) {
 	// Collect all PCollections involved in this stage.
-	stageFacts := computePColFacts(stg.transforms, comps)
+	stageFacts := computeFacts(stg.transforms, comps)
 
 	transformSet := map[string]bool{}
 	for _, tid := range stg.transforms {
 		transformSet[tid] = true
 	}
 
-	// Now we can see which consumers (inputs) aren't covered by the parents (outputs).
+	// Now we can see which consumers (inputs) aren't covered by the producers (outputs).
 	mainInputs := map[string]string{}
 	var sideInputs []link
 	inputs := map[string]bool{}
 	for pid, plinks := range stageFacts.pcolConsumers {
 		// Check if this PCollection is generated in this bundle.
-		if _, ok := stageFacts.pcolParents[pid]; ok {
+		if _, ok := stageFacts.pcolProducers[pid]; ok {
 			// It is, so we will ignore for now.
 			continue
 		}
@@ -413,7 +415,7 @@ func prepareStage(stg *stage, comps *pipepb.Components, pipelineFacts fusionFact
 	outputs := map[string]link{}
 	var internal []string
 	// Look at all PCollections produced in this stage.
-	for pid, link := range stageFacts.pcolParents {
+	for pid, link := range stageFacts.pcolProducers {
 		// Look at all consumers of this PCollection in the pipeline
 		isInternal := true
 		for _, l := range pipelineFacts.pcolConsumers[pid] {
@@ -490,7 +492,6 @@ func greedyFusion(topological []string, comps *pipepb.Components, facts fusionFa
 	forcedRoots := map[int]bool{}
 	directSIs := map[int]map[string]bool{}
 	downstreamSIs := map[int]map[string]bool{}
-	pcolParents := map[string]int{}
 
 	var index int
 	replacements := func(tID string) int {
@@ -533,7 +534,7 @@ func greedyFusion(topological []string, comps *pipepb.Components, facts fusionFa
 
 	// To start, every transform is in it's own stage.
 	// So we map a transformID to a stageID.
-	// We go through each PCollection, (facts.PcolParents) and
+	// We go through each PCollection, (facts.PcolProducers) and
 	// try to fuse the producer to each consumer of that PCollection.
 	//
 	// If we can fuse, the consumer takes on the producer's stageID,
@@ -541,13 +542,12 @@ func greedyFusion(topological []string, comps *pipepb.Components, facts fusionFa
 
 	// Use the topological sort instead?
 
-	keys := maps.Keys(facts.pcolParents)
+	keys := maps.Keys(facts.pcolProducers)
 	slices.Sort(keys)
 	for _, pcol := range keys {
-		producer := facts.pcolParents[pcol]
+		producer := facts.pcolProducers[pcol]
 		for _, consumer := range facts.pcolConsumers[pcol] {
 			pID := replacements(producer.transform) // Get current stage for producer
-			pcolParents[pcol] = pID
 			cID := replacements(consumer.transform) // Get current stage for consumer
 
 			// See if there's anything preventing fusion:
