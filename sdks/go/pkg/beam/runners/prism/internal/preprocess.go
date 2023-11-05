@@ -160,139 +160,141 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components) []*stage {
 
 // TODO(lostluck): Be able to toggle this in variants.
 // Most likely, re-implement in terms of simply marking all transforms as forced roots.
+// Commented out to avoid the unused staticheck, but it's worth keeping until the docs
+// and implementation is re-added.
 
-// defaultFusion is the base strategy for prism, that doesn't seek to optimize execution
-// with fused stages. Input is the set of leaf nodes we're going to execute, topologically
-// sorted, and the pipeline components.
-//
-// Default fusion behavior: Don't. Prism is intended to test all of Beam, which often
-// means for testing purposes, to execute pipelines without optimization.
-//
-// Special Exception to unfused Go SDK pipelines.
-//
-// If a transform, after a GBK step, has a single input with a KV<K, Iter<X>> coder
-// and a single output O with a KV<K, Iter<Y>> coder, and if then it must be fused with
-// the consumers of O.
-func defaultFusion(topological []string, comps *pipepb.Components, facts fusionFacts) []*stage {
-	// Basic Fusion Behavior
-	//
-	// Fusion is the practice of executing associated DoFns in the same stage.
-	// This often leads to more efficient processing, since costly encode/decode or
-	// serialize/deserialize operations can be elided. In Beam, any PCollection can
-	// in principle serve as a place for serializing and deserializing elements.
-	//
-	// In particular, Fusion is a stage for optimizing pipeline execution, and was
-	// described in the FlumeJava paper, in section 4.
-	// https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/35650.pdf
-	//
-	// Per the FlumeJava paper, there are two primary opportunities for Fusion,
-	// Producer+Consumer fusion and Sibling fusion.
-	//
-	// Producer+Consumer fusion is when the producer of a PCollection and the consumers of
-	// that PCollection are combined into a single stage. Sibling fusion is when two consumers
-	// of the same pcollection are fused into the same step. These processes can continue until
-	// graph structure or specific transforms dictate that fusion may not proceed futher.
-	//
-	// Examples of fusion breaks include GroupByKeys, or requiring side inputs to complete
-	// processing for downstream processing, since the producer and consumer of side inputs
-	// cannot be in the same fused stage.
-	//
-	// Additionally, at this phase, we can consider different optimizations for execution.
-	// For example "Flatten unzipping". In practice, there's no requirement for any stages
-	// to have an explicit "Flatten" present in the graph. A flatten can be "unzipped",
-	// duplicating the consumming transforms after the flatten, until a subsequent fusion break.
-	// This enables additional parallelism by allowing sources to operate in their own independant
-	// stages. Beam supports this naturally with the separation of work into independant
-	// bundles for execution.
+// // defaultFusion is the base strategy for prism, that doesn't seek to optimize execution
+// // with fused stages. Input is the set of leaf nodes we're going to execute, topologically
+// // sorted, and the pipeline components.
+// //
+// // Default fusion behavior: Don't. Prism is intended to test all of Beam, which often
+// // means for testing purposes, to execute pipelines without optimization.
+// //
+// // Special Exception to unfused Go SDK pipelines.
+// //
+// // If a transform, after a GBK step, has a single input with a KV<K, Iter<X>> coder
+// // and a single output O with a KV<K, Iter<Y>> coder, and if then it must be fused with
+// // the consumers of O.
+// func defaultFusion(topological []string, comps *pipepb.Components, facts fusionFacts) []*stage {
+// 	// Basic Fusion Behavior
+// 	//
+// 	// Fusion is the practice of executing associated DoFns in the same stage.
+// 	// This often leads to more efficient processing, since costly encode/decode or
+// 	// serialize/deserialize operations can be elided. In Beam, any PCollection can
+// 	// in principle serve as a place for serializing and deserializing elements.
+// 	//
+// 	// In particular, Fusion is a stage for optimizing pipeline execution, and was
+// 	// described in the FlumeJava paper, in section 4.
+// 	// https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/35650.pdf
+// 	//
+// 	// Per the FlumeJava paper, there are two primary opportunities for Fusion,
+// 	// Producer+Consumer fusion and Sibling fusion.
+// 	//
+// 	// Producer+Consumer fusion is when the producer of a PCollection and the consumers of
+// 	// that PCollection are combined into a single stage. Sibling fusion is when two consumers
+// 	// of the same pcollection are fused into the same step. These processes can continue until
+// 	// graph structure or specific transforms dictate that fusion may not proceed futher.
+// 	//
+// 	// Examples of fusion breaks include GroupByKeys, or requiring side inputs to complete
+// 	// processing for downstream processing, since the producer and consumer of side inputs
+// 	// cannot be in the same fused stage.
+// 	//
+// 	// Additionally, at this phase, we can consider different optimizations for execution.
+// 	// For example "Flatten unzipping". In practice, there's no requirement for any stages
+// 	// to have an explicit "Flatten" present in the graph. A flatten can be "unzipped",
+// 	// duplicating the consumming transforms after the flatten, until a subsequent fusion break.
+// 	// This enables additional parallelism by allowing sources to operate in their own independant
+// 	// stages. Beam supports this naturally with the separation of work into independant
+// 	// bundles for execution.
 
-	// Explicitly list the pcollectionID we want to fuse along.
-	fuseWithConsumers := map[string]string{}
-	for _, tid := range topological {
-		t := comps.GetTransforms()[tid]
+// 	// Explicitly list the pcollectionID we want to fuse along.
+// 	fuseWithConsumers := map[string]string{}
+// 	for _, tid := range topological {
+// 		t := comps.GetTransforms()[tid]
 
-		// See if this transform has a single input and output
-		if len(t.GetInputs()) != 1 || len(t.GetOutputs()) != 1 {
-			continue
-		}
-		inputID := getOnlyValue(t.GetInputs())
-		outputID := getOnlyValue(t.GetOutputs())
+// 		// See if this transform has a single input and output
+// 		if len(t.GetInputs()) != 1 || len(t.GetOutputs()) != 1 {
+// 			continue
+// 		}
+// 		inputID := getOnlyValue(t.GetInputs())
+// 		outputID := getOnlyValue(t.GetOutputs())
 
-		parentLink := facts.pcolParents[inputID]
+// 		parentLink := facts.pcolParents[inputID]
 
-		parent := comps.GetTransforms()[parentLink.transform]
+// 		parent := comps.GetTransforms()[parentLink.transform]
 
-		// Check if the input source is a GBK
-		if parent.GetSpec().GetUrn() != urns.TransformGBK {
-			continue
-		}
+// 		// Check if the input source is a GBK
+// 		if parent.GetSpec().GetUrn() != urns.TransformGBK {
+// 			continue
+// 		}
 
-		// Check if the coder is a KV<K, Iter<?>>
-		iCID := comps.GetPcollections()[inputID].GetCoderId()
-		oCID := comps.GetPcollections()[outputID].GetCoderId()
+// 		// Check if the coder is a KV<K, Iter<?>>
+// 		iCID := comps.GetPcollections()[inputID].GetCoderId()
+// 		oCID := comps.GetPcollections()[outputID].GetCoderId()
 
-		if checkForExpandCoderPattern(iCID, oCID, comps) {
-			fuseWithConsumers[tid] = outputID
-		}
-	}
+// 		if checkForExpandCoderPattern(iCID, oCID, comps) {
+// 			fuseWithConsumers[tid] = outputID
+// 		}
+// 	}
 
-	var stages []*stage
-	// Since we iterate in topological order, we're guaranteed to process producers before consumers.
-	consumed := map[string]bool{} // Checks if we've already handled a transform already due to fusion.
-	for _, tid := range topological {
-		if consumed[tid] {
-			continue
-		}
-		stg := &stage{
-			transforms: []string{tid},
-		}
-		// TODO validate that fused stages have the same environment.
-		stg.envID = comps.GetTransforms()[tid].EnvironmentId
+// 	var stages []*stage
+// 	// Since we iterate in topological order, we're guaranteed to process producers before consumers.
+// 	consumed := map[string]bool{} // Checks if we've already handled a transform already due to fusion.
+// 	for _, tid := range topological {
+// 		if consumed[tid] {
+// 			continue
+// 		}
+// 		stg := &stage{
+// 			transforms: []string{tid},
+// 		}
+// 		// TODO validate that fused stages have the same environment.
+// 		stg.envID = comps.GetTransforms()[tid].EnvironmentId
 
-		stages = append(stages, stg)
+// 		stages = append(stages, stg)
 
-		pcolID, ok := fuseWithConsumers[tid]
-		if !ok {
-			continue
-		}
-		cs := facts.pcolConsumers[pcolID]
+// 		pcolID, ok := fuseWithConsumers[tid]
+// 		if !ok {
+// 			continue
+// 		}
+// 		cs := facts.pcolConsumers[pcolID]
 
-		for _, c := range cs {
-			stg.transforms = append(stg.transforms, c.transform)
-			consumed[c.transform] = true
-		}
-	}
+// 		for _, c := range cs {
+// 			stg.transforms = append(stg.transforms, c.transform)
+// 			consumed[c.transform] = true
+// 		}
+// 	}
 
-	for _, stg := range stages {
-		prepareStage(stg, comps, facts)
-	}
-	return stages
-}
+// 	for _, stg := range stages {
+// 		prepareStage(stg, comps, facts)
+// 	}
+// 	return stages
+// }
 
-// We need to see that both coders have this pattern: KV<K, Iter<?>>
-func checkForExpandCoderPattern(in, out string, comps *pipepb.Components) bool {
-	isKV := func(id string) bool {
-		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderKV
-	}
-	getComp := func(id string, i int) string {
-		return comps.GetCoders()[id].GetComponentCoderIds()[i]
-	}
-	isIter := func(id string) bool {
-		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderIterable
-	}
-	if !isKV(in) || !isKV(out) {
-		return false
-	}
-	// Are the keys identical?
-	if getComp(in, 0) != getComp(out, 0) {
-		return false
-	}
-	// Are both values iterables?
-	if isIter(getComp(in, 1)) && isIter(getComp(out, 1)) {
-		// If so we have the ExpandCoderPattern from the Go SDK. Hurray!
-		return true
-	}
-	return false
-}
+// // We need to see that both coders have this pattern: KV<K, Iter<?>>
+// func checkForExpandCoderPattern(in, out string, comps *pipepb.Components) bool {
+// 	isKV := func(id string) bool {
+// 		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderKV
+// 	}
+// 	getComp := func(id string, i int) string {
+// 		return comps.GetCoders()[id].GetComponentCoderIds()[i]
+// 	}
+// 	isIter := func(id string) bool {
+// 		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderIterable
+// 	}
+// 	if !isKV(in) || !isKV(out) {
+// 		return false
+// 	}
+// 	// Are the keys identical?
+// 	if getComp(in, 0) != getComp(out, 0) {
+// 		return false
+// 	}
+// 	// Are both values iterables?
+// 	if isIter(getComp(in, 1)) && isIter(getComp(out, 1)) {
+// 		// If so we have the ExpandCoderPattern from the Go SDK. Hurray!
+// 		return true
+// 	}
+// 	return false
+// }
 
 type fusionFacts struct {
 	pcolParents          map[string]link
