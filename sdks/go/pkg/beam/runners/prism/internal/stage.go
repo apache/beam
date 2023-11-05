@@ -128,12 +128,32 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, d
 	previousIndex := int64(-2)
 	var splitsDone bool
 	progTick := time.NewTicker(100 * time.Millisecond)
+	defer progTick.Stop()
+	var dataFinished, bundleFinished bool
+	// If we have no data outputs, we still need to have progress & splits
+	// while waiting for bundle completion.
+	if b.OutputCount == 0 {
+		dataFinished = true
+	}
+	var resp *fnpb.ProcessBundleResponse
 progress:
 	for {
 		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case resp = <-b.Resp:
+			bundleFinished = true
+			if b.BundleErr != nil {
+				return b.BundleErr
+			}
+			if dataFinished && bundleFinished {
+				break progress // exit progress loop on close.
+			}
 		case <-dataReady:
-			progTick.Stop()
-			break progress // exit progress loop on close.
+			dataFinished = true
+			if dataFinished && bundleFinished {
+				break progress // exit progress loop on close.
+			}
 		case <-progTick.C:
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
@@ -145,9 +165,10 @@ progress:
 				md := wk.MonitoringMetadata(ctx, unknownIDs)
 				j.AddMetricShortIDs(md)
 			}
-			slog.Debug("progress report", "bundle", rb, "index", index)
+			slog.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
 			// Progress for the bundle hasn't advanced. Try splitting.
 			if previousIndex == index && !splitsDone {
+				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
@@ -186,16 +207,6 @@ progress:
 	}
 	// Tentative Data is ready, commit it to the main datastore.
 	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
-
-	var resp *fnpb.ProcessBundleResponse
-	select {
-	case resp = <-b.Resp:
-		if b.BundleErr != nil {
-			return b.BundleErr
-		}
-	case <-ctx.Done():
-		return context.Cause(ctx)
-	}
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
@@ -279,6 +290,9 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, ds *wor
 	for _, tid := range stg.transforms {
 		transforms[tid] = comps.GetTransforms()[tid]
 	}
+	if len(transforms) == 0 {
+		return fmt.Errorf("buildDescriptor: invalid stage - no transforms at all %v", stg.ID)
+	}
 
 	// Start with outputs, since they're simple and uniform.
 	sink2Col := map[string]string{}
@@ -287,7 +301,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, ds *wor
 		col := comps.GetPcollections()[o.global]
 		wOutCid, err := makeWindowedValueCoder(o.global, comps, coders)
 		if err != nil {
-			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w", stg.ID, o, o.global, prototext.Format(col), err)
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w %v", stg.ID, o, o.global, prototext.Format(col), err, stg.transforms)
 		}
 		sinkID := o.transform + "_" + o.local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
@@ -343,7 +357,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, ds *wor
 	col := comps.GetPcollections()[stg.primaryInput]
 	wInCid, err := makeWindowedValueCoder(stg.primaryInput, comps, coders)
 	if err != nil {
-		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w", stg.ID, stg.primaryInput, prototext.Format(col), err)
+		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
 
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
