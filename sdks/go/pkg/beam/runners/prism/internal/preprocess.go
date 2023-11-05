@@ -297,14 +297,14 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components) []*stage {
 // }
 
 type fusionFacts struct {
-	pcolProducers        map[string]link  // global pcol ID to transform link that produces it.
-	pcolConsumers        map[string][]link // global pcol ID to all consumers of that pcollection
-	usedAsSideInput      map[string]bool // global pcol ID and if it's used as a side input
+	pcolProducers   map[string]link   // global pcol ID to transform link that produces it.
+	pcolConsumers   map[string][]link // global pcol ID to all consumers of that pcollection
+	usedAsSideInput map[string]bool   // global pcol ID and if it's used as a side input
 
 	directSideInputs     map[string]map[string]bool // global transform ID and all direct side input pcollections.
 	downstreamSideInputs map[string]map[string]bool // global transform ID and all transitive side input pcollections.
 
-	forcedRoots          map[string]bool // transforms forced to be roots (not computed by pcol facts.)
+	forcedRoots map[string]bool // transforms forced to be roots (not computed in computeFacts)
 }
 
 // computeFacts computes facts about the given set of transforms and components that
