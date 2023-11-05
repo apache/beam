@@ -268,6 +268,32 @@ func defaultFusion(topological []string, comps *pipepb.Components, facts fusionF
 	return stages
 }
 
+// We need to see that both coders have this pattern: KV<K, Iter<?>>
+func checkForExpandCoderPattern(in, out string, comps *pipepb.Components) bool {
+	isKV := func(id string) bool {
+		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderKV
+	}
+	getComp := func(id string, i int) string {
+		return comps.GetCoders()[id].GetComponentCoderIds()[i]
+	}
+	isIter := func(id string) bool {
+		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderIterable
+	}
+	if !isKV(in) || !isKV(out) {
+		return false
+	}
+	// Are the keys identical?
+	if getComp(in, 0) != getComp(out, 0) {
+		return false
+	}
+	// Are both values iterables?
+	if isIter(getComp(in, 1)) && isIter(getComp(out, 1)) {
+		// If so we have the ExpandCoderPattern from the Go SDK. Hurray!
+		return true
+	}
+	return false
+}
+
 type fusionFacts struct {
 	pcolParents          map[string]link
 	pcolConsumers        map[string][]link
@@ -333,32 +359,6 @@ func computeDownstreamSideInputs(tID string, comps *pipepb.Components, facts fus
 	}
 	facts.downstreamSideInputs[tID] = dssi
 	return dssi
-}
-
-// We need to see that both coders have this pattern: KV<K, Iter<?>>
-func checkForExpandCoderPattern(in, out string, comps *pipepb.Components) bool {
-	isKV := func(id string) bool {
-		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderKV
-	}
-	getComp := func(id string, i int) string {
-		return comps.GetCoders()[id].GetComponentCoderIds()[i]
-	}
-	isIter := func(id string) bool {
-		return comps.GetCoders()[id].GetSpec().GetUrn() == urns.CoderIterable
-	}
-	if !isKV(in) || !isKV(out) {
-		return false
-	}
-	// Are the keys identical?
-	if getComp(in, 0) != getComp(out, 0) {
-		return false
-	}
-	// Are both values iterables?
-	if isIter(getComp(in, 1)) && isIter(getComp(out, 1)) {
-		// If so we have the ExpandCoderPattern from the Go SDK. Hurray!
-		return true
-	}
-	return false
 }
 
 // prepareStage does the final pre-processing step for stages:
