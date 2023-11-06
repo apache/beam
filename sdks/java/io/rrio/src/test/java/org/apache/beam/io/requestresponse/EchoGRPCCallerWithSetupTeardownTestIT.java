@@ -59,14 +59,18 @@ public class EchoGRPCCallerWithSetupTeardownTestIT {
 
     EchoRequest request = createShouldExceedQuotaRequest();
 
-    // Quota allocation needs at least 1 so we invoke a few times to guarantee exceeding quota.
-    // We only throw exceptions that are not UserCodeQuotaException.
+    // The challenge with building and deploying a real quota aware endpoint, the integration with
+    // which these tests validate, is that we need a value of at least 1. The allocated quota where
+    // we expect to exceed will be shared among many tests and across languages. Code below in this
+    // setup ensures that the API is in the state where we can expect a quota exceeded error. There
+    // are tests in this file that detect errors in expected responses. We only throw exceptions
+    // that are not UserCodeQuotaException.
     try {
       EchoResponse ignored = client.call(request);
       client.call(request);
       client.call(request);
     } catch (UserCodeExecutionException e) {
-      if (!UserCodeQuotaException.class.isInstance(e)) {
+      if (!(e instanceof UserCodeQuotaException)) {
         throw e;
       }
     }
