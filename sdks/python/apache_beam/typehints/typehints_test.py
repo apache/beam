@@ -873,6 +873,7 @@ class CollectionHintTestCase(TypeHintTestCase):
     self.assertCompatible(
         typehints.Collection[typehints.Any], typehints.Collection[int])
     self.assertCompatible(typehints.Collection[int], typehints.Tuple[int])
+    self.assertCompatible(typehints.Any, typehints.Collection[str])
 
   def test_one_way_compatibility(self):
     self.assertNotCompatible(typehints.Set[int], typehints.Collection[int])

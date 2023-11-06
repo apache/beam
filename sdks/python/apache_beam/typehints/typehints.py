@@ -1043,6 +1043,8 @@ class CollectionHint(CompositeTypeHint):
               FrozenSetTypeConstraint,
               SetTypeConstraint))
 
+    # TODO(https://github.com/apache/beam/issues/29135): allow for consistency
+    # with Mapping types
     def _consistent_with_check_(self, sub):
       if self._is_subclass_constraint(sub):
         return is_consistent_with(sub.inner_type, self.inner_type)
