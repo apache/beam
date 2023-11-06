@@ -1051,14 +1051,16 @@ class CollectionHint(CompositeTypeHint):
           # The empty tuple is consistent with Iterator[T] for any T.
           return True
         # Each element in the hetrogenious tuple must be consistent with
-        # the iterator type.
-        # E.g. Tuple[A, B] < Iterable[C] if A < C and B < C.
+        # the collection  type.
+        # E.g. Tuple[A, B] < Collection[C] if A < C and B < C.
         return all(
             is_consistent_with(elem, self.inner_type)
             for elem in sub.tuple_types)
       elif not isinstance(sub, TypeConstraint):
-        if getattr(sub, '__origin__', None) is not None:
-          return issubclass(sub, abc.Collection)
+        if getattr(sub, '__origin__', None) is not None and getattr(
+            sub, '__args__', None) is not None:
+          return issubclass(sub, abc.Collection) and is_consistent_with(
+              sub.__args__, self.inner_type)
       return False
 
   def __getitem__(self, type_param):
