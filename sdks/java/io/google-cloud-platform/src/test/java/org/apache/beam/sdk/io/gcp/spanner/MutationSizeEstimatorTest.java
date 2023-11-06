@@ -177,7 +177,8 @@ public class MutationSizeEstimatorTest {
             .toPgNumericArray((Iterable<String>) null)
             .build();
     Mutation json = Mutation.newInsertOrUpdateBuilder("test").set("one").toJsonArray(null).build();
-    Mutation jsonb = Mutation.newInsertOrUpdateBuilder("test").set("one").toPgJsonbArray(null).build();
+    Mutation jsonb =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toPgJsonbArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
@@ -259,7 +260,10 @@ public class MutationSizeEstimatorTest {
     Mutation empty =
         Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.pgJsonb("{}")).build();
     Mutation nullValue =
-        Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.pgJsonb((String) null)).build();
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.pgJsonb((String) null))
+            .build();
     Mutation sample =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
