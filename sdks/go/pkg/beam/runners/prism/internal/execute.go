@@ -104,7 +104,6 @@ func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
 
 type transformExecuter interface {
 	ExecuteUrns() []string
-	ExecuteWith(t *pipepb.PTransform) string
 	ExecuteTransform(stageID, tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
 }
 
@@ -166,11 +165,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		urn := t.GetSpec().GetUrn()
 		stage.exe = proc.transformExecuters[urn]
 
-		// Stopgap until everythinng's moved to handlers.
-		stage.envID = t.GetEnvironmentId()
-		if stage.exe != nil {
-			stage.envID = stage.exe.ExecuteWith(t)
-		}
 		stage.ID = fmt.Sprintf("stage-%03d", i)
 		wk := wks[stage.envID]
 
