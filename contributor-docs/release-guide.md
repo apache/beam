@@ -555,19 +555,16 @@ The following should be confirmed:
 
 ### Run build_release_candidate GitHub Action to create a release candidate
 
-Note: This step is partially automated (in progress), so part of the RC
-creation is done by GitHub Actions and the rest is done by a script. You don't
-need to wait for the action to complete to start running the script.
-
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
 
 **The action will:**
 
 1. Clone the repo at the selected RC tag.
 2. Run gradle publish to push java artifacts into Maven staging repo.
-3. Stage SDK docker images to [docker hub Apache
+3. Build and push java and python source distribution into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+4. Stage SDK docker images to [docker hub Apache
    organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
-4. Build javadoc, pydoc, typedocs for a PR to update beam-site.
+5. Build javadoc, pydoc, typedocs for a PR to update beam-site.
     - **NOTE**: Do not merge this PR until after an RC has been approved (see
       "Finalize the Release").
 
@@ -585,22 +582,23 @@ with tags: `${RELEASE_VERSION}_rc{RC_NUM}`
 
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
+    RC_TAG=${RELEASE_VERSION}_rc{RC_NUM}
     for pyver in 3.8 3.9 3.10 3.11; do
       docker run --rm --entrypoint sh \
-          apache/beam_python${pyver}_sdk:2.51.0rc1 \
+          apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
     for javaver in 8 11 17; do
       docker run --rm --entrypoint sh \
-          apache/beam_java${pyver}_sdk:2.51.0rc1 \
+          apache/beam_java${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
 And you may choose to log in to the containers and inspect:
 
       docker run --rm -it --entrypoint=/bin/bash \
-        apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
+        apache/beam_java${ver}_sdk:${RC_TAG}
       ls -al /opt/apache/beam/third_party_licenses/
 
 ### Publish Java staging artifacts (manual)
