@@ -17,7 +17,7 @@
 
 [tool.poetry]
 name = "mock-apis"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ritesh Ghorse <riteshghorse@gmail.com>, Damon Douglas <>"]
 license = "Apache-2.0"
 description = ""
