@@ -68,6 +68,7 @@ jobs:
           --yes True
 
         cd "${PYTHON_ARTIFACTS_DIR}"
+        ls
 
         echo "------Checking Hash Value for apache-beam-${RELEASE}rc${RC_NUMBER}.tar.gz-----"
         sha512sum -c "apache-beam-${RELEASE}rc${RC_NUMBER}.tar.gz.sha512"
