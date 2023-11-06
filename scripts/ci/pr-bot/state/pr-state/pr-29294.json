@@ -1,7 +1,11 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "python": "riteshghorse",
+    "java": "m-trieu",
+    "io": "ahmedabu98"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
