@@ -29,8 +29,8 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.8"
 google = "^3.0.0"
-grpcio = "^1.59.2"
-grpcio-tools = "^1.59.2"
+grpcio = "^1.53.0"
+grpcio-tools = "^1.53.0"
 
 
 [build-system]
