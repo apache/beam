@@ -463,7 +463,7 @@ func prepareStage(stg *stage, comps *pipepb.Components, pipelineFacts fusionFact
 //
 // # Fusion Restrictions
 //
-// Environments: Transforms that aren't in the same environment can't b
+// Environments: Transforms that aren't in the same environment can't be
 // fused together *unless* their environments can also be fused together.
 // Eg. Resource hints can often be ignored for local runners.
 //
