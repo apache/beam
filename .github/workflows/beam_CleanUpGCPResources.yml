@@ -19,7 +19,7 @@ name: Clean Up GCP Resources
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0,12 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -77,6 +77,8 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Install gcloud bigtable cli
+        run: gcloud components install cbt
       - name: run cleanup GCP resources
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
