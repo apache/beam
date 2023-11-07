@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-In this blog series, [Talat Uyarer (Senior Principal Engineer)](https://www.linkedin.com/in/talatuyarer/), [Rishabh Kedia (Principal Engineer)](https://www.linkedin.com/in/rishabhkedia/), and [David He (Engineering Director)](https://www.linkedin.com/in/davidqhe/) will describe how we built a self managed streaming platform and our learnings by using Apache Beam and Flink. In part I, we describe why and how we built a large-scale self managed streaming infrastructure and services based on Flink, by migrating from a cloud managed streaming service, and the learnings for operational scalability and observability, performance, and cost effectiveness. We summarize useful techniques, and experience in our journey.
+In this blog series, [Talat Uyarer (Senior Principal Engineer)](https://www.linkedin.com/in/talatuyarer/), [Rishabh Kedia (Principal Engineer)](https://www.linkedin.com/in/rishabhkedia/), and [David He (Engineering Director)](https://www.linkedin.com/in/davidqhe/) describe how we built a self-managed streaming platform by using Apache Beam and Flink. In this part of the series, we describe why and how we built a large-scale, self-managed streaming infrastructure and services based on Flink by migrating from a cloud managed streaming service. We also outline the learnings for operational scalability and observability, performance, and cost effectiveness. We summarize techniques that we found useful in our journey.
 
 <!--more-->
 
