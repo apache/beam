@@ -1,5 +1,5 @@
 ---
-title:  "How to Build a Scalable Self-Managed Streaming Infrastructure with Beam and Flink"
+title:  "Build a scalable, self-managed streaming infrastructure with Beam and Flink"
 date:   2023-11-03 09:00:00 -0400
 categories:
   - blog
