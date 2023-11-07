@@ -21,6 +21,8 @@ on:
   pull_request_target:
     paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
