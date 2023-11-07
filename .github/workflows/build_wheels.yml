@@ -150,7 +150,7 @@ jobs:
       - name: Build RC source
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
-        run: pip install -U build && pythom -m build --sdist
+        run: pip install -U build && python -m build --sdist
       - name: Add RC checksums
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python/dist

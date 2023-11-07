@@ -56,7 +56,6 @@ import org.junit.runners.JUnit4;
 public class V1WriteIT {
   private V1TestOptions options;
   private String project;
-  private String database = "";
   private String ancestor;
   private final long numEntities = 1000;
 
@@ -84,12 +83,12 @@ public class V1WriteIT {
             ParDo.of(
                 new V1TestUtil.CreateEntityFn(
                     options.getKind(), options.getNamespace(), ancestor, 0)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withDatabaseId(database));
+        .apply(DatastoreIO.v1().write().withProjectId(project));
 
     p.run();
 
     // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, database, ancestor);
+    long numEntitiesWritten = countEntities(options, project, ancestor);
 
     assertEquals(numEntities, numEntitiesWritten);
   }
@@ -186,18 +185,18 @@ public class V1WriteIT {
             ParDo.of(
                 new V1TestUtil.CreateEntityFn(
                     options.getKind(), options.getNamespace(), ancestor, rawPropertySize)))
-        .apply(DatastoreIO.v1().write().withProjectId(project).withDatabaseId(database));
+        .apply(DatastoreIO.v1().write().withProjectId(project));
 
     p.run();
 
     // Count number of entities written to datastore.
-    long numEntitiesWritten = countEntities(options, project, database, ancestor);
+    long numEntitiesWritten = countEntities(options, project, ancestor);
 
     assertEquals(numLargeEntities, numEntitiesWritten);
   }
 
   @After
   public void tearDown() throws Exception {
-    deleteAllEntities(options, project, database, ancestor);
+    deleteAllEntities(options, project, ancestor);
   }
 }

@@ -62,6 +62,7 @@ TODO: See https://github.com/apache/beam/issues/28859
 | [go](https://go.dev)                                | For making code changes in this directory. See [go.mod](go.mod) for required version.  |
 | [buf](https://github.com/bufbuild/buf#installation) | Optional for when making changes to proto.                                             |
 | [ko](https://ko.build/install/)                     | To easily build Go container images.                                                   |
+| [poetry](https://python-poetry.org/)                     | To manage python dependencies.                                                   |
 
 # Testing
 
