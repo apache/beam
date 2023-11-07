@@ -22,7 +22,7 @@ In this blog series, [Talat Uyarer (Senior Principal Engineer)](https://www.link
 
 <!--more-->
 
-# How to Build a Scalable Self Managed Streaming Infrastructure with Flink - Part 1
+# Build a scalable, self-managed streaming infrastructure with Flink - part 1
 
 # Introduction
 
