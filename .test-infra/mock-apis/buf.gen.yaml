@@ -19,7 +19,7 @@
 # - go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 # - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 # - https://github.com/grpc/grpc-java/blob/master/compiler/README.md#grpc-java-codegen-plugin-for-protobuf-compiler
-# - https://grpc.io/docs/languages/python/quickstart/#grpc-tools
+# - pip install grpclib protobuf grpcio grpcio-tools
 #
 # Usage:
 # Open a terminal in the same directory as this file and run:
@@ -38,7 +38,7 @@ plugins:
   out: src/main/java
 - name: grpc-java
   out: src/main/java
-- plugin: buf.build/protocolbuffers/python:v24.4
-  out: src/main/python
-- plugin: buf.build/grpc/python:v1.59.1
-  out: src/main/python
+- name: python
+  out: src/main/python/mock_apis
+- name: python_grpc
+  out: src/main/python/mock_apis

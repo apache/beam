@@ -17,20 +17,16 @@
 
 [tool.poetry]
 name = "mock-apis"
-version = "0.1.1"
-authors = ["Ritesh Ghorse <riteshghorse@gmail.com>, Damon Douglas <>"]
+version = "0.1.2"
+authors = ["Ritesh Ghorse <riteshghorse@gmail.com>, Damon Douglas <damondouglas>"]
 license = "Apache-2.0"
-description = ""
-readme = "README.md"
-packages = [
-    { include = "src/main/python/"}
-]
+description = "Support for integration tests of mock APIs"
 
 [tool.poetry.dependencies]
 python = "^3.8"
 google = "^3.0.0"
-grpcio = "^1.53.0"
-grpcio-tools = "^1.53.0"
+grpcio = "^1.59.2"
+grpcio-tools = "^1.59.2"
 
 
 [build-system]
