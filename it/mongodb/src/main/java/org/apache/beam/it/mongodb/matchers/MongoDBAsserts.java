@@ -31,7 +31,7 @@ import org.bson.Document;
 public class MongoDBAsserts {
 
   /**
-   * Convert MongoDB {@link org.bson.Document} to a list of maps.
+   * Convert MongoDB {@link Document} to a list of maps.
    *
    * @param documents List of Documents to parse
    * @return List of maps to use in {@link RecordsSubject}

@@ -51,7 +51,7 @@ jobs:
   beam_Publish_Docker_Snapshots:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Publish Docker Snapshots'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100

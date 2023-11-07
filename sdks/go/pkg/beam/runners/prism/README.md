@@ -152,6 +152,8 @@ can have features selectively disabled to ensure
 * Progess tracking
     * Channel Splitting
     * Dynamic Splitting
+* FnAPI Optimizations
+  * Fusion
 
 ## Next feature short list (unordered)
 
@@ -165,7 +167,6 @@ See https://github.com/apache/beam/issues/24789 for current status.
 * Support SDK Containers via Testcontainers
   * Cross Language Transforms
 * FnAPI Optimizations
-  * Fusion
   * Data with ProcessBundleRequest & Response
 
 This is not a comprehensive feature set, but a set of goals to best

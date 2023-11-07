@@ -31,6 +31,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 
 		wantComponents *pipepb.Components
 		wantStages     []*stage
+		forcedRoots    []string
 	}{
 		{
 			name: "noPreparer",
@@ -57,7 +58,8 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 				},
 			},
 		}, {
-			name: "preparer",
+			name:        "preparer",
+			forcedRoots: []string{"e1_early", "e1_late"},
 			input: &pipepb.Components{
 				Transforms: map[string]*pipepb.PTransform{
 					"e1": {
@@ -125,7 +127,9 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pre := newPreprocessor([]transformPreparer{&testPreparer{}})
+			pre := newPreprocessor([]transformPreparer{&testPreparer{
+				ForcedRoots: test.forcedRoots,
+			}})
 
 			gotStages := pre.preProcessGraph(test.input)
 			if diff := cmp.Diff(test.wantStages, gotStages, cmp.AllowUnexported(stage{}, link{}), cmpopts.EquateEmpty()); diff != "" {
@@ -139,47 +143,53 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 	}
 }
 
-type testPreparer struct{}
+type testPreparer struct {
+	ForcedRoots []string
+}
 
 func (p *testPreparer) PrepareUrns() []string {
 	return []string{"test_urn"}
 }
 
-func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) (*pipepb.Components, []string) {
-	return &pipepb.Components{
-		Transforms: map[string]*pipepb.PTransform{
-			"e1_early": {
-				UniqueName: "e1_early",
-				Spec: &pipepb.FunctionSpec{
-					Urn: "defaultUrn",
+func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	return prepareResult{
+		ForcedRoots: p.ForcedRoots,
+		SubbedComps: &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{
+				"e1_early": {
+					UniqueName: "e1_early",
+					Spec: &pipepb.FunctionSpec{
+						Urn: "defaultUrn",
+					},
+					Outputs:       map[string]string{"i0": "pcol1"},
+					EnvironmentId: "env1",
 				},
-				Outputs:       map[string]string{"i0": "pcol1"},
-				EnvironmentId: "env1",
-			},
-			"e1_late": {
-				UniqueName: "e1_late",
-				Spec: &pipepb.FunctionSpec{
-					Urn: "defaultUrn",
+				"e1_late": {
+					UniqueName: "e1_late",
+					Spec: &pipepb.FunctionSpec{
+						Urn: "defaultUrn",
+					},
+					Inputs:        map[string]string{"i0": "pcol1"},
+					EnvironmentId: "env1",
 				},
-				Inputs:        map[string]string{"i0": "pcol1"},
-				EnvironmentId: "env1",
+			},
+			Pcollections: map[string]*pipepb.PCollection{
+				"pcol1": {
+					UniqueName:          "pcol1",
+					CoderId:             "coder1",
+					WindowingStrategyId: "ws1",
+				},
+			},
+			Coders: map[string]*pipepb.Coder{
+				"coder1": {Spec: &pipepb.FunctionSpec{Urn: "coder1"}},
+			},
+			WindowingStrategies: map[string]*pipepb.WindowingStrategy{
+				"ws1": {WindowCoderId: "global"},
+			},
+			Environments: map[string]*pipepb.Environment{
+				"env1": {Urn: "env1"},
 			},
 		},
-		Pcollections: map[string]*pipepb.PCollection{
-			"pcol1": {
-				UniqueName:          "pcol1",
-				CoderId:             "coder1",
-				WindowingStrategyId: "ws1",
-			},
-		},
-		Coders: map[string]*pipepb.Coder{
-			"coder1": {Spec: &pipepb.FunctionSpec{Urn: "coder1"}},
-		},
-		WindowingStrategies: map[string]*pipepb.WindowingStrategy{
-			"ws1": {WindowCoderId: "global"},
-		},
-		Environments: map[string]*pipepb.Environment{
-			"env1": {Urn: "env1"},
-		},
-	}, []string{"e1"}
+		RemovedLeaves: []string{"e1"},
+	}
 }

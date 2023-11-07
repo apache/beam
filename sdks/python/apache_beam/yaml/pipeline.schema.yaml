@@ -159,7 +159,10 @@ properties:
       # These are the only top-level properties defined in pipeline.
       - type: object
         properties:
-          type: { const: chain }
+          type:
+            oneOf:
+              - { const: composite }
+              - { const: chain }
           windowing:
             $ref: '#/$defs/windowing'
           transforms: {}

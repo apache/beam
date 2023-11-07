@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
@@ -39,7 +40,7 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
 
-  public static final String VALID_FORMATS_STR = "AVRO,JSON";
+  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -105,6 +106,10 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
+  @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+  @Nullable
+  public abstract ErrorHandling getErrorHandling();
+
   /** Builder for the {@link KafkaReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -126,6 +131,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
+
+    public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
     /** Builds a {@link KafkaReadSchemaTransformConfiguration} instance. */
     public abstract KafkaReadSchemaTransformConfiguration build();

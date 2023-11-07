@@ -18,10 +18,8 @@
 name: Beam Metrics Report
 
 on:
-  # issue_comment:
-  #   types: [created]
-  # schedule:
-  #   - cron: '0 */23 * * *'
+  schedule:
+    - cron: '0 11 * * 2'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -52,25 +50,15 @@ permissions:
 
 jobs:
   beam_Metrics_Report:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
+    name: beam_Metrics_Report
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
-    strategy:
-      matrix: 
-        job_name: [beam_Metrics_Report]
-        job_phrase: [Run Metrics Report]
     if: |
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Metrics Report'
+      ((github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event_name == 'workflow_dispatch'
+     
     steps:
       - uses: actions/checkout@v3
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -101,7 +89,6 @@ jobs:
           username: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           password: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
           subject: Beam Metrics Report ${{ env.date }}
-          to: dannymccormick@google.com #dev@beam.apache.org
-          cc: vlado.djerek@akvelon.com
-          from: gactions@beam.apache.org # <user@example.com>
+          to: dev@beam.apache.org
+          from: beamactions@gmail.com
           html_body: file://${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html
