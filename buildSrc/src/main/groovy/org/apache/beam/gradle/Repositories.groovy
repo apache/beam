@@ -122,6 +122,9 @@ class Repositories {
    */
   static Repository fetchLyftRepositoryConfig(String serverId) {
     def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+    if (!settingsXml.exists()) {
+      settingsXml = new File('/etc/maven/settings.xml')
+    }
     def content = new XmlSlurper().parse(settingsXml)
     def repo = content.'**'.find { n -> n.name() == 'repository' && serverId.equals(n.id.text()) }
     Repositories.Repository repository = new Repositories.Repository()
