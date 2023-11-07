@@ -173,11 +173,52 @@ To deploy the job via Flink Kubernetes Operator, one has to be knowledgeable eno
 
 1. Define a yaml file with proper specifications. This is an example:
 
-
-<img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes/flink-deployment-yaml.png"
-alt="Flink Deployment Yaml">
-
+```yaml
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: basic-reactive-example
+spec:
+  image: flink:1.13
+  flinkVersion: v1_13
+  flinkConfiguration:
+    scheduler-mode: REACTIVE
+    taskmanager.numberOfTaskSlots: "2"
+    state.savepoints.dir: file:///flink-data/savepoints
+    state.checkpoints.dir: file:///flink-data/checkpoints
+    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.storageDir: file:///flink-data/ha
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+          volumeMounts:
+          - mountPath: /flink-data
+            name: flink-volume
+      volumes:
+      - name: flink-volume
+        hostPath:
+          # directory location on host
+          path: /tmp/flink
+          # this field is optional
+          type: Directory
+  job:
+    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+    parallelism: 2
+    upgradeMode: savepoint
+    state: running
+    savepointTriggerNonce: 0
+  mode: standalone
+```
 
 2. SSH inside your Flink cluster and run the command:
 
