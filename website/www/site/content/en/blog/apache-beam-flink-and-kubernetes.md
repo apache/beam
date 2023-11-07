@@ -357,7 +357,7 @@ GCS serves as our checkpoint store due to its cost-effectiveness, scalability, a
 * Employing a hierarchical folder structure enhances data management and reduces the number of objects in a single directory.
 * For small files, combining them into larger ones improves read throughput, while minimizing small files reduces inefficient storage use and metadata operations.
 
-**Tune the frequency writing the GCS**
+### Tune the frequency of writing to Google Cloud Storage
 
 One of our primary challenges lay in scaling jobs efficiently. Stateless jobs, which are relatively simpler, still presented hurdles, especially in scenarios where Flink needed to process an overwhelming number of workers. To overcome this challenge, We increased state.storage.fs.memory-threshold settings to 1 MB from 20KB (??). This configuration allowed us to combine small checkpoints files into larger ones at Job Manager level and reduce metadata calls.
 
