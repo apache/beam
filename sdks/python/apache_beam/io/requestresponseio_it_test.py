@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import base64
 from dataclasses import dataclass
 import sys
 import unittest
@@ -25,28 +25,17 @@ from apache_beam.io.requestresponseio import Caller
 from apache_beam.io.requestresponseio import UserCodeExecutionException
 from apache_beam.io.requestresponseio import UserCodeQuotaException
 from apache_beam.options.pipeline_options import PipelineOptions
-
-# try:
-#     import proto.echo.v1.echo_pb2 as echo
-#     from proto.echo.v1.echo_pb2_grpc import EchoServiceStub
-# except ImportError as e:
-#     raise
-
+try:
+    # TODO(damondouglas, riteshgorse) clean up package import path
+    from src.main.python.proto.echo.v1.echo_pb2 import EchoRequest
+    from src.main.python.proto.echo.v1.echo_pb2 import EchoResponse
+except ImportError:
+    raise unittest.SkipTest('echo_pb2 requirement missing. Make sure you '
+                            'installed specify the test extras_require with '
+                            'pip install -e\".[test]\"')
 
 _HTTP_PATH = "/v1/echo"
-_PAYLOAD = "cGF5bG9hZAo="  # 'payload' encoded as Base64
-
-
-@dataclass
-class EchoRequest:
-    id: str
-    payload: str
-
-
-@dataclass
-class EchoResponse:
-    id: str
-    payload: str
+_PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
 
 
 class EchoITOptions(PipelineOptions):
@@ -103,13 +92,15 @@ class EchoHTTPCaller(Caller):
             resp = urllib3.request("POST", self.url,
                                    json={
                                        "id": request.id,
-                                       "payload": request.payload
+                                       "payload": str(request.payload, 'utf-8')
                                    },
                                    retries=False)
 
             if resp.status < 300:
                 resp_body = resp.json()
-                return EchoResponse(**resp_body)
+                id = resp_body['id']
+                payload = resp_body['payload']
+                return EchoResponse(id=id, payload=bytes(payload, 'utf-8'))
 
             if resp.status == 429:  # Too Many Requests
                 raise UserCodeQuotaException(resp.reason)

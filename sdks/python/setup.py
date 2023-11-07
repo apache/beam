@@ -338,6 +338,9 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
+              # Used for integration tests against APIs defined, implemented
+              # and deployed in .test-infra/mock-apis
+              'mock-apis @ git+https://github.com/apache/beam.git#subdirectory=.test-infra/mock-apis',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',

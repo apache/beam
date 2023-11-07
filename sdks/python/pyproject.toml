@@ -29,7 +29,6 @@ requires = [
     "numpy>=1.14.3,<1.25", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
     "cython==0.29.36",
-#    "mock-apis[test] @ git+https://github.com/apache/beam.git#subdirectory=.test-infra/mock-apis",
 ]
 
 
