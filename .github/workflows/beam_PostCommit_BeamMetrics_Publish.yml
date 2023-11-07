@@ -16,9 +16,6 @@
 name: PostCommit BeamMetrics Publish
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
   schedule:
     - cron: '24 2 * * *'
   workflow_dispatch:

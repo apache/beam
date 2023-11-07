@@ -16,8 +16,6 @@
 name: Inference Python Benchmarks Dataflow
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 3 * * *'
   workflow_dispatch:
