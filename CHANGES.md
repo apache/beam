@@ -53,7 +53,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.52.0] - Unreleased
+# [2.52.0] - TODO - update to release date
 
 ## Highlights
 
