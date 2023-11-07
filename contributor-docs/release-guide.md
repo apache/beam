@@ -821,7 +821,7 @@ template; please adjust as you see fit.
 
     The complete staging area is available for your review, which includes:
     * GitHub Release notes [1],
-    * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
+    * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF (D20316F712213422 if automated) [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
