@@ -16,8 +16,6 @@
 name: CloudML Benchmarks Dataflow
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 21 * * *'
   workflow_dispatch:
