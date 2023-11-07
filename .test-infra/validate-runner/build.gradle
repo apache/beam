@@ -29,6 +29,12 @@ repositories {
     maven {
         url "https://packages.confluent.io/maven/"
     }
+    maven {
+        url "https://artifactory.lyft.net/artifactory/virtual-maven-libs-release/"
+    }
+    maven {
+        url "https://artifactory.lyft.net/artifactory/virtual-maven-libs-snapshot/"
+    }
 }
 
 dependencies {
