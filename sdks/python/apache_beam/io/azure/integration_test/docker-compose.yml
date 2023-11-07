@@ -48,7 +48,7 @@ services:
       - "azurite"
 
 networks:
-  test_net:
+  azure_test_net:
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: 1460
