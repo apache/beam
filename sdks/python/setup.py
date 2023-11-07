@@ -340,7 +340,7 @@ if __name__ == '__main__':
               'hypothesis>5.0.0,<=7.0.0',
               # Used for integration tests against APIs defined, implemented
               # and deployed in .test-infra/mock-apis
-              'mock-apis @ git+https://github.com/apache/beam.git#subdirectory=.test-infra/mock-apis',
+              f"mock-apis @ file://{os.path.abspath(os.path.join('..', '..', '.test-infra', 'mock-apis', 'src', 'main', 'python'))}",
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
