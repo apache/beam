@@ -621,17 +621,9 @@ This step uploads artifacts such as `apache-beam-${RELEASE_VERSION}rc${RC_NUM}`
 to PyPI, so the RC artifacts can be depended upon directly by consumers, for
 ease of RC verification.
 
-**Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
+**Action** [deploy_release_candidate_pypi](https://github.com/apache/beam/actions/workflows/deploy_release_candidate_pypi.yml) (click `run workflow`)
 
-**Usage**
-
-		./release/src/main/scripts/deploy_release_candidate_pypi.sh \
-		    --release "${RELEASE_VERSION}" \
-		    --rc "${RC_NUM}" \
-		    --user "${GITHUB_USER}" \
-		    --deploy
-
-**The script will:**
+**The Action will:**
 
 Download previously build python binary artifacts Deploy release candidate
 to PyPI with an `rc` suffix.
@@ -643,19 +635,13 @@ __Attention:__ Verify that:
       - [ ] Release source's zip published
       - [ ] Signatures and hashes do not need to be uploaded
 
-You can do a dry run by omitting the `--deploy` flag. Then it will only
-download the release candidate binaries. If it looks good, rerun it with
-`--deploy`.
-
-See the source of the script for more details or to run commands manually in
-case of a problem.
-
 ### Propose pull requests for website updates
 
 Beam publishes API reference manuals for each release on the website.  For Java
 and Python SDKs, that’s Javadoc and PyDoc, respectively.  The final step of
 building the candidate is to propose website pull requests that update these
-manuals.
+manuals. The first pr will get created by the build_release_candidate action,
+you will need to create the second one manually
 
 Merge the pull requests only after finalizing the release.  To avoid invalid
 redirects for the 'current' version, merge these PRs in the order listed.  Once
