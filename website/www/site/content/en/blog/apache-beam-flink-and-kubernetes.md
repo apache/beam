@@ -30,7 +30,7 @@ Palo Alto Networks (PANW) is a leader in cybersecurity, providing products, serv
 
 In this blog series, [Talat Uyarer (Senior Principal Engineer)](https://www.linkedin.com/in/talatuyarer/), [Rishabh Kedia (Principal Engineer)](https://www.linkedin.com/in/rishabhkedia/), and [David He (Engineering Director)](https://www.linkedin.com/in/davidqhe/) will describe how we built a self managed streaming platform and our learnings. In part I, we describe why and how we built a large-scale self managed streaming infrastructure and services based on Flink, by migrating from a cloud managed streaming service, and the learnings for operational scalability and observability, performance, and cost effectiveness. We summarize useful techniques, and experience in our journey.
 
-In Part 2, we will give a deeper description of our core building blocks of streaming infrastructure, such as autoscaler. We will also give more details on our heavy customization, so that we can build a high performance and large scale streaming system, along with the learnings of solving challenging problems.
+In the second part of the series, we provide a more thorough description of the core building blocks of our streaming infrastructure, such as autoscaler. We also give more details about our customizations, which enabled us to build a high-performance, large-scale streaming system. Finally, we explain how we solved challenging problems.
 
 
 # Why Self Managed Streaming Infrastructure Matters
