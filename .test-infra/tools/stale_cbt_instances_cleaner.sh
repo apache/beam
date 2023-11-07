@@ -39,9 +39,10 @@ for instance in ${CBT_INSTANCES[@]}; do
       CREATE_DATE=${BASH_REMATCH[1]}
       if [[ $OSTYPE == "linux-gnu"* ]]; then
         # skip if not a valid date
-        CREATED=`date -ju -f "%Y%m%d-%H%M%S" ${CREATE_DATE}-000000 +%s` || continue
-      elif [[ $OSTYPE == "darwin"* ]]; then
         CREATED=`date -d ${CREATE_DATE} +%s` || continue
+      elif [[ $OSTYPE == "darwin"* ]]; then
+        # date command usage depending on OS
+        CREATED=`date -ju -f "%Y%m%d-%H%M%S" ${CREATE_DATE}-000000 +%s` || continue
       else
         echo "Unsupported OS $OSTYPE"
         exit 1
