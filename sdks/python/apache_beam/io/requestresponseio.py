@@ -37,7 +37,7 @@ ResponseT = TypeVar('ResponseT')
 
 # TODO(damondouglas,riteshghorse): https://github.com/apache/beam/issues/28934
 class RequestResponseIO(PTransform):
-    """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
+  """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
     from and writing to Web APIs.
 
   ``RequestResponseIO`` minimally requires implementing the ``Caller``:
@@ -52,49 +52,49 @@ class RequestResponseIO(PTransform):
                 )
   """
 
-    def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
-        pass
+  def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
+    pass
 
 
 class Caller(metaclass=abc.ABCMeta):
-    """Interfaces user custom code intended for API calls."""
+  """Interfaces user custom code intended for API calls."""
 
-    @abc.abstractmethod
-    def call(self, request: RequestT) -> ResponseT:
-        """Calls a Web API with the ``RequestT``  and returns a
+  @abc.abstractmethod
+  def call(self, request: RequestT) -> ResponseT:
+    """Calls a Web API with the ``RequestT``  and returns a
         ``ResponseT``. ``RequestResponseIO`` expects implementations of the
         call method to throw either a ``UserCodeExecutionException``,
         ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
         """
-        pass
+    pass
 
 
 class SetupTeardown(metaclass=abc.ABCMeta):
-    """Interfaces user custom code to setup and teardown the API clients.
+  """Interfaces user custom code to setup and teardown the API clients.
     Called by ``RequestResponseIO`` within its DoFn's setup and teardown
     methods.
     """
 
-    @abc.abstractmethod
-    def setup(self) -> None:
-        """Called during the DoFn's setup lifecycle method."""
-        pass
+  @abc.abstractmethod
+  def setup(self) -> None:
+    """Called during the DoFn's setup lifecycle method."""
+    pass
 
-    @abc.abstractmethod
-    def teardown(self) -> None:
-        """Called during the DoFn's teardown lifecycle method."""
-        pass
+  @abc.abstractmethod
+  def teardown(self) -> None:
+    """Called during the DoFn's teardown lifecycle method."""
+    pass
 
 
 class UserCodeExecutionException(Exception):
-    """Base class for errors related to calling Web APIs."""
+  """Base class for errors related to calling Web APIs."""
 
 
 class UserCodeQuotaException(UserCodeExecutionException):
-    """Extends ``UserCodeExecutionException`` to signal specifically that
+  """Extends ``UserCodeExecutionException`` to signal specifically that
   the Web API client encountered a Quota or API overuse related error.
   """
 
 
 class UserCodeTimeoutException(UserCodeExecutionException):
-    """Extends ``UserCodeExecutionException`` to signal a user code timeout."""
+  """Extends ``UserCodeExecutionException`` to signal a user code timeout."""
