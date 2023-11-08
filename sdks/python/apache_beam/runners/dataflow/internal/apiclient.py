@@ -509,6 +509,9 @@ class DataflowApplicationClient(object):
         http=http_client,
         response_encoding=get_response_encoding())
     if storage_credentials:
+      # Here we explicitly set the project to the value specified in pipeline
+      # options, so the new storage client will be consistent with the previous
+      # client in terms of which GCP project to use.
       self._storage_client = storage.Client(
           credentials=storage_credentials,
           project=self.google_cloud_options.project,

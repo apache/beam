@@ -455,6 +455,8 @@ def assert_bucket_exists(bucket_name):
     from google.cloud import storage
     credentials = auth.get_service_credentials(PipelineOptions())
     if credentials:
+      # We set project to None, so it will not try to use project id from
+      # the environment (ADC).
       storage_client = storage.Client(
           credentials=credentials.get_google_auth_credentials(),
           project=None,
