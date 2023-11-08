@@ -55,6 +55,7 @@ tasks.rat {
     "**/apache_beam/portability/api/**/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
     "**/mock-apis/**/*.pb.go",
+    "**/mock-apis/**/*_pb2*.py",
 
     // Ignore go.sum files, which don't permit headers
     "**/go.sum",
