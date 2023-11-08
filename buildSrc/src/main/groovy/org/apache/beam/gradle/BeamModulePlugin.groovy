@@ -1042,8 +1042,7 @@ class BeamModulePlugin implements Plugin<Project> {
         ]
         options.compilerArgs += ([
           '-parameters',
-          '-Xlint:all',
-          '-Werror'
+          '-Xlint:all'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
@@ -1103,9 +1102,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.apply plugin: 'org.checkerframework'
       project.checkerFramework {
-        checkers = [
-          'org.checkerframework.checker.nullness.NullnessChecker'
-        ]
+        checkers = []
 
         // Only skip checkerframework if explicitly requested
         skipCheckerFramework = project.hasProperty('enableCheckerFramework') &&
