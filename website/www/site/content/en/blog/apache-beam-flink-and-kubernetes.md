@@ -24,7 +24,7 @@ In this blog series, [Talat Uyarer (Senior Principal Engineer)](https://www.link
 
 # Build a scalable, self-managed streaming infrastructure with Flink - part 1
 
-# Introduction
+## Introduction
 
 Palo Alto Networks (PANW) is a leader in cybersecurity, providing products, services and solutions to our customers. Data is the center of our products and services. We stream and store exabytes of data in our data lake, with near real-time ingestion, data transformation, data insertion to data store, and forwarding data to our internal ML-based systems and external SIEM’s. We support multi-tenancy in each component so that we can isolate tenants and provide optimal performance and SLA. Streaming processing plays a critical role in the pipelines.
 
