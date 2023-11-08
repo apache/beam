@@ -37,8 +37,16 @@ for instance in ${CBT_INSTANCES[@]}; do
     pattern=$template-"([0-9]{8})"-
     if [[ $instance =~ $pattern ]]; then
       CREATE_DATE=${BASH_REMATCH[1]}
-      # skip if not a valid date
-      CREATED=`date -ju -f "%Y%m%d-%H%M%S" ${CREATE_DATE}-000000 +%s` || continue
+      if [[ $OSTYPE == "linux-gnu"* ]]; then
+        # skip if not a valid date
+        CREATED=`date -d ${CREATE_DATE} +%s` || continue
+      elif [[ $OSTYPE == "darwin"* ]]; then
+        # date command usage depending on OS
+        CREATED=`date -ju -f "%Y%m%d-%H%M%S" ${CREATE_DATE}-000000 +%s` || continue
+      else
+        echo "Unsupported OS $OSTYPE"
+        exit 1
+      fi
       if [[ $GRACE_PERIOD -gt $CREATED ]]; then
         if cbt -project=$PROJECT deleteinstance $instance; then
           echo "Deleted $instance (created $CREATE_DATE)"
