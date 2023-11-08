@@ -57,7 +57,7 @@ for the given container. This is useful for running backend locally.
 
 Otherwise following patterns are tried when looking up the backend servers:
 1. Prepending the frontend host with `router.`, `go.`, `java.`, `python.`, `scio.`.
-2. Prepending the the default production frontend URL with the same.
+2. Prepending the default production frontend URL with the same.
 
 ### Docker
 
