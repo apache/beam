@@ -104,5 +104,5 @@ jobs:
       - name: Run Java SingleStore IO IT
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIODefaultMapperIT
+          gradle-command: :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIODefaultMapperIT :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOSchemaTransformIT :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOConnectionAttributesIT
           arguments: --info -DintegrationTestRunner=dataflow -DintegrationTestPipelineOptions='["--tempRoot=gs://temp-storage-for-perf-tests","--project=apache-beam-testing","--runner=DataflowRunner","--singleStoreUsername=admin","--singleStorePassword=secretpass","--singleStorePort=3306","--numberOfRecords=1000", "--singleStoreServerName=${{ steps.install_singlestore.outputs.lb_ip }}"]'
