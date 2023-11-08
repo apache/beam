@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
@@ -65,6 +66,7 @@ import org.slf4j.LoggerFactory;
  * Client for StreamingEngine. Given a {@link GetWorkBudget}, divides the budget and starts the
  * {@link WindmillStream.GetWorkStream}(s).
  */
+@Internal
 @CheckReturnValue
 @ThreadSafe
 public class StreamingEngineClient {

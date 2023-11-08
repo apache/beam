@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
@@ -51,6 +52,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
  * @implNote Does not manage streams for fetching {@link
  *     org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData} for side inputs.
  */
+@Internal
 @ThreadSafe
 public class WindmillStreamSender {
   private final AtomicBoolean started;
@@ -139,6 +141,10 @@ public class WindmillStreamSender {
   public synchronized void adjustBudget(long itemsDelta, long bytesDelta) {
     getWorkBudget.set(getWorkBudget.get().apply(itemsDelta, bytesDelta));
     getWorkStream.get().adjustBudget(itemsDelta, bytesDelta);
+  }
+
+  public synchronized void adjustBudget(GetWorkBudget adjustment) {
+    adjustBudget(adjustment.items(), adjustment.bytes());
   }
 
   public synchronized GetWorkBudget remainingGetWorkBudget() {

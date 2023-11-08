@@ -21,12 +21,14 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * A client context to process {@link WorkItem} and route all subsequent Windmill WorkItem API calls
  * to the same backend worker. Wraps the {@link WorkItem}.
  */
 @AutoValue
+@Internal
 public abstract class ProcessWorkItemClient {
   public static ProcessWorkItemClient create(
       WorkItem workItem, GetDataStream getDataStream, CommitWorkStream commitWorkStream) {
@@ -36,7 +38,15 @@ public abstract class ProcessWorkItemClient {
   /** {@link WorkItem} being processed. */
   public abstract WorkItem workItem();
 
+  /**
+   * {@link GetDataStream} that connects to the backend Windmill worker handling the {@link
+   * WorkItem}.
+   */
   public abstract GetDataStream getDataStream();
 
+  /**
+   * {@link CommitWorkStream} that connects to backend Windmill worker handling the {@link
+   * WorkItem}.
+   */
   public abstract CommitWorkStream commitWorkStream();
 }

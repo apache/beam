@@ -59,6 +59,10 @@ public abstract class GetWorkBudget {
     return apply(other.items(), other.bytes());
   }
 
+  public GetWorkBudget subtract(GetWorkBudget other) {
+    return apply(-other.items(), -other.bytes());
+  }
+
   /** Budget of bytes for GetWork. Does not drop below 0. */
   public abstract long bytes();
 

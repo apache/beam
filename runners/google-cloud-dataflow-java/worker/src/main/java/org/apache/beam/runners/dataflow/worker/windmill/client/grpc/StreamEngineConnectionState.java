@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import com.google.auto.value.AutoValue;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
@@ -42,28 +42,26 @@ abstract class StreamEngineConnectionState {
         .setGlobalDataEndpoints(ImmutableMap.of());
   }
 
-  abstract ImmutableMap<WindmillEndpoints.Endpoint, WindmillConnection> windmillConnections();
+  abstract ImmutableMap<Endpoint, WindmillConnection> windmillConnections();
 
   abstract ImmutableMap<WindmillConnection, WindmillStreamSender> windmillStreams();
 
-  abstract ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataEndpoints();
+  abstract ImmutableMap<String, Endpoint> globalDataEndpoints();
 
-  abstract ImmutableMap<WindmillEndpoints.Endpoint, Supplier<WindmillStream.GetDataStream>>
-      globalDataStreams();
+  abstract ImmutableMap<Endpoint, Supplier<WindmillStream.GetDataStream>> globalDataStreams();
 
   @AutoValue.Builder
   abstract static class Builder {
     public abstract Builder setWindmillConnections(
-        ImmutableMap<WindmillEndpoints.Endpoint, WindmillConnection> value);
+        ImmutableMap<Endpoint, WindmillConnection> value);
 
     public abstract Builder setWindmillStreams(
         ImmutableMap<WindmillConnection, WindmillStreamSender> value);
 
-    public abstract Builder setGlobalDataEndpoints(
-        ImmutableMap<String, WindmillEndpoints.Endpoint> value);
+    public abstract Builder setGlobalDataEndpoints(ImmutableMap<String, Endpoint> value);
 
     public abstract Builder setGlobalDataStreams(
-        ImmutableMap<WindmillEndpoints.Endpoint, Supplier<WindmillStream.GetDataStream>> value);
+        ImmutableMap<Endpoint, Supplier<WindmillStream.GetDataStream>> value);
 
     public abstract StreamEngineConnectionState build();
   }

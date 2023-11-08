@@ -23,8 +23,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -33,20 +33,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Handles refreshing the budget either via triggered or scheduled execution using a {@link
- * java.util.concurrent.Phaser}.
+ * java.util.concurrent.Phaser} to emulate publish/subscribe pattern.
  */
+@Internal
 @ThreadSafe
 public class GetWorkBudgetRefresher {
   @VisibleForTesting public static final int SCHEDULED_BUDGET_REFRESH_MILLIS = 100;
   private static final String BUDGET_REFRESH_THREAD = "GetWorkBudgetRefreshThread";
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkBudgetRefresher.class);
+
   private final AdvancingPhaser budgetRefreshTrigger;
   private final ExecutorService budgetRefreshExecutor;
   private final Supplier<Boolean> isBudgetRefreshPaused;
   private final Runnable redistributeBudget;
-
-  @GuardedBy("this")
-  private volatile int nextBudgetRefreshPhase;
 
   public GetWorkBudgetRefresher(
       Supplier<Boolean> isBudgetRefreshPaused, Runnable redistributeBudget) {
@@ -55,8 +54,6 @@ public class GetWorkBudgetRefresher {
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
                 .setNameFormat(BUDGET_REFRESH_THREAD)
-                // JVM will be responsible for shutdown and garbage collect these threads.
-                .setDaemon(true)
                 .setUncaughtExceptionHandler(
                     (t, e) ->
                         LOG.error(
@@ -66,54 +63,59 @@ public class GetWorkBudgetRefresher {
                 .build());
     this.isBudgetRefreshPaused = isBudgetRefreshPaused;
     this.redistributeBudget = redistributeBudget;
-    this.nextBudgetRefreshPhase = budgetRefreshTrigger.getPhase();
   }
 
   public void start() {
     // Runs forever until #stop is called.
-    budgetRefreshExecutor.submit(this::refreshBudget);
+    budgetRefreshExecutor.submit(this::subscribeToRefreshBudget);
   }
 
+  /** Publishes an event to trigger a budget refresh. */
   public synchronized void requestBudgetRefresh() {
-    nextBudgetRefreshPhase = budgetRefreshTrigger.arrive();
+    budgetRefreshTrigger.arrive();
   }
 
   public void stop() {
     budgetRefreshTrigger.arriveAndDeregister();
+    // Put the budgetRefreshTrigger in a terminated state, #waitForBudgetRefreshEventWithTimeout
+    // will subsequently return false, and #subscribeToRefreshBudget will return, completing the
+    // task.
+    budgetRefreshTrigger.forceTermination();
     budgetRefreshExecutor.shutdownNow();
   }
 
-  private synchronized void refreshBudget() {
+  private void subscribeToRefreshBudget() {
+    int currentBudgetRefreshPhase = budgetRefreshTrigger.getPhase();
     while (true) {
-      // Budget refreshes are paused during endpoint updates.
-      if (isBudgetRefreshPaused.get()) {
-        continue;
-      }
-
-      if (!shouldRefreshBudget()) {
+      currentBudgetRefreshPhase = waitForBudgetRefreshEventWithTimeout(currentBudgetRefreshPhase);
+      // Phaser.awaitAdvanceInterruptibly(...) returns a negative value if the phaser is
+      // terminated, else returns when either a budget refresh has been manually triggered or
+      // SCHEDULED_BUDGET_REFRESH_MILLIS have passed.
+      if (currentBudgetRefreshPhase < 0) {
         return;
       }
-
-      redistributeBudget.run();
+      // Budget refreshes are paused during endpoint updates.
+      if (!isBudgetRefreshPaused.get()) {
+        redistributeBudget.run();
+      }
     }
   }
 
-  private synchronized boolean shouldRefreshBudget() {
+  /**
+   * Waits for a budget refresh trigger event with a timeout. Returns whether budgets should still
+   * be refreshed.
+   */
+  private int waitForBudgetRefreshEventWithTimeout(int currentBudgetRefreshPhase) {
     try {
-      nextBudgetRefreshPhase =
-          budgetRefreshTrigger.awaitAdvanceInterruptibly(
-              nextBudgetRefreshPhase, SCHEDULED_BUDGET_REFRESH_MILLIS, TimeUnit.MILLISECONDS);
-
-      // Phaser.awaitAdvanceInterruptibly() returns a negative value if the phaser is
-      // terminated, else returns when either a budget refresh has been manually triggered or
-      // SCHEDULED_BUDGET_REFRESH_MILLIS have passed.
-      return nextBudgetRefreshPhase >= 0;
+      // Wait for budgetRefreshTrigger to advance FROM the current phase.
+      return budgetRefreshTrigger.awaitAdvanceInterruptibly(
+          currentBudgetRefreshPhase, SCHEDULED_BUDGET_REFRESH_MILLIS, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       LOG.warn("Error occurred waiting for budget refresh.", e);
     } catch (TimeoutException e) {
       LOG.info("Budget refresh not triggered, proceeding with scheduled refresh.");
     }
 
-    return true;
+    return budgetRefreshTrigger.getPhase();
   }
 }
