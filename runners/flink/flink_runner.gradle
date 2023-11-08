@@ -214,8 +214,8 @@ dependencies {
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
   //LYFT CUSTOM
-  implementation "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
-  implementation "com.lyft:streamingplatform-kinesis:1.4-SNAPSHOT"
+  implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202310191697699075"
+  implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231106.192652-1"
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'

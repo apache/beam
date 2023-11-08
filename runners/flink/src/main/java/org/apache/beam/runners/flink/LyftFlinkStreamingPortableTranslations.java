@@ -64,8 +64,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -128,8 +128,8 @@ public class LyftFlinkStreamingPortableTranslations {
 
     logger.info("Kafka consumer for topic {} with properties {}", topic, properties);
 
-    FlinkKafkaConsumer011<WindowedValue<byte[]>> kafkaSource =
-        new FlinkKafkaConsumer011<>(topic,
+    FlinkKafkaConsumer<WindowedValue<byte[]>> kafkaSource =
+        new FlinkKafkaConsumer<>(topic,
             new ByteArrayWindowedValueSchema(context.getPipelineOptions()),
             properties);
 
@@ -153,7 +153,7 @@ public class LyftFlinkStreamingPortableTranslations {
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         context
             .getExecutionEnvironment()
-            .addSource(kafkaSource, FlinkKafkaConsumer011.class.getSimpleName() + "-" + topic));
+            .addSource(kafkaSource, FlinkKafkaConsumer.class.getSimpleName() + "-" + topic));
   }
 
   /**
@@ -222,14 +222,14 @@ public class LyftFlinkStreamingPortableTranslations {
     DataStream<WindowedValue<byte[]>> inputDataStream =
         context.getDataStreamOrThrow(inputCollectionId);
 
-    FlinkKafkaProducer011<WindowedValue<byte[]>> producer =
-        new FlinkKafkaProducer011<>(topic, new ByteArrayWindowedValueSerializer(), properties);
+    FlinkKafkaProducer<WindowedValue<byte[]>> producer =
+        new FlinkKafkaProducer<>(topic, new ByteArrayWindowedValueSerializer(), properties);
     // assigner below sets the required Flink record timestamp
     producer.setWriteTimestampToKafka(true);
     inputDataStream
         .transform("setTimestamp", inputDataStream.getType(), new FlinkTimestampAssigner<>())
         .addSink(producer)
-        .name(FlinkKafkaProducer011.class.getSimpleName() + "-" + topic);
+        .name(FlinkKafkaProducer.class.getSimpleName() + "-" + topic);
   }
 
   public static class ByteArrayWindowedValueSerializer
