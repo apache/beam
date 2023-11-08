@@ -361,7 +361,7 @@ GCS serves as our checkpoint store due to its cost-effectiveness, scalability, a
 
 Scaling jobs efficiently was one of our primary challenges. Stateless jobs, which are relatively simpler, still present hurdles, especially in scenarios where Flink needed to process an overwhelming number of workers. To overcome this challenge, We increased the `state.storage.fs.memory-threshold` settings to 1 MB from 20KB (??). This configuration allowed us to combine small checkpoint files into larger ones at the Job Manager level and to reduce metadata calls.
 
-Another challenge we tackled was optimizing the performance of GCS operations. While GCS is excellent for streaming large amounts of data, it does have limitations when it comes to handling high-frequency I/O requests. To mitigate this, we employed strategies like introducing random prefixes in key names, avoiding sequential key names, and optimizing our GCS sharding techniques. These methods significantly enhanced our GCS performance, enabling smooth operation of our stateless jobs.
+Optimizing the performance of Google Cloud operations was another challenge. Although Google Cloud Storage is excellent for streaming large amounts of data, it has limitations when it comes to handling high-frequency I/O requests. To mitigate this issue, we introduced random prefixes in key names, avoided sequential key names, and optimized our Google Cloud Storage sharding techniques. These methods significantly enhanced our Google Cloud Storage performance, enabling the smooth operation of our stateless jobs.
 
 This is the chart showing the GCS writes reduction after changing the memory-threshold:
 
