@@ -33,13 +33,12 @@ from apache_beam.io.requestresponseio import UserCodeTimeoutException
 from apache_beam.options.pipeline_options import PipelineOptions
 
 try:
-    from proto.echo.v1.echo_pb2 import EchoRequest
-    from proto.echo.v1.echo_pb2 import EchoResponse
-    from proto.echo.v1.echo_pb2_grpc import EchoServiceStub
+    from apache_beam.io.mock_apis.proto.echo.v1.echo_pb2 import EchoRequest
+    from apache_beam.io.mock_apis.proto.echo.v1.echo_pb2 import EchoResponse
+    from apache_beam.io.mock_apis.proto.echo.v1.echo_pb2_grpc import EchoServiceStub
 except ImportError:
     raise unittest.SkipTest('proto.echo requirement missing. Make sure you '
-                            'installed specify the test extras_require with '
-                            'pip install -e\".[test]\"')
+                            'run `sdks/python/gen_protos.py`')
 
 _CHANNEL_CREDENTIALS = grpc.local_channel_credentials()
 _HTTP_PATH = "/v1/echo"

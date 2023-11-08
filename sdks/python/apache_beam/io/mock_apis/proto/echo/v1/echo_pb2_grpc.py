@@ -2,7 +2,9 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from proto.echo.v1 import echo_pb2 as proto_dot_echo_dot_v1_dot_echo__pb2
+# The apache_beam.io.mock_apis package prefix needs to be prepended due
+# to how the Beam imports modules.
+from apache_beam.io.mock_apis.proto.echo.v1 import echo_pb2 as proto_dot_echo_dot_v1_dot_echo__pb2
 
 
 class EchoServiceStub(object):

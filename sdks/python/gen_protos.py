@@ -28,6 +28,7 @@ import platform
 import re
 import shutil
 import sys
+import warnings
 from collections import defaultdict
 from importlib import import_module
 
@@ -87,7 +88,7 @@ MODEL_RESOURCES = [
 ]
 
 MOCK_APIS_ROOT = os.path.join(PROJECT_ROOT, '.test-infra', 'mock-apis', 'src', 'main', 'python')
-MOCK_APIS_GEN_PATH = os.path.join('proto', 'echo', 'v1')
+MOCK_APIS_GEN_PATH = os.path.join('apache_beam', 'io', 'mock_apis', 'proto', 'echo', 'v1')
 MOCK_APIS_GEN_LIST = [
     os.path.join(MOCK_APIS_GEN_PATH, 'echo_pb2_grpc.py'),
     os.path.join(MOCK_APIS_GEN_PATH, 'echo_pb2.py'),
@@ -544,6 +545,16 @@ def generate_proto_files(force=False):
 
 def copy_mock_apis_files():
   for src, dst in zip(MOCK_APIS_SOURCE, MOCK_APIS_DEST):
+    if os.path.exists(dst):
+      continue
+
+    if not os.path.exists(src):
+      warnings.warn(f"source does not exist: {src}, skipping...")
+      continue
+
+    dst_dir = os.path.dirname(dst)
+    os.makedirs(dst_dir, exist_ok=True)
+
     shutil.copy2(src, dst)
 
 

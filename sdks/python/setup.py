@@ -338,9 +338,7 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
-              # Used for integration tests against APIs defined, implemented
-              # and deployed in .test-infra/mock-apis
-              f"mock-apis @ file://{os.path.abspath(os.path.join('..', '..', '.test-infra', 'mock-apis', 'src', 'main', 'python'))}",
+              'grpclib>=0.4.6',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
