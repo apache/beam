@@ -511,7 +511,11 @@ class DataflowApplicationClient(object):
     if storage_credentials:
       self._storage_client = storage.Client(
           credentials=storage_credentials,
-          project=self.google_cloud_options.project)
+          project=self.google_cloud_options.project,
+          extra_headers={
+              "User-Agent": "apache-beam/%s (GPN:Beam)" %
+              beam_version.__version__
+          })
     else:
       self._storage_client = storage.Client.create_anonymous_client()
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)

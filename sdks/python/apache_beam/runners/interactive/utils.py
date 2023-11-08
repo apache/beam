@@ -30,6 +30,7 @@ from typing import Tuple
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam import version as beam_version
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.internal.gcp import auth
@@ -455,7 +456,12 @@ def assert_bucket_exists(bucket_name):
     credentials = auth.get_service_credentials(PipelineOptions())
     if credentials:
       storage_client = storage.Client(
-          credentials=credentials.get_google_auth_credentials(), project=None)
+          credentials=credentials.get_google_auth_credentials(),
+          project=None,
+          extra_headers={
+              "User-Agent": "apache-beam/%s (GPN:Beam)" %
+              beam_version.__version__
+          })
     else:
       storage_client = storage.Client.create_anonymous_client()
     storage_client.get_bucket(bucket_name)
