@@ -51,14 +51,12 @@ class RequestResponseIO(PTransform):
                  | RequestResponseIO(MyCaller())
                 )
   """
-
   def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
     pass
 
 
 class Caller(metaclass=abc.ABCMeta):
   """Interfaces user custom code intended for API calls."""
-
   @abc.abstractmethod
   def call(self, request: RequestT) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
@@ -74,7 +72,6 @@ class SetupTeardown(metaclass=abc.ABCMeta):
     Called by ``RequestResponseIO`` within its DoFn's setup and teardown
     methods.
     """
-
   @abc.abstractmethod
   def setup(self) -> None:
     """Called during the DoFn's setup lifecycle method."""

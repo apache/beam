@@ -52,7 +52,6 @@ class EchoITOptions(PipelineOptions):
       -infra/mock-apis#integration for details on how to acquire values
       required by ``EchoITOptions``.
       """
-
   @classmethod
   def _add_argparse_args(cls, parser) -> None:
     parser.add_argument(
@@ -83,7 +82,6 @@ class EchoGRPCCaller(Caller, SetupTeardown):
   """Implements ``Caller`` and ``SetupTeardown`` to call ``EchoServiceGrpc``.
     The purpose of ``EchoGRPCCaller`` is to support integration tests.
     """
-
   def __init__(self, address: str):
     self.address = address
     self.channel: Union[Channel, None] = None
@@ -180,7 +178,6 @@ class EchoHTTPCaller(Caller):
   """Implements ``Caller`` to call the ``EchoServiceGrpc``'s HTTP handler.
     The purpose of ``EchoHTTPCaller`` is to support integration tests.
     """
-
   def __init__(self, url: str):
     self.url = url + _HTTP_PATH
 
