@@ -36,15 +36,15 @@ import java.util.zip.Deflater;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.flink.LyftFlinkStreamingPortableTranslations.LyftBase64ZlibJsonSchema;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,6 +70,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
   public void before() {
     MockitoAnnotations.initMocks(this);
     when(streamingContext.getExecutionEnvironment()).thenReturn(streamingEnvironment);
+    when(streamingContext.getPipelineOptions()).thenReturn(FlinkPipelineOptions.defaults());
   }
 
   @Test
@@ -195,8 +196,8 @@ public class LyftFlinkStreamingPortableTranslationsTest {
         .translateKafkaInput(id, pipeline, streamingContext);
 
     // assert
-    ArgumentCaptor<FlinkKafkaConsumer011> kafkaSourceCaptor =
-        ArgumentCaptor.forClass(FlinkKafkaConsumer011.class);
+    ArgumentCaptor<FlinkKafkaConsumer> kafkaSourceCaptor =
+        ArgumentCaptor.forClass(FlinkKafkaConsumer.class);
     ArgumentCaptor<String> kafkaSourceNameCaptor = ArgumentCaptor.forClass(String.class);
     verify(streamingEnvironment)
         .addSource(kafkaSourceCaptor.capture(), kafkaSourceNameCaptor.capture());
@@ -262,14 +263,14 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     // assert
     verify(streamingContext).getDataStreamOrThrow("fake_pcollection_id");
     verify(dataStream).transform(anyString(), any(), any(OneInputStreamOperator.class));
-    ArgumentCaptor<FlinkKafkaProducer011> kafkaSinkCaptor =
-        ArgumentCaptor.forClass(FlinkKafkaProducer011.class);
+    ArgumentCaptor<FlinkKafkaProducer> kafkaSinkCaptor =
+        ArgumentCaptor.forClass(FlinkKafkaProducer.class);
     ArgumentCaptor<String> kafkaSinkNameCaptor = ArgumentCaptor.forClass(String.class);
     verify(streamSink).name(kafkaSinkNameCaptor.capture());
     verify(outputStreamOperator).addSink(kafkaSinkCaptor.capture());
 
     Assert.assertTrue(kafkaSinkNameCaptor.getValue().contains(topicName));
-    Assert.assertEquals(FlinkKafkaProducer011.class, kafkaSinkCaptor.getValue().getClass());
+    Assert.assertEquals(FlinkKafkaProducer.class, kafkaSinkCaptor.getValue().getClass());
   }
 
   /**

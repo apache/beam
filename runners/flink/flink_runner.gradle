@@ -216,9 +216,9 @@ dependencies {
   //LYFT CUSTOM
   implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202310191697699075"
   implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231106.192652-1"
-  compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
-    exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
-    exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
+  implementation ("com.lyft:streamingplatform-kafka:2.4.0-20231106.192652-1") {
+    exclude group: "org.apache.flink", module: "flink-connector-kafka"
+    exclude group: "org.apache.flink", module: "flink-streaming-java"
   }
 }
 

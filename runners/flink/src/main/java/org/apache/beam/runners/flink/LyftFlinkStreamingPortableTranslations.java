@@ -141,7 +141,8 @@ public class LyftFlinkStreamingPortableTranslations {
     consumerBuilder.withKafkaProperties(properties);
 
     FlinkKafkaConsumer<WindowedValue<byte[]>> kafkaSource =
-        consumerBuilder.build(topic, new ByteArrayWindowedValueSchema());
+        consumerBuilder.build(topic,
+            new ByteArrayWindowedValueSchema(context.getPipelineOptions()));
 
     if (params.getOrDefault("start_from_timestamp_millis", null) != null) {
       kafkaSource.setStartFromTimestamp(
@@ -239,7 +240,7 @@ public class LyftFlinkStreamingPortableTranslations {
     properties.putAll(producerProps);
     producerBuilder.withKafkaProperties(properties);
 
-    FlinkKafkaProducer011<WindowedValue<byte[]>> producer =
+    FlinkKafkaProducer<WindowedValue<byte[]>> producer =
         producerBuilder.build(topic, new ByteArrayWindowedValueSerializer());
 
     String inputCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
