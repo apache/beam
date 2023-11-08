@@ -54,7 +54,8 @@ class ExpansionServiceServicer(
       context = pipeline_context.PipelineContext(
           request.components,
           default_environment=self._default_environment,
-          namespace=request.namespace)
+          namespace=request.namespace,
+          requirements=request.requirements)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
           for t_id,
