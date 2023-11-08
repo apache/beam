@@ -450,7 +450,7 @@ public class StreamingEngineClientTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(thirdWorkerMetadata);
     waitForWorkerMetadataToBeConsumed(3);
-
+    Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS);
     verify(getWorkBudgetDistributor, atLeast(3)).distributeBudget(any(), any());
   }
 
@@ -468,7 +468,7 @@ public class StreamingEngineClientTest {
       }
     }
     // Wait for metadata to be consumed and budgets to be redistributed.
-    Thread.sleep(100);
+    Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS);
     return connections.get();
   }
 

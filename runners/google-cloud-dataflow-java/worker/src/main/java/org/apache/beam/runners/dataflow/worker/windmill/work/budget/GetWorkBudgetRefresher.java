@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import java.util.concurrent.ExecutorService;
@@ -37,8 +36,9 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @ThreadSafe
-public class GetWorkBudgetRefresher {
+public final class GetWorkBudgetRefresher {
   @VisibleForTesting public static final int SCHEDULED_BUDGET_REFRESH_MILLIS = 100;
+  private static final int INITIAL_BUDGET_REFRESH_PHASE = 0;
   private static final String BUDGET_REFRESH_THREAD = "GetWorkBudgetRefreshThread";
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkBudgetRefresher.class);
 
@@ -65,8 +65,8 @@ public class GetWorkBudgetRefresher {
     this.redistributeBudget = redistributeBudget;
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
-    // Runs forever until #stop is called.
     budgetRefreshExecutor.submit(this::subscribeToRefreshBudget);
   }
 
@@ -85,7 +85,8 @@ public class GetWorkBudgetRefresher {
   }
 
   private void subscribeToRefreshBudget() {
-    int currentBudgetRefreshPhase = budgetRefreshTrigger.getPhase();
+    int currentBudgetRefreshPhase = INITIAL_BUDGET_REFRESH_PHASE;
+    // Runs forever until #stop is called.
     while (true) {
       currentBudgetRefreshPhase = waitForBudgetRefreshEventWithTimeout(currentBudgetRefreshPhase);
       // Phaser.awaitAdvanceInterruptibly(...) returns a negative value if the phaser is
@@ -104,18 +105,28 @@ public class GetWorkBudgetRefresher {
   /**
    * Waits for a budget refresh trigger event with a timeout. Returns whether budgets should still
    * be refreshed.
+   *
+   * <p>Budget refresh event is triggered when {@link #budgetRefreshTrigger} moves on from the given
+   * currentBudgetRefreshPhase.
    */
   private int waitForBudgetRefreshEventWithTimeout(int currentBudgetRefreshPhase) {
     try {
       // Wait for budgetRefreshTrigger to advance FROM the current phase.
       return budgetRefreshTrigger.awaitAdvanceInterruptibly(
           currentBudgetRefreshPhase, SCHEDULED_BUDGET_REFRESH_MILLIS, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      LOG.warn("Error occurred waiting for budget refresh.", e);
     } catch (TimeoutException e) {
       LOG.info("Budget refresh not triggered, proceeding with scheduled refresh.");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new BudgetRefreshException("Error occurred waiting for budget refresh.", e);
     }
 
-    return budgetRefreshTrigger.getPhase();
+    return currentBudgetRefreshPhase;
+  }
+
+  private static class BudgetRefreshException extends RuntimeException {
+    private BudgetRefreshException(String msg, Throwable sourceException) {
+      super(msg, sourceException);
+    }
   }
 }
