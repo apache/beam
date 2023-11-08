@@ -40,7 +40,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
                 "eJyLrlZKLUvNK4nPTFGyUjDUUVDKT04uLSpKTYlPLAGKKBkZ"
                     + "GFroGhroGpkrGBhYGRlYGRjpWRoYKNXGAgARiA/1");
 
-    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema();
+    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema(FlinkPipelineOptions.defaults());
     WindowedValue<byte[]> value = schema.deserialize(message, "", "", 0, "", "");
 
     Assert.assertArrayEquals(message, value.getValue());
@@ -55,7 +55,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
             .decode(
                 "eJyLrlZKLUvNK4nPTFGyUjDUUVDKT04uL" + "SpKTYlPLAGJmJqYGBhbGlsYmhlZ1MYCAGYeDek=");
 
-    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema();
+    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema(FlinkPipelineOptions.defaults());
     WindowedValue<byte[]> value = schema.deserialize(message, "", "", 0, "", "");
 
     Assert.assertArrayEquals(message, value.getValue());
@@ -66,7 +66,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
   public void testBeamKinesisSchemaNoTimestamp() throws IOException {
     byte[] message = encode("[{\"event_id\": 1}]");
 
-    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema();
+    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema(FlinkPipelineOptions.defaults());
     WindowedValue<byte[]> value = schema.deserialize(message, "", "", 0, "", "");
 
     Assert.assertArrayEquals(message, value.getValue());
@@ -83,7 +83,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
                 "eJyLrlZKLUvNK4nPTFGyUjDUUVDKT04uLSpKTYlPLAGKKBkZGFroGhroGpkr"
                     + "GBhYGRlYGRjpWRoYKNXqKKBoNSKk1djCytBYz8DAVKk2FgC35B+F");
 
-    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema();
+    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema(FlinkPipelineOptions.defaults());
     WindowedValue<byte[]> value = schema.deserialize(message, "", "", 0, "", "");
 
     Assert.assertArrayEquals(message, value.getValue());
@@ -102,7 +102,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
             + loggedAtMillis / 1000
             + "}]";
     byte[] message = encode(events);
-    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema();
+    LyftBase64ZlibJsonSchema schema = new LyftBase64ZlibJsonSchema(FlinkPipelineOptions.defaults());
     WindowedValue<byte[]> value = schema.deserialize(message, "", "", 0, "", "");
 
     Assert.assertArrayEquals(message, value.getValue());

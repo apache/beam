@@ -47,11 +47,12 @@ import org.apache.beam.runners.flink.FlinkStreamingPortablePipelineTranslator.PT
 import org.apache.beam.runners.flink.FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -128,7 +129,9 @@ public class LyftFlinkStreamingPortableTranslations {
     logger.info("Kafka consumer for topic {} with properties {}", topic, properties);
 
     FlinkKafkaConsumer011<WindowedValue<byte[]>> kafkaSource =
-        new FlinkKafkaConsumer011<>(topic, new ByteArrayWindowedValueSchema(), properties);
+        new FlinkKafkaConsumer011<>(topic,
+            new ByteArrayWindowedValueSchema(context.getPipelineOptions()),
+            properties);
 
     if (params.getOrDefault("start_from_timestamp_millis", null) != null) {
       kafkaSource.setStartFromTimestamp(
@@ -163,10 +166,11 @@ public class LyftFlinkStreamingPortableTranslations {
 
     private final TypeInformation<WindowedValue<byte[]>> ti;
 
-    public ByteArrayWindowedValueSchema() {
+    public ByteArrayWindowedValueSchema(FlinkPipelineOptions pipelineOptions) {
       this.ti =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+              pipelineOptions);
     }
 
     @Override
@@ -301,11 +305,13 @@ public class LyftFlinkStreamingPortableTranslations {
         case BYTES_ENCODING:
           source =
               FlinkLyftKinesisConsumer.create(
-                  stream, new KinesisByteArrayWindowedValueSchema(), properties);
+                  stream, new KinesisByteArrayWindowedValueSchema(context.getPipelineOptions()), properties);
           break;
         case LYFT_BASE64_ZLIB_JSON:
           source =
-              FlinkLyftKinesisConsumer.create(stream, new LyftBase64ZlibJsonSchema(), properties);
+              FlinkLyftKinesisConsumer.create(stream,
+                  new LyftBase64ZlibJsonSchema(context.getPipelineOptions()),
+                  properties);
           source.setPeriodicWatermarkAssigner(
               new WindowedTimestampExtractor<>(Time.milliseconds(maxOutOfOrdernessMillis)));
           break;
@@ -341,10 +347,11 @@ public class LyftFlinkStreamingPortableTranslations {
       implements KinesisDeserializationSchema<WindowedValue<byte[]>> {
     private final TypeInformation<WindowedValue<byte[]>> ti;
 
-    public KinesisByteArrayWindowedValueSchema() {
+    public KinesisByteArrayWindowedValueSchema(FlinkPipelineOptions pipelineOptions) {
       this.ti =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+              pipelineOptions);
     }
 
     @Override
@@ -375,9 +382,14 @@ public class LyftFlinkStreamingPortableTranslations {
   static class LyftBase64ZlibJsonSchema
       implements KinesisDeserializationSchema<WindowedValue<byte[]>> {
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final TypeInformation<WindowedValue<byte[]>> ti =
-        new CoderTypeInformation<>(
-            WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+    private TypeInformation<WindowedValue<byte[]>> ti;
+
+    public LyftBase64ZlibJsonSchema(PipelineOptions options) {
+      this.ti =
+          new CoderTypeInformation<>(
+              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+              options);
+    }
 
     private static String inflate(byte[] deflatedData) throws IOException {
       Inflater inflater = new Inflater();
