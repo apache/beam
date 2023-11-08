@@ -109,7 +109,8 @@ class GcsIO(object):
       credentials = auth.get_service_credentials(pipeline_options)
       if credentials:
         storage_client = storage.Client(
-            credentials=credentials.get_google_auth_credentials())
+            credentials=credentials.get_google_auth_credentials(),
+            project=self.google_cloud_options.project)
       else:
         storage_client = storage.Client.create_anonymous_client()
     self.client = storage_client

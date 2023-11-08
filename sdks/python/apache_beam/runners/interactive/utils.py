@@ -454,7 +454,8 @@ def assert_bucket_exists(bucket_name):
     from google.cloud import storage
     credentials = auth.get_service_credentials(PipelineOptions())
     if credentials:
-      storage_client = storage.Client(credentials=credentials)
+      storage_client = storage.Client(
+          credentials=credentials.get_google_auth_credentials(), project=None)
     else:
       storage_client = storage.Client.create_anonymous_client()
     storage_client.get_bucket(bucket_name)
