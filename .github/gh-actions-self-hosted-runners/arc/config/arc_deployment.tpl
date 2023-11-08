@@ -26,6 +26,7 @@ spec:
       annotations:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
+      dockerMTU: 1460
       %{~ if selector == true  ~}
       nodeSelector:
         runner-pool: ${name} 
