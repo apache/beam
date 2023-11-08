@@ -46,51 +46,56 @@ src="/images/blog/apache-beam-flink-and-kubernetes/image1.png"
 alt="Streaming service design">
 
 
-This managed Dataflow based streaming infrastructure runs fine, but with some caveats:
+This managed, Dataflow-based streaming infrastructure runs fine, but with some caveats:
 
 
 
-1. Cost is high as it is a managed service. For the same resources used in a Dataflow application, such as vCPU and memory, the cost is much more expensive than using an open source streaming engine such as Flink running the same Beam application code.
-2. Not easy to extend features, such as autoscaling based on different applications, endpoints, or different parameters within one same application, so that we can achieve our goals of ladency of SLA.
-3. Runs only on GCP.
+1. Cost is high, because it is a managed service. For the same resources used in a Dataflow application, such as vCPU and memory, the cost is much more expensive than using an open source streaming engine such as Flink running the same Beam application code.
+2. It's not easy to achieve our latency and SLA goals, because it's difficult to extend features, such as autoscaling based on different applications, endpoints, or different parameters within one application.
+3. The pipeline only runs on Google Cloud.
 
-Another important factor we want to use a self managed service is the uniqueness of PANW’s streaming use cases. We support multi-tenancy. A tenant (a customer) can ingest data at a very high rate (>100k requests per seconds), or very low rate (&lt; 100 requests per second). A Dataflow job runs on VM’s instead of Kubernate, requiring a minimal one vCPU core. With a small tenant, this is just wasting resources. Our streaming infrastructure supports thousands of jobs, the CPU utilization will be more efficient if we do not have to use one core for a job.  It is natural for us to use a streaming engine running on Kubernetes, so that we can allocate minimal resources for a small tenant, for example, using a GKE POD with ½ or less vCPU core.
-
-
-# Choosing Apache Flink and Kubernetes
-
-In an effort to handle the above problems, we evaluated various streaming frameworks, including Apache Samza, Apache Flink, and Apache Spark, against GCP Dataflow to find the most efficient solution.
-
-**Performance:**
+The uniqueness of PANW’s streaming use cases is another reason that we use a self-managed service. We support multi-tenancy. A tenant (a customer) can ingest data at a very high rate (>100k requests per second), or at a very low rate (&lt; 100 requests per second). A Dataflow job runs on VMs instead of Kubernetes, requiring a minimal one vCPU core. With a small tenant, this wastes resources. Our streaming infrastructure supports thousands of jobs, and the CPU utilization is more efficient if we do not have to use one core for a job. It is natural for us to use a streaming engine running on Kubernetes, so that we can allocate minimal resources for a small tenant, for example, using a Google Kubernetes Engine (GKE) pod with ½ or less vCPU core.
 
 
+## The choice of Apache Flink and Kubernetes
 
-* One standout factor was Apache Flink’s native Kubernetes support. Unlike Samza, which lacked native Kubernetes support and required Apache Zookeeper for coordination, Flink seamlessly integrated with Kubernetes. This eliminated unnecessary complexities. Performance-wise, both Samza and Flink were close competitors.
-* Apache Spark, while popular, proved to be significantly slower in our tests. A presentation at the Beam Summit revealed that Apache Beam’s Spark Runner was approximately 10 times slower than Native Apache Spark [3]. We could not afford such a drastic performance hit and rewriting our entire Beam codebase with native Spark was not a viable option, especially given the extensive codebase we had built over the past four years with Apache Beam.
+In an effort to handle the problems already stated and to find the most efficient solution, we evaluated various streaming frameworks, including Apache Samza, Apache Flink, and Apache Spark, against Dataflow.
 
-**Community:**
+### Performance
 
 
 
-* The robustness of community support played a pivotal role in our decision-making. GCP Dataflow had provided excellent support, but we needed assurance in our choice of an open-source framework. Apache Flink’s vibrant community and active contributions from multiple companies offered a level of confidence that was unmatched. This collaborative environment meant that bug identification and fixes were ongoing processes. In fact, in our journey, we have patched our system using many Flink fixes from the community such as fixing the gcs file reading exceptions by merging Flink 1.15 open source fix [FLINK-26063](https://issues.apache.org/jira/browse/FLINK-26063?page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel&focusedCommentId=17504555#comment-17504555) (we are using 1.13), and worker restarting issue for stateful jobs from [FLINK-31963](https://issues.apache.org/jira/browse/FLINK-31963). We also found and fixed some bugs on the open source and contributed back to the community during our journey, such as [FLINK-32700](https://issues.apache.org/jira/browse/FLINK-32700) for Flink Kubernetes Operator. We created a new GKE Auth support for Kubernetes client and merged to github at [4].
+* One notable factor was Apache Flink’s native Kubernetes support. Unlike Samza, which lacked native Kubernetes support and required Apache Zookeeper for coordination, Flink seamlessly integrated with Kubernetes. This integration eliminated unnecessary complexities. In terms of performance, both Samza and Flink were close competitors.
+* Apache Spark, while popular, proved to be significantly slower in our tests. A presentation at the Beam Summit revealed that Apache Beam’s Spark Runner was approximately ten times slower than Native Apache Spark [3]. We could not afford such a drastic performance hit. Rewriting our entire Beam codebase with native Spark was not a viable option, especially given the extensive codebase we had built over the past four years with Apache Beam.
 
-**Integration:**
-
-
-
-* Additionally, the seamless integration of Apache Flink with Kubernetes provided us with a flexible and scalable platform for orchestration. The synergy between Apache Flink and Kubernetes not only optimized our data processing workflows but also future-proofed our system.
+### Community
 
 
-# Architecture and Deployment Workflow
 
-In the realm of real-time data processing and analytics, Apache Flink stands tall as a powerful and versatile framework. When combined with Kubernetes, the industry-standard container orchestration system, Flink applications can scale horizontally and enjoy robust management capabilities. We explore a cutting-edge design where Apache Flink and Kubernetes synergize seamlessly, thanks to the Apache Flink Kubernetes Operator.
+The robustness of community support played a pivotal role in our decision making. Dataflow provided excellent support, but we needed assurance in our choice of an open-source framework. Apache Flink’s vibrant community and active contributions from multiple companies offered a level of confidence that was unmatched. This collaborative environment meant that bug identification and fixes were ongoing processes. In fact, in our journey, we have patched our system using many Flink fixes from the community:
 
-At its core, the Flink Kubernetes Operator serves as a control plane, mirroring the knowledge and actions of a human operator managing Flink deployments. Unlike traditional methods, the Operator automates critical activities, from starting and stopping applications to handling upgrades and errors. Its versatile feature set includes fully-automated job lifecycle management, support for different Flink versions, and multiple deployment modes like application clusters and session jobs. Moreover, the Operator's operational prowess extends to metrics, logging, and even dynamic scaling via the Job Autoscaler.
+* We fixed the Google Cloud Storage file reading exceptions by merging Flink 1.15 open source fix [FLINK-26063](https://issues.apache.org/jira/browse/FLINK-26063?page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel&focusedCommentId=17504555#comment-17504555) (we are using 1.13).
+* We fixed an issue with workers restarting for stateful jobs from [FLINK-31963](https://issues.apache.org/jira/browse/FLINK-31963).
+
+We also contributed to the community during our journey by founding and fixing bugs in the open source code. For details, see [FLINK-32700](https://issues.apache.org/jira/browse/FLINK-32700) for Flink Kubernetes Operator. We also created a new GKE Auth support for Kubernetes clients and merged it to GitHub at [4].
+
+### Integration
 
 
-## Building a Seamless Deployment Workflow
 
-Imagine a robust system where Flink jobs are deployed effortlessly, monitored diligently, and managed proactively. This is precisely what our team achieved by integrating Apache Flink, Apache Flink Kubernetes Operator, and Kubernetes. Central to this setup is our custom-built Apache Flink Kubernetes Operator Client Library. This library acts as a bridge, enabling atomic operations such as starting, stopping, updating, and canceling Flink jobs.
+The seamless integration of Apache Flink with Kubernetes provided us with a flexible and scalable platform for orchestration. The synergy between Apache Flink and Kubernetes not only optimized our data processing workflows but also future-proofed our system.
+
+
+## Architecture and deployment workflow
+
+In the realm of real-time data processing and analytics, Apache Flink distinguishes itself as a powerful and versatile framework. When combined with Kubernetes, the industry-standard container orchestration system, Flink applications can scale horizontally and have robust management capabilities. We explore a cutting-edge design where Apache Flink and Kubernetes synergize seamlessly, thanks to the Apache Flink Kubernetes Operator.
+
+At its core, the Flink Kubernetes Operator serves as a control plane, mirroring the knowledge and actions of a human operator managing Flink deployments. Unlike traditional methods, the Operator automates critical activities, from starting and stopping applications to handling upgrades and errors. Its versatile feature set includes fully-automated job lifecycle management, support for different Flink versions, and multiple deployment modes, such as application clusters and session jobs. Moreover, the Operator's operational prowess extends to metrics, logging, and even dynamic scaling by using the Job Autoscaler.
+
+
+### Build a seamless deployment workflow
+
+Imagine a robust system where Flink jobs are deployed effortlessly, monitored diligently, and managed proactively. Our team created this workflow by integrating Apache Flink, Apache Flink Kubernetes Operator, and Kubernetes. Central to this setup is our custom-built Apache Flink Kubernetes Operator Client Library. This library acts as a bridge, enabling atomic operations such as starting, stopping, updating, and canceling Flink jobs.
 
 
 
@@ -100,57 +105,57 @@ alt="Streaming service changes">
 
 
 
-## The Deployment Process
+### The deployment process
 
-In our code, the client provides Apache Beam Pipeline Options, which include essential information such as the Kubernetes cluster's API endpoint, authentication details, GCP/S3 temporary location for uploading the JAR file, and worker type specifications. The Kubernetes Operator Library utilizes this information to orchestrate a seamless deployment process, We broke down steps below, note most of the core steps are automated in our code base:
+In our code, the client provides Apache Beam pipeline options, which include essential information such as the Kubernetes cluster's API endpoint, authentication details, the Google Cloud/S3 temporary location for uploading the JAR file, and worker type specifications. The Kubernetes Operator Library uses this information to orchestrate a seamless deployment process. The following sections explain the steps taken. Most of the core steps are automated in our code base.
 
-**Step1: **
+**Step 1:**
 
 
 
-* Client wants to start a job for a customer and a specific application.
+* The client wants to start a job for a customer and a specific application.
 
 **Step 2:**
 
 
 
-* **Generating a Unique Job ID**: The library generates a unique job ID, which is set as a Kubernetes label. This identifier helps in tracking and managing the deployed Flink job.
-* **Configuration and Code Upload**: The library takes care of uploading all necessary configurations and user code to a designated location on Google Cloud Storage (GCS) or Amazon S3. This ensures that the Flink application's resources are readily available for deployment.
-* **YAML Payload Generation**: Once the upload process is complete, the library constructs a YAML payload. This payload contains crucial deployment information, including resource settings determined based on the specified worker type.
+* **Generate a unique job ID:** The library generates a unique job ID, which is set as a Kubernetes label. This identifier helps track and manage the deployed Flink job.
+* **Configuration and code upload:** The library uploads all necessary configurations and user code to a designated location on Google Cloud Storage or Amazon S3. This step ensures that the Flink application's resources are available for deployment.
+* **YAML payload generation:** After the upload process completes, the library constructs a YAML payload. This payload contains crucial deployment information, including resource settings based on the specified worker type.
 
-In terms of worker VM instance type naming convention I would like to mention a little bit. We borrow a similar naming convention that Google Cloud has today. The naming convention n1-standard-1 refers to a specific predefined VM machine type. Let’s break down what each component of the name means:
+We used a convention for naming our worker VM instance types. Our convention is similar to the naming convention that Google Cloud uses. The name `n1-standard-1` refers to a specific, predefined VM machine type. Let’s break down what each component of the name means:
 
 
 
-* **n1**: This indicates cpu type of the instance. In this case, it refers to the intel based on instances in the N1 series. Google Cloud Platform has multiple generations of instances with varying hardware and performance characteristics.
-* **standard**: This signifies the machine type family. "Standard" machine types offer a balanced ratio of 1 virtual CPU and 4 GB of memory for Task Manager and 0.5 vCPU and 2 GB memory for Job Manager
-* **1**: This represents the number of virtual CPUs (vCPUs) available in the instance. In the case of n1-standard-1, it means the instance has 1 virtual CPU.
+* **n1** indicates the CPU type of the instance. In this case, it refers to the Intel based on instances in the N1 series. Google Cloud has multiple generations of instances with varying hardware and performance characteristics.
+* **standard** signifies the machine type family. Standard machine types offer a balanced ratio of 1 virtual CPU (vCPUs) and 4 GB of memory for Task Manager, and 0.5 vCPU and 2 GB memory for Job Manager.
+* **1** represents the number of vCPUs available in the instance. In the case of n1-standard-1, it means the instance has 1 vCPU.
 
 **Step 3:**
 
 
 
-* **Calling Kubernetes API with Fabric8**: To initiate the deployment, the library interacts with the Kubernetes API using Fabric8. It's worth noting that Fabric8 initially lacked support for authentication in Google Kubernetes Engine (GKE) or Amazon Elastic Kubernetes Service (EKS). To address this limitation, our team implemented the necessary authentication support, which can be found in our Merge Request at GitHub PR [4].
+* **Calling the Kubernetes API with Fabric8**: To initiate the deployment, the library interacts with the Kubernetes API using Fabric8. Fabric8 initially lacked support for authentication in Google Kubernetes Engine or Amazon Elastic Kubernetes Service (EKS). To address this limitation, our team implemented the necessary authentication support, which can be found in our merge request on GitHub PR [4].
 
 **Step 4:**
 
 
 
-* **Flink Operator Deployment**: Upon receiving the YAML payload, the Flink Operator takes charge of deploying the various components of the Flink job. This includes provisioning resources and managing the deployment of the Flink Job Manager, Task Manager, and Job Service.
+* **Flink Operator deployment**: When it receives the YAML payload, the Flink Operator takes charge of deploying the various components of the Flink job. Tasks include provisioning resources and managing the deployment of the Flink Job Manager, Task Manager, and Job Service.
 
 **Step 5:**
 
 
 
-* **Job Submission and Execution**: Once the Flink Job Manager is up and running, it fetches the JAR file and configurations from the designated GCS or S3 location. With all necessary resources in place, it submits the Flink job to the Standalone Flink Cluster for execution.
+* **Job submission and execution**: When the Flink Job Manager is running, it fetches the JAR file and configurations from the designated Google Cloud Storage or S3 location. With all necessary resources in place, it submits the Flink job to the standalone Flink cluster for execution.
 
 **Step 6**
 
 
 
-* **Continuous Monitoring**: Post-deployment, our operator continuously monitors the status of the running Flink job. This real-time feedback loop enables us to promptly address any issues that may arise, ensuring the overall health and optimal performance of our Flink applications.
+* **Continuous monitoring**: Post-deployment, our operator continuously monitors the status of the running Flink job. This real-time feedback loop enables us to promptly address any issues that arise, ensuring the overall health and optimal performance of our Flink applications.
 
-In summary, our deployment process leverages Apache Beam Pipeline Options, integrates seamlessly with Kubernetes and the Flink Operator, and employs custom logic to handle configuration uploads and authentication. This end-to-end workflow ensures a reliable and efficient deployment of Flink applications in Kubernetes clusters while maintaining vigilant monitoring for smooth operation. We created a sequence diagram to follow the steps below.
+In summary, our deployment process leverages Apache Beam pipeline options, integrates seamlessly with Kubernetes and the Flink Operator, and employs custom logic to handle configuration uploads and authentication. This end-to-end workflow ensures a reliable and efficient deployment of Flink applications in Kubernetes clusters while maintaining vigilant monitoring for smooth operation. The following sequence diagram shows the steps.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes/job-start-activity-diagram.png"
@@ -158,22 +163,22 @@ alt="Job Start Activity Diagram">
 
 
 
-# Developing an Autoscaler
+## Develope an autoscaler
 
-Autoscaler is the key of the self-managed streaming service. There are not enough resources available on the internet for us to learn to build our own autoscaler which makes this problem even more tricky.
+Having an autoscaler is critical to having a self-managed streaming service. There are not enough resources available on the internet for us to learn to build our own autoscaler, which makes this part of the workflow difficult.
 
-Autoscaler needs to scale up the number of task managers to drain the lag and keep up with the throughput. It will also scale down the minimum number of resources required to process the incoming traffic to save cost. We need to do this frequently while keeping the processing disruption to minimum.
+The autoscaler scales up the number of task managers to drain the lag and to keep up with the throughput. It also scales down the minimum number of resources required to process the incoming traffic to reduce costs. We need to do this frequently while keeping the processing disruption to minimum.
 
-We have tuned the autoscaler intensively, so that we can meet the SLA for latency, and make trade off for cost. We also make the autoscaler application specific so that we can meet specific needs for certain applications. Every decision has a hidden cost.  We dive into the great details of autoscaler in Part 2 of this blog.
-
-
-# Creating a Client Library for Steaming Job Development
-
-To deploy the job via Flink Kubernetes Operator, one has to be knowledgeable enough in the workings of kubernetes. The steps to create a single Flink job is:
+We extensively tuned the autoscaler to meet the SLA for latency. This tuning involved a cost trade off. We also made the autoscaler application-specific to meet specific needs for certain applications. Every decision has a hidden cost.  The second part of this blog provides more details about the autoscaler.
 
 
+## Create a client library for steaming job development
 
-1. Define a yaml file with proper specifications. This is an example:
+To deploy the job using the Flink Kubernetes Operator, you need to know about how Kubernetes works. The following steps explain how to create a single Flink job.
+
+
+
+1. Define a YAML file with proper specifications. The following image provides an example.
 
 ```yaml
 apiVersion: flink.apache.org/v1beta1
@@ -222,14 +227,14 @@ spec:
   mode: standalone
 ```
 
-2. SSH inside your Flink cluster and run the command:
+2. SSH into your Flink cluster and run the command following command:
 
 ```
 kubectl create -f job1.yaml
 ```
 
 
-3. Check the status of the job:
+3. Use the following command to check the status of the job:
 
 ```
 kubectl get flinkdeployment job1
@@ -237,54 +242,56 @@ kubectl get flinkdeployment job1
 
 
 
-This process impacts our scalability. We frequently update our jobs so It is not feasible to do this manually for thousands of running jobs, as it's highly error prone and slow. One wrong spacing in the yaml can fail the deployment. This approach also acts as a barrier to innovation as one must know kubernetes to interact with Flink jobs.
+This process impacts our scalability. Because we frequently update our jobs, we can't manually follow these steps for every running job. To do so would be highly error prone and time consuming. One wrong space in the YAML can fail the deployment. This approach also acts as a barrier to innovation, because you need to know Kubernetes to interact with Flink jobs.
 
-To solve these, we decided to build a library to provide an interface for any teams and applications wanting to start, delete, update or get status of their jobs.
+We built a library to provide an interface for any teams and applications that want to to start, delete, update, or get the status of their jobs.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes/fko-library.png"
 alt="Flink Kubernetes Operator Library">
 
 
-This library extends Fabric8 client and FlinkDeployment CRD. FlinkDeployment CRD is exposed by Flink Kubernetes Operator. CRD lets you store and retrieve structured data. By extending the CRD, we get access to POJO, making it easier to manipulate the yaml file.
+This library extends the Fabric8 client and FlinkDeployment CRD. FlinkDeployment CRD is exposed by the Flink Kubernetes Operator. CRD lets you store and retrieve structured data. By extending the CRD, we get access to POJO, making it easier to manipulate the YAML file.
 
-It will:
-
-
-
-1. Authenticate - ensure you are allowed to perform actions on the Flink cluster
-2. Validate (Fetches template from AWS/GCS for validation) - will take user variable input and validate it against the policy and rules and yaml format.
-3. Execute the action - convert the java call to invoke kubernetes operation
-
-Lessons learned:
+The library supports the following tasks:
 
 
 
-1. App specific operator service - at our large scale, the operator was not able to handle such a large amount of jobs. Kubernetes calls started to time out and failed. To solve this, we created multiple operators (~4) in high traffic regions to handle each application.
-2. Kube call caching - Cache results of kubernetes calls for 30-60s to prevent overloading
-3. Label support - providing label support to search jobs via client specific variables reduced the load on Kube along with 5x faster search of the jobs
+1. Authentication to ensure that you are allowed to perform actions on the Flink cluster.
+2. Validation (fetches the template from AWS/Google Cloud Storage for validation) takes user variable input and validates it against the policy, rules, YAML format.
+3. Action execution converts the Java call to invoke the Kubernetes operation.
 
-Some of our biggest wins by exposing the library are:
-
-
-
-1. Standardized Job Management - Users can easily start, delete, and get status updates of their Flink jobs in a Kubernetes environment using a single library.
-2. Abstracted Kubernetes Complexity - Teams no longer need to worry about the inner workings of Kubernetes or formatting job deployment YAML files, as the library handles these details internally.
-3. Easy Upgrades - With the underlying Kubernetes infrastructure, the library brings robustness and fault tolerance to Flink job management, ensuring minimal downtime and efficient recovery.
+During this process, we learned the following lessons:
 
 
-# Observability and Alerting
 
-Observability is important to run the production system at a large scale. We have ~30k streaming jobs in PANW, each one serves a customer for a specific application. Each job reads data from multiple topics in kafka, performs transformation and then writes the data to various sinks/endpoints.
+1. App specific operator service: At our large scale, the operator was unable to handle such a large number of jobs. Kubernetes calls started to time out and fail. To solve this problem, we created multiple operators (about 4) in high-traffic regions to handle each application.
+2. Kube call caching: To prevent overloading, we cached the results of Kubernetes calls for thirty to sixty seconds.
+3. Label support: Providing label support to search jobs using client-specific variables reduced the load on Kube and improved the job search speed by 5x.
 
-The constraint can be anywhere in the pipeline or its endpoints (Customer api, BigQuery, etc). We want to make sure the latency of streaming meets the SLA. Therefore, understanding if a job is healthy, meeting SLA or not, alerting/intervening if needed is very challenging.
-
-We build a sophisticated observability and alerting capability to achieve our operational goals. We provide 3 kinds of observability and debugging tools, described below.
+The following are some of the biggest wins we achieved by exposing the library:
 
 
-## Flink job list and job insight from Prometheus and Grafana
 
-Each Flink job sends various metrics to our Prometheus with great cardinality details, such as application name, customer id, regions, so that we can slice and dice to look at each job. Critical metrics include input traffic rate, output throughput, backlogs in Kafka, timestamp based latency, task CPU usage, task numbers, OOM counts, etc. Following charts are just a few examples: the charts give us details of ingestion traffic rate to Kafka for a specific customer, streaming job’s overall throughput and each vCPU’s throughput, backlogs in Kafka, worker autoscaling based on the observed backlog.
+1. Standardized job management: Users can start, delete, and get status updates for their Flink jobs in a Kubernetes environment using a single library.
+2. Abstracted Kubernetes complexity: Teams no longer need to worry about the inner workings of Kubernetes or the formatting job deployment YAML files. The library handles these details internally.
+3. Simplified upgrades: With the underlying Kubernetes infrastructure, the library brings robustness and fault tolerance to Flink job management, ensuring minimal downtime and efficient recovery.
+
+
+## Observability and alerting
+
+Observability is important when runing a production system at a large scale. We have about 30,000 streaming jobs in PANW. Each job serves a customer for a specific application. Each job also reads data from multiple topics in Kafka, performs transformations, and then writes the data to various sinks and endpoints.
+
+Constraints can occur anywhere in the pipeline or its endpoints, such as the customer API, BigQuery, and so on. We want to make sure the latency of streaming meets the SLA. Therefore, understanding if a job is healthy, meeting SLA, and alerting and intervening when needed is very challenging.
+
+To achieve our operational goals, we built a sophisticated observability and alerting capability. We provide three kinds of observability and debugging tools, described in the following sections.
+
+
+### Flink job list and job insights from Prometheus and Grafana
+
+Each Flink job sends various metrics to our Prometheus with cardinality details, such as application name, customer Id, and regions, so that we can look at each job. Critical metrics include the input traffic rate, output throughput, backlogs in Kafka, timestamp-based latency, task CPU usage, task numbers, OOM counts, and so on.
+
+The following charts provide a few examples. The charts provide details about the ingestion traffic rate to Kafka for a specific customer, the streaming job’s overall throughput, each vCPU’s throughput, backlogs in Kafka, and worker autoscaling based on the observed backlog.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes/job-metrics.png"
@@ -295,16 +302,16 @@ src="/images/blog/apache-beam-flink-and-kubernetes/autoscaling-metrics.png"
 alt="Flink Job Autoscaling Metrics">
 
 
-Streaming latency based on timestamp watermark: not only the numbers of events in Kafka as backlogs, it is also important to know the time latency for streaming end-to-end so that we can define and monitor SLA. The latency is defined as the time taken for the streaming processing, starting from ingestion timestamp, to the timestamp sending to streaming endpoint.  A watermark is the last processed event’s time. With the watermark, we are tracking P100 latency. We track each event’s stream latency, so that we can understand each Kafka topic/partition or Flink job pipeline issue. This is an example of each event stream and its latency:
+The following chart shows streaming latency based on the timestamp watermark. In addition to the numbers of events in Kafka as backlogs, it is important to know the time latency for end-to-end streaming so that we can define and monitor the SLA. The latency is defined as the time taken for the streaming processing, starting from ingestion timestamp, to the timestamp sending to the streaming endpoint.  A watermark is the last processed event’s time. With the watermark, we are tracking P100 latency. We track each event’s stream latency, so that we can understand each Kafka topic and partition or Flink job pipeline issue. The following example shows each event stream and its latency:
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes/watermark-metrics.png"
 alt="Apache Beam Watermark Metrics">
 
 
-## Flink Open Source UI
+### Flink open source UI
 
-We use and extend Apache Flink Dashboard UI so that we can closely monitor jobs and tasks, such as the  checkpoint duration, size, and failure. One important extension we did is a job history page so that we can look back at a job's start/update timeline and details so that we can debug issues.
+We use and extend the Apache Flink dashboard UI to monitor jobs and tasks, such as the  checkpoint duration, size, and failure. One important extension we used is a job history page that lets us see a job's start and update timeline and details, which helps us to debug issues.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes/flink-checkpoint-ui.png"
@@ -312,9 +319,9 @@ alt="Flink Checkpoint UI">
 
 
 
-## Dashboards and Alerting for Backlog and Latency
+### Dashboards and alerting for backlog and latency
 
-We have ~30k jobs, and we want to closely monitor and alert those jobs which run into abnormal states, so that we can quickly intervene. We have created dashboards for each application so that we can show the top latency list, and alert them based on thresholds. This is one example of the timestamp based latency dashboard for one application. We can set the alerting if the latency is larger than a threshold, such as 10 minutes, for a certain time continuously:
+We have about 30,000 jobs, and we want to closely monitor the jobs and receive alerts for jobs in abnormal states so that we can intervene. We created dashboards for each application so that we can show the list of jobs with the highest latency and create thresholds for alerts. The following example shows the timestamp-based latency dashboard for one application. We can set the alerting if the latency is larger than a threshold, such as 10 minutes, for a certain time continuously:
 
 
 <img class="center-block"
@@ -322,7 +329,7 @@ src="/images/blog/apache-beam-flink-and-kubernetes/latency-graph.png"
 alt="Latency Graph">
 
 
-Another example of backlogs based dashboards:
+The following example shows more backlog-based dashboards:
 
 
 <img class="center-block"
@@ -330,34 +337,34 @@ src="/images/blog/apache-beam-flink-and-kubernetes/backlog-graph.png"
 alt="Backlog Graph">
 
 
-Alerting is threshold based with frequent metrics checking. If a threshold is met, and continues for a certain amount of times, we will alert our internal Slack channels, or PagerDuty for immediate attention. We tune the alerting so that the accuracy is high.
+The alerts are based on thresholds, and we frequently check metrics. If a threshold is met and continues for a certain amount of times, we alert our internal Slack channels or PagerDuty for immediate attention. We tune the alerting so that the accuracy is high.
 
 
-# Cost Optimization: Strategies and Tuning
+## Cost optimization strategies and tuning
 
-A major goal for us to move to a self managed streaming service is cost efficiency. We have achieved the goal by saving more than half of the cost by several minor tunings. We can see more room for improvements further.
+We also moved to a self-managed streaming service to improve cost efficiency. Several minor tunings have allowed us to reduce costs by half, and we have more opportunities for improvement.
 
-These are just a few tips in our journey so far:
-
-
-
-1. Using GCS as Checkpointing storage.
-2. Reducing the write frequency to GCS
-3. Freedom to use different machine types. For example, in GCP N2D machines are 15% cheaper than N2 machines.
-4. Autoscaling tasks to use optimal resources while maintaining latency SLA (we will cover the details in Part 2)
-
-We describe more details for #1 and #2 related to checkpointing optimization as follows.
-
-**Google Cloud Storage and Checkpointing**
-
-GCS serves as our checkpoint store due to its cost-effectiveness, scalability, and durability. When working with GCS, several design considerations and best practices can optimize scaling and performance:
+The following list includes a few tips that have helped us:
 
 
 
-* Data partitioning methods like range partitioning, which divides data based on specific attributes, and hash partitioning, distributing data evenly using hash functions, are crucial.
-* Avoiding sequential key names, especially timestamps, helps prevent hotspots and uneven data distribution; instead, introduce random prefixes for object distribution.
-* Employing a hierarchical folder structure enhances data management and reduces the number of objects in a single directory.
-* For small files, combining them into larger ones improves read throughput, while minimizing small files reduces inefficient storage use and metadata operations.
+- Use Google Cloud Storage as checkpointing storage.
+- Reduce the write frequency to Google Cloud Storage.
+- Use appropriate machine types. For example, in Google Cloud, N2D machines are 15% less expensive than N2 machines.
+- Autoscale tasks to use optimal resources while maintaining the latency SLA.
+
+The following sections provide more details about the first two tips.
+
+### Google Cloud Storage and checkpointing
+
+We use Google Cloud Storage as our checkpoint store because it is cost-effective, scalable, and durable. When working with Google Cloud Storage, the following design considerations and best practices can help you optimize scaling and performance:
+
+
+
+* Use data partitioning methods like range partitioning, which divides data based on specific attributes, and hash partitioning, which distributes data evenly using hash functions.
+* Avoid sequential key names, especially timestamps, to avoid hotspots and uneven data distribution. Instead, introduce random prefixes for object distribution.
+* Use a hierarchical folder structure to improve data management and reduce the number of objects in a single directory.
+* Combine small files into larger ones to improve read throughput. Minimizing the number of small files reduces inefficient storage use and metadata operations.
 
 ### Tune the frequency of writing to Google Cloud Storage
 
@@ -365,7 +372,7 @@ Scaling jobs efficiently was one of our primary challenges. Stateless jobs, whic
 
 Optimizing the performance of Google Cloud operations was another challenge. Although Google Cloud Storage is excellent for streaming large amounts of data, it has limitations when it comes to handling high-frequency I/O requests. To mitigate this issue, we introduced random prefixes in key names, avoided sequential key names, and optimized our Google Cloud Storage sharding techniques. These methods significantly enhanced our Google Cloud Storage performance, enabling the smooth operation of our stateless jobs.
 
-This is the chart showing the GCS writes reduction after changing the memory-threshold:
+The following chart shows the Google Cloud Storage writes reduction after changing the memory-threshold:
 
 
 
