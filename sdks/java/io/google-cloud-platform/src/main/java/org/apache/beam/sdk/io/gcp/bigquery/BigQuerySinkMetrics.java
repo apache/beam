@@ -21,10 +21,12 @@ import io.grpc.Status;
 import java.time.Instant;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.DelegatingPerWorkerCounter;
-import org.apache.beam.sdk.metrics.DelegatingPerWorkerHistogram;
+import org.apache.beam.sdk.metrics.DelegatingCounter;
+import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
@@ -40,9 +42,13 @@ public class BigQuerySinkMetrics {
   private static Boolean supportMetricsDeletion = false;
 
   private static final String METRICS_NAMESPACE = "BigQuerySink";
-  private static final String UNKNOWN = Status.Code.UNKNOWN.toString();
 
-  // Base Metric names.
+  // Status codes
+  private static final String UNKNOWN = Status.Code.UNKNOWN.toString();
+  public static final String OK = Status.Code.OK.toString();
+  public static final String PAYLOAD_TOO_LARGE = "PayloadTooLarge";
+
+  // Base Metric names
   private static final String RPC_REQUESTS = "RpcRequests";
   private static final String RPC_LATENCY = "RpcLatency";
   private static final String APPEND_ROWS_ROW_STATUS = "AppendRowsRowStatus";
@@ -64,7 +70,7 @@ public class BigQuerySinkMetrics {
 
   // Metric labels
   private static final String TABLE_ID_LABEL = "TableId";
-  private static final String RPC_STATUS_LABEL = "Status";
+  private static final String RPC_STATUS_LABEL = "RpcStatus";
   private static final String RPC_METHOD = "Method";
   private static final String ROW_STATUS = "RowStatus";
 
@@ -74,11 +80,11 @@ public class BigQuerySinkMetrics {
   private static final char METRIC_NAME_DELIMITER = '-';
 
   /**
-   * Returns a metric name that merges the baseName with metricLables formatted as:
+   * Returns a metric name that merges the baseName with metricLables formatted as.:
    *
    * <p>'{baseName}-{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
    */
-  private static String CreateLabeledMetricName(
+  private static String createLabeledMetricName(
       String baseName, NavigableMap<String, String> metricLabels) {
     StringBuilder nameBuilder = new StringBuilder(baseName + METRIC_NAME_DELIMITER);
 
@@ -89,15 +95,15 @@ public class BigQuerySinkMetrics {
   }
 
   /**
-   * @param method StorageWriteAPI write method.
+   * @param method StorageWriteAPI method associated with this metric.
    * @param rpcStatus RPC return status.
    * @param tableId Table pertaining to the write method. Only included in the metric key if
    *     'supportsMetricsDeletion' is enabled.
    * @return Counter in namespace BigQuerySink and name
-   *     'RpcRequests-Status:{status};TableId:{tableId}' TableId label is dropped if
-   *     'supportsMetricsDeletion' is not enabled.
+   *     'RpcRequests-Method:{method}RpcStatus:{status};TableId:{tableId}' TableId label is dropped
+   *     if 'supportsMetricsDeletion' is not enabled.
    */
-  private static Counter CreateRPCRequestCounter(
+  private static Counter createRPCRequestCounter(
       RpcMethod method, String rpcStatus, String tableId) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_STATUS_LABEL, rpcStatus);
@@ -106,67 +112,45 @@ public class BigQuerySinkMetrics {
       metricLabels.put(TABLE_ID_LABEL, tableId);
     }
 
-    String fullMetricName = CreateLabeledMetricName(RPC_REQUESTS, metricLabels);
+    String fullMetricName = createLabeledMetricName(RPC_REQUESTS, metricLabels);
     MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
-    return new DelegatingPerWorkerCounter(metricName);
-  }
-
-  /** Creates a counter for the AppendRows RPC call based on the rpcStatus and table. */
-  public static Counter AppendRPCsCounter(String rpcStatus, String tableId) {
-    return CreateRPCRequestCounter(RpcMethod.APPEND_ROWS, rpcStatus, tableId);
+    return new DelegatingCounter(metricName, false, true);
   }
 
   /**
-   * Creates a counter for the FlushRows RPC call based on the rpcStatus. TableId is not known when
-   * the stream is flushed so we use the placeholder 'UNKNOWN'.
-   */
-  public static Counter FlushRowsCounter(String rpcStatus) {
-    return CreateRPCRequestCounter(RpcMethod.FLUSH_ROWS, rpcStatus, BigQuerySinkMetrics.UNKNOWN);
-  }
-
-  /**
-   * Creates a counter for the FinalizeRows RPC call based on the rpcStatus. TableId is not known
-   * when the stream is flushed so we use the placeholder 'UNKNOWN'.
-   */
-  public static Counter FinalizeStreamCounter(String rpcStatus) {
-    return CreateRPCRequestCounter(
-        RpcMethod.FINALIZE_STREAM, rpcStatus, BigQuerySinkMetrics.UNKNOWN);
-  }
-
-  /**
-   * Creates an Histogram metric to record RPC latency. Metric will have name:
+   * Creates an Histogram metric to record RPC latency. Metric will have name.:
    *
    * <p>'RpcLatency-Method:{method};'
    *
    * @param method StorageWriteAPI method associated with this metric.
    * @return Histogram with exponential buckets with a sqrt(2) growth factor.
    */
-  private static Histogram CreateRPCLatencyHistogram(RpcMethod method) {
+  private static Histogram createRPCLatencyHistogram(RpcMethod method) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_METHOD, method.toString());
-    String fullMetricName = CreateLabeledMetricName(RPC_LATENCY, metricLabels);
+    String fullMetricName = createLabeledMetricName(RPC_LATENCY, metricLabels);
     MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
 
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 34);
 
-    return new DelegatingPerWorkerHistogram(metricName, buckets);
+    return new DelegatingHistogram(metricName, buckets, false, true);
   }
 
   /**
-   * Records the time between operationStartTime and OperationEndTime in a PerWorkerHistogram.
+   * Records an RPC operation's duration in a PerWorkerHistogram.
    *
-   * @param operationStartTime If null or in the future, this function is a no-op.
-   * @param OperationEndTime End time of operation.
+   * @param c Retry manager context, used to get the operation start and end time.
    * @param method StorageWriteAPI write method.
    */
-  public static void UpdateRpcLatencyMetric(
-      @Nullable Instant operationStartTime, Instant operationEndTime, RpcMethod method) {
+  private static void updateRpcLatencyMetric(@Nonnull Context<?> c, RpcMethod method) {
+    @Nullable Instant operationStartTime = c.getOperationStartTime();
+    @Nullable Instant operationEndTime = c.getOperationEndTime();
     if (operationStartTime == null || operationEndTime == null) {
       return;
     }
     long timeElapsed = java.time.Duration.between(operationStartTime, operationEndTime).toMillis();
     if (timeElapsed > 0) {
-      BigQuerySinkMetrics.CreateRPCLatencyHistogram(method).update(timeElapsed);
+      BigQuerySinkMetrics.createRPCLatencyHistogram(method).update(timeElapsed);
     }
   }
 
@@ -177,7 +161,7 @@ public class BigQuerySinkMetrics {
    *     'supportsMetricsDeletion' is enabled.
    * @return Metric that tracks the status of BigQuery rows after making an AppendRows RPC call.
    */
-  public static Counter AppendRowsRowStatusCounter(
+  public static Counter appendRowsRowStatusCounter(
       RowStatus rowStatus, String rpcStatus, String tableId) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_STATUS_LABEL, rpcStatus);
@@ -186,19 +170,22 @@ public class BigQuerySinkMetrics {
       metricLabels.put(TABLE_ID_LABEL, tableId);
     }
 
-    String fullMetricName = CreateLabeledMetricName(APPEND_ROWS_ROW_STATUS, metricLabels);
+    String fullMetricName = createLabeledMetricName(APPEND_ROWS_ROW_STATUS, metricLabels);
     MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
-    return new DelegatingPerWorkerCounter(metricName);
+    return new DelegatingCounter(metricName, false, true);
   }
 
-  /** Metric that tracks throttled time due between RPC retries. */
-  public static Counter ThrottledTimeCounter(RpcMethod method) {
+  /**
+   * @param method StorageWriteAPI write method.
+   * @return Counter that tracks throttled time due to RPC retries.
+   */
+  public static Counter throttledTimeCounter(RpcMethod method) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_METHOD, method.toString());
-    String fullMetricName = CreateLabeledMetricName(THROTTLED_TIME, metricLabels);
+    String fullMetricName = createLabeledMetricName(THROTTLED_TIME, metricLabels);
     MetricName metricName = MetricName.named(METRICS_NAMESPACE, fullMetricName);
 
-    return new DelegatingPerWorkerCounter(metricName);
+    return new DelegatingCounter(metricName, false, true);
   }
 
   /**
@@ -207,11 +194,72 @@ public class BigQuerySinkMetrics {
    * @param t Throwable.
    * @return gRPC status code string or 'UNKNOWN' if 't' is null or does not map to a gRPC error.
    */
-  public static String ThrowableToGRPCCodeString(@Nullable Throwable t) {
+  public static String throwableToGRPCCodeString(@Nullable Throwable t) {
     if (t == null) {
       return BigQuerySinkMetrics.UNKNOWN;
     }
     return Status.fromThrowable(t).getCode().toString();
+  }
+
+  /**
+   * Records RpcRequests counter and RpcLatency histogram for this RPC call. If
+   * 'SupportMetricsDeletion' is enabled, RpcRequests counter will have tableId label set to {@code
+   * UNKNOWN}. RpcRequets counter will have RpcStatus label set to {@code OK}.
+   *
+   * @param c Context of successful RPC call.
+   * @param method StorageWriteAPI method associated with this metric.
+   */
+  public static void reportSuccessfulRpcMetrics(@Nullable Context<?> c, RpcMethod method) {
+    reportSuccessfulRpcMetrics(c, method, UNKNOWN);
+  }
+
+  /**
+   * Records RpcRequests counter and RpcLatency histogram for this RPC call. RpcRequets counter will
+   * have RpcStatus label set to {@code OK}.
+   *
+   * @param c Context of successful RPC call.
+   * @param method StorageWriteAPI method associated with this metric.
+   * @param tableId Table pertaining to the write method. Only included in the metric key if
+   *     'supportsMetricsDeletion' is enabled.
+   */
+  public static void reportSuccessfulRpcMetrics(
+      @Nullable Context<?> c, RpcMethod method, String tableId) {
+    if (c == null) {
+      return;
+    }
+    createRPCRequestCounter(method, OK, tableId).inc(1);
+    updateRpcLatencyMetric(c, method);
+  }
+
+  /**
+   * Records RpcRequests counter and RpcLatency histogram for this RPC call. If
+   * 'SupportMetricsDeletion' is enabled, RpcRequests counter will have tableId label set to {@code
+   * UNKNOWN}. RpcRequets counter will have a RpcStatus label set from the gRPC error.
+   *
+   * @param c Context of successful RPC call.
+   * @param method StorageWriteAPI method associated with this metric.
+   */
+  public static void reportFailedRPCMetrics(@Nullable Context<?> c, RpcMethod method) {
+    reportFailedRPCMetrics(c, method, UNKNOWN);
+  }
+
+  /**
+   * Records RpcRequests counter and RpcLatency histogram for this RPC call. RpcRequets counter will
+   * have a RpcStatus label set from the gRPC error.
+   *
+   * @param c Context of successful RPC call.
+   * @param method StorageWriteAPI method associated with this metric.
+   * @param tableId Table pertaining to the write method. Only included in the metric key if
+   *     'supportsMetricsDeletion' is enabled.
+   */
+  public static void reportFailedRPCMetrics(
+      @Nullable Context<?> c, RpcMethod method, String tableId) {
+    if (c == null) {
+      return;
+    }
+    String statusCode = throwableToGRPCCodeString(c.getError());
+    createRPCRequestCounter(method, statusCode, tableId).inc(1);
+    updateRpcLatencyMetric(c, method);
   }
 
   public static void setSupportMetricsDeletion(Boolean supportMetricsDeletion) {

@@ -546,8 +546,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
                         failedRow.getTimestamp());
                 rowsSentToFailedRowsCollection.inc();
-                BigQuerySinkMetrics.AppendRowsRowStatusCounter(
-                        BigQuerySinkMetrics.RowStatus.FAILED, "PayloadTooLarge", shortTableId)
+                BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                        BigQuerySinkMetrics.RowStatus.FAILED,
+                        BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                        shortTableId)
                     .inc(1);
               },
               autoUpdateSchema,
@@ -632,10 +634,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // The first context is always the one that fails.
             AppendRowsContext failedContext =
                 Preconditions.checkStateNotNull(Iterables.getFirst(failedContexts, null));
-            @Nullable Instant operationStartTime = failedContext.getOperationStartTime();
-            Instant operationEndTime = Instant.now();
-            BigQuerySinkMetrics.UpdateRpcLatencyMetric(
-                operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+            String errorCode =
+                BigQuerySinkMetrics.throwableToGRPCCodeString(failedContext.getError());
 
             // AppendSerializationError means that BigQuery detected errors on individual rows, e.g.
             // a row not conforming
@@ -648,8 +650,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   Preconditions.checkArgumentNotNull(
                       (Exceptions.AppendSerializtionError) failedContext.getError());
 
-              String errorCode = BigQuerySinkMetrics.ThrowableToGRPCCodeString(error);
-              BigQuerySinkMetrics.AppendRPCsCounter(errorCode, shortTableId).inc();
               Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
               for (int failedIndex : failedRowIndices) {
                 // Convert the message to a TableRow and send it to the failedRows collection.
@@ -664,7 +664,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               }
               int failedRows = failedRowIndices.size();
               rowsSentToFailedRowsCollection.inc(failedRows);
-              BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
                       BigQuerySinkMetrics.RowStatus.FAILED, errorCode, shortTableId)
                   .inc(failedRows);
 
@@ -682,7 +682,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               failedContext.protoRows = retryRows.build();
               failedContext.timestamps = timestamps;
               int retriedRows = failedContext.protoRows.getSerializedRowsCount();
-              BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
                       BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableId)
                   .inc(retriedRows);
 
@@ -698,8 +698,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
             Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
             Status.Code statusCode = Status.fromThrowable(error).getCode();
-            String errorCode = statusCode.toString();
-            BigQuerySinkMetrics.AppendRPCsCounter(errorCode, shortTableId).inc();
+
             // This means that the offset we have stored does not match the current end of
             // the stream in the Storage API. Usually this happens because a crash or a bundle
             // failure
@@ -733,7 +732,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
             appendFailures.inc();
             int retriedRows = failedContext.protoRows.getSerializedRowsCount();
-            BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+            BigQuerySinkMetrics.appendRowsRowStatusCounter(
                     BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableId)
                 .inc(retriedRows);
 
@@ -782,14 +781,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                             false)));
             int flushedRows = context.protoRows.getSerializedRowsCount();
             flushesScheduled.inc(flushedRows);
-            BigQuerySinkMetrics.AppendRowsRowStatusCounter(
-                    BigQuerySinkMetrics.RowStatus.SUCCESSFUL, "ok", shortTableId)
-                .inc(flushedRows);
-            BigQuerySinkMetrics.AppendRPCsCounter("ok", shortTableId).inc();
-            @Nullable Instant operationStartTime = context.getOperationStartTime();
-            Instant operationEndTime = Instant.now();
-            BigQuerySinkMetrics.UpdateRpcLatencyMetric(
-                operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                context, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
+            BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId);
 
             if (successfulRowsTag != null) {
               for (int i = 0; i < context.protoRows.getSerializedRowsCount(); ++i) {
@@ -807,7 +802,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               Duration.standardSeconds(1),
               Duration.standardSeconds(10),
               1000,
-              BigQuerySinkMetrics.ThrottledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
+              BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
       for (SplittingIterable.Value splitValue : messages) {
         // Handle the case of a row that is too large.
@@ -834,8 +829,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           }
           int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();
           rowsSentToFailedRowsCollection.inc(numRowsFailed);
-          BigQuerySinkMetrics.AppendRowsRowStatusCounter(
-                  BigQuerySinkMetrics.RowStatus.FAILED, "PayloadTooLarge", shortTableId)
+          BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                  BigQuerySinkMetrics.RowStatus.FAILED,
+                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                  shortTableId)
               .inc(numRowsFailed);
         } else {
           ++numAppends;

@@ -146,7 +146,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
               Duration.standardSeconds(1),
               Duration.standardMinutes(1),
               3,
-              BigQuerySinkMetrics.ThrottledTimeCounter(BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS));
+              BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS));
       retryManager.addOperation(
           // runOperation
           c -> {
@@ -165,12 +165,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             LOG.warn(
                 "Flush of stream " + streamId + " to offset " + offset + " failed with " + error);
             flushOperationsFailed.inc();
-            String errorCode = BigQuerySinkMetrics.ThrowableToGRPCCodeString(error);
-            BigQuerySinkMetrics.FlushRowsCounter(errorCode).inc();
-            @Nullable Instant operationStartTime = failedContext.getOperationStartTime();
-            Instant operationEndTime = Instant.now();
-            BigQuerySinkMetrics.UpdateRpcLatencyMetric(
-                operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                failedContext, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
 
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
@@ -193,13 +189,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           },
           // onSuccess
           c -> {
-            BigQuerySinkMetrics.FlushRowsCounter("ok").inc();
-            if (c != null) {
-              BigQuerySinkMetrics.UpdateRpcLatencyMetric(
-                  c.getOperationStartTime(),
-                  Instant.now(),
-                  BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
-            }
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                c, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
             flushOperationsSucceeded.inc();
           },
           new Context<>());
@@ -221,18 +212,11 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
               Duration.standardSeconds(1),
               Duration.standardMinutes(1),
               3,
-              BigQuerySinkMetrics.ThrottledTimeCounter(
+              BigQuerySinkMetrics.throttledTimeCounter(
                   BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
       retryManager.addOperation(
           c -> {
             finalizeOperationsSent.inc();
-            if (c != null) {
-              BigQuerySinkMetrics.UpdateRpcLatencyMetric(
-                  c.getOperationStartTime(),
-                  Instant.now(),
-                  BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
-            }
-            BigQuerySinkMetrics.FinalizeStreamCounter("ok").inc();
 
             return datasetService.finalizeWriteStream(streamId);
           },
@@ -246,16 +230,9 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             finalizeOperationsFailed.inc();
             @Nullable
             Context<FinalizeWriteStreamResponse> firstContext = Iterables.getFirst(contexts, null);
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
             @Nullable Throwable error = firstContext == null ? null : firstContext.getError();
-
-            String errorCode = BigQuerySinkMetrics.ThrowableToGRPCCodeString(error);
-            BigQuerySinkMetrics.FinalizeStreamCounter(errorCode).inc();
-            if (firstContext != null) {
-              @Nullable Instant operationStartTime = firstContext.getOperationStartTime();
-              Instant operationEndTime = Instant.now();
-              BigQuerySinkMetrics.UpdateRpcLatencyMetric(
-                  operationStartTime, operationEndTime, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
-            }
 
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
@@ -266,6 +243,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             return RetryType.RETRY_ALL_OPERATIONS;
           },
           r -> {
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                r, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
             finalizeOperationsSucceeded.inc();
           },
           new Context<>());

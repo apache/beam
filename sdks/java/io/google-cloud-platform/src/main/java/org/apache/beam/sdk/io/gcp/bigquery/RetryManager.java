@@ -104,6 +104,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
       private @Nullable Throwable error = null;
       private @Nullable ResultT result = null;
       private @Nullable Instant operationStartTime = null;
+      private @Nullable Instant operationEndTime = null;
 
       public void setError(@Nullable Throwable error) {
         this.error = error;
@@ -127,6 +128,14 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
 
       public @Nullable Instant getOperationStartTime() {
         return operationStartTime;
+      }
+
+      public void setOperationEndTime(@Nullable Instant operationEndTime) {
+        this.operationEndTime = operationEndTime;
+      }
+
+      public @Nullable Instant getOperationEndTime() {
+        return operationEndTime;
       }
     }
 
@@ -153,6 +162,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
 
     void run(Executor executor) {
       this.context.setOperationStartTime(Instant.now());
+      this.context.setOperationEndTime(null);
       this.future = runOperation.apply(context);
       this.callback = new Callback<>(hasSucceeded);
       ApiFutures.addCallback(future, callback, executor);
@@ -170,6 +180,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     private final Function<ResultT, Boolean> hasSucceeded;
     @Nullable private Throwable failure = null;
     boolean failed = false;
+    @Nullable Instant operationEndTime = null;
 
     Callback(Function<ResultT, Boolean> hasSucceeded) {
       this.waiter = new CountDownLatch(1);
@@ -187,6 +198,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     @Override
     public void onFailure(Throwable t) {
       synchronized (this) {
+        operationEndTime = Instant.now();
         failure = t;
         failed = true;
       }
@@ -196,6 +208,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     @Override
     public void onSuccess(ResultT result) {
       synchronized (this) {
+        operationEndTime = Instant.now();
         if (hasSucceeded.apply(result)) {
           failure = null;
         } else {
@@ -216,6 +229,13 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     boolean getFailed() {
       synchronized (this) {
         return failed;
+      }
+    }
+
+    @Nullable
+    Instant getOperationEndTime() {
+      synchronized (this) {
+        return operationEndTime;
       }
     }
   }
@@ -280,6 +300,10 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     while (!this.operations.isEmpty()) {
       Operation<ResultT, ContextT> operation = this.operations.element();
       boolean failed = operation.await();
+      @Nullable Callback<?> callback = operation.callback;
+      if (callback != null) {
+        operation.context.setOperationEndTime(callback.getOperationEndTime());
+      }
       if (failed) {
         Throwable failure = Preconditions.checkStateNotNull(operation.callback).getFailure();
         operation.context.setError(failure);

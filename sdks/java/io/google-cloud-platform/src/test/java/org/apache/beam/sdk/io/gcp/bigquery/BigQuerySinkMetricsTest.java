@@ -21,17 +21,23 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import io.grpc.Status;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,7 +63,12 @@ public class BigQuerySinkMetricsTest {
 
   public static class TestMetricsContainer extends MetricsContainerImpl {
 
-    public TestHistogram testHistogram = new TestHistogram();
+    // public TestHistogram testHistogram = new TestHistogram();
+    public ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>
+        perWorkerHistograms =
+            new ConcurrentHashMap<KV<MetricName, HistogramData.BucketType>, TestHistogram>();
+    public ConcurrentHashMap<MetricName, CounterCell> perWorkerCounters =
+        new ConcurrentHashMap<MetricName, CounterCell>();
 
     public TestMetricsContainer() {
       super("TestStep");
@@ -66,104 +77,228 @@ public class BigQuerySinkMetricsTest {
     @Override
     public Histogram getPerWorkerHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
-      return testHistogram;
+      perWorkerHistograms.computeIfAbsent(KV.of(metricName, bucketType), kv -> new TestHistogram());
+      return perWorkerHistograms.get(KV.of(metricName, bucketType));
+      //      return testHistogram;
+    }
+
+    @Override
+    public Counter getPerWorkerCounter(MetricName metricName) {
+      perWorkerCounters.computeIfAbsent(metricName, name -> new CounterCell(name));
+      return perWorkerCounters.get(metricName);
+    }
+
+    @Override
+    public void reset() {
+      // testHistogram.values.clear();
+      perWorkerHistograms.clear();
+      perWorkerCounters.clear();
     }
   }
 
   @Test
-  public void testAppendRPCsCounter() throws Exception {
-    BigQuerySinkMetrics.setSupportMetricsDeletion(false);
-    Counter deletesEnabledCounter = BigQuerySinkMetrics.AppendRPCsCounter("rpcStatus", "tableId");
-    assertThat(
-        deletesEnabledCounter.getName().getName(),
-        equalTo("RpcRequests-Method:APPEND_ROWS;Status:rpcStatus;"));
-
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-    Counter deletesDisabledCounter = BigQuerySinkMetrics.AppendRPCsCounter("rpcStatus", "tableId");
-    assertThat(
-        deletesDisabledCounter.getName().getName(),
-        equalTo("RpcRequests-Method:APPEND_ROWS;Status:rpcStatus;TableId:tableId;"));
-  }
-
-  @Test
-  public void testFlushRowsCounter() throws Exception {
-    BigQuerySinkMetrics.setSupportMetricsDeletion(false);
-    Counter deletesEnabledCounter = BigQuerySinkMetrics.FlushRowsCounter("rpcStatus");
-    assertThat(
-        deletesEnabledCounter.getName().getName(),
-        equalTo("RpcRequests-Method:FLUSH_ROWS;Status:rpcStatus;"));
-
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-    Counter deletesDisabledCounter = BigQuerySinkMetrics.FlushRowsCounter("rpcStatus");
-    assertThat(
-        deletesDisabledCounter.getName().getName(),
-        equalTo("RpcRequests-Method:FLUSH_ROWS;Status:rpcStatus;TableId:UNKNOWN;"));
-  }
-
-  @Test
   public void testAppendRowsRowStatusCounter() throws Exception {
+    // Setup
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+
     BigQuerySinkMetrics.setSupportMetricsDeletion(false);
-    Counter deletesEnabledCounter =
-        BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+    Counter deletesDisabledCounter =
+        BigQuerySinkMetrics.appendRowsRowStatusCounter(
             BigQuerySinkMetrics.RowStatus.SUCCESSFUL, "rpcStatus", "tableId");
+    deletesDisabledCounter.inc();
+    MetricName deletesDisabledCounterName =
+        MetricName.named(
+            "BigQuerySink", "AppendRowsRowStatus-RowStatus:SUCCESSFUL;RpcStatus:rpcStatus;");
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesDisabledCounterName));
     assertThat(
-        deletesEnabledCounter.getName().getName(),
-        equalTo("AppendRowsRowStatus-RowStatus:SUCCESSFUL;Status:rpcStatus;"));
+        testContainer.perWorkerCounters.get(deletesDisabledCounterName).getCumulative(),
+        equalTo(1L));
 
     BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-    Counter deletesDisabledCounter =
-        BigQuerySinkMetrics.AppendRowsRowStatusCounter(
+    testContainer.reset();
+    Counter deletesEnabledCounter =
+        BigQuerySinkMetrics.appendRowsRowStatusCounter(
             BigQuerySinkMetrics.RowStatus.SUCCESSFUL, "rpcStatus", "tableId");
+    deletesEnabledCounter.inc();
+    MetricName deletesEnabledCounterName =
+        MetricName.named(
+            "BigQuerySink",
+            "AppendRowsRowStatus-RowStatus:SUCCESSFUL;RpcStatus:rpcStatus;TableId:tableId;");
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesEnabledCounterName));
     assertThat(
-        deletesDisabledCounter.getName().getName(),
-        equalTo("AppendRowsRowStatus-RowStatus:SUCCESSFUL;Status:rpcStatus;TableId:tableId;"));
+        testContainer.perWorkerCounters.get(deletesEnabledCounterName).getCumulative(),
+        equalTo(1L));
   }
 
   @Test
   public void testThrowableToGRPCCodeString() throws Exception {
     Throwable nullThrowable = null;
-    assertThat(BigQuerySinkMetrics.ThrowableToGRPCCodeString(nullThrowable), equalTo("UNKNOWN"));
+    assertThat(BigQuerySinkMetrics.throwableToGRPCCodeString(nullThrowable), equalTo("UNKNOWN"));
 
     Throwable nonGrpcError = new IndexOutOfBoundsException("Test Error");
-    assertThat(BigQuerySinkMetrics.ThrowableToGRPCCodeString(nonGrpcError), equalTo("UNKNOWN"));
+    assertThat(BigQuerySinkMetrics.throwableToGRPCCodeString(nonGrpcError), equalTo("UNKNOWN"));
 
-    int not_found_val = Status.Code.NOT_FOUND.value();
+    int notFoundVal = Status.Code.NOT_FOUND.value();
     Throwable grpcError =
-        new Exceptions.AppendSerializtionError(not_found_val, "Test Error", "Stream name", null);
-    assertThat(BigQuerySinkMetrics.ThrowableToGRPCCodeString(grpcError), equalTo("NOT_FOUND"));
+        new Exceptions.AppendSerializtionError(notFoundVal, "Test Error", "Stream name", null);
+    assertThat(BigQuerySinkMetrics.throwableToGRPCCodeString(grpcError), equalTo("NOT_FOUND"));
   }
 
   @Test
   public void testThrottledTimeCounter() throws Exception {
+    // Setup
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+
+    // Test throttleCounter metric.
     Counter appendRowsThrottleCounter =
-        BigQuerySinkMetrics.ThrottledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+        BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+    appendRowsThrottleCounter.inc(1);
     assertThat(
         appendRowsThrottleCounter.getName().getName(),
         equalTo("ThrottledTime-Method:APPEND_ROWS;"));
+    MetricName counterName = MetricName.named("BigQuerySink", "ThrottledTime-Method:APPEND_ROWS;");
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterName));
+    assertThat(testContainer.perWorkerCounters.get(counterName).getCumulative(), equalTo(1L));
   }
 
   @Test
-  public void testUpdateRpcLatencyMetric() throws Exception {
+  public void testReportSuccessfulRpcMetrics() throws Exception {
+    // Setup
     TestMetricsContainer testContainer = new TestMetricsContainer();
     MetricsEnvironment.setCurrentContainer(testContainer);
-    BigQuerySinkMetrics.RpcMethod append = BigQuerySinkMetrics.RpcMethod.APPEND_ROWS;
+    Context<AppendRowsResponse> c = new Context<AppendRowsResponse>();
     Instant t1 = Instant.now();
+    c.setOperationStartTime(t1);
+    c.setOperationEndTime(t1.plusMillis(3));
 
-    // Expect no updates to the histogram when we pass a null instant.
-    BigQuerySinkMetrics.UpdateRpcLatencyMetric(null, t1, append);
-    BigQuerySinkMetrics.UpdateRpcLatencyMetric(t1, null, append);
-    assertThat(testContainer.testHistogram.values.size(), equalTo(0));
-
-    // Expect no updates when end time is before start time.
-    BigQuerySinkMetrics.UpdateRpcLatencyMetric(t1, t1.minusMillis(5), append);
-    assertThat(testContainer.testHistogram.values.size(), equalTo(0));
-
-    // Expect valid updates to be recorded in the underlying histogram.
-    BigQuerySinkMetrics.UpdateRpcLatencyMetric(t1.minusMillis(5), t1, append);
-    BigQuerySinkMetrics.UpdateRpcLatencyMetric(t1.minusMillis(10), t1, append);
-    BigQuerySinkMetrics.UpdateRpcLatencyMetric(t1.minusMillis(15), t1, append);
+    // Test disabled SupportMetricsDeletion
+    BigQuerySinkMetrics.setSupportMetricsDeletion(false);
+    BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+        c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
+    MetricName counterNameDisabledDeletes =
+        MetricName.named("BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:OK;");
+    MetricName histogramName = MetricName.named("BigQuerySink", "RpcLatency-Method:APPEND_ROWS;");
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
-        testContainer.testHistogram.values,
-        containsInAnyOrder(Double.valueOf(5.0), Double.valueOf(10.0), Double.valueOf(15.0)));
+        testContainer.perWorkerCounters.get(counterNameDisabledDeletes).getCumulative(),
+        equalTo(1L));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(3.0)));
+
+    // Test enable SupportMetricsDeletion.
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    testContainer.reset();
+    BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+        c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
+    MetricName counterNameEnabledDeletes =
+        MetricName.named(
+            "BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:OK;TableId:tableId;");
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
+    assertThat(
+        testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
+        equalTo(1L));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(3.0)));
+  }
+
+  @Test
+  public void testReportFailedRPCMetrics_KnownGrpcError() throws Exception {
+    // Setup
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+    Context<AppendRowsResponse> c = new Context<AppendRowsResponse>();
+    Instant t1 = Instant.now();
+    c.setOperationStartTime(t1);
+    c.setOperationEndTime(t1.plusMillis(5));
+    int notFoundVal = Status.Code.NOT_FOUND.value();
+    Throwable grpcError =
+        new Exceptions.AppendSerializtionError(notFoundVal, "Test Error", "Stream name", null);
+    c.setError(grpcError);
+
+    // Test disabled SupportMetricsDeletion
+    BigQuerySinkMetrics.setSupportMetricsDeletion(false);
+    BigQuerySinkMetrics.reportFailedRPCMetrics(
+        c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
+    MetricName counterNameDisabledDeletes =
+        MetricName.named("BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:NOT_FOUND;");
+    MetricName histogramName = MetricName.named("BigQuerySink", "RpcLatency-Method:APPEND_ROWS;");
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
+    assertThat(
+        testContainer.perWorkerCounters.get(counterNameDisabledDeletes).getCumulative(),
+        equalTo(1L));
+    assertThat(
+        testContainer.perWorkerHistograms,
+        IsMapContaining.hasKey(KV.of(histogramName, bucketType)));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(5.0)));
+
+    // Test enable SupportMetricsDeletion
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    testContainer.reset();
+    BigQuerySinkMetrics.reportFailedRPCMetrics(
+        c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
+    MetricName counterNameEnabledDeletes =
+        MetricName.named(
+            "BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:NOT_FOUND;TableId:tableId;");
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
+    assertThat(
+        testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
+        equalTo(1L));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(5.0)));
+  }
+
+  @Test
+  public void testReportFailedRPCMetrics_UnknownGrpcError() throws Exception {
+    // Setup
+    BigQuerySinkMetrics.setSupportMetricsDeletion(false);
+    TestMetricsContainer testContainer = new TestMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(testContainer);
+    Context<AppendRowsResponse> c = new Context<AppendRowsResponse>();
+    Instant t1 = Instant.now();
+    c.setOperationStartTime(t1);
+    c.setOperationEndTime(t1.plusMillis(15));
+    Throwable nonGrpcError = new IndexOutOfBoundsException("Test Error");
+    c.setError(nonGrpcError);
+
+    // Test disabled SupportMetricsDeletion
+    BigQuerySinkMetrics.setSupportMetricsDeletion(false);
+    BigQuerySinkMetrics.reportFailedRPCMetrics(
+        c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
+    MetricName counterNameDisabledDeletes =
+        MetricName.named("BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:UNKNOWN;");
+    MetricName histogramName = MetricName.named("BigQuerySink", "RpcLatency-Method:APPEND_ROWS;");
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
+    assertThat(
+        testContainer.perWorkerCounters.get(counterNameDisabledDeletes).getCumulative(),
+        equalTo(1L));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(15.0)));
+
+    // Test enable SupportMetricsDeletion
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    testContainer.reset();
+    BigQuerySinkMetrics.reportFailedRPCMetrics(
+        c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
+    MetricName counterNameEnabledDeletes =
+        MetricName.named(
+            "BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:UNKNOWN;TableId:tableId;");
+    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
+    assertThat(
+        testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
+        equalTo(1L));
+    assertThat(
+        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
+        containsInAnyOrder(Double.valueOf(15.0)));
   }
 }
