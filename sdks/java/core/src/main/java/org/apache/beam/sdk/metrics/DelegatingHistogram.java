@@ -31,29 +31,34 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
 
   /**
    * Create a {@code DelegatingHistogram} with {@code perWorkerHistogram} set to false.
+   *
    * @param name Metric name for this metric.
    * @param bucketType Histogram bucketing strategy.
-   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the current thread's container.
+   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
+   *     current thread's container.
    */
   public DelegatingHistogram(
       MetricName name, HistogramData.BucketType bucketType, boolean processWideContainer) {
     this(name, bucketType, processWideContainer, false);
   }
 
-
   /**
    * @param name Metric name for this metric.
    * @param bucketType Histogram bucketing strategy.
-   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the current thread's container.
+   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
+   *     current thread's container.
    * @param perWorkerHistogram Whether this Histogram refers to a perWorker metric or not.
    */
   public DelegatingHistogram(
-    MetricName name, HistogramData.BucketType bucketType, boolean processWideContainer, boolean perWorkerHistogram) {
-      this.name = name;
-      this.bucketType = bucketType;
-      this.processWideContainer = processWideContainer;
-      this.perWorkerHistogram = perWorkerHistogram;
-    }
+      MetricName name,
+      HistogramData.BucketType bucketType,
+      boolean processWideContainer,
+      boolean perWorkerHistogram) {
+    this.name = name;
+    this.bucketType = bucketType;
+    this.processWideContainer = processWideContainer;
+    this.perWorkerHistogram = perWorkerHistogram;
+  }
 
   @Override
   public void update(double value) {

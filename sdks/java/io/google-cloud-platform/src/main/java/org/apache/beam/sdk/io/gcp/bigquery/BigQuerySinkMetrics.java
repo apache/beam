@@ -80,7 +80,7 @@ public class BigQuerySinkMetrics {
   private static final char METRIC_NAME_DELIMITER = '-';
 
   /**
-   * Returns a metric name that merges the baseName with metricLables formatted as.:
+   * Returns a metric name that merges the baseName with metricLables formatted as.
    *
    * <p>'{baseName}-{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
    */
@@ -118,7 +118,7 @@ public class BigQuerySinkMetrics {
   }
 
   /**
-   * Creates an Histogram metric to record RPC latency. Metric will have name.:
+   * Creates an Histogram metric to record RPC latency. Metric will have name.
    *
    * <p>'RpcLatency-Method:{method};'
    *
