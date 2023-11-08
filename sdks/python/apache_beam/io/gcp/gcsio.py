@@ -41,6 +41,7 @@ from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
 
 from apache_beam.internal.gcp import auth
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -109,7 +110,8 @@ class GcsIO(object):
       credentials = auth.get_service_credentials(pipeline_options)
       if credentials:
         storage_client = storage.Client(
-            credentials=credentials.get_google_auth_credentials())
+            credentials=credentials.get_google_auth_credentials(),
+            project=pipeline_options.view_as(GoogleCloudOptions).project)
       else:
         storage_client = storage.Client.create_anonymous_client()
     self.client = storage_client

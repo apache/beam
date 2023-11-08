@@ -212,7 +212,8 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     from google.cloud import storage
     if credentials:
       self._storage_client = storage.Client(
-          credentials=credentials.get_google_auth_credentials())
+          credentials=credentials.get_google_auth_credentials(),
+          project=self._google_cloud_options.project)
     else:
       self._storage_client = storage.Client.create_anonymous_client()
     self._cloudbuild_client = cloudbuild.CloudbuildV1(
