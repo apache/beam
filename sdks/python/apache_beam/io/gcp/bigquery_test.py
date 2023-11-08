@@ -861,6 +861,7 @@ class TestWriteToBigQuery(unittest.TestCase):
           exception_type=exceptions.ServiceUnavailable if exceptions else None,
           error_message='backendError')
   ])
+  @unittest.skip('Not compatible with new GCS client. See GH issue #26334.')
   def test_load_job_exception(self, exception_type, error_message):
 
     with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
@@ -900,6 +901,7 @@ class TestWriteToBigQuery(unittest.TestCase):
           exception_type=exceptions.InternalServerError if exceptions else None,
           error_message='internalError'),
   ])
+  @unittest.skip('Not compatible with new GCS client. See GH issue #26334.')
   def test_copy_load_job_exception(self, exception_type, error_message):
 
     from apache_beam.io.gcp import bigquery_file_loads
@@ -918,7 +920,7 @@ class TestWriteToBigQuery(unittest.TestCase):
       mock.patch.object(BigQueryWrapper,
                         'wait_for_bq_job'), \
       mock.patch('apache_beam.io.gcp.internal.clients'
-        '.storage.storage_v1_client.StorageV1.ObjectsService'), \
+        '.storage.storage_v1_client.StorageV1.ObjectsService'),\
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc, \
       beam.Pipeline() as p:
