@@ -970,7 +970,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def java21Home = project.findProperty("java21Home")
         options.fork = true
         options.forkOptions.javaHome = java21Home as File
-        options.compilerArgs += ['-Xlint:-path']
+        options.compilerArgs += ['-Xlint:-path', '-Xlint:-this-escape']
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
