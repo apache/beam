@@ -15,20 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.errorhandling;
+package org.apache.beam.sdk.transforms.errorhandling;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.errorhandling.BadRecord.Failure;
-import org.apache.beam.sdk.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +85,7 @@ public interface BadRecordRouter extends Serializable {
       // Build up record information
       BadRecord.Record.Builder recordBuilder = Record.builder();
       try {
-        recordBuilder.setHumanReadableRecord(objectWriter.writeValueAsString(record));
+        recordBuilder.setJsonRecord(objectWriter.writeValueAsString(record));
       } catch (Exception e) {
         LOG.error("Unable to serialize record as JSON. Human readable record will be null", e);
       }

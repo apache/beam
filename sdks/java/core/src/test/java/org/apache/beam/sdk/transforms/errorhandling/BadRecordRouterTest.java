@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.errorhandling;
+package org.apache.beam.sdk.transforms.errorhandling;
 
-import static org.apache.beam.sdk.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,10 +28,10 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.errorhandling.BadRecord.Failure;
-import org.apache.beam.sdk.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -81,7 +81,7 @@ public class BadRecordRouterTest {
         BadRecord.builder()
             .setRecord(
                 Record.builder()
-                    .setHumanReadableRecord("5")
+                    .setJsonRecord("5")
                     .setEncodedRecord(new byte[] {0, 0, 0, 5})
                     .setCoder("BigEndianIntegerCoder")
                     .build())
@@ -106,7 +106,7 @@ public class BadRecordRouterTest {
 
     BadRecord expected =
         BadRecord.builder()
-            .setRecord(Record.builder().setHumanReadableRecord("5").build())
+            .setRecord(Record.builder().setJsonRecord("5").build())
             .setFailure(
                 Failure.builder()
                     .setException("java.lang.RuntimeException")
@@ -151,10 +151,7 @@ public class BadRecordRouterTest {
     BadRecord expected =
         BadRecord.builder()
             .setRecord(
-                Record.builder()
-                    .setHumanReadableRecord("5")
-                    .setCoder(failingCoder.toString())
-                    .build())
+                Record.builder().setJsonRecord("5").setCoder(failingCoder.toString()).build())
             .setFailure(
                 Failure.builder()
                     .setException("java.lang.RuntimeException")

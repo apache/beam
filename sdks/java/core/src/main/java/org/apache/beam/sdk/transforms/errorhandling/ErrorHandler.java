@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.errorhandling;
+package org.apache.beam.sdk.transforms.errorhandling;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.POutput;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +78,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
     private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
-    @Nullable private OutputT sinkOutput = null;
+    private @Nullable OutputT sinkOutput = null;
 
     private boolean closed = false;
 

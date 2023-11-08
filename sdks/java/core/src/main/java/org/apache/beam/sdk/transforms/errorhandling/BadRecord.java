@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.errorhandling;
+package org.apache.beam.sdk.transforms.errorhandling;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
@@ -52,20 +52,17 @@ public abstract class BadRecord implements Serializable {
   public abstract static class Record implements Serializable {
 
     /** The failing record, encoded as JSON. Will be null if serialization as JSON fails. */
-    @Nullable
-    public abstract String getHumanReadableRecord();
+    public abstract @Nullable String getJsonRecord();
 
     /**
      * Nullable to account for failing to encode, or if there is no coder for the record at the time
      * of failure.
      */
-    @Nullable
     @SuppressWarnings("mutable")
-    public abstract byte[] getEncodedRecord();
+    public abstract byte @Nullable [] getEncodedRecord();
 
     /** The coder for the record, or null if there is no coder. */
-    @Nullable
-    public abstract String getCoder();
+    public abstract @Nullable String getCoder();
 
     public static Builder builder() {
       return new AutoValue_BadRecord_Record.Builder();
@@ -74,10 +71,10 @@ public abstract class BadRecord implements Serializable {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setHumanReadableRecord(@Nullable String humanReadableRecord);
+      public abstract Builder setJsonRecord(@Nullable String jsonRecord);
 
       @SuppressWarnings("mutable")
-      public abstract Builder setEncodedRecord(@Nullable byte[] encodedRecord);
+      public abstract Builder setEncodedRecord(byte @Nullable [] encodedRecord);
 
       public abstract Builder setCoder(@Nullable String coder);
 
@@ -90,8 +87,7 @@ public abstract class BadRecord implements Serializable {
   public abstract static class Failure implements Serializable {
 
     /** The exception itself, e.g. IOException. Null if there is a failure without an exception. */
-    @Nullable
-    public abstract String getException();
+    public abstract @Nullable String getException();
 
     /** The description of what was being attempted when the failure occurred. */
     public abstract String getDescription();
