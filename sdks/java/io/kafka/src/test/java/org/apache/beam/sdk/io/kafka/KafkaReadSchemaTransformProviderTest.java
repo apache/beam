@@ -100,7 +100,8 @@ public class KafkaReadSchemaTransformProviderTest {
             "consumerConfigUpdates",
             "format",
             "confluentSchemaRegistrySubject",
-            "confluentSchemaRegistryUrl"),
+            "confluentSchemaRegistryUrl",
+            "errorHandling"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));

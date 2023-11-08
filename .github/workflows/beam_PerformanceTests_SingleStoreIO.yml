@@ -18,8 +18,6 @@
 name: PerformanceTests SingleStoreIO
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
@@ -63,7 +61,7 @@ jobs:
         job_phrase: [Run Java SingleStoreIO Performance Test]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO Performance Test'
     steps:

@@ -108,7 +108,6 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Flatten},
 		{pipeline: primitives.FlattenDup},
 		{pipeline: primitives.Checkpoints},
-
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
 	}

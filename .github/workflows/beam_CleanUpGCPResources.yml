@@ -58,7 +58,7 @@ jobs:
         job_name: [beam_CleanUpGCPResources]
         job_phrase: [Run Clean GCP Resources]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Clean GCP Resources'
     steps:

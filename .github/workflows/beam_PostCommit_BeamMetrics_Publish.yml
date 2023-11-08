@@ -16,9 +16,6 @@
 name: PostCommit BeamMetrics Publish
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
   schedule:
     - cron: '24 2 * * *'
   workflow_dispatch:
@@ -53,11 +50,10 @@ env:
 jobs:
   beam_PostCommit_BeamMetrics_Publish:
     if: |
-      (github.event_name == 'push' ||
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      github.event.comment.body == 'Run Beam Metrics Deployment') &&
-      github.repository == 'apache/beam'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event.comment.body == 'Run Beam Metrics Deployment'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})

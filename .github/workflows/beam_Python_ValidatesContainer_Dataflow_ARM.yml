@@ -16,10 +16,6 @@
 name: Python ValidatesContainer Dataflow ARM
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ["sdks/python/**",".github/workflows/beam_Python_ValidatesContainer_Dataflow_ARM.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -61,7 +57,7 @@ jobs:
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
 
