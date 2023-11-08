@@ -40,10 +40,13 @@ class RequestResponseIO(PTransform):
     """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
     from and writing to Web APIs.
 
-  ``RequestResponseIO`` minimally requires implementing the ``Caller`` interface:
+  ``RequestResponseIO`` minimally requires implementing the ``Caller``:
 
-    requests = ...
+    class MyCaller(Caller):
+        def call(self, request: SomeRequest) -> SomeResponse:
+            # invoke an API client with SomeRequest to retrieve SomeResponse
 
+    requests = ... # PCollection of SomeRequest
     responses = (requests
                  | RequestResponseIO(MyCaller())
                 )
@@ -58,18 +61,19 @@ class Caller(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def call(self, request: RequestT) -> ResponseT:
-        """Calls a Web API with the ``RequestT``  and returns a ``ResponseT``.
-      ``RequestResponseIO`` expects implementations of the call method to throw
-      either a ``UserCodeExecutionException``, ``UserCodeQuotaException``,
-      or ``UserCodeTimeoutException``,
-      """
+        """Calls a Web API with the ``RequestT``  and returns a
+        ``ResponseT``. ``RequestResponseIO`` expects implementations of the
+        call method to throw either a ``UserCodeExecutionException``,
+        ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
+        """
         pass
 
 
 class SetupTeardown(metaclass=abc.ABCMeta):
     """Interfaces user custom code to setup and teardown the API clients.
-  Called by ``RequestResponseIO`` within its DoFn's setup and teardown methods.
-  """
+    Called by ``RequestResponseIO`` within its DoFn's setup and teardown
+    methods.
+    """
 
     @abc.abstractmethod
     def setup(self) -> None:
