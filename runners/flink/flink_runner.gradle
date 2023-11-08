@@ -216,6 +216,8 @@ dependencies {
   //LYFT CUSTOM
   // Required for embedded fn execution
   runtimeOnly project(":sdks:java:harness")
+  implementation "com.amazonaws:aws-java-sdk-s3:1.10.6"
+  implementation "org.apache.hadoop:hadoop-aws:2.8.5"
   implementation ("com.lyft:streamingplatform-events-source:2.4.0-20231106.192652-1") {
     exclude group: "com.lyft", module: "streamingplatform-kinesis"
     exclude group: "com.google.guava", module: "guava"
