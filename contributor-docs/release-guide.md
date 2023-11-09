@@ -918,13 +918,12 @@ write to BigQuery, and create a cluster of machines for running containers (for 
 
 - [ ] Check whether validations succeed by following console output instructions.
 - [ ] Terminate streaming jobs and java injector.
-- [ ] Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+- [ ] Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on GitHub Actions.
 
 - Other manual validation will follow, but this will at least validate that the staged artifacts can be used.
-     * Log in to Jenkins.
-     * Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
-     * Click "Build with Parameters".
-     * Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
+     * Go to https://github.com/apache/beam/actions/workflows/beam_PostRelease_NightlySnapshot.yml/.
+     * Click "Run Workflow".
+     * Set `RELEASE` to `2.xx.0`, and set `SNAPSHOT_URL` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
      * Click "Build".
 - [ ] Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
 - [ ] Vote in the release thread.
