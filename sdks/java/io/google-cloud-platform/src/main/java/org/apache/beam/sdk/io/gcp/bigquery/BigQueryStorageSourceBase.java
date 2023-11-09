@@ -167,8 +167,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     }
 
     if (readSession.getStreamsList().isEmpty()) {
-      // The underlying table is empty or all rows have been pruned.
+      LOG.info(
+          "Returned stream list is empty. The underlying table is empty or all rows have been pruned.");
       return ImmutableList.of();
+    } else {
+      LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
     Schema sessionSchema;
