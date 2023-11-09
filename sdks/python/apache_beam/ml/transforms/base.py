@@ -31,12 +31,14 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
+from typing import Union
 import uuid
 import numpy as np
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
+from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
 
@@ -62,7 +64,15 @@ class ArtifactMode(object):
   CONSUME = 'consume'
 
 
-class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
+# TODO: Change name of the class to something more meaningful.
+class PTransformInfo(object):
+  def get_ptransform_for_processing(self) -> Callable:
+    raise NotImplementedError
+
+
+class BaseOperation(Generic[OperationInputT, OperationOutputT],
+                    PTransformInfo,
+                    abc.ABC):
   def __init__(self, columns: List[str]) -> None:
     """
     Base Opertation class data processing transformations.
@@ -82,6 +92,16 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
       inputs: input data.
     """
 
+  @abc.abstractmethod
+  def get_artifacts(
+      self, data: OperationInputT,
+      output_column_prefix: str) -> Optional[Dict[str, OperationOutputT]]:
+    """
+    If the operation generates any artifacts, they can be returned from this
+    method.
+    """
+    pass
+
   def __call__(self, data: OperationInputT,
                output_column_name: str) -> Dict[str, OperationOutputT]:
     """
@@ -89,6 +109,9 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT], abc.ABC):
     This method will invoke the apply() method of the class.
     """
     transformed_data = self.apply_transform(data, output_column_name)
+    artifacts = self.get_artifacts(data, output_column_name)
+    if artifacts:
+      transformed_data = {**transformed_data, **artifacts}
     return transformed_data
 
   def get_counter(self):
@@ -117,6 +140,9 @@ class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
     """
     Append transforms to the ProcessHandler.
     """
+
+  def requires_chaining(self):
+    return True
 
 
 # Create abstraction layer for how the MLTransform can split the transforms
@@ -196,16 +222,11 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
 
     self._parent_artifact_location = artifact_location
 
-    if read_artifact_location:
-      self.ptransform_list = self._load_ptransform_attributes_from_json()
-
     self._artifact_mode = artifact_mode
     self._process_handler: Optional[ProcessHandler] = None
-    self.transforms = transforms
+    self.transforms = transforms or []
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
-
-    self.ptransform_list = []
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
@@ -224,21 +245,31 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       A PCollection of MLTransformOutputT type
     """
     if self._artifact_mode == ArtifactMode.PRODUCE:
-      self.save_ptransform_attributes_to_json()
+      ptransform_partitioner = TransformsPartitioner(
+          transforms=self.transforms,
+          artifact_location=self._parent_artifact_location,
+          artifact_mode=self._artifact_mode)
+      ptransform_list = ptransform_partitioner.create_and_save_ptransform_list()
+    else:
+      ptransform_list = (
+          TransformsPartitioner.load_transforms_from_artifact_location(
+              self._parent_artifact_location))
+
+    # the saved transforms has artifact mode set to PRODUCE.
+    # set the artifact mode to CONSUME.
+    if self._artifact_mode == ArtifactMode.CONSUME:
+      for i in range(len(ptransform_list)):
+        if hasattr(ptransform_list[i], 'artifact_mode'):
+          ptransform_list[i].artifact_mode = self._artifact_mode
+
+    for i in range(10):
+      print(ptransform_list)
+    for ptransform in ptransform_list:
+      pcoll = pcoll | ptransform
 
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
-
-    if self._artifact_mode == ArtifactMode.CONSUME:
-      self.ptransform_list = self._load_ptransform_attributes_from_json()
-      for i in range(len(self.ptransform_list)):
-        if hasattr(self.ptransform_list[i], 'artifact_mode'):
-          self.ptransform_list[i].artifact_mode = self._artifact_mode
-
-    for ptransform in self.ptransform_list:
-      pcoll = pcoll | ptransform
-
     return pcoll
 
   def with_transform(self, transform: BaseOperation):
@@ -252,56 +283,15 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     # self._validate_transform(transform)
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.ml.transforms.handlers import TFTProcessHandler
-    from apache_beam.ml.transforms.handlers import TFTOperation
-    if isinstance(transform, TFTOperation):
-      child_artifact_location = os.path.join(
-          self._parent_artifact_location, uuid.uuid4().hex)
-      if not self._process_handler:
-        self._process_handler: ProcessHandler = TFTProcessHandler(
-            artifact_location=child_artifact_location,
-            artifact_mode=self._artifact_mode)  # type: ignore[arg-type]
-        self.ptransform_list.append(self._process_handler)
-      self._process_handler.append_transform(transform)
+    # TODO: raise an error when both transforms and with_transform() are used.
+    self.transforms.append(transform)
     return self
-
-  def save_ptransform_attributes_to_json(self):
-    """
-    Save the ptransform attributes to json file.
-    """
-    # TODOa: Create a directory if it doesn't exist.
-    with open(os.path.join(self._parent_artifact_location,
-                           _ATTRIBUTE_FILE_NAME),
-              'w+') as f:
-      f.write(jsonpickle.encode(self.ptransform_list))
-
-  def _load_ptransform_attributes_from_json(self):
-    with open(os.path.join(self._parent_artifact_location,
-                           _ATTRIBUTE_FILE_NAME),
-              'r') as f:
-      return jsonpickle.decode(f.read())
-
-  def _construct_ptransforms_from_json(self, ):
-    pass
 
   def _validate_transform(self, transform):
     if not isinstance(transform, BaseOperation):
       raise TypeError(
           'transform must be a subclass of BaseOperation. '
           'Got: %s instead.' % type(transform))
-
-  def generate_embeddings(self, embedding_config):
-    """
-    Pending doc string
-    """
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.ml.transforms.base import TextEmbeddingHandler
-    from apache_beam.ml.inference.base import RunInference
-    embedding_handler = TextEmbeddingHandler(embedding_config=embedding_config)
-    run_inference = RunInference(model_handler=embedding_handler)
-    self.ptransform_list.append(run_inference)
-    self._process_handler = None
-    return self
 
 
 class MLTransformMetricsUsage(beam.PTransform):
@@ -328,16 +318,12 @@ class MLTransformMetricsUsage(beam.PTransform):
         | beam.Map(lambda _: _increment_counters()))
 
 
-from apache_beam.ml.inference.base import ModelHandler
-
-
-class EmbeddingConfig:
+class EmbeddingConfig(PTransformInfo):
   def __init__(
       self,
       device: str = 'CPU',
       inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
@@ -346,7 +332,6 @@ class EmbeddingConfig:
     self.device = device
     self.inference_fn = inference_fn
     self.load_model_args = load_model_args or {}
-    self.inference_args = inference_args or {}
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
     self.large_model = large_model
@@ -362,6 +347,60 @@ class EmbeddingConfig:
     """
     Return tokenizer to tokenize texts
     """
+
+  def requires_chaining(self):
+    return False
+
+
+# TODO: Better name?
+class TransformsPartitioner:
+  def __init__(
+      self,
+      transforms: List[Union[BaseOperation, EmbeddingConfig]],
+      artifact_location,
+      artifact_mode):
+    self.transforms = transforms
+    self._parent_artifact_location = artifact_location
+    self.artifact_mode = artifact_mode
+
+  def create_and_save_ptransform_list(self):
+    self.ptransform_list = self.create_ptransform_list()
+    self.save_transforms_in_artifact_location()
+    return self.ptransform_list
+
+  def create_ptransform_list(self):
+    previous_ptransform = None
+    current_ptransform = None
+    ptransform_list = []
+    for transform in self.transforms:
+      # if hasattr(transform, 'get_ptransform_for_processing'):
+      #   raise NotImplementedError
+      current_ptransform = transform.get_ptransform_for_processing(
+          artifact_location=self._parent_artifact_location,
+          artifact_mode=self.artifact_mode)
+      if (type(current_ptransform) != type(previous_ptransform) or
+          not transform.requires_chaining()):
+        ptransform_list.append(current_ptransform)
+        previous_ptransform = current_ptransform
+
+      if hasattr(ptransform_list[-1], 'append_transform'):
+        ptransform_list[-1].append_transform(transform)
+
+    return ptransform_list
+
+  def save_transforms_in_artifact_location(self):
+    """
+    Save the ptransform references to json file.
+    """
+    with open(os.path.join(self._parent_artifact_location,
+                           _ATTRIBUTE_FILE_NAME),
+              'w+') as f:
+      f.write(jsonpickle.encode(self.ptransform_list))
+
+  @staticmethod
+  def load_transforms_from_artifact_location(artifact_location):
+    with open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME), 'r') as f:
+      return jsonpickle.decode(f.read())
 
 
 class TextEmbeddingHandler(ModelHandler):

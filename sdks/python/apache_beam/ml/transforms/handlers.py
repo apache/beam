@@ -213,7 +213,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     self.artifact_location = artifact_location
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
-      raise ValueError('artifact_mode must be either `produce` or `consume`.')
+      raise ValueError('artifact_mode must be either `produc` or `consume`.')
 
   def append_transform(self, transform):
     self.transforms.append(transform)

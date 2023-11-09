@@ -20,12 +20,14 @@ with beam.Pipeline() as p:
               'text': "Hello word", 'label': '1'
           }
       ]))
-
+  # (
+  # 	data
+  # 	| "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
+  # 	with_transform(embedding_config
+  # 								 ).with_transform(ScaleTo01(columns=['text']))
+  # 	| beam.Map(print)
+  # )
   (
       data
-      | "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
-      generate_embeddings(embedding_config=embedding_config).with_transform(
-          ScaleTo01(columns=['text']))
-      # | beam.Map(print)
-      # data | "MLTransformInference" >> MLTransform(read_artifact_location=artifact_location)
+      | MLTransform(read_artifact_location=artifact_location)
       | beam.Map(print))
