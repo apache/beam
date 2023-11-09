@@ -101,6 +101,7 @@ public class KafkaReadSchemaTransformProviderTest {
             "format",
             "confluentSchemaRegistrySubject",
             "confluentSchemaRegistryUrl",
+            "errorHandling",
             "fileDescriptorPath",
             "messageName"),
         kafkaProvider.configurationSchema().getFields().stream()

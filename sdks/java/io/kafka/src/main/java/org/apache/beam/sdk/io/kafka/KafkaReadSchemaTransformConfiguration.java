@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
@@ -117,6 +118,10 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
+  @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+  @Nullable
+  public abstract ErrorHandling getErrorHandling();
+
   /** Builder for the {@link KafkaReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -142,6 +147,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
+
+    public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
     /** Builds a {@link KafkaReadSchemaTransformConfiguration} instance. */
     public abstract KafkaReadSchemaTransformConfiguration build();

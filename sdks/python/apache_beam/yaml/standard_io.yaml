@@ -61,6 +61,7 @@
         'confluent_schema_registry_url': 'confluentSchemaRegistryUrl'
         'confluent_schema_registry_subject': 'confluentSchemaRegistrySubject'
         'auto_offset_reset_config': 'autoOffsetResetConfig'
+        'error_handling': 'errorHandling'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
       'WriteToKafka':
@@ -68,6 +69,7 @@
         'topic': 'topic'
         'bootstrap_servers': 'bootstrapServers'
         'producer_config_updates': 'ProducerConfigUpdates'
+        'error_handling': 'errorHandling'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
     underlying_provider:
