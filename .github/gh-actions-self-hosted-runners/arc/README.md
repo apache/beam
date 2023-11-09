@@ -38,8 +38,15 @@ All are created in the step before
 project_id = "PROJECT_ID"                                     # google PROJECT_ID that you want to deploy in
 region = "gcp_region"                                         # GCP region for the network
 zone = "europe-west3-c"                                       # GCP zone for the nodes
-min_main_node_count = "1"                                     # Minimal and initial node count for main pool
-max_main_node_count = "5"                                     # Maximal node count for main pool
+main_runner = {
+    name = "main-runner"                                      # Main runner pool name
+    machine_type = "e2-standard-16"                           # Main runner pool machine type
+    min_node_count = "1"                                      # Main runner pool minimal node count
+    max_node_count = "5"                                      # Main runner pool maximal node count
+    min_replicas = "5"                                        # Min number of runner PODs in the main pool . Do not confuse with Nodes
+    max_replicas = "20"                                       # Max number of runner PODs in the main pool . Do not confuse with Nodes
+    webhook_scaling                                           # Enable webhook scaling for main pool
+}
 environment = "environment_name"                              # Name of the environment. Used as a prefix like dev- stag- anything-
 ingress_domain = "fqdn"                                       # FQDN for webhook ingress
 organization = "org"                                          # Github Organization to use runners in
@@ -48,15 +55,40 @@ github_app_id_secret_name = "app_id_secret_name"              # Google secret na
 github_app_install_id_secret_name = "install_id_secret_name"  # Google secret name for install_id
 github_private_key_secret_name = "pem_file_secret_name"       # Google secret name for pem file
 deploy_webhook = "false"                                      # Terraform to deploy the scaling webhook
-max_main_replicas = "2"                                       # Max number of runner PODs . Do not confuse with Nodes
-min_main_replicas = "1"                                       # Min number of runner PODs . Do not confuse with Nodes
-webhook_scaling = "false"                                     # Enable webhook scaling. When disabled runner busy percentage is used
 #state_bucket_name = "state_bucket_name"                      # Not used by terraform. This is just to reference what bucket is used for others
 ```
+If you want to create additonal pools you can use the `additional_runner_pools` which is a list of objects. Example:
+```
+additional_runner_pools = [
+{
+name = "test-runner"                      # Pool name
+machine_type = "e2-standard-2"            # Macihne type for the pool
+min_node_count = 1                        # Minimal node count
+max_node_count = 2                        # Maximal node count
+min_replicas = 1                          # Minimal replica count
+min_replicas = 2                          # Maximal replica count
+webhook_scaling = true                    # Enable webhook based scaling
+runner_image = "gcr.io/someimage:sometag" # Image to use
+labels = ["self-hosted", "testrunner"]    # Label set for runner pool. Used in `on`
+enable_selector = "true"                  # Enables NodeSelector, forcing runners to this pool
+enable_taint = "true"                     # Enables Taints. Prevents other runner pods to run in this pool.
+requests = {                              # K8s cpu and memory requests
+  cpu = "500m"                            #
+  memory = "500mi"}                       #
+limits = {                                # K8s cpu and memory limits
+    cpu = "2"                             #
+    memory = "2Gi"}}]                     #
+
+```
+
+
+
 5. Make sure you set the bucket name in the comment in the environment file for documentation purposes
 
-6.  From this directory, init terraform with:
+6.  From this directory, login to your gcloud account that you created the bucket with and  init terraform with:
 ```
+gcloud auth login
+gcloud auth application-default login
 terraform init -backend-config="bucket=bucket_name"
 ```
 7. Terraform apply
