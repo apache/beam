@@ -35,6 +35,8 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
+  implementation project(":sdks:java:io:kafka:upgrade")
+  permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 }
