@@ -163,4 +163,12 @@ public interface BigQueryOptions
   Long getStorageWriteApiMaxRequestSize();
 
   void setStorageWriteApiMaxRequestSize(Long value);
+
+  @Description(
+      "If set, BigQueryIO.Read will rely on the Read API backends to surface the appropriate"
+          + " number of streams for read")
+  @Default.Boolean(false)
+  Boolean getEnableStorageReadApiV2();
+
+  void setEnableStorageReadApiV2(Boolean value);
 }
