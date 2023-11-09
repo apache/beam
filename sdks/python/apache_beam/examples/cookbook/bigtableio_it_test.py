@@ -176,11 +176,7 @@ class BigtableIOWriteTest(unittest.TestCase):
 
   # TODO(https://github.com/apache/beam/issues/29076): Reenable this test
   # once BigTable issues are fixed.
-  @pytest.mark.it_postcommit
-  @pytest.mark.sickbay_dataflow
-  @pytest.mark.sickbay_direct
-  @pytest.mark.sickbay_spark
-  @pytest.mark.sickbay_flink
+  @pytest.mark.it_postcommit_sickbay
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list
