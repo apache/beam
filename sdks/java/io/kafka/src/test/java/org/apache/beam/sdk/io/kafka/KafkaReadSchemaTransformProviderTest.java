@@ -101,7 +101,8 @@ public class KafkaReadSchemaTransformProviderTest {
             "format",
             "confluentSchemaRegistrySubject",
             "confluentSchemaRegistryUrl",
-            "errorHandling"),
+            "fileDescriptorPath",
+            "messageName"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -150,7 +151,7 @@ public class KafkaReadSchemaTransformProviderTest {
   }
 
   @Test
-  public void testBuildTransformWithRawFormat() throws IOException {
+  public void testBuildTransformWithRawFormat() {
     ServiceLoader<SchemaTransformProvider> serviceLoader =
         ServiceLoader.load(SchemaTransformProvider.class);
     List<SchemaTransformProvider> providers =
@@ -165,5 +166,57 @@ public class KafkaReadSchemaTransformProviderTest {
             .setBootstrapServers("anybootstrap")
             .setFormat("RAW")
             .build());
+  }
+
+  @Test
+  public void testBuildTransformWithProtoFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("PROTO")
+            .setMessageName("MyMessage")
+            .setFileDescriptorPath(
+                Objects.requireNonNull(
+                        getClass().getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                    .getPath())
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithProtoFormatWrongMessageName() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            kafkaProvider.from(
+                KafkaReadSchemaTransformConfiguration.builder()
+                    .setTopic("anytopic")
+                    .setBootstrapServers("anybootstrap")
+                    .setFormat("PROTO")
+                    .setMessageName("MyOtherMessage")
+                    .setFileDescriptorPath(
+                        Objects.requireNonNull(
+                                getClass()
+                                    .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                            .getPath())
+                    .build()));
   }
 }
