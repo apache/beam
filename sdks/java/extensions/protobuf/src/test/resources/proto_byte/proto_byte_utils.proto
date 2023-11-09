@@ -18,8 +18,6 @@
 
 syntax = "proto3";
 
-package org.apache.beam.sdk.extensions.protobuf;
-
 message MyMessage {
   int32 id = 1;
   string name = 2;
