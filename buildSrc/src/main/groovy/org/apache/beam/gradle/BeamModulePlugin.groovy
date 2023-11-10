@@ -566,6 +566,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
 
+
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
 
