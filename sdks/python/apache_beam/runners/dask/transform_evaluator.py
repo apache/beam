@@ -60,7 +60,10 @@ class Create(DaskBagOp):
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
-    return db.from_sequence(items, partition_size=max(1, math.ceil(math.sqrt(len(items)) / math.sqrt(100))))
+    return db.from_sequence(
+        items,
+        partition_size=max(
+            1, math.ceil(math.sqrt(len(items)) / math.sqrt(100))))
 
 
 class ParDo(DaskBagOp):
