@@ -2442,7 +2442,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
     project.ext.applyAvroNature = {
-      project.apply plugin: "com.commercehub.gradle.plugin.avro"
+      project.apply plugin: "com.github.davidmc24.gradle.plugin.avro"
 
       // add dependency BeamModulePlugin defined custom tasks
       // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
