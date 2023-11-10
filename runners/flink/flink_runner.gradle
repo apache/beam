@@ -236,6 +236,7 @@ dependencies {
     exclude group: "org.datanucleus", module: "datanucleus-api-jdo"
     exclude group: "org.datanucleus", module: "datanucleus-core"
     exclude group: "org.datanucleus", module: "datanucleus-rdbms"
+    exclude group: "org.apache.logging.log4j", module: "log4j-core"
   }
   implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202310191697699075"
   implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231106.192652-1"
