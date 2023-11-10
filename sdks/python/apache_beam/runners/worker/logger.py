@@ -64,8 +64,10 @@ def PerThreadLoggingContext(**kwargs):
   """A context manager to add per thread attributes."""
   stack = per_thread_worker_data.stack
   stack.append(kwargs)
-  yield
-  stack.pop()
+  try:
+    yield
+  finally:
+    stack.pop()
 
 
 class JsonLogFormatter(logging.Formatter):

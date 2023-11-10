@@ -404,8 +404,10 @@ def allow_non_parallel_operations(allow=True):
     yield
   else:
     old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
-    yield
-    _ALLOW_NON_PARALLEL.value = old_value
+    try:
+      yield
+    finally:
+      _ALLOW_NON_PARALLEL.value = old_value
 
 
 class NonParallelOperation(Exception):
