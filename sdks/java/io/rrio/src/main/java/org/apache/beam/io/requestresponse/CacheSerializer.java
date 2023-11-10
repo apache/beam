@@ -18,18 +18,35 @@
 package org.apache.beam.io.requestresponse;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-/**
- * Converts between a user defined type {@link T} and a byte array for cache storage. See {@link
- * CacheSerializerProvider} for details on how to register a new {@link CacheSerializer} with {@link
- * CacheSerializerProviders}.
- */
-public interface CacheSerializer<T> extends Serializable {
-  long serialVersionUID = 3183949171861894060L;
+/** Converts between a user defined type {@link T} and a byte array for cache storage. */
+public interface CacheSerializer<@NonNull T> extends Serializable {
 
   /** Convert a byte array to a user defined type {@link T}. */
+  @NonNull
   T deserialize(byte[] bytes) throws UserCodeExecutionException;
 
   /** Convert a user defined type {@link T} to a byte array. */
-  byte[] serialize(T t) throws UserCodeExecutionException;
+  byte[] serialize(@NonNull T t) throws UserCodeExecutionException;
+
+  /**
+   * Instantiates a {@link CacheSerializer} that converts between a JSON byte array and a user
+   * defined type {@link T}.
+   */
+  static <@NonNull T> CacheSerializer<T> usingJson(Class<@NonNull T> clazz) {
+    return new JsonCacheSerializer<>(clazz);
+  }
+
+  /**
+   * Instantiates a {@link CacheSerializer} that converts between a byte array and a user defined
+   * type {@link T}. Throws a {@link NonDeterministicException} if {@link Coder#verifyDeterministic}
+   * does not pass.
+   */
+  static <@NonNull T> CacheSerializer<@NonNull T> usingDeterministicCoder(
+      Coder<@NonNull T> deterministicCoder) throws NonDeterministicException {
+    return new DeterministicCoderCacheSerializer<>(deterministicCoder);
+  }
 }

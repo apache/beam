@@ -20,6 +20,8 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.allPrimitiveDataTypes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -205,5 +207,25 @@ public class RedisClientTestIT {
   @Test
   public void givenKeyNotExists_getLong_yieldsZero() throws UserCodeExecutionException {
     assertEquals(0L, externalClients.getActualClient().getLong(UUID.randomUUID().toString()));
+  }
+
+  @Test
+  public void givenKeyNotExists_getBytes_yieldsNull() throws UserCodeExecutionException {
+    assertNull(
+        externalClients
+            .getActualClient()
+            .getBytes(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
+  }
+
+  @Test
+  public void givenKeyExists_getBytes_yieldsValue() throws UserCodeExecutionException {
+    byte[] keyBytes = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+    String expected = UUID.randomUUID().toString();
+    byte[] expectedBytes = expected.getBytes(StandardCharsets.UTF_8);
+    externalClients.getValidatingClient().set(keyBytes, expectedBytes);
+    byte[] actualBytes = externalClients.getActualClient().getBytes(keyBytes);
+    assertNotNull(actualBytes);
+    String actual = new String(actualBytes, StandardCharsets.UTF_8);
+    assertEquals(expected, actual);
   }
 }
