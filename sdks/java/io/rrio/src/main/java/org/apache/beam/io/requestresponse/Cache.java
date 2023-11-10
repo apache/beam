@@ -32,29 +32,35 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** Transforms for reading and writing request/response associations to a cache. */
-final class Cache {
+class Cache {
 
   /**
    * Read {@link RequestT} {@link ResponseT} associations from a cache. The {@link KV} value is null
-   * when no association exists.
+   * when no association exists. This method does not enforce {@link Coder#verifyDeterministic} and
+   * defers to the user to determine whether to enforce this given the cache implementation.
    */
   static <
           @NonNull RequestT,
           @Nullable ResponseT,
           CallerSetupTeardownT extends
-              Caller<@NonNull RequestT, KV<@NonNull RequestT, @Nullable ResponseT>> & SetupTeardown>
+              @NonNull Caller<@NonNull RequestT, KV<@NonNull RequestT, @Nullable ResponseT>>
+                  & SetupTeardown>
       PTransform<
-              PCollection<@NonNull RequestT>,
-              Call.Result<KV<@NonNull RequestT, @Nullable ResponseT>>>
+              @NonNull PCollection<@NonNull RequestT>,
+              Call.@NonNull Result<KV<@NonNull RequestT, @Nullable ResponseT>>>
           read(
-              CallerSetupTeardownT implementsCallerSetupTeardown,
-              Coder<@NonNull RequestT> requestTCoder,
-              Coder<@NonNull ResponseT> responseTCoder) {
+              @NonNull CallerSetupTeardownT implementsCallerSetupTeardown,
+              @NonNull Coder<@NonNull RequestT> requestTCoder,
+              @NonNull Coder<@NonNull ResponseT> responseTCoder) {
     return Call.ofCallerAndSetupTeardown(
         implementsCallerSetupTeardown, KvCoder.of(requestTCoder, responseTCoder));
   }
 
-  /** Write a {@link RequestT} {@link ResponseT} association to a cache. */
+  /**
+   * Write a {@link RequestT} {@link ResponseT} association to a cache. This method does not enforce
+   * {@link Coder#verifyDeterministic} and defers to the user to determine whether to enforce this
+   * given the cache implementation.
+   */
   static <
           @NonNull RequestT,
           @NonNull ResponseT,
@@ -67,26 +73,34 @@ final class Cache {
               PCollection<KV<@NonNull RequestT, @NonNull ResponseT>>,
               Call.Result<KV<@NonNull RequestT, @NonNull ResponseT>>>
           write(
-              CallerSetupTeardownT implementsCallerSetupTeardown,
-              KvCoder<@NonNull RequestT, @NonNull ResponseT> kvCoder) {
+              @NonNull CallerSetupTeardownT implementsCallerSetupTeardown,
+              @NonNull KvCoder<@NonNull RequestT, @NonNull ResponseT> kvCoder) {
     return Call.ofCallerAndSetupTeardown(implementsCallerSetupTeardown, kvCoder);
   }
 
+  static <@NonNull RequestT, ResponseT> UsingRedis<RequestT, ResponseT> usingRedis(
+      @NonNull Coder<@NonNull RequestT> requestTCoder,
+      @NonNull Coder<@NonNull ResponseT> responseTCoder,
+      @NonNull RedisClient client)
+      throws Coder.NonDeterministicException {
+    return new UsingRedis<>(requestTCoder, responseTCoder, client);
+  }
+
   /** Provides cache read and write support using a {@link RedisClient}. */
-  static class UsingRedis<RequestT, ResponseT> {
-    private final Coder<@NonNull RequestT> requestTCoder;
-    private final Coder<@NonNull ResponseT> responseTCoder;
-    private final RedisClient client;
+  static class UsingRedis<@NonNull RequestT, ResponseT> {
+    private final @NonNull Coder<@NonNull RequestT> requestTCoder;
+    private final @NonNull Coder<@NonNull ResponseT> responseTCoder;
+    private final @NonNull RedisClient client;
 
     /**
-     * Instantiates a {@link UsingRedis}. Throws a {@link Coder.NonDeterministicException} if either
-     * {@link RequestT} or {@link ResponseT} {@link Coder} fails to {@link
-     * Coder#verifyDeterministic}.
+     * Instantiates a {@link UsingRedis}. Given redis reads and writes using bytes, throws a {@link
+     * Coder.NonDeterministicException} if either {@link RequestT} or {@link ResponseT} {@link
+     * Coder} fails to {@link Coder#verifyDeterministic}.
      */
-    UsingRedis(
-        Coder<@NonNull RequestT> requestTCoder,
-        Coder<@NonNull ResponseT> responseTCoder,
-        RedisClient client)
+    private UsingRedis(
+        @NonNull Coder<@NonNull RequestT> requestTCoder,
+        @NonNull Coder<@NonNull ResponseT> responseTCoder,
+        @NonNull RedisClient client)
         throws Coder.NonDeterministicException {
       this.client = client;
       requestTCoder.verifyDeterministic();
@@ -97,7 +111,7 @@ final class Cache {
 
     /** Instantiates {@link Read}. */
     Read<@NonNull RequestT, @Nullable ResponseT> read() {
-      return new Read<>(this);
+      return new Read<>(requestTCoder, responseTCoder, client);
     }
 
     /**
@@ -105,7 +119,7 @@ final class Cache {
      * RequestT} and {@link ResponseT} lasts in the cache.
      */
     Write<@NonNull RequestT, @NonNull ResponseT> write(Duration expiry) {
-      return new Write<>(expiry, this);
+      return new Write<>(expiry, requestTCoder, responseTCoder, client);
     }
 
     /** Reads associated {@link RequestT} {@link ResponseT} using a {@link RedisClient}. */
@@ -113,10 +127,17 @@ final class Cache {
         implements Caller<@NonNull RequestT, KV<@NonNull RequestT, @Nullable ResponseT>>,
             SetupTeardown {
 
-      private final UsingRedis<RequestT, ResponseT> spec;
+      private final @NonNull Coder<@NonNull RequestT> requestTCoder;
+      private final @NonNull Coder<@NonNull ResponseT> responseTCoder;
+      private final @NonNull RedisClient client;
 
-      private Read(UsingRedis<RequestT, ResponseT> spec) {
-        this.spec = spec;
+      private Read(
+          @NonNull Coder<@NonNull RequestT> requestTCoder,
+          @NonNull Coder<@NonNull ResponseT> responseTCoder,
+          @NonNull RedisClient client) {
+        this.requestTCoder = requestTCoder;
+        this.responseTCoder = responseTCoder;
+        this.client = client;
       }
 
       @Override
@@ -124,15 +145,15 @@ final class Cache {
           throws UserCodeExecutionException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-          spec.requestTCoder.encode(request, baos);
+          requestTCoder.encode(request, baos);
           byte[] encodedRequest = baos.toByteArray();
-          byte[] encodedResponse = spec.client.getBytes(encodedRequest);
+          byte[] encodedResponse = client.getBytes(encodedRequest);
           if (encodedResponse == null) {
             return KV.of(request, null);
           }
           ResponseT response =
               checkStateNotNull(
-                  spec.responseTCoder.decode(ByteSource.wrap(encodedResponse).openStream()));
+                  responseTCoder.decode(ByteSource.wrap(encodedResponse).openStream()));
           return KV.of(request, response);
         } catch (IllegalStateException | IOException e) {
           throw new UserCodeExecutionException(e);
@@ -141,52 +162,61 @@ final class Cache {
 
       @Override
       public void setup() throws UserCodeExecutionException {
-        spec.client.setup();
+        client.setup();
       }
 
       @Override
       public void teardown() throws UserCodeExecutionException {
-        spec.client.teardown();
+        client.teardown();
       }
     }
   }
 
   static class Write<@NonNull RequestT, @NonNull ResponseT>
       implements Caller<
-              KV<@NonNull RequestT, @NonNull ResponseT>, KV<@NonNull RequestT, @NonNull ResponseT>>,
+              @NonNull KV<@NonNull RequestT, @NonNull ResponseT>,
+              @NonNull KV<@NonNull RequestT, @NonNull ResponseT>>,
           SetupTeardown {
-    private final Duration expiry;
+    private final @NonNull Duration expiry;
+    private final @NonNull Coder<@NonNull RequestT> requestTCoder;
+    private final @NonNull Coder<@NonNull ResponseT> responseTCoder;
+    private final @NonNull RedisClient client;
 
-    private final UsingRedis<RequestT, ResponseT> spec;
-
-    private Write(Duration expiry, UsingRedis<RequestT, ResponseT> spec) {
+    private Write(
+        @NonNull Duration expiry,
+        @NonNull Coder<@NonNull RequestT> requestTCoder,
+        @NonNull Coder<@NonNull ResponseT> responseTCoder,
+        @NonNull RedisClient client) {
       this.expiry = expiry;
-      this.spec = spec;
+      this.requestTCoder = requestTCoder;
+      this.responseTCoder = responseTCoder;
+      this.client = client;
     }
 
     @Override
-    public KV<@NonNull RequestT, @NonNull ResponseT> call(
-        KV<@NonNull RequestT, @NonNull ResponseT> request) throws UserCodeExecutionException {
+    public @NonNull KV<@NonNull RequestT, @NonNull ResponseT> call(
+        @NonNull KV<@NonNull RequestT, @NonNull ResponseT> request)
+        throws UserCodeExecutionException {
       ByteArrayOutputStream keyStream = new ByteArrayOutputStream();
       ByteArrayOutputStream valueStream = new ByteArrayOutputStream();
       try {
-        spec.requestTCoder.encode(request.getKey(), keyStream);
-        spec.responseTCoder.encode(request.getValue(), valueStream);
+        requestTCoder.encode(request.getKey(), keyStream);
+        responseTCoder.encode(request.getValue(), valueStream);
       } catch (IOException e) {
         throw new UserCodeExecutionException(e);
       }
-      spec.client.setex(keyStream.toByteArray(), valueStream.toByteArray(), expiry);
+      client.setex(keyStream.toByteArray(), valueStream.toByteArray(), expiry);
       return request;
     }
 
     @Override
     public void setup() throws UserCodeExecutionException {
-      spec.client.setup();
+      client.setup();
     }
 
     @Override
     public void teardown() throws UserCodeExecutionException {
-      spec.client.teardown();
+      client.teardown();
     }
   }
 }

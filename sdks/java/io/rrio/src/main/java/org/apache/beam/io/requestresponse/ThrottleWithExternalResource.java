@@ -17,6 +17,9 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -82,26 +85,27 @@ class ThrottleWithExternalResource<
   private static final TupleTag<ApiIOError> FAILURE_TAG = new TupleTag<ApiIOError>() {};
   private static final Duration THROTTLE_INTERVAL = Duration.standardSeconds(1L);
 
-  private final Quota quota;
-  private final String quotaIdentifier;
-  private final Coder<T> coder;
-  private final ReporterT reporterT;
-  private final EnqueuerT enqueuerT;
-  private final DequeuerT dequeuerT;
-  private final RefresherT refresherT;
+  private final @NonNull Quota quota;
+  private final @NonNull String quotaIdentifier;
+  private final @NonNull Coder<T> coder;
+  private final @NonNull ReporterT reporterT;
+  private final @NonNull EnqueuerT enqueuerT;
+  private final @NonNull DequeuerT dequeuerT;
+  private final @NonNull RefresherT refresherT;
 
   ThrottleWithExternalResource(
-      Quota quota,
-      String quotaIdentifier,
-      Coder<T> coder,
-      ReporterT reporterT,
-      EnqueuerT enqueuerT,
-      DequeuerT dequeuerT,
-      RefresherT refresherT)
+      @NonNull Quota quota,
+      @NonNull String quotaIdentifier,
+      @NonNull Coder<@NonNull T> coder,
+      @NonNull ReporterT reporterT,
+      @NonNull EnqueuerT enqueuerT,
+      @NonNull DequeuerT dequeuerT,
+      @NonNull RefresherT refresherT)
       throws Coder.NonDeterministicException {
     this.quotaIdentifier = quotaIdentifier;
     this.reporterT = reporterT;
     coder.verifyDeterministic();
+    checkArgument(!quotaIdentifier.isEmpty());
     this.quota = quota;
     this.coder = coder;
     this.enqueuerT = enqueuerT;
@@ -260,7 +264,7 @@ class ThrottleWithExternalResource<
     public @NonNull T call(@NonNull Instant request) throws UserCodeExecutionException {
       byte[] bytes = client.lpop(key);
       try {
-        return coder.decode(ByteSource.wrap(bytes).openStream());
+        return checkStateNotNull(coder.decode(ByteSource.wrap(bytes).openStream()));
 
       } catch (IOException e) {
         throw new UserCodeExecutionException(e);

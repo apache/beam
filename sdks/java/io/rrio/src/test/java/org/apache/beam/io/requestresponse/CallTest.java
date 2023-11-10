@@ -22,9 +22,17 @@ import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.beam.io.requestresponse.Call.Result;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -47,7 +55,7 @@ import org.junit.runners.JUnit4;
 public class CallTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  private static final SerializableCoder<@NonNull Response> RESPONSE_CODER =
+  static final SerializableCoder<@NonNull Response> RESPONSE_CODER =
       SerializableCoder.of(Response.class);
 
   @Test
@@ -275,7 +283,7 @@ public class CallTest {
 
   private static class UnSerializable {}
 
-  private static class Request implements Serializable {
+  static class Request implements Serializable {
 
     final String id;
 
@@ -305,7 +313,7 @@ public class CallTest {
     }
   }
 
-  private static class Response implements Serializable {
+  static class Response implements Serializable {
     final String id;
 
     Response(String id) {
@@ -488,6 +496,34 @@ public class CallTest {
     try {
       Thread.sleep(timeout.getMillis());
     } catch (InterruptedException ignored) {
+    }
+  }
+
+  private static class DeterministicRequestCoder extends CustomCoder<Request> {
+    private static final Coder<String> ID_CODER = StringUtf8Coder.of();
+    @Override
+    public void encode(Request value, OutputStream outStream) throws CoderException, IOException {
+      ID_CODER.encode(value.id, outStream);
+    }
+
+    @Override
+    public Request decode(InputStream inStream) throws CoderException, IOException {
+      String id = ID_CODER.decode(inStream);
+      return new Request(id);
+    }
+  }
+
+  private static class DeterministicResponseCoder extends CustomCoder<Response> {
+    private static final Coder<String> ID_CODER = StringUtf8Coder.of();
+
+    @Override
+    public void encode(Response value, OutputStream outStream) throws CoderException, IOException {
+
+    }
+
+    @Override
+    public Response decode(InputStream inStream) throws CoderException, IOException {
+      return null;
     }
   }
 }
