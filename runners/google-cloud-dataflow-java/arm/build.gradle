@@ -152,6 +152,7 @@ def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${DockerJavaMultiarchImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./../scripts/cleanup_untagged_gcr_images.sh", "${DockerJavaMultiarchImageContainer}"
     }
   }
