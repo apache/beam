@@ -64,6 +64,7 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
+* BigQueryIO now supports parameters, default project id, and default dataset id (Go) ([#29382](https://github.com/apache/beam/issues/29382)).
 
 ## New Features / Improvements
 
