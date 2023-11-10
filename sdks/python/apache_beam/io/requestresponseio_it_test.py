@@ -20,9 +20,6 @@ import unittest
 from typing import Tuple
 from typing import Union
 
-import grpc
-from grpc import Channel
-from grpclib.exceptions import GRPCError, Status
 import urllib3
 
 from apache_beam.io.requestresponseio import Caller
@@ -32,16 +29,6 @@ from apache_beam.io.requestresponseio import UserCodeQuotaException
 from apache_beam.io.requestresponseio import UserCodeTimeoutException
 from apache_beam.options.pipeline_options import PipelineOptions
 
-try:
-  from apache_beam.io.mock_apis.proto.echo.v1.echo_pb2 import EchoRequest
-  from apache_beam.io.mock_apis.proto.echo.v1.echo_pb2 import EchoResponse
-  from apache_beam.io.mock_apis.proto.echo.v1.echo_pb2_grpc import EchoServiceStub
-except ImportError:
-  raise unittest.SkipTest(
-      'proto.echo requirement missing. Make sure you '
-      'run `sdks/python/gen_protos.py`')
-
-_CHANNEL_CREDENTIALS = grpc.local_channel_credentials()
 _HTTP_PATH = "/v1/echo"
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
 
@@ -54,12 +41,6 @@ class EchoITOptions(PipelineOptions):
       """
   @classmethod
   def _add_argparse_args(cls, parser) -> None:
-    parser.add_argument(
-        '--gRPCEndpointAddress',
-        required=True,
-        dest='grpc_endpoint_address',
-        help='The gRPC address of the Echo API endpoint, typically of the '
-        'form <host>:<port>.')
     parser.add_argument(
         '--httpEndpointAddress',
         required=True,
@@ -76,102 +57,6 @@ class EchoITOptions(PipelineOptions):
         default='echo-should-exceed-quota',
         dest='should_exceed_quota_id',
         help='The ID for an allocated quota that should exceed.')
-
-
-class EchoGRPCCaller(Caller, SetupTeardown):
-  """Implements ``Caller`` and ``SetupTeardown`` to call ``EchoServiceGrpc``.
-    The purpose of ``EchoGRPCCaller`` is to support integration tests.
-    """
-  def __init__(self, address: str):
-    self.address = address
-    self.channel: Union[Channel, None] = None
-    self.client: Union[EchoServiceStub, None] = None
-
-  def call(self, request: EchoRequest) -> EchoResponse:
-    assert self.client is not None
-    try:
-      return self.client.Echo(request)
-    except grpc.RpcError as e:
-      code: grpc.StatusCode = e.code()
-      if code == grpc.StatusCode.RESOURCE_EXHAUSTED:
-        raise UserCodeQuotaException(e)
-      if code == grpc.StatusCode.DEADLINE_EXCEEDED:
-        raise UserCodeTimeoutException(e)
-      raise UserCodeExecutionException(e)
-
-  def setup(self) -> None:
-    self.channel = grpc.insecure_channel(self.address)
-    self.client = EchoServiceStub(self.channel)
-
-  def teardown(self) -> None:
-    if self.channel is not None:
-      self.channel.close()
-
-
-class EchoGRPCCallerTestIT(unittest.TestCase):
-  options: Union[EchoITOptions, None] = None
-  client: Union[EchoGRPCCaller, None] = None
-
-  @classmethod
-  def setUpClass(cls) -> None:
-    cls.options = EchoITOptions()
-    cls.client = EchoGRPCCaller(cls.options.grpc_endpoint_address)
-    cls.client.setup()
-
-  @classmethod
-  def tearDownClass(cls) -> None:
-    if cls.client is not None:
-      cls.client.teardown()
-
-  @classmethod
-  def _get_client_and_options(cls) -> Tuple[EchoGRPCCaller, EchoITOptions]:
-    assert cls.options is not None
-    assert cls.client is not None
-    return cls.client, cls.options
-
-  def setUp(self) -> None:
-    client, options = EchoGRPCCallerTestIT._get_client_and_options()
-
-    req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
-
-    try:
-      # The following is needed to exceed the API
-      client.call(req)
-      client.call(req)
-      client.call(req)
-    except UserCodeExecutionException as e:
-      if not isinstance(e, UserCodeQuotaException):
-        raise e
-
-  def test_given_valid_request_receives_response(self):
-    client, options = EchoGRPCCallerTestIT._get_client_and_options()
-
-    try:
-      req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
-
-      response: EchoResponse = client.call(req)
-      self.assertEqual(req.id, response.id)
-      self.assertEqual(req.payload, response.payload)
-
-    except UserCodeExecutionException:
-      raise
-
-  def test_given_exceeded_quota_should_raise(self):
-    client, options = EchoGRPCCallerTestIT._get_client_and_options()
-
-    req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
-
-    self.assertRaises(UserCodeQuotaException, lambda: client.call(req))
-
-  def test_not_found_should_raise(self):
-    client, _ = EchoGRPCCallerTestIT._get_client_and_options()
-
-    req = EchoRequest(id='i-dont-exist-quota-id', payload=_PAYLOAD)
-
-    self.assertRaisesRegex(
-        UserCodeExecutionException,
-        "source not found",
-        lambda: client.call(req))
 
 
 class EchoHTTPCaller(Caller):

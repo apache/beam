@@ -28,7 +28,6 @@ import platform
 import re
 import shutil
 import sys
-import warnings
 from collections import defaultdict
 from importlib import import_module
 
@@ -87,16 +86,6 @@ MODEL_RESOURCES = [
         'apache/beam/model/fnexecution/v1/standard_coders.yaml')),
 ]
 
-MOCK_APIS_ROOT = os.path.join(PROJECT_ROOT, '.test-infra', 'mock-apis', 'src', 'main', 'python')
-MOCK_APIS_GEN_PATH = os.path.join('apache_beam', 'io', 'mock_apis', 'proto', 'echo', 'v1')
-MOCK_APIS_GEN_LIST = [
-    os.path.join(MOCK_APIS_GEN_PATH, 'echo_pb2_grpc.py'),
-    os.path.join(MOCK_APIS_GEN_PATH, 'echo_pb2.py'),
-]
-
-MOCK_APIS_SOURCE = [os.path.join(MOCK_APIS_ROOT, k) for k in MOCK_APIS_GEN_LIST]
-MOCK_APIS_DEST = [os.path.join(PYTHON_SDK_ROOT, k) for k in MOCK_APIS_GEN_LIST]
-
 
 class PythonPath(object):
   def __init__(self, path: str, front: bool = False):
@@ -118,7 +107,6 @@ class PythonPath(object):
       return
 
     sys.path = self._sys_path
-
 
 
 def generate_urn_files(out_dir, api_path):
@@ -543,24 +531,8 @@ def generate_proto_files(force=False):
     generate_init_files_full(PYTHON_OUTPUT_PATH)
 
 
-def copy_mock_apis_files():
-  for src, dst in zip(MOCK_APIS_SOURCE, MOCK_APIS_DEST):
-    if os.path.exists(dst):
-      continue
-
-    if not os.path.exists(src):
-      warnings.warn(f"source does not exist: {src}, skipping...")
-      continue
-
-    dst_dir = os.path.dirname(dst)
-    os.makedirs(dst_dir, exist_ok=True)
-
-    shutil.copy2(src, dst)
-
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--no-force', dest='force', action='store_false')
   args = parser.parse_args()
   generate_proto_files(force=args.force)
-  copy_mock_apis_files()

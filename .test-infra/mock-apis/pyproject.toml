@@ -21,8 +21,9 @@ version = "0.1.1"
 authors = ["Ritesh Ghorse <riteshghorse@gmail.com>, Damon Douglas <>"]
 license = "Apache-2.0"
 description = ""
+readme = "README.md"
 packages = [
-    { include = "proto" }
+    { include = "src/main/python/"}
 ]
 
 [tool.poetry.dependencies]
