@@ -113,6 +113,14 @@ func constructSelectStatement(t reflect.Type, tagKey string, table string) strin
 type QueryOptions struct {
 	// UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
 	UseStandardSQL bool
+
+	// Parameters are positional or named replacement values put into the query.
+	Parameters []bigquery.QueryParameter
+
+	// DefaultProjectID and DefaultDatasetID allow for unqualified table identifiers
+	// to be used in queries. DefaultDatasetID must be set if DefaultProjectId is set.
+	DefaultProjectID string
+	DefaultDatasetID string
 }
 
 // UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
@@ -166,6 +174,9 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 	if !f.Options.UseStandardSQL {
 		q.UseLegacySQL = true
 	}
+	q.DefaultProjectID = f.Options.DefaultProjectID
+	q.DefaultDatasetID = f.Options.DefaultDatasetID
+	q.Parameters = f.Options.Parameters
 
 	it, err := q.Read(ctx)
 	if err != nil {
