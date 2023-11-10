@@ -17,7 +17,7 @@ with beam.Pipeline() as p:
           # {"text": "This is a third test"},
           # {"text": "This is a fourth test"}
           {
-              'text': "Hello word", 'label': '1'
+              'text': "Hello word", 'label': '10'
           }
       ]))
   # (

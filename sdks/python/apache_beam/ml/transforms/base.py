@@ -65,13 +65,26 @@ class ArtifactMode(object):
 
 
 # TODO: Change name of the class to something more meaningful.
-class PTransformInfo(object):
-  def get_ptransform_for_processing(self) -> Callable:
-    raise NotImplementedError
+
+
+# BaseOperation and EmbeddingsManager are inheriting this class.
+class PTransformManager(metaclass=abc.ABCMeta):
+  @abc.abstractmethod
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    """
+    Returns a PTransform that can be used to process the data.
+    """
+
+  def requires_chaining(self):
+    """
+    Returns True if the data processing transforms needs to be
+    chained within the respective PTransform.
+    """
+    return True
 
 
 class BaseOperation(Generic[OperationInputT, OperationOutputT],
-                    PTransformInfo,
+                    PTransformManager,
                     abc.ABC):
   def __init__(self, columns: List[str]) -> None:
     """
@@ -140,9 +153,6 @@ class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
     """
     Append transforms to the ProcessHandler.
     """
-
-  def requires_chaining(self):
-    return True
 
 
 # Create abstraction layer for how the MLTransform can split the transforms
@@ -262,8 +272,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         if hasattr(ptransform_list[i], 'artifact_mode'):
           ptransform_list[i].artifact_mode = self._artifact_mode
 
-    for i in range(10):
-      print(ptransform_list)
     for ptransform in ptransform_list:
       pcoll = pcoll | ptransform
 
@@ -318,7 +326,7 @@ class MLTransformMetricsUsage(beam.PTransform):
         | beam.Map(lambda _: _increment_counters()))
 
 
-class EmbeddingConfig(PTransformInfo):
+class EmbeddingsManager(PTransformManager):
   def __init__(
       self,
       device: str = 'CPU',
@@ -338,25 +346,21 @@ class EmbeddingConfig(PTransformInfo):
     self.kwargs = kwargs
     self.columns = columns
 
+  @abc.abstractmethod
   def get_model_handler(self) -> ModelHandler:
     """
     Return framework specific model handler.
     """
 
-  def get_tokenizer(self):
-    """
-    Return tokenizer to tokenize texts
-    """
-
   def requires_chaining(self):
+    # each embedding config requires a separate PTransform. so no chaining.
     return False
 
 
-# TODO: Better name?
 class TransformsPartitioner:
   def __init__(
       self,
-      transforms: List[Union[BaseOperation, EmbeddingConfig]],
+      transforms: List[Union[BaseOperation, EmbeddingsManager]],
       artifact_location,
       artifact_mode):
     self.transforms = transforms
@@ -373,10 +377,14 @@ class TransformsPartitioner:
     current_ptransform = None
     ptransform_list = []
     for transform in self.transforms:
-      # if hasattr(transform, 'get_ptransform_for_processing'):
-      #   raise NotImplementedError
+      if not isinstance(transform, PTransformManager):
+        raise RuntimeError(
+            'Transforms must inherit of PTransformManager class and '
+            'implement get_ptransform_for_processing() method.')
+      # for each instance of PTransform, create a new artifact location
       current_ptransform = transform.get_ptransform_for_processing(
-          artifact_location=self._parent_artifact_location,
+          artifact_location=os.path.join(
+              self._parent_artifact_location, uuid.uuid4().hex)[:6],
           artifact_mode=self.artifact_mode)
       if (type(current_ptransform) != type(previous_ptransform) or
           not transform.requires_chaining()):
@@ -404,7 +412,7 @@ class TransformsPartitioner:
 
 
 class TextEmbeddingHandler(ModelHandler):
-  def __init__(self, embedding_config: EmbeddingConfig):
+  def __init__(self, embedding_config: EmbeddingsManager):
     self.embedding_config = embedding_config
     self._underlying = self.embedding_config.get_model_handler()
     # these are the columns on which embeddings should be worked on.

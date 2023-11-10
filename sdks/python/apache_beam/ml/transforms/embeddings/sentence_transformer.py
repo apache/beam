@@ -21,7 +21,7 @@ from typing import Callable
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
-from apache_beam.ml.transforms.base import EmbeddingConfig
+from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import TextEmbeddingHandler
 
 from sentence_transformers import SentenceTransformer
@@ -31,7 +31,7 @@ def inference_fn(batch, model, *args, **kwargs):
   return model.encode(batch)
 
 
-class SentenceTransformerEmbeddings(EmbeddingConfig):
+class SentenceTransformerEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_uri: str,
