@@ -52,7 +52,7 @@ jobs:
   beam_LoadTests_Java_GBK_SparkStructuredStreaming_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java GBK SparkStructuredStreaming Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100

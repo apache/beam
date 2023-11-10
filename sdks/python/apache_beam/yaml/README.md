@@ -483,7 +483,7 @@ The Beam yaml parser is currently included as part of the Apache Beam Python SDK
 This can be installed (e.g. within a virtual environment) as
 
 ```
-pip install apache_beam
+pip install apache_beam[yaml,gcp]
 ```
 
 In addition, several of the provided transforms (such as SQL) are implemented

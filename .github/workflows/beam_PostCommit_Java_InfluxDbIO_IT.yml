@@ -20,6 +20,8 @@ name: PostCommit Java InfluxDbIO Integration Test
 on:
   schedule:
     - cron: '0 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -58,8 +60,9 @@ jobs:
         job_name: [beam_PostCommit_Java_InfluxDbIO_IT]
         job_phrase: [Run Java InfluxDbIO_IT]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Java InfluxDbIO_IT'
     steps:
       - uses: actions/checkout@v3

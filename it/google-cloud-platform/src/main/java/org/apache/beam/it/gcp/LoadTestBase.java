@@ -516,20 +516,20 @@ public abstract class LoadTestBase {
 
     public abstract @Nullable String outputPCollectionV2();
 
-    public static MetricsConfiguration.Builder builder() {
+    public static Builder builder() {
       return new AutoValue_LoadTestBase_MetricsConfiguration.Builder();
     }
 
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract MetricsConfiguration.Builder setInputPCollection(@Nullable String value);
+      public abstract Builder setInputPCollection(@Nullable String value);
 
-      public abstract MetricsConfiguration.Builder setInputPCollectionV2(@Nullable String value);
+      public abstract Builder setInputPCollectionV2(@Nullable String value);
 
-      public abstract MetricsConfiguration.Builder setOutputPCollection(@Nullable String value);
+      public abstract Builder setOutputPCollection(@Nullable String value);
 
-      public abstract MetricsConfiguration.Builder setOutputPCollectionV2(@Nullable String value);
+      public abstract Builder setOutputPCollectionV2(@Nullable String value);
 
       public abstract MetricsConfiguration build();
     }

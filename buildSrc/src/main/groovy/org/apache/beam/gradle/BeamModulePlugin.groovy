@@ -824,7 +824,7 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
-        json_org                                    : "org.json:json:20230618", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
+        json_org                                    : "org.json:json:20231013", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
@@ -970,7 +970,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def java21Home = project.findProperty("java21Home")
         options.fork = true
         options.forkOptions.javaHome = java21Home as File
-        options.compilerArgs += ['-Xlint:-path']
+        options.compilerArgs += ['-Xlint:-path', '-Xlint:-this-escape']
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
@@ -1543,7 +1543,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (project.hasProperty('testJavaVersion')) {
+      if (['11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
@@ -2276,6 +2276,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
+      // Workaround to fix spotless groovy and groovyGradle tasks use the same intermediate dir,
+      // until Beam no longer build on Java8 and can upgrade spotless plugin.
+      project.tasks.spotlessGroovy.mustRunAfter project.tasks.spotlessGroovyGradle
     }
 
     // containerImageName returns a configurable container image name, by default a

@@ -555,19 +555,16 @@ The following should be confirmed:
 
 ### Run build_release_candidate GitHub Action to create a release candidate
 
-Note: This step is partially automated (in progress), so part of the RC
-creation is done by GitHub Actions and the rest is done by a script. You don't
-need to wait for the action to complete to start running the script.
-
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
 
 **The action will:**
 
 1. Clone the repo at the selected RC tag.
 2. Run gradle publish to push java artifacts into Maven staging repo.
-3. Stage SDK docker images to [docker hub Apache
+3. Build and push java and python source distribution into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+4. Stage SDK docker images to [docker hub Apache
    organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
-4. Build javadoc, pydoc, typedocs for a PR to update beam-site.
+5. Build javadoc, pydoc, typedocs for a PR to update beam-site.
     - **NOTE**: Do not merge this PR until after an RC has been approved (see
       "Finalize the Release").
 
@@ -585,22 +582,23 @@ with tags: `${RELEASE_VERSION}_rc{RC_NUM}`
 
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
+    RC_TAG=${RELEASE_VERSION}_rc{RC_NUM}
     for pyver in 3.8 3.9 3.10 3.11; do
       docker run --rm --entrypoint sh \
-          apache/beam_python${pyver}_sdk:2.51.0rc1 \
+          apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
     for javaver in 8 11 17; do
       docker run --rm --entrypoint sh \
-          apache/beam_java${pyver}_sdk:2.51.0rc1 \
+          apache/beam_java${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
 And you may choose to log in to the containers and inspect:
 
       docker run --rm -it --entrypoint=/bin/bash \
-        apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
+        apache/beam_java${ver}_sdk:${RC_TAG}
       ls -al /opt/apache/beam/third_party_licenses/
 
 ### Publish Java staging artifacts (manual)
@@ -623,17 +621,9 @@ This step uploads artifacts such as `apache-beam-${RELEASE_VERSION}rc${RC_NUM}`
 to PyPI, so the RC artifacts can be depended upon directly by consumers, for
 ease of RC verification.
 
-**Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
+**Action** [deploy_release_candidate_pypi](https://github.com/apache/beam/actions/workflows/deploy_release_candidate_pypi.yml) (click `run workflow`)
 
-**Usage**
-
-		./release/src/main/scripts/deploy_release_candidate_pypi.sh \
-		    --release "${RELEASE_VERSION}" \
-		    --rc "${RC_NUM}" \
-		    --user "${GITHUB_USER}" \
-		    --deploy
-
-**The script will:**
+**The Action will:**
 
 Download previously build python binary artifacts Deploy release candidate
 to PyPI with an `rc` suffix.
@@ -645,19 +635,13 @@ __Attention:__ Verify that:
       - [ ] Release source's zip published
       - [ ] Signatures and hashes do not need to be uploaded
 
-You can do a dry run by omitting the `--deploy` flag. Then it will only
-download the release candidate binaries. If it looks good, rerun it with
-`--deploy`.
-
-See the source of the script for more details or to run commands manually in
-case of a problem.
-
 ### Propose pull requests for website updates
 
 Beam publishes API reference manuals for each release on the website.  For Java
 and Python SDKs, that’s Javadoc and PyDoc, respectively.  The final step of
 building the candidate is to propose website pull requests that update these
-manuals.
+manuals. The first pr will get created by the build_release_candidate action,
+you will need to create the second one manually
 
 Merge the pull requests only after finalizing the release.  To avoid invalid
 redirects for the 'current' version, merge these PRs in the order listed.  Once
@@ -801,8 +785,8 @@ You can (optionally) also do additional verification by:
   signature/checksum files of Java artifacts may not contain filenames. Hence
   you might need to compare checksums/signatures manually or modify the files by
   appending the filenames.)
-- [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc
-  apache-beam-1.2.3-python.zip`)
+- [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.tar.gz.asc
+  apache-beam-1.2.3-python.tar.gz`)
 - [ ] `grep` for legal headers in each file.
 - [ ] Run all jenkins suites and include links to passing tests in the voting
   email.
@@ -837,11 +821,10 @@ template; please adjust as you see fit.
 
     The complete staging area is available for your review, which includes:
     * GitHub Release notes [1],
-    * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
+    * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF (D20316F712213422 if automated) [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
     * Go artifacts and documentation are available at pkg.go.dev [9]
     * Validation sheet with a tab for 1.2.3 release to help with validation [10].
@@ -850,7 +833,7 @@ template; please adjust as you see fit.
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
-    For guidelines on how to try the release in your projects, check out our blog post at /blog/validate-beam-release/.
+    For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
 
     Thanks,
     Release Manager
@@ -1018,14 +1001,14 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   * **Verify the hashes**
 
     ```
-    sha512sum -c apache-beam-2.5.0-python.zip.sha512
-    sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
+    sha512sum -c apache-beam-2.5.0-python.tar.gz.sha512
+    sha512sum -c apache-beam-2.5.0-source-release.tar.gz.sha512
     ```
   * **Build SDK**
 
     ```
     sudo apt-get install unzip
-    unzip apache-beam-2.5.0-source-release.zip
+    unzip apache-beam-2.5.0-source-release.tar.gz
     python setup.py sdist
     ```
   * **Setup virtual environment**

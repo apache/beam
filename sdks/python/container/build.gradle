@@ -25,7 +25,7 @@ int max_python_version=11
 
 configurations {
   sdkSourceTarball
-  sdkHarnessLauncher
+  pythonHarnessLauncher
 }
 
 dependencies {
@@ -82,5 +82,5 @@ tasks.register("generatePythonRequirementsAll") {
 }
 
 artifacts {
-  sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
+  pythonHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
 }

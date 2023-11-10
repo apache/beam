@@ -317,47 +317,88 @@ public class WindmillStateReader {
     }
   }
 
-  public void startBatchAndBlock() {
-    // First, drain work out of the pending lookups into a set. These will be the items we fetch.
-    HashSet<StateTag<?>> toFetch = Sets.newHashSet();
-    try {
-      List<StateTag<?>> multimapTags = Lists.newArrayList();
-      while (!pendingLookups.isEmpty()) {
-        StateTag<?> stateTag = pendingLookups.poll();
-        if (stateTag == null) {
-          break;
-        }
-        if (stateTag.getKind() == Kind.MULTIMAP_ALL
-            || stateTag.getKind() == Kind.MULTIMAP_SINGLE_ENTRY) {
-          multimapTags.add(stateTag);
-          continue;
-        }
-        if (!toFetch.add(stateTag)) {
-          throw new IllegalStateException("Duplicate tags being fetched.");
-        }
+  private void delayUnbatchableOrderedListFetches(
+      List<StateTag<?>> orderedListTags, HashSet<StateTag<?>> toFetch) {
+    // Each KeyedGetDataRequest can have at most 1 TagOrderedListRequest per <tag, state_family>
+    // pair, thus we need to delay unbatchable ordered list requests of the same stateFamily and tag
+    // into later batches.
+
+    Map<String, Map<ByteString, List<StateTag<?>>>> groupedTags =
+        orderedListTags.stream()
+            .collect(
+                Collectors.groupingBy(
+                    StateTag::getStateFamily, Collectors.groupingBy(StateTag::getTag)));
+
+    for (Map<ByteString, List<StateTag<?>>> familyTags : groupedTags.values()) {
+      for (List<StateTag<?>> tags : familyTags.values()) {
+        StateTag<?> first = tags.remove(0);
+        toFetch.add(first);
+        // Add the rest of the reads for the state family and tags back to pending.
+        pendingLookups.addAll(tags);
       }
-      if (!multimapTags.isEmpty()) {
-        delayUnbatchableMultimapFetches(multimapTags, toFetch);
+    }
+  }
+
+  private HashSet<StateTag<?>> buildFetchSet() {
+    HashSet<StateTag<?>> toFetch = Sets.newHashSet();
+    List<StateTag<?>> multimapTags = Lists.newArrayList();
+    List<StateTag<?>> orderedListTags = Lists.newArrayList();
+    while (!pendingLookups.isEmpty()) {
+      StateTag<?> stateTag = pendingLookups.poll();
+      if (stateTag == null) {
+        break;
+      }
+      if (stateTag.getKind() == Kind.MULTIMAP_ALL
+          || stateTag.getKind() == Kind.MULTIMAP_SINGLE_ENTRY) {
+        multimapTags.add(stateTag);
+        continue;
+      }
+      if (stateTag.getKind() == Kind.ORDERED_LIST) {
+        orderedListTags.add(stateTag);
+        continue;
       }
 
-      // If we failed to drain anything, some other thread pulled it off the queue. We have no work
-      // to do.
+      if (!toFetch.add(stateTag)) {
+        throw new IllegalStateException("Duplicate tags being fetched.");
+      }
+    }
+    if (!multimapTags.isEmpty()) {
+      delayUnbatchableMultimapFetches(multimapTags, toFetch);
+    }
+    if (!orderedListTags.isEmpty()) {
+      delayUnbatchableOrderedListFetches(orderedListTags, toFetch);
+    }
+    return toFetch;
+  }
+
+  public void performReads() {
+    while (true) {
+      HashSet<StateTag<?>> toFetch = buildFetchSet();
       if (toFetch.isEmpty()) {
         return;
       }
-
-      KeyedGetDataResponse response = tryGetDataFromWindmill(toFetch);
-
-      // Removes tags from toFetch as they are processed.
-      consumeResponse(response, toFetch);
-    } catch (Exception e) {
-      // Set up all the remaining futures for this key to throw an exception. This ensures that if
-      // the exception is caught that all futures have been completed and do not block.
-      for (StateTag<?> stateTag : toFetch) {
-        waiting.get(stateTag).future.setException(e);
+      try {
+        KeyedGetDataResponse response = tryGetDataFromWindmill(toFetch);
+        // Removes tags from toFetch as they are processed.
+        consumeResponse(response, toFetch);
+        if (!toFetch.isEmpty()) {
+          throw new IllegalStateException(
+              "Didn't receive responses for all pending fetches. Missing: " + toFetch);
+        }
+      } catch (Exception e) {
+        // Set up all the remaining futures for this key to throw an exception. This ensures that if
+        // the exception is caught that all futures have been completed and do not block.
+        for (StateTag<?> stateTag : toFetch) {
+          waiting.get(stateTag).future.setException(e);
+        }
+        // Also setup futures that may have been added back if they were not batched.
+        while (true) {
+          @Nullable StateTag<?> stateTag = pendingLookups.poll();
+          if (stateTag == null) break;
+          waiting.get(stateTag).future.setException(e);
+        }
+        throw new RuntimeException(e);
       }
-
-      throw new RuntimeException(e);
     }
   }
 
@@ -642,11 +683,6 @@ public class WindmillStateReader {
         }
         consumeMultimapSingleEntry(entry, entryTag);
       }
-    }
-
-    if (!toFetch.isEmpty()) {
-      throw new IllegalStateException(
-          "Didn't receive responses for all pending fetches. Missing: " + toFetch);
     }
   }
 

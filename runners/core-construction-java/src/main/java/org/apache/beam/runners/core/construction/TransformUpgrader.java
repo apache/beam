@@ -187,6 +187,7 @@ public class TransformUpgrader implements AutoCloseable {
             .setComponents(runnerAPIpipeline.getComponents())
             .setTransform(ptransformBuilder.build())
             .setNamespace(UPGRADE_NAMESPACE)
+            .addAllRequirements(runnerAPIpipeline.getRequirementsList())
             .build();
 
     ExpansionApi.ExpansionResponse response =

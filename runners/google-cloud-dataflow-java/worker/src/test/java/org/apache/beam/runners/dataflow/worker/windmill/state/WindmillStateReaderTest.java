@@ -87,6 +87,8 @@ public class WindmillStateReaderTest {
   private static final ByteString STATE_KEY_2 = ByteString.copyFromUtf8("key2");
   private static final String STATE_FAMILY = "family";
 
+  private static final String STATE_FAMILY2 = "family2";
+
   private static void assertNoReader(Object obj) throws Exception {
     WindmillStateTestUtils.assertNoReference(obj, WindmillStateReader.class);
   }
@@ -993,15 +995,19 @@ public class WindmillStateReaderTest {
   public void testReadSortedListRanges() throws Exception {
     Future<Iterable<TimestampedValue<Integer>>> future1 =
         underTest.orderedListFuture(Range.closedOpen(0L, 5L), STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    // Should be put into a subsequent batch as it has the same key and state family.
     Future<Iterable<TimestampedValue<Integer>>> future2 =
         underTest.orderedListFuture(Range.closedOpen(5L, 6L), STATE_KEY_1, STATE_FAMILY, INT_CODER);
     Future<Iterable<TimestampedValue<Integer>>> future3 =
         underTest.orderedListFuture(
-            Range.closedOpen(6L, 10L), STATE_KEY_1, STATE_FAMILY, INT_CODER);
+            Range.closedOpen(6L, 10L), STATE_KEY_2, STATE_FAMILY, INT_CODER);
+    Future<Iterable<TimestampedValue<Integer>>> future4 =
+        underTest.orderedListFuture(
+            Range.closedOpen(11L, 12L), STATE_KEY_2, STATE_FAMILY2, INT_CODER);
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     // Fetch the entire list.
-    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+    Windmill.KeyedGetDataRequest.Builder expectedRequest1 =
         Windmill.KeyedGetDataRequest.newBuilder()
             .setKey(DATA_KEY)
             .setShardingKey(SHARDING_KEY)
@@ -1015,18 +1021,31 @@ public class WindmillStateReaderTest {
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES))
             .addSortedListsToFetch(
                 Windmill.TagSortedListFetchRequest.newBuilder()
-                    .setTag(STATE_KEY_1)
+                    .setTag(STATE_KEY_2)
                     .setStateFamily(STATE_FAMILY)
-                    .addFetchRanges(SortedListRange.newBuilder().setStart(5).setLimit(6))
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(6).setLimit(10))
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES))
+            .addSortedListsToFetch(
+                Windmill.TagSortedListFetchRequest.newBuilder()
+                    .setTag(STATE_KEY_2)
+                    .setStateFamily(STATE_FAMILY2)
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(11).setLimit(12))
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
             .addSortedListsToFetch(
                 Windmill.TagSortedListFetchRequest.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
-                    .addFetchRanges(SortedListRange.newBuilder().setStart(6).setLimit(10))
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(5).setLimit(6))
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
-    Windmill.KeyedGetDataResponse.Builder response =
+    Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setKey(DATA_KEY)
             .addTagSortedLists(
@@ -1038,41 +1057,41 @@ public class WindmillStateReaderTest {
                     .addFetchRanges(SortedListRange.newBuilder().setStart(0).setLimit(5)))
             .addTagSortedLists(
                 Windmill.TagSortedListFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_2)
+                    .setStateFamily(STATE_FAMILY)
+                    .addEntries(
+                        SortedListEntry.newBuilder().setValue(intData(8)).setSortKey(8000).setId(8))
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(6).setLimit(10)))
+            .addTagSortedLists(
+                Windmill.TagSortedListFetchResponse.newBuilder()
+                    .setTag(STATE_KEY_2)
+                    .setStateFamily(STATE_FAMILY2)
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(11).setLimit(12)));
+
+    Windmill.KeyedGetDataResponse.Builder response2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagSortedLists(
+                Windmill.TagSortedListFetchResponse.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addEntries(
                         SortedListEntry.newBuilder().setValue(intData(6)).setSortKey(6000).setId(5))
                     .addEntries(
                         SortedListEntry.newBuilder().setValue(intData(7)).setSortKey(7000).setId(7))
-                    .addFetchRanges(SortedListRange.newBuilder().setStart(5).setLimit(6)))
-            .addTagSortedLists(
-                Windmill.TagSortedListFetchResponse.newBuilder()
-                    .setTag(STATE_KEY_1)
-                    .setStateFamily(STATE_FAMILY)
-                    .addEntries(
-                        SortedListEntry.newBuilder().setValue(intData(8)).setSortKey(8000).setId(8))
-                    .addFetchRanges(SortedListRange.newBuilder().setStart(6).setLimit(10)));
+                    .addFetchRanges(SortedListRange.newBuilder().setStart(5).setLimit(6)));
 
-    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest.build()))
-        .thenReturn(response.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest1.build()))
+        .thenReturn(response1.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest2.build()))
+        .thenReturn(response2.build());
 
-    {
-      Iterable<TimestampedValue<Integer>> results = future1.get();
-      Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
-      for (TimestampedValue<Integer> unused : results) {
-        // Iterate over the results to force loading all the pages.
-      }
-      Mockito.verifyNoMoreInteractions(mockWindmill);
-      assertThat(results, Matchers.contains(TimestampedValue.of(5, Instant.ofEpochMilli(5))));
-      assertNoReader(future1);
-    }
-
+    // Trigger reads of batching. By fetching future2 which is not part of the first batch we ensure
+    // that all batches are fetched.
     {
       Iterable<TimestampedValue<Integer>> results = future2.get();
-      Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
-      for (TimestampedValue<Integer> unused : results) {
-        // Iterate over the results to force loading all the pages.
-      }
+      Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
+      Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
       Mockito.verifyNoMoreInteractions(mockWindmill);
       assertThat(
           results,
@@ -1083,14 +1102,21 @@ public class WindmillStateReaderTest {
     }
 
     {
+      Iterable<TimestampedValue<Integer>> results = future1.get();
+      assertThat(results, Matchers.contains(TimestampedValue.of(5, Instant.ofEpochMilli(5))));
+      assertNoReader(future1);
+    }
+
+    {
       Iterable<TimestampedValue<Integer>> results = future3.get();
-      Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
-      for (TimestampedValue<Integer> unused : results) {
-        // Iterate over the results to force loading all the pages.
-      }
-      Mockito.verifyNoMoreInteractions(mockWindmill);
       assertThat(results, Matchers.contains(TimestampedValue.of(8, Instant.ofEpochMilli(8))));
       assertNoReader(future3);
+    }
+
+    {
+      Iterable<TimestampedValue<Integer>> results = future4.get();
+      assertThat(results, Matchers.emptyIterable());
+      assertNoReader(future4);
     }
   }
 
