@@ -44,6 +44,7 @@ from typing import Union
 
 import tensorflow as tf
 import tensorflow_transform as tft
+import apache_beam as beam
 from apache_beam.ml.transforms.base import BaseOperation
 from tensorflow_transform import common_types
 

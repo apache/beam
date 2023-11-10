@@ -11,23 +11,24 @@ model_name = 'paraphrase-multilingual-mpnet-base-v2'
 with beam.Pipeline() as p:
   embedding_config = SentenceTransformerEmbeddings(model_name, columns=['text'])
   data = (
-      p | "CreateData" >> beam.Create([
-          # {"text": "This is a test"},
-          # {"text": "This is another test"},
-          # {"text": "This is a third test"},
-          # {"text": "This is a fourth test"}
-          {
-              'text': "Hello word", 'label': '10'
-          }
-      ]))
-  # (
-  # 	data
-  # 	| "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
-  # 	with_transform(embedding_config
-  # 								 ).with_transform(ScaleTo01(columns=['text']))
-  # 	| beam.Map(print)
-  # )
+      p | "CreateData" >> beam.Create([{
+          "text": "This is a test"
+      }, {
+          "text": "This is another test"
+      }, {
+          "text": "This is a third test"
+      }, {
+          "text": "This is a fourth test"
+      }, {
+          'text': "Hello word", 'label': '10'
+      }]))
   (
       data
-      | MLTransform(read_artifact_location=artifact_location)
+      | "MLTransform" >>
+      MLTransform(write_artifact_location=artifact_location).with_transform(
+          embedding_config).with_transform(ScaleTo01(columns=['text']))
       | beam.Map(print))
+#   (
+#       data
+#       | MLTransform(read_artifact_location=artifact_location)
+#       | beam.Map(print))

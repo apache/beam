@@ -64,9 +64,6 @@ class ArtifactMode(object):
   CONSUME = 'consume'
 
 
-# TODO: Change name of the class to something more meaningful.
-
-
 # BaseOperation and EmbeddingsManager are inheriting this class.
 class PTransformManager(metaclass=abc.ABCMeta):
   @abc.abstractmethod
@@ -104,15 +101,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     Args:
       inputs: input data.
     """
-
-  @abc.abstractmethod
-  def get_artifacts(
-      self, data: OperationInputT,
-      output_column_prefix: str) -> Optional[Dict[str, OperationOutputT]]:
-    """
-    If the operation generates any artifacts, they can be returned from this
-    method.
-    """
     pass
 
   def __call__(self, data: OperationInputT,
@@ -122,9 +110,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     This method will invoke the apply() method of the class.
     """
     transformed_data = self.apply_transform(data, output_column_name)
-    artifacts = self.get_artifacts(data, output_column_name)
-    if artifacts:
-      transformed_data = {**transformed_data, **artifacts}
     return transformed_data
 
   def get_counter(self):
@@ -384,7 +369,7 @@ class TransformsPartitioner:
       # for each instance of PTransform, create a new artifact location
       current_ptransform = transform.get_ptransform_for_processing(
           artifact_location=os.path.join(
-              self._parent_artifact_location, uuid.uuid4().hex)[:6],
+              self._parent_artifact_location, uuid.uuid4().hex[:6]),
           artifact_mode=self.artifact_mode)
       if (type(current_ptransform) != type(previous_ptransform) or
           not transform.requires_chaining()):
@@ -421,8 +406,8 @@ class TextEmbeddingHandler(ModelHandler):
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     # Once unbatched, remove the batch restriction.
     return {
-        'min_batch_size': 1,
-        'max_batch_size': 1,
+        'min_batch_size': 2,
+        'max_batch_size': 5,
     }
 
   def load_model(self):
@@ -439,6 +424,7 @@ class TextEmbeddingHandler(ModelHandler):
     expect batch to be a list[Dict[str, Any]]
     """
     # Works because we restricted the batch size to be 1.
+    batch_len = len(batch)
     dict_batch = _convert_list_of_dicts_to_dict_of_lists(list_of_dicts=batch)
     result = collections.defaultdict(list)
     for key, batch in dict_batch.items():
@@ -446,11 +432,12 @@ class TextEmbeddingHandler(ModelHandler):
         prediction = self._underlying.run_inference(
             batch=batch, model=model, inference_args=inference_args)
         if isinstance(prediction, np.ndarray):
-          prediction = prediction.tolist()[0]
+          prediction = prediction.tolist()
           result[key] = prediction
       else:
         result[key] = batch
-    # unbatch and return
+    result = _convert_dict_of_lists_to_dict(
+        dict_of_lists=result, batch_length=batch_len)
     return result
 
 
@@ -461,3 +448,12 @@ def _convert_list_of_dicts_to_dict_of_lists(
     for key, value in d.items():
       keys_to_element_list[key].append(value)
   return keys_to_element_list
+
+
+def _convert_dict_of_lists_to_dict(
+    dict_of_lists: Dict[str, List[Any]], batch_length: int) -> Dict[str, Any]:
+  result = [{} for _ in range(batch_length)]
+  for key, values in dict_of_lists.items():
+    for i in range(len(values)):
+      result[i][key] = values[i]
+  return result
