@@ -403,13 +403,6 @@ class TextEmbeddingHandler(ModelHandler):
     # these are the columns on which embeddings should be worked on.
     self.columns = self.embedding_config.columns
 
-  def batch_elements_kwargs(self) -> Mapping[str, Any]:
-    # Once unbatched, remove the batch restriction.
-    return {
-        'min_batch_size': 2,
-        'max_batch_size': 5,
-    }
-
   def load_model(self):
     model = self._underlying._model_class(self._underlying._model_uri)
     return model
