@@ -75,7 +75,7 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getCheckStopReadingFn", "check_stop_reading_fn");
   }
 
-  // A mapping from Wrote transform builder methods to the corresponding schema fields in
+  // A mapping from Write transform builder methods to the corresponding schema fields in
   // KafkaIOTranslation.
   static final Map<String, String> WRITE_TRANSFORM_SCHEMA_MAPPING = new HashMap<>();
 
@@ -139,11 +139,13 @@ public class KafkaIOTranslationTest {
       assertTrue(
           "Method "
               + getMethodName
-              + " will not be tracked when upgrading the 'KafkaIO.Read' transform. Please update 'KafkaIOTranslation.KafkaIOReadWithMetadataTranslator' to track the new method and update this test.",
+              + " will not be tracked when upgrading the 'KafkaIO.Read' transform. Please update "
+              + "'KafkaIOTranslation.KafkaIOReadWithMetadataTranslator' to track the new method "
+              + "and update this test.",
           READ_TRANSFORM_SCHEMA_MAPPING.keySet().contains(getMethodName));
     }
 
-    // Conforming that all fields mentioned in `readTransformMethodNameToSchemaFieldMapping` are
+    // Confirming that all fields mentioned in `readTransformMethodNameToSchemaFieldMapping` are
     // actually available in the schema.
     READ_TRANSFORM_SCHEMA_MAPPING.values().stream()
         .forEach(
@@ -151,7 +153,8 @@ public class KafkaIOTranslationTest {
               assertTrue(
                   "Field name "
                       + fieldName
-                      + " was not found in the read transform schema defined in KafkaIOReadWithMetadataTranslator.",
+                      + " was not found in the read transform schema defined in "
+                      + "KafkaIOReadWithMetadataTranslator.",
                   KafkaIOReadWithMetadataTranslator.schema.getFieldNames().contains(fieldName));
             });
   }
@@ -204,11 +207,13 @@ public class KafkaIOTranslationTest {
       assertTrue(
           "Method "
               + getMethodName
-              + " will not be tracked when upgrading the 'KafkaIO.Write' transform. Please update 'KafkaIOTranslation.KafkaIOWriteTranslator' to track the new method and update this test.",
+              + " will not be tracked when upgrading the 'KafkaIO.Write' transform. Please update "
+              + "'KafkaIOTranslation.KafkaIOWriteTranslator' to track the new method and update "
+              + "this test.",
           WRITE_TRANSFORM_SCHEMA_MAPPING.keySet().contains(getMethodName));
     }
 
-    // Conforming that all fields mentioned in `readTransformMethodNameToSchemaFieldMapping` are
+    // Confirming that all fields mentioned in `writeTransformMethodNameToSchemaFieldMapping` are
     // actually available in the schema.
     WRITE_TRANSFORM_SCHEMA_MAPPING.values().stream()
         .forEach(
@@ -216,7 +221,8 @@ public class KafkaIOTranslationTest {
               assertTrue(
                   "Field name "
                       + fieldName
-                      + " was not found in the read transform schema defined in KafkaIOReadWithMetadataTranslator.",
+                      + " was not found in the write transform schema defined in "
+                      + "KafkaIOWriteWithMetadataTranslator.",
                   KafkaIOWriteTranslator.schema.getFieldNames().contains(fieldName));
             });
   }

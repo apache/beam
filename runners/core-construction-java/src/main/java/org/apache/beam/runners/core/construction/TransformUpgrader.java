@@ -34,9 +34,9 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -149,7 +149,7 @@ public class TransformUpgrader implements AutoCloseable {
           String transformId,
           Endpoints.ApiServiceDescriptor transformServiceEndpoint)
           throws IOException {
-    PTransform transformToUpgrade =
+    RunnerApi.PTransform transformToUpgrade =
         runnerAPIpipeline.getComponents().getTransformsMap().get(transformId);
     if (transformToUpgrade == null) {
       throw new IllegalArgumentException("Could not find a transform with the ID " + transformId);
@@ -256,7 +256,7 @@ public class TransformUpgrader implements AutoCloseable {
     recursivelyFindSubTransforms(
         transformId, runnerAPIpipeline.getComponents(), transformsToRemove);
 
-    Map<String, PTransform> updatedExpandedTransformMap =
+    Map<String, RunnerApi.PTransform> updatedExpandedTransformMap =
         expandedComponents.getTransformsMap().entrySet().stream()
             .filter(
                 entry -> {
@@ -269,7 +269,7 @@ public class TransformUpgrader implements AutoCloseable {
                     entry -> {
                       // Fix inputs
                       Map<String, String> inputsMap = entry.getValue().getInputsMap();
-                      PTransform.Builder transformBuilder = entry.getValue().toBuilder();
+                      RunnerApi.PTransform.Builder transformBuilder = entry.getValue().toBuilder();
                       if (!Collections.disjoint(inputsMap.values(), inputReplacements.keySet())) {
                         Map<String, String> updatedInputsMap = new HashMap<>();
                         for (Map.Entry<String, String> inputEntry : inputsMap.entrySet()) {
@@ -301,7 +301,7 @@ public class TransformUpgrader implements AutoCloseable {
   private static void recursivelyFindSubTransforms(
       String transformId, RunnerApi.Components components, List<String> results) {
     results.add(transformId);
-    PTransform transform = components.getTransformsMap().get(transformId);
+    RunnerApi.PTransform transform = components.getTransformsMap().get(transformId);
     if (transform == null) {
       throw new IllegalArgumentException("Could not find a transform with id " + transformId);
     }
@@ -351,8 +351,7 @@ public class TransformUpgrader implements AutoCloseable {
     "rawtypes",
     "EqualsIncompatibleType",
   })
-  public static @Nullable String findUpgradeURN(
-      org.apache.beam.sdk.transforms.PTransform transform) {
+  public static @Nullable String findUpgradeURN(PTransform transform) {
     for (TransformPayloadTranslatorRegistrar registrar :
         ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
 
