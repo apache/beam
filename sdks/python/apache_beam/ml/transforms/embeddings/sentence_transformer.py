@@ -20,6 +20,7 @@ from typing import Callable
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
+# HuggingFaceModelHandlerTensor requires both tensorflow and pytorch as imports.
 from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import TextEmbeddingHandler
@@ -36,20 +37,25 @@ def yield_elements(elements):
     yield element
 
 
+class SentenceTransformerModelHandler(HuggingFaceModelHandlerTensor):
+
+  # Loading the model is different for SentenceTransformer but
+  # rest of the huggingface model handler logic works.
+  def load_model(self):
+    return self._model_class(self.model_uri)
+
+
 class SentenceTransformerEmbeddings(EmbeddingsManager):
-  def __init__(
-      self,
-      model_uri: str,
-      model_class: Callable = SentenceTransformer,
-      **kwargs):
+  def __init__(self, model_uri: str, **kwargs):
 
     super().__init__(**kwargs)
     self.model_uri = model_uri
-    self.model_class = model_class
 
   def get_model_handler(self):
-    return HuggingFaceModelHandlerTensor(
-        model_class=self.model_class,
+    # TODO: try using PytorchModelHandlerTensor since SentenceTransformer
+    # is a pytorch model.
+    return SentenceTransformerModelHandler(
+        model_class=SentenceTransformer,
         model_uri=self.model_uri,
         device=self.device,
         inference_fn=inference_fn,

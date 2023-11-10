@@ -59,6 +59,24 @@ OperationInputT = TypeVar('OperationInputT')
 OperationOutputT = TypeVar('OperationOutputT')
 
 
+def _convert_list_of_dicts_to_dict_of_lists(
+    list_of_dicts) -> Dict[str, List[Any]]:
+  keys_to_element_list = collections.defaultdict(list)
+  for d in list_of_dicts:
+    for key, value in d.items():
+      keys_to_element_list[key].append(value)
+  return keys_to_element_list
+
+
+def _convert_dict_of_lists_to_dict(
+    dict_of_lists: Dict[str, List[Any]], batch_length: int) -> Dict[str, Any]:
+  result = [{} for _ in range(batch_length)]
+  for key, values in dict_of_lists.items():
+    for i in range(len(values)):
+      result[i][key] = values[i]
+  return result
+
+
 class ArtifactMode(object):
   PRODUCE = 'produce'
   CONSUME = 'consume'
@@ -337,9 +355,29 @@ class EmbeddingsManager(PTransformManager):
     Return framework specific model handler.
     """
 
+  def set_model_handler(self, model_handler: ModelHandler) -> None:
+    """
+    Set framework specific model handler.
+    """
+    self.model_handler = model_handler
+
   def requires_chaining(self):
     # each embedding config requires a separate PTransform. so no chaining.
     return False
+
+
+class TransformAttributeManager:
+  def save_attributes(self, artifact_location):
+    """
+    Save the attributes to json file using stdlib json.
+    """
+    raise NotImplementedError
+
+  def load_attributes(self, artifact_location):
+    """
+    Load the attributes from json file.
+    """
+    raise NotImplementedError
 
 
 class TransformsPartitioner:
@@ -396,15 +434,37 @@ class TransformsPartitioner:
       return jsonpickle.decode(f.read())
 
 
+# TODO: Should this prefixed with underscore?
 class TextEmbeddingHandler(ModelHandler):
+  """
+  A ModelHandler intended to be work on text inputs.
+
+  The inputs to the model handler are expected to be a list of dicts.
+
+  For example, if the original mode is used with RunInference to take a
+  PCollection[E] to a PCollection[P], this ModelHandler would take a
+  PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
+
+  TextEmbeddingHandler will accept an EmbeddingsManager instance, which
+  contains the details of the model to be loaded and the inference_fn to be
+  used. The purpose of TextEmbeddingHandler is to generate embeddings for
+  text inputs using the EmbeddingsManager instance.
+
+  If the input is not a text column, a RuntimeError will be raised.
+
+  This is an internal class and offers no backwards compatibility guarantees.
+
+  Args:
+    embedding_config: An EmbeddingsManager instance.
+  """
   def __init__(self, embedding_config: EmbeddingsManager):
     self.embedding_config = embedding_config
     self._underlying = self.embedding_config.get_model_handler()
-    # these are the columns on which embeddings should be worked on.
+    # these are the columns on which embeddings should be generated.
     self.columns = self.embedding_config.columns
 
   def load_model(self):
-    model = self._underlying._model_class(self._underlying._model_uri)
+    model = self._underlying.load_model()
     return model
 
   def run_inference(
@@ -414,7 +474,9 @@ class TextEmbeddingHandler(ModelHandler):
       inference_args: Optional[Dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
     """
-    expect batch to be a list[Dict[str, Any]]
+    Runs inference on a batch of text inputs. The inputs are expected to be
+    a list of dicts. Each dict should have the same keys, and the shape
+    should be of the same size for a single key across the batch.
     """
     # Works because we restricted the batch size to be 1.
     batch_len = len(batch)
@@ -422,31 +484,18 @@ class TextEmbeddingHandler(ModelHandler):
     result = collections.defaultdict(list)
     for key, batch in dict_batch.items():
       if key in self.columns:
+        if not isinstance(batch[0], (str, bytes)):
+          raise RuntimeError(
+              'Embeddings can only be generated on text columns.')
         prediction = self._underlying.run_inference(
             batch=batch, model=model, inference_args=inference_args)
         if isinstance(prediction, np.ndarray):
           prediction = prediction.tolist()
+          result[key] = prediction
+        else:
           result[key] = prediction
       else:
         result[key] = batch
     result = _convert_dict_of_lists_to_dict(
         dict_of_lists=result, batch_length=batch_len)
     return result
-
-
-def _convert_list_of_dicts_to_dict_of_lists(
-    list_of_dicts) -> Dict[str, List[Any]]:
-  keys_to_element_list = collections.defaultdict(list)
-  for d in list_of_dicts:
-    for key, value in d.items():
-      keys_to_element_list[key].append(value)
-  return keys_to_element_list
-
-
-def _convert_dict_of_lists_to_dict(
-    dict_of_lists: Dict[str, List[Any]], batch_length: int) -> Dict[str, Any]:
-  result = [{} for _ in range(batch_length)]
-  for key, values in dict_of_lists.items():
-    for i in range(len(values)):
-      result[i][key] = values[i]
-  return result
