@@ -228,6 +228,7 @@ if __name__ == '__main__':
       ], language_level=3),
       install_requires = [
         'crcmod>=1.7,<2.0',
+        'cython==' + REQUIRED_CYTHON_VERSION,
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
         # version. Pickles created with a new version of dill may not unpickle
