@@ -17,17 +17,21 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThrows;
 
 import java.net.URI;
+import org.apache.beam.io.requestresponse.CallTest.Request;
+import org.apache.beam.io.requestresponse.CallTest.Response;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,63 +43,90 @@ public class CacheTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void givenNonDeterministicCoder_UsingRedis_throwsError()
+  public void givenNonDeterministicCoder_readUsingRedis_throwsError()
       throws Coder.NonDeterministicException {
+    URI uri = URI.create("redis://localhost:6379");
     assertThrows(
-        "Request Coder is non-deterministic",
-        Coder.NonDeterministicException.class,
+        NonDeterministicException.class,
         () ->
-            Cache.usingRedis(
-                SerializableCoder.of(CallTest.Request.class),
-                StringUtf8Coder.of(),
-                new RedisClient(URI.create("redis://localhost:6379"))));
+            Cache.readUsingRedis(
+                new RedisClient(uri),
+                CallTest.NON_DETERMINISTIC_REQUEST_CODER,
+                CallTest.DETERMINISTIC_RESPONSE_CODER));
 
     assertThrows(
-        "Response Coder is non-deterministic",
-        Coder.NonDeterministicException.class,
+        NonDeterministicException.class,
         () ->
-            Cache.usingRedis(
-                StringUtf8Coder.of(),
-                CallTest.RESPONSE_CODER,
-                new RedisClient(URI.create("redis://localhost:6379"))));
+            Cache.readUsingRedis(
+                new RedisClient(uri),
+                CallTest.DETERMINISTIC_REQUEST_CODER,
+                CallTest.NON_DETERMINISTIC_RESPONSE_CODER));
 
-    // both Request and Response Coders are deterministic
-    Cache.usingRedis(
-        StringUtf8Coder.of(),
-        StringUtf8Coder.of(),
-        new RedisClient(URI.create("redis://localhost:6379")));
+    Cache.readUsingRedis(
+        new RedisClient(uri),
+        CallTest.DETERMINISTIC_REQUEST_CODER,
+        CallTest.DETERMINISTIC_RESPONSE_CODER);
   }
 
   @Test
-  public void givenUsingRedis_pipelineConstructsDoesNotThrowError() {
+  public void givenNonDeterministicCoder_writeUsingRedis_throwsError()
+      throws Coder.NonDeterministicException {
+    URI uri = URI.create("redis://localhost:6379");
+    Duration expiry = Duration.standardSeconds(1L);
+    assertThrows(
+        NonDeterministicException.class,
+        () ->
+            Cache.writeUsingRedis(
+                expiry,
+                new RedisClient(uri),
+                CallTest.NON_DETERMINISTIC_REQUEST_CODER,
+                CallTest.DETERMINISTIC_RESPONSE_CODER));
+
+    assertThrows(
+        NonDeterministicException.class,
+        () ->
+            Cache.writeUsingRedis(
+                expiry,
+                new RedisClient(uri),
+                CallTest.DETERMINISTIC_REQUEST_CODER,
+                CallTest.NON_DETERMINISTIC_RESPONSE_CODER));
+
+    Cache.writeUsingRedis(
+        expiry,
+        new RedisClient(uri),
+        CallTest.DETERMINISTIC_REQUEST_CODER,
+        CallTest.DETERMINISTIC_RESPONSE_CODER);
   }
 
   @Test
-  public void givenWrongRedisURI_throwsError() {}
+  public void givenWrongRedisURI_throwsError() throws NonDeterministicException {
+    URI uri = URI.create("redis://1.2.3.4:6379");
+    Duration expiry = Duration.standardSeconds(1L);
+    PCollection<Request> requests =
+        pipeline
+            .apply("create requests", Create.of(new Request("")))
+            .setCoder(CallTest.DETERMINISTIC_REQUEST_CODER);
+    requests.apply(
+        "readUsingRedis",
+        Cache.readUsingRedis(
+            new RedisClient(uri),
+            CallTest.DETERMINISTIC_REQUEST_CODER,
+            CallTest.DETERMINISTIC_RESPONSE_CODER));
 
+    PCollection<KV<Request, Response>> kvs =
+        pipeline.apply("create kvs", Create.of(KV.of(new Request(""), new Response(""))));
+    kvs.apply(
+        "writeUsingRedis",
+        Cache.writeUsingRedis(
+            expiry,
+            new RedisClient(uri),
+            CallTest.DETERMINISTIC_REQUEST_CODER,
+            CallTest.DETERMINISTIC_RESPONSE_CODER));
 
-  private static class ValidCaller
-      implements Caller<
-              CallTest.@NonNull Request,
-              @NonNull KV<CallTest.@NonNull Request, CallTest.@Nullable Response>>,
-          SetupTeardown {
-    private final @NonNull KV<CallTest.@NonNull Request, CallTest.@Nullable Response> yieldValue;
-
-    private ValidCaller(
-        @NonNull KV<CallTest.@NonNull Request, CallTest.@Nullable Response> yieldValue) {
-      this.yieldValue = yieldValue;
-    }
-
-    @Override
-    public void setup() throws UserCodeExecutionException {}
-
-    @Override
-    public void teardown() throws UserCodeExecutionException {}
-
-    @Override
-    public @NonNull KV<CallTest.@NonNull Request, CallTest.@Nullable Response> call(
-        CallTest.@NonNull Request request) throws UserCodeExecutionException {
-      return yieldValue;
-    }
+    UncheckedExecutionException error =
+        assertThrows(UncheckedExecutionException.class, pipeline::run);
+    assertThat(
+        error.getCause().getMessage(),
+        containsString("Failed to connect to host: redis://1.2.3.4:6379"));
   }
 }

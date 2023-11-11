@@ -49,7 +49,7 @@ class ThrottleWithExternalResource<
         EnqueuerT extends Caller<@NonNull T, Void> & SetupTeardown,
         DequeuerT extends Caller<@NonNull Instant, @NonNull T> & SetupTeardown,
         RefresherT extends Caller<@NonNull Instant, Void> & SetupTeardown>
-    extends PTransform<PCollection<@NonNull T>, Call.Result<@NonNull T>> {
+    extends PTransform<@NonNull PCollection<@NonNull T>, Call.@NonNull Result<@NonNull T>> {
 
   /** Instantiate a {@link ThrottleWithExternalResource} using a {@link RedisClient}. */
   static <@NonNull T>
@@ -81,13 +81,11 @@ class ThrottleWithExternalResource<
         new RedisRefresher(uri, quota, quotaIdentifier));
   }
 
-  private final TupleTag<@NonNull T> outputTag = new TupleTag<@NonNull T>() {};
-  private static final TupleTag<ApiIOError> FAILURE_TAG = new TupleTag<ApiIOError>() {};
   private static final Duration THROTTLE_INTERVAL = Duration.standardSeconds(1L);
 
   private final @NonNull Quota quota;
   private final @NonNull String quotaIdentifier;
-  private final @NonNull Coder<T> coder;
+  private final @NonNull Coder<@NonNull T> coder;
   private final @NonNull ReporterT reporterT;
   private final @NonNull EnqueuerT enqueuerT;
   private final @NonNull DequeuerT dequeuerT;
@@ -114,7 +112,7 @@ class ThrottleWithExternalResource<
   }
 
   @Override
-  public Call.Result<@NonNull T> expand(PCollection<@NonNull T> input) {
+  public Call.@NonNull Result<@NonNull T> expand(PCollection<@NonNull T> input) {
     Pipeline pipeline = input.getPipeline();
 
     // Refresh known quota to control the throttle rate.
@@ -126,25 +124,34 @@ class ThrottleWithExternalResource<
     // Enqueue T elements.
     Call.Result<Void> enqueuResult = input.apply("enqueue", getEnqueuer());
 
+    TupleTag<@NonNull T> outputTag = new TupleTag<@NonNull T>() {};
+    TupleTag<@NonNull ApiIOError> failureTag = new TupleTag<@NonNull ApiIOError>() {};
+
     // Perform Throttle.
     PCollectionTuple pct =
         pipeline
             .apply("throttle/impulse", PeriodicImpulse.create().withInterval(THROTTLE_INTERVAL))
             .apply(
                 "throttle/fn",
-                ParDo.of(new ThrottleFn(quotaIdentifier, dequeuerT, reporterT, outputTag))
-                    .withOutputTags(outputTag, TupleTagList.of(FAILURE_TAG)));
+                ParDo.of(
+                        new ThrottleFn(
+                            quotaIdentifier, dequeuerT, reporterT, outputTag, failureTag))
+                    .withOutputTags(outputTag, TupleTagList.of(failureTag)));
 
     PCollection<ApiIOError> errors =
         PCollectionList.of(refreshResult.getFailures())
             .and(enqueuResult.getFailures())
-            .and(pct.get(FAILURE_TAG))
+            .and(pct.get(failureTag))
             .apply("errors/flatten", Flatten.pCollections());
 
-    return Call.Result.of(
+    TupleTag<@NonNull T> resultOutputTag = new TupleTag<@NonNull T>() {};
+    TupleTag<@NonNull ApiIOError> resultFailureTag = new TupleTag<@NonNull ApiIOError>() {};
+
+    return Call.Result.<@NonNull T>of(
         coder,
-        outputTag,
-        PCollectionTuple.of(outputTag, pct.get(outputTag)).and(FAILURE_TAG, errors));
+        resultOutputTag,
+        resultFailureTag,
+        PCollectionTuple.of(resultOutputTag, pct.get(outputTag)).and(resultFailureTag, errors));
   }
 
   private Call<@NonNull Instant, Void> getRefresher() {
@@ -160,16 +167,19 @@ class ThrottleWithExternalResource<
     private final DequeuerT dequeuerT;
     private final ReporterT reporterT;
     private final TupleTag<@NonNull T> outputTag;
+    private final TupleTag<@NonNull ApiIOError> failureTag;
 
     private ThrottleFn(
         String quotaIdentifier,
         DequeuerT dequeuerT,
         ReporterT reporterT,
-        TupleTag<@NonNull T> outputTag) {
+        TupleTag<@NonNull T> outputTag,
+        TupleTag<@NonNull ApiIOError> failureTag) {
       this.quotaIdentifier = quotaIdentifier;
       this.dequeuerT = dequeuerT;
       this.reporterT = reporterT;
       this.outputTag = outputTag;
+      this.failureTag = failureTag;
     }
 
     @ProcessElement
@@ -186,7 +196,7 @@ class ThrottleWithExternalResource<
         receiver.get(outputTag).output(element);
       } catch (UserCodeExecutionException e) {
         receiver
-            .get(FAILURE_TAG)
+            .get(failureTag)
             .output(
                 ApiIOError.builder()
                     .setRequestAsJsonString(String.format("{\"request\": \"%s\"}", instant))
@@ -227,9 +237,9 @@ class ThrottleWithExternalResource<
   private static class RedisEnqueuer<@NonNull T> extends RedisSetupTeardown
       implements Caller<@NonNull T, Void> {
     private final String key;
-    private final Coder<T> coder;
+    private final Coder<@NonNull T> coder;
 
-    private RedisEnqueuer(URI uri, String key, Coder<T> coder) {
+    private RedisEnqueuer(URI uri, String key, Coder<@NonNull T> coder) {
       super(new RedisClient(uri));
       this.key = key;
       this.coder = coder;
@@ -251,10 +261,10 @@ class ThrottleWithExternalResource<
   private static class RedisDequeur<@NonNull T> extends RedisSetupTeardown
       implements Caller<@NonNull Instant, @NonNull T> {
 
-    private final Coder<T> coder;
+    private final Coder<@NonNull T> coder;
     private final String key;
 
-    private RedisDequeur(URI uri, Coder<T> coder, String key) {
+    private RedisDequeur(URI uri, Coder<@NonNull T> coder, String key) {
       super(new RedisClient(uri));
       this.coder = coder;
       this.key = key;

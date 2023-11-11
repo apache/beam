@@ -30,7 +30,7 @@ import org.apache.beam.io.requestresponse.Call.Result;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.DelegateCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -43,7 +43,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,13 +59,23 @@ import org.junit.runners.JUnit4;
 public class CallTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  static final SerializableCoder<@NonNull Response> RESPONSE_CODER =
+  static final SerializableCoder<@NonNull Request> NON_DETERMINISTIC_REQUEST_CODER =
+      SerializableCoder.of(Request.class);
+
+  static final Coder<@NonNull Request> DETERMINISTIC_REQUEST_CODER =
+      new DeterministicRequestCoder();
+
+  static final SerializableCoder<@NonNull Response> NON_DETERMINISTIC_RESPONSE_CODER =
       SerializableCoder.of(Response.class);
+
+  static final Coder<@NonNull Response> DETERMINISTIC_RESPONSE_CODER =
+      new DeterministicResponseCoder();
 
   @Test
   public void givenCallerNotSerializable_throwsError() {
     assertThrows(
-        IllegalArgumentException.class, () -> Call.of(new UnSerializableCaller(), RESPONSE_CODER));
+        IllegalArgumentException.class,
+        () -> Call.of(new UnSerializableCaller(), NON_DETERMINISTIC_RESPONSE_CODER));
   }
 
   @Test
@@ -70,7 +84,7 @@ public class CallTest {
         IllegalArgumentException.class,
         () ->
             Call.ofCallerAndSetupTeardown(
-                new UnSerializableCallerWithSetupTeardown(), RESPONSE_CODER));
+                new UnSerializableCallerWithSetupTeardown(), NON_DETERMINISTIC_RESPONSE_CODER));
   }
 
   @Test
@@ -78,7 +92,10 @@ public class CallTest {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
-            .apply(Call.of(new CallerThrowsUserCodeExecutionException(), RESPONSE_CODER));
+            .apply(
+                Call.of(
+                    new CallerThrowsUserCodeExecutionException(),
+                    NON_DETERMINISTIC_RESPONSE_CODER));
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
@@ -95,7 +112,7 @@ public class CallTest {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
-            .apply(Call.of(new CallerInvokesQuotaException(), RESPONSE_CODER));
+            .apply(Call.of(new CallerInvokesQuotaException(), NON_DETERMINISTIC_RESPONSE_CODER));
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
@@ -113,7 +130,9 @@ public class CallTest {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
-            .apply(Call.of(new CallerExceedsTimeout(timeout), RESPONSE_CODER).withTimeout(timeout));
+            .apply(
+                Call.of(new CallerExceedsTimeout(timeout), NON_DETERMINISTIC_RESPONSE_CODER)
+                    .withTimeout(timeout));
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
@@ -130,7 +149,7 @@ public class CallTest {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
-            .apply(Call.of(new CallerThrowsTimeout(), RESPONSE_CODER));
+            .apply(Call.of(new CallerThrowsTimeout(), NON_DETERMINISTIC_RESPONSE_CODER));
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
@@ -147,7 +166,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new SetupThrowsUserCodeExecutionException()));
 
     assertPipelineThrows(UserCodeExecutionException.class, pipeline);
@@ -158,7 +177,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new SetupThrowsUserCodeQuotaException()));
 
     assertPipelineThrows(UserCodeQuotaException.class, pipeline);
@@ -171,7 +190,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new SetupExceedsTimeout(timeout))
                 .withTimeout(timeout));
 
@@ -183,7 +202,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new SetupThrowsUserCodeTimeoutException()));
 
     assertPipelineThrows(UserCodeTimeoutException.class, pipeline);
@@ -194,7 +213,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new TeardownThrowsUserCodeExecutionException()));
 
     // Exceptions thrown during teardown do not populate with the cause
@@ -206,7 +225,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new TeardownThrowsUserCodeQuotaException()));
 
     // Exceptions thrown during teardown do not populate with the cause
@@ -219,7 +238,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withTimeout(timeout)
                 .withSetupTeardown(new TeardownExceedsTimeout(timeout)));
 
@@ -232,7 +251,7 @@ public class CallTest {
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
-            Call.of(new ValidCaller(), RESPONSE_CODER)
+            Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER)
                 .withSetupTeardown(new TeardownThrowsUserCodeTimeoutException()));
 
     // Exceptions thrown during teardown do not populate with the cause
@@ -244,7 +263,7 @@ public class CallTest {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
-            .apply(Call.of(new ValidCaller(), RESPONSE_CODER));
+            .apply(Call.of(new ValidCaller(), NON_DETERMINISTIC_RESPONSE_CODER));
 
     PAssert.thatSingleton(result.getFailures().apply(Count.globally())).isEqualTo(0L);
     PAssert.that(result.getResponses()).containsInAnyOrder(new Response("a"));
@@ -499,31 +518,56 @@ public class CallTest {
     }
   }
 
-  private static class DeterministicRequestCoder extends CustomCoder<Request> {
+  private static class DeterministicRequestCoder extends CustomCoder<@NonNull Request> {
     private static final Coder<String> ID_CODER = StringUtf8Coder.of();
+
     @Override
-    public void encode(Request value, OutputStream outStream) throws CoderException, IOException {
-      ID_CODER.encode(value.id, outStream);
+    public void encode(Request value, @NotNull OutputStream outStream)
+        throws CoderException, IOException {
+      ID_CODER.encode(checkStateNotNull(value).id, outStream);
     }
 
     @Override
-    public Request decode(InputStream inStream) throws CoderException, IOException {
+    public @NonNull Request decode(@NotNull InputStream inStream)
+        throws CoderException, IOException {
       String id = ID_CODER.decode(inStream);
       return new Request(id);
+    }
+
+    @Override
+    public void verifyDeterministic()
+        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+      ID_CODER.verifyDeterministic();
     }
   }
 
   private static class DeterministicResponseCoder extends CustomCoder<Response> {
-    private static final Coder<String> ID_CODER = StringUtf8Coder.of();
+    private static final NullableCoder<String> ID_CODER = NullableCoder.of(StringUtf8Coder.of());
 
     @Override
-    public void encode(Response value, OutputStream outStream) throws CoderException, IOException {
-
+    public void encode(@Nullable Response value, @NotNull OutputStream outStream)
+        throws CoderException, IOException {
+      if (value == null) {
+        ID_CODER.encode(null, outStream);
+        return;
+      }
+      ID_CODER.encode(checkStateNotNull(value).id, outStream);
     }
 
     @Override
-    public Response decode(InputStream inStream) throws CoderException, IOException {
-      return null;
+    public Response decode(@NotNull InputStream inStream) throws CoderException, IOException {
+      try {
+        String id = ID_CODER.decode(inStream);
+        return new Response(id);
+      } catch (CoderException ignored) {
+        return null;
+      }
+    }
+
+    @Override
+    public void verifyDeterministic()
+        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+      ID_CODER.verifyDeterministic();
     }
   }
 }

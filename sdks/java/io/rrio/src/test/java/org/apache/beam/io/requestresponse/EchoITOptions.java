@@ -31,7 +31,7 @@ import org.apache.beam.testinfra.mockapis.echo.v1.EchoServiceGrpc;
  *
  * <pre>
  *   ./gradlew :sdks:java:io:rrio:integrationTest -DintegrationTestPipelineOptions='[
- *      "--grpcEndpointAddress=",
+ *      "--gRPCEndpointAddress=",
  *      "--httpEndpointAddress="
  *   ]'
  * </pre>

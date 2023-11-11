@@ -100,7 +100,7 @@ class Call<RequestT, ResponseT>
             .build());
   }
 
-  private static final TupleTag<ApiIOError> FAILURE_TAG = new TupleTag<ApiIOError>() {};
+  private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
 
   private final Configuration<RequestT, ResponseT> configuration;
 
@@ -133,22 +133,26 @@ class Call<RequestT, ResponseT>
     PCollectionTuple pct =
         input.apply(
             CallFn.class.getSimpleName(),
-            ParDo.of(new CallFn<>(responseTag, configuration))
-                .withOutputTags(responseTag, TupleTagList.of(FAILURE_TAG)));
+            ParDo.of(new CallFn<>(responseTag, failureTag, configuration))
+                .withOutputTags(responseTag, TupleTagList.of(failureTag)));
 
-    return Result.of(configuration.getResponseCoder(), responseTag, pct);
+    return Result.of(configuration.getResponseCoder(), responseTag, failureTag, pct);
   }
 
   private static class CallFn<RequestT, ResponseT> extends DoFn<RequestT, ResponseT> {
     private final TupleTag<ResponseT> responseTag;
+    private final TupleTag<ApiIOError> failureTag;
     private final CallerWithTimeout<RequestT, ResponseT> caller;
     private final SetupTeardownWithTimeout setupTeardown;
 
     private transient @MonotonicNonNull ExecutorService executor;
 
     private CallFn(
-        TupleTag<ResponseT> responseTag, Configuration<RequestT, ResponseT> configuration) {
+        TupleTag<ResponseT> responseTag,
+        TupleTag<ApiIOError> failureTag,
+        Configuration<RequestT, ResponseT> configuration) {
       this.responseTag = responseTag;
+      this.failureTag = failureTag;
       this.caller = new CallerWithTimeout<>(configuration.getTimeout(), configuration.getCaller());
       this.setupTeardown =
           new SetupTeardownWithTimeout(
@@ -194,7 +198,7 @@ class Call<RequestT, ResponseT>
         ResponseT response = this.caller.call(request);
         receiver.get(responseTag).output(response);
       } catch (UserCodeExecutionException e) {
-        receiver.get(FAILURE_TAG).output(ApiIOError.of(e, request));
+        receiver.get(failureTag).output(ApiIOError.of(e, request));
       }
     }
   }
@@ -269,21 +273,29 @@ class Call<RequestT, ResponseT>
   static class Result<ResponseT> implements POutput {
 
     static <ResponseT> Result<ResponseT> of(
-        Coder<ResponseT> responseTCoder, TupleTag<ResponseT> responseTag, PCollectionTuple pct) {
-      return new Result<>(responseTCoder, responseTag, pct);
+        Coder<ResponseT> responseTCoder,
+        TupleTag<ResponseT> responseTag,
+        TupleTag<ApiIOError> failureTag,
+        PCollectionTuple pct) {
+      return new Result<>(responseTCoder, responseTag, pct, failureTag);
     }
 
     private final Pipeline pipeline;
     private final TupleTag<ResponseT> responseTag;
+    private final TupleTag<ApiIOError> failureTag;
     private final PCollection<ResponseT> responses;
     private final PCollection<ApiIOError> failures;
 
     private Result(
-        Coder<ResponseT> responseTCoder, TupleTag<ResponseT> responseTag, PCollectionTuple pct) {
+        Coder<ResponseT> responseTCoder,
+        TupleTag<ResponseT> responseTag,
+        PCollectionTuple pct,
+        TupleTag<ApiIOError> failureTag) {
       this.pipeline = pct.getPipeline();
       this.responseTag = responseTag;
+      this.failureTag = failureTag;
       this.responses = pct.get(responseTag).setCoder(responseTCoder);
-      this.failures = pct.get(FAILURE_TAG);
+      this.failures = pct.get(this.failureTag);
     }
 
     public PCollection<ResponseT> getResponses() {
@@ -303,7 +315,7 @@ class Call<RequestT, ResponseT>
     public @NonNull Map<TupleTag<?>, PValue> expand() {
       return ImmutableMap.of(
           responseTag, responses,
-          FAILURE_TAG, failures);
+          failureTag, failures);
     }
 
     @Override
