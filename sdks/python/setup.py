@@ -139,9 +139,15 @@ except ImportError:
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
-  pyarrow_dependency = ''
+  pyarrow_dependency = ['']
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
+  pyarrow_dependency = [
+      'pyarrow>=3.0.0,<12.0.0',
+      # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
+      # once Beam increases the pyarrow lower bound to a version that fixes CVE.
+      'pyarrow-hotfix<1'
+  ]
+
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
