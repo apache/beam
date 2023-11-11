@@ -608,8 +608,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     try {
       // poll available records, wait (if necessary) up to the specified timeout.
       records =
-          availableRecordsQueue.poll(
-              recordsDequeuePollTimeout.getMillis(), TimeUnit.MILLISECONDS);
+          availableRecordsQueue.poll(recordsDequeuePollTimeout.getMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOG.warn("{}: Unexpected", this, e);
@@ -623,16 +622,14 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       }
       if (recordsDequeuePollTimeout.isLongerThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MIN)) {
         recordsDequeuePollTimeout = recordsDequeuePollTimeout.minus(Duration.millis(1));
-        LOG.debug("Reducing poll timeout for reader to "
-            + recordsDequeuePollTimeout.getMillis());
+        LOG.debug("Reducing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
       }
       return;
     }
 
     if (recordsDequeuePollTimeout.isShorterThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX)) {
       recordsDequeuePollTimeout = recordsDequeuePollTimeout.plus(Duration.millis(1));
-      LOG.debug("Increasing poll timeout for reader to "
-          + recordsDequeuePollTimeout.getMillis());
+      LOG.debug("Increasing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
       LOG.debug("Record count: " + records.count());
     }
 
