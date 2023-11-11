@@ -52,7 +52,6 @@ applyJavaNature(
     "junit/**",
     "io/github/classgraph/**",
     "nonapi/io/github/classgraph/**",
-    "org/apache/avro/**",
     "org/apache/beam/fn/harness/**",
     "org/apache/beam/model/fnexecution/**",
     "org/apache/beam/runners/core/**",
@@ -75,6 +74,9 @@ applyJavaNature(
         exclude(dependency(it.getModuleGroup() + ":" + it.getModuleName() + ":.*"))
       }
     }
+
+    relocate("org.apache.avro", "org.apache.beam.fn.harness.repackaged.org.apache.avro")
+
   },
 )
 
