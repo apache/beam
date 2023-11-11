@@ -4832,13 +4832,13 @@ works well.&lt;/p>
 &lt;h3 id="configuring-a-go-build-to-validate-a-beam-release-candidate">Configuring a Go build to validate a Beam release candidate&lt;/h3>
 &lt;p>For Go SDK releases, you can fetch the Go SDK RC using &lt;a href="https://golang.org/ref/mod#go-get">&lt;code>go get&lt;/code>&lt;/a>,
 by requesting the specific pre-release version.&lt;/p>
-&lt;p>For example, to request the first release candidate for 2.34.0:&lt;/p>
-&lt;pre tabindex="0">&lt;code>go get -d github.com/apache/beam/sdks/v2@v2.34.0-RC1
+&lt;p>For example, to request the first release candidate for 2.44.0:&lt;/p>
+&lt;pre tabindex="0">&lt;code>go get -d github.com/apache/beam/sdks/v2@v2.44.0-RC1
 &lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your &lt;code>go.mod&lt;/code> will be the specified release candidate.
 You can go ahead and run your tests to verify that everything works well.&lt;/p>
 &lt;p>You may need to also specify the RC&amp;rsquo;s matching container when running a job.
 Use the &lt;code>--environment_config&lt;/code> flag to specify the release candidate container:
-eg. &lt;code>--environment_config=apache/beam_go_sdk:2.34.0_rc1&lt;/code>&lt;/p></description></item><item><title>Blog: Apache Beam 2.29.0</title><link>/blog/beam-2.29.0/</link><pubDate>Thu, 29 Apr 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.29.0/</guid><description>
+eg. &lt;code>--environment_config=apache/beam_go_sdk:2.44.0rc1&lt;/code>&lt;/p></description></item><item><title>Blog: Apache Beam 2.29.0</title><link>/blog/beam-2.29.0/</link><pubDate>Thu, 29 Apr 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.29.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
