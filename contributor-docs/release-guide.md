@@ -621,7 +621,7 @@ This step uploads artifacts such as `apache-beam-${RELEASE_VERSION}rc${RC_NUM}`
 to PyPI, so the RC artifacts can be depended upon directly by consumers, for
 ease of RC verification.
 
-**Action** [deploy_release_candidate_pypi](https://github.com/apache/beam/actions/workflows/deploy_release_candidate_pypi.yml) (click `run workflow`)
+**Action** [deploy_release_candidate_pypi](https://github.com/apache/beam/actions/workflows/deploy_release_candidate_pypi.yaml) (click `run workflow`)
 
 **The Action will:**
 
