@@ -142,6 +142,7 @@ public interface BigQueryOptions
   void setMaxBufferingDurationMilliSec(Integer value);
 
   @Description("If specified, it will override the default (GcpOptions#getProject()) project id.")
+  @Default.InstanceFactory(BigQueryProjectFactory.class)
   String getBigQueryProject();
 
   void setBigQueryProject(String value);
@@ -171,4 +172,12 @@ public interface BigQueryOptions
   Boolean getEnableBundling();
 
   void setEnableBundling(Boolean value);
+
+  class BigQueryProjectFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      GcpOptions gcpOptions = options.as(GcpOptions.class);
+      return gcpOptions.getProject();
+    }
+  }
 }
