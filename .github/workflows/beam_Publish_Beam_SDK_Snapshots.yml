@@ -46,6 +46,7 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   docker_registry: gcr.io
+  SOURCE_DATE_EPOCH: 1321009871
 
 jobs:
   beam_Publish_Beam_SDK_Snapshots:
