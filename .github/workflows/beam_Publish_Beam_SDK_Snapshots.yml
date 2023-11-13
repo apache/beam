@@ -109,4 +109,3 @@ jobs:
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
             -Pdocker-tag-list=${{ github.sha }},latest \
             -Pcontainer-architecture-list=arm64,amd64 \
-            -Ppush-containers \
