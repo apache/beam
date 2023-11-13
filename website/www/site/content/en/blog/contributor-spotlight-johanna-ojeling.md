@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Johanna Öjeling is a Senior Software Engineer at [Normative](https://normative.io/). She started using Apache Beam in 2020 at her previous company [Datatonic](http://datatonic.com) and began contributing in 2022 at a personal capacity. We interviewed Johanna to learn more about her interests and we hope that this will inspire new, future, diverse set of contributors to participate in OSS projects. 
+Johanna Öjeling is a Senior Software Engineer at [Normative](https://normative.io/). She started using Apache Beam in 2020 at her previous company [Datatonic](http://datatonic.com) and began contributing in 2022 at a personal capacity. We interviewed Johanna to learn more about her interests and we hope that this will inspire new, future, diverse set of contributors to participate in OSS projects.
 
 **What areas of interest are you passionate about in your career?**
 
