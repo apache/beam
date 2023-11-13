@@ -263,8 +263,14 @@ class TestBigQueryWrapper(unittest.TestCase):
       wrapper.create_temporary_dataset('project-id', 'location')
     self.assertTrue(client.datasets.Get.called)
 
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.gcp_bigquery',
+      return_value=mock.Mock())
+  @mock.patch(
+      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
   @mock.patch('time.sleep', return_value=None)
-  def test_user_agent_passed(self, sleep_mock):
+  def test_user_agent_passed(
+      self, sleep_mock, skip_get_credentials_mock, gcp_bigquery_mock):
     try:
       wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     except:  # pylint: disable=bare-except
