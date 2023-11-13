@@ -94,4 +94,5 @@ dependencies {
   shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
+  permitUnusedDeclared library.java.avro
 }
