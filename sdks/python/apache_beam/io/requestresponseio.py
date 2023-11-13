@@ -15,16 +15,7 @@
 # limitations under the License.
 #
 
-"""``PTransform`` for reading from and writing to Web APIs.
-
-``RequestResponseIO`` minimally requires implementing the ``Caller`` interface:
-
-    requests = ...
-
-    responses = (requests
-                 | RequestResponseIO(MyCaller())
-                )
-"""
+"""``PTransform`` for reading from and writing to Web APIs."""
 import abc
 from typing import TypeVar
 
@@ -51,10 +42,10 @@ class Caller(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def call(self, request: RequestT) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
-        ``ResponseT``. ``RequestResponseIO`` expects implementations of the
-        call method to throw either a ``UserCodeExecutionException``,
-        ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
-        """
+    ``ResponseT``. ``RequestResponseIO`` expects implementations of the
+    call method to throw either a ``UserCodeExecutionException``,
+    ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
+    """
     pass
 
 
