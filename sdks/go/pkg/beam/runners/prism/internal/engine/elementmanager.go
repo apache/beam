@@ -120,7 +120,7 @@ type ElementManager struct {
 	stages map[string]*stageState // The state for each stage.
 
 	consumers     map[string][]string // Map from pcollectionID to stageIDs that consumes them as primary input.
-	sideConsumers map[string][]string // Map from pcollectionID to stageIDs that consumes them as side input.
+	sideConsumers map[string][]LinkID // Map from pcollectionID to the stage+transform+input that consumes them as side input.
 
 	pcolParents map[string]string // Map from pcollectionID to stageIDs that produce the pcollection.
 
@@ -131,12 +131,17 @@ type ElementManager struct {
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
 }
 
+// LinkID represents a fully qualified input or output.
+type LinkID struct {
+	Transform, Local, Global string
+}
+
 func NewElementManager(config Config) *ElementManager {
 	return &ElementManager{
 		config:             config,
 		stages:             map[string]*stageState{},
 		consumers:          map[string][]string{},
-		sideConsumers:      map[string][]string{},
+		sideConsumers:      map[string][]LinkID{},
 		pcolParents:        map[string]string{},
 		watermarkRefreshes: set[string]{},
 		inprogressBundles:  set[string]{},
@@ -146,9 +151,9 @@ func NewElementManager(config Config) *ElementManager {
 
 // AddStage adds a stage to this element manager, connecting it's PCollections and
 // nodes to the watermark propagation graph.
-func (em *ElementManager) AddStage(ID string, inputIDs, sides, outputIDs []string) {
+func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, sides []LinkID) {
 	slog.Debug("AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
-	ss := makeStageState(ID, inputIDs, sides, outputIDs)
+	ss := makeStageState(ID, inputIDs, outputIDs, sides)
 
 	em.stages[ss.ID] = ss
 	for _, outputIDs := range ss.outputIDs {
@@ -158,7 +163,9 @@ func (em *ElementManager) AddStage(ID string, inputIDs, sides, outputIDs []strin
 		em.consumers[input] = append(em.consumers[input], ss.ID)
 	}
 	for _, side := range ss.sides {
-		em.sideConsumers[side] = append(em.sideConsumers[side], ss.ID)
+		// Note that we use the StageID as the global ID in the value since we need
+		// to be able to look up the consuming stage, from the global PCollectionID.
+		em.sideConsumers[side.Global] = append(em.sideConsumers[side.Global], LinkID{Global: ss.ID, Local: side.Local, Transform: side.Transform})
 	}
 }
 
@@ -363,6 +370,11 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			consumer := em.stages[sID]
 			consumer.AddPending(newPending)
 		}
+		sideConsumers := em.sideConsumers[output]
+		for _, link := range sideConsumers {
+			consumer := em.stages[link.Global]
+			consumer.AddPendingSide(newPending, link.Transform, link.Local)
+		}
 	}
 
 	// Return unprocessed to this stage's pending
@@ -489,7 +501,7 @@ type stageState struct {
 	ID        string
 	inputID   string   // PCollection ID of the parallel input
 	outputIDs []string // PCollection IDs of outputs to update consumers.
-	sides     []string // PCollection IDs of side inputs that can block execution.
+	sides     []LinkID // PCollection IDs of side inputs that can block execution.
 
 	// Special handling bits
 	aggregate bool     // whether this state needs to block for aggregation.
@@ -501,12 +513,13 @@ type stageState struct {
 	output             mtime.Time // Output watermark for the whole stage
 	estimatedOutput    mtime.Time // Estimated watermark output from DoFns
 
-	pending    elementHeap         // pending input elements for this stage that are to be processesd
-	inprogress map[string]elements // inprogress elements by active bundles, keyed by bundle
+	pending    elementHeap                          // pending input elements for this stage that are to be processesd
+	inprogress map[string]elements                  // inprogress elements by active bundles, keyed by bundle
+	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 }
 
 // makeStageState produces an initialized stageState.
-func makeStageState(ID string, inputIDs, sides, outputIDs []string) *stageState {
+func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *stageState {
 	ss := &stageState{
 		ID:        ID,
 		outputIDs: outputIDs,
@@ -534,6 +547,42 @@ func (ss *stageState) AddPending(newPending []element) {
 	defer ss.mu.Unlock()
 	ss.pending = append(ss.pending, newPending...)
 	heap.Init(&ss.pending)
+}
+
+// AddPendingSide adds elements to be consumed as side inputs.
+func (ss *stageState) AddPendingSide(newPending []element, tID, inputID string) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	if ss.sideInputs == nil {
+		ss.sideInputs = map[LinkID]map[typex.Window][][]byte{}
+	}
+	key := LinkID{Transform: tID, Local: inputID}
+	in, ok := ss.sideInputs[key]
+	if !ok {
+		in = map[typex.Window][][]byte{}
+		ss.sideInputs[key] = in
+	}
+	for _, e := range newPending {
+		in[e.window] = append(in[e.window], e.elmBytes)
+	}
+}
+
+func (ss *stageState) GetSideData(tID, inputID string, watermark mtime.Time) map[typex.Window][][]byte {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	d := ss.sideInputs[LinkID{Transform: tID, Local: inputID}]
+	ret := map[typex.Window][][]byte{}
+	for win, ds := range d {
+		if win.MaxTimestamp() <= watermark {
+			ret[win] = ds
+		}
+	}
+	return ret
+}
+
+func (em *ElementManager) GetSideData(sID, tID, inputID string, watermark mtime.Time) map[typex.Window][][]byte {
+	return em.stages[sID].GetSideData(tID, inputID, watermark)
 }
 
 // updateUpstreamWatermark is for the parent of the input pcollection
@@ -699,7 +748,18 @@ func (ss *stageState) updateWatermarks(minPending, minStateHold mtime.Time, em *
 			}
 			// Inform side input consumers, but don't update the upstream watermark.
 			for _, sID := range em.sideConsumers[outputCol] {
-				refreshes.insert(sID)
+				refreshes.insert(sID.Global)
+			}
+		}
+		// Garbage collect state, timers and side inputs, for all windows
+		// that are before the new output watermark.
+		// They'll never be read in again.
+		for _, wins := range ss.sideInputs {
+			for win := range wins {
+				// Clear out anything we've already used.
+				if win.MaxTimestamp() < newOut {
+					delete(wins, win)
+				}
 			}
 		}
 	}
@@ -725,7 +785,7 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 	}
 	ready := true
 	for _, side := range ss.sides {
-		pID, ok := em.pcolParents[side]
+		pID, ok := em.pcolParents[side.Global]
 		if !ok {
 			panic(fmt.Sprintf("stage[%v] no parent ID for side input %v", ss.ID, side))
 		}

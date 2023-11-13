@@ -155,10 +155,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	stages := map[string]*stage{}
 	var impulses []string
 
-	// Inialize the "dataservice cache" to support side inputs.
-	// TODO(https://github.com/apache/beam/issues/28543), remove this concept.
-	ds := &worker.DataService{}
-
 	for i, stage := range topo {
 		tid := stage.transforms[0]
 		t := ts[tid]
@@ -206,7 +202,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 			switch urn {
 			case urns.TransformGBK:
-				em.AddStage(stage.ID, []string{getOnlyValue(t.GetInputs())}, nil, []string{getOnlyValue(t.GetOutputs())})
+				em.AddStage(stage.ID, []string{getOnlyValue(t.GetInputs())}, []string{getOnlyValue(t.GetOutputs())}, nil)
 				for _, global := range t.GetInputs() {
 					col := comps.GetPcollections()[global]
 					ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
@@ -221,22 +217,22 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				em.StageAggregates(stage.ID)
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
-				em.AddStage(stage.ID, nil, nil, []string{getOnlyValue(t.GetOutputs())})
+				em.AddStage(stage.ID, nil, []string{getOnlyValue(t.GetOutputs())}, nil)
 			case urns.TransformFlatten:
 				inputs := maps.Values(t.GetInputs())
 				sort.Strings(inputs)
-				em.AddStage(stage.ID, inputs, nil, []string{getOnlyValue(t.GetOutputs())})
+				em.AddStage(stage.ID, inputs, []string{getOnlyValue(t.GetOutputs())}, nil)
 			}
 			stages[stage.ID] = stage
 		case wk.Env:
-			if err := buildDescriptor(stage, comps, wk, ds); err != nil {
+			if err := buildDescriptor(stage, comps, wk, em); err != nil {
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
 			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
-			em.AddStage(stage.ID, []string{stage.primaryInput}, stage.sides, outputs)
+			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 			slog.Error("Execute", err)
@@ -273,7 +269,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				defer func() { <-maxParallelism }()
 				s := stages[rb.StageID]
 				wk := wks[s.envID]
-				if err := s.Execute(ctx, j, wk, ds, comps, em, rb); err != nil {
+				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
 					em.FailBundle(rb)
 					bundleFailed <- err

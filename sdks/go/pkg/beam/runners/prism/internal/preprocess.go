@@ -21,6 +21,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -392,7 +393,7 @@ func prepareStage(stg *stage, comps *pipepb.Components, pipelineFacts fusionFact
 
 	// Now we can see which consumers (inputs) aren't covered by the producers (outputs).
 	mainInputs := map[string]string{}
-	var sideInputs []link
+	var sideInputs []engine.LinkID
 	inputs := map[string]bool{}
 	for pid, plinks := range stageFacts.pcolConsumers {
 		// Check if this PCollection is generated in this bundle.
@@ -406,7 +407,7 @@ func prepareStage(stg *stage, comps *pipepb.Components, pipelineFacts fusionFact
 			t := comps.GetTransforms()[link.transform]
 			sis, _ := getSideInputs(t)
 			if _, ok := sis[link.local]; ok {
-				sideInputs = append(sideInputs, link)
+				sideInputs = append(sideInputs, engine.LinkID{Transform: link.transform, Global: link.global, Local: link.local})
 			} else {
 				mainInputs[link.global] = link.global
 			}
