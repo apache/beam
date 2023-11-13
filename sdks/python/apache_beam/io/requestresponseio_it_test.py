@@ -120,7 +120,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     cls.options = EchoITOptions()
     http_endpoint_address = cls.options.http_endpoint_address
     if not http_endpoint_address or http_endpoint_address == '':
-      raise ValueError(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
+      raise unittest.SkipTest(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
 
     cls.client = EchoHTTPCaller(http_endpoint_address)
 
