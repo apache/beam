@@ -146,6 +146,8 @@ $defs:
         additionalProperties:
           type: string
       config: { type: object }
+      __line__: {}
+      __uuid__: {}
     additionalProperties: false
     required:
       - type
