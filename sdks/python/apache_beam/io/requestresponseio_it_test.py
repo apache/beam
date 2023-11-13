@@ -28,8 +28,9 @@ from apache_beam.io.requestresponseio import UserCodeExecutionException
 from apache_beam.io.requestresponseio import UserCodeQuotaException
 from apache_beam.options.pipeline_options import PipelineOptions
 
-_HTTP_PATH = "/v1/echo"
+_HTTP_PATH = '/v1/echo'
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
+_HTTP_ENDPOINT_ADDRESS_FLAG = '--httpEndpointAddress'
 
 
 class EchoITOptions(PipelineOptions):
@@ -41,8 +42,7 @@ class EchoITOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser) -> None:
     parser.add_argument(
-        '--httpEndpointAddress',
-        required=True,
+        _HTTP_ENDPOINT_ADDRESS_FLAG,
         dest='http_endpoint_address',
         help='The HTTP address of the Echo API endpoint; must being with '
         'http(s)://')
@@ -118,7 +118,11 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   @classmethod
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
-    cls.client = EchoHTTPCaller(cls.options.http_endpoint_address)
+    http_endpoint_address = cls.options.http_endpoint_address
+    if not http_endpoint_address or http_endpoint_address == '':
+      raise ValueError(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
+
+    cls.client = EchoHTTPCaller(http_endpoint_address)
 
   def setUp(self) -> None:
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
