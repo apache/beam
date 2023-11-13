@@ -36,9 +36,10 @@ import org.joda.time.Duration;
 class Cache {
 
   /**
-   * Read {@link RequestT} {@link ResponseT} associations from a cache. The {@link KV} value is null
-   * when no association exists. This method does not enforce {@link Coder#verifyDeterministic} and
-   * defers to the user to determine whether to enforce this given the cache implementation.
+   * Instantiates a {@link Call} {@link PTransform} that reads {@link RequestT} {@link ResponseT}
+   * associations from a cache. The {@link KV} value is null when no association exists. This method
+   * does not enforce {@link Coder#verifyDeterministic} and defers to the user to determine whether
+   * to enforce this given the cache implementation.
    */
   static <
           @NonNull RequestT,
@@ -57,6 +58,18 @@ class Cache {
         implementsCallerSetupTeardown, KvCoder.of(requestTCoder, responseTCoder));
   }
 
+  /**
+   * Instantiates a {@link Call} {@link PTransform}, calling {@link #read} with a {@link Caller}
+   * that employs a redis client.
+   *
+   * <p>This method requires both the {@link RequestT} and {@link ResponseT}s' {@link
+   * Coder#verifyDeterministic}. Otherwise, it throws a {@link NonDeterministicException}.
+   *
+   * <p><a href="https://redis.io">Redis</a> is designed for multiple workloads, simultaneously
+   * reading and writing to a shared instance. See <a
+   * href="https://redis.io/docs/get-started/faq/">Redis FAQ</a> for more information on important
+   * considerations when using this method to achieve cache reads.
+   */
   static <@NonNull RequestT, @Nullable ResponseT>
       PTransform<
               @NonNull PCollection<@NonNull RequestT>,
@@ -94,6 +107,18 @@ class Cache {
     return Call.ofCallerAndSetupTeardown(implementsCallerSetupTeardown, kvCoder);
   }
 
+  /**
+   * Instantiates a {@link Call} {@link PTransform}, calling {@link #write} with a {@link Caller}
+   * that employs a redis client.
+   *
+   * <p>This method requires both the {@link RequestT} and {@link ResponseT}s' {@link
+   * Coder#verifyDeterministic}. Otherwise, it throws a {@link NonDeterministicException}.
+   *
+   * <p><a href="https://redis.io">Redis</a> is designed for multiple workloads, simultaneously
+   * reading and writing to a shared instance. See <a
+   * href="https://redis.io/docs/get-started/faq/">Redis FAQ</a> for more information on important
+   * considerations when using this method to achieve cache writes.
+   */
   static <@NonNull RequestT, @NonNull ResponseT>
       PTransform<
               @NonNull PCollection<KV<@NonNull RequestT, @NonNull ResponseT>>,
@@ -109,25 +134,11 @@ class Cache {
         KvCoder.of(requestTCoder, responseTCoder));
   }
 
-  static <@NonNull RequestT, ResponseT> UsingRedis<RequestT, ResponseT> usingRedis(
-      @NonNull Coder<@NonNull RequestT> requestTCoder,
-      @NonNull Coder<@Nullable ResponseT> responseTCoder,
-      @NonNull RedisClient client)
-      throws Coder.NonDeterministicException {
-    return new UsingRedis<>(requestTCoder, responseTCoder, client);
-  }
-
-  /** Provides cache read and write support using a {@link RedisClient}. */
-  static class UsingRedis<@NonNull RequestT, ResponseT> {
+  private static class UsingRedis<@NonNull RequestT, ResponseT> {
     private final @NonNull Coder<@NonNull RequestT> requestTCoder;
     private final @NonNull Coder<@Nullable ResponseT> responseTCoder;
     private final @NonNull RedisClient client;
 
-    /**
-     * Instantiates a {@link UsingRedis}. Given redis reads and writes using bytes, throws a {@link
-     * Coder.NonDeterministicException} if either {@link RequestT} or {@link ResponseT} {@link
-     * Coder} fails to {@link Coder#verifyDeterministic}.
-     */
     private UsingRedis(
         @NonNull Coder<@NonNull RequestT> requestTCoder,
         @NonNull Coder<@Nullable ResponseT> responseTCoder,
@@ -140,21 +151,16 @@ class Cache {
       this.responseTCoder = responseTCoder;
     }
 
-    /** Instantiates {@link Read}. */
-    Read<@NonNull RequestT, @Nullable ResponseT> read() {
+    private Read<@NonNull RequestT, @Nullable ResponseT> read() {
       return new Read<>(requestTCoder, responseTCoder, client);
     }
 
-    /**
-     * Instantiates {@link Write}. The {@link Duration} determines how long the associated {@link
-     * RequestT} and {@link ResponseT} lasts in the cache.
-     */
-    Write<@NonNull RequestT, @NonNull ResponseT> write(@NonNull Duration expiry) {
+    private Write<@NonNull RequestT, @NonNull ResponseT> write(@NonNull Duration expiry) {
       return new Write<>(expiry, requestTCoder, responseTCoder, client);
     }
 
     /** Reads associated {@link RequestT} {@link ResponseT} using a {@link RedisClient}. */
-    static class Read<@NonNull RequestT, @Nullable ResponseT>
+    private static class Read<@NonNull RequestT, @Nullable ResponseT>
         implements Caller<@NonNull RequestT, KV<@NonNull RequestT, @Nullable ResponseT>>,
             SetupTeardown {
 
@@ -203,7 +209,7 @@ class Cache {
     }
   }
 
-  static class Write<@NonNull RequestT, @NonNull ResponseT>
+  private static class Write<@NonNull RequestT, @NonNull ResponseT>
       implements Caller<
               @NonNull KV<@NonNull RequestT, @NonNull ResponseT>,
               @NonNull KV<@NonNull RequestT, @NonNull ResponseT>>,

@@ -43,21 +43,64 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * Throttles a {@link T} {@link PCollection} using an external resource.
+ *
+ * <p>{@link ThrottleWithExternalResource} makes use of {@link PeriodicImpulse} as it needs to
+ * coordinate three {@link PTransform}s concurrently. Usage of {@link ThrottleWithExternalResource}
+ * should consider the impact of {@link PeriodicImpulse} on the pipeline.
+ *
+ * <p>Usage of {@link ThrottleWithExternalResource} is completely optional and serves as one of many
+ * methods by {@link RequestResponseIO} to protect against API overuse. Usage should not depend on
+ * {@link ThrottleWithExternalResource} alone to achieve API overuse prevention for several reasons.
+ * The underlying external resource may not scale at all or as fast as a Beam Runner. The external
+ * resource itself may be an API with its own quota that {@link ThrottleWithExternalResource} does
+ * not consider.
+ *
+ * <p>{@link ThrottleWithExternalResource} makes use of several {@link Caller}s that work together
+ * to achieve its aim of throttling a {@link T} {@link PCollection}. A {@link RefresherT} is a
+ * {@link Caller} that takes an {@link Instant} and refreshes a shared {@link Quota}. An {@link
+ * EnqueuerT} enqueues a {@link T} element while a {@link DequeuerT} dequeues said element when the
+ * {@link ReporterT} reports that the stored {@link Quota#getNumRequests} is >0. Finally, a {@link
+ * DecrementerT} decrements from the shared {@link Quota} value, additionally reporting the value
+ * after performing the action.
+ *
+ * <p>{@link ThrottleWithExternalResource} instantiates and applies two {@link Call} {@link
+ * PTransform}s using the aforementioned {@link Caller}s {@link RefresherT} and {@link EnqueuerT}.
+ * {@link ThrottleWithExternalResource} calls {@link ReporterT}, {@link DequeuerT}, {@link
+ * DecrementerT} within its {@link DoFn}, emitting the dequeued {@link T} when the {@link ReporterT}
+ * reports a value >0. As an additional safety check, the DoFn checks whether the {@link Quota}
+ * value after {@link DecrementerT}'s action is <0, signaling that multiple workers are attempting
+ * the same too fast and therefore exists the DoFn allowing for the next refresh.
+ *
+ * <p>{@link ThrottleWithExternalResource} flattens errors emitted from {@link EnqueuerT}, {@link
+ * RefresherT}, and its own {@link DoFn} into a single {@link ApiIOError} {@link PCollection} that
+ * is encapsulated, with a {@link T} {@link PCollection} output into a {@link Call.Result}.
+ */
 class ThrottleWithExternalResource<
         @NonNull T,
         ReporterT extends Caller<@NonNull String, @NonNull Long> & SetupTeardown,
         EnqueuerT extends Caller<@NonNull T, Void> & SetupTeardown,
         DequeuerT extends Caller<@NonNull Instant, @NonNull T> & SetupTeardown,
+        DecrementerT extends Caller<@NonNull Instant, @NonNull Long> & SetupTeardown,
         RefresherT extends Caller<@NonNull Instant, Void> & SetupTeardown>
     extends PTransform<@NonNull PCollection<@NonNull T>, Call.@NonNull Result<@NonNull T>> {
 
-  /** Instantiate a {@link ThrottleWithExternalResource} using a {@link RedisClient}. */
+  /**
+   * Instantiate a {@link ThrottleWithExternalResource} using a {@link RedisClient}.
+   *
+   * <p><a href="https://redis.io">Redis</a> is designed for multiple workloads, simultaneously
+   * reading and writing to a shared instance. See <a
+   * href="https://redis.io/docs/get-started/faq/">Redis FAQ</a> for more information on important
+   * considerations when using Redis as {@link ThrottleWithExternalResource}'s external resource.
+   */
   static <@NonNull T>
       ThrottleWithExternalResource<
               @NonNull T,
               RedisReporter,
               RedisEnqueuer<@NonNull T>,
-              RedisDequeur<@NonNull T>,
+              RedisDequeuer<@NonNull T>,
+              RedisDecrementer,
               RedisRefresher>
           usingRedis(
               URI uri,
@@ -70,14 +113,16 @@ class ThrottleWithExternalResource<
         @NonNull T,
         RedisReporter,
         RedisEnqueuer<@NonNull T>,
-        RedisDequeur<@NonNull T>,
+        RedisDequeuer<@NonNull T>,
+        RedisDecrementer,
         RedisRefresher>(
         quota,
         quotaIdentifier,
         coder,
         new RedisReporter(uri),
         new RedisEnqueuer<>(uri, queueKey, coder),
-        new RedisDequeur<>(uri, coder, queueKey),
+        new RedisDequeuer<>(uri, coder, queueKey),
+        new RedisDecrementer(uri, queueKey),
         new RedisRefresher(uri, quota, quotaIdentifier));
   }
 
@@ -89,6 +134,7 @@ class ThrottleWithExternalResource<
   private final @NonNull ReporterT reporterT;
   private final @NonNull EnqueuerT enqueuerT;
   private final @NonNull DequeuerT dequeuerT;
+  private final @NonNull DecrementerT decrementerT;
   private final @NonNull RefresherT refresherT;
 
   ThrottleWithExternalResource(
@@ -98,6 +144,7 @@ class ThrottleWithExternalResource<
       @NonNull ReporterT reporterT,
       @NonNull EnqueuerT enqueuerT,
       @NonNull DequeuerT dequeuerT,
+      @NonNull DecrementerT decrementerT,
       @NonNull RefresherT refresherT)
       throws Coder.NonDeterministicException {
     this.quotaIdentifier = quotaIdentifier;
@@ -108,6 +155,7 @@ class ThrottleWithExternalResource<
     this.coder = coder;
     this.enqueuerT = enqueuerT;
     this.dequeuerT = dequeuerT;
+    this.decrementerT = decrementerT;
     this.refresherT = refresherT;
   }
 
@@ -135,7 +183,12 @@ class ThrottleWithExternalResource<
                 "throttle/fn",
                 ParDo.of(
                         new ThrottleFn(
-                            quotaIdentifier, dequeuerT, reporterT, outputTag, failureTag))
+                            quotaIdentifier,
+                            dequeuerT,
+                            decrementerT,
+                            reporterT,
+                            outputTag,
+                            failureTag))
                     .withOutputTags(outputTag, TupleTagList.of(failureTag)));
 
     PCollection<ApiIOError> errors =
@@ -165,6 +218,7 @@ class ThrottleWithExternalResource<
   private class ThrottleFn extends DoFn<@NonNull Instant, @NonNull T> {
     private final String quotaIdentifier;
     private final DequeuerT dequeuerT;
+    private final DecrementerT decrementerT;
     private final ReporterT reporterT;
     private final TupleTag<@NonNull T> outputTag;
     private final TupleTag<@NonNull ApiIOError> failureTag;
@@ -172,11 +226,13 @@ class ThrottleWithExternalResource<
     private ThrottleFn(
         String quotaIdentifier,
         DequeuerT dequeuerT,
+        DecrementerT decrementerT,
         ReporterT reporterT,
         TupleTag<@NonNull T> outputTag,
         TupleTag<@NonNull ApiIOError> failureTag) {
       this.quotaIdentifier = quotaIdentifier;
       this.dequeuerT = dequeuerT;
+      this.decrementerT = decrementerT;
       this.reporterT = reporterT;
       this.outputTag = outputTag;
       this.failureTag = failureTag;
@@ -190,16 +246,31 @@ class ThrottleWithExternalResource<
           return;
         }
 
-        // Dequeue an element if quota available.
+        // Decrement the quota.
+        Long quotaAfterDecrement = decrementerT.call(instant);
+
+        // As an additional protection we check what the quota is after decrementing. A value
+        // < 0 signals that multiple simultaneous workers have attempted to decrement too quickly.
+        // We don't bother adding the quota back to prevent additional workers from doing the same
+        // and just wait for the next refresh, exiting the DoFn.
+        if (quotaAfterDecrement < 0) {
+          return;
+        }
+
+        // Dequeue an element if quota available. An error here would not result in loss of data
+        // as no element would successfully dequeue from the external resource but instead throw.
         T element = dequeuerT.call(instant);
-        // Emit element.
+
+        // Finally, emit the element.
         receiver.get(outputTag).output(element);
+
       } catch (UserCodeExecutionException e) {
         receiver
             .get(failureTag)
             .output(
                 ApiIOError.builder()
-                    .setRequestAsJsonString(String.format("{\"request\": \"%s\"}", instant))
+                    // no request to emit as part of the error.
+                    .setRequestAsJsonString("")
                     .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
                     .setObservedTimestamp(Instant.now())
                     .setStackTrace(Throwables.getStackTraceAsString(e))
@@ -211,6 +282,7 @@ class ThrottleWithExternalResource<
     public void setup() throws UserCodeExecutionException {
       enqueuerT.setup();
       dequeuerT.setup();
+      decrementerT.setup();
       reporterT.setup();
     }
 
@@ -218,6 +290,7 @@ class ThrottleWithExternalResource<
     public void teardown() throws UserCodeExecutionException {
       enqueuerT.teardown();
       dequeuerT.teardown();
+      decrementerT.teardown();
       reporterT.teardown();
     }
   }
@@ -258,13 +331,13 @@ class ThrottleWithExternalResource<
     }
   }
 
-  private static class RedisDequeur<@NonNull T> extends RedisSetupTeardown
+  private static class RedisDequeuer<@NonNull T> extends RedisSetupTeardown
       implements Caller<@NonNull Instant, @NonNull T> {
 
     private final Coder<@NonNull T> coder;
     private final String key;
 
-    private RedisDequeur(URI uri, Coder<@NonNull T> coder, String key) {
+    private RedisDequeuer(URI uri, Coder<@NonNull T> coder, String key) {
       super(new RedisClient(uri));
       this.coder = coder;
       this.key = key;
@@ -279,6 +352,22 @@ class ThrottleWithExternalResource<
       } catch (IOException e) {
         throw new UserCodeExecutionException(e);
       }
+    }
+  }
+
+  private static class RedisDecrementer extends RedisSetupTeardown
+      implements Caller<@NonNull Instant, @NonNull Long> {
+
+    private final String key;
+
+    private RedisDecrementer(URI uri, String key) {
+      super(new RedisClient(uri));
+      this.key = key;
+    }
+
+    @Override
+    public @NonNull Long call(@NonNull Instant request) throws UserCodeExecutionException {
+      return client.decr(key);
     }
   }
 
