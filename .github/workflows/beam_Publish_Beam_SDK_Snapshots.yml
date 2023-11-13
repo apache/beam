@@ -78,6 +78,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
