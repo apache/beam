@@ -338,7 +338,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         Boolean autoSharding = configuration.getAutoSharding();
         Integer numStreams = configuration.getNumStreams();
         // Triggering frequency is only applicable for exactly-once
-        if (!configuration.getUseAtLeastOnceSemantics()) {
+        if (configuration.getUseAtLeastOnceSemantics() == null || !configuration.getUseAtLeastOnceSemantics()) {
           write =
               write.withTriggeringFrequency(
                   (triggeringFrequency == null || triggeringFrequency <= 0)
@@ -346,7 +346,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       : Duration.standardSeconds(triggeringFrequency));
         }
         // set num streams if specified, otherwise default to autoSharding
-        if (numStreams > 0) {
+        if (numStreams != null && numStreams > 0) {
           write = write.withNumStorageWriteApiStreams(numStreams);
         } else if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();
