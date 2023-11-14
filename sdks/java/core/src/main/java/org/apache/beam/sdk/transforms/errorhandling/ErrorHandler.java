@@ -20,9 +20,11 @@ package org.apache.beam.sdk.transforms.errorhandling;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +79,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
     private final PTransform<PCollection<ErrorT>, OutputT> sinkTransform;
 
+    private final Pipeline pipeline;
+
     private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
     private @Nullable OutputT sinkOutput = null;
@@ -87,8 +92,10 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
      * pipeline.registerErrorHandler to ensure safe pipeline construction
      */
     @Internal
-    public PTransformErrorHandler(PTransform<PCollection<ErrorT>, OutputT> sinkTransform) {
+    public PTransformErrorHandler(
+        PTransform<PCollection<ErrorT>, OutputT> sinkTransform, Pipeline pipeline) {
       this.sinkTransform = sinkTransform;
+      this.pipeline = pipeline;
     }
 
     @Override
@@ -115,19 +122,25 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     @Override
     public void close() {
       closed = true;
+      PCollection<ErrorT> flattened;
       if (errorCollections.isEmpty()) {
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
-        return;
+        flattened = pipeline.apply(Create.empty(new TypeDescriptor<ErrorT>() {}));
+      } else {
+        flattened = PCollectionList.of(errorCollections).apply(Flatten.pCollections());
       }
       LOG.debug(
           "{} error collections are being sent to {}",
           errorCollections.size(),
           sinkTransform.getName());
+      String sinkTransformName = sinkTransform.getName();
       sinkOutput =
-          PCollectionList.of(errorCollections)
-              .apply(Flatten.pCollections())
-              .apply(new WriteErrorMetrics<ErrorT>(sinkTransform))
+          flattened
               .apply(
+                  "Record Error Metrics to " + sinkTransformName,
+                  new WriteErrorMetrics<ErrorT>(sinkTransformName))
+              .apply(
+                  "Write to error Sink",
                   sinkTransform.addAnnotation(
                       "FeatureMetric", "ErrorHandler".getBytes(StandardCharsets.UTF_8)));
     }
@@ -137,8 +150,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
       private final Counter errorCounter;
 
-      public WriteErrorMetrics(PTransform<?, ?> sinkTransform) {
-        errorCounter = Metrics.counter("ErrorMetrics", sinkTransform.getName() + "-input");
+      public WriteErrorMetrics(String sinkTransformName) {
+        errorCounter = Metrics.counter("ErrorMetrics", sinkTransformName + "-input");
       }
 
       @Override
@@ -163,6 +176,11 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     }
   }
 
+  /**
+   * A default, placeholder error handler that exists to allow usage of .addErrorCollection()
+   * without effects. This enables more simple codepaths without checking for whether the user
+   * configured an error handler or not.
+   */
   @Internal
   class NoOpErrorHandler<ErrorT, OutputT extends POutput> implements ErrorHandler<ErrorT, OutputT> {
 
@@ -171,17 +189,20 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
     @Override
     public boolean isClosed() {
-      throw new IllegalArgumentException("No Op handler should not be closed");
+      throw new IllegalArgumentException(
+          "No Op handler should not be closed. This implies this IO is misconfigured.");
     }
 
     @Override
     public OutputT getOutput() {
-      throw new IllegalArgumentException("No Op handler has no output");
+      throw new IllegalArgumentException(
+          "No Op handler has no output. This implies this IO is misconfigured.");
     }
 
     @Override
     public void close() {
-      throw new IllegalArgumentException("No Op handler should not be closed");
+      throw new IllegalArgumentException(
+          "No Op handler should not be closed. This implies this IO is misconfigured.");
     }
   }
 }

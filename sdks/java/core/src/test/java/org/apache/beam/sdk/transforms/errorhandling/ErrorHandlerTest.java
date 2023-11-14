@@ -17,11 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -48,6 +55,7 @@ public class ErrorHandlerTest {
 
     pipeline.registerErrorHandler(new DummySinkTransform<PCollection<String>>());
 
+    //Expected to be thrown because the error handler isn't closed
     thrown.expect(IllegalStateException.class);
 
     pipeline.run();
@@ -58,6 +66,7 @@ public class ErrorHandlerTest {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     record.apply(new BRHEnabledPTransform());
 
+    //unhandled runtime exception thrown by the BRHEnabledPTransform
     thrown.expect(RuntimeException.class);
 
     pipeline.run();
@@ -67,18 +76,41 @@ public class ErrorHandlerTest {
   @Category(NeedsRunner.class)
   public void testErrorHandlerWithBRHTransform() throws Exception {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
+    DummySinkTransform<BadRecord> transform = new DummySinkTransform<>();
     try (ErrorHandler<BadRecord, PCollection<BadRecord>> eh =
-        pipeline.registerErrorHandler(new DummySinkTransform<>())) {
+        pipeline.registerErrorHandler(transform)) {
       record.apply(new BRHEnabledPTransform().withBadRecordHandler(eh));
     }
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
+
+    Assert.assertEquals(2,transform.getValues().size());
+    for (BadRecord badRecord : transform.getValues()){
+      BadRecord expectedRecord = BadRecord.builder()
+          .setRecord(Record.builder()
+              .build())
+          .setFailure(Failure.builder()
+              .build()).build();
+      Assert.assertEquals(expectedRecord,badRecord);
+    }
   }
 
-  public static class DummySinkTransform<T extends PCollection<?>> extends PTransform<T, T> {
+  public static class DummySinkTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
+
+    private final List<T> values = new ArrayList<>();
+
+    public List<T> getValues(){
+      return values;
+    }
 
     @Override
-    public T expand(T input) {
+    public PCollection<T> expand(PCollection<T> input) {
+      input.apply(ParDo.of(new DoFn<T, T>() {
+        @ProcessElement
+        public void processElement(@Element T element){
+          values.add(element);
+        }
+      }));
       return input;
     }
   }

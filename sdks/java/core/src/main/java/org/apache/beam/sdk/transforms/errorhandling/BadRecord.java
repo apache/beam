@@ -19,8 +19,14 @@ package org.apache.beam.sdk.transforms.errorhandling;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
@@ -35,6 +41,19 @@ public abstract class BadRecord implements Serializable {
 
   public static Builder builder() {
     return new AutoValue_BadRecord.Builder();
+  }
+  public static Coder<BadRecord> getCoder(Pipeline pipeline){
+    try {
+      SchemaRegistry schemaRegistry = pipeline.getSchemaRegistry();
+      return
+          SchemaCoder.of(
+              schemaRegistry.getSchema(BadRecord.class),
+              TypeDescriptor.of(BadRecord.class),
+              schemaRegistry.getToRowFunction(BadRecord.class),
+              schemaRegistry.getFromRowFunction(BadRecord.class));
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @AutoValue.Builder
@@ -89,6 +108,9 @@ public abstract class BadRecord implements Serializable {
     /** The exception itself, e.g. IOException. Null if there is a failure without an exception. */
     public abstract @Nullable String getException();
 
+    /** The full stacktrace. Null if there is a failure without an exception. */
+    public abstract @Nullable String getExceptionStacktrace();
+
     /** The description of what was being attempted when the failure occurred. */
     public abstract String getDescription();
 
@@ -103,6 +125,8 @@ public abstract class BadRecord implements Serializable {
     public abstract static class Builder {
 
       public abstract Builder setException(@Nullable String exception);
+
+      public abstract Builder setExceptionStacktrace(@Nullable String stacktrace);
 
       public abstract Builder setDescription(String description);
 

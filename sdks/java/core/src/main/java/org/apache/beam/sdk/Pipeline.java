@@ -349,7 +349,7 @@ public class Pipeline {
 
   public <X, T extends POutput> ErrorHandler<X, T> registerErrorHandler(
       PTransform<PCollection<X>, T> sinkTransform) {
-    ErrorHandler<X, T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
+    ErrorHandler<X, T> errorHandler = new PTransformErrorHandler<>(sinkTransform, this);
     errorHandlers.add(errorHandler);
     return errorHandler;
   }

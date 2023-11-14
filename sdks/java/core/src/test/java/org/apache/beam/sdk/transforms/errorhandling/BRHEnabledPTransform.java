@@ -32,7 +32,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** Dummy PTransform that is configurable with a Bad Record Handler. */
+/** Dummy PTransform that is configurable with a Bad Record Handler.
+ * TODO(johncasey) look to factor some of this out for easy use in other IOs */
 public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
   private ErrorHandler<BadRecord, ?> errorHandler = new NoOpErrorHandler<>();
@@ -57,22 +58,8 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
             ParDo.of(new OddIsBad(badRecordRouter))
                 .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
 
-    Coder<BadRecord> badRecordCoder;
-
-    try {
-      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-      badRecordCoder =
-          SchemaCoder.of(
-              schemaRegistry.getSchema(BadRecord.class),
-              TypeDescriptor.of(BadRecord.class),
-              schemaRegistry.getToRowFunction(BadRecord.class),
-              schemaRegistry.getFromRowFunction(BadRecord.class));
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException(e);
-    }
-
     errorHandler.addErrorCollection(
-        pCollectionTuple.get(BadRecordRouter.BAD_RECORD_TAG).setCoder(badRecordCoder));
+        pCollectionTuple.get(BadRecordRouter.BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
 
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
@@ -95,7 +82,7 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
             receiver,
             element,
             BigEndianIntegerCoder.of(),
-            new RuntimeException(),
+            new RuntimeException("Integer was odd"),
             "Integer was odd",
             "NoOpDoFn");
       }

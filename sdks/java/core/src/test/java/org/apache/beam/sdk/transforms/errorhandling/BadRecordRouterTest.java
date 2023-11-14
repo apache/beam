@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.errorhandling;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -32,11 +34,14 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentMatcher;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -51,6 +56,16 @@ public class BadRecordRouterTest {
   @Mock private MultiOutputReceiver outputReceiver;
 
   @Mock private OutputReceiver<BadRecord> badRecordOutputReceiver;
+
+  private static final BiFunction<BadRecord.Builder, BadRecord.Failure.Builder, ArgumentMatcher<BadRecord>> ignoreStacktraceMatcher = (expectedBuilder, failure) ->
+      (ArgumentMatcher<BadRecord>) argument -> {
+        //This complex matcher means we don't need to maintain an expected stacktrace
+        String stackTrace = argument.getFailure().getExceptionStacktrace();
+        failure.setExceptionStacktrace(stackTrace);
+        BadRecord expected = expectedBuilder.setFailure(failure.build()).build();
+        return expected.equals(argument);
+      };
+
 
   @Test
   public void testThrowingHandlerWithException() throws Exception {
@@ -77,23 +92,21 @@ public class BadRecordRouterTest {
     handler.route(
         outputReceiver, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc", "transform");
 
-    BadRecord expected =
+    BadRecord.Builder expectedBuilder =
         BadRecord.builder()
             .setRecord(
                 Record.builder()
                     .setJsonRecord("5")
                     .setEncodedRecord(new byte[] {0, 0, 0, 5})
                     .setCoder("BigEndianIntegerCoder")
-                    .build())
-            .setFailure(
-                Failure.builder()
-                    .setException("java.lang.RuntimeException")
-                    .setDescription("desc")
-                    .setFailingTransform("transform")
-                    .build())
-            .build();
+                    .build());
 
-    verify(badRecordOutputReceiver).output(expected);
+    BadRecord.Failure.Builder failure = BadRecord.Failure.builder()
+        .setException("java.lang.RuntimeException")
+        .setDescription("desc")
+        .setFailingTransform("transform");
+
+    verify(badRecordOutputReceiver).output(ArgumentMatchers.argThat(ignoreStacktraceMatcher.apply(expectedBuilder,failure)));
   }
 
   @Test
@@ -104,18 +117,17 @@ public class BadRecordRouterTest {
 
     handler.route(outputReceiver, 5, null, new RuntimeException(), "desc", "transform");
 
-    BadRecord expected =
+    BadRecord.Builder expectedBuilder =
         BadRecord.builder()
-            .setRecord(Record.builder().setJsonRecord("5").build())
-            .setFailure(
-                Failure.builder()
-                    .setException("java.lang.RuntimeException")
-                    .setDescription("desc")
-                    .setFailingTransform("transform")
-                    .build())
-            .build();
+            .setRecord(Record.builder().setJsonRecord("5").build());
 
-    verify(badRecordOutputReceiver).output(expected);
+    BadRecord.Failure.Builder failure = BadRecord.Failure.builder()
+        .setException("java.lang.RuntimeException")
+        .setDescription("desc")
+        .setFailingTransform("transform");
+
+    verify(badRecordOutputReceiver).output(ArgumentMatchers.argThat(ignoreStacktraceMatcher.apply(expectedBuilder,failure)));
+
   }
 
   @Test
@@ -129,7 +141,7 @@ public class BadRecordRouterTest {
           @Override
           public void encode(Integer value, OutputStream outStream)
               throws CoderException, IOException {
-            throw new IOException();
+            throw new CoderException("Failing Coder");
           }
 
           @Override
@@ -148,18 +160,17 @@ public class BadRecordRouterTest {
 
     handler.route(outputReceiver, 5, failingCoder, new RuntimeException(), "desc", "transform");
 
-    BadRecord expected =
+    BadRecord.Builder expectedBuilder =
         BadRecord.builder()
             .setRecord(
-                Record.builder().setJsonRecord("5").setCoder(failingCoder.toString()).build())
-            .setFailure(
-                Failure.builder()
-                    .setException("java.lang.RuntimeException")
-                    .setDescription("desc")
-                    .setFailingTransform("transform")
-                    .build())
-            .build();
+                Record.builder().setJsonRecord("5").setCoder(failingCoder.toString()).build());
 
-    verify(badRecordOutputReceiver).output(expected);
+    BadRecord.Failure.Builder failure = BadRecord.Failure.builder()
+        .setException("java.lang.RuntimeException")
+        .setDescription("desc")
+        .setFailingTransform("transform");
+
+    verify(badRecordOutputReceiver).output(ArgumentMatchers.argThat(ignoreStacktraceMatcher.apply(expectedBuilder,failure)));
+
   }
 }
