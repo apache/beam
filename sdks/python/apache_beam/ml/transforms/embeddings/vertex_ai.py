@@ -18,12 +18,12 @@
 # Vertex AI Python SDK is required for this module.
 # Follow https://cloud.google.com/vertex-ai/docs/python-sdk/use-vertex-ai-python-sdk # pylint: disable=line-too-long
 # to install Vertex AI Python SDK.
+
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
-from typing import Sequence
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
@@ -33,10 +33,19 @@ from apache_beam.ml.transforms.base import TextEmbeddingHandler
 import vertexai
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
+from google.auth.credentials import Credentials
+
+__all__ = ["VertexAITextEmbeddings"]
 
 # TODO: make these user configurable
 TASK_TYPE = "RETRIEVAL_DOCUMENT"
-TITLE = "Google"
+TASK_TYPE_INPUTS = [
+    "RETRIEVAL_DOCUMENT",
+    "RETRIEVAL_QUERY",
+    "SEMANTIC_SIMILARITY",
+    "CLASSIFICATION",
+    "CLUSTERING"
+]
 
 
 def yield_elements(elements):
@@ -44,36 +53,43 @@ def yield_elements(elements):
     yield element
 
 
-# TODO: Can we VertexAIModelHandlerJson here?
-class VertexAITextEmbeddingHandler(ModelHandler):
+class _VertexAITextEmbeddingHandler(ModelHandler):
   """
-  ModelHandler for Vertex AI Text Embedding models.
-  https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/text-embeddings
-  The model handler follows the above documentation for generating embeddings
-  for a batch of text.
+  Note: Intended for internal use and guarantees no backwards compatibility.
   """
   def __init__(
       self,
       model_name: str,
+      title: Optional[str] = None,
+      task_type: str = TASK_TYPE,
+      project: Optional[str] = None,
+      location: Optional[str] = None,
+      credentials: Optional[Credentials] = None,
   ):
+    vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
+    if task_type not in TASK_TYPE_INPUTS:
+      raise ValueError(
+          f"task_type must be one of {TASK_TYPE_INPUTS}, got {task_type}")
+    self.task_type = task_type
+    self.title = title
 
   def run_inference(
       self,
-      batch: Sequence,
+      batch: List[str],
       model: Any,
       inference_args: Optional[Dict[str, Any]] = None,
   ) -> Iterable:
     embeddings = []
-    batch_size = 5
+    batch_size = 5  # Vertex AI limits requests to 5 at a time.
     for i in range(0, len(batch), batch_size):
       text_batch = batch[i:i + batch_size]
       text_batch = [
-          TextEmbeddingInput(text=text, task_type=TASK_TYPE, title=TITLE)
+          TextEmbeddingInput(
+              text=text, title=self.title, task_type=self.task_type)
           for text in text_batch
       ]
       embeddings_batch = model.get_embeddings(text_batch)
-      print(embeddings_batch)
       embeddings.extend([el.values for el in embeddings_batch])
     return embeddings
 
@@ -82,23 +98,59 @@ class VertexAITextEmbeddingHandler(ModelHandler):
     return model
 
 
-class VertexAIEmbeddings(EmbeddingsManager):
+class VertexAITextEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      project: str,
-      location: str,
       columns: List[str],
-      batch_size: int = 5,
+      title: Optional[str] = None,
+      task_type: str = TASK_TYPE,
+      project: Optional[str] = None,
+      location: Optional[str] = None,
+      credentials: Optional[Credentials] = None,
       **kwargs,
   ):
+    """
+    Embedding Config for Vertex AI Text Embedding models following
+    https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings # pylint: disable=line-too-long
+
+    Text Embeddings are generated for a batch of text using the Vertex AI SDK.
+    Embeddings are returned in a list for each text in the batch. Look at
+    https://cloud.google.com/vertex-ai/docs/generative-ai/learn/model-versioning#stable-versions-available.md # pylint: disable=line-too-long
+    for more information on model versions and lifecycle.
+
+    Args:
+      model_name: The name of the Vertex AI Text Embedding model.
+      columns: The columns containing the text to be embedded.
+      task_type: The name of the downstream task the embeddings will be used for.
+        Valid values:
+        RETRIEVAL_QUERY
+            Specifies the given text is a query in a search/retrieval setting.
+        RETRIEVAL_DOCUMENT
+            Specifies the given text is a document from the corpus being searched.
+        SEMANTIC_SIMILARITY
+            Specifies the given text will be used for STS.
+        CLASSIFICATION
+            Specifies that the given text will be classified.
+        CLUSTERING
+            Specifies that the embeddings will be used for clustering.
+      title: Optional identifier of the text content.
+      project: The default GCP project to make Vertex API calls.
+      location: The default location to use when making API calls.
+      credentials: The default custom
+        credentials to use when making API calls. If not provided credentials
+        will be ascertained from the environment.
+
+    """
     self.model_name = model_name
-    self.batch_size = batch_size
     super().__init__(columns=columns, **kwargs)
-    vertexai.init(project=project, location=location)
 
   def get_model_handler(self) -> ModelHandler:
-    return VertexAITextEmbeddingHandler(self.model_name)
+    return _VertexAITextEmbeddingHandler(
+        model_name=self.model_name,
+        project=self.project,
+        location=self.location,
+        credentials=self.credentials)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (
