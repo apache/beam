@@ -27,12 +27,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.DistributionCell;
+import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -392,6 +397,32 @@ public class ReadFromKafkaDoFnTest {
     assertEquals(ProcessContinuation.stop(), result);
     assertEquals(
         createExpectedRecords(descriptor, startOffset, 3, "key", "value"), receiver.getOutputs());
+  }
+
+  @Test
+  public void testRawSizeMetric() throws Exception {
+    final int numElements = 1000;
+    final int recordSize = 8; // The size of key and value is defined in SimpleMockKafkaConsumer.
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
+
+    MockOutputReceiver receiver = new MockOutputReceiver();
+    consumer.setNumOfRecordsPerPoll(numElements);
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, numElements));
+    KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
+    ProcessContinuation result = dofnInstance.processElement(descriptor, tracker, null, receiver);
+    assertEquals(ProcessContinuation.stop(), result);
+
+    DistributionCell d =
+        container.getDistribution(
+            MetricName.named(
+                ReadFromKafkaDoFn.METRIC_NAMESPACE,
+                ReadFromKafkaDoFn.RAW_SIZE_METRIC_PREFIX + topicPartition));
+
+    assertEquals(
+        d.getCumulative(),
+        DistributionData.create(recordSize * numElements, numElements, recordSize, recordSize));
   }
 
   @Test
