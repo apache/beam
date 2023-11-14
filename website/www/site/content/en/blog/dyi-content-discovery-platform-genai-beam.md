@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "DIY GenAI Content Discovery Platform with Apache Beam"
-date:   2023-09-27 00:00:01 -0800
+date:   2023-10-02 00:00:01 -0800
 categories:
   - blog
 authors:

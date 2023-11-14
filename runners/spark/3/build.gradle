@@ -34,6 +34,7 @@ createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
 // Additional supported Spark versions (used in compatibility tests)
 def sparkVersions = [
+    "350": "3.5.0",
     "341": "3.4.1",
     "340": "3.4.0",
     "332": "3.3.2",

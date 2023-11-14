@@ -67,6 +67,10 @@ Note that with `error_handling` declared, `MapToFields.my_error_output`
 logging the bad records to stdout would be sufficient (though not recommended
 for a robust pipeline).
 
+Note also that the exact format of the error outputs is still being finalized.
+They can be safely printed and written to outputs, but their precise schema
+may change in a future version of Beam and should not yet be depended on.
+
 Some transforms allow for extra arguments in their error_handling config, e.g.
 for Python functions one can give a `threshold` which limits the relative number
 of records that can be bad before considering the entire pipeline a failure

@@ -51,8 +51,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20230809'
-ext.dataflowFnapiContainerVersion = 'beam-master-20230809'
+ext.dataflowLegacyContainerVersion = 'beam-master-20231026'
+ext.dataflowFnapiContainerVersion = 'beam-master-20231026'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -279,10 +279,8 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   def javaVer = "java8"
-  if(project.hasProperty('compileAndRunTestsWithJava17')) {
-    javaVer = "java17"
-  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-    javaVer = "java11"
+  if(project.hasProperty('testJavaVersion')) {
+    javaVer = "java${project.getProperty('testJavaVersion')}"
   }
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
@@ -306,9 +304,11 @@ def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
       commandLine "docker", "rmi", "--force", "${dockerJavaImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
     }
   }
@@ -347,9 +347,11 @@ def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
       commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonImageContainer}"
     }
   }

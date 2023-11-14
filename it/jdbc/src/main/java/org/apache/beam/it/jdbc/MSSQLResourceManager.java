@@ -61,14 +61,13 @@ public class MSSQLResourceManager
   }
 
   @VisibleForTesting
-  <T extends MSSQLResourceManager.DefaultMSSQLServerContainer<T>> MSSQLResourceManager(
-      T container, Builder builder) {
+  <T extends DefaultMSSQLServerContainer<T>> MSSQLResourceManager(T container, Builder builder) {
     super(container, builder);
     initialized = true;
   }
 
-  public static MSSQLResourceManager.Builder builder(String testId) {
-    return new MSSQLResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   private synchronized void createDatabase(String databaseName) {

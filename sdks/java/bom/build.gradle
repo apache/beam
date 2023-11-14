@@ -76,7 +76,7 @@ tasks.whenTaskAdded { task ->
         expand(version: project.version, modules: bomModuleNames)
       }
     }
-  } else if (task.name.startsWith('publishMavenJavaPublication')) {
+  } else if (task.name.startsWith('publishMavenJavaPublication') || task.name.startsWith('signMavenJavaPublication')) {
     task.dependsOn copyPom
   }
 }

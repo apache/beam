@@ -90,7 +90,7 @@ public class FileBasedIOLT extends IOLoadTestBase {
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
-  private static final Map<String, FileBasedIOLT.Configuration> TEST_CONFIGS_PRESET;
+  private static final Map<String, Configuration> TEST_CONFIGS_PRESET;
 
   static {
     try {

@@ -43,23 +43,23 @@ env:
 
 jobs:
   beam_Release_Python_NightlySnapshot:
-    name: ${{matrix.job_name}}  (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
         job_name: [beam_Release_Python_NightlySnapshot]
         job_phrase: [Release Nightly Snapshot Python]
-    if: github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'schedule'
-
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          github_job: ${{matrix.job_name}}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

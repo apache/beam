@@ -19,20 +19,18 @@
 
 
 locals {
-        subnetwork_cidr_range = "10.128.0.0/20"
         arc_values = {
-            "githubWebhookServer.enabled" = "true"
+            "githubWebhookServer.enabled" = "${var.deploy_webhook}"
             "authSecret.create" = "true"
             "authSecret.github_app_id" = data.google_secret_manager_secret_version.github_app_id.secret_data
             "authSecret.github_app_installation_id" = data.google_secret_manager_secret_version.github_app_install_id.secret_data
             "authSecret.github_app_private_key" = data.google_secret_manager_secret_version.github_private_key.secret_data
-            "githubWebhookServer.ingress.enabled" = "true"
+            "githubWebhookServer.ingress.enabled" = "${var.deploy_webhook}"
             "githubWebhookServer.ingress.hosts[0].host" = var.ingress_domain
             "githubWebhookServer.ingress.hosts[0].paths[0].path" = "/"
             "githubWebhookServer.ingress.hosts[0].paths[0].pathType" = "ImplementationSpecific"
             "githubWebhookServer.service.type" = "NodePort"
-            #"githubWebhookServer.ingress.tls[0].hosts[0]" = var.ingress_domain
-            "githubWebhookServer.ingress.annotations.kubernetes\\.io/ingress\\.global-static-ip-name" = google_compute_global_address.actions-runner-ip.name
+            "githubWebhookServer.ingress.annotations.kubernetes\\.io/ingress\\.global-static-ip-name" = var.deploy_webhook != "false" ? data.google_compute_global_address.actions-runner-ip[0].name : "not-configured"
             "githubWebhookServer.ingress.annotations.networking\\.gke\\.io/managed-certificates" = "managed-cert"
             "githubWebhookServer.ingress.annotations.kubernetes\\.io/ingress\\.class" = "gce"
         }

@@ -21,7 +21,7 @@ resource "google_container_cluster" "actions-runner-gke" {
   project                    = var.project_id
   location                   = var.zone
   initial_node_count         = 1
-  network                    = google_compute_network.actions-runner-network.id
+  network                    = data.google_compute_network.actions-runner-network.id
   subnetwork                 = google_compute_subnetwork.actions-runner-subnetwork.id
   remove_default_node_pool   = true
 
@@ -45,6 +45,7 @@ resource "google_container_node_pool" "main-actions-runner-pool" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
+    service_account = data.google_service_account.service_account.email
     tags = ["actions-runner-pool"]
    }
 }
@@ -72,6 +73,7 @@ resource "google_container_node_pool" "additional_runner_pools" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
+    service_account = data.google_service_account.service_account.email
     tags = ["actions-runner-pool"]
     labels = {
       "runner-pool" = each.value.name
@@ -90,5 +92,15 @@ resource "google_container_node_pool" "additional_runner_pools" {
 
 
 resource "google_compute_global_address" "actions-runner-ip" {
-  name      = "${var.environment}-actions-runner-ip"
+  count = var.deploy_webhook == "true" && var.existing_ip_name == "" ? 1 : 0
+  name  = "${var.environment}-actions-runner-ip"
+}
+
+data "google_compute_global_address" "actions-runner-ip" {
+  count = var.deploy_webhook == "true" ? 1 : 0
+  name  = var.existing_ip_name == "" ? google_compute_global_address.actions-runner-ip[0].name : var.existing_ip_name
+}
+
+data google_service_account "service_account" {
+  account_id = var.service_account_id
 }

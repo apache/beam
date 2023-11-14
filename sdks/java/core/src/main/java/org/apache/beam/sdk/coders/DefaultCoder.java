@@ -89,6 +89,14 @@ public @interface DefaultCoder {
         Class<?> clazz = typeDescriptor.getRawType();
         DefaultCoder defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
         if (defaultAnnotation == null) {
+          // check if the superclass has DefaultCoder annotation if the class is generated using
+          // AutoValue
+          if (clazz.getName().contains("AutoValue_")) {
+            clazz = clazz.getSuperclass();
+            defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
+          }
+        }
+        if (defaultAnnotation == null) {
           throw new CannotProvideCoderException(
               String.format("Class %s does not have a @DefaultCoder annotation.", clazz.getName()));
         }

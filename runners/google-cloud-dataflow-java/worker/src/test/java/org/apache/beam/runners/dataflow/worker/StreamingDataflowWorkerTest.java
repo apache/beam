@@ -80,6 +80,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -178,6 +179,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -225,6 +227,7 @@ public class StreamingDataflowWorkerTest {
   private static final ByteString DEFAULT_KEY_BYTES = ByteString.copyFromUtf8(DEFAULT_KEY_STRING);
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
+  private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final Function<GetDataRequest, GetDataResponse> EMPTY_DATA_RESPONDER =
       (GetDataRequest request) -> {
         GetDataResponse.Builder builder = GetDataResponse.newBuilder();
@@ -254,6 +257,7 @@ public class StreamingDataflowWorkerTest {
           return idGenerator.getAndIncrement();
         }
       };
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public BlockingFn blockingFn = new BlockingFn();
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
@@ -279,11 +283,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static Work createMockWork(long workToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-        Instant::now,
-        Collections.emptyList(),
-        work -> {});
+    return createMockWork(workToken, work -> {});
   }
 
   static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
@@ -2749,7 +2749,7 @@ public class StreamingDataflowWorkerTest {
             threadExpiration,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
@@ -2793,12 +2793,14 @@ public class StreamingDataflowWorkerTest {
     executor.shutdown();
   }
 
-  volatile boolean stop = false;
-
   @Test
   public void testActiveThreadMetric() throws Exception {
     int maxThreads = 5;
     int threadExpirationSec = 60;
+    CountDownLatch processStart1 = new CountDownLatch(2);
+    CountDownLatch processStart2 = new CountDownLatch(3);
+    CountDownLatch processStart3 = new CountDownLatch(4);
+    AtomicBoolean stop = new AtomicBoolean(false);
     // setting up actual implementation of executor instead of mocking to keep track of
     // active thread count.
     BoundedQueueExecutor executor =
@@ -2807,7 +2809,7 @@ public class StreamingDataflowWorkerTest {
             threadExpirationSec,
             TimeUnit.SECONDS,
             maxThreads,
-            10000000,
+            MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
@@ -2825,11 +2827,11 @@ public class StreamingDataflowWorkerTest {
 
     Consumer<Work> sleepProcessWorkFn =
         unused -> {
-          synchronized (this) {
-            this.notify();
-          }
+          processStart1.countDown();
+          processStart2.countDown();
+          processStart3.countDown();
           int count = 0;
-          while (!stop) {
+          while (!stop.get()) {
             count += 1;
           }
         };
@@ -2842,27 +2844,163 @@ public class StreamingDataflowWorkerTest {
     assertEquals(0, executor.activeCount());
 
     assertTrue(computationState.activateWork(key1Shard1, m2));
-    synchronized (this) {
-      executor.execute(m2, m2.getWorkItem().getSerializedSize());
-      this.wait();
-      // Seems current executor executes the initial work item twice
-      this.wait();
-    }
+    // activate work starts executing work if no other work is queued for that shard
+    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    processStart1.await();
     assertEquals(2, executor.activeCount());
 
     assertTrue(computationState.activateWork(key1Shard1, m3));
     assertTrue(computationState.activateWork(key1Shard1, m4));
-    synchronized (this) {
-      executor.execute(m3, m3.getWorkItem().getSerializedSize());
-      this.wait();
-    }
+    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    processStart2.await();
+
     assertEquals(3, executor.activeCount());
-    synchronized (this) {
-      executor.execute(m4, m4.getWorkItem().getSerializedSize());
-      this.wait();
-    }
+    executor.execute(m4, m4.getWorkItem().getSerializedSize());
+    processStart3.await();
     assertEquals(4, executor.activeCount());
-    stop = true;
+    stop.set(true);
+    executor.shutdown();
+  }
+
+  @Test
+  public void testOutstandingBytesMetric() throws Exception {
+    int maxThreads = 5;
+    int threadExpirationSec = 60;
+    CountDownLatch processStart1 = new CountDownLatch(2);
+    CountDownLatch processStart2 = new CountDownLatch(3);
+    CountDownLatch processStart3 = new CountDownLatch(4);
+    AtomicBoolean stop = new AtomicBoolean(false);
+    // setting up actual implementation of executor instead of mocking to keep track of
+    // active thread count.
+    BoundedQueueExecutor executor =
+        new BoundedQueueExecutor(
+            maxThreads,
+            threadExpirationSec,
+            TimeUnit.SECONDS,
+            maxThreads,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("DataflowWorkUnits-%d")
+                .setDaemon(true)
+                .build());
+
+    ComputationState computationState =
+        new ComputationState(
+            "computation",
+            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            executor,
+            ImmutableMap.of(),
+            null);
+
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    Consumer<Work> sleepProcessWorkFn =
+        unused -> {
+          processStart1.countDown();
+          processStart2.countDown();
+          processStart3.countDown();
+          int count = 0;
+          while (!stop.get()) {
+            count += 1;
+          }
+        };
+
+    Work m2 = createMockWork(2, sleepProcessWorkFn);
+
+    Work m3 = createMockWork(3, sleepProcessWorkFn);
+
+    Work m4 = createMockWork(4, sleepProcessWorkFn);
+    assertEquals(0, executor.bytesOutstanding());
+
+    long bytes = m2.getWorkItem().getSerializedSize();
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    // activate work starts executing work if no other work is queued for that shard
+    bytes += m2.getWorkItem().getSerializedSize();
+    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    processStart1.await();
+    assertEquals(bytes, executor.bytesOutstanding());
+
+    assertTrue(computationState.activateWork(key1Shard1, m3));
+    assertTrue(computationState.activateWork(key1Shard1, m4));
+
+    bytes += m3.getWorkItem().getSerializedSize();
+    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    processStart2.await();
+    assertEquals(bytes, executor.bytesOutstanding());
+
+    bytes += m4.getWorkItem().getSerializedSize();
+    executor.execute(m4, m4.getWorkItem().getSerializedSize());
+    processStart3.await();
+    assertEquals(bytes, executor.bytesOutstanding());
+    stop.set(true);
+    executor.shutdown();
+  }
+
+  @Test
+  public void testOutstandingBundlesMetric() throws Exception {
+    int maxThreads = 5;
+    int threadExpirationSec = 60;
+    CountDownLatch processStart1 = new CountDownLatch(2);
+    CountDownLatch processStart2 = new CountDownLatch(3);
+    CountDownLatch processStart3 = new CountDownLatch(4);
+    AtomicBoolean stop = new AtomicBoolean(false);
+    // setting up actual implementation of executor instead of mocking to keep track of
+    // active thread count.
+    BoundedQueueExecutor executor =
+        new BoundedQueueExecutor(
+            maxThreads,
+            threadExpirationSec,
+            TimeUnit.SECONDS,
+            maxThreads,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("DataflowWorkUnits-%d")
+                .setDaemon(true)
+                .build());
+
+    ComputationState computationState =
+        new ComputationState(
+            "computation",
+            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            executor,
+            ImmutableMap.of(),
+            null);
+
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    Consumer<Work> sleepProcessWorkFn =
+        unused -> {
+          processStart1.countDown();
+          processStart2.countDown();
+          processStart3.countDown();
+          int count = 0;
+          while (!stop.get()) {
+            count += 1;
+          }
+        };
+
+    Work m2 = createMockWork(2, sleepProcessWorkFn);
+
+    Work m3 = createMockWork(3, sleepProcessWorkFn);
+
+    Work m4 = createMockWork(4, sleepProcessWorkFn);
+    assertEquals(0, executor.elementsOutstanding());
+
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    // activate work starts executing work if no other work is queued for that shard
+    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    processStart1.await();
+    assertEquals(2, executor.elementsOutstanding());
+
+    assertTrue(computationState.activateWork(key1Shard1, m3));
+    assertTrue(computationState.activateWork(key1Shard1, m4));
+
+    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    processStart2.await();
+    assertEquals(3, executor.elementsOutstanding());
+
+    executor.execute(m4, m4.getWorkItem().getSerializedSize());
+    processStart3.await();
+    assertEquals(4, executor.elementsOutstanding());
+    stop.set(true);
     executor.shutdown();
   }
 

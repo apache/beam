@@ -420,7 +420,8 @@ class NexmarkLauncher(object):
     auth = HTTPBasicAuth(user, password)
 
     try:
-      response = requests.post(url, params=query_str, data=payload, auth=auth)
+      response = requests.post(
+          url, params=query_str, data=payload, auth=auth, timeout=60)
     except requests.exceptions.RequestException as e:
       logging.warning('Failed to publish metrics to InfluxDB: ' + str(e))
     else:

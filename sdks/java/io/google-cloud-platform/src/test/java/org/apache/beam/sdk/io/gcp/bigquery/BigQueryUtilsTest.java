@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSchema;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSpec;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -995,6 +996,27 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testToTableSpec() {
+    TableReference withProject =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    TableReference withoutProject =
+        new TableReference().setDatasetId("dataset").setTableId("table");
+    TableReference withDatasetOnly = new TableReference().setDatasetId("dataset");
+    TableReference withTableOnly = new TableReference().setTableId("table");
+
+    assertEquals("project.dataset.table", toTableSpec(withProject));
+    assertEquals("dataset.table", toTableSpec(withoutProject));
+    assertThrows(
+        "must include at least a dataset and a table",
+        IllegalArgumentException.class,
+        () -> toTableSpec(withDatasetOnly));
+    assertThrows(
+        "must include at least a dataset and a table",
+        IllegalArgumentException.class,
+        () -> toTableSpec(withTableOnly));
+  }
+
+  @Test
   public void testToTableReference() {
     {
       TableReference tr =
@@ -1020,6 +1042,14 @@ public class BigQueryUtilsTest {
       assertEquals("mytable", tr.getTableId());
     }
 
+    {
+      // Test project that contains a dot and colon
+      TableReference tr = BigQueryUtils.toTableReference("project.with:domain.mydataset.mytable");
+      assertEquals("project.with:domain", tr.getProjectId());
+      assertEquals("mydataset", tr.getDatasetId());
+      assertEquals("mytable", tr.getTableId());
+    }
+
     // Invalid scenarios
     assertNull(BigQueryUtils.toTableReference(""));
     assertNull(BigQueryUtils.toTableReference(":."));
@@ -1031,12 +1061,15 @@ public class BigQueryUtilsTest {
     assertNull(BigQueryUtils.toTableReference("myproject:mydataset."));
     assertNull(BigQueryUtils.toTableReference("myproject:mydataset.mytable."));
     assertNull(BigQueryUtils.toTableReference("myproject:mydataset:mytable:"));
+    assertNull(BigQueryUtils.toTableReference("myproject:my dataset:mytable:"));
     assertNull(BigQueryUtils.toTableReference(".invalidleadingdot.mydataset.mytable"));
     assertNull(BigQueryUtils.toTableReference("invalidtrailingdot.mydataset.mytable."));
     assertNull(BigQueryUtils.toTableReference(":invalidleadingcolon.mydataset.mytable"));
     assertNull(BigQueryUtils.toTableReference("invalidtrailingcolon.mydataset.mytable:"));
-    assertNull(BigQueryUtils.toTableReference("myproject.mydataset.mytable.myinvalidpart"));
-    assertNull(BigQueryUtils.toTableReference("myproject:mydataset.mytable.myinvalidpart"));
+    assertNull(BigQueryUtils.toTableReference("projectendswithhyphen-.mydataset.mytable"));
+    assertNull(
+        BigQueryUtils.toTableReference(
+            "projectnamegoesbeyondthe30characterlimit.mydataset.mytable"));
 
     assertNull(
         BigQueryUtils.toTableReference("/projects/extraslash/datasets/mydataset/tables/mytable"));

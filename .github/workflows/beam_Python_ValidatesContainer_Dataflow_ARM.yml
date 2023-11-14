@@ -16,12 +16,6 @@
 name: Python ValidatesContainer Dataflow ARM
 
 on:
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ["sdks/python/**",".github/workflows/beam_Python_ValidatesContainer_Dataflow_ARM.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -44,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -54,7 +48,7 @@ env:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     strategy:
       fail-fast: false
       matrix:
@@ -63,7 +57,7 @@ jobs:
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
 
@@ -117,6 +111,7 @@ jobs:
           USER: github-actions
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: python-code-coverage-report
           path: "**/pytest*.xml"

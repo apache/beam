@@ -26,13 +26,13 @@ import sys
 import tempfile
 import unittest
 
+import mock
 import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
-from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
@@ -200,7 +200,10 @@ def create_test_method(test_type, test_name, test_yaml):
         if write in test_yaml:
           spec = replace_recursive(spec, write, 'path', env.output_file())
       modified_yaml = yaml.dump(spec)
-      options = {'pickle_library': 'cloudpickle'}
+      options = {
+          'pickle_library': 'cloudpickle',
+          'yaml_experimental_features': ['Combine']
+      }
       if RENDER_DIR is not None:
         options['runner'] = 'apache_beam.runners.render.RenderRunner'
         options['render_output'] = [
@@ -208,13 +211,12 @@ def create_test_method(test_type, test_name, test_yaml):
         ]
         options['render_leaf_composite_nodes'] = ['.*']
       test_provider = TestProvider(TEST_TRANSFORMS)
-      test_sql_mapping_provider = yaml_mapping.SqlMappingProvider(test_provider)
-      p = beam.Pipeline(options=PipelineOptions(**options))
-      yaml_transform.expand_pipeline(
-          p,
-          modified_yaml,
-          yaml_provider.merge_providers(
-              [test_provider, test_sql_mapping_provider]))
+      with mock.patch(
+          'apache_beam.yaml.yaml_provider.SqlBackedProvider.sql_provider',
+          lambda self: test_provider):
+        p = beam.Pipeline(options=PipelineOptions(**options))
+        yaml_transform.expand_pipeline(
+            p, modified_yaml, yaml_provider.merge_providers([test_provider]))
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()
@@ -269,6 +271,9 @@ ReadMeTest = createTestSuite(
 ErrorHandlingTest = createTestSuite(
     'ErrorHandlingTest',
     os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
+
+CombineTest = createTestSuite(
+    'CombineTest', os.path.join(os.path.dirname(__file__), 'yaml_combine.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

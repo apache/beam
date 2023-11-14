@@ -54,6 +54,7 @@ def excludePaths = [
   'io/pulsar',
   'io/rabbitmq',
   'io/redis',
+  'io/rrio',
   'io/singlestore',
   'io/snowflake',
   'io/solr',

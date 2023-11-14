@@ -196,7 +196,8 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
             valueList.add(null);
           } else if (NumberUtils.isCreatable(value.toString())
               || "true".equalsIgnoreCase(value.toString())
-              || "false".equalsIgnoreCase(value.toString())) {
+              || "false".equalsIgnoreCase(value.toString())
+              || value.toString().startsWith("ARRAY[")) {
             valueList.add(String.valueOf(value));
           } else {
             valueList.add("'" + value + "'");
@@ -226,34 +227,9 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
   @SuppressWarnings("nullness")
   public List<Map<String, Object>> readTable(String tableName) {
     LOG.info("Reading all rows from {}.{}", databaseName, tableName);
-
-    List<Map<String, Object>> resultSet = new ArrayList<>();
-
-    StringBuilder sql = new StringBuilder();
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
-      Statement stmt = con.createStatement();
-
-      sql.append("SELECT * FROM ").append(tableName);
-      ResultSet result = stmt.executeQuery(sql.toString());
-
-      while (result.next()) {
-        Map<String, Object> row = new HashMap<>();
-        ResultSetMetaData metadata = result.getMetaData();
-        // Columns list in table metadata is 1-indexed
-        for (int i = 1; i <= metadata.getColumnCount(); i++) {
-          row.put(metadata.getColumnName(i), result.getObject(i));
-        }
-        resultSet.add(row);
-      }
-      result.close();
-      stmt.close();
-    } catch (Exception e) {
-      throw new JDBCResourceManagerException(
-          "Failed to fetch rows from table. SQL statement: " + sql, e);
-    }
-
+    List<Map<String, Object>> result = runSQLQuery(String.format("SELECT * FROM %s", tableName));
     LOG.info("Successfully loaded rows from {}.{}", databaseName, tableName);
-    return resultSet;
+    return result;
   }
 
   @Override
@@ -290,9 +266,21 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
   }
 
   @Override
-  public synchronized ResultSet runSQLQuery(String sql) {
+  @SuppressWarnings("nullness")
+  public synchronized List<Map<String, Object>> runSQLQuery(String sql) {
     try (Statement stmt = driver.getConnection(getUri(), username, password).createStatement()) {
-      return stmt.executeQuery(sql);
+      List<Map<String, Object>> result = new ArrayList<>();
+      ResultSet resultSet = stmt.executeQuery(sql);
+      while (resultSet.next()) {
+        Map<String, Object> row = new HashMap<>();
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        // Columns list in table metadata is 1-indexed
+        for (int i = 1; i <= metadata.getColumnCount(); i++) {
+          row.put(metadata.getColumnName(i), resultSet.getObject(i));
+        }
+        result.add(row);
+      }
+      return result;
     } catch (Exception e) {
       throw new JDBCResourceManagerException("Failed to execute SQL statement: " + sql, e);
     }
@@ -304,6 +292,21 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
       stmt.executeUpdate(sql);
     } catch (Exception e) {
       throw new JDBCResourceManagerException("Failed to execute SQL statement: " + sql, e);
+    }
+  }
+
+  @Override
+  public synchronized long getRowCount(String tableName) {
+    try (Connection con = driver.getConnection(getUri(), username, password)) {
+      Statement stmt = con.createStatement();
+      ResultSet resultSet = stmt.executeQuery(String.format("SELECT count(*) FROM %s", tableName));
+      resultSet.next();
+      long rows = resultSet.getLong(1);
+      resultSet.close();
+      stmt.close();
+      return rows;
+    } catch (Exception e) {
+      throw new JDBCResourceManagerException("Failed to get row count from " + tableName, e);
     }
   }
 

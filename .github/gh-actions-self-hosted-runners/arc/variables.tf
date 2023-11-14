@@ -58,6 +58,23 @@ variable "deploy_webhook" {
     description = "Enable Github Webhook deployment. use this if the Github App has permissions to create webhooks"
     default = "false"
 }
+variable "existing_vpc_name" {
+    description = "Name of existing VPC to use for deployment"
+    default = ""
+}
+variable "existing_ip_name" {
+    description = "Name of existing IP to use for ingress"
+    default = ""
+}
+variable "subnetwork_cidr_range" { 
+    description = "CIDR range for subnetwork"
+    default = "10.128.0.0/20"
+  
+}
+variable "service_account_id" {
+    description = "ID of service account to use for deployment. This can be Name, full Email or Fully Qualified Path"
+    default = ""
+}
 variable "runner_group" {
   description = "value for the runner group label"
   default = ""

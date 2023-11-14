@@ -30,7 +30,7 @@ final class CassandraResourceManagerUtils {
       Pattern.compile("[/\\\\. \"\0$]"); // i.e. [/\. "$]
   private static final String REPLACE_DATABASE_NAME_CHAR = "-";
   private static final DateTimeFormatter TIME_FORMAT =
-      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS");
 
   private CassandraResourceManagerUtils() {}
 

@@ -18,6 +18,7 @@
 """Apache Beam SDK for Python setup file."""
 
 import os
+import subprocess
 import sys
 import warnings
 # Pylint and isort disagree here.
@@ -62,7 +63,6 @@ class mypy(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    import subprocess
     args = ['mypy', self.get_project_path()]
     result = subprocess.call(args)
     if result != 0:
@@ -140,9 +140,15 @@ except ImportError:
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
-  pyarrow_dependency = ''
+  pyarrow_dependency = ['']
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
+  pyarrow_dependency = [
+      'pyarrow>=3.0.0,<12.0.0',
+      # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
+      # once Beam increases the pyarrow lower bound to a version that fixes CVE.
+      'pyarrow-hotfix<1'
+  ]
+
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
@@ -151,16 +157,40 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
 ]
 
+def find_by_ext(root_dir, ext):
+  for root, _, files in os.walk(root_dir):
+    for file in files:
+      if file.endswith(ext):
+        yield os.path.realpath(os.path.join(root, file))
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
   try:
-    # pylint: disable=wrong-import-position
-    import gen_protos
-    gen_protos.generate_proto_files()
+    # Pyproject toml build happens in isolated environemnts. In those envs,
+    # gen_protos is unable to get imported. so we run a subprocess call.
+    cwd = os.path.abspath(os.path.dirname(__file__))
+    # when pip install <>.tar.gz gets called, if gen_protos.py is not available
+    # in the sdist,then the proto files would have already been generated. So we
+    # skip proto generation in that case.
+    if not os.path.exists(os.path.join(cwd, 'gen_protos.py')):
+      # make sure we already generated protos
+      pb2_files = list(find_by_ext(os.path.join(
+          cwd, 'apache_beam', 'portability', 'api'), '_pb2.py'))
+      if not pb2_files:
+        raise RuntimeError('protobuf files are not generated. '
+                           'Please generate pb2 files')
 
-  except ImportError:
-    warnings.warn("Could not import gen_protos, skipping proto generation.")
+      warnings.warn('Skipping proto generation as they are already generated.')
+      return
+    out = subprocess.run([
+      sys.executable,
+      os.path.join(cwd, 'gen_protos.py'),
+      '--no-force'
+    ], capture_output=True, check=True)
+    print(out.stdout)
+  except subprocess.CalledProcessError as err:
+    raise RuntimeError('Could not generate protos due to error: %s',
+                       err.stderr)
 
 
 def get_portability_package_data():
@@ -188,6 +218,27 @@ if __name__ == '__main__':
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
   generate_protos_first()
+
+  # generate cythonize extensions only if we are building a wheel or
+  # building an extension or running in editable mode.
+  cythonize_cmds = ('bdist_wheel', 'build_ext', 'editable_wheel')
+  if any(cmd in sys.argv for cmd in cythonize_cmds):
+    extensions = cythonize([
+            'apache_beam/**/*.pyx',
+            'apache_beam/coders/coder_impl.py',
+            'apache_beam/metrics/cells.py',
+            'apache_beam/metrics/execution.py',
+            'apache_beam/runners/common.py',
+            'apache_beam/runners/worker/logger.py',
+            'apache_beam/runners/worker/opcounters.py',
+            'apache_beam/runners/worker/operations.py',
+            'apache_beam/transforms/cy_combiners.py',
+            'apache_beam/transforms/stats.py',
+            'apache_beam/utils/counters.py',
+            'apache_beam/utils/windowed_value.py',
+        ])
+  else:
+    extensions = []
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
@@ -213,21 +264,7 @@ if __name__ == '__main__':
               *get_portability_package_data()
           ]
       },
-      ext_modules=cythonize([
-          'apache_beam/**/*.pyx',
-          'apache_beam/coders/coder_impl.py',
-          'apache_beam/metrics/cells.py',
-          'apache_beam/metrics/execution.py',
-          'apache_beam/runners/common.py',
-          'apache_beam/runners/worker/logger.py',
-          'apache_beam/runners/worker/opcounters.py',
-          'apache_beam/runners/worker/operations.py',
-          'apache_beam/transforms/cy_combiners.py',
-          'apache_beam/transforms/stats.py',
-          'apache_beam/utils/counters.py',
-          'apache_beam/utils/windowed_value.py',
-      ],
-                            language_level=3),
+      ext_modules=extensions,
       install_requires=[
           'crcmod>=1.7,<2.0',
           'orjson>=3.9.7,<4',
@@ -248,9 +285,10 @@ if __name__ == '__main__':
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'js2py>=0.74,<1',
+          'jsonschema>=4.0.0,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<1.25.0',  # Update build-requirements.txt as well.
+          'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.7.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
@@ -265,7 +303,7 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<4.25.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.0,!=4.24.1,!=4.24.2',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<4.26.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
@@ -276,7 +314,7 @@ if __name__ == '__main__':
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
-      ] + [pyarrow_dependency],
+      ] + pyarrow_dependency,
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
@@ -349,9 +387,11 @@ if __name__ == '__main__':
           'interactive_test': [
               # headless chrome based integration tests
               'needle>=0.5.0,<1',
-              'chromedriver-binary>=100,<114',
+              'chromedriver-binary>=117,<118',
               # use a fixed major version of PIL for different python versions
               'pillow>=7.1.1,<10',
+              # urllib 2.x is a breaking change for the headless chrome tests
+              'urllib3<2,>=1.21.1'
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
@@ -364,6 +404,9 @@ if __name__ == '__main__':
               'dask >= 2022.6',
               'distributed >= 2022.6',
           ],
+          'yaml': [
+              'pyyaml>=3.12,<7.0.0',
+          ] + dataframe_dependency
       },
       zip_safe=False,
       # PyPI package information.
