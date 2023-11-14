@@ -34,6 +34,7 @@ import vertexai
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
 
+# TODO: make these user configurable
 TASK_TYPE = "RETRIEVAL_DOCUMENT"
 TITLE = "Google"
 
@@ -43,31 +44,14 @@ def yield_elements(elements):
     yield element
 
 
-class VertexAIEmbeddings(EmbeddingsManager):
-  def __init__(
-      self,
-      model_name: str,
-      project: str,
-      location: str,
-      columns: List[str],
-      batch_size: int = 5,
-      **kwargs,
-  ):
-    self.model_name = model_name
-    self.batch_size = batch_size
-    super().__init__(columns=columns, **kwargs)
-    vertexai.init(project=project, location=location)
-
-  def get_model_handler(self) -> ModelHandler:
-    return VertexAITextEmbeddingHandler(self.model_name)
-
-  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    return (
-        RunInference(model_handler=TextEmbeddingHandler(embedding_config=self))
-        | beam.ParDo(yield_elements))
-
-
+# TODO: Can we VertexAIModelHandlerJson here?
 class VertexAITextEmbeddingHandler(ModelHandler):
+  """
+  ModelHandler for Vertex AI Text Embedding models.
+  https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/text-embeddings
+  The model handler follows the above documentation for generating embeddings
+  for a batch of text.
+  """
   def __init__(
       self,
       model_name: str,
@@ -96,3 +80,27 @@ class VertexAITextEmbeddingHandler(ModelHandler):
   def load_model(self):
     model = TextEmbeddingModel.from_pretrained(self.model_name)
     return model
+
+
+class VertexAIEmbeddings(EmbeddingsManager):
+  def __init__(
+      self,
+      model_name: str,
+      project: str,
+      location: str,
+      columns: List[str],
+      batch_size: int = 5,
+      **kwargs,
+  ):
+    self.model_name = model_name
+    self.batch_size = batch_size
+    super().__init__(columns=columns, **kwargs)
+    vertexai.init(project=project, location=location)
+
+  def get_model_handler(self) -> ModelHandler:
+    return VertexAITextEmbeddingHandler(self.model_name)
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    return (
+        RunInference(model_handler=TextEmbeddingHandler(embedding_config=self))
+        | beam.ParDo(yield_elements))

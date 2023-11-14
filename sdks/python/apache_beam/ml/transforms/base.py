@@ -21,6 +21,7 @@ import abc
 import collections
 from dataclasses import dataclass
 import jsonpickle
+import logging
 import os
 from typing import Any, Mapping
 from typing import Callable
@@ -42,6 +43,7 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
 
+_LOGGER = logging.getLogger(__name__)
 _ATTRIBUTE_FILE_NAME = 'attributes.json'
 
 __all__ = ['MLTransform', 'ProcessHandler', 'BaseOperation']
@@ -261,7 +263,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       ptransform_partitioner = TransformsPartitioner(
           transforms=self.transforms,
           artifact_location=self._parent_artifact_location,
-          artifact_mode=self._artifact_mode)
+          artifact_mode=self._artifact_mode,
+          pipeline_options=pcoll.pipeline.options)
       ptransform_list = ptransform_partitioner.create_and_save_ptransform_list()
     else:
       ptransform_list = (
@@ -332,15 +335,15 @@ class MLTransformMetricsUsage(beam.PTransform):
 class EmbeddingsManager(PTransformManager):
   def __init__(
       self,
-      device: str = 'CPU',
+      *,
+      # these are common to all ModelHandlers.
+      columns: Optional[List[str]] = None,
       inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
-      columns: Optional[List[str]] = None,
       **kwargs):
-    self.device = device
     self.inference_fn = inference_fn
     self.load_model_args = load_model_args or {}
     self.min_batch_size = min_batch_size
@@ -348,6 +351,8 @@ class EmbeddingsManager(PTransformManager):
     self.large_model = large_model
     self.kwargs = kwargs
     self.columns = columns
+
+    _LOGGER.warning("Ignoring the following arguments: %s", self.kwargs.keys())
 
   @abc.abstractmethod
   def get_model_handler(self) -> ModelHandler:
@@ -385,10 +390,12 @@ class TransformsPartitioner:
       self,
       transforms: List[Union[BaseOperation, EmbeddingsManager]],
       artifact_location,
-      artifact_mode):
+      artifact_mode,
+      pipeline_options):
     self.transforms = transforms
     self._parent_artifact_location = artifact_location
     self.artifact_mode = artifact_mode
+    self.pipeline_options = pipeline_options
 
   def create_and_save_ptransform_list(self):
     self.ptransform_list = self.create_ptransform_list()
@@ -423,14 +430,34 @@ class TransformsPartitioner:
     """
     Save the ptransform references to json file.
     """
-    with open(os.path.join(self._parent_artifact_location,
-                           _ATTRIBUTE_FILE_NAME),
-              'w+') as f:
+    # create directory if not present.
+
+    """
+    Follow this code and create a GCS directory if not present.
+    https://source.corp.google.com/piper///depot/google3/third_party/py/apache_beam/runners/dataflow/internal/apiclient.py;l=649?q=_gcs_file_copy&ct=os
+    """
+    import tempfile
+    temp_dir = tempfile.mkdtemp()
+    temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
+    with open(temp_json_file, 'w+') as f:
       f.write(jsonpickle.encode(self.ptransform_list))
+
+    with open(temp_json_file, 'r') as f:
+      from apache_beam.runners.dataflow.internal import apiclient
+      import logging
+      logging.info(
+          'Creating artifact location: %s', self._parent_artifact_location)
+      apiclient.DataflowApplicationClient(
+          options=self.pipeline_options).stage_file(
+              gcs_or_local_path=self._parent_artifact_location,
+              file_name=_ATTRIBUTE_FILE_NAME,
+              stream=f,
+              mime_type='application/json')
 
   @staticmethod
   def load_transforms_from_artifact_location(artifact_location):
-    with open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME), 'r') as f:
+    with FileSystems.open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME),
+                          'r') as f:
       return jsonpickle.decode(f.read())
 
 
@@ -489,6 +516,8 @@ class TextEmbeddingHandler(ModelHandler):
               'Embeddings can only be generated on text columns.')
         prediction = self._underlying.run_inference(
             batch=batch, model=model, inference_args=inference_args)
+        for i in range(10):
+          print(type(prediction))
         if isinstance(prediction, np.ndarray):
           prediction = prediction.tolist()
           result[key] = prediction
