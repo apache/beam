@@ -39,12 +39,16 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -80,6 +84,9 @@ public class SqlTransformRunner {
           "Elapsed Time(sec)");
 
   private static final Logger LOG = LoggerFactory.getLogger(SqlTransformRunner.class);
+
+  static final String METRICS_NAMESPACE = "tpcds";
+  static final String OUTPUT_COUNTER = "output_rows";
 
   /** This class is used to extract all SQL query identifiers. */
   static class SqlIdentifierVisitor extends SqlBasicVisitor<Void> {
@@ -305,6 +312,7 @@ public class SqlTransformRunner {
         tables
             .apply(SqlTransform.query(queryString))
             .apply(MapElements.into(TypeDescriptors.strings()).via(Row::toString))
+            .apply(ParDo.of(new CounterDoFn()))
             .apply(
                 TextIO.write()
                     .to(
@@ -395,5 +403,15 @@ public class SqlTransformRunner {
         .withMeasurement(options.getBaseInfluxMeasurement())
         .withRetentionPolicy(options.getInfluxRetentionPolicy())
         .get();
+  }
+
+  private static class CounterDoFn extends DoFn<String, String> {
+    private final Counter counter = Metrics.counter(METRICS_NAMESPACE, OUTPUT_COUNTER);
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      counter.inc();
+      context.output(context.element());
+    }
   }
 }
