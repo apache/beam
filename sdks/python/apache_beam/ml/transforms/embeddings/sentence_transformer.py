@@ -14,22 +14,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: skip-file
+"""
+`sentence-transformers` package should be installed to use this module.
 
+This module provides a config for generating text embeddings using
+sentence-transformers. User can define an embedding config using this module and
+use it with MLTransform to embed text data.
+
+The ML models hosted on HuggingFace Hub -
+https://huggingface.co/models?library=sentence-transformers can be used
+ with this module.
+
+Usage:
+```
+embedding_config = SentenceTransformerEmbeddings(
+            model_uri=model_name,
+            columns=['text'])
+with beam.Pipeline(options=options) as p:
+  data = (
+    p
+    | "CreateData" >> beam.Create([{"text": "This is a test"}])
+  )
+  (
+    data
+    | "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
+    with_transform(embedding_config)
+  )
+```
+"""
+
+__all__ = ["SentenceTransformerEmbeddings"]
+
+from typing import Any
 from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
-# HuggingFaceModelHandlerTensor requires both tensorflow and pytorch as imports.
-from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
+from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import TextEmbeddingHandler
 
 from sentence_transformers import SentenceTransformer
 
 
-def inference_fn(batch, model, *args, **kwargs):
-  return model.encode(batch)
+def inference_fn(batch, model, inference_args, *args, **kwargs):
+  return model.encode(batch, **inference_args)
 
 
 def yield_elements(elements):
@@ -37,27 +70,69 @@ def yield_elements(elements):
     yield element
 
 
-class SentenceTransformerModelHandler(HuggingFaceModelHandlerTensor):
+# TODO: Use HuggingFaceModelHandlerTensor once the import issue is fixed.
+# Right now, the hugging face model handler import torch and tensorflow
+# at the same time, which adds too much weigth to the container unnecessarily.
+class _SentenceTransformerModelHandler(ModelHandler):
+  def __init__(
+      self,
+      model_name: str,
+      model_class: Callable,
+      inference_fn: Callable = inference_fn,
+      load_model_args: Optional[dict] = None,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      max_seq_length: Optional[int] = None,
+      large_model: Optional[bool] = None,
+      **kwargs):
+    self._max_seq_length = max_seq_length
+    self._model_uri = model_name
+    self._model_class = model_class
+    self._load_model_args = load_model_args
+    self._inference_fn = inference_fn
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._large_model = large_model
+    self._kwargs = kwargs
 
-  # Loading the model is different for SentenceTransformer but
-  # rest of the huggingface model handler logic works.
+  def run_inference(
+      self,
+      batch: List[str],
+      model: SentenceTransformer,
+      inference_args: Optional[Dict[str, Any]] = None,
+  ):
+    inference_args = inference_args or {}
+    return self._inference_fn(batch, model, inference_args, **self._kwargs)
+
   def load_model(self):
-    return self._model_class(self.model_uri)
+    model = self._model_class(self._model_uri)
+    if self._max_seq_length:
+      model.max_seq_length = self._max_seq_length
+    return model
+
+  def share_model_across_processes(self) -> bool:
+    return self._large_model
+
+  def batch_elements_kwargs(self) -> Mapping[str, Any]:
+    return {
+        "min_batch_size": self._min_batch_size,
+        "max_batch_size": self._max_batch_size,
+    }
 
 
 class SentenceTransformerEmbeddings(EmbeddingsManager):
-  def __init__(self, model_uri: str, **kwargs):
+  def __init__(
+      self, model_name: str, max_seq_length: Optional[int] = None, **kwargs):
 
     super().__init__(**kwargs)
-    self.model_uri = model_uri
+    self.model_name = model_name
+    self.max_seq_length = max_seq_length
 
   def get_model_handler(self):
-    # TODO: try using PytorchModelHandlerTensor since SentenceTransformer
-    # is a pytorch model.
-    return SentenceTransformerModelHandler(
+    return _SentenceTransformerModelHandler(
         model_class=SentenceTransformer,
-        model_uri=self.model_uri,
-        device=self.device,
+        max_seq_length=self.max_seq_length,
+        model_name=self.model_name,
         inference_fn=inference_fn,
         load_model_args=self.load_model_args,
         min_batch_size=self.min_batch_size,
