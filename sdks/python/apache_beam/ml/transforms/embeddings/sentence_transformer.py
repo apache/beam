@@ -122,7 +122,11 @@ class _SentenceTransformerModelHandler(ModelHandler):
 
 class SentenceTransformerEmbeddings(EmbeddingsManager):
   def __init__(
-      self, model_name: str, max_seq_length: Optional[int] = None, **kwargs):
+      self,
+      model_name: str,
+      columns: List[str],
+      max_seq_length: Optional[int] = None,
+      **kwargs):
 
     super().__init__(**kwargs)
     self.model_name = model_name
