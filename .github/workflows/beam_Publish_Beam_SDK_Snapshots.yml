@@ -104,7 +104,7 @@ jobs:
       - name: run Publish Beam SDK Snapshots script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:${{ matrix.container_task }}:docker
+          gradle-command: :sdks:${{ matrix.container_task }}:dockerTagPush
           arguments: |
             -Pjava11Home=$JAVA_HOME_11_X64 \
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
