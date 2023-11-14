@@ -120,15 +120,19 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
 
     Schema schema =
         Schema.of(
-            Schema.Field.of("id", Schema.FieldType.INT64),
-            Schema.Field.of("extra", Schema.FieldType.STRING));
+            Schema.Field.of("extra", Schema.FieldType.STRING),
+            Schema.Field.of("id", Schema.FieldType.INT64));
 
     PCollection<Row> sideRows =
         getSideInput()
             .setSchema(
                 schema,
                 TypeDescriptors.kvs(TypeDescriptors.longs(), TypeDescriptors.strings()),
-                kv -> Row.withSchema(schema).addValues(kv.getKey(), kv.getValue()).build(),
+                kv ->
+                    Row.withSchema(schema)
+                        .withFieldValue("extra", kv.getValue())
+                        .withFieldValue("id", kv.getKey())
+                        .build(),
                 row -> KV.of(row.getInt64("id"), row.getString("extra")))
             .apply("SideToRows", Convert.toRows());
 
