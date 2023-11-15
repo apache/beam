@@ -332,4 +332,19 @@ public class HistogramDataTest {
     HistogramData negativeScaleBucket = HistogramData.exponential(-3, 500);
     assertThat(negativeScaleBucket.getBucketType().getNumBuckets(), equalTo(4));
   }
+
+  @Test
+  public void testStatistics() {
+    HistogramData histogram1 = HistogramData.linear(0, 10, 10);
+    for (int i = 0; i < 10; i++) {
+      histogram1.record(i * 10.0);
+    }
+
+    assertThat(histogram1.getMean(), equalTo(45.0));
+    double sum_of_squared_deviations = 0;
+    for (int i = 0; i < 10; i++) {
+      sum_of_squared_deviations += IntMath.pow(45 - i * 10, 2);
+    }
+    assertThat(histogram1.getSumOfSquaredDeviations(), equalTo(sum_of_squared_deviations));
+  }
 }
