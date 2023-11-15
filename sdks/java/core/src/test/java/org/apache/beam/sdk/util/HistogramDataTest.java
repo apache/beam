@@ -334,17 +334,24 @@ public class HistogramDataTest {
   }
 
   @Test
-  public void testStatistics() {
-    HistogramData histogram1 = HistogramData.linear(0, 10, 10);
+  public void testStatistics_mean() {
+    HistogramData histogram = HistogramData.linear(0, 10, 10);
+
     for (int i = 0; i < 10; i++) {
-      histogram1.record(i * 10.0);
+      histogram.record(i * 10.0);
     }
 
-    assertThat(histogram1.getMean(), equalTo(45.0));
-    double sum_of_squared_deviations = 0;
+    assertThat(histogram.getMean(), equalTo(45.0));
+  }
+
+  @Test
+  public void testStatistics_sumOfSquaredDeviations() {
+    HistogramData histogram = HistogramData.linear(0, 10, 10);
+
     for (int i = 0; i < 10; i++) {
-      sum_of_squared_deviations += IntMath.pow(45 - i * 10, 2);
+      histogram.record(i * 10.0);
     }
-    assertThat(histogram1.getSumOfSquaredDeviations(), equalTo(sum_of_squared_deviations));
+
+    assertThat(histogram.getSumOfSquaredDeviations(), equalTo(8250.0));
   }
 }
