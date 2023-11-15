@@ -71,7 +71,7 @@ jobs:
           - "python:container:py310"
           - "python:container:py311"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
