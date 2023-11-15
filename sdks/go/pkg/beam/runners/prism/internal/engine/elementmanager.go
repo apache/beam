@@ -156,8 +156,8 @@ func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, side
 	ss := makeStageState(ID, inputIDs, outputIDs, sides)
 
 	em.stages[ss.ID] = ss
-	for _, outputIDs := range ss.outputIDs {
-		em.pcolParents[outputIDs] = ss.ID
+	for _, outputID := range ss.outputIDs {
+		em.pcolParents[outputID] = ss.ID
 	}
 	for _, input := range inputIDs {
 		em.consumers[input] = append(em.consumers[input], ss.ID)
@@ -266,6 +266,13 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					}
 					em.refreshCond.L.Lock()
 				}
+			}
+			if len(em.inprogressBundles) == 0 && len(em.watermarkRefreshes) == 0 {
+				slog.Debug("Bundles: nothing in progress and no refreshes")
+			} else if len(em.inprogressBundles) == 0 {
+				slog.Debug("Bundles: nothing in progress after advance",
+					slog.Any("advanced", advanced),
+					slog.Int("refreshCount", len(em.watermarkRefreshes)))
 			}
 			em.refreshCond.L.Unlock()
 		}
