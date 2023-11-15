@@ -64,7 +64,7 @@ public class ImpulseTranslator
         context
             .getExecutionEnvironment()
             .fromSource(impulseSource, watermarkStrategy, "Impulse")
-            .setParallelism(1)
+            // .setParallelism(1)
             .returns(typeInfo);
 
     context.addDataStream(
