@@ -65,6 +65,7 @@ func execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 }
 
 func executeWithT(ctx context.Context, t testing.TB, p *beam.Pipeline) (beam.PipelineResult, error) {
+	t.Helper()
 	t.Log("startingTest - ", t.Name())
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)

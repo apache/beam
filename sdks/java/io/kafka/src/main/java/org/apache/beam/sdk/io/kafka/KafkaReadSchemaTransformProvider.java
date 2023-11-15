@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.KafkaReadSchemaTransformConfiguration.VALID_DATA_FORMATS;
+
 import com.google.auto.service.AutoService;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -95,9 +98,6 @@ public class KafkaReadSchemaTransformProvider
     return KafkaReadSchemaTransformConfiguration.class;
   }
 
-  @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-  })
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
     final String inputSchema = configuration.getSchema();
@@ -115,8 +115,14 @@ public class KafkaReadSchemaTransformProvider
 
     String format = configuration.getFormat();
     boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+    String descriptorPath = configuration.getFileDescriptorPath();
+    String messageName = configuration.getMessageName();
 
-    if ((format != null && format.equals("RAW")) || (!Strings.isNullOrEmpty(inputSchema))) {
+    if ((format != null && VALID_DATA_FORMATS.contains(format))
+        || (!Strings.isNullOrEmpty(inputSchema) && !Objects.equals(format, "RAW"))
+        || (Objects.equals(format, "PROTO")
+            && !Strings.isNullOrEmpty(descriptorPath)
+            && !Strings.isNullOrEmpty(messageName))) {
       SerializableFunction<byte[], Row> valueMapper;
       Schema beamSchema;
       if (format != null && format.equals("RAW")) {
@@ -126,11 +132,21 @@ public class KafkaReadSchemaTransformProvider
         }
         beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
         valueMapper = getRawBytesToRowFunction(beamSchema);
+      } else if (format != null && format.equals("PROTO")) {
+        if (descriptorPath == null || messageName == null) {
+          throw new IllegalArgumentException(
+              "Expecting both descriptorPath and messageName to be non-null.");
+        }
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFunction(descriptorPath, messageName);
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProto(descriptorPath, messageName);
       } else {
         assert Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry, but not both.";
-
+        if (inputSchema == null) {
+          throw new IllegalArgumentException(
+              "To read from Kafka in JSON or AVRO format, you must provide a schema.");
+        }
         beamSchema =
             Objects.equals(format, "JSON")
                 ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
@@ -170,7 +186,11 @@ public class KafkaReadSchemaTransformProvider
 
           PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
           if (handleErrors) {
-            outputRows = outputRows.and(configuration.getErrorHandling().getOutput(), errorOutput);
+            ErrorHandling errorHandling = configuration.getErrorHandling();
+            if (errorHandling == null) {
+              throw new IllegalArgumentException("You must specify an error handling option.");
+            }
+            outputRows = outputRows.and(errorHandling.getOutput(), errorOutput);
           }
           return outputRows;
         }
