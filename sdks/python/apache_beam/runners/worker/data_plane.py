@@ -518,8 +518,10 @@ class _GrpcDataChannel(DataChannel):
             # If at the same time another instruction is waiting on input queue
             # to become available, it is a sign of inefficiency in data plane.
             _LOGGER.info(
+                'Detected input queue delay longer than %s seconds. '
                 'Waiting to receive elements in input queue '
                 'for instruction: %s for %.2f seconds.',
+                log_interval_sec,
                 instruction_id,
                 current_time - start_time)
             next_waiting_log_time = current_time + log_interval_sec
