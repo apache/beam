@@ -257,17 +257,18 @@ class GCSFileSystem(FileSystem):
     exceptions = {}
     for batch in gcs_batches:
       copy_statuses = self._gcsIO().copy_batch(batch)
-      copy_succeeded = []
+      copy_succeeded = {}
+      delete_targets = []
       for src, dest, exception in copy_statuses:
         if exception:
           exceptions[(src, dest)] = exception
         else:
-          copy_succeeded.append((src, dest))
-      delete_batch = [src for src, dest in copy_succeeded]
-      delete_statuses = self._gcsIO().delete_batch(delete_batch)
-      for i, (src, exception) in enumerate(delete_statuses):
-        dest = copy_succeeded[i][1]
+          copy_succeeded[src] = dest
+          delete_targets.append(src)
+      delete_statuses = self._gcsIO().delete_batch(delete_targets)
+      for src, exception in delete_statuses:
         if exception:
+          dest = copy_succeeded[src]
           exceptions[(src, dest)] = exception
 
     if exceptions:
@@ -340,8 +341,7 @@ class GCSFileSystem(FileSystem):
     """
     try:
       file_metadata = self._gcsIO()._status(path)
-      return FileMetadata(
-          path, file_metadata['size'], file_metadata['last_updated'])
+      return FileMetadata(path, file_metadata['size'], file_metadata['updated'])
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Metadata operation failed", {path: e})
 
@@ -352,9 +352,10 @@ class GCSFileSystem(FileSystem):
     Args:
       paths: list of paths that give the file objects to be deleted
     """
-    def _delete_path(path):
-      """Recursively delete the file or directory at the provided path.
-      """
+
+    exceptions = {}
+
+    for path in paths:
       if path.endswith('/'):
         path_to_use = path + '*'
       else:
@@ -362,17 +363,9 @@ class GCSFileSystem(FileSystem):
       match_result = self.match([path_to_use])[0]
       statuses = self._gcsIO().delete_batch(
           [m.path for m in match_result.metadata_list])
-      # pylint: disable=used-before-assignment
-      failures = [e for (_, e) in statuses if e is not None]
-      if failures:
-        raise failures[0]
-
-    exceptions = {}
-    for path in paths:
-      try:
-        _delete_path(path)
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[path] = e
+      for target, exception in statuses:
+        if exception:
+          exceptions[target] = exception
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
