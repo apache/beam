@@ -78,8 +78,6 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
     private final PTransform<PCollection<ErrorT>, OutputT> sinkTransform;
 
-    private final Pipeline pipeline;
-
     private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
     private @Nullable OutputT sinkOutput = null;
@@ -92,9 +90,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
      */
     @Internal
     public PTransformErrorHandler(
-        PTransform<PCollection<ErrorT>, OutputT> sinkTransform, Pipeline pipeline) {
+        PTransform<PCollection<ErrorT>, OutputT> sinkTransform) {
       this.sinkTransform = sinkTransform;
-      this.pipeline = pipeline;
     }
 
     @Override
@@ -113,6 +110,9 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
         throw new IllegalStateException(
             "ErrorHandler must be finalized before the output can be returned");
       }
+      if (errorCollections.isEmpty()){
+        return null;
+      }
       // make the static analysis checker happy
       Preconditions.checkArgumentNotNull(sinkOutput);
       return sinkOutput;
@@ -121,13 +121,9 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     @Override
     public void close() {
       closed = true;
-      PCollection<ErrorT> flattened;
       if (errorCollections.isEmpty()) {
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
-        // We need to use Create.of() this way to infer the coder for ErrorT properly
-        flattened = pipeline.apply(Create.of(new ArrayList<ErrorT>()));
-      } else {
-        flattened = PCollectionList.of(errorCollections).apply(Flatten.pCollections());
+        return;
       }
       LOG.debug(
           "{} error collections are being sent to {}",
@@ -135,7 +131,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
           sinkTransform.getName());
       String sinkTransformName = sinkTransform.getName();
       sinkOutput =
-          flattened
+          PCollectionList.of(errorCollections).apply(Flatten.pCollections())
               .apply(
                   "Record Error Metrics to " + sinkTransformName,
                   new WriteErrorMetrics<ErrorT>(sinkTransformName))
