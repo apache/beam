@@ -18,10 +18,6 @@
 package org.apache.beam.sdk.transforms.errorhandling;
 
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -30,10 +26,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** Dummy PTransform that is configurable with a Bad Record Handler.
- * TODO(johncasey) look to factor some of this out for easy use in other IOs */
+/**
+ * Dummy PTransform that is configurable with a Bad Record Handler. TODO(johncasey) look to factor
+ * some of this out for easy use in other IOs
+ */
 public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
   private ErrorHandler<BadRecord, ?> errorHandler = new NoOpErrorHandler<>();
@@ -59,14 +56,16 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
                 .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
 
     errorHandler.addErrorCollection(
-        pCollectionTuple.get(BadRecordRouter.BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
+        pCollectionTuple
+            .get(BadRecordRouter.BAD_RECORD_TAG)
+            .setCoder(BadRecord.getCoder(input.getPipeline())));
 
     return pCollectionTuple.get(RECORDS).setCoder(BigEndianIntegerCoder.of());
   }
 
   public static class OddIsBad extends DoFn<Integer, Integer> {
 
-    private BadRecordRouter badRecordRouter;
+    private final BadRecordRouter badRecordRouter;
 
     public OddIsBad(BadRecordRouter badRecordRouter) {
       this.badRecordRouter = badRecordRouter;

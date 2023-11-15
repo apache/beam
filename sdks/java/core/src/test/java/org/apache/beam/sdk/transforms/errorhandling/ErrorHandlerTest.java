@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
@@ -45,7 +42,7 @@ public class ErrorHandlerTest {
   @Category(NeedsRunner.class)
   public void testGoodErrorHandlerUsage() throws Exception {
     try (ErrorHandler<String, PCollection<String>> eh =
-        pipeline.registerErrorHandler(new DummySinkTransform<>())) {}
+        pipeline.registerErrorHandler(new DummySinkTransform<String>())) {}
 
     pipeline.run();
   }
@@ -55,7 +52,7 @@ public class ErrorHandlerTest {
 
     pipeline.registerErrorHandler(new DummySinkTransform<PCollection<String>>());
 
-    //Expected to be thrown because the error handler isn't closed
+    // Expected to be thrown because the error handler isn't closed
     thrown.expect(IllegalStateException.class);
 
     pipeline.run();
@@ -66,7 +63,7 @@ public class ErrorHandlerTest {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     record.apply(new BRHEnabledPTransform());
 
-    //unhandled runtime exception thrown by the BRHEnabledPTransform
+    // unhandled runtime exception thrown by the BRHEnabledPTransform
     thrown.expect(RuntimeException.class);
 
     pipeline.run();
@@ -77,40 +74,61 @@ public class ErrorHandlerTest {
   public void testErrorHandlerWithBRHTransform() throws Exception {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     DummySinkTransform<BadRecord> transform = new DummySinkTransform<>();
-    try (ErrorHandler<BadRecord, PCollection<BadRecord>> eh =
-        pipeline.registerErrorHandler(transform)) {
-      record.apply(new BRHEnabledPTransform().withBadRecordHandler(eh));
-    }
+    ErrorHandler<BadRecord, PCollection<BadRecord>> eh = pipeline.registerErrorHandler(transform);
+    record.apply(new BRHEnabledPTransform().withBadRecordHandler(eh));
+    eh.close();
+    PCollection<BadRecord> badRecords = eh.getOutput();
+
+    // We use a more complex satisfies statement to ensure we don't need to preserve stacktraces
+    // in test cases
+    PAssert.that(badRecords)
+        .satisfies(
+            (records) -> {
+              int count = 0;
+              for (BadRecord badRecord : records) {
+                count++;
+
+                Record r = null;
+
+                if (Objects.equals(badRecord.getRecord().getJsonRecord(), "1")) {
+                  r =
+                      Record.builder()
+                          .setJsonRecord("1")
+                          .setEncodedRecord(new byte[] {0, 0, 0, 1})
+                          .setCoder("BigEndianIntegerCoder")
+                          .build();
+                } else {
+                  r =
+                      Record.builder()
+                          .setJsonRecord("3")
+                          .setEncodedRecord(new byte[] {0, 0, 0, 3})
+                          .setCoder("BigEndianIntegerCoder")
+                          .build();
+                }
+
+                BadRecord.Builder expectedBuilder = BadRecord.builder().setRecord(r);
+
+                BadRecord.Failure.Builder failure =
+                    BadRecord.Failure.builder()
+                        .setException("java.lang.RuntimeException: Integer was odd")
+                        .setDescription("Integer was odd")
+                        .setFailingTransform("NoOpDoFn");
+
+                failure.setExceptionStacktrace(badRecord.getFailure().getExceptionStacktrace());
+                expectedBuilder.setFailure(failure.build());
+                Assert.assertEquals("Expect failure to match", expectedBuilder.build(), badRecord);
+              }
+              Assert.assertEquals("Expect 2 errors", 2, count);
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
-
-    Assert.assertEquals(2,transform.getValues().size());
-    for (BadRecord badRecord : transform.getValues()){
-      BadRecord expectedRecord = BadRecord.builder()
-          .setRecord(Record.builder()
-              .build())
-          .setFailure(Failure.builder()
-              .build()).build();
-      Assert.assertEquals(expectedRecord,badRecord);
-    }
   }
 
   public static class DummySinkTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
-    private final List<T> values = new ArrayList<>();
-
-    public List<T> getValues(){
-      return values;
-    }
-
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      input.apply(ParDo.of(new DoFn<T, T>() {
-        @ProcessElement
-        public void processElement(@Element T element){
-          values.add(element);
-        }
-      }));
       return input;
     }
   }

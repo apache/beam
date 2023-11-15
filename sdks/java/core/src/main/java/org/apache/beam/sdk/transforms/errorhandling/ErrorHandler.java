@@ -33,7 +33,6 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +124,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
       PCollection<ErrorT> flattened;
       if (errorCollections.isEmpty()) {
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
-        flattened = pipeline.apply(Create.empty(new TypeDescriptor<ErrorT>() {}));
+        // We need to use Create.of() this way to infer the coder for ErrorT properly
+        flattened = pipeline.apply(Create.of(new ArrayList<ErrorT>()));
       } else {
         flattened = PCollectionList.of(errorCollections).apply(Flatten.pCollections());
       }

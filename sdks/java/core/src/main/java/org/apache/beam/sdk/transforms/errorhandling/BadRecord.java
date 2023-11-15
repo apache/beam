@@ -42,15 +42,15 @@ public abstract class BadRecord implements Serializable {
   public static Builder builder() {
     return new AutoValue_BadRecord.Builder();
   }
-  public static Coder<BadRecord> getCoder(Pipeline pipeline){
+
+  public static Coder<BadRecord> getCoder(Pipeline pipeline) {
     try {
       SchemaRegistry schemaRegistry = pipeline.getSchemaRegistry();
-      return
-          SchemaCoder.of(
-              schemaRegistry.getSchema(BadRecord.class),
-              TypeDescriptor.of(BadRecord.class),
-              schemaRegistry.getToRowFunction(BadRecord.class),
-              schemaRegistry.getFromRowFunction(BadRecord.class));
+      return SchemaCoder.of(
+          schemaRegistry.getSchema(BadRecord.class),
+          TypeDescriptor.of(BadRecord.class),
+          schemaRegistry.getToRowFunction(BadRecord.class),
+          schemaRegistry.getFromRowFunction(BadRecord.class));
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
