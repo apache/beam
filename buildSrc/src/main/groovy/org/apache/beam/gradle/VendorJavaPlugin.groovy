@@ -40,7 +40,7 @@ import org.gradle.api.publish.maven.MavenPublication
  * <ul>
  *   <li>groupId: org.apache.beam
  *   <li>artifactId: guava-32_1_2-jre
- *   <li>namespace: org.apache.beam.vendor.guava.v32_1_2_jre
+ *   <li>namespace: org.apache.beam.vendor.guava.v26_0_jre
  *   <li>version: 0.1
  * </ul>
  *
