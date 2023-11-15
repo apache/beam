@@ -135,7 +135,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * In Python, [RunInference](https://beam.apache.org/documentation/sdks/python-machine-learning/#why-use-the-runinference-api) now supports loading many models in the same transform using a [KeyedModelHandler](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler) ([#27628](https://github.com/apache/beam/issues/27628)).
 * In Python, the [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vertex_ai_inference.html#apache_beam.ml.inference.vertex_ai_inference.VertexAIModelHandlerJSON) now supports passing in inference_args. These will be passed through to the Vertex endpoint as parameters.
 * Added support to run `mypy` on user pipelines ([#27906](https://github.com/apache/beam/issues/27906))
-* Python SDK worker start-up logs and crash logs are now captured by a buffer and logged at appropriate levels. Logging output in pipelines should continue to use the `logging` package.
+* Python SDK worker start-up logs and crash logs are now captured by a buffer and logged at appropriate levels. Logging output in pipelines should continue to use the `logging` package. ([#28317](https://github.com/apache/beam/pull/28317))
 
 
 ## Breaking Changes
