@@ -142,7 +142,11 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     if (offset >= 0) {
       Instant now = Instant.now();
       RetryManager<FlushRowsResponse, Context<FlushRowsResponse>> retryManager =
-          new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
+          new RetryManager<>(
+              Duration.standardSeconds(1),
+              Duration.standardMinutes(1),
+              3,
+              BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS));
       retryManager.addOperation(
           // runOperation
           c -> {
@@ -155,11 +159,15 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           },
           // onError
           contexts -> {
-            Throwable error =
-                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null)).getError();
+            Context<FlushRowsResponse> failedContext =
+                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
+            Throwable error = failedContext.getError();
             LOG.warn(
                 "Flush of stream " + streamId + " to offset " + offset + " failed with " + error);
             flushOperationsFailed.inc();
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                failedContext, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
+
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
               if (statusCode.equals(Code.ALREADY_EXISTS)) {
@@ -181,6 +189,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           },
           // onSuccess
           c -> {
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                c, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
             flushOperationsSucceeded.inc();
           },
           new Context<>());
@@ -198,10 +208,16 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     // or we would end up with duplicates.
     if (operation.finalizeStream) {
       RetryManager<FinalizeWriteStreamResponse, Context<FinalizeWriteStreamResponse>> retryManager =
-          new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
+          new RetryManager<>(
+              Duration.standardSeconds(1),
+              Duration.standardMinutes(1),
+              3,
+              BigQuerySinkMetrics.throttledTimeCounter(
+                  BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
       retryManager.addOperation(
           c -> {
             finalizeOperationsSent.inc();
+
             return datasetService.finalizeWriteStream(streamId);
           },
           contexts -> {
@@ -214,7 +230,10 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             finalizeOperationsFailed.inc();
             @Nullable
             Context<FinalizeWriteStreamResponse> firstContext = Iterables.getFirst(contexts, null);
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
             @Nullable Throwable error = firstContext == null ? null : firstContext.getError();
+
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
               if (statusCode.equals(Code.NOT_FOUND)) {
@@ -224,6 +243,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             return RetryType.RETRY_ALL_OPERATIONS;
           },
           r -> {
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                r, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
             finalizeOperationsSucceeded.inc();
           },
           new Context<>());
