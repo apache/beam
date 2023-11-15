@@ -131,7 +131,7 @@ public class LocalFileSystemTest {
   public void testReadWithExistingFile() throws Exception {
     String expected = "my test string";
     File existingFile = temporaryFolder.newFile();
-    Files.asCharSink(existingFile, StandardCharsets.UTF_8).write(expected);
+    Files.write(expected, existingFile, StandardCharsets.UTF_8);
     String data;
     try (Reader reader =
         Channels.newReader(

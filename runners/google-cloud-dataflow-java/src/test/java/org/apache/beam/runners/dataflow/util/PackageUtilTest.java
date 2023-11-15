@@ -131,7 +131,7 @@ public class PackageUtilTest {
 
   private File makeFileWithContents(String name, String contents) throws Exception {
     File tmpFile = tmpFolder.newFile(name);
-    Files.asCharSink(tmpFile, StandardCharsets.UTF_8).write(contents);
+    Files.write(contents, tmpFile, StandardCharsets.UTF_8);
     assertTrue(tmpFile.setLastModified(0)); // required for determinism with directories
     return tmpFile;
   }

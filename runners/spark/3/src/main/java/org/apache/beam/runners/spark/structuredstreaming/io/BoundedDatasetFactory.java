@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -289,7 +288,7 @@ public class BoundedDatasetFactory {
     }
 
     @Override
-    protected @CheckForNull WindowedValue<T> computeNext() {
+    protected WindowedValue<T> computeNext() {
       try {
         if (started ? reader.advance() : start()) {
           return timestampedValueInGlobalWindow(reader.getCurrent(), reader.getCurrentTimestamp());

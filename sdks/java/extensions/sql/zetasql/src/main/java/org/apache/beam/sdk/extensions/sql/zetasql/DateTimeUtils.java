@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.zetasql.Value;
 import io.grpc.Status;
 import java.time.LocalTime;
@@ -81,15 +79,15 @@ public class DateTimeUtils {
       String str, ImmutableMap<TimestampPatterns, DateTimeFormatter> patternMap) {
     if (str.indexOf('.') == -1) {
       if (str.indexOf('T') == -1) {
-        return checkNotNull(patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN));
+        return patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN);
       } else {
-        return checkNotNull(patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN_T));
+        return patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN_T);
       }
     } else {
       if (str.indexOf('T') == -1) {
-        return checkNotNull(patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND));
+        return patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND);
       } else {
-        return checkNotNull(patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND_T));
+        return patternMap.get(TimestampPatterns.TIMESTAMP_PATTERN_SUBSECOND_T);
       }
     }
   }

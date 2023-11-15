@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -115,9 +113,9 @@ class DoFnLifecycleManager {
     @Override
     public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
       try {
-        DoFnInvokers.invokerFor(checkNotNull(notification.getValue())).invokeTeardown();
+        DoFnInvokers.invokerFor(notification.getValue()).invokeTeardown();
       } catch (Exception e) {
-        thrownOnTeardown.put(checkNotNull(notification.getKey()), e);
+        thrownOnTeardown.put(notification.getKey(), e);
       }
     }
   }

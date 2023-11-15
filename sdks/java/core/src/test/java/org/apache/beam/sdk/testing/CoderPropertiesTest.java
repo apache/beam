@@ -136,7 +136,6 @@ public class CoderPropertiesTest {
       changedState = 10;
     }
 
-    @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
     @Override
     public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       changedState += 1;

@@ -25,7 +25,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
 import java.util.function.Supplier;
-import javax.annotation.CheckForNull;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
@@ -170,7 +169,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
     }
 
     @Override
-    protected @CheckForNull OutT computeNext() {
+    protected OutT computeNext() {
       try {
         while (true) {
           if (!buffer.isEmpty()) {

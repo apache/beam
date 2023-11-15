@@ -171,7 +171,7 @@ public class GcpOptionsTest {
                   + "[dataflow]%n"
                   + "magic = true%n",
               projectId);
-      Files.asCharSink(path, StandardCharsets.UTF_8).write(properties);
+      Files.write(properties, path, StandardCharsets.UTF_8);
     }
 
     private static String runGetProjectTest(File path, Map<String, String> environment)

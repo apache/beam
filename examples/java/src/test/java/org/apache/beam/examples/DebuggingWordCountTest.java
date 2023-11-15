@@ -44,8 +44,10 @@ public class DebuggingWordCountTest {
   public void testDebuggingWordCount() throws Exception {
     File inputFile = tmpFolder.newFile();
     File outputFile = tmpFolder.newFile();
-    Files.asCharSink(inputFile, StandardCharsets.UTF_8)
-        .write("stomach secret Flourish message Flourish here Flourish");
+    Files.write(
+        "stomach secret Flourish message Flourish here Flourish",
+        inputFile,
+        StandardCharsets.UTF_8);
     WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
     options.setInputFile(getFilePath(inputFile.getAbsolutePath()));
     options.setOutput(getFilePath(outputFile.getAbsolutePath()));

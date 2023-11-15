@@ -65,7 +65,6 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
@@ -501,7 +500,7 @@ public class Read {
                       removalNotification -> {
                         if (removalNotification.wasEvicted()) {
                           try {
-                            Preconditions.checkNotNull(removalNotification.getValue()).close();
+                            removalNotification.getValue().close();
                           } catch (IOException e) {
                             LOG.warn("Failed to close UnboundedReader.", e);
                           }
