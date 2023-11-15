@@ -115,6 +115,10 @@ public interface PipelineLauncher {
 
   /** Config for starting a Dataflow job. */
   class LaunchConfig {
+
+    /** The default number of random characters to use in the generated job names. */
+    public static final int JOB_NAME_DEFAULT_CHARS_SUFFIX = 8;
+
     private final String jobName;
     private final ImmutableMap<String, String> parameters;
     private final ImmutableMap<String, Object> environment;
@@ -176,7 +180,7 @@ public interface PipelineLauncher {
     }
 
     public static Builder builder(String testName, String specPath) {
-      return new Builder(createJobName(testName), specPath);
+      return new Builder(createJobName(testName, JOB_NAME_DEFAULT_CHARS_SUFFIX), specPath);
     }
 
     public static Builder builder(String jobName) {
