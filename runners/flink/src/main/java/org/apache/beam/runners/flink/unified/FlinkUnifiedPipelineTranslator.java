@@ -416,20 +416,55 @@ public class FlinkUnifiedPipelineTranslator
             transform.getTransform().getSpec().getUrn(), transform.getId()));
   }
 
+
+  private List<String> getExpandedTransformsList(List<String> rootTransforms, RunnerApi.Components components) {
+    return rootTransforms
+      .stream()
+      .flatMap(s -> getExpandedTransformsList(s, components))
+      .collect(Collectors.toList());
+  }
+
+  @SuppressWarnings({"dereference.of.nullable"})
+  private Stream<String> getExpandedTransformsList(String transform, RunnerApi.Components components) {
+    RunnerApi.PTransform t = components.getTransformsMap().get(transform);
+    if(t.getSubtransformsCount() > 0) {
+      return
+        t.getSubtransformsList()
+         .stream()
+         .flatMap(sub -> getExpandedTransformsList(sub, components));
+    } else {
+      return Stream.of(transform);
+    }
+  }
+
   @Override
   public Executor translate(UnifiedTranslationContext context, RunnerApi.Pipeline pipeline) {
-    QueryablePipeline p = QueryablePipeline.forPipeline(pipeline);
+
+    // QueryablePipeline p = QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(), pipeline.getComponents()), pipeline.getComponents());
+
+    // List<PipelineNode.PTransformNode> expandedTopologicalOrder =
+    //   p.getTopologicallyOrderedTransforms();
 
     List<PipelineNode.PTransformNode> expandedTopologicalOrder =
-        StreamSupport.stream(p.getTopologicallyOrderedTransforms().spliterator(), false)
-            .flatMap(n -> expandNode(n, pipeline.getComponents()))
-            .collect(Collectors.toList());
+      getExpandedTransformsList(pipeline.getRootTransformIdsList(), pipeline.getComponents())
+        .stream()
+        .map(t -> {
+          RunnerApi.PTransform pt = pipeline.getComponents().getTransformsMap().get(t);
+          if(pt == null) {
+            throw new RuntimeException("PTranform not found: " + t);
+          }
+          return PipelineNode.pTransform(t, pt);
+        })
+        .collect(Collectors.toList());
 
     for (PipelineNode.PTransformNode transform : expandedTopologicalOrder) {
       context.setCurrentTransform(transform);
+      String name = transform.getTransform().getUniqueName();
       String urn = transform.getTransform().getSpec().getUrn();
       LOG.debug(
-          "Translating "
+          "Translating :"
+              + name
+              + " with URN "
               + urn
               + "with "
               + urnToTransformTranslator.getOrDefault(urn, this::urnNotFound).getClass());
