@@ -240,7 +240,11 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (ext.builder != null) {
         buildCommandLine.addAll('--builder', ext.builder)
       }
-      buildCommandLine.addAll('--provenance=false')
+      // Jenkins dependencies aren't up to date enough to accept this flag.
+      // Temporarily exclude until we fully move to GHA.
+      if (!project.jenkins.isCIBuild) {
+        buildCommandLine.addAll('--provenance=false')
+      }
     } else {
       buildCommandLine.add 'build'
     }
