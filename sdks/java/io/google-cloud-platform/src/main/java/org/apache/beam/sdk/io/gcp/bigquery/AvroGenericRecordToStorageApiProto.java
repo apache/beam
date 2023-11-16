@@ -263,7 +263,7 @@ public class AvroGenericRecordToStorageApiProto {
             "Multiple non-null union types are not supported.");
         TableFieldSchema unionFieldSchema =
             fieldDescriptorFromAvroField(
-                new Schema.Field(field.name(), elementType, field.doc(), field.defaultVal()));
+                new Schema.Field(field.name(), elementType, field.doc()));
         builder =
             builder
                 .setType(unionFieldSchema.getType())
