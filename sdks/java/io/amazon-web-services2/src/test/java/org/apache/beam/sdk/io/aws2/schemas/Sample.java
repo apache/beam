@@ -40,7 +40,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;

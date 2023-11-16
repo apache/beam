@@ -21,7 +21,7 @@ import static java.util.stream.Collectors.joining;
 
 import java.util.List;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Utils to work with ZetaSQL-compatible IDs. */
 class ZetaSqlIdUtils {

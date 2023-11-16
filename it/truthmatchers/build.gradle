@@ -33,6 +33,6 @@ dependencies {
     implementation(library.java.truth) {
         exclude group: 'com.google.guava', module: 'guava'
     }
-    implementation library.java.vendored_guava_26_0_jre
-    permitUnusedDeclared library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
+    permitUnusedDeclared library.java.vendored_guava_32_1_2_jre
 }

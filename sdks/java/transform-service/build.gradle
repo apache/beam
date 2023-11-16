@@ -44,7 +44,7 @@ dependencies {
     implementation project(path: ":runners:core-construction-java")
     implementation project(path: ":sdks:java:fn-execution")
     implementation library.java.vendored_grpc_1_54_0
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.jackson_annotations
     implementation library.java.jackson_databind
     implementation library.java.jackson_dataformat_yaml

@@ -21,7 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteStringUtf8;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.LIKE;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.bigtable.v2.RowFilter;
 import java.util.List;

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A restriction represented by a range of timestamps [from, to). */
 public class TimestampRange implements Serializable {

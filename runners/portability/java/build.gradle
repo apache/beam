@@ -42,7 +42,7 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_54_0
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest

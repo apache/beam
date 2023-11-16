@@ -23,7 +23,7 @@ import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateResou
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Chars;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Chars;
 
 /** Utilities for {@link JDBCResourceManager} implementations. */
 final class JDBCResourceManagerUtils {

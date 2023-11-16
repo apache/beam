@@ -31,7 +31,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnR
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import scala.Function1;
 import scala.Tuple2;

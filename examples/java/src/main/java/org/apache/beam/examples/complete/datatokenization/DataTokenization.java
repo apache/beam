@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.datatokenization;
 
 import static org.apache.beam.examples.complete.datatokenization.utils.DurationUtils.parseDuration;
 import static org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils.DEADLETTER_SCHEMA;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

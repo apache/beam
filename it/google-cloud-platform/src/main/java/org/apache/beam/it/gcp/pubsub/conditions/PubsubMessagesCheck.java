@@ -26,7 +26,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.it.conditions.ConditionCheck;
 import org.apache.beam.it.gcp.pubsub.PubsubResourceManager;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** ConditionCheck to validate if Pub/Sub has received a certain amount of messages. */
 @AutoValue

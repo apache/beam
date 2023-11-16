@@ -50,7 +50,7 @@ def kotlin_version = "1.6.10"
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   // Add the dependency that sdks:java:core that is marked as provided
   implementation library.java.hamcrest

@@ -19,7 +19,7 @@ package org.apache.beam.sdk.fn.stream;
 
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 
 /**
  * This class contains static utility functions that operate on or return objects of type {@link

@@ -23,7 +23,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.values.ShardedKey;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A {@link Coder} for {@link ShardedKey}, using a wrapped key {@link Coder}. */
 @VisibleForTesting

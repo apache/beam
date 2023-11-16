@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedInteger;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -153,7 +153,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
       // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
       // spark.html
       // This hashing strategy is copied from
-      // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
+      // org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Hashing.smear().
       int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
       if (numBuckets != null) {
         UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);

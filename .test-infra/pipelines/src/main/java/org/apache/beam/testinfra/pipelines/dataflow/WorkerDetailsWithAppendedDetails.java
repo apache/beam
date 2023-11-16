@@ -21,7 +21,7 @@ import com.google.dataflow.v1beta3.Job;
 import com.google.dataflow.v1beta3.WorkerDetails;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;

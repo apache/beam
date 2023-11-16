@@ -33,7 +33,7 @@ dependencies {
     implementation library.java.google_api_services_dataflow
     implementation library.java.google_auth_library_credentials
     implementation library.java.google_auth_library_oauth2_http
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
     implementation library.java.commons_lang3
     implementation library.java.failsafe

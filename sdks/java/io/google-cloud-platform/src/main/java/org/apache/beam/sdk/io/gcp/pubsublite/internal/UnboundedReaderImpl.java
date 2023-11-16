@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static org.apache.beam.sdk.io.gcp.pubsublite.internal.ApiServices.asCloseable;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.core.ApiService.State;
 import com.google.cloud.pubsublite.Offset;

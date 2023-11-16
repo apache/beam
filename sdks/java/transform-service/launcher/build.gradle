@@ -40,7 +40,7 @@ test {
 }
 
 dependencies {
-    shadow library.java.vendored_guava_26_0_jre
+    shadow library.java.vendored_guava_32_1_2_jre
     shadow library.java.slf4j_api
     shadow library.java.args4j
 }

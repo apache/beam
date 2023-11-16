@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.fn.channel;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.unix.DomainSocketAddress;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Creates a {@link SocketAddress} based upon a supplied string. */
 public class SocketAddressFactory {

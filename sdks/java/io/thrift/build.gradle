@@ -35,7 +35,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Thrift"
 ext.summary = "IO to read and write Thrift encoded data files"
 
 dependencies {
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
     implementation "org.apache.thrift:libthrift:0.14.1"
     implementation project(path: ":sdks:java:core", configuration: "shadow")

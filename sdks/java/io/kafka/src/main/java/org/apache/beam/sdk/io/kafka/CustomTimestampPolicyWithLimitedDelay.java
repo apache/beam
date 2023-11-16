@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import java.util.Optional;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.common.TopicPartition;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

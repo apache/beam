@@ -23,7 +23,7 @@ import com.google.cloud.datastore.Entity;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 /** Integration tests for {@link DatastoreResourceManager}. */

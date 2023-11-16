@@ -26,7 +26,7 @@ import io.cdap.plugin.servicenow.source.ServiceNowInputFormat;
 import io.cdap.plugin.servicenow.source.ServiceNowSource;
 import io.cdap.plugin.servicenow.source.ServiceNowSourceConfig;
 import io.cdap.plugin.servicenow.source.util.ServiceNowConstants;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.io.MapWritable;
 import org.junit.Test;
 import org.junit.runner.RunWith;

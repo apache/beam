@@ -27,7 +27,7 @@ ext.summary = "Add support to Beam for FIX SBE"
 dependencies {
     implementation library.java.auto_value_annotations
     implementation library.java.sbe_tool
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit

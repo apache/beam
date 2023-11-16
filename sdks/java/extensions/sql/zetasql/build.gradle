@@ -46,7 +46,7 @@ dependencies {
   implementation library.java.protobuf_java_util
   permitUnusedDeclared library.java.protobuf_java_util // BEAM-11761
   implementation library.java.slf4j_api
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.proto_google_common_protos // Interfaces with ZetaSQL use this
   permitUnusedDeclared library.java.proto_google_common_protos // BEAM-11761
   implementation library.java.grpc_google_common_protos // Interfaces with ZetaSQL use this
@@ -56,7 +56,7 @@ dependencies {
   implementation "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version" // BEAM-11761
   testImplementation library.java.vendored_calcite_1_28_0
-  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core

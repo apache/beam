@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"
 
 dependencies {
-  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
   testImplementation library.java.postgres

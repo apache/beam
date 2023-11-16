@@ -24,7 +24,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by buffering up to

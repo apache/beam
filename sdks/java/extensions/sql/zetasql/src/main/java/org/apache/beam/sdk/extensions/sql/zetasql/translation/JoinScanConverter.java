@@ -27,9 +27,9 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.JoinRe
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /** Converts joins if neither side of the join is a WithRefScan. */
 class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
