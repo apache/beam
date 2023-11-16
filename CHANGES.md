@@ -135,6 +135,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * In Python, [RunInference](https://beam.apache.org/documentation/sdks/python-machine-learning/#why-use-the-runinference-api) now supports loading many models in the same transform using a [KeyedModelHandler](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler) ([#27628](https://github.com/apache/beam/issues/27628)).
 * In Python, the [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vertex_ai_inference.html#apache_beam.ml.inference.vertex_ai_inference.VertexAIModelHandlerJSON) now supports passing in inference_args. These will be passed through to the Vertex endpoint as parameters.
 * Added support to run `mypy` on user pipelines ([#27906](https://github.com/apache/beam/issues/27906))
+* Python SDK worker start-up logs and crash logs are now captured by a buffer and logged at appropriate levels via Beam logging API. Dataflow Runner users might observe that most `worker-startup` log content is now captured by the `worker` logger. Users who relied on `print()` statements for logging might notice that some logs don't flush before pipeline succeeds - we strongly advise to use `logging` package instead of `print()` statements for logging. ([#28317](https://github.com/apache/beam/pull/28317))
 
 
 ## Breaking Changes
@@ -221,7 +222,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * Python Pipelines using BigQuery IO or `orjson` dependency might experience segmentation faults or get stuck: [#28318](https://github.com/apache/beam/issues/28318).
 * Beam Python containers rely on a version of Debian/aom that has several security vulnerabilities: [CVE-2021-30474](https://nvd.nist.gov/vuln/detail/CVE-2021-30474), [CVE-2021-30475](https://nvd.nist.gov/vuln/detail/CVE-2021-30475), [CVE-2021-30473](https://nvd.nist.gov/vuln/detail/CVE-2021-30473), [CVE-2020-36133](https://nvd.nist.gov/vuln/detail/CVE-2020-36133), [CVE-2020-36131](https://nvd.nist.gov/vuln/detail/CVE-2020-36131), [CVE-2020-36130](https://nvd.nist.gov/vuln/detail/CVE-2020-36130), and [CVE-2020-36135](https://nvd.nist.gov/vuln/detail/CVE-2020-36135)
 * Python SDK's cross-language Bigtable sink mishandles records that don't have an explicit timestamp set: [#28632](https://github.com/apache/beam/issues/28632). To avoid this issue, set explicit timestamps for all records before writing to Bigtable.
-
+* Python SDK worker start-up logs, particularly PIP dependency installations, that are not logged at warning or higher are suppressed. This suppression is reverted in 2.51.0.
 
 # [2.49.0] - 2023-07-17
 
