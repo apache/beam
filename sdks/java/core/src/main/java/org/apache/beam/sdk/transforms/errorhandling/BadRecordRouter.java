@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,15 +119,15 @@ public interface BadRecordRouter extends Serializable {
       BadRecord.Failure.Builder failureBuilder =
           Failure.builder().setDescription(description).setFailingTransform(failingTransform);
 
-      // Its possible for us to want to handle an error scenario where no actual exception objet
+      // It's possible for us to want to handle an error scenario where no actual exception object
       // exists
       if (exception != null) {
         failureBuilder.setException(exception.toString());
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        PrintStream printStream = new PrintStream(stream);
+        PrintStream printStream = new PrintStream(stream, false, Charsets.UTF_8.name());
         exception.printStackTrace(printStream);
         printStream.close();
-        failureBuilder.setExceptionStacktrace(stream.toString());
+        failureBuilder.setExceptionStacktrace(new String(stream.toByteArray(), Charsets.UTF_8));
       }
 
       BadRecord badRecord =

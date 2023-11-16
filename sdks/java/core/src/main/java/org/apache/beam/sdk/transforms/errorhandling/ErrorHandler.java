@@ -20,16 +20,13 @@ package org.apache.beam.sdk.transforms.errorhandling;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.POutput;
@@ -70,7 +67,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
   boolean isClosed();
 
-  @Nullable OutputT getOutput();
+  @Nullable
+  OutputT getOutput();
 
   class PTransformErrorHandler<ErrorT, OutputT extends POutput>
       implements ErrorHandler<ErrorT, OutputT> {
@@ -89,8 +87,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
      * pipeline.registerErrorHandler to ensure safe pipeline construction
      */
     @Internal
-    public PTransformErrorHandler(
-        PTransform<PCollection<ErrorT>, OutputT> sinkTransform) {
+    public PTransformErrorHandler(PTransform<PCollection<ErrorT>, OutputT> sinkTransform) {
       this.sinkTransform = sinkTransform;
     }
 
@@ -126,7 +123,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
           sinkTransform.getName());
       String sinkTransformName = sinkTransform.getName();
       sinkOutput =
-          PCollectionList.of(errorCollections).apply(Flatten.pCollections())
+          PCollectionList.of(errorCollections)
+              .apply(Flatten.pCollections())
               .apply(
                   "Record Error Metrics to " + sinkTransformName,
                   new WriteErrorMetrics<ErrorT>(sinkTransformName))
