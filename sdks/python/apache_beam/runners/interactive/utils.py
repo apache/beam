@@ -33,8 +33,6 @@ import apache_beam as beam
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.internal.gcp import auth
-from apache_beam.internal.http_client import get_new_http
-from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -451,21 +449,26 @@ def assert_bucket_exists(bucket_name):
     Logs a warning if the bucket cannot be verified to exist.
   """
   try:
-    from apitools.base.py.exceptions import HttpError
-    storage_client = storage.StorageV1(
-        credentials=auth.get_service_credentials(PipelineOptions()),
-        get_credentials=False,
-        http=get_new_http(),
-        response_encoding='utf8')
-    request = storage.StorageBucketsGetRequest(bucket=bucket_name)
-    storage_client.buckets.Get(request)
-  except HttpError as e:
-    if e.status_code == 404:
+    from google.cloud.exceptions import ClientError
+    from google.cloud.exceptions import NotFound
+    from google.cloud import storage
+    credentials = auth.get_service_credentials(PipelineOptions())
+    if credentials:
+      # We set project to None, so it will not try to use project id from
+      # the environment (ADC).
+      storage_client = storage.Client(
+          credentials=credentials.get_google_auth_credentials(), project=None)
+    else:
+      storage_client = storage.Client.create_anonymous_client()
+    storage_client.get_bucket(bucket_name)
+  except ClientError as e:
+    if isinstance(e, NotFound):
       _LOGGER.error('%s bucket does not exist!', bucket_name)
       raise ValueError('Invalid GCS bucket provided!')
     else:
       _LOGGER.warning(
-          'HttpError - unable to verify whether bucket %s exists', bucket_name)
+          'ClientError - unable to verify whether bucket %s exists',
+          bucket_name)
   except ImportError:
     _LOGGER.warning(
         'ImportError - unable to verify whether bucket %s exists', bucket_name)

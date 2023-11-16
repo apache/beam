@@ -21,9 +21,9 @@ Runs tests against Google Cloud Storage service.
 Instantiates a TestPipeline to get options such as GCP project name, but
 doesn't actually start a Beam pipeline or test any specific runner.
 
-To run these tests manually:
-  ./gradlew :sdks:python:test-suites:dataflow:integrationTest \
-    -Dtests=apache_beam.io.gcp.gcsfilesystem_integration_test:GcsFileSystemIntegrationTest # pylint: disable=line-too-long
+Run the following in 'sdks/python' directory to run these tests manually:
+    scripts/run_integration_test.sh \
+      --test_opts apache_beam/io/gcp/gcsfilesystem_integration_test.py
 """
 
 # pytype: skip-file
@@ -49,9 +49,6 @@ except ImportError:
 class GcsFileSystemIntegrationTest(unittest.TestCase):
 
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
-  # Larger than 1MB to test maxBytesRewrittenPerCall.
-  # Also needs to be in a different region than the dest to take effect.
-  INPUT_FILE_LARGE = 'gs://apache-beam-samples-us-east1/wikipedia_edits/wiki_data-000000000000.json'  # pylint: disable=line-too-long
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
