@@ -42,7 +42,7 @@ various data storage systems (&ldquo;IOs&rdquo;). Currently, Beam ships <a href=
 connectors</a> with many more in
 active development. As user demands for IO connectors grew, our work on
 improving the related Beam APIs (in particular, the Source API) produced an
-unexpected result: a generalization of Beam&rsquo;s most basic primitive, <code>DoFn</code>.</p><h2 id=connectors-as-mini-pipelines>Connectors as mini-pipelines</h2><p>One of the main reasons for this vibrant IO connector ecosystem is that
+unexpected result: a generalization of Beam&rsquo;s most basic primitive, <code>DoFn</code>.</p><h2 id=note-to-reader>Note to reader</h2><p>Hello reader! This blog is a great introduction to Splittable DoFns, but was written while the documentation was catching up. After reading this, you can continue your learning on what Splittable DoFns are and how to implement one in the official <a href=https://beam.apache.org/documentation/programming-guide/#sdf-basics>Beam Documentation</a>.</p><h2 id=connectors-as-mini-pipelines>Connectors as mini-pipelines</h2><p>One of the main reasons for this vibrant IO connector ecosystem is that
 developing a basic IO is relatively straightforward: many connector
 implementations are simply mini-pipelines (composite <code>PTransform</code>s) made of the
 basic Beam <code>ParDo</code> and <code>GroupByKey</code> primitives. For example,
