@@ -240,6 +240,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (ext.builder != null) {
         buildCommandLine.addAll('--builder', ext.builder)
       }
+      buildCommandLine.addAll('--provenance=false')
     } else {
       buildCommandLine.add 'build'
     }
