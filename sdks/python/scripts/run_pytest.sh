@@ -41,12 +41,12 @@ echo "pytest_args: $pytest_args"
 echo "posargs: $posargs"
 
 # Run with pytest-xdist and without.
-pytest -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs}
-status1=$?
 pytest -o junit_suite_name=${envname}_no_xdist \
   --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --import-mode=importlib ${pytest_args} --pyargs ${posargs}
 status2=$?
+pytest -o junit_suite_name=${envname} \
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs}
+status1=$?
 
 # Exit with error if no tests were run in either suite (status code 5).
 if [[ $status1 == 5 && $status2 == 5 ]]; then
