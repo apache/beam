@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +38,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.sdk.annotations.Internal;
@@ -87,6 +89,20 @@ public final class ActiveWorkState {
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     return new ActiveWorkState(activeWork, computationStateCache);
+  }
+
+  private static Stream<KeyedGetDataRequest> makeHeartbeatKeyedGetDataRequests(
+      ShardedKey shardedKey, Collection<Work> workQueue, Instant refreshDeadline) {
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        .map(
+            work ->
+                KeyedGetDataRequest.newBuilder()
+                    .setKey(shardedKey.key())
+                    .setShardingKey(shardedKey.shardingKey())
+                    .setWorkToken(work.getWorkItem().getWorkToken())
+                    .addAllLatencyAttribution(work.getLatencyAttributions())
+                    .build());
   }
 
   private static String elapsedString(Instant start, Instant end) {
@@ -159,18 +175,13 @@ public final class ActiveWorkState {
       if (queuedWork.id().equals(work.id())) {
         return ActivateWorkResult.DUPLICATE;
       } else if (queuedWork.id().cacheToken() == work.id().cacheToken()) {
-        if (work.id().workToken() > queuedWork.id().workToken()) {
-          removeIfNotActive(queuedWork, workIterator, workQueue);
-          workQueue.addLast(work);
-          return ActivateWorkResult.QUEUED;
-        } else {
+        if (work.id().workToken() <= queuedWork.id().workToken()) {
           return ActivateWorkResult.STALE;
         }
-      } else if (queuedWork.id().workToken() == work.id().workToken()) {
-        if (queuedWork.id().cacheToken() != work.id().cacheToken()) {
-          removeIfNotActive(queuedWork, workIterator, workQueue);
-          workQueue.addLast(work);
-          return ActivateWorkResult.QUEUED;
+
+        if (!queuedWork.equals(workQueue.peek())) {
+          // We only want to remove it if it is NOT currently active.
+          workIterator.remove();
         }
       }
     }
@@ -245,8 +256,8 @@ public final class ActiveWorkState {
                 () ->
                     new IllegalStateException(
                         String.format(
-                            "Active key %s without work, expected work_token %d, expected cache_token %d",
-                            shardedKey, workId.workToken(), workId.cacheToken())));
+                            "Active key %s without work, expected work_id= %s",
+                            shardedKey, workId)));
 
     if (!completedWork.id().equals(workId)) {
       // Work may have been completed due to clearing of stuck commits.
@@ -312,6 +323,10 @@ public final class ActiveWorkState {
       Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWork.entrySet().stream()
         .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
+        .flatMap(
+            entry ->
+                makeHeartbeatKeyedGetDataRequests(
+                    entry.getKey(), entry.getValue(), refreshDeadline))
         .collect(toImmutableList());
   }
 
