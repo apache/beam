@@ -205,8 +205,10 @@ abstract class ReadFromKafkaDoFn<K, V>
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
-  @VisibleForTesting static final String METRIC_NAMESPACE = "KafkaIOReader";
-  @VisibleForTesting static final String RAW_SIZE_METRIC_PREFIX = "rawSize/";
+  @VisibleForTesting static final String METRIC_NAMESPACE = KafkaUnboundedReader.METRIC_NAMESPACE;
+
+  @VisibleForTesting
+  static final String RAW_SIZE_METRIC_PREFIX = KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX;
 
   /**
    * A {@link GrowableOffsetRangeTracker.RangeEndEstimator} which uses a Kafka {@link Consumer} to
