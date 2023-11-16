@@ -70,7 +70,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
   boolean isClosed();
 
-  OutputT getOutput();
+  @Nullable OutputT getOutput();
 
   class PTransformErrorHandler<ErrorT, OutputT extends POutput>
       implements ErrorHandler<ErrorT, OutputT> {
@@ -105,16 +105,11 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     }
 
     @Override
-    public OutputT getOutput() {
+    public @Nullable OutputT getOutput() {
       if (!this.isClosed()) {
         throw new IllegalStateException(
             "ErrorHandler must be finalized before the output can be returned");
       }
-      if (errorCollections.isEmpty()){
-        return null;
-      }
-      // make the static analysis checker happy
-      Preconditions.checkArgumentNotNull(sinkOutput);
       return sinkOutput;
     }
 
@@ -190,7 +185,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     }
 
     @Override
-    public OutputT getOutput() {
+    public @Nullable OutputT getOutput() {
       throw new IllegalArgumentException(
           "No Op handler has no output. This implies this IO is misconfigured.");
     }
