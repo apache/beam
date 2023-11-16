@@ -54,7 +54,7 @@ $(document).ready(function() {
                     lists += `<li class="langSwitch-content" data-value="${value}">${title}</li>`;
                 }
 
-                // Ex: language-switcher language-java language-py language-go
+                // Ex: language-switcher language-java language-py language-go language-yaml
                 return `<div class="${this.wrapper + classes}"><ul class="nav nav-tabs">${lists}</ul></div>`;
             },
 
@@ -63,6 +63,7 @@ $(document).ready(function() {
                     case 'py': return 'Python';
                     case 'scio': return 'SCIO';
                     case 'typescript': return 'TypeScript';
+                    case 'yaml': return 'YAML';
                 }
 
                 return value.charAt(0).toUpperCase() + value.slice(1);
