@@ -267,7 +267,19 @@ class BeamDockerPlugin implements Plugin<Project> {
     if (ext.pull) {
       buildCommandLine.add '--pull'
     }
-    buildCommandLine.addAll(['-t', "${-> ext.name}", '.'])
+    if (!ext.tags.isEmpty()) {
+      String[] repoParts = (ext.name as String).split(':')
+      String repo = repoParts[0]
+      for (int i = 1; i < repoParts.size - 1; i++) {
+        repo += ':' + repoParts[i]
+      }
+      for (tag in getTags()) {
+        buildCommandLine.addAll(['-t', repo + ':' + tag])
+      }
+      buildCommandLine.add '.'
+    } else {
+      buildCommandLine.addAll(['-t', "${-> ext.name}", '.'])
+    }
     logger.debug("${buildCommandLine}" as String)
     return buildCommandLine
   }

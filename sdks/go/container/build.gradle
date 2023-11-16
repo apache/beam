@@ -29,15 +29,13 @@ goBuild {
 
 def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
-def containerTags = containerImageTags()
 
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "go_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root,
-          tag: 'testTags', 'testTag')
+                  project.docker_image_default_repo_root)
   // tags used by dockerTag task
   tags containerImageTags()
   files "./build/"
