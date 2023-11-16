@@ -273,7 +273,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       for (int i = 1; i < repoParts.length - 1; i++) {
         repo += ':' + repoParts[i]
       }
-      for (tag in getTags()) {
+      for (tag in ext.getTags()) {
         buildCommandLine.addAll(['-t', repo + ':' + tag])
       }
       buildCommandLine.add '.'
