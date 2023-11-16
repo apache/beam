@@ -920,6 +920,7 @@ public class BigQueryServicesImplTest {
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} does not go over limit of rows per request. */
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   public void testInsertWithinRequestByteSizeLimitsErrorsOut() throws Exception {
     TableReference ref =
@@ -972,6 +973,7 @@ public class BigQueryServicesImplTest {
     assertThat(e.getMessage(), containsString("exceeded BigQueryIO limit of 9MB."));
   }
 
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   public void testInsertRetryTransientsAboveRequestByteSizeLimits() throws Exception {
     TableReference ref =

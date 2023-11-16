@@ -375,7 +375,9 @@ public class BeamFnLoggingClient implements AutoCloseable {
     bufferedLogEntries.drainTo(finalLogEntries);
     for (BeamFnApi.LogEntry logEntry : finalLogEntries) {
       LogRecord logRecord =
-          new LogRecord(REVERSE_LOG_LEVEL_MAP.get(logEntry.getSeverity()), logEntry.getMessage());
+          new LogRecord(
+              checkNotNull(REVERSE_LOG_LEVEL_MAP.get(logEntry.getSeverity())),
+              logEntry.getMessage());
       logRecord.setLoggerName(logEntry.getLogLocation());
       logRecord.setMillis(
           logEntry.getTimestamp().getSeconds() * 1000

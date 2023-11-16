@@ -184,6 +184,7 @@ public class FlinkSubmissionTest {
             flinkCluster.getClusterPort(),
             RestOptions.PORT.key(),
             flinkCluster.getRestPort());
+
     Files.write(file.toPath(), config.getBytes(Charsets.UTF_8));
 
     // Create a new environment with the location of the Flink config for CliFrontend

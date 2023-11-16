@@ -145,6 +145,7 @@ public class ArtifactStagingServiceTest {
     return all.toStringUtf8();
   }
 
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test
   public void testStageArtifacts() throws InterruptedException, ExecutionException {
     List<String> contentsList =
