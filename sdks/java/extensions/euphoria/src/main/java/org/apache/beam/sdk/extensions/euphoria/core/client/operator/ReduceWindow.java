@@ -74,6 +74,8 @@ import org.joda.time.Duration;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
@@ -81,6 +83,7 @@ import org.joda.time.Duration;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, Byte, OutputT>
     implements TypeAware.Value<ValueT>, CompositeOperator<InputT, OutputT> {

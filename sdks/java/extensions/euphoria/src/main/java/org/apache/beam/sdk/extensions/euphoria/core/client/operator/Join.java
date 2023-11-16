@@ -67,6 +67,8 @@ import org.joda.time.Duration;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
@@ -79,6 +81,7 @@ import org.joda.time.Duration;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class Join<LeftT, RightT, KeyT, OutputT>
     extends ShuffleOperator<Object, KeyT, KV<KeyT, OutputT>> {
 
