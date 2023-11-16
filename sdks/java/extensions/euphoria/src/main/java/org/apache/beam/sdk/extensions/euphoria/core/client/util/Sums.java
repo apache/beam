@@ -23,8 +23,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
-/** Provides commonly used function objects around computing sums. */
+/**
+ * Provides commonly used function objects around computing sums.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public class Sums {
 
   private static class SumFunction<T> implements ReduceByKey.CombineFunctionWithIdentity<T> {

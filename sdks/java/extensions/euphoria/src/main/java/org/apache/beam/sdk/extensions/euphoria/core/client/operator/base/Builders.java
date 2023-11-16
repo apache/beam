@@ -45,12 +45,15 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>For internal usage only.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.INTERNAL)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class Builders {
 
   /**
