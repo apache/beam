@@ -133,7 +133,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 				ForcedRoots: test.forcedRoots,
 			}})
 
-			gotStages := pre.preProcessGraph(test.input)
+			gotStages := pre.preProcessGraph(test.input, nil)
 			if diff := cmp.Diff(test.wantStages, gotStages, cmp.AllowUnexported(stage{}, link{}), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("preProcessGraph(%q) stages diff (-want,+got)\n%v", test.name, diff)
 			}
@@ -211,7 +211,7 @@ func TestComputeFacts(t *testing.T) {
 		topological []string
 		comps       *pipepb.Components
 
-		want fusionFacts
+		want *fusionFacts
 	}{
 		{
 			name:        "single_transform",
@@ -224,7 +224,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers:   map[string]link{},
 				PcolConsumers:   map[string][]link{},
 				UsedAsSideInput: map[string]bool{},
@@ -250,7 +250,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
 				},
@@ -285,7 +285,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
 				},
@@ -326,7 +326,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
 					"n2": {Transform: "t2", Local: "o0", Global: "n2"},
@@ -371,7 +371,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
 					"n2": {Transform: "t2", Local: "o0", Global: "n2"},
@@ -416,7 +416,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
 					"n2": {Transform: "t2", Local: "o0", Global: "n2"},
@@ -468,7 +468,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "t1", Local: "o0", Global: "n1"},
 					"n2": {Transform: "t2", Local: "o0", Global: "n2"},
@@ -539,7 +539,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "r1", Local: "o0", Global: "n1"},
 					"n2": {Transform: "r2", Local: "o0", Global: "n2"},
@@ -626,7 +626,7 @@ func TestComputeFacts(t *testing.T) {
 					},
 				},
 			},
-			want: fusionFacts{
+			want: &fusionFacts{
 				PcolProducers: map[string]link{
 					"n1": {Transform: "r1", Local: "o0", Global: "n1"},
 					"n2": {Transform: "r2", Local: "o0", Global: "n2"},
@@ -683,7 +683,10 @@ func TestComputeFacts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := computeFacts(test.topological, test.comps)
+			got, err := computeFacts(test.topological, test.comps)
+			if err != nil {
+				t.Fatalf("computeFacts: error: %v", err)
+			}
 			if d := cmp.Diff(test.want, got, cmp.AllowUnexported(), cmpopts.EquateEmpty(), cmpopts.SortSlices(linkLess)); d != "" {
 				t.Errorf("computeFacts diff (-want, +got):\n%v", d)
 			}

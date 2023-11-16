@@ -146,7 +146,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	prepro := newPreprocessor(preppers)
 
-	topo := prepro.preProcessGraph(comps)
+	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
 
 	em := engine.NewElementManager(engine.Config{})

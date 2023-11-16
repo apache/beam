@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -128,7 +129,13 @@ type ElementManager struct {
 	inprogressBundles  set[string] // Active bundleIDs
 	watermarkRefreshes set[string] // Scheduled stageID watermark refreshes
 
+	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
+}
+
+func (em *ElementManager) addPending(v int) {
+	em.livePending.Add(int64(v))
+	em.pendingElements.Add(v)
 }
 
 // LinkID represents a fully qualified input or output.
@@ -189,7 +196,7 @@ func (em *ElementManager) Impulse(stageID string) {
 	consumers := em.consumers[stage.outputIDs[0]]
 	slog.Debug("Impulse", slog.String("stageID", stageID), slog.Any("outputs", stage.outputIDs), slog.Any("consumers", consumers))
 
-	em.pendingElements.Add(len(consumers))
+	em.addPending(len(consumers))
 	for _, sID := range consumers {
 		consumer := em.stages[sID]
 		consumer.AddPending(newPending)
@@ -268,11 +275,18 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				}
 			}
 			if len(em.inprogressBundles) == 0 && len(em.watermarkRefreshes) == 0 {
-				slog.Debug("Bundles: nothing in progress and no refreshes")
+				v := em.livePending.Load()
+				slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
+				if v > 0 {
+					panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v", v))
+				}
 			} else if len(em.inprogressBundles) == 0 {
+				v := em.livePending.Load()
 				slog.Debug("Bundles: nothing in progress after advance",
 					slog.Any("advanced", advanced),
-					slog.Int("refreshCount", len(em.watermarkRefreshes)))
+					slog.Int("refreshCount", len(em.watermarkRefreshes)),
+					slog.Int64("pendingElementCount", v),
+				)
 			}
 			em.refreshCond.L.Unlock()
 		}
@@ -373,7 +387,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		consumers := em.consumers[output]
 		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers)
 		for _, sID := range consumers {
-			em.pendingElements.Add(len(newPending))
+			em.addPending(len(newPending))
 			consumer := em.stages[sID]
 			consumer.AddPending(newPending)
 		}
@@ -388,7 +402,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
-		em.pendingElements.Add(len(unprocessedElements))
+		em.addPending(len(unprocessedElements))
 		stage.AddPending(unprocessedElements)
 	}
 	// Clear out the inprogress elements associated with the completed bundle.
@@ -396,7 +410,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// watermark advancement.
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
-	em.pendingElements.Add(-len(completed.es))
+	em.addPending(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
@@ -418,7 +432,7 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 	stage := em.stages[rb.StageID]
 	stage.mu.Lock()
 	completed := stage.inprogress[rb.BundleID]
-	em.pendingElements.Add(-len(completed.es))
+	em.addPending(-len(completed.es))
 	delete(stage.inprogress, rb.BundleID)
 	stage.mu.Unlock()
 	em.addRefreshAndClearBundle(rb.StageID, rb.BundleID)
@@ -433,7 +447,7 @@ func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputI
 	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
-		em.pendingElements.Add(len(unprocessedElements))
+		em.addPending(len(unprocessedElements))
 		stage.AddPending(unprocessedElements)
 	}
 	em.addRefreshes(singleSet(rb.StageID))
@@ -574,6 +588,7 @@ func (ss *stageState) AddPendingSide(newPending []element, tID, inputID string) 
 	}
 }
 
+// GetSideData returns side input data for the provided transform+input pair, valid to the watermark.
 func (ss *stageState) GetSideData(tID, inputID string, watermark mtime.Time) map[typex.Window][][]byte {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
@@ -588,6 +603,7 @@ func (ss *stageState) GetSideData(tID, inputID string, watermark mtime.Time) map
 	return ret
 }
 
+// GetSideData returns side input data for the provided stage+transform+input tuple, valid to the watermark.
 func (em *ElementManager) GetSideData(sID, tID, inputID string, watermark mtime.Time) map[typex.Window][][]byte {
 	return em.stages[sID].GetSideData(tID, inputID, watermark)
 }
