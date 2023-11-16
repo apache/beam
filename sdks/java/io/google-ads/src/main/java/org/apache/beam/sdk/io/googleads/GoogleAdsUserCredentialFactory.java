@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.googleads;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.UserCredentials;

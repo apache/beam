@@ -72,7 +72,7 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
     @Override
     public DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns)
         throws Exception {
-      org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument(
+      org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument(
           !includeCdcColumns);
       return descriptorProto;
     }

@@ -26,8 +26,8 @@ version = "0.1"
 vendorJava(
   dependencies: ["com.google.guava:guava:32.1.2-jre"],
   relocations: [
-    "com.google.common": "org.apache.beam.vendor.guava.v26_0_jre.com.google.common",
-    "com.google.thirdparty": "org.apache.beam.vendor.guava.v26_0_jre.com.google.thirdparty",
+    "com.google.common": "org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common",
+    "com.google.thirdparty": "org.apache.beam.vendor.guava.v32_1_2_jre.com.google.thirdparty",
   ],
   exclusions: [
     "com/google/errorprone/**",
