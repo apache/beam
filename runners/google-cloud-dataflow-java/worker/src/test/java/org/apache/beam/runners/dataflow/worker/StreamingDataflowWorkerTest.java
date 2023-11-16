@@ -2735,12 +2735,13 @@ public class StreamingDataflowWorkerTest {
     assertTrue(computationState.activateWork(key1Shard1, m2));
     Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
     Work m3 = createMockWork(3);
-    assertTrue(computationState.activateWork(key1Shard1, m3));
+    boolean activateWork = computationState.activateWork(key1Shard1, m3);
+    assertTrue(activateWork);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify a different shard of key is a separate queue.
     Work m4 = createMockWork(3);
-    assertTrue(computationState.activateWork(key1Shard1, m4));
+    assertFalse(computationState.activateWork(key1Shard1, m4));
     Mockito.verifyNoMoreInteractions(mockExecutor);
     assertTrue(computationState.activateWork(key1Shard2, m4));
     Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());

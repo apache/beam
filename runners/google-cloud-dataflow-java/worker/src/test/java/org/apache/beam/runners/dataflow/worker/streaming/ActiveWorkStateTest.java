@@ -77,7 +77,7 @@ public class ActiveWorkStateTest {
         .build();
   }
 
-  private static WorkId workDedupeToken(long workToken, long cacheToken) {
+  private static WorkId workDedupeId(long workToken, long cacheToken) {
     return WorkId.builder().setCacheToken(cacheToken).setWorkToken(workToken).build();
   }
 
@@ -109,7 +109,7 @@ public class ActiveWorkStateTest {
 
     Optional<Work> nextWorkForKey =
         activeWorkState.completeWorkAndGetNextWorkForKey(
-            shardedKey, workDedupeToken(workToken, cacheToken));
+            shardedKey, workDedupeId(workToken, cacheToken));
 
     assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
     assertEquals(Optional.empty(), nextWorkForKey);
@@ -151,13 +151,14 @@ public class ActiveWorkStateTest {
         activeWorkState.activateWorkForKey(shardedKey, secondWork);
 
     assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
-    assertFalse(readOnlyActiveWork.get(shardedKey).contains(firstWork));
+    // Different cacheTokens, so no work should be removed from the queue.
+    assertTrue(readOnlyActiveWork.get(shardedKey).contains(firstWork));
     assertTrue(readOnlyActiveWork.get(shardedKey).contains(secondWork));
 
     Optional<Work> nextWork =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, differentWorkTokenWork.id());
     assertTrue(nextWork.isPresent());
-    assertSame(secondWork, nextWork.get());
+    assertSame(firstWork, nextWork.get());
   }
 
   @Test
@@ -262,7 +263,7 @@ public class ActiveWorkStateTest {
     assertEquals(
         Optional.empty(),
         activeWorkState.completeWorkAndGetNextWorkForKey(
-            shardedKey("someKey", 1L), workDedupeToken(1L, 1L)));
+            shardedKey("someKey", 1L), workDedupeId(1L, 1L)));
   }
 
   @Test
@@ -276,7 +277,7 @@ public class ActiveWorkStateTest {
 
     activeWorkState.activateWorkForKey(shardedKey, workInQueue);
     activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, workDedupeToken(otherWorkToken, cacheToken));
+        shardedKey, workDedupeId(otherWorkToken, cacheToken));
 
     assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
     assertEquals(workInQueue, readOnlyActiveWork.get(shardedKey).peek());
@@ -293,7 +294,7 @@ public class ActiveWorkStateTest {
 
     activeWorkState.activateWorkForKey(shardedKey, workInQueue);
     activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, workDedupeToken(workToken, otherCacheToken));
+        shardedKey, workDedupeId(workToken, otherCacheToken));
 
     assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
     assertEquals(workInQueue, readOnlyActiveWork.get(shardedKey).peek());

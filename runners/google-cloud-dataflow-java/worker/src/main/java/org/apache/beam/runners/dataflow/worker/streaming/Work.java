@@ -206,6 +206,13 @@ public class Work implements Runnable {
     return id;
   }
 
+  @Override
+  public final String toString() {
+    return String.format(
+        "work_id:[%s]; work_item:[%s]; start_time:[%s]; current_state:[%s]",
+        id, workItem, startTime, currentState);
+  }
+
   public enum State {
     QUEUED(Windmill.LatencyAttribution.State.QUEUED),
     PROCESSING(Windmill.LatencyAttribution.State.ACTIVE),
