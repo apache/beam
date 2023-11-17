@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.NativeTransforms;
@@ -36,7 +35,6 @@ import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.CreateStreamingFlinkView;
 import org.apache.beam.runners.flink.FlinkExecutionEnvironments;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -416,22 +414,20 @@ public class FlinkUnifiedPipelineTranslator
             transform.getTransform().getSpec().getUrn(), transform.getId()));
   }
 
-
-  private List<String> getExpandedTransformsList(List<String> rootTransforms, RunnerApi.Components components) {
-    return rootTransforms
-      .stream()
-      .flatMap(s -> getExpandedTransformsList(s, components))
-      .collect(Collectors.toList());
+  private List<String> getExpandedTransformsList(
+      List<String> rootTransforms, RunnerApi.Components components) {
+    return rootTransforms.stream()
+        .flatMap(s -> getExpandedTransformsList(s, components))
+        .collect(Collectors.toList());
   }
 
   @SuppressWarnings({"dereference.of.nullable"})
-  private Stream<String> getExpandedTransformsList(String transform, RunnerApi.Components components) {
+  private Stream<String> getExpandedTransformsList(
+      String transform, RunnerApi.Components components) {
     RunnerApi.PTransform t = components.getTransformsMap().get(transform);
-    if(t.getSubtransformsCount() > 0) {
-      return
-        t.getSubtransformsList()
-         .stream()
-         .flatMap(sub -> getExpandedTransformsList(sub, components));
+    if (t.getSubtransformsCount() > 0) {
+      return t.getSubtransformsList().stream()
+          .flatMap(sub -> getExpandedTransformsList(sub, components));
     } else {
       return Stream.of(transform);
     }
@@ -440,22 +436,25 @@ public class FlinkUnifiedPipelineTranslator
   @Override
   public Executor translate(UnifiedTranslationContext context, RunnerApi.Pipeline pipeline) {
 
-    // QueryablePipeline p = QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(), pipeline.getComponents()), pipeline.getComponents());
+    // QueryablePipeline p =
+    // QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(),
+    // pipeline.getComponents()), pipeline.getComponents());
 
     // List<PipelineNode.PTransformNode> expandedTopologicalOrder =
     //   p.getTopologicallyOrderedTransforms();
 
     List<PipelineNode.PTransformNode> expandedTopologicalOrder =
-      getExpandedTransformsList(pipeline.getRootTransformIdsList(), pipeline.getComponents())
-        .stream()
-        .map(t -> {
-          RunnerApi.PTransform pt = pipeline.getComponents().getTransformsMap().get(t);
-          if(pt == null) {
-            throw new RuntimeException("PTranform not found: " + t);
-          }
-          return PipelineNode.pTransform(t, pt);
-        })
-        .collect(Collectors.toList());
+        getExpandedTransformsList(pipeline.getRootTransformIdsList(), pipeline.getComponents())
+            .stream()
+            .map(
+                t -> {
+                  RunnerApi.PTransform pt = pipeline.getComponents().getTransformsMap().get(t);
+                  if (pt == null) {
+                    throw new RuntimeException("PTranform not found: " + t);
+                  }
+                  return PipelineNode.pTransform(t, pt);
+                })
+            .collect(Collectors.toList());
 
     for (PipelineNode.PTransformNode transform : expandedTopologicalOrder) {
       context.setCurrentTransform(transform);
