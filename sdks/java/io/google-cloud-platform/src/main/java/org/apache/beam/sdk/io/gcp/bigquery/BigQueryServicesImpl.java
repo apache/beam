@@ -659,10 +659,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
         BackOff backoff,
         Sleeper sleeper)
         throws IOException, InterruptedException {
+      TableReference updatedRef = ref.clone();
+      if (updatedRef.getProjectId() == null) {
+        BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+        updatedRef.setProjectId(bqOptions.getBigQueryProject() == null ? bqOptions.getProject() : bqOptions.getBigQueryProject());
+      }
       Tables.Get get =
           client
               .tables()
-              .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
+              .get(updatedRef.getProjectId(), updatedRef.getDatasetId(), updatedRef.getTableId())
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
@@ -675,7 +680,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             get,
             String.format(
                 "Unable to get table: %s, aborting after %d retries.",
-                ref.getTableId(), MAX_RPC_RETRIES),
+                updatedRef.getTableId(), MAX_RPC_RETRIES),
             sleeper,
             backoff,
             DONT_RETRY_NOT_FOUND);
