@@ -336,6 +336,52 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchFileNameWithSpecialCharacters() throws Exception {
+    List<String> expected = ImmutableList.of(
+            temporaryFolder.newFile("a.txt").toString(),
+            temporaryFolder.newFile("b.txt").toString());
+
+    String baseDir = temporaryFolder.getRoot().toPath().toString();
+
+    // no "*.txt" file, so "*" is expanded to match
+    List<MatchResult> matchResults =
+        localFileSystem.match(baseDir, ImmutableList.of("*.txt"));
+    assertThat(toFilenames(matchResults), containsInAnyOrder(expected.toArray(new String[0])));
+
+    // no "?.txt" file, so "?" is expanded to match
+    matchResults =
+        localFileSystem.match(baseDir, ImmutableList.of("?.txt"));
+    assertThat(toFilenames(matchResults), containsInAnyOrder(expected.toArray(new String[0])));
+
+    // add a file with name "*.txt"
+    String fileNameWithStar = temporaryFolder.newFile("*.txt").toString();
+
+    // When there is a file with a name that is literally the same as the pattern, it will be
+    // matched. Wildcard characters ("*", "?") in the patterns will not be expanded even if it is
+    // not escaped.
+    matchResults =
+         localFileSystem.match(baseDir, ImmutableList.of("*.txt"));
+    assertThat(toFilenames(matchResults), containsInAnyOrder(fileNameWithStar));
+
+    // Escape "*" with "[]", so it will not be expanded.
+    matchResults =
+        localFileSystem.match(baseDir, ImmutableList.of("[*].txt"));
+    assertThat(toFilenames(matchResults), containsInAnyOrder(fileNameWithStar));
+
+    // "?" is expanded to match one character including "*"
+    matchResults =
+        localFileSystem.match(baseDir, ImmutableList.of("?.txt"));
+    assertThat(toFilenames(matchResults), containsInAnyOrder(
+        ImmutableList.<String>builder().addAll(expected).add(fileNameWithStar).build()
+            .toArray(new String[0])));
+
+    // Escape "?" with "[]", so it will not be expanded.
+    matchResults =
+        localFileSystem.match(baseDir, ImmutableList.of("[?].txt"));
+    assertEquals(MatchResult.Status.NOT_FOUND, matchResults.get(0).status());
+  }
+
+  @Test
   public void testMatchDirectory() throws Exception {
     final Path dir = temporaryFolder.newFolder("dir").toPath();
     final MatchResult matchResult =
