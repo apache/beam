@@ -1630,8 +1630,8 @@ lifecycle methods are:
     cases where values are buffered or otherwise lazily kept unprocessed when
     added to the accumulator.  Compact should return an equivalent, though
     possibly modified, accumulator. In most cases, Compact is not necessary. For
-    a real world example of using Compact, see
-    https://github.com/apache/beam/blob/5e9ea74c85e2ce6e6fb3418a0abc984fbebaefb1/sdks/python/apache_beam/transforms/combiners.py#L523
+    a real world example of using Compact, see the Python SDK implementation of
+    [TopCombineFn](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/combiners.py#L523)
 
 The following example code shows how to define a `CombineFn` that computes a
 mean average:
