@@ -81,12 +81,6 @@ def _static_value_provider_of(value_type):
   return _f
 
 
-def _warning_unknown_arg_found(arg: str):
-  _LOGGER.warning(
-      'Unknown pipeline option received: %s. Ignore if flag is '
-      'used for internal purposes.' % arg)
-
-
 class _BeamArgumentParser(argparse.ArgumentParser):
   """An ArgumentParser that supports ValueProvider options.
 
@@ -340,6 +334,10 @@ class PipelineOptions(HasDisplayData):
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if retain_unknown_options:
+      if unknown_args:
+        _LOGGER.warning(
+            'Unknown pipeline options received: %s. Ignore if flags are '
+            'used for internal purposes.' % (','.join(unknown_args)))
       i = 0
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
@@ -349,16 +347,14 @@ class PipelineOptions(HasDisplayData):
           continue
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
-          _warning_unknown_arg_found(split[0])
           if len(split) == 1:
             parser.add_argument(unknown_args[i], action='store_true')
           else:
             parser.add_argument(split[0], type=str)
           i += 1
         elif unknown_args[i].startswith('--'):
-          _warning_unknown_arg_found(unknown_args[i])
           parser.add_argument(unknown_args[i], type=str)
-          i += 1
+          i += 2
         else:
           # skip all binary flags used with '-' and not '--'.
           # ex: using -f instead of --f (or --flexrs_goal) will prevent
