@@ -1189,16 +1189,11 @@ Use the [Apache Nexus repository manager](https://repository.apache.org/#staging
 In the `Staging Repositories` section, find the relevant release candidate `orgapachebeam-XXX` entry and click `Release`.
 Drop all other release candidates that are not being released.
 
-__NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access,
-please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
-
 ### Deploy Python artifacts to PyPI, Docker Images to DockerHub, and Tag Release
 
 * **GitHub Action:** [finalize_release](https://github.com/apache/beam/actions/workflows/finalize_release.yml)
-* **Usage**
-```
-./release/src/main/scripts/deploy_pypi.sh
-```
+
+After running the action, perform the following checks:
 * Verify that the files at https://pypi.org/project/apache-beam/#files are correct.
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
