@@ -273,6 +273,13 @@ pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
+        format: json
+        schema:
+          type: object
+          properties:
+            col1: {type: string}
+            col2: {type: integer}
+            col3: {type: number}
     - type: WindowInto
       windowing:
         type: fixed
@@ -281,6 +288,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
+        format: json
 ```
 
 Rather than using an explicit `WindowInto` operation, one may instead tag a
@@ -294,6 +302,8 @@ pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
+        format: ...
+        schema: ...
     - type: SomeAggregation
       windowing:
         type: sliding
@@ -302,6 +312,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
+        format: json
 ```
 
 Note that the `Sql` operation itself is often a from of aggregation, and
@@ -315,6 +326,8 @@ pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
+        format: ...
+        schema: ...
     - type: Sql
       config:
         query: "select col1, count(*) as c from PCOLLECTION"
@@ -324,6 +337,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
+        format: json
 ```
 
 The specified windowing is applied to all inputs, in this case resulting in
@@ -336,11 +350,15 @@ pipeline:
       name: ReadLeft
       config:
         topic: leftTopic
+        format: ...
+        schema: ...
 
     - type: ReadFromPubSub
       name: ReadRight
       config:
         topic: rightTopic
+        format: ...
+        schema: ...
 
     - type: Sql
       config:
@@ -363,7 +381,9 @@ pipeline:
   transforms:
     - type: ReadFromPubSub
       config:
-       topic: myPubSubTopic
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
       windowing:
         type: fixed
         size: 60
@@ -373,6 +393,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
+        format: json
 ```
 
 One can also specify windowing at the top level of a pipeline (or composite),
@@ -387,12 +408,15 @@ pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
+        format: ...
+        schema: ...
     - type: Sql
       config:
         query: "select col1, count(*) as c from PCOLLECTION"
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
+        format: json
   windowing:
     type: fixed
     size: 60
@@ -409,6 +433,8 @@ pipeline:
     type: ReadFromPubSub
     config:
       topic: myPubSubTopic
+      format: ...
+      schema: ...
     windowing:
       type: fixed
       size: 10

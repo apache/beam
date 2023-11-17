@@ -336,9 +336,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
-        Integer numStreams = configuration.getNumStreams();
+        int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
+        boolean useAtLeastOnceSemantics =
+            configuration.getUseAtLeastOnceSemantics() == null
+                ? false
+                : configuration.getUseAtLeastOnceSemantics();
         // Triggering frequency is only applicable for exactly-once
-        if (!configuration.getUseAtLeastOnceSemantics()) {
+        if (!useAtLeastOnceSemantics) {
           write =
               write.withTriggeringFrequency(
                   (triggeringFrequency == null || triggeringFrequency <= 0)
