@@ -36,8 +36,7 @@ runs:
       shell: bash
       run: |
         # Removing settings.xml is a workaround to avoid a decryption issue
-        # of Beam's gradle-command-action plugin and github's provided
-        # maven settings.xml file
+        # of gradle-build-action and github's provided maven settings.xml file
         if [ -f ~/.m2/settings.xml ]; then
           rm ~/.m2/settings.xml
         fi
