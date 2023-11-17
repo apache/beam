@@ -662,7 +662,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       TableReference updatedRef = ref.clone();
       if (updatedRef.getProjectId() == null) {
         BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-        updatedRef.setProjectId(bqOptions.getBigQueryProject() == null ? bqOptions.getProject() : bqOptions.getBigQueryProject());
+        updatedRef.setProjectId(
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject());
       }
       Tables.Get get =
           client

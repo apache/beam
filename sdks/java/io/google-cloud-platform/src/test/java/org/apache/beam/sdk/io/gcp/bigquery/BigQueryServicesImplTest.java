@@ -487,10 +487,7 @@ public class BigQueryServicesImplTest {
   @Test
   public void testGetTableNullProjectSucceeds() throws Exception {
     TableReference tableRef =
-        new TableReference()
-            .setProjectId(null)
-            .setDatasetId("datasetId")
-            .setTableId("tableId");
+        new TableReference().setProjectId(null).setDatasetId("datasetId").setTableId("tableId");
 
     Table testTable = new Table();
     testTable.setTableReference(tableRef.clone().setProjectId("projectId"));
@@ -512,8 +509,7 @@ public class BigQueryServicesImplTest {
     options.setBigQueryProject("projectId");
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, options);
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, null, options);
 
     Table table =
         datasetService.getTable(
