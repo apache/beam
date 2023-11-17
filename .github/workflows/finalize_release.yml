@@ -142,9 +142,9 @@ jobs:
         git rev-list $RC_TAG -n 1
         
         # Tag for Go SDK
-        git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
+        git tag -s "sdks/$VERSION_TAG" "$RC_TAG" -m "Tagging release"
         git push https://github.com/apache/beam "sdks/$VERSION_TAG"
         
         # Tag for repo root.
-        git tag -s "$VERSION_TAG" "$RC_TAG"
+        git tag -s "$VERSION_TAG" "$RC_TAG" -m "Tagging release"
         git push https://github.com/apache/beam "$VERSION_TAG"
