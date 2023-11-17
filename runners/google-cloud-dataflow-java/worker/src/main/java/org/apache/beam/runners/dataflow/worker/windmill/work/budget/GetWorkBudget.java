@@ -63,11 +63,17 @@ public abstract class GetWorkBudget {
     return apply(-other.items(), -other.bytes());
   }
 
+  public GetWorkBudget subtract(long items, long bytes) {
+    return apply(-items, -bytes);
+  }
+
   /** Budget of bytes for GetWork. Does not drop below 0. */
   public abstract long bytes();
 
   /** Budget of items for GetWork. Does not drop below 0. */
   public abstract long items();
+
+  public abstract GetWorkBudget.Builder toBuilder();
 
   @AutoValue.Builder
   public abstract static class Builder {

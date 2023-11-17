@@ -19,7 +19,9 @@ package org.apache.beam.runners.dataflow.worker.windmill.work;
 
 import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.Collection;
+import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -29,14 +31,14 @@ import org.joda.time.Instant;
 @Internal
 public interface ProcessWorkItem {
   /**
-   * Receives and processes {@link
-   * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) wrapped in its {@link
-   * ProcessWorkItemClient} processing context.
+   * Receives and processes {@link WorkItem}(s) wrapped in its {@link ProcessWorkItemClient}
+   * processing context.
    */
   void processWork(
       String computation,
       @Nullable Instant inputDataWatermark,
       @Nullable Instant synchronizedProcessingTime,
       ProcessWorkItemClient wrappedWorkItem,
+      Consumer<WorkItem> ackWorkItemQueued,
       Collection<LatencyAttribution> getWorkStreamLatencies);
 }

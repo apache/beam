@@ -67,6 +67,7 @@ public class WindmillStreamSenderTest {
           inputDataWatermark,
           synchronizedProcessingTime,
           workItem,
+          ackQueuedWorkItem,
           getWorkStreamLatencies) -> {};
   private ManagedChannel inProcessChannel;
   private CloudWindmillServiceV1Alpha1Stub stub;

@@ -154,10 +154,7 @@ public class EvenGetWorkBudgetDistributorTest {
                 totalGetWorkBudget.items()
                     - streamRemainingBudget.items()
                     - activeWorkItemsAndBytes),
-            eq(
-                totalGetWorkBudget.bytes()
-                    - streamRemainingBudget.bytes()
-                    - activeWorkItemsAndBytes));
+            eq(totalGetWorkBudget.bytes() - streamRemainingBudget.bytes()));
   }
 
   @Test
@@ -191,10 +188,7 @@ public class EvenGetWorkBudgetDistributorTest {
 
     verify(windmillStreamSender, times(1))
         .adjustBudget(
-            eq(
-                totalGetWorkBudget.items()
-                    - streamRemainingBudget.items()
-                    - activeWorkItemsAndBytes),
+            eq(totalGetWorkBudget.items() - streamRemainingBudget.items()),
             eq(
                 totalGetWorkBudget.bytes()
                     - streamRemainingBudget.bytes()
@@ -265,6 +259,7 @@ public class EvenGetWorkBudgetDistributorTest {
             inputDataWatermark,
             synchronizedProcessingTime,
             workItem,
+            ackQueuedWorkItem,
             getWorkStreamLatencies) -> {});
   }
 }

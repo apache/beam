@@ -121,6 +121,7 @@ public class StreamingEngineClientTest {
         inputDataWatermark,
         synchronizedProcessingTime,
         workItem,
+        ackQueuedWorkItem,
         getWorkStreamLatencies) -> {};
   }
 
