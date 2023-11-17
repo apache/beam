@@ -50,7 +50,7 @@ jobs:
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
         RC_NUM: "${{ github.event.inputs.RC }}"
-        RC_VERSION: "rc_${{ github.event.inputs.RC }}"
+        RC_VERSION: "rc${{ github.event.inputs.RC }}"
       run: |
         
         echo "Publish SDK docker images to Docker Hub."
@@ -132,7 +132,7 @@ jobs:
         RC_TAG: "${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
-        git fetch --all --tags
+        git fetch --all --tags --prune
         
         # If the tag exists, a commit number is produced, otherwise there's an error.
         git rev-list $RC_TAG -n 1
