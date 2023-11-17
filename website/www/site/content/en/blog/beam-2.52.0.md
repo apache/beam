@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.52.0"
-date:   YYYY-MM-DD H:MM:00 Z - TODO update this when released
+date:   2023-11-17 14:00:00 Z
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.52.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2520-2023-11-XX) for this release. - TODO update this anchor when released
+See the [download page](/get-started/downloads/#2520-2023-11-17) for this release.
 
 <!--more-->
 
