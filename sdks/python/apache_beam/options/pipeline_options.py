@@ -64,7 +64,7 @@ _FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
-  """"Helper function to plug a ValueProvider into argparse.
+  """Helper function to plug a ValueProvider into argparse.
 
   Args:
     value_type: the type of the value. Since the type param of argparse's
@@ -79,6 +79,12 @@ def _static_value_provider_of(value_type):
     return StaticValueProvider(value_type, value)
 
   return _f
+
+
+def _warning_unknown_arg_found(arg: str):
+  _LOGGER.warning(
+      'Unknown pipeline option received: %s. Ignore if flag is '
+      'used for internal purposes.' % arg)
 
 
 class _BeamArgumentParser(argparse.ArgumentParser):
@@ -343,14 +349,16 @@ class PipelineOptions(HasDisplayData):
           continue
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
+          _warning_unknown_arg_found(split[0])
           if len(split) == 1:
             parser.add_argument(unknown_args[i], action='store_true')
           else:
             parser.add_argument(split[0], type=str)
           i += 1
         elif unknown_args[i].startswith('--'):
+          _warning_unknown_arg_found(unknown_args[i])
           parser.add_argument(unknown_args[i], type=str)
-          i += 2
+          i += 1
         else:
           # skip all binary flags used with '-' and not '--'.
           # ex: using -f instead of --f (or --flexrs_goal) will prevent
