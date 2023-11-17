@@ -1668,6 +1668,7 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
     return ((double) accum.sum) / accum.count;
   }
 
+  // No-op
   @Override
   public Accum compact(Accum accum) { return accum; }
 }
