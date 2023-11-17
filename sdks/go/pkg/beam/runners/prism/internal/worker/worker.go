@@ -36,7 +36,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
@@ -442,7 +441,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 							panic(fmt.Sprintf("error decoding iterable side input window key %v: %v", wKey, err))
 						}
 					}
-					winMap := b.IterableSideInputData[ikey.GetTransformId()][ikey.GetSideInputId()]
+					winMap := b.IterableSideInputData[SideInputKey{TransformID: ikey.GetTransformId(), Local: ikey.GetSideInputId()}]
 					var wins []typex.Window
 					for w := range winMap {
 						wins = append(wins, w)
@@ -463,7 +462,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						}
 					}
 					dKey := mmkey.GetKey()
-					winMap := b.MultiMapSideInputData[mmkey.GetTransformId()][mmkey.GetSideInputId()]
+					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
 					var wins []typex.Window
 					for w := range winMap {
 						wins = append(wins, w)
@@ -561,32 +560,4 @@ func (wk *W) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.
 			},
 		},
 	}).GetMonitoringInfos()
-}
-
-// DataService is slated to be deleted in favour of stage based state
-// management for side inputs.
-// TODO(https://github.com/apache/beam/issues/28543), remove this concept.
-type DataService struct {
-	mu sync.Mutex
-	// TODO actually quick process the data to windows here as well.
-	raw map[string][][]byte
-}
-
-// Commit tentative data to the datastore.
-func (d *DataService) Commit(tent engine.TentativeData) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.raw == nil {
-		d.raw = map[string][][]byte{}
-	}
-	for colID, data := range tent.Raw {
-		d.raw[colID] = append(d.raw[colID], data...)
-	}
-}
-
-// GetAllData is a hack for Side Inputs until watermarks are sorted out.
-func (d *DataService) GetAllData(colID string) [][]byte {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.raw[colID]
 }

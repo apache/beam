@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -36,14 +37,13 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -62,12 +62,14 @@ public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
 
-  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO";
+  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO,PROTO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
       new TupleTag<KV<byte[], byte[]>>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
@@ -99,38 +101,25 @@ public class KafkaWriteSchemaTransformProvider
     }
 
     public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {
-      private final SerializableFunction<Row, byte[]> toBytesFn;
-      private final Counter errorCounter;
+      private SerializableFunction<Row, byte[]> toBytesFn;
+      private Counter errorCounter;
       private Long errorsInBundle = 0L;
-      private final boolean handleErrors;
-      private final Schema errorSchema;
 
-      public ErrorCounterFn(
-          String name,
-          SerializableFunction<Row, byte[]> toBytesFn,
-          Schema errorSchema,
-          boolean handleErrors) {
+      public ErrorCounterFn(String name, SerializableFunction<Row, byte[]> toBytesFn) {
         this.toBytesFn = toBytesFn;
-        this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
-        this.handleErrors = handleErrors;
-        this.errorSchema = errorSchema;
+        errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
       }
 
       @ProcessElement
       public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-        KV<byte[], byte[]> output = null;
         try {
-          output = KV.of(new byte[1], toBytesFn.apply(row));
+          receiver.get(OUTPUT_TAG).output(KV.of(new byte[1], toBytesFn.apply(row)));
         } catch (Exception e) {
-          if (!handleErrors) {
-            throw new RuntimeException(e);
-          }
           errorsInBundle += 1;
           LOG.warn("Error while processing the element", e);
-          receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
-        }
-        if (output != null) {
-          receiver.get(OUTPUT_TAG).output(output);
+          receiver
+              .get(ERROR_TAG)
+              .output(Row.withSchema(ERROR_SCHEMA).addValues(e.toString(), row.toString()).build());
         }
       }
 
@@ -141,9 +130,6 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    @SuppressWarnings({
-      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-    })
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
@@ -153,24 +139,32 @@ public class KafkaWriteSchemaTransformProvider
         if (numFields != 1) {
           throw new IllegalArgumentException("Expecting exactly one field, found " + numFields);
         }
+        if (inputSchema.getField(0).getType().equals(Schema.FieldType.BYTES)) {
+          throw new IllegalArgumentException(
+              "The input schema must have exactly one field of type byte.");
+        }
         toBytesFn = getRowToRawBytesFunction(inputSchema.getField(0).getName());
       } else if (configuration.getFormat().equals("JSON")) {
         toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
+      } else if (configuration.getFormat().equals("PROTO")) {
+        String descriptorPath = configuration.getFileDescriptorPath();
+        String messageName = configuration.getMessageName();
+        if (descriptorPath == null || messageName == null) {
+          throw new IllegalArgumentException(
+              "Expecting both descriptorPath and messageName to be non-null.");
+        }
+        toBytesFn = ProtoByteUtils.getRowToProtoBytes(descriptorPath, messageName);
       } else {
         toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
       }
 
-      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
-      Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
       PCollectionTuple outputTuple =
           input
               .get("input")
               .apply(
                   "Map rows to Kafka messages",
-                  ParDo.of(
-                          new ErrorCounterFn(
-                              "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
+                  ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", toBytesFn))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       outputTuple
@@ -186,11 +180,8 @@ public class KafkaWriteSchemaTransformProvider
                   .withKeySerializer(ByteArraySerializer.class)
                   .withValueSerializer(ByteArraySerializer.class));
 
-      // TODO: include output from KafkaIO Write once updated from PDone
-      PCollection<Row> errorOutput =
-          outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
       return PCollectionRowTuple.of(
-          handleErrors ? configuration.getErrorHandling().getOutput() : "errors", errorOutput);
+          "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
   }
 
@@ -242,16 +233,24 @@ public class KafkaWriteSchemaTransformProvider
     public abstract String getBootstrapServers();
 
     @SchemaFieldDescription(
+        "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
+            + " definition and message serialization.")
+    @Nullable
+    public abstract String getFileDescriptorPath();
+
+    @SchemaFieldDescription(
+        "The name of the Protocol Buffer message to be used for schema"
+            + " extraction and data conversion.")
+    @Nullable
+    public abstract String getMessageName();
+
+    @SchemaFieldDescription(
         "A list of key-value pairs that act as configuration parameters for Kafka producers."
             + " Most of these configurations will not be needed, but if you need to customize your Kafka producer,"
             + " you may use this. See a detailed list:"
             + " https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html")
     @Nullable
     public abstract Map<String, String> getProducerConfigUpdates();
-
-    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
-    @Nullable
-    public abstract ErrorHandling getErrorHandling();
 
     public static Builder builder() {
       return new AutoValue_KafkaWriteSchemaTransformProvider_KafkaWriteSchemaTransformConfiguration
@@ -266,9 +265,11 @@ public class KafkaWriteSchemaTransformProvider
 
       public abstract Builder setBootstrapServers(String bootstrapServers);
 
-      public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
+      public abstract Builder setFileDescriptorPath(String fileDescriptorPath);
 
-      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+      public abstract Builder setMessageName(String messageName);
+
+      public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
 
       public abstract KafkaWriteSchemaTransformConfiguration build();
     }

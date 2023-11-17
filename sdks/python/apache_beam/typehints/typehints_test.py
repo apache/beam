@@ -874,6 +874,7 @@ class CollectionHintTestCase(TypeHintTestCase):
         typehints.Collection[typehints.Any], typehints.Collection[int])
     self.assertCompatible(typehints.Collection[int], typehints.Tuple[int])
     self.assertCompatible(typehints.Any, typehints.Collection[str])
+    self.assertCompatible(typehints.Collection[str], typehints.List[str])
 
   def test_one_way_compatibility(self):
     self.assertNotCompatible(typehints.Set[int], typehints.Collection[int])
@@ -881,6 +882,7 @@ class CollectionHintTestCase(TypeHintTestCase):
         typehints.FrozenSet[int], typehints.Collection[int])
     self.assertNotCompatible(typehints.Tuple[int], typehints.Collection[int])
     self.assertNotCompatible(typehints.Collection[int], typehints.Iterable[int])
+    self.assertNotCompatible(typehints.List[str], typehints.Collection[str])
 
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError) as e:

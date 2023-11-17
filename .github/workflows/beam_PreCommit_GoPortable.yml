@@ -19,10 +19,10 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**','.github/workflows/beam_PreCommit_GoPortable.yml']
+    paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', '.github/workflows/beam_PreCommit_GoPortable.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**', 'release/trigger_all_tests.json']
+    paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   schedule:

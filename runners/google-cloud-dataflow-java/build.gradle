@@ -308,6 +308,7 @@ def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
     }
   }
@@ -346,9 +347,11 @@ def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
       commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonImageContainer}"
     }
   }

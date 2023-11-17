@@ -578,11 +578,11 @@ The following should be confirmed:
 At
 [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image),
 visit each repository and navigate to "tags" tab.  Verify images are pushed
-with tags: `${RELEASE_VERSION}_rc{RC_NUM}`
+with tags: `${RELEASE_VERSION}rc{RC_NUM}`
 
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
-    RC_TAG=${RELEASE_VERSION}_rc{RC_NUM}
+    RC_TAG=${RELEASE_VERSION}rc{RC_NUM}
     for pyver in 3.8 3.9 3.10 3.11; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
@@ -775,7 +775,7 @@ as an example.
   API reference manual](https://beam.apache.org/releases/pydoc/).
 - [ ] Docker images are published to
   [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with
-  tags: `{RELEASE_VERSION}_rc{RC_NUM}`.
+  tags: `{RELEASE_VERSION}rc{RC_NUM}`.
 
 You can (optionally) also do additional verification by:
 

@@ -1038,13 +1038,13 @@ class CollectionHint(CompositeTypeHint):
     @staticmethod
     def _is_subclass_constraint(sub):
       return isinstance(
-          sub, (
+          sub,
+          (
               CollectionTypeConstraint,
               FrozenSetTypeConstraint,
-              SetTypeConstraint))
+              SetTypeConstraint,
+              ListConstraint))
 
-    # TODO(https://github.com/apache/beam/issues/29135): allow for consistency
-    # with Mapping types
     def _consistent_with_check_(self, sub):
       if self._is_subclass_constraint(sub):
         return is_consistent_with(sub.inner_type, self.inner_type)
@@ -1058,6 +1058,10 @@ class CollectionHint(CompositeTypeHint):
         return all(
             is_consistent_with(elem, self.inner_type)
             for elem in sub.tuple_types)
+      # TODO(https://github.com/apache/beam/issues/29135): allow for
+      # consistency checks with Mapping types
+      elif isinstance(sub, DictConstraint):
+        return True
       elif not isinstance(sub, TypeConstraint):
         if getattr(sub, '__origin__', None) is not None and getattr(
             sub, '__args__', None) is not None:
