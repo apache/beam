@@ -1261,7 +1261,7 @@ class CombineTest(unittest.TestCase):
         (sum, count) = sum_count
         return sum / count if count else float('NaN')
 
-      def combine(self, accumulator):
+      def compact(self, accumulator):
         # No-op
         return accumulator
 
