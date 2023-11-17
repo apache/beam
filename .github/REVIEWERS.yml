@@ -65,6 +65,14 @@ labels:
       - damccorm
       - Abacn
     exclusionList: []
+  - name: website
+    reviewers:
+      - rszper
+      - melap
+      - damccorm
+      - liferoad
+      - kennknowles
+    exclusionList: []
 fallbackReviewers:
   - Abacn
   - AnandInguva
