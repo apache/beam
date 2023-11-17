@@ -36,16 +36,25 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   push_docker_artifacts:
     if: ${{github.event.inputs.PUSH_DOCKER_ARTIFACTS == 'yes'}}
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USER }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Publish to Docker
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
         RC_NUM: "${{ github.event.inputs.RC }}"
-        RC_VERSION: "rc_${{ github.event.inputs.RC }}"
+        RC_VERSION: "rc${{ github.event.inputs.RC }}"
       run: |
         
         echo "Publish SDK docker images to Docker Hub."
@@ -121,21 +130,30 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+    - name: Set git config
+      run: |
+        git config user.name $GITHUB_ACTOR
+        git config user.email actions@"$RUNNER_NAME".local
+    - name: Import GPG key
+      id: import_gpg
+      uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
     - name: Push tags
       env:
         VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
-        RC_TAG: "${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+        RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
-        git fetch --all --tags
+        git fetch --all --tags --prune
         
         # If the tag exists, a commit number is produced, otherwise there's an error.
         git rev-list $RC_TAG -n 1
         
         # Tag for Go SDK
-        git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
+        git tag "sdks/$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "sdks/$VERSION_TAG"
         
         # Tag for repo root.
-        git tag -s "$VERSION_TAG" "$RC_TAG"
+        git tag "$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "$VERSION_TAG"
