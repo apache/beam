@@ -199,6 +199,21 @@ class GcsIO(object):
     except NotFound:
       return
 
+  def delete_objects_and_directories(self, path):
+    """
+    Deletes the objects and directories at the given GCS path.
+    Args:
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    bucket_name, dir_name = parse_gcs_path(path)
+    bucket = self.client.get_bucket(bucket_name)
+    blobs = bucket.list_blobs(versions=True)
+    for blob in blobs:
+      if blob.name.startswith(dir_name):
+        logging.info("Deleting blob: %s", blob.name)
+        print("Deleting blob: %s", blob.name)
+        blob.delete()
+
   def delete_batch(self, paths):
     """Deletes the objects at the given GCS paths.
 

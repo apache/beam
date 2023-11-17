@@ -357,7 +357,11 @@ class GCSFileSystem(FileSystem):
 
     for path in paths:
       if path.endswith('/'):
-        path_to_use = path + '*'
+        # This is a directory. Remove all of its contents including
+        # objects and subdirectories.
+        # TODO: IMPLEMENT Statuses
+        self._gcsIO().delete_objects_and_directories(path)
+        return
       else:
         path_to_use = path
       match_result = self.match([path_to_use])[0]
