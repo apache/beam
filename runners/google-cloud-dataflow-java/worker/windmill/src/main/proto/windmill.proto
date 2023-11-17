@@ -488,6 +488,8 @@ message GetDataRequest {
   optional string project_id = 5;
   repeated ComputationGetDataRequest requests = 1;
   repeated GlobalDataRequest global_data_fetch_requests = 3;
+  // Assigned worker id for the instance.
+  optional string worker_id = 6;
 
   // DEPRECATED
   repeated GlobalDataId global_data_to_fetch = 2;
