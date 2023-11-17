@@ -129,7 +129,7 @@ jobs:
     - name: Push tags
       env:
         VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
-        RC_TAG: "${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+        RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
         git fetch --all --tags --prune
