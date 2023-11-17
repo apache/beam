@@ -87,7 +87,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.52.0] - Unreleased - TODO, update before merging
+# [2.52.0] - 2023-11-17
 
 ## Highlights
 
