@@ -218,7 +218,7 @@ dependencies {
   runtimeOnly project(":sdks:java:harness")
   implementation "com.amazonaws:aws-java-sdk-s3:1.10.6"
   implementation "org.apache.hadoop:hadoop-aws:2.8.5"
-  implementation ("com.lyft:streamingplatform-events-source:2.4.0-20231114.175821-2") {
+  implementation ("com.lyft:streamingplatform-events-source:2.4.0-20231116.233005-3") {
     exclude group: "com.lyft", module: "streamingplatform-kinesis"
     exclude group: "com.google.guava", module: "guava"
     exclude group: "com.google.protobuf", module: "protobuf-java"
@@ -239,8 +239,8 @@ dependencies {
     exclude group: "org.apache.logging.log4j", module: "log4j-core"
   }
   implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202310191697699075"
-  implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231114.175821-2"
-  implementation ("com.lyft:streamingplatform-kafka:2.4.0-20231114.175821-2") {
+  implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231116.233005-3"
+  implementation ("com.lyft:streamingplatform-kafka:2.4.0-20231116.233005-3") {
     exclude group: "org.apache.flink", module: "flink-connector-kafka"
     exclude group: "org.apache.flink", module: "flink-streaming-java"
   }
