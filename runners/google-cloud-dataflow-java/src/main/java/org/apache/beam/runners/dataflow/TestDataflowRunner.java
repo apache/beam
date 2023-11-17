@@ -33,12 +33,12 @@ import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -74,8 +74,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   public static TestDataflowRunner fromOptions(PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
     String tempLocation =
-        Joiner.on("/")
-            .join(dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results");
+        FileSystems.matchNewDirectory(
+                dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results")
+            .toString();
+    // to keep exact same behavior prior to matchNewDirectory introduced
+    if (tempLocation.endsWith("/") || tempLocation.endsWith("\\")) {
+      tempLocation = tempLocation.substring(0, tempLocation.length() - 1);
+    }
     dataflowOptions.setTempLocation(tempLocation);
 
     return new TestDataflowRunner(
