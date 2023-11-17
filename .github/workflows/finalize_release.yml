@@ -130,6 +130,11 @@ jobs:
       run: |
         git config user.name $GITHUB_ACTOR
         git config user.email actions@"$RUNNER_NAME".local
+    - name: Import GPG key
+      id: import_gpg
+      uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
     - name: Push tags
       env:
         VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
