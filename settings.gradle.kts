@@ -355,3 +355,7 @@ include("sdks:java:io:kafka:kafka-01103")
 findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
+include("sdks:java:io:iceberg")
+findProject(":sdks:java:io:iceberg")?.name = "iceberg"
+include("sdks:java:io:catalog")
+findProject(":sdks:java:io:catalog")?.name = "catalog"
