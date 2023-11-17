@@ -1192,9 +1192,9 @@ Drop all other release candidates that are not being released.
 __NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access,
 please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
 
-### Deploy Python artifacts to PyPI
+### Deploy Python artifacts to PyPI, Docker Images to DockerHub, and Tag Release
 
-* **Script:** [deploy_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_pypi.sh)
+* **GitHub Action:** [finalize_release](https://github.com/apache/beam/actions/workflows/finalize_release.yml)
 * **Usage**
 ```
 ./release/src/main/scripts/deploy_pypi.sh
@@ -1202,22 +1202,9 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 * Verify that the files at https://pypi.org/project/apache-beam/#files are correct.
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
-
-### Deploy docker images to DockerHub
-
-Note: if you are not a member of the [beam DockerHub team](https://hub.docker.com/orgs/apache/teams/beam),
-you will need help with this step. Please email dev@ mailing list and ask a member of the beam DockerHub team for help.
-
-* **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
-* **Usage**
-```
-./release/src/main/scripts/publish_docker_images.sh
-```
-* **Verify that:**
-  * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE_VERSION} and *latest*.
-  * Images with *latest* tag are pointing to current release by confirming the digest of the image with *latest* tag is the same as the one with {RELEASE_VERSION} tag.
-
-(Optional) Clean up any unneeded local images afterward to save disk space.
+* Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE_VERSION} and *latest*.
+* Images with *latest* tag are pointing to current release by confirming the digest of the image with *latest* tag is the same as the one with {RELEASE_VERSION} tag.
+* `v{RELEASE_VERSION}` and `sdks/v{RELEASE_VERSION}` tags should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
 
 ### Merge Website pull requests
 
@@ -1225,34 +1212,6 @@ Merge all of the website pull requests
 - [listing the release](/get-started/downloads/)
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
-
-### Git tag
-
-Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
-
-```
-# Optional: unlock the signing key by signing an arbitrary file.
-gpg --output ~/doc.sig --sign ~/.bashrc
-
-VERSION_TAG="v${RELEASE_VERSION}"
-RC_TAG="${VERSION_TAG}-RC${RC_NUM}"
-
-# Ensure local tags are in sync. If there's a mismatch, it will tell you.
-git fetch --all --tags
-
-# If the tag exists, a commit number is produced, otherwise there's an error.
-git rev-list $RC_TAG -n 1
-
-# Tag for Go SDK
-git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
-git push https://github.com/apache/beam "sdks/$VERSION_TAG"
-
-# Tag for repo root.
-git tag -s "$VERSION_TAG" "$RC_TAG"
-git push https://github.com/apache/beam "$VERSION_TAG"
-```
-
-After pushing the tag, the tag should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
 
 ### Publish release to Github
 
