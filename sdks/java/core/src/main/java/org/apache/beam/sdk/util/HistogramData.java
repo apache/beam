@@ -188,6 +188,7 @@ public class HistogramData implements Serializable {
 
   /**
    * Copies all updates to a new histogram object and resets 'this' histogram.
+   *
    * @return New histogram object that has the the same updates as 'this'.
    */
   public synchronized HistogramData getAndReset() {
