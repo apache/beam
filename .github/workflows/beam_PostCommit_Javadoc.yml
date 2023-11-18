@@ -53,7 +53,7 @@ env:
 jobs:
   beam_PostCommit_Javadoc:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     strategy:
       matrix:
@@ -66,10 +66,6 @@ jobs:
       github.event.comment.body == 'Run Javadoc PostCommit'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '8'
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
