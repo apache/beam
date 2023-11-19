@@ -19,17 +19,31 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.api.client.util.BackOff;
 import com.google.api.client.util.ExponentialBackOff;
 import java.io.IOException;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /** Repeats a method invocation when it encounters an error. */
 public class Repeater<InputT, OutputT> {
+
+  /**
+   * {@link Set} of {@link UserCodeExecutionException}s that warrant repeating. A public modifier is
+   * applied to communicate to users of this class which {@link UserCodeExecutionException}s
+   * constitute warrant repeat execution.
+   */
+  public static final Set<Class<? extends UserCodeExecutionException>> REPEATABLE_ERROR_TYPES =
+      ImmutableSet.of(
+          UserCodeRemoteSystemException.class,
+          UserCodeTimeoutException.class,
+          UserCodeQuotaException.class);
 
   /** Instantiates a {@link Repeater}. */
   public static <InputT, OutputT> Repeater<InputT, OutputT> of(
@@ -51,8 +65,8 @@ public class Repeater<InputT, OutputT> {
 
   /**
    * Applies the {@link InputT} to the {@link ThrowableFunction}. If the function throws an
-   * exception, repeats the invocation up to the limit. Throws the last exception, if the limit
-   * reached.
+   * exception that {@link #REPEATABLE_ERROR_TYPES} contains, repeats the invocation up to the
+   * limit, otherwise throws immediately. Throws the last exception, if the limit reached.
    */
   public OutputT apply(InputT input) throws UserCodeExecutionException, InterruptedException {
     @MonotonicNonNull UserCodeExecutionException lastException = null;
@@ -60,6 +74,9 @@ public class Repeater<InputT, OutputT> {
       try {
         return throwableFunction.apply(input);
       } catch (UserCodeExecutionException e) {
+        if (!REPEATABLE_ERROR_TYPES.contains(e.getClass())) {
+          throw e;
+        }
         lastException = e;
         sleeper.sleep();
       }
@@ -85,26 +102,31 @@ public class Repeater<InputT, OutputT> {
   }
 
   /**
-   * A {@link Sleeper} implementation that uses {@link ExponentialBackOff} to determine how long to
-   * pause execution.
+   * A {@link Sleeper} implementation that uses a {@link BackOff} to determine how long to pause
+   * execution.
    */
   public static class DefaultSleeper implements Sleeper {
 
     public static DefaultSleeper of() {
-      return new DefaultSleeper();
+      return of(new ExponentialBackOff());
     }
 
-    private DefaultSleeper() {}
+    public static DefaultSleeper of(BackOff backOff) {
+      return new DefaultSleeper(backOff);
+    }
 
-    private final ExponentialBackOff exponentialBackOff = new ExponentialBackOff();
+    private final BackOff backOff;
+
+    private DefaultSleeper(BackOff backOff) {
+      this.backOff = backOff;
+    }
 
     @Override
     public void sleep() throws InterruptedException {
       ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
       try {
         Future<?> future =
-            executorService.schedule(
-                () -> {}, exponentialBackOff.nextBackOffMillis(), TimeUnit.MILLISECONDS);
+            executorService.schedule(() -> {}, backOff.nextBackOffMillis(), TimeUnit.MILLISECONDS);
         future.get();
       } catch (IOException | ExecutionException e) {
         throw new RuntimeException(e);

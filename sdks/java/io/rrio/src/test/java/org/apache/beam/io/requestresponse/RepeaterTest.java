@@ -17,8 +17,11 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import static org.junit.Assert.assertThrows;
+import static org.apache.beam.io.requestresponse.Repeater.REPEATABLE_ERROR_TYPES;
 import static org.junit.Assert.assertTrue;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.Optional;
 
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -28,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -43,45 +45,38 @@ public class RepeaterTest {
   private static final int LIMIT = 3;
 
   @Test
-  public void givenErrorsWithinLimit_yieldsOutput() {
+  public void givenCallerQuotaErrorsAtLimit_emitsIntoFailurePCollection() {
     PCollectionTuple pct =
         pipeline
             .apply(Create.of(1))
             .apply(
-                ParDo.of(new DoFnWithRepeaters(new CallerImpl(1), new SetupTeardownImpl(1)))
-                    .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
-
-    PAssert.that(pct.get(OUTPUT_TAG)).containsInAnyOrder(2);
-    PAssert.that(pct.get(FAILURE_TAG)).empty();
-    pipeline.run();
-  }
-
-  @Test
-  public void givenSetupErrorsAtLimit_throws() {
-    PCollectionTuple pct =
-        pipeline
-            .apply(Create.of(1))
-            .apply(
-                ParDo.of(new DoFnWithRepeaters(new CallerImpl(0), new SetupTeardownImpl(LIMIT)))
-                    .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
-
-    PAssert.that(pct.get(OUTPUT_TAG)).empty();
-    PAssert.that(pct.get(FAILURE_TAG)).empty();
-    assertThrows(UncheckedExecutionException.class, pipeline::run);
-  }
-
-  @Test
-  public void givenCallerErrorsAtLimit_throws() {
-    PCollectionTuple pct =
-        pipeline
-            .apply(Create.of(1))
-            .apply(
-                ParDo.of(new DoFnWithRepeaters(new CallerImpl(LIMIT), new SetupTeardownImpl(0)))
+                ParDo.of(
+                        new DoFnWithRepeaters(
+                            new CallerImpl(LIMIT, UserCodeQuotaException.class),
+                            new SetupTeardownImpl(0)))
                     .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
     PAssert.that(pct.get(OUTPUT_TAG)).empty();
     PAssert.that(pct.get(FAILURE_TAG))
-        .containsInAnyOrder(UserCodeExecutionException.class.getName());
+        .containsInAnyOrder(UserCodeQuotaException.class.getName());
+
+    pipeline.run();
+  }
+  @Test
+  public void givenCallerTimeoutErrorsAtLimit_emitsIntoFailurePCollection() {
+    PCollectionTuple pct =
+            pipeline
+                    .apply(Create.of(1))
+                    .apply(
+                            ParDo.of(
+                                            new DoFnWithRepeaters(
+                                                    new CallerImpl(LIMIT, UserCodeTimeoutException.class),
+                                                    new SetupTeardownImpl(0)))
+                                    .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
+
+    PAssert.that(pct.get(OUTPUT_TAG)).empty();
+    PAssert.that(pct.get(FAILURE_TAG))
+            .containsInAnyOrder(UserCodeTimeoutException.class.getName());
 
     pipeline.run();
   }
@@ -130,7 +125,7 @@ public class RepeaterTest {
       try {
         receiver.get(OUTPUT_TAG).output(repeater.apply(element));
       } catch (UserCodeExecutionException e) {
-        receiver.get(FAILURE_TAG).output(UserCodeExecutionException.class.getName());
+        receiver.get(FAILURE_TAG).output(e.getMessage());
       } catch (InterruptedException ignored) {
       }
     }
@@ -139,16 +134,32 @@ public class RepeaterTest {
   private static class CallerImpl implements Caller<Integer, Integer> {
 
     private int wantNumErrors;
+    private final Class<? extends UserCodeExecutionException> wantThrowWith;
+    private final String exceptionName;
 
     private CallerImpl(int wantNumErrors) {
+      this(wantNumErrors, UserCodeExecutionException.class);
+    }
+
+    private CallerImpl(
+        int wantNumErrors, Class<? extends UserCodeExecutionException> wantThrowWith) {
       this.wantNumErrors = wantNumErrors;
+      this.wantThrowWith = wantThrowWith;
+      this.exceptionName = getRepeatableErrorTypeName(wantThrowWith);
     }
 
     @Override
     public Integer call(Integer request) throws UserCodeExecutionException {
       wantNumErrors--;
       if (wantNumErrors > 0) {
-        throw new UserCodeExecutionException("");
+        try {
+          throw wantThrowWith.getConstructor(String.class).newInstance(exceptionName);
+        } catch (InstantiationException
+            | NoSuchMethodException
+            | InvocationTargetException
+            | IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
       }
       return request * 2;
     }
@@ -156,16 +167,29 @@ public class RepeaterTest {
 
   private static class SetupTeardownImpl implements SetupTeardown {
     private int wantNumErrors;
+    private final Class<? extends UserCodeExecutionException> wantThrowWith;
+    private final String exceptionName;
 
-    public SetupTeardownImpl(int wantNumErrors) {
+    private SetupTeardownImpl(int wantNumErrors) {
+      this(wantNumErrors, UserCodeExecutionException.class);
+    }
+
+    private SetupTeardownImpl(
+        int wantNumErrors, Class<? extends UserCodeExecutionException> wantThrowWith) {
       this.wantNumErrors = wantNumErrors;
+      this.wantThrowWith = wantThrowWith;
+      this.exceptionName = getRepeatableErrorTypeName(wantThrowWith);
     }
 
     @Override
     public void setup() throws UserCodeExecutionException {
       wantNumErrors--;
       if (wantNumErrors > 0) {
-        throw new UserCodeExecutionException("");
+        try {
+          throw wantThrowWith.getConstructor(String.class).newInstance(exceptionName);
+        } catch (InstantiationException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
 
@@ -184,5 +208,14 @@ public class RepeaterTest {
     public void sleep() throws InterruptedException {
       Thread.sleep(sleepFor);
     }
+  }
+
+  private static String getRepeatableErrorTypeName(Class<? extends UserCodeExecutionException> e) {
+    for(Class<? extends UserCodeExecutionException> ex : REPEATABLE_ERROR_TYPES) {
+      if (ex.equals(e)) {
+        return ex.getName();
+      }
+    }
+    return e.getName();
   }
 }
