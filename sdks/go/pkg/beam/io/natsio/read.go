@@ -198,36 +198,45 @@ func (fn *readFn) ProcessElement(
 	emit func(beam.EventTime, ConsumerMessage),
 ) (sdf.ProcessContinuation, error) {
 	startSeqNo := rt.GetRestriction().(offsetrange.Restriction).Start
-	msgs, err := fn.fetchMessages(ctx, startSeqNo)
+	cons, err := fn.createConsumer(ctx, startSeqNo)
 	if err != nil {
 		return sdf.StopProcessing(), err
 	}
 
-	count := 0
-	for msg := range msgs {
-		metadata, err := msg.Metadata()
+	for {
+		msgs, err := cons.Fetch(fn.FetchSize, jetstream.FetchMaxWait(fetchTimeout))
 		if err != nil {
-			return sdf.StopProcessing(), fmt.Errorf("error retrieving metadata: %v", err)
+			return nil, fmt.Errorf("error fetching messages: %v", err)
 		}
 
-		seqNo := int64(metadata.Sequence.Stream)
-		if !rt.TryClaim(seqNo) {
-			return sdf.StopProcessing(), nil
+		count := 0
+		for msg := range msgs.Messages() {
+			metadata, err := msg.Metadata()
+			if err != nil {
+				return sdf.StopProcessing(), fmt.Errorf("error retrieving metadata: %v", err)
+			}
+
+			seqNo := int64(metadata.Sequence.Stream)
+			if !rt.TryClaim(seqNo) {
+				return sdf.StopProcessing(), nil
+			}
+
+			et := fn.timestampFn(metadata.Timestamp)
+			consMsg := createConsumerMessage(msg, metadata.Timestamp)
+			emit(et, consMsg)
+
+			count++
 		}
 
-		et := fn.timestampFn(metadata.Timestamp)
-		consMsg := createConsumerMessage(msg, metadata.Timestamp)
-		emit(et, consMsg)
+		if err := msgs.Error(); err != nil {
+			return sdf.StopProcessing(), fmt.Errorf("error in message batch: %v", err)
+		}
 
-		count++
+		if count == 0 {
+			fn.updateWatermarkManually(we)
+			return sdf.ResumeProcessingIn(resumeDelay), nil
+		}
 	}
-
-	if count == 0 {
-		fn.updateWatermarkManually(we)
-		return sdf.ResumeProcessingIn(resumeDelay), nil
-	}
-
-	return sdf.ResumeProcessingIn(0 * time.Second), nil
 }
 
 func (fn *readFn) createRTracker(rest offsetrange.Restriction) (sdf.RTracker, error) {
@@ -244,12 +253,13 @@ func (fn *readFn) createRTracker(rest offsetrange.Restriction) (sdf.RTracker, er
 	return rt, nil
 }
 
-func (fn *readFn) fetchMessages(
+func (fn *readFn) createConsumer(
 	ctx context.Context,
 	startSeqNo int64,
-) (<-chan jetstream.Msg, error) {
+) (jetstream.Consumer, error) {
 	cfg := jetstream.OrderedConsumerConfig{
 		FilterSubjects:   []string{fn.Subject},
+		DeliverPolicy:    jetstream.DeliverByStartSequencePolicy,
 		OptStartSeq:      uint64(startSeqNo),
 		MaxResetAttempts: 5,
 	}
@@ -259,12 +269,7 @@ func (fn *readFn) fetchMessages(
 		return nil, fmt.Errorf("error creating consumer: %v", err)
 	}
 
-	msgs, err := cons.Fetch(fn.FetchSize, jetstream.FetchMaxWait(fetchTimeout))
-	if err != nil {
-		return nil, fmt.Errorf("error fetching messages: %v", err)
-	}
-
-	return msgs.Messages(), nil
+	return cons, nil
 }
 
 func createConsumerMessage(msg jetstream.Msg, publishingTime time.Time) ConsumerMessage {
