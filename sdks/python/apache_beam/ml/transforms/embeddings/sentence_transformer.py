@@ -70,10 +70,18 @@ def yield_elements(elements):
     yield element
 
 
+class _YieldPTransform(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(yield_elements)
+
+
 # TODO: Use HuggingFaceModelHandlerTensor once the import issue is fixed.
 # Right now, the hugging face model handler import torch and tensorflow
 # at the same time, which adds too much weigth to the container unnecessarily.
 class _SentenceTransformerModelHandler(ModelHandler):
+  """
+  Note: Intended for internal use and guarantees no backwards compatibility.
+  """
   def __init__(
       self,
       model_name: str,
@@ -128,7 +136,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
       max_seq_length: Optional[int] = None,
       **kwargs):
 
-    super().__init__(**kwargs)
+    super().__init__(columns, **kwargs)
     self.model_name = model_name
     self.max_seq_length = max_seq_length
 
@@ -152,7 +160,8 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
         # TODO: Phrase comment better. The reason we need to yield
         # RunInference returns a list of Predictions, which if coupled
         # with MLTransfomr won't work.
-        | beam.ParDo(yield_elements))
+        # | beam.ParDo(yield_elements) fails due to pickling issues.
+        | _YieldPTransform())
 
   def requires_chaining(self):
     return False

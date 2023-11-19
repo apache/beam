@@ -143,6 +143,11 @@ class VertexAITextEmbeddings(EmbeddingsManager):
 
     """
     self.model_name = model_name
+    self.project = project
+    self.location = location
+    self.credentials = credentials
+    self.title = title
+    self.task_type = task_type
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
@@ -150,7 +155,10 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         model_name=self.model_name,
         project=self.project,
         location=self.location,
-        credentials=self.credentials)
+        credentials=self.credentials,
+        title=self.title,
+        task_type=self.task_type,
+    )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (

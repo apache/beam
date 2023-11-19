@@ -34,6 +34,8 @@ from typing import Sequence
 from typing import TypeVar
 from typing import Union
 import uuid
+import tempfile
+
 import numpy as np
 
 import apache_beam as beam
@@ -260,7 +262,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       A PCollection of MLTransformOutputT type
     """
     if self._artifact_mode == ArtifactMode.PRODUCE:
-      ptransform_partitioner = TransformsPartitioner(
+      ptransform_partitioner = _TransformsPartitioner(
           transforms=self.transforms,
           artifact_location=self._parent_artifact_location,
           artifact_mode=self._artifact_mode,
@@ -268,7 +270,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       ptransform_list = ptransform_partitioner.create_and_save_ptransform_list()
     else:
       ptransform_list = (
-          TransformsPartitioner.load_transforms_from_artifact_location(
+          _TransformsPartitioner.load_transforms_from_artifact_location(
               self._parent_artifact_location))
 
     # the saved transforms has artifact mode set to PRODUCE.
@@ -332,27 +334,24 @@ class MLTransformMetricsUsage(beam.PTransform):
         | beam.Map(lambda _: _increment_counters()))
 
 
+# TODO: Add support for inference_fn
 class EmbeddingsManager(PTransformManager):
   def __init__(
       self,
+      columns: List[str],
       *,
-      # these are common to all ModelHandlers.
-      columns: Optional[List[str]] = None,
-      inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
+      # common args for all ModelHandlers.
       load_model_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
-    self.inference_fn = inference_fn
     self.load_model_args = load_model_args or {}
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
     self.large_model = large_model
     self.kwargs = kwargs
     self.columns = columns
-
-    _LOGGER.warning("Ignoring the following arguments: %s", self.kwargs.keys())
 
   @abc.abstractmethod
   def get_model_handler(self) -> ModelHandler:
@@ -385,12 +384,12 @@ class TransformAttributeManager:
     raise NotImplementedError
 
 
-class TransformsPartitioner:
+class _TransformsPartitioner:
   def __init__(
       self,
       transforms: List[Union[BaseOperation, EmbeddingsManager]],
-      artifact_location,
-      artifact_mode,
+      artifact_location: str,
+      artifact_mode: str,
       pipeline_options):
     self.transforms = transforms
     self._parent_artifact_location = artifact_location
@@ -401,6 +400,10 @@ class TransformsPartitioner:
     self.ptransform_list = self.create_ptransform_list()
     self.save_transforms_in_artifact_location()
     return self.ptransform_list
+
+  @staticmethod
+  def _is_remote_path(path):
+    return path.find('://') != -1
 
   def create_ptransform_list(self):
     previous_ptransform = None
@@ -430,29 +433,33 @@ class TransformsPartitioner:
     """
     Save the ptransform references to json file.
     """
-    # create directory if not present.
 
-    """
-    Follow this code and create a GCS directory if not present.
-    https://source.corp.google.com/piper///depot/google3/third_party/py/apache_beam/runners/dataflow/internal/apiclient.py;l=649?q=_gcs_file_copy&ct=os
-    """
-    import tempfile
-    temp_dir = tempfile.mkdtemp()
-    temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
-    with open(temp_json_file, 'w+') as f:
-      f.write(jsonpickle.encode(self.ptransform_list))
-
-    with open(temp_json_file, 'r') as f:
-      from apache_beam.runners.dataflow.internal import apiclient
-      import logging
-      logging.info(
-          'Creating artifact location: %s', self._parent_artifact_location)
-      apiclient.DataflowApplicationClient(
-          options=self.pipeline_options).stage_file(
-              gcs_or_local_path=self._parent_artifact_location,
-              file_name=_ATTRIBUTE_FILE_NAME,
-              stream=f,
-              mime_type='application/json')
+    if _TransformsPartitioner._is_remote_path(self._parent_artifact_location):
+      # save the ptransform_list to a json file in temp dir and then
+      # copy the file to the artifact location.
+      # TODO: This supports only GCS. Add support for other remote paths.
+      temp_dir = tempfile.mkdtemp()
+      temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
+      with open(temp_json_file, 'w+') as f:
+        f.write(jsonpickle.encode(self.ptransform_list))
+        with open(temp_json_file, 'r') as f:
+          from apache_beam.runners.dataflow.internal import apiclient
+          _LOGGER.info(
+              'Creating artifact location: %s', self._parent_artifact_location)
+          apiclient.DataflowApplicationClient(
+              options=self.pipeline_options).stage_file(
+                  gcs_or_local_path=self._parent_artifact_location,
+                  file_name=_ATTRIBUTE_FILE_NAME,
+                  stream=f,
+                  mime_type='application/json')
+    else:
+      if not FileSystems.exists(self._parent_artifact_location):
+        FileSystems.mkdirs(self._parent_artifact_location)
+      # FileSystems.open() fails if the file does not exist.
+      with open(os.path.join(self._parent_artifact_location,
+                             _ATTRIBUTE_FILE_NAME),
+                'w+') as f:
+        f.write(jsonpickle.encode(self.ptransform_list))
 
   @staticmethod
   def load_transforms_from_artifact_location(artifact_location):
@@ -512,12 +519,9 @@ class TextEmbeddingHandler(ModelHandler):
     for key, batch in dict_batch.items():
       if key in self.columns:
         if not isinstance(batch[0], (str, bytes)):
-          raise RuntimeError(
-              'Embeddings can only be generated on text columns.')
+          raise TypeError('Embeddings can only be generated on text columns.')
         prediction = self._underlying.run_inference(
             batch=batch, model=model, inference_args=inference_args)
-        for i in range(10):
-          print(type(prediction))
         if isinstance(prediction, np.ndarray):
           prediction = prediction.tolist()
           result[key] = prediction
