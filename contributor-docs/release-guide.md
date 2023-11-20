@@ -1243,7 +1243,7 @@ svn add $RELEASE_VERSION
 
 svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
 
-svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifats"
+svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
 ```
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
