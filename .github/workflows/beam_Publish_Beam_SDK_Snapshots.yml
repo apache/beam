@@ -71,13 +71,15 @@ jobs:
           - "python:container:py310"
           - "python:container:py311"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -101,8 +103,10 @@ jobs:
       - name: run Publish Beam SDK Snapshots script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:${{ matrix.container_task }}:dockerTagPush
+          gradle-command: :sdks:${{ matrix.container_task }}:docker
           arguments: |
             -Pjava11Home=$JAVA_HOME_11_X64 \
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
-            -Pdocker-tag-list=${{ github.sha }},latest
+            -Pdocker-tag-list=${{ github.sha }},latest \
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Ppush-containers \

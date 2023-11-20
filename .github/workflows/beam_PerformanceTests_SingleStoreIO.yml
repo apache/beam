@@ -18,8 +18,6 @@
 name: PerformanceTests SingleStoreIO
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
@@ -67,7 +65,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO Performance Test'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

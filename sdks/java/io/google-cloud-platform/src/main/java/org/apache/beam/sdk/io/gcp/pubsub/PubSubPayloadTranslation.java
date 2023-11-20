@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
+
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
@@ -33,6 +36,7 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource.PubsubSource;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -59,6 +63,10 @@ public class PubSubPayloadTranslation {
     @Override
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, Unbounded<?>> transform, SdkComponents components) {
+      if (ExperimentalOptions.hasExperiment(
+          transform.getPipeline().getOptions(), ENABLE_CUSTOM_PUBSUB_SOURCE)) {
+        return null;
+      }
       if (!(transform.getTransform().getSource() instanceof PubsubUnboundedSource.PubsubSource)) {
         return null;
       }
@@ -111,6 +119,10 @@ public class PubSubPayloadTranslation {
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubSink> transform,
         SdkComponents components) {
+      if (ExperimentalOptions.hasExperiment(
+          transform.getPipeline().getOptions(), ENABLE_CUSTOM_PUBSUB_SINK)) {
+        return null;
+      }
       PubSubWritePayload.Builder payloadBuilder = PubSubWritePayload.newBuilder();
       ValueProvider<TopicPath> topicProvider =
           Preconditions.checkStateNotNull(transform.getTransform().outer.getTopicProvider());
@@ -145,6 +157,10 @@ public class PubSubPayloadTranslation {
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubDynamicSink> transform,
         SdkComponents components) {
+      if (ExperimentalOptions.hasExperiment(
+          transform.getPipeline().getOptions(), ENABLE_CUSTOM_PUBSUB_SINK)) {
+        return null;
+      }
       PubSubWritePayload.Builder payloadBuilder = PubSubWritePayload.newBuilder();
       if (transform.getTransform().outer.getTimestampAttribute() != null) {
         payloadBuilder.setTimestampAttribute(

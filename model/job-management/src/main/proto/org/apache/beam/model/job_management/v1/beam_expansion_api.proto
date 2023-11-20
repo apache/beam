@@ -53,6 +53,10 @@ message ExpansionRequest {
   // coders for the output PCollections. Note that the request
   // may not be fulfilled.
   map<string, string> output_coder_requests = 4;
+
+  // A set of requirements that must be used by the expansion service to
+  // interpret the components provided with this request.
+  repeated string requirements = 5;
 }
 
 message ExpansionResponse {

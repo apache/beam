@@ -631,7 +631,8 @@ public class StreamingDataflowWorker {
                                 + options.getWorkerId()
                                 + "_"
                                 + page.pageName()
-                                + timestamp)
+                                + timestamp
+                                + ".html")
                             .replaceAll("/", "_"));
                 writer = new PrintWriter(outputFile, UTF_8.name());
                 page.captureData(writer);

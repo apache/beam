@@ -72,7 +72,7 @@ jobs:
         job_name: ["beam_LoadTests_Go_GBK_Flink_Batch"]
         job_phrase: ["Run Load Tests Go GBK Flink Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

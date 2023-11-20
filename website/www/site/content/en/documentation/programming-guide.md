@@ -1598,10 +1598,12 @@ You should use a `CombineFn` if the combine function requires a more sophisticat
 accumulator, must perform additional pre- or post-processing, might change the
 output type, or takes the key into account.
 
-A general combining operation consists of four operations. When you create a
+A general combining operation consists of five operations. When you create a
 <span class="language-java language-py">subclass of</span>
-`CombineFn`, you must provide four operations by overriding the
-corresponding methods:
+`CombineFn`, you must provide five operations by overriding the
+corresponding methods. Only `MergeAccumulators` is a required method. The
+others will have a default interpretation based on the accumulator type. The
+lifecycle methods are:
 
 1. **Create Accumulator** creates a new "local" accumulator. In the example
    case, taking a mean average, a local accumulator tracks the running sum of
@@ -1622,6 +1624,14 @@ corresponding methods:
 4. **Extract Output** performs the final computation. In the case of computing a
    mean average, this means dividing the combined sum of all the values by the
    number of values summed. It is called once on the final, merged accumulator.
+
+5. **Compact** returns a more compact represenation of the accumulator. This is
+    called before an accumulator is sent across the wire, and can be useful in
+    cases where values are buffered or otherwise lazily kept unprocessed when
+    added to the accumulator.  Compact should return an equivalent, though
+    possibly modified, accumulator. In most cases, Compact is not necessary. For
+    a real world example of using Compact, see the Python SDK implementation of
+    [TopCombineFn](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/combiners.py#L523)
 
 The following example code shows how to define a `CombineFn` that computes a
 mean average:
@@ -1657,6 +1667,10 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
   public Double extractOutput(Accum accum) {
     return ((double) accum.sum) / accum.count;
   }
+
+  // No-op
+  @Override
+  public Accum compact(Accum accum) { return accum; }
 }
 {{< /highlight >}}
 
@@ -1674,9 +1688,6 @@ pc = ...
 {{< /highlight >}}
 
 <span class="language-go">
-
-> **Note**: Only `MergeAccumulators` is a required method. The others will have a default interpretation
-> based on the accumulator type.
 
 </span>
 

@@ -626,7 +626,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
         rehydratedComponents
-            .getSdkComponents(Collections.emptyList())
+            .getSdkComponents(request.getRequirementsList())
             .withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(

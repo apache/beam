@@ -18,17 +18,6 @@
 name: PostCommit Java Examples Dataflow ARM
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/java/**'
-      - 'runners/google-cloud-dataflow-java/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - 'release/**'
-      - '.github/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml'
   issue_comment:
     types: [created]
   schedule:
@@ -73,7 +62,7 @@ jobs:
       matrix: 
         job_name: [beam_PostCommit_Java_Examples__Dataflow_ARM]
         job_phrase: [Run Java_Examples_Dataflow_ARM PostCommit]
-        java_version: ['8','11','17']
+        java_version: ['8','11','17','21']
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||

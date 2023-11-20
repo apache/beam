@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_LoadTests_Go_SideInput_Dataflow_Batch"]
         job_phrase: ["Run Load Tests Go SideInput Dataflow Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

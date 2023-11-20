@@ -555,19 +555,16 @@ The following should be confirmed:
 
 ### Run build_release_candidate GitHub Action to create a release candidate
 
-Note: This step is partially automated (in progress), so part of the RC
-creation is done by GitHub Actions and the rest is done by a script. You don't
-need to wait for the action to complete to start running the script.
-
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
 
 **The action will:**
 
 1. Clone the repo at the selected RC tag.
 2. Run gradle publish to push java artifacts into Maven staging repo.
-3. Stage SDK docker images to [docker hub Apache
+3. Build and push java and python source distribution into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+4. Stage SDK docker images to [docker hub Apache
    organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
-4. Build javadoc, pydoc, typedocs for a PR to update beam-site.
+5. Build javadoc, pydoc, typedocs for a PR to update beam-site.
     - **NOTE**: Do not merge this PR until after an RC has been approved (see
       "Finalize the Release").
 
@@ -581,26 +578,27 @@ need to wait for the action to complete to start running the script.
 At
 [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image),
 visit each repository and navigate to "tags" tab.  Verify images are pushed
-with tags: `${RELEASE_VERSION}_rc{RC_NUM}`
+with tags: `${RELEASE_VERSION}rc{RC_NUM}`
 
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
+    RC_TAG=${RELEASE_VERSION}rc{RC_NUM}
     for pyver in 3.8 3.9 3.10 3.11; do
       docker run --rm --entrypoint sh \
-          apache/beam_python${pyver}_sdk:2.51.0rc1 \
+          apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
     for javaver in 8 11 17; do
       docker run --rm --entrypoint sh \
-          apache/beam_java${pyver}_sdk:2.51.0rc1 \
+          apache/beam_java${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
 And you may choose to log in to the containers and inspect:
 
       docker run --rm -it --entrypoint=/bin/bash \
-        apache/beam_java${ver}_sdk:${RELEASE_VERSION}rc${RC_NUM}
+        apache/beam_java${ver}_sdk:${RC_TAG}
       ls -al /opt/apache/beam/third_party_licenses/
 
 ### Publish Java staging artifacts (manual)
@@ -623,17 +621,9 @@ This step uploads artifacts such as `apache-beam-${RELEASE_VERSION}rc${RC_NUM}`
 to PyPI, so the RC artifacts can be depended upon directly by consumers, for
 ease of RC verification.
 
-**Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
+**Action** [deploy_release_candidate_pypi](https://github.com/apache/beam/actions/workflows/deploy_release_candidate_pypi.yaml) (click `run workflow`)
 
-**Usage**
-
-		./release/src/main/scripts/deploy_release_candidate_pypi.sh \
-		    --release "${RELEASE_VERSION}" \
-		    --rc "${RC_NUM}" \
-		    --user "${GITHUB_USER}" \
-		    --deploy
-
-**The script will:**
+**The Action will:**
 
 Download previously build python binary artifacts Deploy release candidate
 to PyPI with an `rc` suffix.
@@ -645,19 +635,13 @@ __Attention:__ Verify that:
       - [ ] Release source's zip published
       - [ ] Signatures and hashes do not need to be uploaded
 
-You can do a dry run by omitting the `--deploy` flag. Then it will only
-download the release candidate binaries. If it looks good, rerun it with
-`--deploy`.
-
-See the source of the script for more details or to run commands manually in
-case of a problem.
-
 ### Propose pull requests for website updates
 
 Beam publishes API reference manuals for each release on the website.  For Java
 and Python SDKs, that’s Javadoc and PyDoc, respectively.  The final step of
 building the candidate is to propose website pull requests that update these
-manuals.
+manuals. The first pr will get created by the build_release_candidate action,
+you will need to create the second one manually
 
 Merge the pull requests only after finalizing the release.  To avoid invalid
 redirects for the 'current' version, merge these PRs in the order listed.  Once
@@ -791,7 +775,7 @@ as an example.
   API reference manual](https://beam.apache.org/releases/pydoc/).
 - [ ] Docker images are published to
   [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with
-  tags: `{RELEASE_VERSION}_rc{RC_NUM}`.
+  tags: `{RELEASE_VERSION}rc{RC_NUM}`.
 
 You can (optionally) also do additional verification by:
 
@@ -837,11 +821,10 @@ template; please adjust as you see fit.
 
     The complete staging area is available for your review, which includes:
     * GitHub Release notes [1],
-    * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
+    * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF (D20316F712213422 if automated) [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
     * Go artifacts and documentation are available at pkg.go.dev [9]
     * Validation sheet with a tab for 1.2.3 release to help with validation [10].
@@ -850,7 +833,7 @@ template; please adjust as you see fit.
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
-    For guidelines on how to try the release in your projects, check out our blog post at /blog/validate-beam-release/.
+    For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
 
     Thanks,
     Release Manager
@@ -935,13 +918,12 @@ write to BigQuery, and create a cluster of machines for running containers (for 
 
 - [ ] Check whether validations succeed by following console output instructions.
 - [ ] Terminate streaming jobs and java injector.
-- [ ] Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+- [ ] Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on GitHub Actions.
 
 - Other manual validation will follow, but this will at least validate that the staged artifacts can be used.
-     * Log in to Jenkins.
-     * Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
-     * Click "Build with Parameters".
-     * Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
+     * Go to https://github.com/apache/beam/actions/workflows/beam_PostRelease_NightlySnapshot.yml/.
+     * Click "Run Workflow".
+     * Set `RELEASE` to `2.xx.0`, and set `SNAPSHOT_URL` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
      * Click "Build".
 - [ ] Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
 - [ ] Vote in the release thread.
@@ -1207,35 +1189,17 @@ Use the [Apache Nexus repository manager](https://repository.apache.org/#staging
 In the `Staging Repositories` section, find the relevant release candidate `orgapachebeam-XXX` entry and click `Release`.
 Drop all other release candidates that are not being released.
 
-__NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access,
-please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
+### Deploy Python artifacts to PyPI, Docker Images to DockerHub, and Tag Release
 
-### Deploy Python artifacts to PyPI
+* **GitHub Action:** [finalize_release](https://github.com/apache/beam/actions/workflows/finalize_release.yml)
 
-* **Script:** [deploy_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_pypi.sh)
-* **Usage**
-```
-./release/src/main/scripts/deploy_pypi.sh
-```
+After running the action, perform the following checks:
 * Verify that the files at https://pypi.org/project/apache-beam/#files are correct.
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
-
-### Deploy docker images to DockerHub
-
-Note: if you are not a member of the [beam DockerHub team](https://hub.docker.com/orgs/apache/teams/beam),
-you will need help with this step. Please email dev@ mailing list and ask a member of the beam DockerHub team for help.
-
-* **Script:** [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
-* **Usage**
-```
-./release/src/main/scripts/publish_docker_images.sh
-```
-* **Verify that:**
-  * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE_VERSION} and *latest*.
-  * Images with *latest* tag are pointing to current release by confirming the digest of the image with *latest* tag is the same as the one with {RELEASE_VERSION} tag.
-
-(Optional) Clean up any unneeded local images afterward to save disk space.
+* Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE_VERSION} and *latest*.
+* Images with *latest* tag are pointing to current release by confirming the digest of the image with *latest* tag is the same as the one with {RELEASE_VERSION} tag.
+* `v{RELEASE_VERSION}` and `sdks/v{RELEASE_VERSION}` tags should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
 
 ### Merge Website pull requests
 
@@ -1243,34 +1207,6 @@ Merge all of the website pull requests
 - [listing the release](/get-started/downloads/)
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
-
-### Git tag
-
-Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
-
-```
-# Optional: unlock the signing key by signing an arbitrary file.
-gpg --output ~/doc.sig --sign ~/.bashrc
-
-VERSION_TAG="v${RELEASE_VERSION}"
-RC_TAG="${VERSION_TAG}-RC${RC_NUM}"
-
-# Ensure local tags are in sync. If there's a mismatch, it will tell you.
-git fetch --all --tags
-
-# If the tag exists, a commit number is produced, otherwise there's an error.
-git rev-list $RC_TAG -n 1
-
-# Tag for Go SDK
-git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
-git push https://github.com/apache/beam "sdks/$VERSION_TAG"
-
-# Tag for repo root.
-git tag -s "$VERSION_TAG" "$RC_TAG"
-git push https://github.com/apache/beam "$VERSION_TAG"
-```
-
-After pushing the tag, the tag should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
 
 ### Publish release to Github
 

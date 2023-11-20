@@ -16,8 +16,6 @@
 name: CloudML Benchmarks Dataflow
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 21 * * *'
   workflow_dispatch:
@@ -64,7 +62,7 @@ jobs:
         job_name: ["beam_CloudML_Benchmarks_Dataflow"]
         job_phrase: ["Run TFT Criteo Benchmarks"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

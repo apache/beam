@@ -663,9 +663,11 @@ class ExternalTransform(ptransform.PTransform):
   @contextlib.contextmanager
   def outer_namespace(cls, namespace):
     prev = cls.get_local_namespace()
-    cls._external_namespace.value = namespace
-    yield
-    cls._external_namespace.value = prev
+    try:
+      cls._external_namespace.value = namespace
+      yield
+    finally:
+      cls._external_namespace.value = prev
 
   @classmethod
   def _fresh_namespace(cls):

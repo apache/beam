@@ -203,6 +203,9 @@ public class PubsubIO {
   private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
 
+  public static final String ENABLE_CUSTOM_PUBSUB_SINK = "enable_custom_pubsub_sink";
+  public static final String ENABLE_CUSTOM_PUBSUB_SOURCE = "enable_custom_pubsub_source";
+
   private static void validateProjectName(String project) {
     Matcher match = PROJECT_ID_REGEXP.matcher(project);
     if (!match.matches()) {
