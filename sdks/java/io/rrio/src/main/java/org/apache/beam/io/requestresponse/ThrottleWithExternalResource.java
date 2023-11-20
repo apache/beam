@@ -39,7 +39,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteSource;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -78,13 +77,13 @@ import org.joda.time.Instant;
  * is encapsulated, with a {@link T} {@link PCollection} output into a {@link Call.Result}.
  */
 class ThrottleWithExternalResource<
-        @NonNull T,
-        ReporterT extends Caller<@NonNull String, @NonNull Long> & SetupTeardown,
-        EnqueuerT extends Caller<@NonNull T, Void> & SetupTeardown,
-        DequeuerT extends Caller<@NonNull Instant, @NonNull T> & SetupTeardown,
-        DecrementerT extends Caller<@NonNull Instant, @NonNull Long> & SetupTeardown,
-        RefresherT extends Caller<@NonNull Instant, Void> & SetupTeardown>
-    extends PTransform<@NonNull PCollection<@NonNull T>, Call.@NonNull Result<@NonNull T>> {
+        T,
+        ReporterT extends Caller<String, Long> & SetupTeardown,
+        EnqueuerT extends Caller<T, Void> & SetupTeardown,
+        DequeuerT extends Caller<Instant, T> & SetupTeardown,
+        DecrementerT extends Caller<Instant, Long> & SetupTeardown,
+        RefresherT extends Caller<Instant, Void> & SetupTeardown>
+    extends PTransform<PCollection<T>, Call.Result<T>> {
 
   /**
    * Instantiate a {@link ThrottleWithExternalResource} using a {@link RedisClient}.
@@ -94,28 +93,18 @@ class ThrottleWithExternalResource<
    * href="https://redis.io/docs/get-started/faq/">Redis FAQ</a> for more information on important
    * considerations when using Redis as {@link ThrottleWithExternalResource}'s external resource.
    */
-  static <@NonNull T>
+  static <T>
       ThrottleWithExternalResource<
-              @NonNull T,
+              T,
               RedisReporter,
-              RedisEnqueuer<@NonNull T>,
-              RedisDequeuer<@NonNull T>,
+              RedisEnqueuer<T>,
+              RedisDequeuer<T>,
               RedisDecrementer,
               RedisRefresher>
-          usingRedis(
-              URI uri,
-              String quotaIdentifier,
-              String queueKey,
-              Quota quota,
-              Coder<@NonNull T> coder)
+          usingRedis(URI uri, String quotaIdentifier, String queueKey, Quota quota, Coder<T> coder)
               throws Coder.NonDeterministicException {
     return new ThrottleWithExternalResource<
-        @NonNull T,
-        RedisReporter,
-        RedisEnqueuer<@NonNull T>,
-        RedisDequeuer<@NonNull T>,
-        RedisDecrementer,
-        RedisRefresher>(
+        T, RedisReporter, RedisEnqueuer<T>, RedisDequeuer<T>, RedisDecrementer, RedisRefresher>(
         quota,
         quotaIdentifier,
         coder,
@@ -128,24 +117,24 @@ class ThrottleWithExternalResource<
 
   private static final Duration THROTTLE_INTERVAL = Duration.standardSeconds(1L);
 
-  private final @NonNull Quota quota;
-  private final @NonNull String quotaIdentifier;
-  private final @NonNull Coder<@NonNull T> coder;
-  private final @NonNull ReporterT reporterT;
-  private final @NonNull EnqueuerT enqueuerT;
-  private final @NonNull DequeuerT dequeuerT;
-  private final @NonNull DecrementerT decrementerT;
-  private final @NonNull RefresherT refresherT;
+  private final Quota quota;
+  private final String quotaIdentifier;
+  private final Coder<T> coder;
+  private final ReporterT reporterT;
+  private final EnqueuerT enqueuerT;
+  private final DequeuerT dequeuerT;
+  private final DecrementerT decrementerT;
+  private final RefresherT refresherT;
 
   ThrottleWithExternalResource(
-      @NonNull Quota quota,
-      @NonNull String quotaIdentifier,
-      @NonNull Coder<@NonNull T> coder,
-      @NonNull ReporterT reporterT,
-      @NonNull EnqueuerT enqueuerT,
-      @NonNull DequeuerT dequeuerT,
-      @NonNull DecrementerT decrementerT,
-      @NonNull RefresherT refresherT)
+      Quota quota,
+      String quotaIdentifier,
+      Coder<T> coder,
+      ReporterT reporterT,
+      EnqueuerT enqueuerT,
+      DequeuerT dequeuerT,
+      DecrementerT decrementerT,
+      RefresherT refresherT)
       throws Coder.NonDeterministicException {
     this.quotaIdentifier = quotaIdentifier;
     this.reporterT = reporterT;
@@ -160,27 +149,27 @@ class ThrottleWithExternalResource<
   }
 
   @Override
-  public Call.@NonNull Result<@NonNull T> expand(PCollection<@NonNull T> input) {
+  public Call.Result<T> expand(PCollection<T> input) {
     Pipeline pipeline = input.getPipeline();
 
     // Refresh known quota to control the throttle rate.
     Call.Result<Void> refreshResult =
         pipeline
-            .apply("quota/impulse", PeriodicImpulse.create().withInterval(quota.getInterval()))
-            .apply("quota/refresh", getRefresher());
+            .apply("quota impulse", PeriodicImpulse.create().withInterval(quota.getInterval()))
+            .apply("quota refresh", getRefresher());
 
     // Enqueue T elements.
     Call.Result<Void> enqueuResult = input.apply("enqueue", getEnqueuer());
 
-    TupleTag<@NonNull T> outputTag = new TupleTag<@NonNull T>() {};
-    TupleTag<@NonNull ApiIOError> failureTag = new TupleTag<@NonNull ApiIOError>() {};
+    TupleTag<T> outputTag = new TupleTag<T>() {};
+    TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
 
     // Perform Throttle.
     PCollectionTuple pct =
         pipeline
-            .apply("throttle/impulse", PeriodicImpulse.create().withInterval(THROTTLE_INTERVAL))
+            .apply("throttle impulse", PeriodicImpulse.create().withInterval(THROTTLE_INTERVAL))
             .apply(
-                "throttle/fn",
+                "throttle fn",
                 ParDo.of(
                         new ThrottleFn(
                             quotaIdentifier,
@@ -195,41 +184,41 @@ class ThrottleWithExternalResource<
         PCollectionList.of(refreshResult.getFailures())
             .and(enqueuResult.getFailures())
             .and(pct.get(failureTag))
-            .apply("errors/flatten", Flatten.pCollections());
+            .apply("errors flatten", Flatten.pCollections());
 
-    TupleTag<@NonNull T> resultOutputTag = new TupleTag<@NonNull T>() {};
-    TupleTag<@NonNull ApiIOError> resultFailureTag = new TupleTag<@NonNull ApiIOError>() {};
+    TupleTag<T> resultOutputTag = new TupleTag<T>() {};
+    TupleTag<ApiIOError> resultFailureTag = new TupleTag<ApiIOError>() {};
 
-    return Call.Result.<@NonNull T>of(
+    return Call.Result.<T>of(
         coder,
         resultOutputTag,
         resultFailureTag,
         PCollectionTuple.of(resultOutputTag, pct.get(outputTag)).and(resultFailureTag, errors));
   }
 
-  private Call<@NonNull Instant, Void> getRefresher() {
+  private Call<Instant, Void> getRefresher() {
     return Call.ofCallerAndSetupTeardown(refresherT, VoidCoder.of());
   }
 
-  private Call<@NonNull T, Void> getEnqueuer() {
+  private Call<T, Void> getEnqueuer() {
     return Call.ofCallerAndSetupTeardown(enqueuerT, VoidCoder.of());
   }
 
-  private class ThrottleFn extends DoFn<@NonNull Instant, @NonNull T> {
+  private class ThrottleFn extends DoFn<Instant, T> {
     private final String quotaIdentifier;
     private final DequeuerT dequeuerT;
     private final DecrementerT decrementerT;
     private final ReporterT reporterT;
-    private final TupleTag<@NonNull T> outputTag;
-    private final TupleTag<@NonNull ApiIOError> failureTag;
+    private final TupleTag<T> outputTag;
+    private final TupleTag<ApiIOError> failureTag;
 
     private ThrottleFn(
         String quotaIdentifier,
         DequeuerT dequeuerT,
         DecrementerT decrementerT,
         ReporterT reporterT,
-        TupleTag<@NonNull T> outputTag,
-        TupleTag<@NonNull ApiIOError> failureTag) {
+        TupleTag<T> outputTag,
+        TupleTag<ApiIOError> failureTag) {
       this.quotaIdentifier = quotaIdentifier;
       this.dequeuerT = dequeuerT;
       this.decrementerT = decrementerT;
@@ -239,7 +228,7 @@ class ThrottleWithExternalResource<
     }
 
     @ProcessElement
-    public void process(@Element @NonNull Instant instant, MultiOutputReceiver receiver) {
+    public void process(@Element Instant instant, MultiOutputReceiver receiver) {
       // Check for available quota.
       try {
         if (reporterT.call(quotaIdentifier) <= 0L) {
@@ -295,31 +284,29 @@ class ThrottleWithExternalResource<
     }
   }
 
-  private static class RedisReporter extends RedisSetupTeardown
-      implements Caller<@NonNull String, @NonNull Long> {
+  private static class RedisReporter extends RedisSetupTeardown implements Caller<String, Long> {
     private RedisReporter(URI uri) {
       super(new RedisClient(uri));
     }
 
     @Override
-    public @NonNull Long call(@NonNull String request) throws UserCodeExecutionException {
+    public Long call(String request) throws UserCodeExecutionException {
       return client.getLong(request);
     }
   }
 
-  private static class RedisEnqueuer<@NonNull T> extends RedisSetupTeardown
-      implements Caller<@NonNull T, Void> {
+  private static class RedisEnqueuer<T> extends RedisSetupTeardown implements Caller<T, Void> {
     private final String key;
-    private final Coder<@NonNull T> coder;
+    private final Coder<T> coder;
 
-    private RedisEnqueuer(URI uri, String key, Coder<@NonNull T> coder) {
+    private RedisEnqueuer(URI uri, String key, Coder<T> coder) {
       super(new RedisClient(uri));
       this.key = key;
       this.coder = coder;
     }
 
     @Override
-    public Void call(@NonNull T request) throws UserCodeExecutionException {
+    public Void call(T request) throws UserCodeExecutionException {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       try {
         coder.encode(request, baos);
@@ -331,20 +318,19 @@ class ThrottleWithExternalResource<
     }
   }
 
-  private static class RedisDequeuer<@NonNull T> extends RedisSetupTeardown
-      implements Caller<@NonNull Instant, @NonNull T> {
+  private static class RedisDequeuer<T> extends RedisSetupTeardown implements Caller<Instant, T> {
 
-    private final Coder<@NonNull T> coder;
+    private final Coder<T> coder;
     private final String key;
 
-    private RedisDequeuer(URI uri, Coder<@NonNull T> coder, String key) {
+    private RedisDequeuer(URI uri, Coder<T> coder, String key) {
       super(new RedisClient(uri));
       this.coder = coder;
       this.key = key;
     }
 
     @Override
-    public @NonNull T call(@NonNull Instant request) throws UserCodeExecutionException {
+    public T call(Instant request) throws UserCodeExecutionException {
       byte[] bytes = client.lpop(key);
       try {
         return checkStateNotNull(coder.decode(ByteSource.wrap(bytes).openStream()));
@@ -356,7 +342,7 @@ class ThrottleWithExternalResource<
   }
 
   private static class RedisDecrementer extends RedisSetupTeardown
-      implements Caller<@NonNull Instant, @NonNull Long> {
+      implements Caller<Instant, Long> {
 
     private final String key;
 
@@ -366,13 +352,12 @@ class ThrottleWithExternalResource<
     }
 
     @Override
-    public @NonNull Long call(@NonNull Instant request) throws UserCodeExecutionException {
+    public Long call(Instant request) throws UserCodeExecutionException {
       return client.decr(key);
     }
   }
 
-  private static class RedisRefresher extends RedisSetupTeardown
-      implements Caller<@NonNull Instant, Void> {
+  private static class RedisRefresher extends RedisSetupTeardown implements Caller<Instant, Void> {
     private final Quota quota;
     private final String key;
 
@@ -383,7 +368,7 @@ class ThrottleWithExternalResource<
     }
 
     @Override
-    public Void call(@NonNull Instant request) throws UserCodeExecutionException {
+    public Void call(Instant request) throws UserCodeExecutionException {
       client.setex(key, quota.getNumRequests(), quota.getInterval());
       return null;
     }

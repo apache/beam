@@ -31,16 +31,16 @@ import org.apache.beam.testinfra.mockapis.echo.v1.EchoServiceGrpc;
  *
  * <pre>
  *   ./gradlew :sdks:java:io:rrio:integrationTest -DintegrationTestPipelineOptions='[
- *      "--gRPCEndpointAddress=",
+ *      "--grpcEndpointAddress=",
  *      "--httpEndpointAddress="
  *   ]'
  * </pre>
  */
 public interface EchoITOptions extends PipelineOptions {
   @Description("The gRPC address of the Echo API endpoint, typically of the form <host>:<port>.")
-  String getgRPCEndpointAddress();
+  String getGrpcEndpointAddress();
 
-  void setgRPCEndpointAddress(String value);
+  void setGrpcEndpointAddress(String value);
 
   @Description("The HTTP address of the Echo API endpoint; must being with http(s)://")
   String getHttpEndpointAddress();

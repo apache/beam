@@ -55,7 +55,7 @@ import org.testcontainers.utility.DockerImageName;
  * Integration tests for {@link ThrottleWithExternalResource}. See {@link EchoITOptions} for details
  * on the required parameters and how to provide these for running integration tests.
  */
-public class ThrottleWithExternalResourceTestIT {
+public class ThrottleWithExternalResourceIT {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -77,11 +77,11 @@ public class ThrottleWithExternalResourceTestIT {
   @BeforeClass
   public static void setUp() throws UserCodeExecutionException {
     options = readIOTestPipelineOptions(EchoITOptions.class);
-    if (options.getgRPCEndpointAddress().isEmpty()) {
+    if (options.getGrpcEndpointAddress() == null || options.getGrpcEndpointAddress().isEmpty()) {
       throw new RuntimeException(
-          "--gRPCEndpointAddress is missing. See " + EchoITOptions.class + "for details.");
+          "--grpcEndpointAddress is missing. See " + EchoITOptions.class + "for details.");
     }
-    client = EchoGRPCCallerWithSetupTeardown.of(URI.create(options.getgRPCEndpointAddress()));
+    client = EchoGRPCCallerWithSetupTeardown.of(URI.create(options.getGrpcEndpointAddress()));
     checkStateNotNull(client).setup();
 
     try {

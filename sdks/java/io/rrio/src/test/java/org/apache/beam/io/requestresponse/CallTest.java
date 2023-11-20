@@ -43,10 +43,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -535,8 +533,7 @@ public class CallTest {
     }
 
     @Override
-    public void verifyDeterministic()
-        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+    public void verifyDeterministic() throws NonDeterministicException {
       ID_CODER.verifyDeterministic();
     }
   }
@@ -565,8 +562,7 @@ public class CallTest {
     }
 
     @Override
-    public void verifyDeterministic()
-        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+    public void verifyDeterministic() throws NonDeterministicException {
       ID_CODER.verifyDeterministic();
     }
   }

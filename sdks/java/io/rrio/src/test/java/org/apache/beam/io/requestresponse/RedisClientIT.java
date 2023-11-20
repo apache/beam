@@ -50,7 +50,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration tests for {@link RedisClient}. */
 @RunWith(JUnit4.class)
-public class RedisClientTestIT {
+public class RedisClientIT {
 
   private static final String CONTAINER_IMAGE_NAME = "redis:5.0.3-alpine";
   private static final Integer PORT = 6379;

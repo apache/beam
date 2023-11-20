@@ -39,7 +39,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration tests for {@link Cache}. */
 @RunWith(JUnit4.class)
-public class CacheTestIT {
+public class CacheIT {
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
