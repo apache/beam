@@ -1228,6 +1228,24 @@ Ping [dev@](mailto:dev@beam.apache.org) mailing list for assistance if you need 
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
+```
+svn co https://dist.apache.org/repos/dist/dev/beam dev  # Checkout the `dev` artifact repo.
+
+svn co https://dist.apache.org/repos/dist/release/beam release  # Checkout the `release` artifact repo.
+
+mkdir release/$RELEASE_VERSION
+
+# Copy files from the `dev` artifact repo to the `release` artifact repo.
+
+cd release
+
+svn add $RELEASE_VERSION
+
+svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
+
+svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
+```
+
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
