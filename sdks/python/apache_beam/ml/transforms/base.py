@@ -19,7 +19,6 @@
 
 import abc
 import collections
-from dataclasses import dataclass
 import jsonpickle
 import logging
 import os
@@ -64,7 +63,7 @@ OperationOutputT = TypeVar('OperationOutputT')
 
 
 def _convert_list_of_dicts_to_dict_of_lists(
-    list_of_dicts) -> Dict[str, List[Any]]:
+    list_of_dicts: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
   keys_to_element_list = collections.defaultdict(list)
   for d in list_of_dicts:
     for key, value in d.items():
@@ -72,8 +71,9 @@ def _convert_list_of_dicts_to_dict_of_lists(
   return keys_to_element_list
 
 
-def _convert_dict_of_lists_to_dict(
-    dict_of_lists: Dict[str, List[Any]], batch_length: int) -> Dict[str, Any]:
+def _convert_dict_of_lists_to_lists_of_dict(
+    dict_of_lists: Dict[str, List[Any]],
+    batch_length: int) -> List[Dict[str, Any]]:
   result = [{} for _ in range(batch_length)]
   for key, values in dict_of_lists.items():
     for i in range(len(values)):
@@ -87,7 +87,7 @@ class ArtifactMode(object):
 
 
 # BaseOperation and EmbeddingsManager are inheriting this class.
-class PTransformManager(metaclass=abc.ABCMeta):
+class PTransformManager:
   @abc.abstractmethod
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     """
@@ -123,7 +123,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     Args:
       inputs: input data.
     """
-    pass
 
   def __call__(self, data: OperationInputT,
                output_column_name: str) -> Dict[str, OperationOutputT]:
@@ -350,8 +349,9 @@ class EmbeddingsManager(PTransformManager):
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
     self.large_model = large_model
-    self.kwargs = kwargs
     self.columns = columns
+
+    logging.warning("Ignoring the following arguments: %s", kwargs.keys())
 
   @abc.abstractmethod
   def get_model_handler(self) -> ModelHandler:
@@ -369,19 +369,83 @@ class EmbeddingsManager(PTransformManager):
     # each embedding config requires a separate PTransform. so no chaining.
     return False
 
+  def get_columns_to_apply(self):
+    return self.columns
 
-class TransformAttributeManager:
-  def save_attributes(self, artifact_location):
+
+# TODO: Use this to save and load artifacts
+class _TransformAttributeManager:
+  @staticmethod
+  def save_attributes(artifact_location):
     """
     Save the attributes to json file using stdlib json.
     """
     raise NotImplementedError
 
-  def load_attributes(self, artifact_location):
+  @staticmethod
+  def load_attributes(artifact_location):
     """
     Load the attributes from json file.
     """
     raise NotImplementedError
+
+
+class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
+  """
+  Use Jsonpickle to save and load the attributes. Here the attributes refer
+  to the list of PTransforms that are used to process the data.
+
+  jsonpickle is used to serialize the PTransforms and save it to a json file and
+  is compatible across python versions.
+  """
+  @staticmethod
+  def _is_remote_path(path):
+    return path.find('://') != -1
+
+  @staticmethod
+  def save_attributes(
+      ptransform_list,
+      artifact_location,
+      **kwargs,
+  ):
+    if _JsonPickleTransformAttributeManager._is_remote_path(artifact_location):
+      try:
+        options = kwargs.get('options')
+      except KeyError:
+        raise RuntimeError(
+            'pipeline options are required to save the attributes.'
+            'in the artifact location %s' % artifact_location)
+      # save the ptransform_list to a json file in temp dir and then
+      # copy the file to the artifact location.
+      # TODO: This supports only GCS. Add support for other remote paths.
+      temp_dir = tempfile.mkdtemp()
+      temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
+      with open(temp_json_file, 'w+') as f:
+        f.write(jsonpickle.encode(ptransform_list))
+        with open(temp_json_file, 'r') as f:
+          from apache_beam.runners.dataflow.internal import apiclient
+          _LOGGER.info('Creating artifact location: %s', artifact_location)
+          apiclient.DataflowApplicationClient(options=options).stage_file(
+              gcs_or_local_path=artifact_location,
+              file_name=_ATTRIBUTE_FILE_NAME,
+              stream=f,
+              mime_type='application/json')
+    else:
+      if not FileSystems.exists(artifact_location):
+        FileSystems.mkdirs(artifact_location)
+      # FileSystems.open() fails if the file does not exist.
+      with open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME),
+                'w+') as f:
+        f.write(jsonpickle.encode(ptransform_list))
+
+  @staticmethod
+  def load_attributes(artifact_location):
+    with FileSystems.open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME),
+                          'r') as f:
+      return jsonpickle.decode(f.read())
+
+
+_transform_attribute_manager = _JsonPickleTransformAttributeManager
 
 
 class _TransformsPartitioner:
@@ -397,13 +461,9 @@ class _TransformsPartitioner:
     self.pipeline_options = pipeline_options
 
   def create_and_save_ptransform_list(self):
-    self.ptransform_list = self.create_ptransform_list()
-    self.save_transforms_in_artifact_location()
-    return self.ptransform_list
-
-  @staticmethod
-  def _is_remote_path(path):
-    return path.find('://') != -1
+    ptransform_list = self.create_ptransform_list()
+    self.save_transforms_in_artifact_location(ptransform_list)
+    return ptransform_list
 
   def create_ptransform_list(self):
     previous_ptransform = None
@@ -429,49 +489,23 @@ class _TransformsPartitioner:
 
     return ptransform_list
 
-  def save_transforms_in_artifact_location(self):
+  def save_transforms_in_artifact_location(self, ptransform_list):
     """
     Save the ptransform references to json file.
     """
-
-    if _TransformsPartitioner._is_remote_path(self._parent_artifact_location):
-      # save the ptransform_list to a json file in temp dir and then
-      # copy the file to the artifact location.
-      # TODO: This supports only GCS. Add support for other remote paths.
-      temp_dir = tempfile.mkdtemp()
-      temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
-      with open(temp_json_file, 'w+') as f:
-        f.write(jsonpickle.encode(self.ptransform_list))
-        with open(temp_json_file, 'r') as f:
-          from apache_beam.runners.dataflow.internal import apiclient
-          _LOGGER.info(
-              'Creating artifact location: %s', self._parent_artifact_location)
-          apiclient.DataflowApplicationClient(
-              options=self.pipeline_options).stage_file(
-                  gcs_or_local_path=self._parent_artifact_location,
-                  file_name=_ATTRIBUTE_FILE_NAME,
-                  stream=f,
-                  mime_type='application/json')
-    else:
-      if not FileSystems.exists(self._parent_artifact_location):
-        FileSystems.mkdirs(self._parent_artifact_location)
-      # FileSystems.open() fails if the file does not exist.
-      with open(os.path.join(self._parent_artifact_location,
-                             _ATTRIBUTE_FILE_NAME),
-                'w+') as f:
-        f.write(jsonpickle.encode(self.ptransform_list))
+    _transform_attribute_manager.save_attributes(
+        ptransform_list=ptransform_list,
+        artifact_location=self._parent_artifact_location,
+        options=self.pipeline_options)
 
   @staticmethod
   def load_transforms_from_artifact_location(artifact_location):
-    with FileSystems.open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME),
-                          'r') as f:
-      return jsonpickle.decode(f.read())
+    return _transform_attribute_manager.load_attributes(artifact_location)
 
 
-# TODO: Should this prefixed with underscore?
-class TextEmbeddingHandler(ModelHandler):
+class _TextEmbeddingHandler(ModelHandler):
   """
-  A ModelHandler intended to be work on text inputs.
+  A ModelHandler intended to be work on list[dict[str, str]] inputs.
 
   The inputs to the model handler are expected to be a list of dicts.
 
@@ -479,9 +513,9 @@ class TextEmbeddingHandler(ModelHandler):
   PCollection[E] to a PCollection[P], this ModelHandler would take a
   PCollection[Dict[str, E]] to a PCollection[Dict[str, P]].
 
-  TextEmbeddingHandler will accept an EmbeddingsManager instance, which
+  _TextEmbeddingHandler will accept an EmbeddingsManager instance, which
   contains the details of the model to be loaded and the inference_fn to be
-  used. The purpose of TextEmbeddingHandler is to generate embeddings for
+  used. The purpose of _TextEmbeddingHandler is to generate embeddings for
   text inputs using the EmbeddingsManager instance.
 
   If the input is not a text column, a RuntimeError will be raised.
@@ -489,13 +523,12 @@ class TextEmbeddingHandler(ModelHandler):
   This is an internal class and offers no backwards compatibility guarantees.
 
   Args:
-    embedding_config: An EmbeddingsManager instance.
+    embeddings_manager: An EmbeddingsManager instance.
   """
-  def __init__(self, embedding_config: EmbeddingsManager):
-    self.embedding_config = embedding_config
+  def __init__(self, embeddings_manager: EmbeddingsManager):
+    self.embedding_config = embeddings_manager
     self._underlying = self.embedding_config.get_model_handler()
-    # these are the columns on which embeddings should be generated.
-    self.columns = self.embedding_config.columns
+    self.columns = self.embedding_config.get_columns_to_apply()
 
   def load_model(self):
     model = self._underlying.load_model()
@@ -503,16 +536,19 @@ class TextEmbeddingHandler(ModelHandler):
 
   def run_inference(
       self,
-      batch: Sequence[Dict[str, List[str]]],
+      batch: List[Dict[str, List[str]]],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]] = None,
-  ) -> Iterable[PredictionResult]:
+  ) -> List[Dict[str, Union[List[float], List[str]]]]:
     """
     Runs inference on a batch of text inputs. The inputs are expected to be
     a list of dicts. Each dict should have the same keys, and the shape
     should be of the same size for a single key across the batch.
     """
-    # Works because we restricted the batch size to be 1.
+    if not isinstance(batch[0], dict):
+      raise TypeError(
+          'Expected a list of dicts, got %s instead.' % type(batch[0]))
+
     batch_len = len(batch)
     dict_batch = _convert_list_of_dicts_to_dict_of_lists(list_of_dicts=batch)
     result = collections.defaultdict(list)
@@ -529,6 +565,19 @@ class TextEmbeddingHandler(ModelHandler):
           result[key] = prediction
       else:
         result[key] = batch
-    result = _convert_dict_of_lists_to_dict(
+    result = _convert_dict_of_lists_to_lists_of_dict(
         dict_of_lists=result, batch_length=batch_len)
     return result
+
+  def get_metrics_namespace(self) -> str:
+    return (
+        self._underlying.get_metrics_namespace() or
+        'BeamML_TextEmbeddingHandler')
+
+  def batch_elements_kwargs(self) -> Mapping[str, Any]:
+    batch_sizes_map = {}
+    if self.embedding_config.max_batch_size:
+      batch_sizes_map['max_batch_size'] = self.embedding_config.max_batch_size
+    if self.embedding_config.min_batch_size:
+      batch_sizes_map['min_batch_size'] = self.embedding_config.min_batch_size
+    return (self._underlying.batch_elements_kwargs() or batch_sizes_map)

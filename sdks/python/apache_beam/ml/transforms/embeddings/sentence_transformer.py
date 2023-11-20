@@ -56,7 +56,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.transforms.base import EmbeddingsManager
-from apache_beam.ml.transforms.base import TextEmbeddingHandler
+from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
 from sentence_transformers import SentenceTransformer
 
@@ -65,13 +65,12 @@ def inference_fn(batch, model, inference_args, *args, **kwargs):
   return model.encode(batch, **inference_args)
 
 
-def yield_elements(elements):
-  for element in elements:
-    yield element
-
-
 class _YieldPTransform(beam.PTransform):
   def expand(self, pcoll):
+    def yield_elements(elements):
+      for element in elements:
+        yield element
+
     return pcoll | beam.ParDo(yield_elements)
 
 
@@ -153,10 +152,10 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
         **self.kwargs)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    # wrap the model handler in a TextEmbeddingHandler since
+    # wrap the model handler in a _TextEmbeddingHandler since
     # the SentenceTransformerEmbeddings works on text input data.
     return (
-        RunInference(model_handler=TextEmbeddingHandler(embedding_config=self))
+        RunInference(model_handler=_TextEmbeddingHandler(self))
         # TODO: Phrase comment better. The reason we need to yield
         # RunInference returns a list of Predictions, which if coupled
         # with MLTransfomr won't work.

@@ -29,7 +29,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
-from apache_beam.ml.transforms.base import TextEmbeddingHandler
+from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 import vertexai
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
@@ -37,7 +37,6 @@ from google.auth.credentials import Credentials
 
 __all__ = ["VertexAITextEmbeddings"]
 
-# TODO: make these user configurable
 TASK_TYPE = "RETRIEVAL_DOCUMENT"
 TASK_TYPE_INPUTS = [
     "RETRIEVAL_DOCUMENT",
@@ -51,6 +50,11 @@ TASK_TYPE_INPUTS = [
 def yield_elements(elements):
   for element in elements:
     yield element
+
+
+class _YieldPTransform(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(yield_elements)
 
 
 class _VertexAITextEmbeddingHandler(ModelHandler):
@@ -162,5 +166,5 @@ class VertexAITextEmbeddings(EmbeddingsManager):
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (
-        RunInference(model_handler=TextEmbeddingHandler(embedding_config=self))
-        | beam.ParDo(yield_elements))
+        RunInference(model_handler=_TextEmbeddingHandler(self))
+        | _YieldPTransform())

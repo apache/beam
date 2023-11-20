@@ -16,14 +16,13 @@
 
 # pylint:skip-file
 
-import logging
 import shutil
 import tempfile
 import unittest
 
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
-from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
 
 try:
   import tensorflow_transform as tft  # pylint: disbale=unused-import
@@ -33,47 +32,37 @@ except ImportError:
 
 test_query = "This is a test"
 test_query_column = "feature_1"
-DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
+model_name: str = "textembedding-gecko@002"
 
 
-def get_pipeline_wth_embedding_config(
-    pipeline: beam.Pipeline, embedding_config, artifact_location):
-  transformed_pcoll = (
-      pipeline
-      | "CreateData" >> beam.Create([{
-          test_query_column: test_query
-      }])
-      | "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
-      with_transform(embedding_config))
-  return transformed_pcoll
-
-
-class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
+class VertexAIEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
 
-  def test_sentence_transformer_embeddings(self):
-    model_name = DEFAULT_MODEL_NAME
-    embedding_config = SentenceTransformerEmbeddings(
+  def test_vertex_ai_text_embeddings(self):
+    embedding_config = VertexAITextEmbeddings(
         model_name=model_name, columns=[test_query_column])
     with beam.Pipeline() as pipeline:
-      result_pcoll = get_pipeline_wth_embedding_config(
-          pipeline=pipeline,
-          embedding_config=embedding_config,
-          artifact_location=self.artifact_location)
+      transformed_pcoll = (
+          pipeline
+          | "CreateData" >> beam.Create([{
+              test_query_column: test_query
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
 
       def assert_element(element):
         assert len(element[test_query_column]) == 768
 
-      (result_pcoll | beam.Map(assert_element))
+      (transformed_pcoll | beam.Map(assert_element))
 
   @unittest.skipIf(tft is None, 'Tensorflow Transform is not installed.')
   def test_embeddings_with_scale_to_0_1(self):
-    model_name = DEFAULT_MODEL_NAME
-    embedding_config = SentenceTransformerEmbeddings(
+    embedding_config = VertexAITextEmbeddings(
         model_name=model_name,
         columns=[test_query_column],
         scale_to_0_1=True,
@@ -90,7 +79,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
                       ScaleTo01(columns=[test_query_column])))
 
       def assert_element(element):
-        assert max(element.feature_1) == 1
+        assert max(x.feature_1) == 1
 
       (transformed_pcoll | beam.Map(assert_element))
 
@@ -114,8 +103,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   def test_embeddings_with_read_artifact_location(self):
     with beam.Pipeline() as p:
-      model_name = DEFAULT_MODEL_NAME
-      embedding_config = SentenceTransformerEmbeddings(
+      embedding_config = VertexAITextEmbeddings(
           model_name=model_name, columns=[test_query_column])
 
       with beam.Pipeline() as p:
@@ -141,17 +129,16 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.13
+          assert round(element, 2) == 0.15
 
         (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.1342099905014038
+            #  0.14797046780586243
             | beam.Map(assert_element))
 
-  def test_sentence_transformer_with_int_data_types(self):
-    model_name = DEFAULT_MODEL_NAME
-    embedding_config = SentenceTransformerEmbeddings(
+  def test_with_int_data_types(self):
+    embedding_config = VertexAITextEmbeddings(
         model_name=model_name, columns=[test_query_column])
     with self.assertRaises(TypeError):
       with beam.Pipeline() as pipeline:

@@ -27,7 +27,7 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.tensorflow_inference import default_tensor_inference_fn
 from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 from apache_beam.ml.transforms.base import EmbeddingsManager
-from apache_beam.ml.transforms.base import TextEmbeddingHandler
+from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
 import tensorflow as tf
 import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
@@ -102,5 +102,6 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (
-        RunInference(model_handler=TextEmbeddingHandler(embedding_config=self))
+        RunInference(
+            model_handler=_TextEmbeddingHandler(embedding_config=self))
         | beam.ParDo(yield_elements))
