@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>BigQuery resource naming follows this convention: {@code
  * "beam_bq_job_{TYPE}_{JOB_ID}_{STEP}_{RANDOM}"}.
  *
- * <p>This class has no backwards compatibility guaantees. It is considered internal.
+ * <p>This class has no backwards compatibility guarantees. It is considered internal.
  */
 class BigQueryResourceNaming {
 

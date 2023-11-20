@@ -1744,7 +1744,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Returns true if the passed in {@link PCollection} needs to be materialiazed using an indexed
+   * Returns true if the passed in {@link PCollection} needs to be materialized using an indexed
    * format.
    */
   boolean doesPCollectionRequireIndexedFormat(PCollection<?> pcol) {
