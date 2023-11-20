@@ -43,7 +43,7 @@ class Caller(metaclass=abc.ABCMeta):
   def __call__(self, request: RequestT, *args, **kwargs) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
     ``ResponseT``. ``RequestResponseIO`` expects implementations of the
-    call method to throw either a ``UserCodeExecutionException``,
+    ``__call__`` method to throw either a ``UserCodeExecutionException``,
     ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
     """
     pass
