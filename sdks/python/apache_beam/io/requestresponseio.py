@@ -40,7 +40,7 @@ class UserCodeTimeoutException(UserCodeExecutionException):
 class Caller(metaclass=abc.ABCMeta):
   """Interfaces user custom code intended for API calls."""
   @abc.abstractmethod
-  def call(self, request: RequestT) -> ResponseT:
+  def __call__(self, request: RequestT, *args, **kwargs) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
     ``ResponseT``. ``RequestResponseIO`` expects implementations of the
     call method to throw either a ``UserCodeExecutionException``,

@@ -79,7 +79,7 @@ class EchoHTTPCaller(Caller):
   def __init__(self, url: str):
     self.url = url + _HTTP_PATH
 
-  def call(self, request: EchoRequest) -> EchoResponse:
+  def __call__(self, request: EchoRequest, *args, **kwargs) -> EchoResponse:
     """Overrides ``Caller``'s call method invoking the
         ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
         either a successful ``EchoResponse`` or throwing either a
@@ -130,9 +130,9 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
     try:
       # The following is needed to exceed the API
-      client.call(req)
-      client.call(req)
-      client.call(req)
+      client(req)
+      client(req)
+      client(req)
     except UserCodeExecutionException as e:
       if not isinstance(e, UserCodeQuotaException):
         raise e
@@ -148,7 +148,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
 
     req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
 
-    response: EchoResponse = client.call(req)
+    response: EchoResponse = client(req)
 
     self.assertEqual(req.id, response.id)
     self.assertEqual(req.payload, response.payload)
@@ -158,14 +158,14 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
 
     req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
 
-    self.assertRaises(UserCodeQuotaException, lambda: client.call(req))
+    self.assertRaises(UserCodeQuotaException, lambda: client(req))
 
   def test_not_found_should_raise(self):
     client, _ = EchoHTTPCallerTestIT._get_client_and_options()
 
     req = EchoRequest(id='i-dont-exist-quota-id', payload=_PAYLOAD)
     self.assertRaisesRegex(
-        UserCodeExecutionException, "Not Found", lambda: client.call(req))
+        UserCodeExecutionException, "Not Found", lambda: client(req))
 
 
 if __name__ == '__main__':
