@@ -37,7 +37,7 @@ limitations under the License.
 </table>
 
 
-You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
+Use the RunInference API with your Apache Beam pipelines to run inference with machine learning (ML) models. The RunInference API is a `PTransform` optimized for machine learning inferences.
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation.
 
@@ -47,9 +47,16 @@ For more infomation about machine learning with Apache Beam, see:
 * [About Beam ML](/documentation/ml/about-ml)
 * [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
 
+## Support and limitations
+
+- The RunInference API is supported in Apache Beam 2.40.0 and later versions.
+- Model handlers are available for PyTorch, scikit-learn, TensorFlow, ONNX, and TensorRT. You can also use a custom model handler.
+- The RunInference API supports batch and streaming pipelines.
+- The RunInference API supports both remote inference and inteference local to the runner worker.
+
 ## Why use the RunInference API?
 
-RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
+RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
 
 ### BatchElements PTransform
 
