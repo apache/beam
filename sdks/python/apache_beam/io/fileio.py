@@ -740,7 +740,8 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       if len(orphaned_files) > 0:
         _LOGGER.info(
             'Some files may be left orphaned in the temporary folder: %s. '
-            'This may be a result of insufficient IAM permissions.',
+            'This may be a result of insufficient permissions to delete'
+            'these temp files.',
             orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)
