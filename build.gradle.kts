@@ -54,6 +54,7 @@ tasks.rat {
     // Proto/grpc generated wrappers
     "**/apache_beam/portability/api/**/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
+    "**/go/test/**/*.pb.go",
     "**/mock-apis/**/*.pb.go",
 
     // Ignore go.sum files, which don't permit headers
