@@ -35,6 +35,7 @@ import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.CreateStreamingFlinkView;
 import org.apache.beam.runners.flink.FlinkExecutionEnvironments;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -57,6 +58,9 @@ import org.apache.beam.runners.flink.unified.translators.WindowAssignTranslator;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -65,6 +69,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.RuntimeExecutionMode;
@@ -442,8 +447,8 @@ public class FlinkUnifiedPipelineTranslator
 
     throw new IllegalArgumentException(
         String.format(
-            "Unknown type of URN `%s` for PTransform with id %s.",
-            transform.getTransform().getSpec().getUrn(), transform.getId()));
+            "Unknown type of URN `%s` for PTransform with id %s. \n %s",
+            transform.getTransform().getSpec().getUrn(), transform.getId(), pipeline));
   }
 
   private List<String> getExpandedTransformsList(
@@ -469,10 +474,10 @@ public class FlinkUnifiedPipelineTranslator
   public Executor translate(UnifiedTranslationContext context, RunnerApi.Pipeline pipeline) {
 
     // QueryablePipeline p =
-    // QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(),
-    // pipeline.getComponents()), pipeline.getComponents());
+    //   QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(),
+    //     pipeline.getComponents()), pipeline.getComponents());
 
-    // List<PipelineNode.PTransformNode> expandedTopologicalOrder =
+    // Iterable<PipelineNode.PTransformNode> expandedTopologicalOrder =
     //   p.getTopologicallyOrderedTransforms();
 
     List<PipelineNode.PTransformNode> expandedTopologicalOrder =
