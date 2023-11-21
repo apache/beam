@@ -161,7 +161,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     createDisposition,
                     kmsKey,
                     usesCdc,
-                    defaultMissingValueInterpretation));
+                    defaultMissingValueInterpretation,
+                    allowAutosharding));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))

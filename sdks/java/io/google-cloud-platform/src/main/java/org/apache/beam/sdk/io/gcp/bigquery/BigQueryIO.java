@@ -3234,11 +3234,6 @@ public class BigQueryIO {
               triggeringFrequency != null,
               "When writing an unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API, "
                   + "triggering frequency must be specified");
-        } else {
-          checkArgument(
-              getTriggeringFrequency() == null,
-              "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
-              method);
         }
         if (method != Method.FILE_LOADS) {
           checkArgument(

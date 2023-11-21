@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.joda.time.Duration;
 
 /**
  * A transform to write sharded records to BigQuery using the Storage API. This transform uses the
@@ -50,6 +52,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
+  private final boolean useAutosharding;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
   public StorageApiWriteRecordsInconsistent(
@@ -64,7 +67,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      boolean useAutosharding) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -77,6 +81,15 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.useAutosharding = useAutosharding;
+  }
+
+  private Duration getStorageApiTriggeringFrequency(BigQueryOptions options) {
+    if (options.getStorageWriteApiTriggeringFrequencySec() != null) {
+      return Duration.standardSeconds(options.getStorageWriteApiTriggeringFrequencySec());
+    }
+    // should raise an error here, not use default value
+    return Duration.standardSeconds(10);
   }
 
   @Override
@@ -88,29 +101,65 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     if (successfulRowsTag != null) {
       tupleTagList = tupleTagList.and(successfulRowsTag);
     }
-    PCollectionTuple result =
-        input.apply(
-            "Write Records",
-            ParDo.of(
-                    new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
-                        operationName,
-                        dynamicDestinations,
-                        bqServices,
-                        true,
-                        bigQueryOptions.getStorageApiAppendThresholdBytes(),
-                        bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
-                        bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
-                        finalizeTag,
-                        failedRowsTag,
-                        successfulRowsTag,
-                        autoUpdateSchema,
-                        ignoreUnknownValues,
-                        createDisposition,
-                        kmsKey,
-                        usesCdc,
-                        defaultMissingValueInterpretation))
-                .withOutputTags(finalizeTag, tupleTagList)
-                .withSideInputs(dynamicDestinations.getSideInputs()));
+    PCollectionTuple result;
+    if (!useAutosharding) {
+      result =
+          input.apply(
+              "Write Records",
+              ParDo.of(
+                      new StorageApiWriteUnshardedRecords.WriteUnshardedRecordsDoFn<>(
+                          operationName,
+                          dynamicDestinations,
+                          bqServices,
+                          true,
+                          bigQueryOptions.getStorageApiAppendThresholdBytes(),
+                          bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
+                          bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
+                          finalizeTag,
+                          failedRowsTag,
+                          successfulRowsTag,
+                          autoUpdateSchema,
+                          ignoreUnknownValues,
+                          createDisposition,
+                          kmsKey,
+                          usesCdc,
+                          defaultMissingValueInterpretation))
+                  .withOutputTags(finalizeTag, tupleTagList)
+                  .withSideInputs(dynamicDestinations.getSideInputs()));
+    } else {
+      // apply group into batches, then pass that transform, since it expects sharded key
+      result =
+          input
+              .apply(
+                  "GroupIntoBatches",
+                  GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
+                          bigQueryOptions.getStorageApiAppendThresholdBytes(),
+                          (StorageApiWritePayload e) -> (long) e.getPayload().length)
+                      .withMaxBufferingDuration(getStorageApiTriggeringFrequency(bigQueryOptions))
+                      .withShardedKey())
+              .apply(
+                  "Write Sharded Inconsistent Records",
+                  ParDo.of(
+                          new StorageApiWriteInconsistentShardedRecords.WriteShardedRecordsDoFn<>(
+                              operationName,
+                              dynamicDestinations,
+                              bqServices,
+                              true,
+                              bigQueryOptions.getStorageApiAppendThresholdBytes(),
+                              bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
+                              bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
+                              finalizeTag,
+                              failedRowsTag,
+                              successfulRowsTag,
+                              autoUpdateSchema,
+                              ignoreUnknownValues,
+                              createDisposition,
+                              kmsKey,
+                              usesCdc,
+                              defaultMissingValueInterpretation))
+                      .withOutputTags(finalizeTag, tupleTagList)
+                      .withSideInputs(dynamicDestinations.getSideInputs()));
+    }
     result.get(failedRowsTag).setCoder(failedRowsCoder);
     if (successfulRowsTag != null) {
       result.get(successfulRowsTag).setCoder(successfulRowsCoder);
