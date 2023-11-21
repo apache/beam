@@ -107,7 +107,17 @@ class PTransformProvider:
 
   @abc.abstractmethod
   def requires_chaining(self):
-    raise NotImplementedError
+    """
+    Returns True if the data processing transforms needs to be chained
+    sequentially with compatible data processing transforms.
+    """
+
+  def get_counter(self):
+    """
+    Returns the counter name for the data processing transform.
+    """
+    counter_name = self.__class__.__name__
+    return Metrics.counter(MLTransform, f'BeamML_{counter_name}')
 
 
 class BaseOperation(Generic[OperationInputT, OperationOutputT],
@@ -140,13 +150,6 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     """
     transformed_data = self.apply_transform(data, output_column_name)
     return transformed_data
-
-  def get_counter(self):
-    """
-    Returns the counter name for the operation.
-    """
-    counter_name = self.__class__.__name__
-    return Metrics.counter(MLTransform, f'BeamML_{counter_name}')
 
 
 class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
@@ -233,7 +236,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     self._parent_artifact_location = artifact_location
 
     self._artifact_mode = artifact_mode
-    self._process_handler: Optional[ProcessHandler] = None
     self.transforms = transforms or []
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
@@ -318,10 +320,7 @@ class MLTransformMetricsUsage(beam.PTransform):
       # increment for MLTransform.
       self._ml_transform._counter.inc()
       # increment if data processing transforms are passed.
-      transforms = (
-          self._ml_transform.transforms or
-          self._ml_transform._process_handler.transforms
-          if self._ml_transform._process_handler else None)
+      transforms = self._ml_transform.transforms
       if transforms:
         for transform in transforms:
           transform.get_counter().inc()

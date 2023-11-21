@@ -121,10 +121,12 @@ class _SentenceTransformerModelHandler(ModelHandler):
     return self._large_model
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
-    return {
-        "min_batch_size": self._min_batch_size,
-        "max_batch_size": self._max_batch_size,
-    }
+    batch_sizes = {}
+    if self._min_batch_size:
+      batch_sizes["min_batch_size"] = self._min_batch_size
+    if self._max_batch_size:
+      batch_sizes["max_batch_size"] = self._max_batch_size
+    return batch_sizes
 
 
 class SentenceTransformerEmbeddings(EmbeddingsManager):
@@ -148,8 +150,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
         load_model_args=self.load_model_args,
         min_batch_size=self.min_batch_size,
         max_batch_size=self.max_batch_size,
-        large_model=self.large_model,
-        **self.kwargs)
+        large_model=self.large_model)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     # wrap the model handler in a _TextEmbeddingHandler since
