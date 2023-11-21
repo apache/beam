@@ -114,8 +114,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     public void close() {
       closed = true;
       if (errorCollections.isEmpty()) {
-        LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
-        return;
+        LOG.error("Empty list of error pcollections passed to ErrorHandler.");
+        throw new IllegalStateException("Empty list of error pcollections passed to ErrorHandler.");
       }
       LOG.debug(
           "{} error collections are being sent to {}",

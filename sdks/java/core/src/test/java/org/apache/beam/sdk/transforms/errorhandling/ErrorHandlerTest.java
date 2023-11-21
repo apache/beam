@@ -39,16 +39,18 @@ public class ErrorHandlerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(NeedsRunner.class)
-  public void testGoodErrorHandlerUsage() throws Exception {
+  public void testNoUsageErrorHandlerUsage() throws Exception {
     try (ErrorHandler<String, PCollection<String>> eh =
         pipeline.registerErrorHandler(new DummySinkTransform<String>())) {}
+
+    // Expected to be thrown because the error handler isn't used
+    thrown.expect(IllegalStateException.class);
 
     pipeline.run();
   }
 
   @Test
-  public void testBadErrorHandlerUsage() {
+  public void testUnclosedErrorHandlerUsage() {
 
     pipeline.registerErrorHandler(new DummySinkTransform<PCollection<String>>());
 
