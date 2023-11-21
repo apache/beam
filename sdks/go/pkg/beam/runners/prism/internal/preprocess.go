@@ -154,7 +154,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 
 	facts, err := computeFacts(topological, comps)
 	if err != nil {
-		fmt.Errorf("error computing pipeline facts: %w", err)
+		err = fmt.Errorf("error computing pipeline facts: %w", err)
 		j.SendMsg(err.Error())
 		j.Failed(err)
 		return nil
