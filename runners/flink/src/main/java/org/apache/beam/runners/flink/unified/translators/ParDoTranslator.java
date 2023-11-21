@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -103,10 +104,15 @@ public class ParDoTranslator<InputT, OutputT>
     }
 
     private static String getMainInput(
-        Map<String, String> inputsMap, Map<String, PCollectionView<?>> sideInputMapping) {
+        Map<String, String> inputsMap, List<PCollectionView<?>> sideInputs) {
+      Set<String> sideInputTags =
+        sideInputs.stream()
+          .map(s -> s.getTagInternal().getId())
+          .collect(Collectors.toSet());
+
       List<Map.Entry<String, String>> ins =
           inputsMap.entrySet().stream()
-              .filter(i -> !sideInputMapping.containsKey(i.getKey()))
+              .filter(i -> !sideInputTags.contains(i.getKey()))
               .collect(Collectors.toList());
 
       return Iterables.getOnlyElement(ins).getValue();
@@ -129,7 +135,7 @@ public class ParDoTranslator<InputT, OutputT>
         DoFnOperatorFactory<InputT, OutputT> doFnOperatorFactory) {
 
       RunnerApi.PTransform pTransform = transform.getTransform();
-      String inputPCollectionId = getMainInput(pTransform.getInputsMap(), sideInputMapping);
+      String inputPCollectionId = getMainInput(pTransform.getInputsMap(), sideInputs);
 
       String transformName = pTransform.getUniqueName();
 
