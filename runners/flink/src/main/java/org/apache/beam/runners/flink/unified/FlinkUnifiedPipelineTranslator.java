@@ -408,6 +408,18 @@ public class FlinkUnifiedPipelineTranslator
       PTransformNode transform,
       RunnerApi.Pipeline pipeline,
       FlinkUnifiedPipelineTranslator.UnifiedTranslationContext context) {
+
+    // Detect and ignore No-op transform
+    // (PCollectionTuple projection. See PipelineTest.testTupleProjectionTransform)
+    String urn = transform.getTransform().getSpec().getUrn();
+    if(urn.isEmpty()) {
+      String input = Iterables.getOnlyElement(transform.getTransform().getInputsMap().entrySet()).getValue();
+      String output = Iterables.getOnlyElement(transform.getTransform().getOutputsMap().entrySet()).getValue();
+      if(input.equals(output)) {
+        return;
+      }
+    }
+
     throw new IllegalArgumentException(
         String.format(
             "Unknown type of URN `%s` for PTransform with id %s.",
