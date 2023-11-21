@@ -46,7 +46,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
@@ -108,15 +108,15 @@ public class StreamingEngineClientTest {
       GrpcDispatcherClient.forTesting(stubFactory, new ArrayList<>(), new HashSet<>());
   private final GetWorkBudgetDistributor getWorkBudgetDistributor =
       spy(new TestGetWorkBudgetDistributor());
-  private final AtomicReference<StreamEngineConnectionState> connections =
-      new AtomicReference<>(StreamEngineConnectionState.EMPTY);
+  private final AtomicReference<StreamingEngineConnectionState> connections =
+      new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
 
   private StreamingEngineClient streamingEngineClient;
 
-  private static ProcessWorkItem noOpProcessWorkItemFn() {
+  private static WorkItemProcessor noOpProcessWorkItemFn() {
     return (computation,
         inputDataWatermark,
         synchronizedProcessingTime,
@@ -170,13 +170,13 @@ public class StreamingEngineClientTest {
   }
 
   private StreamingEngineClient newStreamingEngineClient(
-      GetWorkBudget getWorkBudget, ProcessWorkItem processWorkItem) {
+      GetWorkBudget getWorkBudget, WorkItemProcessor workItemProcessor) {
     return StreamingEngineClient.forTesting(
         JOB_HEADER,
         getWorkBudget,
         connections,
         streamFactory,
-        processWorkItem,
+        workItemProcessor,
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,
@@ -184,9 +184,9 @@ public class StreamingEngineClientTest {
   }
 
   @Test
-  public void testStartAndCacheStreams() throws InterruptedException {
-    long items = 1L;
-    long bytes = 1L;
+  public void testStreamsStartCorrectly() throws InterruptedException {
+    long items = 10L;
+    long bytes = 10L;
 
     streamingEngineClient =
         newStreamingEngineClient(
@@ -196,7 +196,8 @@ public class StreamingEngineClientTest {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";
 
-    Thread streamingEngineClientThread = new Thread(streamingEngineClient::startAndCacheStreams);
+    Thread streamingEngineClientThread =
+        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -208,7 +209,7 @@ public class StreamingEngineClientTest {
     streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    StreamEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
+    StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
 
     assertEquals(2, currentConnections.windmillConnections().size());
     assertEquals(2, currentConnections.windmillStreams().size());
@@ -252,8 +253,8 @@ public class StreamingEngineClientTest {
     Thread streamingEngineClientThread =
         new Thread(
             () -> {
-              streamingEngineClient.startAndCacheStreams();
-              streamingEngineClient.startAndCacheStreams();
+              streamingEngineClient.waitForFirstWorkerMetadata();
+              streamingEngineClient.waitForFirstWorkerMetadata();
             });
 
     WorkerMetadataResponse firstWorkerMetadata =
@@ -266,7 +267,7 @@ public class StreamingEngineClientTest {
     streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    StreamEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
+    StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
     assertEquals(1, currentConnections.windmillConnections().size());
     assertEquals(1, currentConnections.windmillStreams().size());
     Set<String> workerTokens =
@@ -303,8 +304,10 @@ public class StreamingEngineClientTest {
 
     String workerToken = "workerToken1";
 
-    Thread streamingEngineClientThread = new Thread(streamingEngineClient::startAndCacheStreams);
-    Thread streamingEngineClientThread2 = new Thread(streamingEngineClient::startAndCacheStreams);
+    Thread streamingEngineClientThread =
+        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
+    Thread streamingEngineClientThread2 =
+        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
 
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
@@ -317,7 +320,7 @@ public class StreamingEngineClientTest {
     streamingEngineClientThread2.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    StreamEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
+    StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
     assertEquals(1, currentConnections.windmillConnections().size());
     assertEquals(1, currentConnections.windmillStreams().size());
     Set<String> workerTokens =
@@ -348,7 +351,8 @@ public class StreamingEngineClientTest {
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1L).setBytes(1L).build(), noOpProcessWorkItemFn());
 
-    Thread streamingEngineClientThread = new Thread(streamingEngineClient::startAndCacheStreams);
+    Thread streamingEngineClientThread =
+        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
 
     streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
@@ -374,7 +378,8 @@ public class StreamingEngineClientTest {
     String workerToken2 = "workerToken2";
     String workerToken3 = "workerToken3";
 
-    Thread streamingEngineClientThread = new Thread(streamingEngineClient::startAndCacheStreams);
+    Thread streamingEngineClientThread =
+        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -397,7 +402,7 @@ public class StreamingEngineClientTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
 
-    StreamEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(2);
+    StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(2);
 
     assertEquals(1, currentConnections.windmillConnections().size());
     assertEquals(1, currentConnections.windmillStreams().size());
@@ -422,7 +427,8 @@ public class StreamingEngineClientTest {
     String workerToken2 = "workerToken2";
     String workerToken3 = "workerToken3";
 
-    Thread streamingEngineClientThread = new Thread(streamingEngineClient::startAndCacheStreams);
+    Thread streamingEngineClientThread =
+        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -448,17 +454,18 @@ public class StreamingEngineClientTest {
     streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
+    Thread.sleep(50);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
+    Thread.sleep(50);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(thirdWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(3);
-    Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS);
+    Thread.sleep(50);
     verify(getWorkBudgetDistributor, atLeast(3)).distributeBudget(any(), any());
   }
 
-  private StreamEngineConnectionState waitForWorkerMetadataToBeConsumed(
+  private StreamingEngineConnectionState waitForWorkerMetadataToBeConsumed(
       int expectedMetadataConsumed) throws InterruptedException {
     int currentMetadataConsumed = 0;
-    StreamEngineConnectionState currentConsumedMetadata = StreamEngineConnectionState.EMPTY;
+    StreamingEngineConnectionState currentConsumedMetadata = StreamingEngineConnectionState.EMPTY;
     while (true) {
       if (!connections.get().equals(currentConsumedMetadata)) {
         ++currentMetadataConsumed;

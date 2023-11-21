@@ -31,11 +31,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * backend updates.
  */
 @AutoValue
-abstract class StreamEngineConnectionState {
-  static final StreamEngineConnectionState EMPTY = builder().build();
+abstract class StreamingEngineConnectionState {
+  static final StreamingEngineConnectionState EMPTY = builder().build();
 
   static Builder builder() {
-    return new AutoValue_StreamEngineConnectionState.Builder()
+    return new AutoValue_StreamingEngineConnectionState.Builder()
         .setWindmillConnections(ImmutableMap.of())
         .setWindmillStreams(ImmutableMap.of())
         .setGlobalDataStreams(ImmutableMap.of())
@@ -63,6 +63,6 @@ abstract class StreamEngineConnectionState {
     public abstract Builder setGlobalDataStreams(
         ImmutableMap<Endpoint, Supplier<WindmillStream.GetDataStream>> value);
 
-    public abstract StreamEngineConnectionState build();
+    public abstract StreamingEngineConnectionState build();
   }
 }

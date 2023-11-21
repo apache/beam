@@ -21,12 +21,13 @@ import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 
 @AutoValue
 public abstract class WindmillConnection {
   public static WindmillConnection from(
-      WindmillEndpoints.Endpoint windmillEndpoint,
-      Function<WindmillEndpoints.Endpoint, CloudWindmillServiceV1Alpha1Stub> endpointToStubFn) {
+      Endpoint windmillEndpoint,
+      Function<Endpoint, CloudWindmillServiceV1Alpha1Stub> endpointToStubFn) {
     WindmillConnection.Builder windmillWorkerConnection = WindmillConnection.builder();
 
     windmillEndpoint.workerToken().ifPresent(windmillWorkerConnection::setBackendWorkerToken);

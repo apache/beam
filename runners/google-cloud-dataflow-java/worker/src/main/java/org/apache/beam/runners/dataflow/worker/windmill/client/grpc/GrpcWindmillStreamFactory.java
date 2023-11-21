@@ -42,8 +42,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -55,6 +56,7 @@ import org.joda.time.Instant;
  * RPC streams for health check/heartbeat requests to keep the streams alive.
  */
 @ThreadSafe
+@Internal
 public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration DEFAULT_MAX_BACKOFF = Duration.standardSeconds(30);
@@ -135,7 +137,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<CommitWorkStream> commitWorkStream,
-      ProcessWorkItem processWorkItem) {
+      WorkItemProcessor workItemProcessor) {
     return GrpcDirectGetWorkStream.create(
         responseObserver -> withDeadline(stub).getWorkStream(responseObserver),
         request,
@@ -146,7 +148,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         getWorkThrottleTimer,
         getDataStream,
         commitWorkStream,
-        processWorkItem);
+        workItemProcessor);
   }
 
   public GetDataStream createGetDataStream(
@@ -231,6 +233,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     }
   }
 
+  @Internal
   @AutoBuilder(ofClass = GrpcWindmillStreamFactory.class)
   public interface Builder {
     Builder setJobHeader(JobHeader jobHeader);

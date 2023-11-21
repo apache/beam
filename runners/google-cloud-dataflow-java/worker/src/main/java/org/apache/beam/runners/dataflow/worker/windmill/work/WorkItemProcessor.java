@@ -29,7 +29,7 @@ import org.joda.time.Instant;
 @FunctionalInterface
 @CheckReturnValue
 @Internal
-public interface ProcessWorkItem {
+public interface WorkItemProcessor {
   /**
    * Receives and processes {@link WorkItem}(s) wrapped in its {@link ProcessWorkItemClient}
    * processing context.

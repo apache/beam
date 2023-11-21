@@ -70,7 +70,6 @@ public final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistribu
       GetWorkBudget remaining = stream.remainingGetWorkBudget();
       if (isBelowFiftyPercentOfTarget(remaining, desired)) {
         GetWorkBudget adjustment = desired.subtract(remaining);
-        LOG.info("Adjusting budget for stream={} by {}", stream, adjustment);
         stream.adjustBudget(adjustment);
       }
     }
@@ -80,6 +79,8 @@ public final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistribu
       ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget totalGetWorkBudget) {
     GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
     LOG.info("Current active work budget: {}", activeWorkBudget);
+    // TODO: Fix possibly non-deterministic handing out of budgets.
+    // Rounding up here will drift upwards over the lifetime of the streams.
     GetWorkBudget budgetPerStream =
         GetWorkBudget.builder()
             .setItems(
@@ -93,7 +94,6 @@ public final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistribu
                     streams.size(),
                     RoundingMode.CEILING))
             .build();
-    LOG.info("Desired budgets per stream: {}; stream count: {}", budgetPerStream, streams.size());
     return streams.stream().collect(toImmutableMap(Function.identity(), unused -> budgetPerStream));
   }
 }

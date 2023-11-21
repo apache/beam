@@ -20,9 +20,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 
+import com.google.common.base.Suppliers;
+import com.google.common.collect.Queues;
 import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -31,10 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -46,13 +46,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -71,38 +72,37 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class StreamingEngineClient {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineClient.class);
-  private static final String CONSUMER_WORKER_METADATA_THREAD = "ConsumeWorkerMetadataThread";
+  private static final String PUBLISH_NEW_WORKER_METADATA_THREAD = "PublishNewWorkerMetadataThread";
+  private static final String CONSUME_NEW_WORKER_METADATA_THREAD = "ConsumeNewWorkerMetadataThread";
 
   private final AtomicBoolean started;
   private final JobHeader jobHeader;
   private final GetWorkBudget totalGetWorkBudget;
   private final GrpcWindmillStreamFactory streamFactory;
-  private final ProcessWorkItem processWorkItem;
+  private final WorkItemProcessor workItemProcessor;
   private final WindmillStubFactory stubFactory;
   private final GetWorkBudgetDistributor getWorkBudgetDistributor;
   private final GrpcDispatcherClient dispatcherClient;
   private final AtomicBoolean isBudgetRefreshPaused;
-  /** Writes are guarded by synchronization, reads are lock free. */
-  private final AtomicReference<StreamEngineConnectionState> connections;
-
   private final GetWorkBudgetRefresher getWorkBudgetRefresher;
   private final AtomicReference<Instant> lastBudgetRefresh;
   private final ThrottleTimer getWorkerMetadataThrottleTimer;
   private final CountDownLatch getWorkerMetadataReady;
-  private final ExecutorService consumeWorkerMetadataExecutor;
+  private final ExecutorService newWorkerMetadataPublisher;
+  private final ExecutorService newWorkerMetadataConsumer;
   private final long clientId;
-  /**
-   * Reference to {@link GetWorkerMetadataStream} that is lazily initialized via double check
-   * locking, with its initial value being null.
-   */
-  private volatile @Nullable GetWorkerMetadataStream getWorkerMetadataStream;
+  private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
+  private final Queue<WindmillEndpoints> newWindmillEndpoints;
+  /** Writes are guarded by synchronization, reads are lock free. */
+  private final AtomicReference<StreamingEngineConnectionState> connections;
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   private StreamingEngineClient(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
-      AtomicReference<StreamEngineConnectionState> connections,
+      AtomicReference<StreamingEngineConnectionState> connections,
       GrpcWindmillStreamFactory streamFactory,
-      ProcessWorkItem processWorkItem,
+      WorkItemProcessor workItemProcessor,
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
@@ -111,30 +111,21 @@ public class StreamingEngineClient {
     this.totalGetWorkBudget = totalGetWorkBudget;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
-    this.processWorkItem = processWorkItem;
+    this.workItemProcessor = workItemProcessor;
     this.connections = connections;
     this.stubFactory = stubFactory;
     this.getWorkBudgetDistributor = getWorkBudgetDistributor;
     this.dispatcherClient = dispatcherClient;
     this.isBudgetRefreshPaused = new AtomicBoolean(false);
     this.getWorkerMetadataThrottleTimer = new ThrottleTimer();
-    this.consumeWorkerMetadataExecutor =
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder()
-                .setNameFormat(StreamingEngineClient.CONSUMER_WORKER_METADATA_THREAD)
-                // JVM will be responsible for shutdown and garbage collect these threads.
-                .setDaemon(true)
-                .setUncaughtExceptionHandler(
-                    (t, e) ->
-                        LOG.error(
-                            "{} failed due to uncaught exception during execution. ",
-                            t.getName(),
-                            e))
-                .build());
-    this.getWorkerMetadataStream = null;
+    this.newWorkerMetadataPublisher =
+        singleThreadedExecutorServiceOf(PUBLISH_NEW_WORKER_METADATA_THREAD);
+    this.newWorkerMetadataConsumer =
+        singleThreadedExecutorServiceOf(CONSUME_NEW_WORKER_METADATA_THREAD);
     this.getWorkerMetadataReady = new CountDownLatch(1);
     this.clientId = clientId;
     this.lastBudgetRefresh = new AtomicReference<>(Instant.EPOCH);
+    this.newWindmillEndpoints = Queues.synchronizedQueue(EvictingQueue.create(1));
     this.getWorkBudgetRefresher =
         new GetWorkBudgetRefresher(
             isBudgetRefreshPaused::get,
@@ -143,19 +134,42 @@ public class StreamingEngineClient {
                   connections.get().windmillStreams().values(), totalGetWorkBudget);
               lastBudgetRefresh.set(Instant.now());
             });
+    this.getWorkerMetadataStream =
+        Suppliers.memoize(
+            () ->
+                streamFactory.createGetWorkerMetadataStream(
+                    dispatcherClient.getDispatcherStub(),
+                    getWorkerMetadataThrottleTimer,
+                    endpoints ->
+                        // Run this on a separate thread than the grpc stream thread.
+                        newWorkerMetadataPublisher.submit(
+                            () -> newWindmillEndpoints.add(endpoints))));
+  }
+
+  private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
+    return Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactoryBuilder()
+            .setNameFormat(threadName)
+            .setUncaughtExceptionHandler(
+                (t, e) -> {
+                  LOG.error(
+                      "{} failed due to uncaught exception during execution. ", t.getName(), e);
+                  throw new StreamingEngineClientException(e);
+                })
+            .build());
   }
 
   /**
    * Creates an instance of {@link StreamingEngineClient} and starts the {@link
    * GetWorkerMetadataStream} with an RPC to the StreamingEngine backend. {@link
    * GetWorkerMetadataStream} will populate {@link #connections} when a response is received. Calls
-   * to {@link #startAndCacheStreams()} will block until {@link #connections} are populated.
+   * to {@link #waitForFirstWorkerMetadata()} will block until {@link #connections} are populated.
    */
   public static StreamingEngineClient create(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
-      ProcessWorkItem processWorkItem,
+      WorkItemProcessor processWorkItem,
       WindmillStubFactory windmillGrpcStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient) {
@@ -163,7 +177,7 @@ public class StreamingEngineClient {
         new StreamingEngineClient(
             jobHeader,
             totalGetWorkBudget,
-            new AtomicReference<>(StreamEngineConnectionState.EMPTY),
+            new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
             streamingEngineStreamFactory,
             processWorkItem,
             windmillGrpcStubFactory,
@@ -171,6 +185,7 @@ public class StreamingEngineClient {
             dispatcherClient,
             new Random().nextLong());
     streamingEngineClient.startGetWorkerMetadataStream();
+    streamingEngineClient.startWorkerMetadataConsumer();
     return streamingEngineClient;
   }
 
@@ -178,9 +193,9 @@ public class StreamingEngineClient {
   static StreamingEngineClient forTesting(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
-      AtomicReference<StreamEngineConnectionState> connections,
+      AtomicReference<StreamingEngineConnectionState> connections,
       GrpcWindmillStreamFactory streamFactory,
-      ProcessWorkItem processWorkItem,
+      WorkItemProcessor processWorkItem,
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
@@ -197,27 +212,58 @@ public class StreamingEngineClient {
             dispatcherClient,
             clientId);
     streamingEngineClient.startGetWorkerMetadataStream();
+    streamingEngineClient.startWorkerMetadataConsumer();
     return streamingEngineClient;
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private void startWorkerMetadataConsumer() {
+    newWorkerMetadataConsumer.submit(
+        () -> {
+          while (true) {
+            Optional.ofNullable(newWindmillEndpoints.poll())
+                .ifPresent(this::consumeWindmillWorkerEndpoints);
+          }
+        });
+  }
+
   /**
-   * Starts the streams with the {@link #connections} values. Does nothing if this has already been
+   * Waits for the initial worker metadata to be consumed. Does nothing if this has already been
    * called.
    *
    * @throws IllegalArgumentException if trying to start before {@link #connections} are set with
    *     {@link GetWorkerMetadataStream}.
    */
-  public void startAndCacheStreams() {
+  public void waitForFirstWorkerMetadata() {
     // Do nothing if we have already initialized the initial streams.
-    if (!started.compareAndSet(false, true)) {
+    if (started.compareAndSet(false, true)) {
       return;
     }
 
     // This will block if we have not received the first response from GetWorkerMetadata.
-    waitForFirstStreamingEngineEndpoints();
-    StreamEngineConnectionState currentConnectionsState = connections.get();
+    try {
+      getWorkerMetadataReady.await();
+    } catch (InterruptedException e) {
+      throw new StreamingEngineClientException(
+          "Error occurred waiting for StreamingEngine backend endpoints.", e);
+    }
+  }
+
+  @VisibleForTesting
+  void finish() {
+    if (!started.compareAndSet(true, false)) {
+      return;
+    }
+    getWorkerMetadataStream.get().close();
+    getWorkBudgetRefresher.stop();
+    newWorkerMetadataPublisher.shutdownNow();
+    newWorkerMetadataConsumer.shutdownNow();
+  }
+
+  private void onFirstWorkerMetadata() {
+    StreamingEngineConnectionState currentConnectionsState = connections.get();
     Preconditions.checkState(
-        !StreamEngineConnectionState.EMPTY.equals(currentConnectionsState),
+        !StreamingEngineConnectionState.EMPTY.equals(currentConnectionsState),
         "Cannot start streams without connections.");
 
     LOG.info("Starting initial GetWorkStreams with connections={}", currentConnectionsState);
@@ -227,31 +273,12 @@ public class StreamingEngineClient {
         currentConnectionsState.windmillStreams().values(), totalGetWorkBudget);
     lastBudgetRefresh.compareAndSet(Instant.EPOCH, Instant.now());
     windmillStreamSenders.forEach(WindmillStreamSender::startStreams);
+    getWorkerMetadataReady.countDown();
     getWorkBudgetRefresher.start();
   }
 
-  @VisibleForTesting
-  void finish() {
-    if (started.compareAndSet(true, false)) {
-      return;
-    }
-
-    Optional.ofNullable(getWorkerMetadataStream).ifPresent(GetWorkerMetadataStream::close);
-    getWorkBudgetRefresher.stop();
-    consumeWorkerMetadataExecutor.shutdownNow();
-  }
-
-  private void waitForFirstStreamingEngineEndpoints() {
-    try {
-      getWorkerMetadataReady.await();
-    } catch (InterruptedException e) {
-      throw new StreamingEngineClientException(
-          "Error occurred waiting for StreamingEngine backend endpoints.", e);
-    }
-  }
-
   /**
-   * {@link java.util.function.Consumer< WindmillEndpoints >} used to update {@link #connections} on
+   * {@link java.util.function.Consumer<WindmillEndpoints>} used to update {@link #connections} on
    * new backend worker metadata.
    */
   private synchronized void consumeWindmillWorkerEndpoints(WindmillEndpoints newWindmillEndpoints) {
@@ -265,8 +292,8 @@ public class StreamingEngineClient {
         createNewGlobalDataStreams(
             ImmutableSet.copyOf(newWindmillEndpoints.globalDataEndpoints().values()));
 
-    StreamEngineConnectionState newConnectionsState =
-        StreamEngineConnectionState.builder()
+    StreamingEngineConnectionState newConnectionsState =
+        StreamingEngineConnectionState.builder()
             .setWindmillConnections(newWindmillConnections)
             .setWindmillStreams(newWindmillStreams)
             .setGlobalDataEndpoints(newWindmillEndpoints.globalDataEndpoints())
@@ -283,14 +310,14 @@ public class StreamingEngineClient {
     // Trigger on first worker metadata. Since startAndCacheStreams will block until first worker
     // metadata is ready. Afterwards, just trigger a budget refresh.
     if (getWorkerMetadataReady.getCount() > 0) {
-      getWorkerMetadataReady.countDown();
+      onFirstWorkerMetadata();
     } else {
       getWorkBudgetRefresher.requestBudgetRefresh();
     }
   }
 
   public final ImmutableList<Long> getAndResetThrottleTimes() {
-    StreamEngineConnectionState currentConnections = connections.get();
+    StreamingEngineConnectionState currentConnections = connections.get();
 
     ImmutableList<Long> keyedWorkStreamThrottleTimes =
         currentConnections.windmillStreams().values().stream()
@@ -305,43 +332,24 @@ public class StreamingEngineClient {
 
   /** Starts {@link GetWorkerMetadataStream}. */
   @SuppressWarnings({
-    "FutureReturnValueIgnored", // ignoring Future returned from Executor.submit()
-    "nullness" // Uninitialized value of getWorkerMetadataStream is null.
+    "ReturnValueIgnored", // starts the stream, this value is memoized.
   })
   private void startGetWorkerMetadataStream() {
-    // We only want to set and start this value once.
-    if (getWorkerMetadataStream == null) {
-      synchronized (this) {
-        if (getWorkerMetadataStream == null) {
-          getWorkerMetadataStream =
-              streamFactory.createGetWorkerMetadataStream(
-                  dispatcherClient.getDispatcherStub(),
-                  getWorkerMetadataThrottleTimer,
-                  endpoints ->
-                      // Run this on a separate thread than the grpc stream thread.
-                      consumeWorkerMetadataExecutor.submit(
-                          () -> consumeWindmillWorkerEndpoints(endpoints)));
-        }
-      }
-    }
+    getWorkerMetadataStream.get();
   }
 
   private synchronized ImmutableMap<Endpoint, WindmillConnection> createNewWindmillConnections(
       ImmutableSet<Endpoint> newWindmillEndpoints) {
-    ImmutableMap<Endpoint, WindmillConnection> currentWindmillConnections =
+    ImmutableMap<Endpoint, WindmillConnection> currentConnections =
         connections.get().windmillConnections();
-    Map<Endpoint, WindmillConnection> newWindmillConnections =
-        currentWindmillConnections.entrySet().stream()
-            .filter(entry -> newWindmillEndpoints.contains(entry.getKey()))
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-    // Reuse existing stubs if they exist.
-    newWindmillEndpoints.forEach(
-        newEndpoint ->
-            newWindmillConnections.putIfAbsent(
-                newEndpoint, WindmillConnection.from(newEndpoint, this::createWindmillStub)));
-
-    return ImmutableMap.copyOf(newWindmillConnections);
+    return newWindmillEndpoints.stream()
+        .collect(
+            toImmutableMap(
+                Function.identity(),
+                // Reuse existing stubs if they exist.
+                endpoint ->
+                    currentConnections.getOrDefault(
+                        endpoint, WindmillConnection.from(endpoint, this::createWindmillStub))));
   }
 
   private synchronized ImmutableMap<WindmillConnection, WindmillStreamSender>
@@ -372,21 +380,21 @@ public class StreamingEngineClient {
         connections.get().globalDataStreams();
 
     return newGlobalDataEndpoints.stream()
-        .map(endpoint -> existingOrNewGetDataStreamFor(endpoint, currentGlobalDataStreams))
-        .collect(toImmutableMap(Pair::getKey, Pair::getValue));
+        .collect(
+            toImmutableMap(
+                Function.identity(),
+                endpoint -> existingOrNewGetDataStreamFor(endpoint, currentGlobalDataStreams)));
   }
 
-  private Pair<Endpoint, Supplier<GetDataStream>> existingOrNewGetDataStreamFor(
+  private Supplier<GetDataStream> existingOrNewGetDataStreamFor(
       Endpoint endpoint, ImmutableMap<Endpoint, Supplier<GetDataStream>> currentGlobalDataStreams) {
-    return Pair.of(
-        endpoint,
-        Preconditions.checkNotNull(
-            currentGlobalDataStreams.getOrDefault(
-                endpoint,
-                () ->
-                    streamFactory.createGetDataStream(
-                        WindmillConnection.from(endpoint, this::createWindmillStub).stub(),
-                        new ThrottleTimer()))));
+    return Preconditions.checkNotNull(
+        currentGlobalDataStreams.getOrDefault(
+            endpoint,
+            () ->
+                streamFactory.createGetDataStream(
+                    WindmillConnection.from(endpoint, this::createWindmillStub).stub(),
+                    new ThrottleTimer())));
   }
 
   private WindmillStreamSender createWindmillStreamSenderWithNoBudget(
@@ -403,7 +411,7 @@ public class StreamingEngineClient {
             .build(),
         GetWorkBudget.noBudget(),
         streamFactory,
-        processWorkItem);
+        workItemProcessor);
   }
 
   private CloudWindmillServiceV1Alpha1Stub createWindmillStub(Endpoint endpoint) {
@@ -427,6 +435,10 @@ public class StreamingEngineClient {
   private static class StreamingEngineClientException extends IllegalStateException {
     private StreamingEngineClientException(String message, Throwable exception) {
       super(message, exception);
+    }
+
+    private StreamingEngineClientException(Throwable exception) {
+      super(exception);
     }
   }
 }

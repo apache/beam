@@ -27,7 +27,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -67,7 +67,7 @@ public class WindmillStreamSender {
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
-      ProcessWorkItem processWorkItem) {
+      WorkItemProcessor workItemProcessor) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
     this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
@@ -95,7 +95,7 @@ public class WindmillStreamSender {
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
                     getDataStream,
                     commitWorkStream,
-                    processWorkItem));
+                    workItemProcessor));
   }
 
   public static WindmillStreamSender create(
@@ -103,13 +103,13 @@ public class WindmillStreamSender {
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
-      ProcessWorkItem processWorkItem) {
+      WorkItemProcessor workItemProcessor) {
     return new WindmillStreamSender(
         stub,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
         streamingEngineStreamFactory,
-        processWorkItem);
+        workItemProcessor);
   }
 
   private static GetWorkRequest withRequestBudget(GetWorkRequest request, GetWorkBudget budget) {
@@ -124,7 +124,7 @@ public class WindmillStreamSender {
     getDataStream.get();
     commitWorkStream.get();
     // *stream.get() is all memoized in a threadsafe manner.
-    started.compareAndSet(false, true);
+    started.set(true);
   }
 
   public void closeAllStreams() {
@@ -138,16 +138,18 @@ public class WindmillStreamSender {
     }
   }
 
-  public synchronized void adjustBudget(long itemsDelta, long bytesDelta) {
+  public void adjustBudget(long itemsDelta, long bytesDelta) {
     getWorkBudget.set(getWorkBudget.get().apply(itemsDelta, bytesDelta));
-    getWorkStream.get().adjustBudget(itemsDelta, bytesDelta);
+    if (started.get()) {
+      getWorkStream.get().adjustBudget(itemsDelta, bytesDelta);
+    }
   }
 
-  public synchronized void adjustBudget(GetWorkBudget adjustment) {
+  public void adjustBudget(GetWorkBudget adjustment) {
     adjustBudget(adjustment.items(), adjustment.bytes());
   }
 
-  public synchronized GetWorkBudget remainingGetWorkBudget() {
+  public GetWorkBudget remainingGetWorkBudget() {
     return started.get() ? getWorkStream.get().remainingBudget() : getWorkBudget.get();
   }
 
