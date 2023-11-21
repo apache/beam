@@ -1126,6 +1126,11 @@ class BeamModulePlugin implements Plugin<Project> {
         'unchecked',
         'varargs',
       ]
+      // Java21 introduced new lint "this-escape", violated by generated srcs
+      // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
+      if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
+        defaultLintSuppressions += ['this-escape']
+      }
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"

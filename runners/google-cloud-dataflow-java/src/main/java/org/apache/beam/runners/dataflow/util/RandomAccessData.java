@@ -200,7 +200,7 @@ public class RandomAccessData {
    * returned.
    *
    * <p>The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
-   * with support for positive infinitiy.
+   * with support for positive infinity.
    */
   public RandomAccessData increment() throws IOException {
     RandomAccessData copy = copy();
@@ -271,7 +271,7 @@ public class RandomAccessData {
 
   /**
    * Returns an output stream which writes to the backing buffer from the current position. Note
-   * that the internal buffer will grow as required to accomodate all data written.
+   * that the internal buffer will grow as required to accommodate all data written.
    */
   public OutputStream asOutputStream() {
     return outputStream;
@@ -350,7 +350,7 @@ public class RandomAccessData {
       return;
     }
 
-    // Try to double the size of the buffer, if thats not enough, just use the new capacity.
+    // Try to double the size of the buffer, if that's not enough, just use the new capacity.
     // Note that we use Math.min(long, long) to not cause overflow on the multiplication.
     int newCapacity = (int) Math.min(Integer.MAX_VALUE - 8, buffer.length * 2L);
     if (newCapacity < minCapacity) {

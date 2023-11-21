@@ -158,7 +158,6 @@ disable =
   use-dict-literal,
   unused-wildcard-import,
   useless-object-inheritance,
-  useless-with-lock, #TODO(https://github.com/apache/beam/issues/28242) Enable and fix warnings
   wildcard-import,
   wrong-import-order,
 

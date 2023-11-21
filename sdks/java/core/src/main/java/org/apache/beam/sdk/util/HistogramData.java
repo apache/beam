@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -47,6 +48,12 @@ public class HistogramData implements Serializable {
   private long numTopRecords;
   private long numBottomRecords;
 
+  @GuardedBy("this")
+  private double sumOfSquaredDeviations;
+
+  @GuardedBy("this")
+  private double mean;
+
   /**
    * Create a histogram.
    *
@@ -58,6 +65,8 @@ public class HistogramData implements Serializable {
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
     this.numBottomRecords = 0;
+    this.mean = 0;
+    this.sumOfSquaredDeviations = 0;
   }
 
   public BucketType getBucketType() {
@@ -146,6 +155,8 @@ public class HistogramData implements Serializable {
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
+      this.mean = other.mean;
+      this.sumOfSquaredDeviations = other.sumOfSquaredDeviations;
     }
   }
 
@@ -171,6 +182,8 @@ public class HistogramData implements Serializable {
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
     this.numBottomRecords = 0;
+    this.mean = 0;
+    this.sumOfSquaredDeviations = 0;
   }
 
   public synchronized void record(double value) {
@@ -184,6 +197,26 @@ public class HistogramData implements Serializable {
       buckets[bucketType.getBucketIndex(value)]++;
       numBoundedBucketRecords++;
     }
+    updateStatistics(value);
+  }
+
+  /**
+   * Update 'mean' and 'sum of squared deviations' statistics with the newly recorded value <a
+   * href="https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm">
+   * Welford's Method</a>.
+   *
+   * @param value
+   */
+  private synchronized void updateStatistics(double value) {
+    long count = getTotalCount();
+    if (count == 1) {
+      mean = value;
+      return;
+    }
+
+    double oldMean = mean;
+    mean = oldMean + (value - oldMean) / count;
+    sumOfSquaredDeviations += (value - mean) * (value - oldMean);
   }
 
   public synchronized long getTotalCount() {
@@ -217,6 +250,14 @@ public class HistogramData implements Serializable {
 
   public synchronized long getBottomBucketCount() {
     return numBottomRecords;
+  }
+
+  public synchronized double getMean() {
+    return mean;
+  }
+
+  public synchronized double getSumOfSquaredDeviations() {
+    return sumOfSquaredDeviations;
   }
 
   public double p99() {

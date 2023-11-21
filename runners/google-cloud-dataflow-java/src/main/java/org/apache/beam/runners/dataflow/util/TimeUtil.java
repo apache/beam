@@ -50,7 +50,7 @@ public final class TimeUtil {
   private static final Pattern TIME_PATTERN =
       Pattern.compile("(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d+))?Z");
 
-  /** Converts a {@link ReadableInstant} into a Dateflow API time value. */
+  /** Converts a {@link ReadableInstant} into a Dataflow API time value. */
   public static String toCloudTime(ReadableInstant instant) {
     // Note that since Joda objects use millisecond resolution, we always
     // produce either no fractional seconds or fractional seconds with

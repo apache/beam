@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -549,13 +551,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
 
     if (streaming) {
-      if (!hasExperiment(options, "enable_custom_pubsub_source")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SOURCE)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
                 new StreamingPubsubIOReadOverrideFactory()));
       }
-      if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SINK)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
@@ -1742,7 +1744,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Returns true if the passed in {@link PCollection} needs to be materialiazed using an indexed
+   * Returns true if the passed in {@link PCollection} needs to be materialized using an indexed
    * format.
    */
   boolean doesPCollectionRequireIndexedFormat(PCollection<?> pcol) {

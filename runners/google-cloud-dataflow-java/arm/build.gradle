@@ -71,7 +71,7 @@ configurations { examplesJavaIntegrationTest }
 
 dependencies {
     examplesJavaIntegrationTest project(project.path)
-    // TODO(yathu) Include full test classpath once gradle shadow plugin does not support Java21
+    // TODO(yathu) Include full test classpath once gradle shadow plugin support Java21
     if (project.findProperty('testJavaVersion') == '21' || JavaVersion.current().equals(JavaVersion.VERSION_21)) {
       examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow-java")
     } else {

@@ -136,6 +136,12 @@ public class TableDestination implements Serializable {
         table.getProjectId(), table.getDatasetId(), table.getTableId());
   }
 
+  /** Return shortened tablespec in datasets/[dataset]/tables/[table] format. */
+  public String getShortTableUrn() {
+    TableReference table = getTableReference();
+    return String.format("datasets/%s/tables/%s", table.getDatasetId(), table.getTableId());
+  }
+
   public TableReference getTableReference() {
     return BigQueryHelpers.parseTableSpec(tableSpec);
   }

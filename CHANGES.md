@@ -64,10 +64,12 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
+* Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* The Python SDK now type checks `collections.abc.Collections` types properly. Some type hints that were erroneously allowed by the SDK may now fail. ([#29272](https://github.com/apache/beam/pull/29272))
 
 ## Breaking Changes
 
@@ -75,7 +77,7 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Euphoria DSL is deprecated and will be removed in a future release (not before 2.56.0) ([#29451](https://github.com/apache/beam/issues/29451))
 
 ## Bugfixes
 
@@ -88,7 +90,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.52.0] - Unreleased
+# [2.52.0] - 2023-11-17
 
 ## Highlights
 
@@ -122,9 +124,11 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * Fixed "Desired bundle size 0 bytes must be greater than 0" in Java SDK's BigtableIO.BigtableSource when you have more cores than bytes to read (Java) [#28793](https://github.com/apache/beam/issues/28793).
 * `watch_file_pattern` arg of the [RunInference](https://github.com/apache/beam/blob/104c10b3ee536a9a3ea52b4dbf62d86b669da5d9/sdks/python/apache_beam/ml/inference/base.py#L997) arg had no effect prior to 2.52.0. To use the behavior of arg `watch_file_pattern` prior to 2.52.0, follow the documentation at https://beam.apache.org/documentation/ml/side-input-updates/ and use `WatchFilePattern` PTransform as a SideInput. ([#28948](https://github.com/apache/beam/pulls/28948))
 * `MLTransform` doesn't output artifacts such as min, max and quantiles. Instead, `MLTransform` will add a feature to output these artifacts as human readable format - [#29017](https://github.com/apache/beam/issues/29017). For now, to use the artifacts such as min and max that were produced by the eariler `MLTransform`, use `read_artifact_location` of `MLTransform`, which reads artifacts that were produced earlier in a different `MLTransform` ([#29016](https://github.com/apache/beam/pull/29016/))
+* Fixed a memory leak, which affected some long-running Python pipelines: [#28246](https://github.com/apache/beam/issues/28246).
 
 ## Security Fixes
 * Fixed [CVE-2023-39325](https://www.cve.org/CVERecord?id=CVE-2023-39325) (Java/Python/Go) ([#29118](https://github.com/apache/beam/issues/29118)).
+* Mitigated [CVE-2023-47248](https://nvd.nist.gov/vuln/detail/CVE-2023-47248)  (Python) [#29392](https://github.com/apache/beam/issues/29392).
 
 # [2.51.0] - 2023-10-03
 
@@ -133,6 +137,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * In Python, [RunInference](https://beam.apache.org/documentation/sdks/python-machine-learning/#why-use-the-runinference-api) now supports loading many models in the same transform using a [KeyedModelHandler](https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler) ([#27628](https://github.com/apache/beam/issues/27628)).
 * In Python, the [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vertex_ai_inference.html#apache_beam.ml.inference.vertex_ai_inference.VertexAIModelHandlerJSON) now supports passing in inference_args. These will be passed through to the Vertex endpoint as parameters.
 * Added support to run `mypy` on user pipelines ([#27906](https://github.com/apache/beam/issues/27906))
+* Python SDK worker start-up logs and crash logs are now captured by a buffer and logged at appropriate levels via Beam logging API. Dataflow Runner users might observe that most `worker-startup` log content is now captured by the `worker` logger. Users who relied on `print()` statements for logging might notice that some logs don't flush before pipeline succeeds - we strongly advise to use `logging` package instead of `print()` statements for logging. ([#28317](https://github.com/apache/beam/pull/28317))
 
 
 ## Breaking Changes
@@ -156,8 +161,9 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 
 ## Known Issues
 
-* Python pipelines using BigQuery Storage Read API must pin `fastavro`
-  dependency to 1.8.3 or earlier: [#28811](https://github.com/apache/beam/issues/28811)
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+* Python pipelines using BigQuery Storage Read API might need to pin `fastavro`
+  dependency to 1.8.3 or earlier on some runners that don't use Beam Docker containers: [#28811](https://github.com/apache/beam/issues/28811)
 
 # [2.50.0] - 2023-08-30
 
@@ -218,7 +224,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * Python Pipelines using BigQuery IO or `orjson` dependency might experience segmentation faults or get stuck: [#28318](https://github.com/apache/beam/issues/28318).
 * Beam Python containers rely on a version of Debian/aom that has several security vulnerabilities: [CVE-2021-30474](https://nvd.nist.gov/vuln/detail/CVE-2021-30474), [CVE-2021-30475](https://nvd.nist.gov/vuln/detail/CVE-2021-30475), [CVE-2021-30473](https://nvd.nist.gov/vuln/detail/CVE-2021-30473), [CVE-2020-36133](https://nvd.nist.gov/vuln/detail/CVE-2020-36133), [CVE-2020-36131](https://nvd.nist.gov/vuln/detail/CVE-2020-36131), [CVE-2020-36130](https://nvd.nist.gov/vuln/detail/CVE-2020-36130), and [CVE-2020-36135](https://nvd.nist.gov/vuln/detail/CVE-2020-36135)
 * Python SDK's cross-language Bigtable sink mishandles records that don't have an explicit timestamp set: [#28632](https://github.com/apache/beam/issues/28632). To avoid this issue, set explicit timestamps for all records before writing to Bigtable.
-
+* Python SDK worker start-up logs, particularly PIP dependency installations, that are not logged at warning or higher are suppressed. This suppression is reverted in 2.51.0.
 
 # [2.49.0] - 2023-07-17
 

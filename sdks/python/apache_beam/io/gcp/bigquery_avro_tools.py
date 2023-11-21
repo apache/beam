@@ -126,7 +126,7 @@ def table_field_to_avro_field(table_field, namespace):
   elif field_mode == "REPEATED":
     field_type = {"type": "array", "items": element_type}
   else:
-    raise ValueError("Unkown BigQuery field mode: {}".format(field_mode))
+    raise ValueError("Unknown BigQuery field mode: {}".format(field_mode))
 
   avro_field = {"type": field_type, "name": table_field["name"]}
 
