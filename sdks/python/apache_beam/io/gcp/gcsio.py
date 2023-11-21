@@ -54,7 +54,7 @@ DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
 # Maximum number of operations permitted in GcsIO.copy_batch() and
 # GcsIO.delete_batch().
-MAX_BATCH_OPERATION_SIZE = 1000
+MAX_BATCH_OPERATION_SIZE = 100
 
 
 def parse_gcs_path(gcs_path, object_optional=False):
