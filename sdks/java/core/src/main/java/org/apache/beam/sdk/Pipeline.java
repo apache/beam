@@ -44,7 +44,9 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.PTransformErrorHandler;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -347,9 +349,9 @@ public class Pipeline {
     return schemaRegistry;
   }
 
-  public <X, T extends POutput> ErrorHandler<X, T> registerErrorHandler(
-      PTransform<PCollection<X>, T> sinkTransform) {
-    ErrorHandler<X, T> errorHandler = new PTransformErrorHandler<>(sinkTransform);
+  public <OutputT extends POutput> BadRecordErrorHandler<OutputT> registerBadRecordErrorHandler(
+      PTransform<PCollection<BadRecord>, OutputT> sinkTransform) {
+    BadRecordErrorHandler<OutputT> errorHandler = new BadRecordErrorHandler<>(sinkTransform, this);
     errorHandlers.add(errorHandler);
     return errorHandler;
   }

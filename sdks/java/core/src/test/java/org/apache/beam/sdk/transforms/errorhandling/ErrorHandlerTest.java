@@ -24,6 +24,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -40,11 +41,8 @@ public class ErrorHandlerTest {
 
   @Test
   public void testNoUsageErrorHandlerUsage() throws Exception {
-    try (ErrorHandler<String, PCollection<String>> eh =
-        pipeline.registerErrorHandler(new DummySinkTransform<String>())) {}
-
-    // Expected to be thrown because the error handler isn't used
-    thrown.expect(IllegalStateException.class);
+    try (BadRecordErrorHandler<PCollection<BadRecord>> eh =
+        pipeline.registerBadRecordErrorHandler(new DummySinkTransform<>())) {}
 
     pipeline.run();
   }
@@ -52,7 +50,7 @@ public class ErrorHandlerTest {
   @Test
   public void testUnclosedErrorHandlerUsage() {
 
-    pipeline.registerErrorHandler(new DummySinkTransform<PCollection<String>>());
+    pipeline.registerBadRecordErrorHandler(new DummySinkTransform<>());
 
     // Expected to be thrown because the error handler isn't closed
     thrown.expect(IllegalStateException.class);
@@ -76,7 +74,7 @@ public class ErrorHandlerTest {
   public void testErrorHandlerWithBRHTransform() throws Exception {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     DummySinkTransform<BadRecord> transform = new DummySinkTransform<>();
-    ErrorHandler<BadRecord, PCollection<BadRecord>> eh = pipeline.registerErrorHandler(transform);
+    ErrorHandler<BadRecord, PCollection<BadRecord>> eh = pipeline.registerBadRecordErrorHandler(transform);
     record.apply(new BRHEnabledPTransform().withBadRecordHandler(eh));
     eh.close();
     PCollection<BadRecord> badRecords = eh.getOutput();
