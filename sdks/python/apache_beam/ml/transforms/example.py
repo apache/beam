@@ -75,7 +75,7 @@ def run_vertex_ai_pipeline(pipeline_args):
         "MLTransform" >> MLTransform(write_artifact_location=artifact_location
                                      ).with_transform(embedding_config)
         # | MLTransform(read_artifact_location=artifact_location)
-        | beam.Map(lambda x: len(x))
+        # | beam.Map(lambda x: len(x))
         | beam.Map(logging.info))
 
 

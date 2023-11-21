@@ -23,6 +23,7 @@ import unittest
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import numpy as np
 from parameterized import param
@@ -281,9 +282,22 @@ class BaseMLTransformTest(unittest.TestCase):
     self.assertEqual(
         result.metrics().query(mltransform_counter)['counters'][0].result, 1)
 
+  def test_non_ptransfrom_provider_class_to_mltransform(self):
+    class Add:
+      def __call__(self, x):
+        return x + 1
 
-# class TransformPartitionerTest(unittest.TestCase):
-# 	pass
+    with self.assertRaisesRegex(
+        TypeError, 'transform must be a subclass of PTransformProvider'):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'x': 1
+            }])
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    Add()))
 
 
 class FakeModel:

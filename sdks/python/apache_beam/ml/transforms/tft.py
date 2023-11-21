@@ -104,6 +104,9 @@ class TFTOperation(BaseOperation[common_types.TensorType,
         artifact_mode=kwargs.get('artifact_mode'),
     )
 
+  def requires_chaining(self):
+    return True
+
   @tf.function
   def _split_string_with_delimiter(self, data, delimiter):
     """

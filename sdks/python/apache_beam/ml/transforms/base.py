@@ -22,18 +22,17 @@ import collections
 import jsonpickle
 import logging
 import os
-from typing import Any, Mapping
-from typing import Callable
+from typing import Any
 from typing import Dict
 from typing import Generic
-from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
 from typing import Union
-import uuid
 import tempfile
+import uuid
 
 import numpy as np
 
@@ -42,7 +41,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
-from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.options.pipeline_options import PipelineOptions
 
 _LOGGER = logging.getLogger(__name__)
 _ATTRIBUTE_FILE_NAME = 'attributes.json'
@@ -86,24 +85,33 @@ class ArtifactMode(object):
   CONSUME = 'consume'
 
 
-# BaseOperation and EmbeddingsManager are inheriting this class.
-class PTransformManager:
+class PTransformProvider:
+  """
+  Data processing transforms that are intended to be used with MLTransform
+  should subclass PTransformProvider and implement the following methods:
+  1. get_ptransform_for_processing()
+  2. requires_chaining()
+
+  get_ptransform_for_processing() method should return a PTransform that can be
+  used to process the data.
+
+  requires_chaining() method should return True if the data processing
+  transforms needs to be chained sequentially with compatible data processing
+  transforms.
+  """
   @abc.abstractmethod
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     """
     Returns a PTransform that can be used to process the data.
     """
 
+  @abc.abstractmethod
   def requires_chaining(self):
-    """
-    Returns True if the data processing transforms needs to be
-    chained within the respective PTransform.
-    """
-    return True
+    raise NotImplementedError
 
 
 class BaseOperation(Generic[OperationInputT, OperationOutputT],
-                    PTransformManager,
+                    PTransformProvider,
                     abc.ABC):
   def __init__(self, columns: List[str]) -> None:
     """
@@ -145,15 +153,6 @@ class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
-  # @abc.abstractmethod
-  # def process_data(
-  #     self, pcoll: beam.PCollection[ExampleT]
-  # ) -> beam.PCollection[MLTransformOutputT]:
-  #   """
-  #   Logic to process the data. This will be the entrypoint in
-  #   beam.MLTransform to process incoming data.
-  #   """
-
   @abc.abstractmethod
   def append_transform(self, transform: BaseOperation):
     """
@@ -161,8 +160,6 @@ class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
     """
 
 
-# Create abstraction layer for how the MLTransform can split the transforms
-# and assings right artifacts/artifact location
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                                   beam.PCollection[MLTransformOutputT]],
                   Generic[ExampleT, MLTransformOutputT]):
@@ -216,9 +213,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         i-th transform is the output of the (i-1)-th transform. Multi-input
         transforms are not supported yet.
     """
-    if transforms:
-      _ = [self._validate_transform(transform) for transform in transforms]
-
     if read_artifact_location and write_artifact_location:
       raise ValueError(
           'Only one of read_artifact_location or write_artifact_location can '
@@ -260,8 +254,9 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A PCollection of MLTransformOutputT type
     """
+    _ = [self._validate_transform(transform) for transform in self.transforms]
     if self._artifact_mode == ArtifactMode.PRODUCE:
-      ptransform_partitioner = _TransformsPartitioner(
+      ptransform_partitioner = _MLTransformToPTransformMapper(
           transforms=self.transforms,
           artifact_location=self._parent_artifact_location,
           artifact_mode=self._artifact_mode,
@@ -269,7 +264,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       ptransform_list = ptransform_partitioner.create_and_save_ptransform_list()
     else:
       ptransform_list = (
-          _TransformsPartitioner.load_transforms_from_artifact_location(
+          _MLTransformToPTransformMapper.load_transforms_from_artifact_location(
               self._parent_artifact_location))
 
     # the saved transforms has artifact mode set to PRODUCE.
@@ -298,14 +293,18 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     # self._validate_transform(transform)
     # avoid circular import
     # pylint: disable=wrong-import-order, wrong-import-position
-    # TODO: raise an error when both transforms and with_transform() are used.
     self.transforms.append(transform)
     return self
 
   def _validate_transform(self, transform):
-    if not isinstance(transform, BaseOperation):
+    # every data processing transform should subclass PTransformProvider. Raise
+    # an error if the transform does not subclass PTransformProvider since the
+    # downstream code expects the transform to be a subclass of
+    # PTransformProvider.
+    if not isinstance(transform, PTransformProvider):
       raise TypeError(
-          'transform must be a subclass of BaseOperation. '
+          'transform must be a subclass of PTransformProvider and implement '
+          'get_ptransform_for_processing() method.'
           'Got: %s instead.' % type(transform))
 
 
@@ -334,7 +333,7 @@ class MLTransformMetricsUsage(beam.PTransform):
 
 
 # TODO: Add support for inference_fn
-class EmbeddingsManager(PTransformManager):
+class EmbeddingsManager(PTransformProvider):
   def __init__(
       self,
       columns: List[str],
@@ -351,19 +350,15 @@ class EmbeddingsManager(PTransformManager):
     self.large_model = large_model
     self.columns = columns
 
-    logging.warning("Ignoring the following arguments: %s", kwargs.keys())
+    if kwargs:
+      _LOGGER.warning("Ignoring the following arguments: %s", kwargs.keys())
 
+  # TODO: Add set_model_handler method.
   @abc.abstractmethod
   def get_model_handler(self) -> ModelHandler:
     """
     Return framework specific model handler.
     """
-
-  def set_model_handler(self, model_handler: ModelHandler) -> None:
-    """
-    Set framework specific model handler.
-    """
-    self.model_handler = model_handler
 
   def requires_chaining(self):
     # each embedding config requires a separate PTransform. so no chaining.
@@ -373,8 +368,10 @@ class EmbeddingsManager(PTransformManager):
     return self.columns
 
 
-# TODO: Use this to save and load artifacts
 class _TransformAttributeManager:
+  """
+  Base class used for saving and loading the attributes.
+  """
   @staticmethod
   def save_attributes(artifact_location):
     """
@@ -448,13 +445,23 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
 _transform_attribute_manager = _JsonPickleTransformAttributeManager
 
 
-class _TransformsPartitioner:
+class _MLTransformToPTransformMapper:
+  """
+  This class takes in a list of data processing transforms compatible to be
+  wrapped around MLTransform and returns a list of PTransforms that are used to
+  run the data processing transforms.
+
+  The _MLTransformToPTransformMapper is responsible for loading and saving the
+  PTransforms or attributes of PTransforms to the artifact location to seal
+  the gap between the training and inference pipelines.
+  """
   def __init__(
       self,
       transforms: List[Union[BaseOperation, EmbeddingsManager]],
       artifact_location: str,
       artifact_mode: str,
-      pipeline_options):
+      pipeline_options: Optional[PipelineOptions] = None,
+  ):
     self.transforms = transforms
     self._parent_artifact_location = artifact_location
     self.artifact_mode = artifact_mode
@@ -466,23 +473,24 @@ class _TransformsPartitioner:
     return ptransform_list
 
   def create_ptransform_list(self):
-    previous_ptransform = None
+    previous_ptransform_type = None
     current_ptransform = None
     ptransform_list = []
     for transform in self.transforms:
-      if not isinstance(transform, PTransformManager):
+      if not isinstance(transform, PTransformProvider):
         raise RuntimeError(
-            'Transforms must inherit of PTransformManager class and '
+            'Transforms must be instances of PTransformProvider and '
             'implement get_ptransform_for_processing() method.')
       # for each instance of PTransform, create a new artifact location
       current_ptransform = transform.get_ptransform_for_processing(
           artifact_location=os.path.join(
               self._parent_artifact_location, uuid.uuid4().hex[:6]),
           artifact_mode=self.artifact_mode)
-      if (type(current_ptransform) != type(previous_ptransform) or
-          not transform.requires_chaining()):
+      # Determine if a new ptransform should be added to the list
+      is_different_type = (type(current_ptransform) != previous_ptransform_type)
+      if is_different_type or not transform.requires_chaining():
         ptransform_list.append(current_ptransform)
-        previous_ptransform = current_ptransform
+        previous_ptransform_type = type(current_ptransform)
 
       if hasattr(ptransform_list[-1], 'append_transform'):
         ptransform_list[-1].append_transform(transform)
@@ -534,6 +542,36 @@ class _TextEmbeddingHandler(ModelHandler):
     model = self._underlying.load_model()
     return model
 
+  def _validate_column_data(self, batch):
+    if not isinstance(batch[0], (str, bytes)):
+      raise TypeError('Embeddings can only be generated on text columns.')
+
+  def _validate_batch(self, batch: List[Dict[str, List[str]]]):
+    if not batch or not isinstance(batch[0], dict):
+      raise TypeError(
+          'Expected data to be dicts, got '
+          f'{type(batch[0])} instead.')
+
+  def _process_batch(
+      self,
+      dict_batch: Dict[str, List[Any]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]]) -> Dict[str, List[Any]]:
+    result = collections.defaultdict(list)
+    for key, batch in dict_batch.items():
+      if key in self.columns:
+        self._validate_column_data(batch)
+        prediction = self._underlying.run_inference(
+            batch, model, inference_args)
+        if isinstance(prediction, np.ndarray):
+          prediction = prediction.tolist()
+          result[key] = prediction
+        else:
+          result[key] = prediction
+      else:
+        result[key] = batch
+    return result
+
   def run_inference(
       self,
       batch: List[Dict[str, List[str]]],
@@ -545,29 +583,12 @@ class _TextEmbeddingHandler(ModelHandler):
     a list of dicts. Each dict should have the same keys, and the shape
     should be of the same size for a single key across the batch.
     """
-    if not isinstance(batch[0], dict):
-      raise TypeError(
-          'Expected a list of dicts, got %s instead.' % type(batch[0]))
-
+    self._validate_batch(batch)
     batch_len = len(batch)
     dict_batch = _convert_list_of_dicts_to_dict_of_lists(list_of_dicts=batch)
-    result = collections.defaultdict(list)
-    for key, batch in dict_batch.items():
-      if key in self.columns:
-        if not isinstance(batch[0], (str, bytes)):
-          raise TypeError('Embeddings can only be generated on text columns.')
-        prediction = self._underlying.run_inference(
-            batch=batch, model=model, inference_args=inference_args)
-        if isinstance(prediction, np.ndarray):
-          prediction = prediction.tolist()
-          result[key] = prediction
-        else:
-          result[key] = prediction
-      else:
-        result[key] = batch
-    result = _convert_dict_of_lists_to_lists_of_dict(
-        dict_of_lists=result, batch_length=batch_len)
-    return result
+    transformed_batch = self._process_batch(dict_batch, model, inference_args)
+    return _convert_dict_of_lists_to_lists_of_dict(
+        dict_of_lists=transformed_batch, batch_length=batch_len)
 
   def get_metrics_namespace(self) -> str:
     return (
