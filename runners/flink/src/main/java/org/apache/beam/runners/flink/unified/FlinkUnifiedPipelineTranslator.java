@@ -35,7 +35,6 @@ import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.CreateStreamingFlinkView;
 import org.apache.beam.runners.flink.FlinkExecutionEnvironments;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -256,23 +255,19 @@ public class FlinkUnifiedPipelineTranslator
     }
 
     /**
-     * XXX: When a ParDo emits Rows and a RowCoder is set with an explicit Schema,
-     * SimpleParDoRunner expects the Coder to be an instance of SchemaCoder.
-     * If that's not the case, a NPE is thrown.
+     * XXX: When a ParDo emits Rows and a RowCoder is set with an explicit Schema, SimpleParDoRunner
+     * expects the Coder to be an instance of SchemaCoder. If that's not the case, a NPE is thrown.
      */
-    public <T> Coder<T> getOutputCoderHack(
-      RunnerApi.Pipeline pipeline, String pCollectionId) {
-        WindowedValueCoder<T> coder = getWindowedInputCoder(pipeline, pCollectionId);
-        Coder<T> valueCoder = coder.getValueCoder();
-        if(valueCoder instanceof LengthPrefixCoder) {
-          Coder<T> outputCoder = ((LengthPrefixCoder) valueCoder).getValueCoder();
-          if(outputCoder instanceof SchemaCoder) {
-            return outputCoder;
-          }
+    public <T> Coder<T> getOutputCoderHack(RunnerApi.Pipeline pipeline, String pCollectionId) {
+      WindowedValueCoder<T> coder = getWindowedInputCoder(pipeline, pCollectionId);
+      Coder<T> valueCoder = coder.getValueCoder();
+      if (valueCoder instanceof LengthPrefixCoder) {
+        Coder<T> outputCoder = ((LengthPrefixCoder) valueCoder).getValueCoder();
+        if (outputCoder instanceof SchemaCoder) {
+          return outputCoder;
         }
-        return (Coder) coder;
-
-
+      }
+      return (Coder) coder;
     }
 
     /**
@@ -437,10 +432,12 @@ public class FlinkUnifiedPipelineTranslator
     // Detect and ignore No-op transform
     // (PCollectionTuple projection. See PipelineTest.testTupleProjectionTransform)
     String urn = transform.getTransform().getSpec().getUrn();
-    if(urn.isEmpty()) {
-      String input = Iterables.getOnlyElement(transform.getTransform().getInputsMap().entrySet()).getValue();
-      String output = Iterables.getOnlyElement(transform.getTransform().getOutputsMap().entrySet()).getValue();
-      if(input.equals(output)) {
+    if (urn.isEmpty()) {
+      String input =
+          Iterables.getOnlyElement(transform.getTransform().getInputsMap().entrySet()).getValue();
+      String output =
+          Iterables.getOnlyElement(transform.getTransform().getOutputsMap().entrySet()).getValue();
+      if (input.equals(output)) {
         return;
       }
     }
@@ -474,7 +471,8 @@ public class FlinkUnifiedPipelineTranslator
   public Executor translate(UnifiedTranslationContext context, RunnerApi.Pipeline pipeline) {
 
     // QueryablePipeline p =
-    //   QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(),
+    //
+    // QueryablePipeline.forTransforms(getExpandedTransformsList(pipeline.getRootTransformIdsList(),
     //     pipeline.getComponents()), pipeline.getComponents());
 
     // Iterable<PipelineNode.PTransformNode> expandedTopologicalOrder =

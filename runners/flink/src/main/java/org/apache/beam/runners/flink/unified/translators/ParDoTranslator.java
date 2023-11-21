@@ -106,9 +106,7 @@ public class ParDoTranslator<InputT, OutputT>
     private static String getMainInput(
         Map<String, String> inputsMap, List<PCollectionView<?>> sideInputs) {
       Set<String> sideInputTags =
-        sideInputs.stream()
-          .map(s -> s.getTagInternal().getId())
-          .collect(Collectors.toSet());
+          sideInputs.stream().map(s -> s.getTagInternal().getId()).collect(Collectors.toSet());
 
       List<Map.Entry<String, String>> ins =
           inputsMap.entrySet().stream()
@@ -163,11 +161,11 @@ public class ParDoTranslator<InputT, OutputT>
 
       // TODO: use this if output is a Row ???
       Map<TupleTag<?>, Coder<?>> outputCoders =
-        outputs.entrySet().stream()
-          .collect(
-              Collectors.toMap(
-                  Map.Entry::getKey,
-                  x -> (Coder) context.getOutputCoderHack(pipeline, x.getValue())));
+          outputs.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey,
+                      x -> (Coder) context.getOutputCoderHack(pipeline, x.getValue())));
 
       Map<String, String> sortedOutputs =
           outputs.entrySet().stream()
