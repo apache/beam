@@ -169,13 +169,8 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 
 	for i, stg := range stages {
 		err := finalizeStage(stg, comps, facts)
-
-		var uniques []string
-		for _, tid := range stg.transforms {
-			uniques = append(uniques, comps.Transforms[tid].UniqueName)
-		}
 		if err != nil {
-			err = fmt.Errorf("ERROR ON VALIDATION of stage %v: %v", i, err)
+			err = fmt.Errorf("preprocess validation failure of stage %v: %v", i, err)
 			j.SendMsg(err.Error())
 			j.Failed(err)
 			return nil
