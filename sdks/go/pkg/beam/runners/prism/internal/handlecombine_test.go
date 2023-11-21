@@ -97,7 +97,7 @@ func TestHandleCombine(t *testing.T) {
 			lifted: false,
 			comps: &pipepb.Components{
 				Transforms: map[string]*pipepb.PTransform{
-					undertest: combineTransform,
+					undertest:        combineTransform,
 					"combine_values": combineValuesTransform,
 				},
 				Pcollections: basePCollectionMap,
@@ -115,7 +115,7 @@ func TestHandleCombine(t *testing.T) {
 			lifted: true,
 			comps: &pipepb.Components{
 				Transforms: map[string]*pipepb.PTransform{
-					undertest: combineTransform,
+					undertest:        combineTransform,
 					"combine_values": combineValuesTransform,
 				},
 				Pcollections: basePCollectionMap,
