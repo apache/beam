@@ -161,8 +161,13 @@ public class ParDoTranslator<InputT, OutputT>
                       Map.Entry::getKey,
                       x -> (Coder) context.getWindowedInputCoder(pipeline, x.getValue())));
 
-      // TODO: Are tagsToCoders and outputCoders really the same ?
-      Map<TupleTag<?>, Coder<?>> outputCoders = (Map) tagsToCoders;
+      // TODO: use this if output is a Row ???
+      Map<TupleTag<?>, Coder<?>> outputCoders =
+        outputs.entrySet().stream()
+          .collect(
+              Collectors.toMap(
+                  Map.Entry::getKey,
+                  x -> (Coder) context.getOutputCoderHack(pipeline, x.getValue())));
 
       Map<String, String> sortedOutputs =
           outputs.entrySet().stream()

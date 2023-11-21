@@ -251,6 +251,26 @@ public class FlinkUnifiedPipelineTranslator
     }
 
     /**
+     * XXX: When a ParDo emits Rows and a RowCoder is set with an explicit Schema,
+     * SimpleParDoRunner expects the Coder to be an instance of SchemaCoder.
+     * If that's not the case, a NPE is thrown.
+     */
+    public <T> Coder<T> getOutputCoderHack(
+      RunnerApi.Pipeline pipeline, String pCollectionId) {
+        WindowedValueCoder<T> coder = getWindowedInputCoder(pipeline, pCollectionId);
+        Coder<T> valueCoder = coder.getValueCoder();
+        if(valueCoder instanceof LengthPrefixCoder) {
+          Coder<T> outputCoder = ((LengthPrefixCoder) valueCoder).getValueCoder();
+          if(outputCoder instanceof SchemaCoder) {
+            return outputCoder;
+          }
+        }
+        return (Coder) coder;
+
+
+    }
+
+    /**
      * Get SDK coder for given PCollection. The SDK coder is the coder that the SDK-harness would
      * have used to encode data before passing it to the runner over {@link SdkHarnessClient}.
      *
