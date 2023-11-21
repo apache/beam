@@ -64,8 +64,12 @@ public class ImpulseTranslator
         context
             .getExecutionEnvironment()
             .fromSource(impulseSource, watermarkStrategy, "Impulse")
-            // .setParallelism(1)
             .returns(typeInfo);
+
+    // TODO: is this correct ?
+    if (context.isStreaming()) {
+      source = source.setParallelism(1);
+    }
 
     context.addDataStream(
         Iterables.getOnlyElement(pTransform.getTransform().getOutputsMap().values()), source);
