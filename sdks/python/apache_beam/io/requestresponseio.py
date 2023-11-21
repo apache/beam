@@ -17,10 +17,19 @@
 
 """``PTransform`` for reading from and writing to Web APIs."""
 import abc
+import concurrent.futures
+import datetime
+from datetime import timedelta
 from typing import TypeVar
+from typing import Generic
+
+import apache_beam as beam
+from apache_beam.pvalue import PCollection
 
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
+
+DEFAULT_TIMEOUT = timedelta(seconds=30)
 
 
 class UserCodeExecutionException(Exception):
@@ -51,15 +60,80 @@ class Caller(metaclass=abc.ABCMeta):
 
 class SetupTeardown(metaclass=abc.ABCMeta):
   """Interfaces user custom code to set up and teardown the API clients.
-    Called by ``RequestResponseIO`` within its DoFn's setup and teardown
-    methods.
+    Called by ``RequestResponseIO`` as a context manager to instantiate
+    and teardown clients.
     """
-  @abc.abstractmethod
-  def setup(self) -> None:
-    """Called during the DoFn's setup lifecycle method."""
+  def __enter__(self):
+    """Instantiates a connection to the API client."""
     pass
 
-  @abc.abstractmethod
-  def teardown(self) -> None:
-    """Called during the DoFn's teardown lifecycle method."""
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    """Closes the connection to the API client."""
     pass
+
+
+class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
+                                        beam.PCollection[ResponseT]]):
+  """A :class:`RequestResponseIO` transform to read and write to APIs.
+
+  Processes an input :class:`~apache_beam.pvalue.PCollection` of requests
+  by making a call to the API as defined in :class:`Caller`'s `__call__`
+  and returns a :class:`~apache_beam.pvalue.PCollection` of responses.
+
+  Args:
+    requests (~apache_beam.pvalue.PCollection):
+      a :class:`~apache_beam.pvalue.PCollection` to be processed.
+    caller (~apache_beam.io.requestresponseio.Caller): an implementation of
+      `Caller` or a callable object that makes call to the API.
+    setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
+      a context manager class implementing the `__enter__` and
+      `__exit`__` methods to set up and teardown the API clients.
+  """
+  def __init__(self, caller: Caller, setup_teardown: SetupTeardown):
+    self._caller = caller
+    self._setup_teardown = setup_teardown
+
+  def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
+    pass
+
+
+class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
+  def __init__(self, caller: Caller, timeout: datetime.datetime):
+    self._caller = caller
+    self._timeout = timeout
+
+  def process(self, request, *args, **kwargs):
+    with concurrent.futures.ThreadPoolExecutor as executor:
+      future = executor.submit(self._caller, request)
+      try:
+        yield future.result(timeout=self._timeout)
+      except concurrent.futures.TimeoutError:
+        raise UserCodeTimeoutException
+      except RuntimeError:
+        raise UserCodeExecutionException('could not complete request')
+
+
+class _Call(beam.PTransform[beam.PCollection[RequestT],
+                            beam.PCollection[ResponseT]]):
+  def __init__(
+      self,
+      caller: Caller,
+      setup_teardown: SetupTeardown,
+      timeout: datetime.datetime):
+    self._caller = caller
+    self._setup_teardown = setup_teardown
+    self._timeout = timeout
+
+  def expand(
+      self,
+      requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
+    with self._setup_teardown():
+      return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
+
+
+class _RequestResponseDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
+  def __init__(self, caller: Caller):
+    self._caller = caller
+
+  def process(self, element, *args, **kwargs):
+    yield self._caller(element)
