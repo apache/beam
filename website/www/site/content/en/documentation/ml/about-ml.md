@@ -63,14 +63,13 @@ To keep your model up to date and performing well as your data grows and evolves
 
 The [RunInference API](/documentation/sdks/python-machine-learning/) is a `PTransform` optimized for machine learning inferences that lets you efficiently use ML models in your pipelines. The API includes the following features:
 
-- To efficiently feed your model, dynamically batches inputs based on pipeline throughput.
-- To optimize your pipeline for ML inference, takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class.
-- To balance memory and throughput usage, determines the optimal number of models to load using a central model manager.
+- To efficiently feed your model, dynamically batches inputs based on pipeline throughput using Apache Beam's `BatchElements` transform.
+- To balance memory and throughput usage, determines the optimal number of models to load using a central model manager. Shares these models across threads and processes as needed to maximize throughput.
 - Ensures that your pipeline uses the most recently deployed version of your model with the [Automatic model refresh](#automatic-model-refresh) feature.
 - Supports [multiple frameworks and model hubs](#use-pre-trained-models), including Tensorflow, Pytorch, Sklearn, XGBoost, Hugging Face, TensorFlow Hub, Vertex AI, TensorRT, and ONNX.
 - Supports arbitrary frameworks using a [custom model handler](#use-custom-models).
 - Supports [multi-model pipelines](#multi-model-pipelines).
-- Lets you [use GPUs](/documentation/ml/runinference-metrics) to increase inference speed. Because GPUs can process multiple computations simultaneously, they are optimized for training artificial intelligence and deep learning models.
+- Lets you use GPUs on supported runners to increase inference speed. For more information, see [GPUs with Dataflow](https://cloud.google.com/dataflow/docs/gpu) in the Dataflow documentation.
 
 ### Support and limitations
 
@@ -431,7 +430,7 @@ If you run into problems with your pipeline or job, this section lists issues th
 
 ### Unable to batch tensor elements
 
-RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, so samples passed to the RunInferene transform must be the same dimension or length. If you provide images of different sizes or word embeddings of different lengths, the following error might occur:
+RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, so samples passed to the `RunInference` transform must be the same dimension or length. If you provide images of different sizes or word embeddings of different lengths, the following error might occur:
 
 `
 File "/beam/sdks/python/apache_beam/ml/inference/pytorch_inference.py", line 232, in run_inference
