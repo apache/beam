@@ -119,7 +119,7 @@ class PartitionTest(unittest.TestCase):
         yield element
 
     with beam.testing.test_pipeline.TestPipeline() as p:
-      source = p | beam.Create([1,2,3,4,5])
+      source = p | beam.Create([1, 2, 3, 4, 5])
       p1, p2, p3 = source | "bounded" >> beam.Partition(partition_fn, 3)
 
       self.assertEqual(source.is_bounded, True)
@@ -127,13 +127,14 @@ class PartitionTest(unittest.TestCase):
       self.assertEqual(p2.is_bounded, True)
       self.assertEqual(p3.is_bounded, True)
 
-      unbounded_pcoll = source | beam.ParDo(UnboundedDoFn())
-      p4, p5, p6 = unbounded_pcoll | "unbounded" >> beam.Partition(partition_fn, 3)
+      unbounded = source | beam.ParDo(UnboundedDoFn())
+      p4, p5, p6 = unbounded | "unbounded" >> beam.Partition(partition_fn, 3)
 
-      self.assertEqual(unbounded_pcoll.is_bounded, False)
+      self.assertEqual(unbounded.is_bounded, False)
       self.assertEqual(p4.is_bounded, False)
       self.assertEqual(p5.is_bounded, False)
       self.assertEqual(p6.is_bounded, False)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
