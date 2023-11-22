@@ -47,37 +47,61 @@ Javadoc
 &lt;p>You can use Apache Beam to:&lt;/p>
 &lt;ul>
 &lt;li>Process large volumes of data, both for preprocessing and for inference.&lt;/li>
-&lt;li>Experiment with your data during the exploration phase of your project and provides a seamless transition when
-upscaling your data pipelines as part of your MLOps ecosystem in a production environment.&lt;/li>
+&lt;li>Experiment with your data during the exploration phase of your project.&lt;/li>
+&lt;li>Upscale your data pipelines as part of your ML ops ecosystem in a production environment.&lt;/li>
 &lt;li>Run your model in production on a varying data load, both in batch and streaming.&lt;/li>
 &lt;/ul>
 &lt;h2 id="aiml-workloads">AI/ML workloads&lt;/h2>
-&lt;p>You can use Apache Beam for data validation, data preprocessing, model validation, and model deployment/inference.&lt;/p>
+&lt;p>You can use Apache Beam for data validation, data preprocessing, model validation, and model deployment and inference.&lt;/p>
 &lt;p>&lt;img src="/images/ml-workflows.svg" alt="Overview of AI/ML building blocks and where Apache Beam can be used">&lt;/p>
 &lt;ol>
-&lt;li>Data ingestion: Incoming new data is stored in your file system or database, or it&amp;rsquo;s published to a messaging queue.&lt;/li>
-&lt;li>&lt;strong>Data validation&lt;/strong>: After you receieve your data, check the quality of your data. For example, you might want to detect outliers and calculate standard deviations and class distributions.&lt;/li>
-&lt;li>&lt;strong>Data preprocessing&lt;/strong>: After you validate your data, transform the data so that it is ready to use to train your model.&lt;/li>
-&lt;li>Model training: When your data is ready, you can start training your AI/ML model. This step is typically repeated multiple times, depending on the quality of your trained model.&lt;/li>
-&lt;li>Model validation: Before you deploy your new model, validate its performance and accuracy.&lt;/li>
+&lt;li>Data ingestion: Incoming new data is either stored in your file system or database, or published to a messaging queue.&lt;/li>
+&lt;li>&lt;strong>Data validation&lt;/strong>: After you receieve your data, check the quality of the data. For example, you might want to detect outliers and calculate standard deviations and class distributions.&lt;/li>
+&lt;li>&lt;strong>Data preprocessing&lt;/strong>: After you validate your data, transform the data so that it&amp;rsquo;s ready to use to train your model.&lt;/li>
+&lt;li>Model training: When your data is ready, train your AI/ML model. This step is typically repeated multiple times, depending on the quality of your trained model.&lt;/li>
+&lt;li>Model validation: Before you deploy your model, validate its performance and accuracy.&lt;/li>
 &lt;li>&lt;strong>Model deployment&lt;/strong>: Deploy your model, using it to run inference on new or existing data.&lt;/li>
 &lt;/ol>
-&lt;p>To keep your model up to date and performing well as your data grows and evolves, run these steps multiple times. In addition, you can apply MLOps to your project to automate the AI/ML workflows throughout the model and data lifecycle. Use orchestrators to automate this flow and to handle the transition between the different building blocks in your project.&lt;/p>
+&lt;p>To keep your model up to date and performing well as your data grows and evolves, run these steps multiple times. In addition, you can apply ML ops to your project to automate the AI/ML workflows throughout the model and data lifecycle. Use orchestrators to automate this flow and to handle the transition between the different building blocks in your project.&lt;/p>
 &lt;h2 id="use-runinference">Use RunInference&lt;/h2>
-&lt;p>The recommended way to implement inference in Apache Beam is by using the &lt;a href="/documentation/sdks/python-machine-learning/">RunInference API&lt;/a>. RunInference takes advantage of existing Apache Beam concepts, such as the &lt;code>BatchElements&lt;/code> transform and the &lt;code>Shared&lt;/code> class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.&lt;/p>
-&lt;p>You can integrate your model in your pipeline by using the corresponding model handlers. A &lt;code>ModelHandler&lt;/code> is an object that wraps the underlying model and allows you to configure its parameters. Model handlers are available for PyTorch, scikit-learn, and TensorFlow. Examples of how to use RunInference for PyTorch, scikit-learn, and TensorFlow are shown in this &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb">notebook&lt;/a>.&lt;/p>
-&lt;p>Because GPUs can process multiple computations simultaneously, they are optimized for training artificial intelligence and deep learning models. RunInference also allows you to use GPUs for significant inference speedup. An example of how to use RunInference with GPUs is demonstrated on the &lt;a href="/documentation/ml/runinference-metrics">RunInference metrics&lt;/a> page.&lt;/p>
-&lt;p>RunInference takes advantage of existing Apache Beam concepts, such as the &lt;code>BatchElements&lt;/code> transform and the &lt;code>Shared&lt;/code> class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.&lt;/p>
+&lt;p>The &lt;a href="/documentation/sdks/python-machine-learning/">RunInference API&lt;/a> is a &lt;code>PTransform&lt;/code> optimized for machine learning inferences that lets you efficiently use ML models in your pipelines. The API includes the following features:&lt;/p>
+&lt;ul>
+&lt;li>To efficiently feed your model, dynamically batches inputs based on pipeline throughput using Apache Beam&amp;rsquo;s &lt;code>BatchElements&lt;/code> transform.&lt;/li>
+&lt;li>To balance memory and throughput usage, determines the optimal number of models to load using a central model manager. Shares these models across threads and processes as needed to maximize throughput.&lt;/li>
+&lt;li>Ensures that your pipeline uses the most recently deployed version of your model with the &lt;a href="#automatic-model-refresh">Automatic model refresh&lt;/a> feature.&lt;/li>
+&lt;li>Supports &lt;a href="#use-pre-trained-models">multiple frameworks and model hubs&lt;/a>, including Tensorflow, Pytorch, Sklearn, XGBoost, Hugging Face, TensorFlow Hub, Vertex AI, TensorRT, and ONNX.&lt;/li>
+&lt;li>Supports arbitrary frameworks using a &lt;a href="#use-custom-models">custom model handler&lt;/a>.&lt;/li>
+&lt;li>Supports &lt;a href="#multi-model-pipelines">multi-model pipelines&lt;/a>.&lt;/li>
+&lt;li>Lets you use GPUs on supported runners to increase inference speed. For more information, see &lt;a href="https://cloud.google.com/dataflow/docs/gpu">GPUs with Dataflow&lt;/a> in the Dataflow documentation.&lt;/li>
+&lt;/ul>
+&lt;h3 id="support-and-limitations">Support and limitations&lt;/h3>
+&lt;ul>
+&lt;li>The RunInference API is supported in Apache Beam 2.40.0 and later versions.&lt;/li>
+&lt;li>Model handlers are available for PyTorch, scikit-learn, TensorFlow, Hugging Face, Vertex AI, ONNX, TensorRT, and XGBoost. You can also use a custom model handler.&lt;/li>
+&lt;li>The RunInference API supports batch and streaming pipelines.&lt;/li>
+&lt;li>The RunInference API supports both remote inference and inteference local to the runner worker.&lt;/li>
+&lt;/ul>
 &lt;h3 id="batchelements-ptransform">BatchElements PTransform&lt;/h3>
-&lt;p>To take advantage of the optimizations of vectorized inference that many models implement, we added the &lt;code>BatchElements&lt;/code> transform as an intermediate step before making the prediction for the model. This transform batches elements together. The batched elements are then applied with a transformation for the particular framework of RunInference. For example, for numpy &lt;code>ndarrays&lt;/code>, we call &lt;code>numpy.stack()&lt;/code>, and for torch &lt;code>Tensor&lt;/code> elements, we call &lt;code>torch.stack()&lt;/code>.&lt;/p>
+&lt;p>To take advantage of the optimizations of vectorized inference that many models implement, the &lt;code>BatchElements&lt;/code> transform is used as an intermediate step before making the prediction for the model. This transform batches elements together. The batched elements are then applied with a transformation for the particular framework of RunInference. For example, for numpy &lt;code>ndarrays&lt;/code>, we call &lt;code>numpy.stack()&lt;/code>, and for torch &lt;code>Tensor&lt;/code> elements, we call &lt;code>torch.stack()&lt;/code>.&lt;/p>
 &lt;p>To customize the settings for &lt;code>beam.BatchElements&lt;/code>, in &lt;code>ModelHandler&lt;/code>, override the &lt;code>batch_elements_kwargs&lt;/code> function. For example, use &lt;code>min_batch_size&lt;/code> to set the lowest number of elements per batch or &lt;code>max_batch_size&lt;/code> to set the highest number of elements per batch.&lt;/p>
 &lt;p>For more information, see the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements">&lt;code>BatchElements&lt;/code> transform documentation&lt;/a>.&lt;/p>
 &lt;h3 id="shared-helper-class">Shared helper class&lt;/h3>
 &lt;p>Using the &lt;code>Shared&lt;/code> class within the RunInference implementation makes it possible to load the model only once per process and share it with all DoFn instances created in that process. This feature reduces memory consumption and model loading time. For more information, see the
 &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/shared.py#L20">&lt;code>Shared&lt;/code> class documentation&lt;/a>.&lt;/p>
-&lt;h3 id="multi-model-pipelines">Multi-model pipelines&lt;/h3>
-&lt;p>The RunInference API can be composed into multi-model pipelines. Multi-model pipelines can be useful for A/B testing or for building out cascade models made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more. For more information, see &lt;a href="https://beam.apache.org/documentation/ml/multi-model-pipelines/">Multi-model pipelines&lt;/a>.&lt;/p>
-&lt;h3 id="use-pre-trained-models">Use pre-trained models&lt;/h3>
+&lt;h3 id="modify-a-python-pipeline-to-use-an-ml-model">Modify a Python pipeline to use an ML model&lt;/h3>
+&lt;p>To use the RunInference transform, add the following code to your pipeline:&lt;/p>
+&lt;pre tabindex="0">&lt;code>from apache_beam.ml.inference.base import RunInference
+with pipeline as p:
+predictions = ( p | &amp;#39;Read&amp;#39; &amp;gt;&amp;gt; beam.ReadFromSource(&amp;#39;a_source&amp;#39;)
+| &amp;#39;RunInference&amp;#39; &amp;gt;&amp;gt; RunInference(&amp;lt;model_handler&amp;gt;)
+&lt;/code>&lt;/pre>&lt;p>Replace &lt;code>model_handler&lt;/code> with the model handler setup code.&lt;/p>
+&lt;p>To import models, you need to configure a &lt;code>ModelHandler&lt;/code> object that wraps the underlying model. Which model handler you import depends on the framework and type of data structure that contains the inputs. The &lt;code>ModelHandler&lt;/code> object also allows you to set environment variables needed for inference using the &lt;code>env_vars&lt;/code> keyword argument. The following examples show some model handlers that you might want to import.&lt;/p>
+&lt;pre tabindex="0">&lt;code>from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerPandas
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
+from tfx_bsl.public.beam.run_inference import CreateModelHandler
+&lt;/code>&lt;/pre>&lt;h3 id="use-pre-trained-models">Use pre-trained models&lt;/h3>
 &lt;p>The section provides requirements for using pre-trained models with PyTorch, Scikit-learn, and Tensorflow.&lt;/p>
 &lt;h4 id="pytorch">PyTorch&lt;/h4>
 &lt;p>You need to provide a path to a file that contains the model&amp;rsquo;s saved weights. This path must be accessible by the pipeline. To use pre-trained models with the RunInference API and the PyTorch framework, complete the following steps:&lt;/p>
@@ -120,7 +144,88 @@ that illustrates running TensorFlow models with Apache Beam and tfx-bsl.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ol>
-&lt;h2 id="automatic-model-refresh">Automatic model refresh&lt;/h2>
+&lt;h3 id="use-custom-models">Use custom models&lt;/h3>
+&lt;p>If you would like to use a model that isn&amp;rsquo;t specified by one of the supported frameworks, the RunInference API is designed flexibly to allow you to use any custom machine learning models.
+You only need to create your own &lt;code>ModelHandler&lt;/code> or &lt;code>KeyedModelHandler&lt;/code> with logic to load your model and use it to run the inference.&lt;/p>
+&lt;p>A simple example can be found in &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb">this notebook&lt;/a>.
+The &lt;code>load_model&lt;/code> method shows how to load the model using a popular &lt;code>spaCy&lt;/code> package while &lt;code>run_inference&lt;/code> shows how to run the inference on a batch of examples.&lt;/p>
+&lt;h3 id="runinference-patterns">RunInference Patterns&lt;/h3>
+&lt;p>This section suggests patterns and best practices that you can use to make your inference pipelines simpler,
+more robust, and more efficient.&lt;/p>
+&lt;h4 id="use-a-keyed-modelhandler-object">Use a keyed ModelHandler object&lt;/h4>
+&lt;p>If a key is attached to the examples, wrap &lt;code>KeyedModelHandler&lt;/code> around the &lt;code>ModelHandler&lt;/code> object:&lt;/p>
+&lt;pre tabindex="0">&lt;code>from apache_beam.ml.inference.base import KeyedModelHandler
+keyed_model_handler = KeyedModelHandler(PytorchModelHandlerTensor(...))
+with pipeline as p:
+data = p | beam.Create([
+(&amp;#39;img1&amp;#39;, torch.tensor([[1,2,3],[4,5,6],...])),
+(&amp;#39;img2&amp;#39;, torch.tensor([[1,2,3],[4,5,6],...])),
+(&amp;#39;img3&amp;#39;, torch.tensor([[1,2,3],[4,5,6],...])),
+])
+predictions = data | RunInference(keyed_model_handler)
+&lt;/code>&lt;/pre>&lt;p>If you are unsure if your data is keyed, you can use &lt;code>MaybeKeyedModelHandler&lt;/code>.&lt;/p>
+&lt;p>You can also use a &lt;code>KeyedModelHandler&lt;/code> to load several different models based on their associated key.
+The following example loads a model by using &lt;code>config1&lt;/code>. That model is used for inference for all examples associated
+with &lt;code>key1&lt;/code>. It loads a second model by using &lt;code>config2&lt;/code>. That model is used for all examples associated with &lt;code>key2&lt;/code> and &lt;code>key3&lt;/code>.&lt;/p>
+&lt;pre tabindex="0">&lt;code>from apache_beam.ml.inference.base import KeyedModelHandler
+keyed_model_handler = KeyedModelHandler([
+KeyModelMapping([&amp;#39;key1&amp;#39;], PytorchModelHandlerTensor(&amp;lt;config1&amp;gt;)),
+KeyModelMapping([&amp;#39;key2&amp;#39;, &amp;#39;key3&amp;#39;], PytorchModelHandlerTensor(&amp;lt;config2&amp;gt;))
+])
+with pipeline as p:
+data = p | beam.Create([
+(&amp;#39;key1&amp;#39;, torch.tensor([[1,2,3],[4,5,6],...])),
+(&amp;#39;key2&amp;#39;, torch.tensor([[1,2,3],[4,5,6],...])),
+(&amp;#39;key3&amp;#39;, torch.tensor([[1,2,3],[4,5,6],...])),
+])
+predictions = data | RunInference(keyed_model_handler)
+&lt;/code>&lt;/pre>&lt;p>For a more detailed example, see the notebook
+&lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/per_key_models.ipynb">Run ML inference with multiple differently-trained models&lt;/a>.&lt;/p>
+&lt;p>Loading multiple models at the same times increases the risk of out of memory errors (OOMs). By default, &lt;code>KeyedModelHandler&lt;/code> doesn&amp;rsquo;t
+limit the number of models loaded into memory at the same time. If the models don&amp;rsquo;t all fit into memory,
+your pipeline might fail with an out of memory error. To avoid this issue, use the &lt;code>max_models_per_worker_hint&lt;/code> parameter
+to set the maximum number of models that can be loaded into memory at the same time.&lt;/p>
+&lt;p>The following example loads at most two models per SDK worker process at a time. It unloads models that aren&amp;rsquo;t
+currently in use.&lt;/p>
+&lt;pre tabindex="0">&lt;code>mhs = [
+KeyModelMapping([&amp;#39;key1&amp;#39;], PytorchModelHandlerTensor(&amp;lt;config1&amp;gt;)),
+KeyModelMapping([&amp;#39;key2&amp;#39;, &amp;#39;key3&amp;#39;], PytorchModelHandlerTensor(&amp;lt;config2&amp;gt;)),
+KeyModelMapping([&amp;#39;key4&amp;#39;], PytorchModelHandlerTensor(&amp;lt;config3&amp;gt;)),
+KeyModelMapping([&amp;#39;key5&amp;#39;, &amp;#39;key6&amp;#39;, &amp;#39;key7&amp;#39;], PytorchModelHandlerTensor(&amp;lt;config4&amp;gt;)),
+]
+keyed_model_handler = KeyedModelHandler(mhs, max_models_per_worker_hint=2)
+&lt;/code>&lt;/pre>&lt;p>Runners that have multiple SDK worker processes on a given machine load at most
+&lt;code>max_models_per_worker_hint*&amp;lt;num worker processes&amp;gt;&lt;/code> models onto the machine.&lt;/p>
+&lt;p>Leave enough space for the models and any additional memory needs from other transforms.
+Because the memory might not be released immediately after a model is offloaded,
+leaving an additional buffer is recommended.&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong>: Having many models but a small &lt;code>max_models_per_worker_hint&lt;/code> can cause &lt;em>memory thrashing&lt;/em>, where
+a large amount of execution time is used to swap models in and out of memory. To reduce the likelihood and impact
+of memory thrashing, if you&amp;rsquo;re using a distributed runner, insert a
+&lt;a href="https://beam.apache.org/documentation/transforms/python/aggregation/groupbykey/">&lt;code>GroupByKey&lt;/code>&lt;/a> transform before your
+inference step. The &lt;code>GroupByKey&lt;/code> transform reduces thrashing by ensuring that elements with the same key and model are
+collocated on the same worker.&lt;/p>
+&lt;p>For more information, see &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler">&lt;code>KeyedModelHander&lt;/code>&lt;/a>.&lt;/p>
+&lt;h4 id="use-the-predictionresult-object">Use the PredictionResult object&lt;/h4>
+&lt;p>When doing a prediction in Apache Beam, the output &lt;code>PCollection&lt;/code> includes both the keys of the input examples and the inferences. Including both these items in the output allows you to find the input that determined the predictions.&lt;/p>
+&lt;p>The &lt;code>PredictionResult&lt;/code> object is a &lt;code>NamedTuple&lt;/code> that contains both the input and the inferences, named &lt;code>example&lt;/code> and &lt;code>inference&lt;/code>, respectively. When keys are passed with the input data to the RunInference transform, the output &lt;code>PCollection&lt;/code> returns a &lt;code>Tuple[str, PredictionResult]&lt;/code>, which is the key and the &lt;code>PredictionResult&lt;/code> object. Your pipeline interacts with a &lt;code>PredictionResult&lt;/code> object in steps after the RunInference transform.&lt;/p>
+&lt;pre tabindex="0">&lt;code>class PostProcessor(beam.DoFn):
+def process(self, element: Tuple[str, PredictionResult]):
+key, prediction_result = element
+inputs = prediction_result.example
+predictions = prediction_result.inference
+# Post-processing logic
+result = ...
+yield (key, result)
+with pipeline as p:
+output = (
+p | &amp;#39;Read&amp;#39; &amp;gt;&amp;gt; beam.ReadFromSource(&amp;#39;a_source&amp;#39;)
+| &amp;#39;PyTorchRunInference&amp;#39; &amp;gt;&amp;gt; RunInference(&amp;lt;keyed_model_handler&amp;gt;)
+| &amp;#39;ProcessOutput&amp;#39; &amp;gt;&amp;gt; beam.ParDo(PostProcessor()))
+&lt;/code>&lt;/pre>&lt;p>If you need to use this object explicitly, include the following line in your pipeline to import the object:&lt;/p>
+&lt;pre tabindex="0">&lt;code>from apache_beam.ml.inference.base import PredictionResult
+&lt;/code>&lt;/pre>&lt;p>For more information, see the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/base.py#L65">&lt;code>PredictionResult&lt;/code> documentation&lt;/a>.&lt;/p>
+&lt;h4 id="automatic-model-refresh">Automatic model refresh&lt;/h4>
 &lt;p>To automatically update the model being used with the RunInference &lt;code>PTransform&lt;/code> without stopping the pipeline, pass a &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelMetadata">&lt;code>ModelMetadata&lt;/code>&lt;/a> side input &lt;code>PCollection&lt;/code> to the RunInference input parameter &lt;code>model_metadata_pcoll&lt;/code>.&lt;/p>
 &lt;p>&lt;code>ModelMetdata&lt;/code> is a &lt;code>NamedTuple&lt;/code> containing:&lt;/p>
 &lt;ul>
@@ -139,6 +244,42 @@ that illustrates running TensorFlow models with Apache Beam and tfx-bsl.&lt;/li>
 &lt;p>The side input &lt;code>PCollection&lt;/code> must follow the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html?highlight=assingleton#apache_beam.pvalue.AsSingleton">&lt;code>AsSingleton&lt;/code>&lt;/a> view to avoid errors.&lt;/p>
 &lt;p>&lt;strong>Note&lt;/strong>: If the main &lt;code>PCollection&lt;/code> emits inputs and a side input has yet to receive inputs, the main &lt;code>PCollection&lt;/code> is buffered until there is
 an update to the side input. This could happen with global windowed side inputs with data driven triggers, such as &lt;code>AfterCount&lt;/code> and &lt;code>AfterProcessingTime&lt;/code>. Until the side input is updated, emit the default or initial model ID that is used to pass the respective &lt;code>ModelHandler&lt;/code> as a side input.&lt;/p>
+&lt;h4 id="preprocess-and-postprocess-your-records">Preprocess and postprocess your records&lt;/h4>
+&lt;p>With RunInference, you can add preprocessing and postprocessing operations to your transform.
+To apply preprocessing operations, use &lt;code>with_preprocess_fn&lt;/code> on your model handler:&lt;/p>
+&lt;pre tabindex="0">&lt;code>inference = pcoll | RunInference(model_handler.with_preprocess_fn(lambda x : do_something(x)))
+&lt;/code>&lt;/pre>&lt;p>To apply postprocessing operations, use &lt;code>with_postprocess_fn&lt;/code> on your model handler:&lt;/p>
+&lt;pre tabindex="0">&lt;code>inference = pcoll | RunInference(model_handler.with_postprocess_fn(lambda x : do_something_to_result(x)))
+&lt;/code>&lt;/pre>&lt;p>You can also chain multiple pre- and postprocessing operations:&lt;/p>
+&lt;pre tabindex="0">&lt;code>inference = pcoll | RunInference(
+model_handler.with_preprocess_fn(
+lambda x : do_something(x)
+).with_preprocess_fn(
+lambda x : do_something_else(x)
+).with_postprocess_fn(
+lambda x : do_something_after_inference(x)
+).with_postprocess_fn(
+lambda x : do_something_else_after_inference(x)
+))
+&lt;/code>&lt;/pre>&lt;p>The preprocessing function is run before batching and inference. This function maps your input &lt;code>PCollection&lt;/code>
+to the base input type of the model handler. If you apply multiple preprocessing functions, they run on your original
+&lt;code>PCollection&lt;/code> in the order of last applied to first applied.&lt;/p>
+&lt;p>The postprocessing function runs after inference. This function maps the output type of the base model handler
+to your desired output type. If you apply multiple postprocessing functions, they run on your original
+inference result in the order of first applied to last applied.&lt;/p>
+&lt;h4 id="handle-errors">Handle errors&lt;/h4>
+&lt;p>To handle errors robustly while using RunInference, you can use a &lt;em>dead-letter queue&lt;/em>. The dead-letter queue outputs failed records into a separate &lt;code>PCollection&lt;/code> for further processing.
+This &lt;code>PCollection&lt;/code> can then be analyzed and sent to a storage system, where it can be reviewed and resubmitted to the pipeline, or discarded.
+RunInference has built-in support for dead-letter queues. You can use a dead-letter queue by applying &lt;code>with_exception_handling&lt;/code> to your RunInference transform:&lt;/p>
+&lt;pre tabindex="0">&lt;code>main, other = pcoll | RunInference(model_handler).with_exception_handling()
+other.failed_inferences | beam.Map(print) # insert logic to handle failed records here
+&lt;/code>&lt;/pre>&lt;p>You can also apply this pattern to RunInference transforms with associated pre- and postprocessing operations:&lt;/p>
+&lt;pre tabindex="0">&lt;code>main, other = pcoll | RunInference(model_handler.with_preprocess_fn(f1).with_postprocess_fn(f2)).with_exception_handling()
+other.failed_preprocessing[0] | beam.Map(print) # handles failed preprocess operations, indexed in the order in which they were applied
+other.failed_inferences | beam.Map(print) # handles failed inferences
+other.failed_postprocessing[0] | beam.Map(print) # handles failed postprocess operations, indexed in the order in which they were applied
+&lt;/code>&lt;/pre>&lt;h4 id="run-inference-from-a-java-pipeline">Run inference from a Java pipeline&lt;/h4>
+&lt;p>The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam&amp;rsquo;s &lt;a href="/documentation/programming-guide/#multi-language-pipelines">Multi-language Pipelines framework&lt;/a>. For information about the Java wrapper transform, see &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java">RunInference.java&lt;/a>. To try it out, see the &lt;a href="https://github.com/apache/beam/tree/master/examples/multi-language">Java Sklearn Mnist Classification example&lt;/a>. Additionally, see &lt;a href="https://beam.apache.org/documentation/ml/multi-language-inference/">Using RunInference from Java SDK&lt;/a> for an example of a composite Python transform that uses the RunInference API along with preprocessing and postprocessing from a Beam Java SDK pipeline.&lt;/p>
 &lt;h2 id="custom-inference">Custom Inference&lt;/h2>
 &lt;p>The RunInference API doesn&amp;rsquo;t currently support making remote inference calls using, for example, the Natural Language API or the Cloud Vision API. Therefore, in order to use these remote APIs with Apache Beam, you need to write custom inference calls. The &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb">Remote inference in Apache Beam notebook&lt;/a> shows how to implement a custom remote inference call using &lt;code>beam.DoFn&lt;/code>. When you implement a remote inference for real life projects, consider the following factors:&lt;/p>
 &lt;ul>
@@ -155,20 +296,90 @@ an update to the side input. This could happen with global windowed side inputs 
 &lt;p>Consider monitoring and measuring the performance of a pipeline when deploying, because monitoring can provide insight into the status and health of the application.&lt;/p>
 &lt;/li>
 &lt;/ul>
-&lt;h3 id="use-custom-models">Use custom models&lt;/h3>
-&lt;p>If you would like to use a model that isn&amp;rsquo;t specified by one of the supported frameworks, the RunInference API is designed flexibly to allow you to use any custom machine learning models.
-You only need to create your own &lt;code>ModelHandler&lt;/code> or &lt;code>KeyedModelHandler&lt;/code> with logic to load your model and use it to run the inference.&lt;/p>
-&lt;p>A simple example can be found in &lt;a href="https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb">this notebook&lt;/a>.
-The &lt;code>load_model&lt;/code> method shows how to load the model using a popular &lt;code>spaCy&lt;/code> package while &lt;code>run_inference&lt;/code> shows how to run the inference on a batch of examples.&lt;/p>
+&lt;h2 id="multi-model-pipelines">Multi-model pipelines&lt;/h2>
+&lt;p>Use the RunInference transform to add multiple inference models to your pipeline. Multi-model pipelines can be useful for A/B testing or for building out cascade models made up of models that perform tokenization, sentence segmentation, part-of-speech tagging, named entity extraction, language detection, coreference resolution, and more. For more information, see &lt;a href="https://beam.apache.org/documentation/ml/multi-model-pipelines/">Multi-model pipelines&lt;/a>.&lt;/p>
+&lt;h3 id="ab-pattern">A/B Pattern&lt;/h3>
+&lt;pre tabindex="0">&lt;code>with pipeline as p:
+data = p | &amp;#39;Read&amp;#39; &amp;gt;&amp;gt; beam.ReadFromSource(&amp;#39;a_source&amp;#39;)
+model_a_predictions = data | RunInference(&amp;lt;model_handler_A&amp;gt;)
+model_b_predictions = data | RunInference(&amp;lt;model_handler_B&amp;gt;)
+&lt;/code>&lt;/pre>&lt;p>Where &lt;code>model_handler_A&lt;/code> and &lt;code>model_handler_B&lt;/code> are the model handler setup code.&lt;/p>
+&lt;h3 id="cascade-pattern">Cascade Pattern&lt;/h3>
+&lt;pre tabindex="0">&lt;code>with pipeline as p:
+data = p | &amp;#39;Read&amp;#39; &amp;gt;&amp;gt; beam.ReadFromSource(&amp;#39;a_source&amp;#39;)
+model_a_predictions = data | RunInference(&amp;lt;model_handler_A&amp;gt;)
+model_b_predictions = model_a_predictions | beam.Map(some_post_processing) | RunInference(&amp;lt;model_handler_B&amp;gt;)
+&lt;/code>&lt;/pre>&lt;p>Where &lt;code>model_handler_A&lt;/code> and &lt;code>model_handler_B&lt;/code> are the model handler setup code.&lt;/p>
+&lt;h3 id="use-resource-hints-for-different-model-requirements">Use Resource Hints for Different Model Requirements&lt;/h3>
+&lt;p>When using multiple models in a single pipeline, different models may have different memory or worker SKU requirements.
+Resource hints allow you to provide information to a runner about the compute resource requirements for each step in your
+pipeline.&lt;/p>
+&lt;p>For example, the following snippet extends the previous cascade pattern with hints for each RunInference call
+to specify RAM and hardware accelerator requirements:&lt;/p>
+&lt;pre tabindex="0">&lt;code>with pipeline as p:
+data = p | &amp;#39;Read&amp;#39; &amp;gt;&amp;gt; beam.ReadFromSource(&amp;#39;a_source&amp;#39;)
+model_a_predictions = data | RunInference(&amp;lt;model_handler_A&amp;gt;).with_resource_hints(min_ram=&amp;#34;20GB&amp;#34;)
+model_b_predictions = model_a_predictions
+| beam.Map(some_post_processing)
+| RunInference(&amp;lt;model_handler_B&amp;gt;).with_resource_hints(
+min_ram=&amp;#34;4GB&amp;#34;,
+accelerator=&amp;#34;type:nvidia-tesla-k80;count:1;install-nvidia-driver&amp;#34;)
+&lt;/code>&lt;/pre>&lt;p>For more information on resource hints, see &lt;a href="/documentation/runtime/resource-hints/">Resource hints&lt;/a>.&lt;/p>
 &lt;h2 id="model-validation">Model validation&lt;/h2>
 &lt;p>Model validation allows you to benchmark your model’s performance against a previously unseen dataset. You can extract chosen metrics, create visualizations, log metadata, and compare the performance of different models with the end goal of validating whether your model is ready to deploy. Beam provides support for running model evaluation on a TensorFlow model directly inside your pipeline.&lt;/p>
 &lt;p>The &lt;a href="/documentation/ml/model-evaluation">ML model evaluation&lt;/a> page shows how to integrate model evaluation as part of your pipeline by using &lt;a href="https://www.tensorflow.org/tfx/guide/tfma">TensorFlow Model Analysis (TFMA)&lt;/a>.&lt;/p>
+&lt;h2 id="troubleshooting">Troubleshooting&lt;/h2>
+&lt;p>If you run into problems with your pipeline or job, this section lists issues that you might encounter and provides suggestions for how to fix them.&lt;/p>
+&lt;h3 id="unable-to-batch-tensor-elements">Unable to batch tensor elements&lt;/h3>
+&lt;p>RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, so samples passed to the &lt;code>RunInference&lt;/code> transform must be the same dimension or length. If you provide images of different sizes or word embeddings of different lengths, the following error might occur:&lt;/p>
+&lt;p>&lt;code>File &amp;quot;/beam/sdks/python/apache_beam/ml/inference/pytorch_inference.py&amp;quot;, line 232, in run_inference batched_tensors = torch.stack(key_to_tensor_list[key]) RuntimeError: stack expects each tensor to be equal size, but got [12] at entry 0 and [10] at entry 1 [while running 'PyTorchRunInference/ParDo(_RunInferenceDoFn)']&lt;/code>&lt;/p>
+&lt;p>To avoid this issue, either use elements of the same size, or disable batching.&lt;/p>
+&lt;p>&lt;strong>Option 1: Use elements of the same size&lt;/strong>&lt;/p>
+&lt;p>Use elements of the same size or resize the inputs. For computer vision applications, resize image inputs so that they have the same dimensions. For natural language processing (NLP) applications that have text of varying length, resize the text or word embeddings to make them the same length. When working with texts of varying length, resizing might not be possible. In this scenario, you could disable batching (see option 2).&lt;/p>
+&lt;p>&lt;strong>Option 2: Disable batching&lt;/strong>&lt;/p>
+&lt;p>Disable batching by overriding the &lt;code>batch_elements_kwargs&lt;/code> function in your ModelHandler and setting the maximum batch size (&lt;code>max_batch_size&lt;/code>) to one: &lt;code>max_batch_size=1&lt;/code>. For more information, see
+&lt;a href="/documentation/ml/about-ml/#batchelements-ptransform">BatchElements PTransforms&lt;/a>. For an example, see our &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py">language modeling example&lt;/a>.&lt;/p>
 &lt;h2 id="related-links">Related links&lt;/h2>
 &lt;ul>
+&lt;li>&lt;a href="/documentation/transforms/python/elementwise/runinference">RunInference transforms&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference">RunInference API pipeline examples&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb">RunInference public codelab&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml">RunInference notebooks&lt;/a>&lt;/li>
 &lt;li>&lt;a href="http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1">RunInference benchmarks&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: AI Platform integration patterns</title><link>/documentation/patterns/ai-platform/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/ai-platform/</guid><description>
+&lt;/ul>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;a target="_blank" class="button"
+href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
+&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
+alt="Javadoc" />
+Javadoc
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table></description></item><item><title>Documentation: AI Platform integration patterns</title><link>/documentation/patterns/ai-platform/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/ai-platform/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
