@@ -68,6 +68,7 @@ class SubprocessServer(object):
     self._stub_class = stub_class
     self._cmd = [str(arg) for arg in cmd]
     self._port = port
+    self._grpc_channel = None
 
   def __enter__(self):
     return self.start()
@@ -81,8 +82,9 @@ class SubprocessServer(object):
       wait_secs = .1
       channel_options = [("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)]
-      channel = grpc.insecure_channel(endpoint, options=channel_options)
-      channel_ready = grpc.channel_ready_future(channel)
+      self._grpc_channel = grpc.insecure_channel(
+          endpoint, options=channel_options)
+      channel_ready = grpc.channel_ready_future(self._grpc_channel)
       while True:
         if self._process is not None and self._process.poll() is not None:
           _LOGGER.error("Starting job service with %s", self._process.args)
@@ -97,7 +99,7 @@ class SubprocessServer(object):
               logging.WARNING if wait_secs > 1 else logging.DEBUG,
               'Waiting for grpc channel to be ready at %s.',
               endpoint)
-      return self._stub_class(channel)
+      return self._stub_class(self._grpc_channel)
     except:  # pylint: disable=bare-except
       _LOGGER.exception("Error bringing up service")
       self.stop()
@@ -148,6 +150,13 @@ class SubprocessServer(object):
       if self._process.poll() is None:
         self._process.kill()
       self._process = None
+    if self._grpc_channel:
+      try:
+        self._grpc_channel.close()
+      except:  # pylint: disable=bare-except
+        _LOGGER.error("Could not close the gRPC channel started for the " +
+                      "expansion service")
+
 
   def local_temp_dir(self, **kwargs):
     return tempfile.mkdtemp(dir=self._local_temp_root, **kwargs)
