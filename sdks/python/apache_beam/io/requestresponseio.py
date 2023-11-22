@@ -19,8 +19,8 @@
 import abc
 import concurrent.futures
 import logging
-from typing import TypeVar
 from typing import Generic
+from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.pvalue import PCollection
@@ -119,8 +119,31 @@ class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
 
 class _Call(beam.PTransform[beam.PCollection[RequestT],
                             beam.PCollection[ResponseT]]):
+  """(Internal-only) PTransform that invokes a remote function on each element
+   of the input PCollection.
+
+  This PTransform uses a `Caller` object to invoke the actual API calls,
+  and employs a `SetupTeardown` object to manage setup and teardown of clients
+  when applicable. Additionally, a timeout value is specified to regulate the
+  duration of each call, defaults to 30 seconds.
+
+  Args:
+      caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
+        object that invokes API call.
+      setup_teardown (:class:`apache_beam.io.requestresponseio.SetupTeardown`):
+        a context manager class responsible for setup and teardown tasks.
+      timeout (float): timeout value in seconds to wait for response from API.
+  """
   def __init__(
       self, caller: Caller, setup_teardown: SetupTeardown, timeout: float):
+    """Initialize the _Call transform.
+    Args:
+      caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
+        object that invokes API call.
+      setup_teardown (:class:`apache_beam.io.requestresponseio.SetupTeardown`):
+        a context manager class responsible for setup and teardown tasks.
+      timeout (float): timeout value in seconds to wait for response from API.
+    """
     self._caller = caller
     self._setup_teardown = setup_teardown
     self._timeout = timeout

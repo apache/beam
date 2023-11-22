@@ -15,23 +15,23 @@
 # limitations under the License.
 #
 import base64
-import sys
 import unittest
+
+import sys
+import urllib3
 from dataclasses import dataclass
 from typing import Tuple
 from typing import Union
 
-import urllib3
-
 import apache_beam as beam
-from apache_beam.io.requestresponseio import Caller
 from apache_beam.io.requestresponseio import DEFAULT_TIMEOUT
+from apache_beam.io.requestresponseio import Caller
+from apache_beam.io.requestresponseio import RequestResponseIO
+from apache_beam.io.requestresponseio import SetupTeardown
 from apache_beam.io.requestresponseio import UserCodeExecutionException
 from apache_beam.io.requestresponseio import UserCodeQuotaException
-from apache_beam.io.requestresponseio import RequestResponseIO
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.io.requestresponseio import SetupTeardown
 
 _HTTP_PATH = '/v1/echo'
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
@@ -172,23 +172,21 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
         UserCodeExecutionException, "Not Found", lambda: client(req))
 
   def test_request_response_io(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
     req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
-    _ = (
-        test_pipeline
-        | 'create Pcoll' >> beam.Create([req])
-        | 'Call RRIO' >> RequestResponseIO(
-            client, MySetupTeardown, DEFAULT_TIMEOUT)
-        |
-        'Write' >> beam.io.WriteToText('o.txt', append_trailing_newlines=True))
-    result = test_pipeline.run()
-    result.wait_until_finish()
-
-    return result
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      output = (
+          test_pipeline
+          | 'Create PCollection' >> beam.Create([req])
+          | 'RRIO Transform' >> RequestResponseIO(
+              client, MySetupTeardown, DEFAULT_TIMEOUT))
+      self.assertIsNotNone(output)
 
 
 class MySetupTeardown(SetupTeardown):
+  """MySetupTeardown is a test implementation for
+  SetupTeardown class for RequestResponseIO.
+  """
   def __enter__(self):
     return self
 
