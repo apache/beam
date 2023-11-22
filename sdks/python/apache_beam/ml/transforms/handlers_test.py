@@ -298,7 +298,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
           transforms=[tft.ScaleTo01(columns=['x'])],
           artifact_location=self.artifact_location,
       )
-      _ = process_handler.process_data(raw_data)
+      _ = raw_data | process_handler
 
       self.assertTrue(
           os.path.exists(
@@ -315,7 +315,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
       raw_data = (p | beam.Create([{'x': np.array([2, 5])}]))
       process_handler = handlers.TFTProcessHandler(
           artifact_location=self.artifact_location, artifact_mode='consume')
-      transformed_data = process_handler.process_data(raw_data)
+      transformed_data = raw_data | process_handler
       transformed_data |= beam.Map(lambda x: x.x)
 
       # the previous min is 1 and max is 6. So this should scale by (1, 6)
@@ -494,7 +494,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
           transforms=[scale_to_0_1_fn],
           artifact_location=self.artifact_location,
       )
-      transformed_pcoll = process_handler.process_data(raw_data)
+      transformed_pcoll = raw_data | process_handler
       transformed_pcoll_x = transformed_pcoll | beam.Map(lambda x: x.x)
       transformed_pcoll_y = transformed_pcoll | beam.Map(lambda x: x.y)
       assert_that(
@@ -520,7 +520,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
           transforms=[tft.ScaleTo01(columns=['x'])],
           artifact_location=self.artifact_location,
       )
-      _ = process_handler.process_data(raw_data)
+      _ = raw_data | process_handler
 
     test_data = [{
         'x': np.array([2, 5]), 'y': np.array([1, 2]), 'z': 'fake_string'
@@ -548,7 +548,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
       raw_data = (p | beam.Create(test_data))
       process_handler = handlers.TFTProcessHandler(
           artifact_location=self.artifact_location, artifact_mode='consume')
-      transformed_data = process_handler.process_data(raw_data)
+      transformed_data = raw_data | process_handler
 
       transformed_data_x = transformed_data | beam.Map(lambda x: x.x)
       transformed_data_y = transformed_data | beam.Map(lambda x: x.y)

@@ -5,7 +5,7 @@ import logging
 
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
-# from apache_beam.ml.transforms.tft import ScaleTo01, ScaleToZScore
+from apache_beam.ml.transforms.tft import ScaleTo01, ScaleToZScore
 # from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
 # from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubTextEmbeddings
 from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
@@ -90,21 +90,19 @@ def run_sentence_transformer_embedding(pipeline_args):
     data = (p | "CreateData" >> beam.Create([{"text": "This is a test"}]))
     (
         data
-        | "MLTransform" >>
-        MLTransform(write_artifact_location=artifact_location).with_transform(
-            embedding_config
-            #    ).with_transform(
-            # ScaleTo01(columns=['text'])).with_transform(
-            # ScaleToZScore(columns=['text'])
-        )
+        |
+        "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
+        with_transform(embedding_config).with_transform(
+            ScaleTo01(columns=['text'])).with_transform(
+                ScaleToZScore(columns=['text']))
         | beam.Map(logging.info))
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  # artifact_location = 'gs://anandinguva-test/artifacts'
+  artifact_location = 'gs://anandinguva-test/artifacts'
   import tempfile
-  artifact_location = '/Users/anandinguva/Desktop/artifacts'
+  # artifact_location = '/Users/anandinguva/Desktop/artifacts'
   parser = argparse.ArgumentParser()
   known_args, pipeline_args = parser.parse_known_args()
   run_sentence_transformer_embedding(pipeline_args)

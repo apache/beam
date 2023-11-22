@@ -73,11 +73,9 @@ class BaseMLTransformTest(unittest.TestCase):
     ml_transform = ml_transform.with_transform(
         transform=_FakeOperation(name='fake_fn_2', columns=['x']))
 
-    self.assertEqual(len(ml_transform._process_handler.transforms), 2)
-    self.assertEqual(
-        ml_transform._process_handler.transforms[0].name, 'fake_fn_1')
-    self.assertEqual(
-        ml_transform._process_handler.transforms[1].name, 'fake_fn_2')
+    self.assertEqual(len(ml_transform.transforms), 2)
+    self.assertEqual(ml_transform.transforms[0].name, 'fake_fn_1')
+    self.assertEqual(ml_transform.transforms[1].name, 'fake_fn_2')
 
   @unittest.skipIf(tft is None, 'tft module is not installed.')
   def test_ml_transform_on_dict(self):

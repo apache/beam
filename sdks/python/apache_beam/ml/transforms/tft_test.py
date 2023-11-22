@@ -711,8 +711,12 @@ class BagOfWordsTest(unittest.TestCase):
               ]))
 
     def validate_count_per_key(key_vocab_filename):
+      files = os.listdir(self.artifact_location)
       key_vocab_location = os.path.join(
-          self.artifact_location, 'transform_fn/assets', key_vocab_filename)
+          self.artifact_location,
+          files[0],
+          'transform_fn/assets',
+          key_vocab_filename)
       with open(key_vocab_location, 'r') as f:
         key_vocab_list = [line.strip() for line in f]
       return key_vocab_list

@@ -152,7 +152,9 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     return transformed_data
 
 
-class ProcessHandler(beam.PTransform[ExampleT, MLTransformOutputT], abc.ABC):
+class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
+                                     beam.PCollection[MLTransformOutputT]],
+                     abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """

@@ -17,6 +17,7 @@
 
 __all__ = ['ArtifactsFetcher']
 
+import os
 import typing
 
 import tensorflow_transform as tft
@@ -28,8 +29,12 @@ class ArtifactsFetcher():
   to the TFTProcessHandlers in MLTransform.
   """
   def __init__(self, artifact_location):
-    self.artifact_location = artifact_location
-    self.transform_output = tft.TFTransformOutput(self.artifact_location)
+    files = os.listdir(artifact_location)
+    if len(files) > 1:
+      raise NotImplementedError(
+          'Multiple files in artifact location not supported yet.')
+    self._artifact_location = os.path.join(artifact_location, files[0])
+    self.transform_output = tft.TFTransformOutput(self._artifact_location)
 
   def get_vocab_list(
       self,

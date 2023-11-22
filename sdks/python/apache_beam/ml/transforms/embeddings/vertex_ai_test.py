@@ -79,7 +79,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
                       ScaleTo01(columns=[test_query_column])))
 
       def assert_element(element):
-        assert max(x.feature_1) == 1
+        assert max(element.feature_1) == 1
 
       (transformed_pcoll | beam.Map(assert_element))
 

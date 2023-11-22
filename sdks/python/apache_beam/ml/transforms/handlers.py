@@ -196,8 +196,9 @@ class MergeDicts(beam.DoFn):
     yield new_dict
 
 
-class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
-                                       tft_process_handler_output_type]):
+class TFTProcessHandler(
+    ProcessHandler[beam.PCollection[tft_process_handler_input_type],
+                   beam.PCollection[tft_process_handler_output_type]]):
   def __init__(
       self,
       *,
@@ -518,6 +519,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
           transformed_dataset
-          | "ConvertToRowType" >> beam.Map(lambda x: beam.Row(**x)))
-
+          | "ConvertToRowType" >> beam.Map(lambda x: beam.Row(**x)).with_output_types(self.row_type)  # type: ignore
+      )
       return transformed_dataset
