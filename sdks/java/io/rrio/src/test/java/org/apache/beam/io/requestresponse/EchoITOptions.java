@@ -37,10 +37,13 @@ import org.apache.beam.testinfra.mockapis.echo.v1.EchoServiceGrpc;
  * </pre>
  */
 public interface EchoITOptions extends PipelineOptions {
-  @Description("The gRPC address of the Echo API endpoint, typically of the form <host>:<port>.")
-  String getgRPCEndpointAddress();
+  String GRPC_ENDPOINT_ADDRESS_NAME = "grpcEndpointAddress";
+  String HTTP_ENDPOINT_ADDRESS_NAME = "httpEndpointAddress";
 
-  void setgRPCEndpointAddress(String value);
+  @Description("The gRPC address of the Echo API endpoint, typically of the form <host>:<port>.")
+  String getGrpcEndpointAddress();
+
+  void setGrpcEndpointAddress(String value);
 
   @Description("The HTTP address of the Echo API endpoint; must being with http(s)://")
   String getHttpEndpointAddress();
