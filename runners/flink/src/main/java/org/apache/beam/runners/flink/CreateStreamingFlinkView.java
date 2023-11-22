@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.Concatenate;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -55,7 +54,6 @@ public class CreateStreamingFlinkView<ElemT, ViewT>
     this.view = view;
   }
 
-
   @Override
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
     PCollection<List<ElemT>> iterable;
@@ -65,13 +63,10 @@ public class CreateStreamingFlinkView<ElemT, ViewT>
       Preconditions.checkStateNotNull(inputType);
       iterable =
           input
-              .apply(
-                  MapElements.into(TypeDescriptors.lists(inputType))
-                      .via(Lists::newArrayList))
+              .apply(MapElements.into(TypeDescriptors.lists(inputType)).via(Lists::newArrayList))
               .setCoder(ListCoder.of(input.getCoder()));
     } else {
-      iterable =
-        input.apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults());
+      iterable = input.apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults());
     }
 
     iterable.apply(CreateFlinkPCollectionView.of(view));
