@@ -159,7 +159,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f14", FieldType.STRING),
             Schema.Field.of("f15", FieldType.STRING),
             Schema.Field.of("f16", FieldType.BYTES),
-            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3)))
+            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))),
+            Schema.Field.of("f18", FieldType.BOOLEAN)
         );
     Row row1 =
         Row.withSchema(schema)
@@ -181,6 +182,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addValue("qwe")
             .addValue(new byte[] {'a', 's', 'd'})
             .addValue(new byte[] {'z', 'x', 'c'})
+            .addValue(true)
             .build();
 
     executeSql(
@@ -202,7 +204,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f14 Enum16('abc' = -1, 'cde' = -2),"
             + "f15 FixedString(3),"
             + "f16 FixedString(3),"
-            + "f17 FixedString(3)"
+            + "f17 FixedString(3),"
+            + "f18 Bool"
             + ") ENGINE=Log");
 
     pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
@@ -230,6 +233,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertArrayEquals(new byte[] {'q', 'w', 'e'}, rs.getBytes("f15"));
       assertArrayEquals(new byte[] {'a', 's', 'd'}, rs.getBytes("f16"));
       assertArrayEquals(new byte[] {'z', 'x', 'c'}, rs.getBytes("f17"));
+      assertEquals("true", rs.getString("f18"));
     }
   }
 

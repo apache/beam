@@ -87,6 +87,10 @@ public class TableSchemaTest {
   public void testParseUInt64() {
     assertEquals(ColumnType.UINT64, ColumnType.parse("UInt64"));
   }
+  @Test
+  public void testParseBool() {
+    assertEquals(ColumnType.BOOL, ColumnType.parse("Bool"));
+  }
 
   @Test
   public void testParseString() {
