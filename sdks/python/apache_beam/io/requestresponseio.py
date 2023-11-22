@@ -135,22 +135,22 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     Instantiates a RequestResponseIO transform.
 
     Args:
-    caller (~apache_beam.io.requestresponseio.Caller): an implementation of
-      `Caller` or a callable object that makes call to the API.
-    timeout (float): timeout value in seconds to wait for response from API.
-    should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
-      (Optional) provides methods for backoff.
-    repeater (~apache_beam.io.requestresponseio.Repeater): (Optional) provides
-      methods to repeat requests to API.
-    setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
-      a context manager class implementing the `__enter__` and
-      `__exit`__` methods to set up and teardown the API clients.
-    cache_reader (~apache_beam.io.requestresponseio.CacheReader): (Optional)
-      provides methods to read external cache.
-    cache_writer (~apache_beam.io.requestresponseio.CacheWriter): (Optional)
-      provides methods to write to external cache.
-    throttler (~apache_beam.io.requestresponseio.PreCallThrottler): (Optional)
-      provides methods to pre-throttle a request.
+      caller (~apache_beam.io.requestresponseio.Caller): an implementation of
+        `Caller` or a callable object that makes call to the API.
+      timeout (float): timeout value in seconds to wait for response from API.
+      should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
+        (Optional) provides methods for backoff.
+      repeater (~apache_beam.io.requestresponseio.Repeater): (Optional)
+        provides methods to repeat requests to API.
+      setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
+        a context manager class implementing the `__enter__` and
+        `__exit`__` methods to set up and teardown the API clients.
+      cache_reader (~apache_beam.io.requestresponseio.CacheReader): (Optional)
+        provides methods to read external cache.
+      cache_writer (~apache_beam.io.requestresponseio.CacheWriter): (Optional)
+        provides methods to write to external cache.
+      throttler (~apache_beam.io.requestresponseio.PreCallThrottler):
+        (Optional) provides methods to pre-throttle a request.
     """
     self._caller = caller
     self._setup_teardown = setup_teardown

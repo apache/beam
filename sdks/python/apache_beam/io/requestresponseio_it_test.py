@@ -17,7 +17,6 @@
 import base64
 import sys
 import unittest
-
 from dataclasses import dataclass
 from typing import Tuple
 from typing import Union
