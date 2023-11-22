@@ -15,13 +15,14 @@
 # limitations under the License.
 #
 import base64
+import sys
 import unittest
 
-import sys
-import urllib3
 from dataclasses import dataclass
 from typing import Tuple
 from typing import Union
+
+import urllib3
 
 import apache_beam as beam
 from apache_beam.io.requestresponseio import Caller
