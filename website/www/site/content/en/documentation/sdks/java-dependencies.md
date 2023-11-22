@@ -23,7 +23,7 @@ import additional dependencies. You need to manage your dependencies for the fol
 
 - Dependencies might have version collisions or incompatible classes and libraries.
 - Some libraries are not forward compatible. When you use these packages in your code,
-  you might need to pin to the appropriate versions so that those version are used
+  you might need to pin to the appropriate versions so that those versions are used
   when you run your pipeline.
 
 When problems occur with dependencies, you might see unexpected behavior in the service,
@@ -35,14 +35,14 @@ dependencies to avoid issues.
 
 ## View dependencies
 
-To view your dependencies, either use the 
+To view your dependencies, either use the
 `BeamModulePlugin.groovy` file or retrieve the list by creating a new project
 through Maven and resolving the dependencies.
 
 ### Use BeamModulePlugin.groovy to retrieve dependencies
 
 The `BeamModulePlugin.groovy` file in the Beam repository lists compile and runtime
-dependencies for your Beam SDK version. 
+dependencies for your Beam SDK version.
 
 1. Use the following link to open the `BeamModulePlugin.groovy` file.
 
