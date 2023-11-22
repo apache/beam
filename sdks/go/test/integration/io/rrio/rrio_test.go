@@ -39,8 +39,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-//go:generate cp -R ../../../../../../.test-infra/mock-apis/src/main/go/internal/proto/echo echo
-
 const (
 	grpcEndpointFlag             = "grpcEndpointAddress"
 	httpEndpointFlag             = "httpEndpointAddress"

@@ -26,11 +26,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
+var ()
+
 func init() {
 	beam.RegisterType(reflect.TypeOf((*configuration)(nil)))
 	beam.RegisterType(reflect.TypeOf((*noOpSetupTeardown)(nil)))
 	beam.RegisterDoFn(reflect.TypeOf((*callerFn)(nil)))
 }
+
+var ()
 
 // Option applies optional features to Execute.
 type Option interface {
