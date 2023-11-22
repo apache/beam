@@ -76,7 +76,6 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name,
         columns=[test_query_column],
-        scale_to_0_1=True,
     )
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (

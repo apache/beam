@@ -232,7 +232,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       *,
       load_model_args: Optional[Dict[str, Any]] = None,
       custom_weights: str = "",
-      inference_fn: TensorInferenceFn = default_tensor_inference_fn,
+      inference_fn: Optional[TensorInferenceFn] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       large_model: bool = False,
@@ -270,7 +270,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     """
     self._model_uri = model_uri
     self._model_type = model_type
-    self._inference_fn = inference_fn
+    self._inference_fn = (
+        default_tensor_inference_fn if not inference_fn else inference_fn)
     self._create_model_fn = create_model_fn
     self._env_vars = kwargs.get('env_vars', {})
     self._load_model_args = {} if not load_model_args else load_model_args

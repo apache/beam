@@ -36,40 +36,42 @@ import tensorflow_hub as hub
 __all__ = ['TensorflowHubTextEmbeddings']
 
 
-def yield_elements(elements: List[Dict[str, Any]]):
-  for element in elements:
-    for key, value in element.items():
-      if isinstance(value, PredictionResult):
-        # contains transposed numpy array where first dimension
-        # is the batch size. we need to send a list of
-        # predictions instead of list[list]
-        pred = value.inference.numpy().tolist()
-        if len(pred) == 1 and len(pred[0]) != 1:
-          element[key] = pred[0]
-        else:
-          element[key] = pred
-    yield element
+class _YieldElements(beam.PTransform):
+  def expand(self, pcoll):
+    def yield_elements(elements: List[Dict[str, Any]]):
+      for element in elements:
+        for key, value in element.items():
+          if isinstance(value, PredictionResult):
+            # contains transposed numpy array where first dimension
+            # is the batch size. we need to send a list of
+            # predictions instead of list[list]
+            pred = value.inference.numpy().tolist()
+            if len(pred) == 1 and len(pred[0]) != 1:
+              element[key] = pred[0]
+            else:
+              element[key] = pred
+        yield element
+
+    return pcoll | beam.ParDo(yield_elements)
 
 
 class _TensorflowHubModelHandler(TFModelHandlerTensor):
   """
   Note: Intended for internal use only. No backwards compatibility guarantees.
   """
+  def __init__(self, preprocessing_url: str, *args, **kwargs):
+    self.preprocessing_url = preprocessing_url
+    super().__init__(*args, **kwargs)
+
   def load_model(self):
     # unable to load the models with tf.keras.models.load_model so
     # using hub.KerasLayer instead
     model = hub.KerasLayer(self._model_uri)
     return model
 
-
-class TensorflowHubTextEmbeddings(EmbeddingsManager):
-  def __init__(
-      self, hub_url: str, preprocessing_url: Optional[str] = None, **kwargs):
-    super().__init__(**kwargs)
-    self.model_uri = hub_url
-    self.preprocessing_url = preprocessing_url
-
-  def custom_inference_fn(self, model, batch, inference_args, model_id):
+  def run_inference(self, batch, model, inference_args, model_id=None):
+    if not inference_args:
+      inference_args = {}
     if not self.preprocessing_url:
       return default_tensor_inference_fn(
           model=model,
@@ -92,16 +94,32 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     embeddings = predictions['pooled_output']
     return utils._convert_to_result(batch, embeddings, model_id)
 
+
+class TensorflowHubTextEmbeddings(EmbeddingsManager):
+  def __init__(
+      self,
+      columns: List[str],
+      hub_url: str,
+      preprocessing_url: Optional[str] = None,
+      **kwargs):
+    super().__init__(columns=columns, **kwargs)
+    self.model_uri = hub_url
+    self.preprocessing_url = preprocessing_url
+
   def get_model_handler(self) -> ModelHandler:
     # override the default inference function
     return _TensorflowHubModelHandler(
         model_uri=self.model_uri,
-        preprocessor_uri=self.preprocessing_url,
-        inference_fn=self.custom_inference_fn,
-        **self.kwargs)
+        preprocessing_url=self.preprocessing_url,
+        min_batch_size=self.min_batch_size,
+        max_batch_size=self.max_batch_size,
+        large_model=self.large_model,
+    )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (
-        RunInference(
-            model_handler=_TextEmbeddingHandler(embedding_config=self))
-        | beam.ParDo(yield_elements))
+        RunInference(model_handler=_TextEmbeddingHandler(self))
+        # This is required since RunInference performs batching and returns
+        # batches. We need to decompose the batches and return the elements
+        # in their initial shape to the downstream transforms.
+        | _YieldElements())
