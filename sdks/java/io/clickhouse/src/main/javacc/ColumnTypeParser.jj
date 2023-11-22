@@ -97,6 +97,7 @@ TOKEN :
   | < AS          : "AS" >
   | < COMMA       : "," >
   | < EQ          : "=" >
+  | < BOOL        : "BOOL" >
 }
 
 public ColumnType columnType() :
@@ -189,6 +190,7 @@ private TypeName typeName() :
         | <UINT16>   { return TypeName.UINT16;   }
         | <UINT32>   { return TypeName.UINT32;   }
         | <UINT64>   { return TypeName.UINT64;   }
+        | <BOOL>     { return TypeName.BOOL;     }
     )
 }
 
