@@ -160,8 +160,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f15", FieldType.STRING),
             Schema.Field.of("f16", FieldType.BYTES),
             Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))),
-            Schema.Field.of("f18", FieldType.BOOLEAN)
-        );
+            Schema.Field.of("f18", FieldType.BOOLEAN));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
