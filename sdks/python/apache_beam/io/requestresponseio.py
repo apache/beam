@@ -18,8 +18,7 @@
 """``PTransform`` for reading from and writing to Web APIs."""
 import abc
 import concurrent.futures
-import datetime
-from datetime import timedelta
+import logging
 from typing import TypeVar
 from typing import Generic
 
@@ -29,7 +28,9 @@ from apache_beam.pvalue import PCollection
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
 
-DEFAULT_TIMEOUT = timedelta(seconds=30)
+DEFAULT_TIMEOUT = 30  # seconds
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class UserCodeExecutionException(Exception):
@@ -89,21 +90,24 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       a context manager class implementing the `__enter__` and
       `__exit`__` methods to set up and teardown the API clients.
   """
-  def __init__(self, caller: Caller, setup_teardown: SetupTeardown):
+  def __init__(
+      self, caller: Caller, setup_teardown: SetupTeardown, timeout: float):
     self._caller = caller
     self._setup_teardown = setup_teardown
+    self._timeout = timeout
 
   def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
-    pass
+    # TODO(riteshghorse): add Cache and Throttle PTransforms.
+    return requests | _Call(self._caller, self._setup_teardown, self._timeout)
 
 
 class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
-  def __init__(self, caller: Caller, timeout: datetime.datetime):
+  def __init__(self, caller: Caller, timeout: float):
     self._caller = caller
     self._timeout = timeout
 
   def process(self, request, *args, **kwargs):
-    with concurrent.futures.ThreadPoolExecutor as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
       future = executor.submit(self._caller, request)
       try:
         yield future.result(timeout=self._timeout)
@@ -116,10 +120,7 @@ class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
 class _Call(beam.PTransform[beam.PCollection[RequestT],
                             beam.PCollection[ResponseT]]):
   def __init__(
-      self,
-      caller: Caller,
-      setup_teardown: SetupTeardown,
-      timeout: datetime.datetime):
+      self, caller: Caller, setup_teardown: SetupTeardown, timeout: float):
     self._caller = caller
     self._setup_teardown = setup_teardown
     self._timeout = timeout
@@ -129,11 +130,3 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
     with self._setup_teardown():
       return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
-
-
-class _RequestResponseDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
-  def __init__(self, caller: Caller):
-    self._caller = caller
-
-  def process(self, element, *args, **kwargs):
-    yield self._caller(element)
