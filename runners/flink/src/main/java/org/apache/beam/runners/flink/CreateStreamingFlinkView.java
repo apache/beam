@@ -23,14 +23,22 @@ import java.util.Map;
 import org.apache.beam.runners.core.Concatenate;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** Flink streaming overrides for various view (side input) transforms. */
 @SuppressWarnings({
@@ -47,11 +55,26 @@ public class CreateStreamingFlinkView<ElemT, ViewT>
     this.view = view;
   }
 
+
   @Override
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
-    input
-        .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
-        .apply(CreateFlinkPCollectionView.of(view));
+    PCollection<List<ElemT>> iterable;
+    // See https://github.com/apache/beam/pull/25940
+    if (view.getViewFn() instanceof PCollectionViews.IsSingletonView) {
+      TypeDescriptor<ElemT> inputType = input.getTypeDescriptor();
+      Preconditions.checkStateNotNull(inputType);
+      iterable =
+          input
+              .apply(
+                  MapElements.into(TypeDescriptors.lists(inputType))
+                      .via(Lists::newArrayList))
+              .setCoder(ListCoder.of(input.getCoder()));
+    } else {
+      iterable =
+        input.apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults());
+    }
+
+    iterable.apply(CreateFlinkPCollectionView.of(view));
     return input;
   }
 
