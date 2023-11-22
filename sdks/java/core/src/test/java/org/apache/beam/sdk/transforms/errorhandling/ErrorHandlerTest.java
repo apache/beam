@@ -40,6 +40,7 @@ public class ErrorHandlerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
+  @Category(NeedsRunner.class)
   public void testNoUsageErrorHandlerUsage() throws Exception {
     try (BadRecordErrorHandler<PCollection<BadRecord>> eh =
         pipeline.registerBadRecordErrorHandler(new DummySinkTransform<>())) {}
@@ -74,7 +75,8 @@ public class ErrorHandlerTest {
   public void testErrorHandlerWithBRHTransform() throws Exception {
     PCollection<Integer> record = pipeline.apply(Create.of(1, 2, 3, 4));
     DummySinkTransform<BadRecord> transform = new DummySinkTransform<>();
-    ErrorHandler<BadRecord, PCollection<BadRecord>> eh = pipeline.registerBadRecordErrorHandler(transform);
+    ErrorHandler<BadRecord, PCollection<BadRecord>> eh =
+        pipeline.registerBadRecordErrorHandler(transform);
     record.apply(new BRHEnabledPTransform().withBadRecordHandler(eh));
     eh.close();
     PCollection<BadRecord> badRecords = eh.getOutput();

@@ -94,7 +94,10 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
      * pipeline.registerErrorHandler to ensure safe pipeline construction
      */
     @Internal
-    public PTransformErrorHandler(PTransform<PCollection<ErrorT>, OutputT> sinkTransform, Pipeline pipeline, Coder<ErrorT> coder) {
+    public PTransformErrorHandler(
+        PTransform<PCollection<ErrorT>, OutputT> sinkTransform,
+        Pipeline pipeline,
+        Coder<ErrorT> coder) {
       this.sinkTransform = sinkTransform;
       this.pipeline = pipeline;
       this.coder = coder;
@@ -127,15 +130,15 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
         LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
         flattened = pipeline.apply(Create.empty(coder));
       } else {
-        flattened = PCollectionList.of(errorCollections)
-            .apply(Flatten.pCollections());
+        flattened = PCollectionList.of(errorCollections).apply(Flatten.pCollections());
       }
       LOG.debug(
           "{} error collections are being sent to {}",
           errorCollections.size(),
           sinkTransform.getName());
       String sinkTransformName = sinkTransform.getName();
-      sinkOutput = flattened
+      sinkOutput =
+          flattened
               .apply(
                   "Record Error Metrics to " + sinkTransformName,
                   new WriteErrorMetrics<ErrorT>(sinkTransformName))
@@ -176,15 +179,13 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     }
   }
 
+  class BadRecordErrorHandler<OutputT extends POutput>
+      extends PTransformErrorHandler<BadRecord, OutputT> {
 
-  class BadRecordErrorHandler<OutputT extends POutput> extends PTransformErrorHandler<BadRecord, OutputT>{
-
-    /**
-     * Constructs a new ErrorHandler for handling BadRecords
-     */
+    /** Constructs a new ErrorHandler for handling BadRecords */
     @Internal
-    public BadRecordErrorHandler(PTransform<PCollection<BadRecord>, OutputT> sinkTransform,
-        Pipeline pipeline) {
+    public BadRecordErrorHandler(
+        PTransform<PCollection<BadRecord>, OutputT> sinkTransform, Pipeline pipeline) {
       super(sinkTransform, pipeline, BadRecord.getCoder(pipeline));
     }
   }
