@@ -444,7 +444,7 @@ public class FlinkUnifiedPipelineTranslator
 
     throw new IllegalArgumentException(
         String.format(
-            "Unknown type of URN `%s` for PTransform with id %s. \n %s",
+            "Unknown type of URN `%s` for PTransform with id %s. %n %s",
             transform.getTransform().getSpec().getUrn(), transform.getId(), pipeline));
   }
 
