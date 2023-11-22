@@ -20,6 +20,7 @@ import abc
 import concurrent.futures
 import logging
 from typing import Generic
+from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
@@ -73,6 +74,44 @@ class SetupTeardown(metaclass=abc.ABCMeta):
     pass
 
 
+class NoOpSetupTeardown(SetupTeardown):
+  def __enter__(self):
+    """Return an object for itself."""
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    """Closes the connection to the API client."""
+    return None
+
+
+class ShouldBackOff(abc.ABC):
+  """
+  ShouldBackOff provides mechanism to apply adaptive throttling.
+  """
+  pass
+
+
+class Repeater(abc.ABC):
+  """Repeater provides mechanism to repeat requests for a
+  configurable condition."""
+  pass
+
+
+class CacheReader(abc.ABC):
+  """CacheReader provides mechanism to read from the cache."""
+  pass
+
+
+class CacheWriter(abc.ABC):
+  """CacheWriter provides mechanism to write to the cache."""
+  pass
+
+
+class PreCallThrottler(abc.ABC):
+  """PreCallThrottler provides a throttle mechanism before sending request."""
+  pass
+
+
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
                                         beam.PCollection[ResponseT]]):
   """A :class:`RequestResponseIO` transform to read and write to APIs.
@@ -80,41 +119,56 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   Processes an input :class:`~apache_beam.pvalue.PCollection` of requests
   by making a call to the API as defined in :class:`Caller`'s `__call__`
   and returns a :class:`~apache_beam.pvalue.PCollection` of responses.
+  """
+  def __init__(
+      self,
+      caller: Caller,
+      timeout: Optional[float] = DEFAULT_TIMEOUT,
+      should_backoff: Optional[ShouldBackOff] = None,
+      repeater: Optional[Repeater] = None,
+      setup_teardown: Optional[SetupTeardown] = NoOpSetupTeardown,
+      cache_reader: Optional[CacheReader] = None,
+      cache_writer: Optional[CacheWriter] = None,
+      throttler: Optional[PreCallThrottler] = None,
+  ):
+    """
+    Instantiates a RequestResponseIO transform.
 
-  Args:
-    requests (~apache_beam.pvalue.PCollection):
-      a :class:`~apache_beam.pvalue.PCollection` to be processed.
+    Args:
     caller (~apache_beam.io.requestresponseio.Caller): an implementation of
       `Caller` or a callable object that makes call to the API.
+    timeout (float): timeout value in seconds to wait for response from API.
+    should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
+      (Optional) provides methods for backoff.
+    repeater (~apache_beam.io.requestresponseio.Repeater): (Optional) provides
+      methods to repeat requests to API.
     setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
       a context manager class implementing the `__enter__` and
       `__exit`__` methods to set up and teardown the API clients.
-  """
-  def __init__(
-      self, caller: Caller, setup_teardown: SetupTeardown, timeout: float):
+    cache_reader (~apache_beam.io.requestresponseio.CacheReader): (Optional)
+      provides methods to read external cache.
+    cache_writer (~apache_beam.io.requestresponseio.CacheWriter): (Optional)
+      provides methods to write to external cache.
+    throttler (~apache_beam.io.requestresponseio.PreCallThrottler): (Optional)
+      provides methods to pre-throttle a request.
+    """
     self._caller = caller
     self._setup_teardown = setup_teardown
     self._timeout = timeout
+    self._should_backoff = should_backoff
+    self._repeater = repeater
+    self._cache_reader = cache_reader
+    self._cache_writer = cache_writer
+    self._throttler = throttler
 
   def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
     # TODO(riteshghorse): add Cache and Throttle PTransforms.
-    return requests | _Call(self._caller, self._setup_teardown, self._timeout)
-
-
-class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
-  def __init__(self, caller: Caller, timeout: float):
-    self._caller = caller
-    self._timeout = timeout
-
-  def process(self, request, *args, **kwargs):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-      future = executor.submit(self._caller, request)
-      try:
-        yield future.result(timeout=self._timeout)
-      except concurrent.futures.TimeoutError:
-        raise UserCodeTimeoutException
-      except RuntimeError:
-        raise UserCodeExecutionException('could not complete request')
+    return requests | _Call(
+        caller=self._caller,
+        timeout=self._timeout,
+        should_backoff=self._should_backoff,
+        repeater=self._repeater,
+        setup_teardown=self._setup_teardown)
 
 
 class _Call(beam.PTransform[beam.PCollection[RequestT],
@@ -135,21 +189,50 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       timeout (float): timeout value in seconds to wait for response from API.
   """
   def __init__(
-      self, caller: Caller, setup_teardown: SetupTeardown, timeout: float):
+      self,
+      caller: Caller,
+      timeout: Optional[float] = DEFAULT_TIMEOUT,
+      should_backoff: Optional[ShouldBackOff] = None,
+      repeater: Optional[Repeater] = None,
+      setup_teardown: Optional[SetupTeardown] = NoOpSetupTeardown,
+  ):
     """Initialize the _Call transform.
     Args:
       caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
         object that invokes API call.
-      setup_teardown (:class:`apache_beam.io.requestresponseio.SetupTeardown`):
-        a context manager class responsible for setup and teardown tasks.
       timeout (float): timeout value in seconds to wait for response from API.
+      should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
+        (Optional) provides methods for backoff.
+      repeater (~apache_beam.io.requestresponseio.Repeater): (Optional) provides
+        methods to repeat requests to API.
+      setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
+        a context manager class implementing the `__enter__` and
+        `__exit`__` methods to set up and teardown the API clients.
     """
     self._caller = caller
-    self._setup_teardown = setup_teardown
     self._timeout = timeout
+    self._should_backoff = should_backoff
+    self._repeater = repeater
+    self._setup_teardown = setup_teardown
 
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
     with self._setup_teardown():
       return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
+
+
+class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
+  def __init__(self, caller: Caller, timeout: float):
+    self._caller = caller
+    self._timeout = timeout
+
+  def process(self, request, *args, **kwargs):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+      future = executor.submit(self._caller, request)
+      try:
+        yield future.result(timeout=self._timeout)
+      except concurrent.futures.TimeoutError:
+        raise UserCodeTimeoutException
+      except RuntimeError:
+        raise UserCodeExecutionException('could not complete request')

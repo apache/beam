@@ -24,10 +24,8 @@ from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.io.requestresponseio import DEFAULT_TIMEOUT
 from apache_beam.io.requestresponseio import Caller
 from apache_beam.io.requestresponseio import RequestResponseIO
-from apache_beam.io.requestresponseio import SetupTeardown
 from apache_beam.io.requestresponseio import UserCodeExecutionException
 from apache_beam.io.requestresponseio import UserCodeQuotaException
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -178,20 +176,8 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
       output = (
           test_pipeline
           | 'Create PCollection' >> beam.Create([req])
-          | 'RRIO Transform' >> RequestResponseIO(
-              client, MySetupTeardown, DEFAULT_TIMEOUT))
+          | 'RRIO Transform' >> RequestResponseIO(client))
       self.assertIsNotNone(output)
-
-
-class MySetupTeardown(SetupTeardown):
-  """MySetupTeardown is a test implementation for
-  SetupTeardown class for RequestResponseIO.
-  """
-  def __enter__(self):
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    return None
 
 
 if __name__ == '__main__':
