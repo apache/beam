@@ -52,6 +52,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link BeamFnStateClient state} backed iterable which allows for fetching elements over the
@@ -68,6 +70,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams
 public class StateBackedIterable<T>
     extends ElementByteSizeObservableIterable<T, ElementByteSizeObservableIterator<T>>
     implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(StateBackedIterable.class);
 
   @VisibleForTesting final StateRequest request;
   @VisibleForTesting final List<T> prefix;
@@ -101,6 +104,7 @@ public class StateBackedIterable<T>
     private ElementByteSizeObserver observerProxy = null;
 
     private boolean observerNeedsAdvance = false;
+    private boolean exceptionLogged = false;
 
     static <T> WrappedObservingIterator<T> create(
         Iterator<T> iterator, org.apache.beam.sdk.coders.Coder<T> elementCoder) {
@@ -145,7 +149,10 @@ public class StateBackedIterable<T>
           observerProxy.advance();
         }
       } catch (Exception e) {
-        // Don't notify of the byte size.
+        if (!exceptionLogged) {
+          LOG.warn("Lazily observed byte size will be under reported due to exception", e);
+          exceptionLogged = true;
+        }
       }
       return value;
     }
