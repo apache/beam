@@ -82,16 +82,12 @@ jobs:
         with:
           java-version: 8
           go-version: 1.21
-      - name: Remove default github maven configuration
-        # This step is a workaround to avoid a decryption issue of Beam's
-        # net.linguica.gradle.maven.settings plugin and github's provided maven
-        # settings.xml file
-        run: rm ~/.m2/settings.xml
         # :sdks:java:core:test
       - name: Run :sdks:java:core:test
-        uses: gradle/gradle-build-action@v2
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          arguments: -p sdks/java/core/ test
+          gradle-command: test
+          arguments: -p sdks/java/core/
       - name: Upload test logs for :sdks:java:core:test
         uses: actions/upload-artifact@v3
         if: always()
@@ -100,9 +96,10 @@ jobs:
           path: sdks/java/core/build/reports/tests/test
       # :sdks:java:harness:test
       - name: Run :sdks:java:harness:test
-        uses: gradle/gradle-build-action@v2
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          arguments: -p sdks/java/harness/ test
+          gradle-command: test
+          arguments: -p sdks/java/harness/
         if: always()
       - name: Upload test logs for :sdks:java:harness:test
         uses: actions/upload-artifact@v3
@@ -112,9 +109,10 @@ jobs:
           path: sdks/java/harness/build/reports/tests/test
       # :runners:core-java:test
       - name: Run :runners:core-java:test
-        uses: gradle/gradle-build-action@v2
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          arguments: -p runners/core-java/ test
+          gradle-command: test
+          arguments: -p runners/core-java/
         if: always()
       - name: Upload test logs for :runners:core-java:test
         uses: actions/upload-artifact@v3
@@ -141,15 +139,11 @@ jobs:
         with:
           java-version: 8
           go-version: 1.21
-      - name: Remove default github maven configuration
-        # This step is a workaround to avoid a decryption issue of Beam's
-        # net.linguica.gradle.maven.settings plugin and github's provided maven
-        # settings.xml file
-        run: rm ~/.m2/settings.xml
       - name: Run WordCount Unix
-        uses: gradle/gradle-build-action@v2
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
+          gradle-command: integrationTest
+          arguments: -p examples/ --tests org.apache.beam.examples.WordCountIT
             -DintegrationTestRunner=direct
             -DintegrationTestPipelineOptions=["--runner=DirectRunner","--tempRoot=./tmp"]
       - name: Upload test logs
@@ -191,14 +185,11 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: Remove default github maven configuration
-        # Removing settings.xml is a workaround to avoid a decryption issue
-        # of gradle-build-action and github's provided maven settings.xml file
-        run: rm ~/.m2/settings.xml
       - name: Run WordCount
-        uses: gradle/gradle-build-action@v2
+        uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
+          gradle-command: integrationTest
+          arguments: -p examples/ --tests org.apache.beam.examples.WordCountIT
             -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]
             -DintegrationTestRunner=dataflow
       - name: Upload test logs
