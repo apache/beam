@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
 @AutoService(SchemaTransformProvider.class)
 public class PubsubLiteReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
-    PubsubLiteReadSchemaTransformProvider.PubsubLiteReadSchemaTransformConfiguration> {
+        PubsubLiteReadSchemaTransformProvider.PubsubLiteReadSchemaTransformConfiguration> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(PubsubLiteReadSchemaTransformProvider.class);
@@ -86,7 +86,7 @@ public class PubsubLiteReadSchemaTransformProvider
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteReadSchemaTransformConfiguration>
-  configurationClass() {
+      configurationClass() {
     return PubsubLiteReadSchemaTransformConfiguration.class;
   }
 
@@ -391,13 +391,13 @@ public class PubsubLiteReadSchemaTransformProvider
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-  inputCollectionNames() {
+      inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-  outputCollectionNames() {
+      outputCollectionNames() {
     return Arrays.asList("output", "errors");
   }
 

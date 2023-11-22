@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
 @AutoService(SchemaTransformProvider.class)
 public class PubsubLiteWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
-    PubsubLiteWriteSchemaTransformProvider.PubsubLiteWriteSchemaTransformConfiguration> {
+        PubsubLiteWriteSchemaTransformProvider.PubsubLiteWriteSchemaTransformConfiguration> {
 
   public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO";
   public static final Set<String> SUPPORTED_FORMATS =
@@ -81,7 +81,7 @@ public class PubsubLiteWriteSchemaTransformProvider
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
-  configurationClass() {
+      configurationClass() {
     return PubsubLiteWriteSchemaTransformConfiguration.class;
   }
 
@@ -309,13 +309,13 @@ public class PubsubLiteWriteSchemaTransformProvider
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-  inputCollectionNames() {
+      inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-  outputCollectionNames() {
+      outputCollectionNames() {
     return Collections.singletonList("errors");
   }
 
