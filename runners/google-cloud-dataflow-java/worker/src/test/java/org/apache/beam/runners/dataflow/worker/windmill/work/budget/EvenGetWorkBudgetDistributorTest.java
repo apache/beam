@@ -51,7 +51,7 @@ public class EvenGetWorkBudgetDistributorTest {
   private CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub;
 
   private static GetWorkBudgetDistributor createBudgetDistributor(GetWorkBudget activeWorkBudget) {
-    return new EvenGetWorkBudgetDistributor(() -> activeWorkBudget);
+    return GetWorkBudgetDistributors.distributeEvenly(() -> activeWorkBudget);
   }
 
   private static GetWorkBudgetDistributor createBudgetDistributor(long activeWorkItemsAndBytes) {

@@ -196,8 +196,7 @@ public class StreamingEngineClientTest {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";
 
-    Thread streamingEngineClientThread =
-        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
+    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -223,126 +222,16 @@ public class StreamingEngineClientTest {
     assertTrue(workerTokens.contains(workerToken));
     assertTrue(workerTokens.contains(workerToken2));
 
-    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
+    verify(getWorkBudgetDistributor, atLeast(1))
+        .distributeBudget(
+            any(), eq(GetWorkBudget.builder().setItems(items).setBytes(bytes).build()));
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(),
-            eq(getWorkRequest(items, bytes)),
-            any(),
-            any(),
-            any(),
-            eq(noOpProcessWorkItemFn()));
+            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createGetDataStream(any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
-  }
-
-  @Test
-  public void testStartAndCacheStreams_onlyStartsStreamsOnceIfCalledMultipleTimes()
-      throws InterruptedException {
-    long items = 1L;
-    long bytes = 1L;
-    streamingEngineClient =
-        newStreamingEngineClient(
-            GetWorkBudget.builder().setItems(items).setBytes(bytes).build(),
-            noOpProcessWorkItemFn());
-
-    String workerToken = "workerToken1";
-
-    Thread streamingEngineClientThread =
-        new Thread(
-            () -> {
-              streamingEngineClient.waitForFirstWorkerMetadata();
-              streamingEngineClient.waitForFirstWorkerMetadata();
-            });
-
-    WorkerMetadataResponse firstWorkerMetadata =
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(1)
-            .addWorkEndpoints(metadataResponseEndpoint(workerToken))
-            .putAllGlobalDataEndpoints(DEFAULT)
-            .build();
-
-    streamingEngineClientThread.start();
-    getWorkerMetadataReady.await();
-    fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
-    assertEquals(1, currentConnections.windmillConnections().size());
-    assertEquals(1, currentConnections.windmillStreams().size());
-    Set<String> workerTokens =
-        connections.get().windmillConnections().values().stream()
-            .map(WindmillConnection::backendWorkerToken)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
-            .collect(Collectors.toSet());
-
-    assertTrue(workerTokens.contains(workerToken));
-
-    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
-    verify(streamFactory, times(1))
-        .createDirectGetWorkStream(
-            any(),
-            eq(getWorkRequest(items, bytes)),
-            any(),
-            any(),
-            any(),
-            eq(noOpProcessWorkItemFn()));
-    verify(streamFactory, times(1)).createGetDataStream(any(), any());
-    verify(streamFactory, times(1)).createCommitWorkStream(any(), any());
-  }
-
-  @Test
-  public void testStartAndCacheStreams_onlyStartsStreamsOnceIfCalledMultipleTimesConcurrent()
-      throws InterruptedException {
-    long items = 1L;
-    long bytes = 1L;
-    streamingEngineClient =
-        newStreamingEngineClient(
-            GetWorkBudget.builder().setItems(items).setBytes(bytes).build(),
-            noOpProcessWorkItemFn());
-
-    String workerToken = "workerToken1";
-
-    Thread streamingEngineClientThread =
-        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
-    Thread streamingEngineClientThread2 =
-        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
-
-    WorkerMetadataResponse firstWorkerMetadata =
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(1)
-            .addWorkEndpoints(metadataResponseEndpoint(workerToken))
-            .putAllGlobalDataEndpoints(DEFAULT)
-            .build();
-
-    streamingEngineClientThread.start();
-    streamingEngineClientThread2.start();
-    getWorkerMetadataReady.await();
-    fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
-    assertEquals(1, currentConnections.windmillConnections().size());
-    assertEquals(1, currentConnections.windmillStreams().size());
-    Set<String> workerTokens =
-        connections.get().windmillConnections().values().stream()
-            .map(WindmillConnection::backendWorkerToken)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
-            .collect(Collectors.toSet());
-
-    assertTrue(workerTokens.contains(workerToken));
-
-    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
-    verify(streamFactory, times(1))
-        .createDirectGetWorkStream(
-            any(),
-            eq(getWorkRequest(items, bytes)),
-            any(),
-            any(),
-            any(),
-            eq(noOpProcessWorkItemFn()));
-    verify(streamFactory, times(1)).createGetDataStream(any(), any());
-    verify(streamFactory, times(1)).createCommitWorkStream(any(), any());
   }
 
   @Test
@@ -351,8 +240,7 @@ public class StreamingEngineClientTest {
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1L).setBytes(1L).build(), noOpProcessWorkItemFn());
 
-    Thread streamingEngineClientThread =
-        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
+    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
 
     streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
@@ -378,8 +266,7 @@ public class StreamingEngineClientTest {
     String workerToken2 = "workerToken2";
     String workerToken3 = "workerToken3";
 
-    Thread streamingEngineClientThread =
-        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
+    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -427,8 +314,7 @@ public class StreamingEngineClientTest {
     String workerToken2 = "workerToken2";
     String workerToken3 = "workerToken3";
 
-    Thread streamingEngineClientThread =
-        new Thread(streamingEngineClient::waitForFirstWorkerMetadata);
+    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -478,6 +364,10 @@ public class StreamingEngineClientTest {
     // Wait for metadata to be consumed and budgets to be redistributed.
     Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS);
     return connections.get();
+  }
+
+  private void waitForFirstWorkerMetadata() {
+    while (!Preconditions.checkNotNull(streamingEngineClient).isWorkerMetadataReady()) {}
   }
 
   private static class GetWorkerMetadataTestStub

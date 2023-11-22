@@ -17,17 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
 
-/**
- * Distributes the total {@link GetWorkBudget} amongst the {@link
- * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream}(s) to
- * Windmill.
- */
 @Internal
-public interface GetWorkBudgetDistributor {
-  void distributeBudget(
-      ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget getWorkBudget);
+public final class GetWorkBudgetDistributors {
+  public static GetWorkBudgetDistributor distributeEvenly(
+      Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
+    return new EvenGetWorkBudgetDistributor(activeWorkBudgetSupplier);
+  }
 }

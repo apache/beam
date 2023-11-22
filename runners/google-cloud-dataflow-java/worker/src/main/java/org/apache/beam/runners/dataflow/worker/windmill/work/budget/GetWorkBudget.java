@@ -20,12 +20,14 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Budget of items and bytes for fetching {@link
  * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) via {@link
  * WindmillStream.GetWorkStream}. Used to control how "much" work is returned from Windmill.
  */
+@Internal
 @AutoValue
 public abstract class GetWorkBudget {
   public static GetWorkBudget.Builder builder() {
@@ -75,6 +77,7 @@ public abstract class GetWorkBudget {
 
   public abstract GetWorkBudget.Builder toBuilder();
 
+  @Internal
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setBytes(long bytes);

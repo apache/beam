@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -84,12 +83,6 @@ public class WindmillStreamSenderTest {
   @After
   public void cleanUp() {
     inProcessChannel.shutdownNow();
-  }
-
-  @Test
-  public void testStartStream_throwsIfBudgetIsZero() {
-    WindmillStreamSender windmillStreamSender = newWindmillStreamSender(GetWorkBudget.noBudget());
-    assertThrows(IllegalStateException.class, windmillStreamSender::startStreams);
   }
 
   @Test

@@ -22,8 +22,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
+import org.apache.beam.sdk.annotations.Internal;
 
 @AutoValue
+@Internal
 public abstract class WindmillConnection {
   public static WindmillConnection from(
       Endpoint windmillEndpoint,

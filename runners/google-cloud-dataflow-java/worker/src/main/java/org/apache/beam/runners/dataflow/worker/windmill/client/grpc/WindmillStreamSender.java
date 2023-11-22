@@ -30,7 +30,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Stream
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
 /**
@@ -117,9 +116,7 @@ public class WindmillStreamSender {
   }
 
   @SuppressWarnings("ReturnValueIgnored")
-  public void startStreams() {
-    Preconditions.checkState(
-        !getWorkBudget.get().equals(GetWorkBudget.noBudget()), "Cannot GetWork with no budget.");
+  void startStreams() {
     getWorkStream.get();
     getDataStream.get();
     commitWorkStream.get();
@@ -127,7 +124,7 @@ public class WindmillStreamSender {
     started.set(true);
   }
 
-  public void closeAllStreams() {
+  void closeAllStreams() {
     // Supplier<Stream>.get() starts the stream which is an expensive operation as it initiates the
     // streaming RPCs by possibly making calls over the network. Do not close the streams unless
     // they have already been started.

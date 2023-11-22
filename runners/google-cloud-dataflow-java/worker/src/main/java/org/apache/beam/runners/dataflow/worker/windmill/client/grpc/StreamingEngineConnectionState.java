@@ -21,7 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -38,17 +38,15 @@ abstract class StreamingEngineConnectionState {
     return new AutoValue_StreamingEngineConnectionState.Builder()
         .setWindmillConnections(ImmutableMap.of())
         .setWindmillStreams(ImmutableMap.of())
-        .setGlobalDataStreams(ImmutableMap.of())
-        .setGlobalDataEndpoints(ImmutableMap.of());
+        .setGlobalDataStreams(ImmutableMap.of());
   }
 
   abstract ImmutableMap<Endpoint, WindmillConnection> windmillConnections();
 
   abstract ImmutableMap<WindmillConnection, WindmillStreamSender> windmillStreams();
 
-  abstract ImmutableMap<String, Endpoint> globalDataEndpoints();
-
-  abstract ImmutableMap<Endpoint, Supplier<WindmillStream.GetDataStream>> globalDataStreams();
+  /** Mapping of GlobalDataIds and the direct GetDataStreams used fetch them. */
+  abstract ImmutableMap<String, Supplier<GetDataStream>> globalDataStreams();
 
   @AutoValue.Builder
   abstract static class Builder {
@@ -58,10 +56,8 @@ abstract class StreamingEngineConnectionState {
     public abstract Builder setWindmillStreams(
         ImmutableMap<WindmillConnection, WindmillStreamSender> value);
 
-    public abstract Builder setGlobalDataEndpoints(ImmutableMap<String, Endpoint> value);
-
     public abstract Builder setGlobalDataStreams(
-        ImmutableMap<Endpoint, Supplier<WindmillStream.GetDataStream>> value);
+        ImmutableMap<String, Supplier<GetDataStream>> value);
 
     public abstract StreamingEngineConnectionState build();
   }

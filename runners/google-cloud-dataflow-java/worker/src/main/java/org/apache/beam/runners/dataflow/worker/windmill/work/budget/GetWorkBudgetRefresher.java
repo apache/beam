@@ -71,7 +71,7 @@ public final class GetWorkBudgetRefresher {
   }
 
   /** Publishes an event to trigger a budget refresh. */
-  public synchronized void requestBudgetRefresh() {
+  public void requestBudgetRefresh() {
     budgetRefreshTrigger.arrive();
   }
 
@@ -103,8 +103,9 @@ public final class GetWorkBudgetRefresher {
   }
 
   /**
-   * Waits for a budget refresh trigger event with a timeout. Returns whether budgets should still
-   * be refreshed.
+   * Waits for a budget refresh trigger event with a timeout. Returns the current phase of the
+   * {@link #budgetRefreshTrigger}, to be used for following waits for the {@link
+   * #budgetRefreshTrigger} to advance.
    *
    * <p>Budget refresh event is triggered when {@link #budgetRefreshTrigger} moves on from the given
    * currentBudgetRefreshPhase.
@@ -114,11 +115,11 @@ public final class GetWorkBudgetRefresher {
       // Wait for budgetRefreshTrigger to advance FROM the current phase.
       return budgetRefreshTrigger.awaitAdvanceInterruptibly(
           currentBudgetRefreshPhase, SCHEDULED_BUDGET_REFRESH_MILLIS, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      LOG.info("Budget refresh not triggered, proceeding with scheduled refresh.");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new BudgetRefreshException("Error occurred waiting for budget refresh.", e);
+    } catch (TimeoutException ignored) {
+      // Intentionally do nothing since we trigger the budget refresh on the timeout.
     }
 
     return currentBudgetRefreshPhase;

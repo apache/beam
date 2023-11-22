@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath.roundToLong;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath.divide;
 
 import java.math.RoundingMode;
@@ -34,17 +35,18 @@ import org.slf4j.LoggerFactory;
 
 /** Evenly distributes the provided budget across the available {@link WindmillStreamSender}(s). */
 @Internal
-public final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
+final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
   private final Supplier<GetWorkBudget> activeWorkBudgetSupplier;
 
-  public EvenGetWorkBudgetDistributor(Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
+  EvenGetWorkBudgetDistributor(Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
     this.activeWorkBudgetSupplier = activeWorkBudgetSupplier;
   }
 
   private static boolean isBelowFiftyPercentOfTarget(
       GetWorkBudget remaining, GetWorkBudget target) {
-    return remaining.items() < (target.items() * 0.5) || remaining.bytes() < (target.bytes() * 0.5);
+    return remaining.items() < roundToLong(target.items() * 0.5, RoundingMode.CEILING)
+        || remaining.bytes() < roundToLong(target.bytes() * 0.5, RoundingMode.CEILING);
   }
 
   @Override
