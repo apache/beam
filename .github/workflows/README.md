@@ -155,6 +155,17 @@ If you are testing on a fork, you likely will not have self-hosted runners set u
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
 You can do this by changing `runs-on: [self-hosted, ubuntu-20.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
 
+Note when using `ubuntu-20.04` as the host, you might need to choose the Java version since some gradle tasks only work with a certain Java version.
+One example is below to use Java 8 when testing your workflow:
+```
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+```
+
 ## Testing Workflow Updates
 
 If you need to make more changes to the workflow yaml file after it has been added to the repo, you can develop normally on a branch (using your fork or the main Beam repo if you are a committer). If you are a non-committer, this flow has several caveats mentioned below.
