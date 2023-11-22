@@ -182,7 +182,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
   class BadRecordErrorHandler<OutputT extends POutput>
       extends PTransformErrorHandler<BadRecord, OutputT> {
 
-    /** Constructs a new ErrorHandler for handling BadRecords */
+    /** Constructs a new ErrorHandler for handling BadRecords. */
     @Internal
     public BadRecordErrorHandler(
         PTransform<PCollection<BadRecord>, OutputT> sinkTransform, Pipeline pipeline) {
