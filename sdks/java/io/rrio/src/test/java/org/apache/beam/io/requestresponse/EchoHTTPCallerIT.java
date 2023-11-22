@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.EchoITOptions.HTTP_ENDPOINT_ADDRESS_NAME;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
@@ -28,6 +29,7 @@ import java.net.URI;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoRequest;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoResponse;
 import org.apache.beam.testinfra.mockapis.echo.v1.EchoServiceGrpc;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.BeforeClass;
@@ -50,9 +52,13 @@ public class EchoHTTPCallerIT {
   @BeforeClass
   public static void setUp() throws UserCodeExecutionException {
     options = readIOTestPipelineOptions(EchoITOptions.class);
-    if (options.getHttpEndpointAddress().isEmpty()) {
+    if (Strings.isNullOrEmpty(options.getHttpEndpointAddress())) {
       throw new RuntimeException(
-          "--httpEndpointAddress is missing. See " + EchoITOptions.class + "for details.");
+          "--"
+              + HTTP_ENDPOINT_ADDRESS_NAME
+              + " is missing. See "
+              + EchoITOptions.class
+              + "for details.");
     }
     client = EchoHTTPCaller.of(URI.create(options.getHttpEndpointAddress()));
 

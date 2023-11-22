@@ -100,6 +100,10 @@ class Call<RequestT, ResponseT>
             .build());
   }
 
+  // TupleTags need to be instantiated for each Call instance. We cannot use a shared
+  // static instance that is shared for multiple PCollectionTuples when Call is
+  // instantiated multiple times as it is reused throughout code in this library.
+  private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
 
   private final Configuration<RequestT, ResponseT> configuration;
@@ -128,7 +132,6 @@ class Call<RequestT, ResponseT>
 
   @Override
   public @NonNull Result<ResponseT> expand(PCollection<RequestT> input) {
-    TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
 
     PCollectionTuple pct =
         input.apply(

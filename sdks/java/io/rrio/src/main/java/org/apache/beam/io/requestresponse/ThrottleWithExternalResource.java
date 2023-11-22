@@ -23,6 +23,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -277,10 +279,32 @@ class ThrottleWithExternalResource<
 
     @Teardown
     public void teardown() throws UserCodeExecutionException {
-      enqueuerT.teardown();
-      dequeuerT.teardown();
-      decrementerT.teardown();
-      reporterT.teardown();
+      List<String> messages = new ArrayList<>();
+      String format = "%s encountered error during teardown: %s";
+      try {
+        enqueuerT.teardown();
+      } catch (UserCodeExecutionException e) {
+        messages.add(String.format(format, "enqueuerT", e));
+      }
+      try {
+        dequeuerT.teardown();
+      } catch (UserCodeExecutionException e) {
+        messages.add(String.format(format, "dequeuerT", e));
+      }
+      try {
+        decrementerT.teardown();
+      } catch (UserCodeExecutionException e) {
+        messages.add(String.format(format, "decrementerT", e));
+      }
+      try {
+        reporterT.teardown();
+      } catch (UserCodeExecutionException e) {
+        messages.add(String.format(format, "reporterT", e));
+      }
+
+      if (!messages.isEmpty()) {
+        throw new UserCodeExecutionException(String.join("; ", messages));
+      }
     }
   }
 
