@@ -39,7 +39,7 @@ import (
 // that transform's respective input or output. Which it is, is context dependant,
 // and not knowable from just the link itself, but can be verified against the transform proto.
 type link struct {
-	transform, local, global string
+	Transform, Local, Global string
 }
 
 // stage represents a fused subgraph executed in a single environment.
@@ -293,22 +293,22 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for _, o := range stg.outputs {
-		col := comps.GetPcollections()[o.global]
-		wOutCid, err := makeWindowedValueCoder(o.global, comps, coders)
+		col := comps.GetPcollections()[o.Global]
+		wOutCid, err := makeWindowedValueCoder(o.Global, comps, coders)
 		if err != nil {
-			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w %v", stg.ID, o, o.global, prototext.Format(col), err, stg.transforms)
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w %v", stg.ID, o, o.Global, prototext.Format(col), err, stg.transforms)
 		}
-		sinkID := o.transform + "_" + o.local
+		sinkID := o.Transform + "_" + o.Local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
-		sink2Col[sinkID] = o.global
-		col2Coders[o.global] = engine.PColInfo{
-			GlobalID: o.global,
+		sink2Col[sinkID] = o.Global
+		col2Coders[o.Global] = engine.PColInfo{
+			GlobalID: o.Global,
 			WDec:     wDec,
 			WEnc:     wEnc,
 			EDec:     ed,
 		}
-		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.global)
+		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
 
 	var prepareSides []func(b *worker.B, watermark mtime.Time)

@@ -242,7 +242,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 			Pcollections: pcols,
 			Transforms:   tforms,
 		},
-		RemovedLeaves: t.GetSubtransforms(),
+		RemovedLeaves: removeSubTransforms(comps, t.GetSubtransforms()),
 		// Force ProcessSized to be a root to ensure SDFs are able to split
 		// between elements or within elements.
 		// Also this is where a transform would be stateful anyway.

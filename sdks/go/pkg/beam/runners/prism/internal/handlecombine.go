@@ -141,7 +141,7 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 
 	// Now we need the output collection ID
 	var pcolOutID string
-	// There's only one input.
+	// There's only one output.
 	for _, pcol := range t.GetOutputs() {
 		pcolOutID = pcol
 	}
@@ -207,12 +207,10 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 		},
 	}
 
-	// Now we return everything!
-	// TODO recurse through sub transforms to remove?
 	// We don't need to remove the composite, since we don't add it in
 	// when we return the new transforms, so it's not in the topology.
 	return prepareResult{
 		SubbedComps:   newComps,
-		RemovedLeaves: t.GetSubtransforms(),
+		RemovedLeaves: removeSubTransforms(comps, t.GetSubtransforms()),
 	}
 }

@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
- * StorageApiWritesShardedRecords} to enapsulate a destination {@link TableSchema} along with a
+ * StorageApiWritesShardedRecords} to encapsulate a destination {@link TableSchema} along with a
  * {@link BigQueryServices.StreamAppendClient} and other objects needed to write records.
  */
 @AutoValue

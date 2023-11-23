@@ -123,7 +123,7 @@ public class ArtifactStagingService
   }
 
   /**
-   * A pairing of a newly created artifact type and an ouptut stream that will be readable at that
+   * A pairing of a newly created artifact type and an output stream that will be readable at that
    * type.
    */
   @AutoValue
@@ -208,9 +208,9 @@ public class ArtifactStagingService
   }
 
   /**
-   * Like the standard Semaphore, but allows an aquire to go over the limit if there is any room.
+   * Like the standard Semaphore, but allows an acquire to go over the limit if there is any room.
    *
-   * <p>Also allows setting an error, to avoid issues with un-released aquires after error.
+   * <p>Also allows setting an error, to avoid issues with un-released acquires after error.
    */
   private static class OverflowingSemaphore {
     private int totalPermits;
