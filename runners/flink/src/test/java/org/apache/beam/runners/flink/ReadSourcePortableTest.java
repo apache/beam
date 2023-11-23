@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
 
 import java.io.Serializable;
@@ -27,11 +26,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
@@ -46,18 +43,14 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -74,7 +67,6 @@ public class ReadSourcePortableTest implements Serializable {
 
   @Parameters(name = "streaming: {0}")
   public static Object[] data() {
-    // TODO: restore this. In streaming mode, Unbounded Source never finishes.
     return new Object[] {true, false};
   }
 
@@ -100,10 +92,6 @@ public class ReadSourcePortableTest implements Serializable {
   }
 
   @Test(timeout = 120_000)
-  // This test is weird. It makes no sense to test an Unbounded source in Batch mode
-  // And in streaming mode, an Unbouded source will never stop, which effectively prevents the test
-  // from ever finishing.
-  @Ignore
   public void testExecution() throws Exception {
     PipelineOptions options =
         PipelineOptionsFactory.fromArgs("--experiments=use_deprecated_read").create();
@@ -115,10 +103,7 @@ public class ReadSourcePortableTest implements Serializable {
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> result =
-        p.apply(Read.from(new Source(10)))
-            // FIXME: the test fails without this
-            .apply(Window.into(FixedWindows.of(Duration.millis(1))));
+    PCollection<Long> result = p.apply(Read.from(new Source(10)).withMaxNumRecords(10));
 
     PAssert.that(result)
         .containsInAnyOrder(ImmutableList.of(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L));
@@ -126,15 +111,6 @@ public class ReadSourcePortableTest implements Serializable {
     SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(p);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-
-    List<RunnerApi.PTransform> readTransforms =
-        pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(
-                transform ->
-                    transform.getSpec().getUrn().equals(PTransformTranslation.READ_TRANSFORM_URN))
-            .collect(Collectors.toList());
-
-    assertThat(readTransforms, not(empty()));
 
     // execute the pipeline
     JobInvocation jobInvocation =
