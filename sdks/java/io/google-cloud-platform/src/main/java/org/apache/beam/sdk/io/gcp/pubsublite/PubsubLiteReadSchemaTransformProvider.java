@@ -217,7 +217,7 @@ public class PubsubLiteReadSchemaTransformProvider
     } else {
       if (inputSchema == null) {
         throw new IllegalArgumentException(
-            "To read from PubSubLite in JSON or AVRO format, you can't provide a schema.");
+            "To read from PubSubLite in JSON or AVRO format, you must provide a schema.");
       }
       beamSchema =
           Objects.equals(configuration.getFormat(), "JSON")
