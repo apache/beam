@@ -93,8 +93,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     FlinkPortablePipelineTranslator<?> translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
       // TODO: Do we need to inspect for unbounded sources before fusing?
-      // translator = FlinkUnifiedPipelineTranslator.createTranslator(false, true);
-      translator = FlinkBatchPortablePipelineTranslator.createTranslator();
+      translator = FlinkUnifiedPipelineTranslator.createTranslator(false, true);
+      // translator = FlinkBatchPortablePipelineTranslator.createTranslator();
     } else {
       translator = FlinkUnifiedPipelineTranslator.createTranslator(true, true);
     }
