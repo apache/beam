@@ -165,8 +165,9 @@ public abstract class TableSchema implements Serializable {
     UINT16,
     UINT32,
     UINT64,
-    // Composite types
+    // Composite type
     ARRAY,
+    // Primitive type
     BOOL
   }
 
