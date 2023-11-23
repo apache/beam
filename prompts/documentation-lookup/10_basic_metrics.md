@@ -5,7 +5,7 @@ Response:
 
 Metrics are named and scoped to a specific step in the pipeline. They may be dynamically created  during pipeline execution. If a runner doesn’t support some part of reporting metrics, the fallback behavior is to drop the metric updates rather than failing the pipeline.
 
-Beam provides a number of built-in metric types:
+Beam provides a number of [built-in metric types](https://beam.apache.org/documentation/programming-guide/#types-of-metrics):
 * Counters
 * Distributions
 * Gauges

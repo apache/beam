@@ -14,5 +14,5 @@ Executing an [Splittable DoFn](https://beam.apache.org/documentation/programming
 
 See Tour of Beam [Splittable DoFn module](https://tour.beam.apache.org/tour/python/splittable-dofn/splittable) for practical example.
 
-See [community blogpost] (https://beam.apache.org/blog/splittable-do-fn-is-available/) for more information.
+See [community blogpost](https://beam.apache.org/blog/splittable-do-fn-is-available/) for more information.
 

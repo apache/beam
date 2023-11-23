@@ -14,7 +14,7 @@ fixed_windowed_items = (
     items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
 ```
 
-Beam provides a number of [built-in windowing functions](https://beam.apache.org/documentation/programming-guide/#windowing-functions) that you can use to subdivide your data into windows:
+Beam provides a number of [built-in windowing functions](https://beam.apache.org/documentation/programming-guide/#provided-windowing-functions) that you can use to subdivide your data into windows:
 - Fixed Time Windows
 - Sliding Time Windows
 - Per-Session Windows

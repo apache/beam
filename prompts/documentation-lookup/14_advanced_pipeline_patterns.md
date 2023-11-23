@@ -5,7 +5,6 @@ Beam pipeline patterns are a set of best practices for building Beam pipelines. 
 
 Here are some of the most common pipeline patterns:
 - [File processing patterns](https://beam.apache.org/documentation/patterns/file-processing/)
-- [Dataflow runner patterns](https://beam.apache.org/documentation/patterns/dataflow-runner/)
 - [Pipeline options patterns](https://beam.apache.org/documentation/patterns/pipeline-options/)
 - [Side input patterns](https://beam.apache.org/documentation/patterns/side-inputs/)
 - [Windowing patterns](https://beam.apache.org/documentation/patterns/custom-windows/)
