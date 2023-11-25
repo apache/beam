@@ -12,7 +12,7 @@ with beam.Pipeline(options=options) as p:
 Response:
 This code reads messages from a [PubSub](https://cloud.google.com/pubsub) subscription `input_subscription` using the `ReadFromPubSub`, processes them and writes the resulting collection to a PubSub topic `output_topic` using the `WriteToPubSub` transform.
 
-PubSub currently supported only in streaming pipelines.
+PubSub is currently supported only in streaming pipelines.
 
 Reading messages directly from a topic is also supported. In this case a temporary subscription will be created automatically.
 
@@ -31,4 +31,4 @@ More on `DoFn` class can be found [here](https://beam.apache.org/documentation/p
 
 See [PubSub IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html) transform documentation for more details.
 
-For a common pattern for configuring pipeline options configuration see the here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).

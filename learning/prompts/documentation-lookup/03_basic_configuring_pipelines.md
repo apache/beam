@@ -24,6 +24,6 @@ options = PipelineOptions(
     runner='DirectRunner'
 )
 ``````
-You can also add your own custom options in addition to the standard PipelineOptions. For a common pattern for configuring pipeline options configuration see the here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+You can also add your own custom options in addition to the standard PipelineOptions. For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 The [WordCount example pipeline](https://beam.apache.org/get-started/wordcount-example/#using-parameterizable-pipelineoptions) demonstrates how to set pipeline options at runtime by using command-line options

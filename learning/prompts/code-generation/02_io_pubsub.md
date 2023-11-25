@@ -1,7 +1,7 @@
 Prompt:
 Write the python code to read messages from a PubSub subscription.
 Response:
-You can read messages from a PubSub subsription or topic using the `ReadFromPubSub` transform. PubSub currently supported only in streaming pipelines.
+You can read messages from a PubSub subsription or topic using the `ReadFromPubSub` transform. PubSub is currently supported only in streaming pipelines.
 
 The following python code reads messages from a PubSub subscription. The subscription is provided as a command line argument. The messages are logged to the console:
 
@@ -37,12 +37,17 @@ def read_subscription():
     (p | "Read PubSub subscription" >> ReadFromPubSub(subscription=options.subscription)
        | "Format message" >> Map(lambda message: f"Received message:\n{message}\n")
        | Map(logging.info))
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  read_subscription()
+
 ```
 Reading messages directly from a topic is also supported. A temporary subscription will be created automatically.
 
-The messages could be returned as a byte string or as PubsubMessage objects. this behavior is controlled by the `with_attributes` parameter.
+The messages could be returned as a byte string or as PubsubMessage objects. This behavior is controlled by the `with_attributes` parameter.
 
 See [PubSub IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html) transform documentation for more details.
 
-For a common pattern for configuring pipeline options configuration see the here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
