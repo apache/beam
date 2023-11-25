@@ -352,6 +352,11 @@ _INIT_DOC = \
       (15min). If the mutations still have not been written after this time,
       they are treated as a failure, and handled according to the setting of
       failure_mode. Pass seconds as value.
+  :param failure_mode: Specifies the behavior for mutations that fail to be
+      written to Spanner. Default is FAIL_FAST. Possible values:
+        FAIL_FAST: Throw an exception for the mutation that failed.
+        REPORT_FAILURES: Instead of throwing an exception, continue processing.
+            NOTE: This can cause data loss if used incorrectly.
   :param expansion_service: The address (host:port) of the ExpansionService.
   """
 
