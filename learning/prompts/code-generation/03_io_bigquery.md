@@ -23,11 +23,11 @@ Configure pipeline options for BigQuery read transform.
 
 def read_table():
     """Read from BigQuery table function."""
-    
+
     #parse pipeline options
     #streaming=True is required for a streaming pipeline
     options = BigQueryReadOptions(streaming=True)
-    
+
     with beam.Pipeline(options=options) as p:
         #this pipeline reads from a BigQuery table and logs the data to the console
         (p | "Read BigQuery table" >> ReadFromBigQuery(table=options.table)
