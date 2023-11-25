@@ -19,4 +19,5 @@ from apache_beam.io import WriteToPubSub
     (p | "Read from PubSub" >> ReadFromPubSub(topic="input_topic")
        | "Write to PubSub" >> WriteToPubSub(topic="output_topic"))
 ```
-  
+
+
