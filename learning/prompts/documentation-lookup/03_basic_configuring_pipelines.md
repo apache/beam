@@ -1,7 +1,7 @@
 Prompt:
 How do you configure a pipeline in Apache Beam?
 Response:
-Configuring pipeline options in Apache Beam is crucial for specifying the execution environment, managing resources, and tailoring the pipeline's behavior to meet specific data processing needs and performance requirements. 
+Configuring pipeline options in Apache Beam is crucial for specifying the execution environment, managing resources, and tailoring the pipeline's behavior to meet specific data processing needs and performance requirements.
 
 Pipeline options can be set programmatically or passed through the command line. These options include runner-specific settings, job name, project ID (for cloud runners), machine types, number of workers, and more.
 

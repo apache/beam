@@ -13,7 +13,6 @@ from apache_beam import Map
 from apache_beam.io import ReadFromPubSub
 from apache_beam.options.pipeline_options import PipelineOptions
 
-
 class PubSubReadOptions(PipelineOptions):
 """
 Configure pipeline options for PubSub read transform.
@@ -31,7 +30,7 @@ def read_subscription():
   #parse pipeline options
   #streaming=True is required for a streaming pipeline
   options = PubSubReadOptions(streaming=True)
-  
+
   with beam.Pipeline(options=options) as p:
     #this pipeline reads from a PubSub subscription and logs the messages to the console
     (p | "Read PubSub subscription" >> ReadFromPubSub(subscription=options.subscription)
@@ -50,4 +49,3 @@ The messages could be returned as a byte string or as PubsubMessage objects. Thi
 See [PubSub IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html) transform documentation for more details.
 
 For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
-

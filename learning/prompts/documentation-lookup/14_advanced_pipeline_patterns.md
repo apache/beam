@@ -1,5 +1,5 @@
 Prompt:
-What pipeline patterns exist in Apache Beam? 
+What pipeline patterns exist in Apache Beam?
 Response:
 Beam pipeline patterns are a set of best practices for building Beam pipelines. They are based on real-world Beam deployments and are designed to help you build resilient, flexible, and portable Beam pipelines.
 

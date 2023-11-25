@@ -9,7 +9,7 @@ Key Transforms Characteristics
 2. Composability: Can be combined to form elaborate data processing pipelines.
 3. Parallel Execution: Designed for distributed processing, allowing simultaneous execution across multiple workers.
 4. Scalability: Apt for handling extensive data, suitable for both batch and streaming data.
-   
+
 The Beam SDKs contain a number of different transforms that you can apply to your pipeline’s PCollections. Common transform types include:
  - [Source transforms](https://beam.apache.org/documentation/programming-guide/#pipeline-io) such as TextIO.Read and Create. A source transform conceptually has no input.
  - [Processing and conversion operations](https://beam.apache.org/documentation/programming-guide/#core-beam-transforms) such as ParDo, GroupByKey, CoGroupByKey, Combine, and Count.

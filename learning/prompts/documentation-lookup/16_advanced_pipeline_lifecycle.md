@@ -27,10 +27,10 @@ Apache Beam program expresses a data processing pipeline, from start to finish. 
 - Apply transforms to each PCollection
 - Write or otherwise output the final, transformed PCollections
 - Run the pipeline
-  
+
 Beam documentation has more on [developing](https://beam.apache.org/documentation/programming-guide/) and [executing](https://beam.apache.org/documentation/pipelines/create-your-pipeline/) pipelines.
 
 Testing pipelines is a particularly important step in developing an effective data processing solution. The indirect nature of the Beam model, in which your user code constructs a pipeline graph to be executed remotely, can make debugging-failed runs a non-trivial task. See [here](https://beam.apache.org/documentation/pipelines/test-your-pipeline/) for more information on pipeline testing strategies.
 
-Choosing a [runner](https://beam.apache.org/documentation/#choosing-a-runner) is a crucial step in deploying your pipeline. The runner you choose determines where and how your pipeline will execute. 
+Choosing a [runner](https://beam.apache.org/documentation/#choosing-a-runner) is a crucial step in deploying your pipeline. The runner you choose determines where and how your pipeline will execute.
 More information on deployment is available [here](https://beam.apache.org/documentation/runtime/environments/).
