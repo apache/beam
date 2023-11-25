@@ -125,8 +125,8 @@ class TimestampBoundMode(Enum):
 
 
 class FailureMode(Enum):
-    FAIL_FAST = auto()
-    REPORT_FAILURES = auto()
+  FAIL_FAST = auto()
+  REPORT_FAILURES = auto()
 
 
 class ReadFromSpannerSchema(NamedTuple):
