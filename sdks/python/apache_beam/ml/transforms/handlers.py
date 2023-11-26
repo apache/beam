@@ -196,9 +196,8 @@ class MergeDicts(beam.DoFn):
     yield new_dict
 
 
-class TFTProcessHandler(
-    ProcessHandler[beam.PCollection[tft_process_handler_input_type],
-                   beam.PCollection[tft_process_handler_output_type]]):
+class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
+                                       tft_process_handler_output_type]):
   def __init__(
       self,
       *,
@@ -214,7 +213,7 @@ class TFTProcessHandler(
     self.artifact_location = artifact_location
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
-      raise ValueError('artifact_mode must be either `produc` or `consume`.')
+      raise ValueError('artifact_mode must be either `produce` or `consume`.')
 
   def append_transform(self, transform):
     self.transforms.append(transform)

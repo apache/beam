@@ -69,7 +69,7 @@ def _convert_list_of_dicts_to_dict_of_lists(
 
 def _convert_dict_of_lists_to_lists_of_dict(
     dict_of_lists: Dict[str, List[Any]],
-    batch_length: int) -> List[Dict[str, Any]]:
+    batch_length: int) -> Sequence[Dict[str, Any]]:
   result: List[Dict[str, Any]] = [{} for _ in range(batch_length)]
   for key, values in dict_of_lists.items():
     for i in range(len(values)):
@@ -549,7 +549,7 @@ class _TextEmbeddingHandler(ModelHandler):
     if not isinstance(batch[0], (str, bytes)):
       raise TypeError('Embeddings can only be generated on text columns.')
 
-  def _validate_batch(self, batch: List[Dict[str, List[str]]]):
+  def _validate_batch(self, batch: Sequence[Dict[str, List[str]]]):
     if not batch or not isinstance(batch[0], dict):
       raise TypeError(
           'Expected data to be dicts, got '
@@ -568,9 +568,9 @@ class _TextEmbeddingHandler(ModelHandler):
             batch, model, inference_args)
         if isinstance(prediction, np.ndarray):
           prediction = prediction.tolist()
-          result[key] = prediction
+          result[key] = prediction  # type: ignore[assignment]
         else:
-          result[key] = prediction
+          result[key] = prediction  # type: ignore[assignment]
       else:
         result[key] = batch
     return result
