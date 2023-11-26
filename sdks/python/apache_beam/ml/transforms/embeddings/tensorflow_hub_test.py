@@ -98,12 +98,12 @@ class TFHubEmbeddingsTest(unittest.TestCase):
     if write_artifact_location:
       return (
           pipeline
-          | MLTransform(write_artifact_location=self.artifact_location).
+          | MLTransform(write_artifact_location=write_artifact_location).
           with_transform(embedding_config))
     elif read_artifact_location:
       return (
           pipeline
-          | MLTransform(read_artifact_location=self.artifact_location))
+          | MLTransform(read_artifact_location=read_artifact_location))
     else:
       raise NotImplementedError
 
@@ -156,6 +156,44 @@ class TFHubEmbeddingsTest(unittest.TestCase):
             | "MLTransform" >> MLTransform(
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
+
+  def test_with_gcs_artifact_location(self):
+    # artifact_location = 'gs://apache-beam-testing/testing/mltransform_artifacts'
+    artifact_location = 'gs://anandinguva-test/artifacts/tensorflow_hub'
+    with beam.Pipeline() as p:
+      embedding_config = TensorflowHubTextEmbeddings(
+          hub_url=hub_url, columns=[test_query_column])
+
+      with beam.Pipeline() as p:
+        data = (
+            p
+            | "CreateData" >> beam.Create([{
+                test_query_column: test_query
+            }]))
+        _ = self.pipeline_with_configurable_artifact_location(
+            pipeline=data,
+            embedding_config=embedding_config,
+            write_artifact_location=artifact_location)
+
+      with beam.Pipeline() as p:
+        data = (
+            p
+            | "CreateData" >> beam.Create([{
+                test_query_column: test_query
+            }, {
+                test_query_column: test_query
+            }]))
+        result_pcoll = self.pipeline_with_configurable_artifact_location(
+            pipeline=data, read_artifact_location=artifact_location)
+
+        def assert_element(element):
+          assert round(element, 2) == 0.21
+
+        (
+            result_pcoll
+            | beam.Map(lambda x: max(x[test_query_column]))
+            #  0.14797046780586243
+            | beam.Map(assert_element))
 
 
 if __name__ == '__main__':

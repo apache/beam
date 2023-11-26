@@ -157,10 +157,9 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
     # the SentenceTransformerEmbeddings works on text input data.
     return (
         RunInference(model_handler=_TextEmbeddingHandler(self))
-        # TODO: Phrase comment better. The reason we need to yield
-        # RunInference returns a list of Predictions, which if coupled
-        # with MLTransfomr won't work.
-        # | beam.ParDo(yield_elements) fails due to pickling issues.
+        # This is required since RunInference performs batching and returns
+        # batches. We need to decompose the batches and return the elements
+        # in their initial shape to the downstream transforms.
         | _YieldPTransform())
 
   def requires_chaining(self):

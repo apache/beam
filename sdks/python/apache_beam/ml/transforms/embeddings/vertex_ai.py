@@ -167,4 +167,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (
         RunInference(model_handler=_TextEmbeddingHandler(self))
+        # This is required since RunInference performs batching and returns
+        # batches. We need to decompose the batches and return the elements
+        # in their initial shape to the downstream transforms.
         | _YieldPTransform())

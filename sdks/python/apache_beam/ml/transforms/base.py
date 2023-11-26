@@ -398,7 +398,13 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
   """
   @staticmethod
   def _is_remote_path(path):
-    return path.find('://') != -1
+    is_gcs = path.find('gs://') != -1
+    # TODO: Add support for other remote paths.
+    if not is_gcs and path.find('://') != -1:
+      raise RuntimeError(
+          "Artifact locations are currently supported for only available for "
+          "local paths and GCS paths. Got: %s" % path)
+    return is_gcs
 
   @staticmethod
   def save_attributes(
@@ -413,21 +419,19 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
         raise RuntimeError(
             'pipeline options are required to save the attributes.'
             'in the artifact location %s' % artifact_location)
-      # save the ptransform_list to a json file in temp dir and then
-      # copy the file to the artifact location.
-      # TODO: This supports only GCS. Add support for other remote paths.
+
       temp_dir = tempfile.mkdtemp()
       temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
       with open(temp_json_file, 'w+') as f:
         f.write(jsonpickle.encode(ptransform_list))
-        with open(temp_json_file, 'r') as f:
-          from apache_beam.runners.dataflow.internal import apiclient
-          _LOGGER.info('Creating artifact location: %s', artifact_location)
-          apiclient.DataflowApplicationClient(options=options).stage_file(
-              gcs_or_local_path=artifact_location,
-              file_name=_ATTRIBUTE_FILE_NAME,
-              stream=f,
-              mime_type='application/json')
+      with open(temp_json_file, 'r') as f:
+        from apache_beam.runners.dataflow.internal import apiclient
+        _LOGGER.info('Creating artifact location: %s', artifact_location)
+        apiclient.DataflowApplicationClient(options=options).stage_file(
+            gcs_or_local_path=artifact_location,
+            file_name=_ATTRIBUTE_FILE_NAME,
+            stream=f,
+            mime_type='application/json')
     else:
       if not FileSystems.exists(artifact_location):
         FileSystems.mkdirs(artifact_location)

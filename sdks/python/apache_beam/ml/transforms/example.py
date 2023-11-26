@@ -93,7 +93,8 @@ def run_vertex_ai_pipeline(pipeline_args):
                                      ).with_transform(embedding_config)
         # | MLTransform(read_artifact_location=artifact_location)
         # | beam.Map(lambda x: len(x))
-        | beam.Map(logging.info))
+        # | beam.Map(logging.info)
+    )
 
 
 # def run_sentence_transformer_embedding(pipeline_args):
@@ -120,8 +121,8 @@ if __name__ == '__main__':
   artifact_location = 'gs://anandinguva-test/artifacts'
   import tempfile
   # artifact_location = '/Users/anandinguva/Desktop/artifacts'
-  artifact_location = 'artifacts/my_artifacts'
+  #   artifact_location = 'artifacts/my_artifacts'
   parser = argparse.ArgumentParser()
   known_args, pipeline_args = parser.parse_known_args()
-  run_tensorflow_hub_embedding(pipeline_args)
-#   run_vertex_ai_pipeline(pipeline_args)
+  #   run_tensorflow_hub_embedding(pipeline_args)
+  run_vertex_ai_pipeline(pipeline_args)
