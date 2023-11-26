@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: skip-file
-
 import shutil
 import tempfile
 import unittest
@@ -27,6 +25,7 @@ hub_url = 'https://tfhub.dev/google/LEALLA/LEALLA-small/1'
 test_query_column = 'test_query'
 test_query = 'This is a test query'
 
+# pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf  # disable=unused-import
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubTextEmbeddings
@@ -63,7 +62,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
       def assert_element(element):
         assert len(element[test_query_column]) == 128
 
-      (transformed_pcoll | beam.Map(assert_element))
+      _ = (transformed_pcoll | beam.Map(assert_element))
 
   @unittest.skipIf(ScaleTo01 is None, 'Tensorflow Transform is not installed.')
   def test_embeddings_with_scale_to_0_1(self):
@@ -85,7 +84,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
       def assert_element(element):
         assert max(element[test_query_column]) == 1
 
-      (
+      _ = (
           transformed_pcoll | beam.Map(lambda x: x.as_dict())
           | beam.Map(assert_element))
 
@@ -137,7 +136,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
         def assert_element(element):
           assert round(element, 2) == 0.21
 
-        (
+        _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
             #  0.14797046780586243
@@ -158,8 +157,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
   def test_with_gcs_artifact_location(self):
-    # artifact_location = 'gs://apache-beam-testing/testing/mltransform_artifacts'
-    artifact_location = 'gs://anandinguva-test/artifacts/tensorflow_hub'
+    artifact_location = 'gs://apache-beam-testing/testing/tensorflow_hub'
     with beam.Pipeline() as p:
       embedding_config = TensorflowHubTextEmbeddings(
           hub_url=hub_url, columns=[test_query_column])
@@ -189,7 +187,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
         def assert_element(element):
           assert round(element, 2) == 0.21
 
-        (
+        _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
             #  0.14797046780586243

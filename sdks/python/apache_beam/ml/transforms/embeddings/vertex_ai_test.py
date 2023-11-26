@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint:skip-file
-
 import shutil
 import tempfile
 import unittest
@@ -24,8 +22,9 @@ import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
 
+# pylint: disable=ungrouped-imports
 try:
-  import tensorflow_transform as tft  # pylint: disbale=unused-import
+  import tensorflow_transform as tft
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
@@ -58,7 +57,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
       def assert_element(element):
         assert len(element[test_query_column]) == 768
 
-      (transformed_pcoll | beam.Map(assert_element))
+      _ = (transformed_pcoll | beam.Map(assert_element))
 
   @unittest.skipIf(tft is None, 'Tensorflow Transform is not installed.')
   def test_embeddings_with_scale_to_0_1(self):
@@ -80,7 +79,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
       def assert_element(element):
         assert max(element.feature_1) == 1
 
-      (transformed_pcoll | beam.Map(assert_element))
+      _ = (transformed_pcoll | beam.Map(assert_element))
 
   def pipeline_with_configurable_artifact_location(
       self,
@@ -130,7 +129,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
         def assert_element(element):
           assert round(element, 2) == 0.15
 
-        (
+        _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
             #  0.14797046780586243
@@ -151,8 +150,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
   def test_with_gcs_artifact_location(self):
-    # artifact_location = 'gs://apache-beam-testing/testing/mltransform_artifacts'
-    artifact_location = 'gs://anandinguva-test/artifacts/vertex_ai'
+    artifact_location = ('gs://apache-beam-testing/testing/vertex_ai')
     with beam.Pipeline() as p:
       embedding_config = VertexAITextEmbeddings(
           model_name=model_name, columns=[test_query_column])
@@ -182,7 +180,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
         def assert_element(element):
           assert round(element, 2) == 0.15
 
-        (
+        _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
             #  0.14797046780586243
