@@ -30,10 +30,10 @@ from typing import Sequence
 from typing import TypeVar
 from typing import Union
 
+import jsonpickle
 import numpy as np
 
 import apache_beam as beam
-import jsonpickle
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
@@ -59,7 +59,7 @@ OperationOutputT = TypeVar('OperationOutputT')
 
 
 def _convert_list_of_dicts_to_dict_of_lists(
-    list_of_dicts: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
+    list_of_dicts: Sequence[Dict[str, Any]]) -> Dict[str, List[Any]]:
   keys_to_element_list = collections.defaultdict(list)
   for d in list_of_dicts:
     for key, value in d.items():
