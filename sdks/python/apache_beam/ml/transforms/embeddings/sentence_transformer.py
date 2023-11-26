@@ -51,13 +51,13 @@ from typing import Dict
 from typing import List
 from typing import Mapping
 from typing import Optional
+from typing import Sequence
 
 import apache_beam as beam
-from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-
 from sentence_transformers import SentenceTransformer
 
 
@@ -90,7 +90,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_seq_length: Optional[int] = None,
-      large_model: Optional[bool] = None,
+      large_model: bool = False,
       **kwargs):
     self._max_seq_length = max_seq_length
     self._model_uri = model_name
@@ -104,7 +104,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
 
   def run_inference(
       self,
-      batch: List[str],
+      batch: Sequence[str],
       model: SentenceTransformer,
       inference_args: Optional[Dict[str, Any]] = None,
   ):

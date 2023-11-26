@@ -519,6 +519,6 @@ class TFTProcessHandler(
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
           transformed_dataset
-          | "ConvertToRowType" >> beam.Map(lambda x: beam.Row(**x)).with_output_types(self.row_type)  # type: ignore
-      )
+          | "ConvertToRowType" >>
+          beam.Map(lambda x: beam.Row(**x)).with_output_types(self.row_type))
       return transformed_dataset

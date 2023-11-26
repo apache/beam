@@ -24,16 +24,18 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Sequence
+
+from google.auth.credentials import Credentials
 
 import apache_beam as beam
+import vertexai
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-import vertexai
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
-from google.auth.credentials import Credentials
 
 __all__ = ["VertexAITextEmbeddings"]
 
@@ -80,7 +82,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
 
   def run_inference(
       self,
-      batch: List[str],
+      batch: Sequence[str],
       model: Any,
       inference_args: Optional[Dict[str, Any]] = None,
   ) -> Iterable:

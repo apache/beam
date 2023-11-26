@@ -20,18 +20,17 @@ from typing import List
 from typing import Optional
 
 import apache_beam as beam
+import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.tensorflow_inference import default_tensor_inference_fn
 from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
+from apache_beam.ml.inference.tensorflow_inference import default_tensor_inference_fn
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-
-import tensorflow as tf
-import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
-import tensorflow_hub as hub
 
 __all__ = ['TensorflowHubTextEmbeddings']
 
@@ -59,7 +58,7 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
   """
   Note: Intended for internal use only. No backwards compatibility guarantees.
   """
-  def __init__(self, preprocessing_url: str, *args, **kwargs):
+  def __init__(self, preprocessing_url: Optional[str], *args, **kwargs):
     self.preprocessing_url = preprocessing_url
     super().__init__(*args, **kwargs)
 

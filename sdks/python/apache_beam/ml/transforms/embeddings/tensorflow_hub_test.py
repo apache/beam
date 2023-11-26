@@ -35,7 +35,7 @@ except ImportError:
 try:
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
-  ScaleTo01 = None
+  ScaleTo01 = None  # type: ignore
 
 
 @unittest.skipIf(tf is None, 'Tensorflow is not installed.')

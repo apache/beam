@@ -16,9 +16,10 @@
 
 import abc
 import collections
-import jsonpickle
 import logging
 import os
+import tempfile
+import uuid
 from typing import Any
 from typing import Dict
 from typing import Generic
@@ -28,12 +29,11 @@ from typing import Optional
 from typing import Sequence
 from typing import TypeVar
 from typing import Union
-import tempfile
-import uuid
 
 import numpy as np
 
 import apache_beam as beam
+import jsonpickle
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
@@ -70,7 +70,7 @@ def _convert_list_of_dicts_to_dict_of_lists(
 def _convert_dict_of_lists_to_lists_of_dict(
     dict_of_lists: Dict[str, List[Any]],
     batch_length: int) -> List[Dict[str, Any]]:
-  result = [{} for _ in range(batch_length)]
+  result: List[Dict[str, Any]] = [{} for _ in range(batch_length)]
   for key, values in dict_of_lists.items():
     for i in range(len(values)):
       result[i][key] = values[i]
@@ -162,6 +162,42 @@ class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
     """
 
 
+# TODO: Add support for inference_fn
+class EmbeddingsManager(PTransformProvider):
+  def __init__(
+      self,
+      columns: List[str],
+      *,
+      # common args for all ModelHandlers.
+      load_model_args: Optional[Dict[str, Any]] = None,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      large_model: bool = False,
+      **kwargs):
+    self.load_model_args = load_model_args or {}
+    self.min_batch_size = min_batch_size
+    self.max_batch_size = max_batch_size
+    self.large_model = large_model
+    self.columns = columns
+
+    if kwargs:
+      _LOGGER.warning("Ignoring the following arguments: %s", kwargs.keys())
+
+  # TODO: Add set_model_handler method.
+  @abc.abstractmethod
+  def get_model_handler(self) -> ModelHandler:
+    """
+    Return framework specific model handler.
+    """
+
+  def requires_chaining(self):
+    # each embedding config requires a separate PTransform. so no chaining.
+    return False
+
+  def get_columns_to_apply(self):
+    return self.columns
+
+
 class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                                   beam.PCollection[MLTransformOutputT]],
                   Generic[ExampleT, MLTransformOutputT]):
@@ -170,7 +206,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       *,
       write_artifact_location: Optional[str] = None,
       read_artifact_location: Optional[str] = None,
-      transforms: Optional[Sequence[BaseOperation]] = None):
+      transforms: Optional[List[Union[BaseOperation,
+                                      EmbeddingsManager]]] = None):
     """
     MLTransform is a Beam PTransform that can be used to apply
     transformations to the data. MLTransform is used to wrap the
@@ -281,7 +318,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
-    return pcoll
+    return pcoll  # type: ignore[return-value]
 
   def with_transform(self, transform: BaseOperation):
     """
@@ -328,42 +365,6 @@ class MLTransformMetricsUsage(beam.PTransform):
         pipeline
         | beam.Create([None])
         | beam.Map(lambda _: _increment_counters()))
-
-
-# TODO: Add support for inference_fn
-class EmbeddingsManager(PTransformProvider):
-  def __init__(
-      self,
-      columns: List[str],
-      *,
-      # common args for all ModelHandlers.
-      load_model_args: Optional[Dict[str, Any]] = None,
-      min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None,
-      large_model: bool = False,
-      **kwargs):
-    self.load_model_args = load_model_args or {}
-    self.min_batch_size = min_batch_size
-    self.max_batch_size = max_batch_size
-    self.large_model = large_model
-    self.columns = columns
-
-    if kwargs:
-      _LOGGER.warning("Ignoring the following arguments: %s", kwargs.keys())
-
-  # TODO: Add set_model_handler method.
-  @abc.abstractmethod
-  def get_model_handler(self) -> ModelHandler:
-    """
-    Return framework specific model handler.
-    """
-
-  def requires_chaining(self):
-    # each embedding config requires a separate PTransform. so no chaining.
-    return False
-
-  def get_columns_to_apply(self):
-    return self.columns
 
 
 class _TransformAttributeManager:
@@ -559,7 +560,7 @@ class _TextEmbeddingHandler(ModelHandler):
       dict_batch: Dict[str, List[Any]],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]]) -> Dict[str, List[Any]]:
-    result = collections.defaultdict(list)
+    result: Dict[str, List[Any]] = collections.defaultdict(list)
     for key, batch in dict_batch.items():
       if key in self.columns:
         self._validate_column_data(batch)
@@ -576,7 +577,7 @@ class _TextEmbeddingHandler(ModelHandler):
 
   def run_inference(
       self,
-      batch: List[Dict[str, List[str]]],
+      batch: Sequence[Dict[str, List[str]]],
       model: ModelT,
       inference_args: Optional[Dict[str, Any]] = None,
   ) -> List[Dict[str, Union[List[float], List[str]]]]:

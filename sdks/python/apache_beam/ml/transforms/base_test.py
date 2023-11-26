@@ -24,16 +24,17 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Sequence
 
 import numpy as np
 from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.base import ModelHandler
-from apache_beam.ml.transforms import base
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.transforms import base
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -308,7 +309,7 @@ class FakeModel:
 class FakeModelHandler(ModelHandler):
   def run_inference(
       self,
-      batch: List[str],
+      batch: Sequence[str],
       model: Any,
       inference_args: Optional[Dict[str, Any]] = None):
     return model(batch)
