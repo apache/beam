@@ -73,7 +73,7 @@ public class BadRecordRouterTest {
 
     thrown.expect(IOException.class);
 
-    handler.route(outputReceiver, new Object(), null, new IOException(), "desc", "transform");
+    handler.route(outputReceiver, new Object(), null, new IOException(), "desc");
   }
 
   @Test
@@ -82,7 +82,7 @@ public class BadRecordRouterTest {
 
     thrown.expect(RuntimeException.class);
 
-    handler.route(outputReceiver, new Object(), null, null, "desc", "transform");
+    handler.route(outputReceiver, new Object(), null, null, "desc");
   }
 
   @Test
@@ -92,7 +92,7 @@ public class BadRecordRouterTest {
     BadRecordRouter handler = BadRecordRouter.RECORDING_ROUTER;
 
     handler.route(
-        outputReceiver, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc", "transform");
+        outputReceiver, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc");
 
     BadRecord.Builder expectedBuilder =
         BadRecord.builder()
@@ -118,7 +118,7 @@ public class BadRecordRouterTest {
 
     BadRecordRouter handler = BadRecordRouter.RECORDING_ROUTER;
 
-    handler.route(outputReceiver, 5, null, new RuntimeException(), "desc", "transform");
+    handler.route(outputReceiver, 5, null, new RuntimeException(), "desc");
 
     BadRecord.Builder expectedBuilder =
         BadRecord.builder().setRecord(Record.builder().setHumanReadableJsonRecord("5").build());
@@ -160,7 +160,7 @@ public class BadRecordRouterTest {
           public void verifyDeterministic() throws NonDeterministicException {}
         };
 
-    handler.route(outputReceiver, 5, failingCoder, new RuntimeException(), "desc", "transform");
+    handler.route(outputReceiver, 5, failingCoder, new RuntimeException(), "desc");
 
     BadRecord.Builder expectedBuilder =
         BadRecord.builder()
