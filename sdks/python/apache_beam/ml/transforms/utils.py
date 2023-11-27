@@ -20,6 +20,7 @@ __all__ = ['ArtifactsFetcher']
 import os
 import typing
 
+from apache_beam.ml.transforms import base
 import tensorflow_transform as tft
 
 
@@ -30,6 +31,7 @@ class ArtifactsFetcher():
   """
   def __init__(self, artifact_location):
     files = os.listdir(artifact_location)
+    files.remove(base._ATTRIBUTE_FILE_NAME)
     if len(files) > 1:
       raise NotImplementedError(
           'Multiple files in artifact location not supported yet.')
