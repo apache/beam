@@ -1,10 +1,13 @@
 package org.apache.beam.io.iceberg;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -34,7 +37,15 @@ public class BoundedScanTests {
         .commit();
 
     PCollection<IcebergScanTask> output = testPipeline
-        .apply(Create.of())
+        .apply(Create.of(IcebergScan.builder()
+                .catalogName("hadoop")
+                .catalogConfiguration(ImmutableMap.of(
+                        CatalogUtil.ICEBERG_CATALOG_TYPE,CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, // Filesystem
+                        CatalogProperties.WAREHOUSE_LOCATION, warehouse.location // Directory where our temp warehouse lives
+                ))
+                .table(simpleTable.name().replace("hadoop.","")) // Catalog name shouldn't be included
+                .scanType(IcebergScan.ScanType.TABLE) // Do a normal scan.
+                .build()))
         .apply(ParDo.of(new IcebergScanGeneratorFn()));
     PAssert.that(output);
     testPipeline.run();

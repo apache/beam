@@ -28,12 +28,14 @@ import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.FileAppender;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
-import org.apache.log4j.Logger;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class TestDataWarehouse extends ExternalResource {
-  private static final Logger LOG = Logger.getLogger(TestDataWarehouse.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TestDataWarehouse.class);
 
   protected final TemporaryFolder temporaryFolder;
   protected final String database;
@@ -64,12 +66,13 @@ public class TestDataWarehouse extends ExternalResource {
   @Override
   protected void after() {
       List<TableIdentifier> tables = catalog.listTables(Namespace.of(database));
-      LOG.info("Cleaning up "+ tables.size()+" tables");
+      LOG.info("Cleaning up {} tables in test warehouse",tables.size());
       for(TableIdentifier t : tables) {
         try {
+          LOG.info("Removing table {}",t);
           catalog.dropTable(t);
         } catch(Exception e) {
-
+          LOG.error("Unable to remove table",e);
         }
       }
       try {
@@ -110,7 +113,7 @@ public class TestDataWarehouse extends ExternalResource {
   }
 
   public Table createTable(Schema schema) {
-    TableIdentifier table = TableIdentifier.of(database,"table"+Integer.toString(UUID.randomUUID().hashCode(),16));
+    TableIdentifier table = TableIdentifier.of(database,"table"+Long.toString(UUID.randomUUID().hashCode(),16));
     return catalog.createTable(table,schema);
   }
 

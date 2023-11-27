@@ -18,6 +18,7 @@ import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 
+@SuppressWarnings({"all"})
 @AutoValue
 @AutoValue.CopyAnnotations
 public abstract class IcebergScan implements Serializable {
@@ -44,44 +45,101 @@ public abstract class IcebergScan implements Serializable {
 
   public abstract ImmutableMap<String,String> getOptions();
 
-  public abstract Optional<Long> getSnapshot();
+  public abstract @Nullable Long getSnapshot();
 
-  public abstract Optional<Long> getTimestamp();
+  public abstract @Nullable Long getTimestamp();
 
-  public abstract Optional<Long> getFromSnapshotInclusive();
+  public abstract @Nullable Long getFromSnapshotInclusive();
 
-  public abstract Optional<String> getFromSnapshotRefInclusive();
+  public abstract @Nullable String getFromSnapshotRefInclusive();
 
-  public abstract Optional<Long> getFromSnapshotExclusive();
+  public abstract @Nullable Long getFromSnapshotExclusive();
 
-  public abstract Optional<String> getFromSnapshotRefExclusive();
+  public abstract @Nullable String getFromSnapshotRefExclusive();
 
-  public abstract Optional<String> getTag();
+  public abstract @Nullable Long getToSnapshot();
 
-  public abstract Optional<String> getBranch();
+  public abstract @Nullable String getToSnapshotRef();
+
+  public abstract @Nullable String getTag();
+
+  public abstract @Nullable String getBranch();
+
+  public static Builder builder() {
+    return new AutoValue_IcebergScan.Builder()
+
+            .catalogConfiguration(ImmutableMap.of())
+            .hadoopConfiguration(ImmutableMap.of())
+            .options(ImmutableMap.of())
+
+            .columns(ImmutableList.of())
+            .caseSensitive(true)
+
+            .snapshot(null)
+            .timestamp(null)
+            .fromSnapshotInclusive(null)
+            .fromSnapshotRefInclusive(null)
+            .fromSnapshotExclusive(null)
+            .fromSnapshotRefExclusive(null)
+
+            .toSnapshot(null)
+            .toSnapshotRef(null)
+
+            .tag(null)
+            .branch(null);
+  }
 
   @AutoValue.Builder
-  public static abstract class Builder {
+  public abstract static class Builder {
+    public abstract Builder catalogName(String catalogName);
+    public abstract Builder catalogConfiguration(ImmutableMap<String,String> catalogConfiguration);
+    public abstract Builder hadoopConfiguration(ImmutableMap<String,String> hadoopConfiguration);
+    public abstract Builder scanType(ScanType scanType);
+    public abstract Builder table(String string);
 
-    public abstract Builder catalogName(String catalog);
-    public abstract Builder catalogConfiguration(ImmutableMap<String,String> config);
-    public abstract Builder hadoopConfiguration(ImmutableMap<String,String> config);
+    public abstract Builder columns(ImmutableList<String> columns);
+
+    public abstract Builder caseSensitive(boolean caseSensitive);
+
+    public abstract Builder options(ImmutableMap<String,String> options);
+
+    public abstract Builder snapshot(@Nullable Long snapshot);
+
+
+    public abstract Builder timestamp(@Nullable Long timestamp);
+
+    public abstract Builder fromSnapshotInclusive(@Nullable Long snapshotInclusive);
+    public abstract Builder fromSnapshotRefInclusive(@Nullable String snapshotRefInclusive);
+
+    public abstract Builder fromSnapshotExclusive(@Nullable Long snapshotExclusive);
+
+    public abstract Builder fromSnapshotRefExclusive(@Nullable String snapshotRefExclusive);
+
+    public abstract Builder toSnapshot(@Nullable Long toSnapshot);
+
+    public abstract Builder toSnapshotRef(@Nullable String toRef);
+
+    public abstract Builder tag(@Nullable String tag);
+
+    public abstract Builder branch(@Nullable String branch);
 
     public abstract IcebergScan build();
   }
-
 
   @Nullable
   private transient Configuration hadoopConf;
 
   public Configuration hadoopConf() {
     if(hadoopConf == null) {
-      hadoopConf = new Configuration();
+      Configuration local = new Configuration();
       getHadoopConfiguration().forEach((k,v) -> {
-        hadoopConf.set(k,v);
+        local.set(k,v);
       });
+      hadoopConf = local;
+      return local;
+    } else {
+      return hadoopConf;
     }
-    return hadoopConf;
   }
 
   @Nullable
@@ -100,16 +158,17 @@ public abstract class IcebergScan implements Serializable {
 
   public Table table() {
     if(table == null) {
-      catalog().loadTable(TableIdentifier.parse(getTable()));
+      Table local = catalog().loadTable(TableIdentifier.parse(getTable()));
+      table = local;
+      return local;
+    } else {
+      return table;
     }
-    return table;
   }
 
-  @Nullable
-  private transient Scan scan;
 
   public TableScan tableScan() {
-    TableScan s = table.newScan();
+    TableScan s = table().newScan();
     s = s.caseSensitive(getCaseSensitive());
     for(Entry<String,String> e : getOptions().entrySet()) {
       s = s.option(e.getKey(),e.getValue());
@@ -117,23 +176,24 @@ public abstract class IcebergScan implements Serializable {
     if(getColumns().size() > 0) {
       s = s.select(getColumns());
     }
-    if(getSnapshot().isPresent()) {
-      s = s.useSnapshot(getSnapshot().get());
+    if(getSnapshot() != null) {
+      s = s.useSnapshot(getSnapshot());
     }
-    if(getTag().isPresent()) {
-      s = s.useRef(getTag().get());
+    if(getTag() != null) {
+      s = s.useRef(getTag());
     }
-    if(getBranch().isPresent()) {
-      s = s.useRef(getBranch().get());
+    if(getBranch() != null) {
+      s = s.useRef(getBranch());
     }
-    if(getTimestamp().isPresent()) {
-      s = s.asOfTime(getTimestamp().get());
+    if(getTimestamp() != null) {
+      s = s.asOfTime(getTimestamp());
     }
 
     return s;
   }
 
   public BatchScan batchScan() {
+
     BatchScan s = table().newBatchScan();
     for(Entry<String,String> e : getOptions().entrySet()) {
       s = s.option(e.getKey(),e.getValue());
@@ -141,85 +201,78 @@ public abstract class IcebergScan implements Serializable {
     if(getColumns().size() > 0) {
       s = s.select(getColumns());
     }
-    if(getSnapshot().isPresent()) {
-      s = s.useSnapshot(getSnapshot().get());
+    if(getSnapshot() != null) {
+      s = s.useSnapshot(getSnapshot());
     }
-    if(getTag().isPresent()) {
-      s = s.useRef(getTag().get());
+    if(getTag() != null) {
+      s = s.useRef(getTag());
     }
-    if(getBranch().isPresent()) {
-      s = s.useRef(getBranch().get());
+    if(getBranch() != null) {
+      s = s.useRef(getBranch());
     }
-    if(getTimestamp().isPresent()) {
-      s = s.asOfTime(getTimestamp().get());
+    if(getTimestamp() != null) {
+      s = s.asOfTime(getTimestamp());
     }
     return s;
   }
 
   public IncrementalAppendScan appendScan() {
-    IncrementalAppendScan s = table.newIncrementalAppendScan();
+    IncrementalAppendScan s = table().newIncrementalAppendScan();
     for(Entry<String,String> e : getOptions().entrySet()) {
       s = s.option(e.getKey(),e.getValue());
     }
     if(getColumns().size() > 0) {
       s = s.select(getColumns());
     }
-    if(getFromSnapshotInclusive().isPresent()) {
-      s = s.fromSnapshotInclusive(getFromSnapshotInclusive().get());
+    if(getFromSnapshotInclusive() != null) {
+      s = s.fromSnapshotInclusive(getFromSnapshotInclusive());
     }
-    if(getFromSnapshotRefInclusive().isPresent()) {
-      s = s.fromSnapshotInclusive(getFromSnapshotRefInclusive().get());
+    if(getFromSnapshotRefInclusive() != null) {
+      s = s.fromSnapshotInclusive(getFromSnapshotRefInclusive());
     }
-    if(getFromSnapshotExclusive().isPresent()) {
-      s = s.fromSnapshotExclusive(getFromSnapshotRefExclusive().get());
+    if(getFromSnapshotExclusive() != null) {
+      s = s.fromSnapshotExclusive(getFromSnapshotRefExclusive());
     }
-    if(getFromSnapshotRefExclusive().isPresent()) {
-      s = s.fromSnapshotExclusive(getFromSnapshotExclusive().get());
+    if(getFromSnapshotRefExclusive() != null) {
+      s = s.fromSnapshotExclusive(getFromSnapshotExclusive());
     }
+
+    if(getToSnapshot() != null) {
+      s = s.toSnapshot(getToSnapshot());
+    }
+    if(getToSnapshotRef() != null) {
+      s = s.toSnapshot(getToSnapshotRef());
+    }
+
     return s;
   }
 
   public IncrementalChangelogScan changelogScan() {
-    IncrementalChangelogScan s = table.newIncrementalChangelogScan();
+    IncrementalChangelogScan s = table().newIncrementalChangelogScan();
     s = s.caseSensitive(getCaseSensitive());
     for(Entry<String,String> e : getOptions().entrySet()) {
       s = s.option(e.getKey(),e.getValue());
     }
-    if(getFromSnapshotInclusive().isPresent()) {
-      s = s.fromSnapshotInclusive(getFromSnapshotInclusive().get());
+    if(getFromSnapshotInclusive() != null) {
+      s = s.fromSnapshotInclusive(getFromSnapshotInclusive());
     }
-    if(getFromSnapshotRefInclusive().isPresent()) {
-      s = s.fromSnapshotInclusive(getFromSnapshotRefInclusive().get());
+    if(getFromSnapshotRefInclusive() != null) {
+      s = s.fromSnapshotInclusive(getFromSnapshotRefInclusive());
     }
-    if(getFromSnapshotExclusive().isPresent()) {
-      s = s.fromSnapshotExclusive(getFromSnapshotRefExclusive().get());
+    if(getFromSnapshotExclusive() != null) {
+      s = s.fromSnapshotExclusive(getFromSnapshotRefExclusive());
     }
-    if(getFromSnapshotRefExclusive().isPresent()) {
-      s = s.fromSnapshotExclusive(getFromSnapshotExclusive().get());
+    if(getFromSnapshotRefExclusive() != null) {
+      s = s.fromSnapshotExclusive(getFromSnapshotExclusive());
+    }
+    if(getToSnapshot() != null) {
+      s = s.toSnapshot(getToSnapshot());
+    }
+    if(getToSnapshotRef() != null) {
+      s = s.toSnapshot(getToSnapshotRef());
     }
     return s;
   }
-
-  public Scan scan() {
-    if(scan == null) {
-      switch(getScanType()) {
-        case TABLE:
-          scan = tableScan();
-          break;
-        case BATCH:
-          scan = batchScan();
-          break;
-        case INCREMENTAL_APPEND:
-          scan = appendScan();
-          break;
-        case INCREMENTAL_CHANGELOG:
-          scan = changelogScan();
-          break;
-      }
-    }
-    return scan;
-  }
-
 
 
 }
