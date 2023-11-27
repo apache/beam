@@ -34,9 +34,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
  * serialization mechanisms.
  *
- * <p>SerializableConfiguration is not thread safe if {@link
- * SerializableConfiguration#writeExternal} and {@link SerializableConfiguration#readExternal} are
- * run at the same time, or the {@link Configuration} is changed outside in between writeExternal.
+ * <p>SerializableConfiguration is not thread safe. For example, serialized configuration could be
+ * corrupted if {@link SerializableConfiguration#writeExternal} and {@link
+ * SerializableConfiguration#readExternal} are run at the same time, or the {@link Configuration} is
+ * changed outside during writeExternal.
  */
 @NotThreadSafe
 @SuppressWarnings({
@@ -69,25 +70,17 @@ public class SerializableConfiguration implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    String canonicalName;
-    byte[] cached;
-    synchronized (this) {
-      if (confMutated || serializationCache == null) {
-        confMutated = false;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-        try (DataOutputStream dos = new DataOutputStream(baos)) {
-          // this call is slow.
-          conf.write(dos);
-          serializationCache = baos.toByteArray();
-        }
+    if (confMutated || serializationCache == null) {
+      confMutated = false;
+      ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+      try (DataOutputStream dos = new DataOutputStream(baos)) {
+        // this call is slow.
+        conf.write(dos);
+        serializationCache = baos.toByteArray();
       }
-      // assign local variable inside synchronized to ensure the name and bytes from same conf
-      canonicalName = conf.getClass().getCanonicalName();
-      cached = serializationCache;
     }
-    // we intentionally leave the following _out_ of synchronized block because they are slow
-    out.writeUTF(canonicalName);
-    out.write(cached);
+    out.writeUTF(conf.getClass().getCanonicalName());
+    out.write(serializationCache);
   }
 
   @Override
