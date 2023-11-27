@@ -17,7 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.auto.value.AutoValue;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,12 +31,18 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
 public abstract class BadRecord implements Serializable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BadRecord.class);
 
   /** Information about the record that failed. */
   public abstract Record getRecord();
@@ -71,7 +82,7 @@ public abstract class BadRecord implements Serializable {
   public abstract static class Record implements Serializable {
 
     /** The failing record, encoded as JSON. Will be null if serialization as JSON fails. */
-    public abstract @Nullable String getJsonRecord();
+    public abstract @Nullable String getHumanReadableJsonRecord();
 
     /**
      * Nullable to account for failing to encode, or if there is no coder for the record at the time
@@ -90,12 +101,48 @@ public abstract class BadRecord implements Serializable {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setJsonRecord(@Nullable String jsonRecord);
+      public abstract Builder setHumanReadableJsonRecord(@Nullable String jsonRecord);
+
+      public Builder addHumanReadableJson(Object record) {
+        ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
+        try {
+          this.setHumanReadableJsonRecord(objectWriter.writeValueAsString(record));
+        } catch (Exception e) {
+          LOG.error(
+              "Unable to serialize record as JSON. Human readable record attempted via .toString",
+              e);
+          try {
+            this.setHumanReadableJsonRecord(record.toString());
+          } catch (Exception e2) {
+            LOG.error(
+                "Unable to serialize record via .toString. Human readable record will be null", e2);
+          }
+        }
+        return this;
+      }
 
       @SuppressWarnings("mutable")
       public abstract Builder setEncodedRecord(byte @Nullable [] encodedRecord);
 
       public abstract Builder setCoder(@Nullable String coder);
+
+      public <T> Builder addCoderAndEncodedRecord(@Nullable Coder<T> coder, T record) {
+        // We will sometimes not have a coder for a failing record, for example if it has already
+        // been
+        // modified within the dofn.
+        if (coder != null) {
+          this.setCoder(coder.toString());
+          try {
+            this.setEncodedRecord(CoderUtils.encodeToByteArray(coder, record));
+          } catch (IOException e) {
+            LOG.error(
+                "Unable to encode failing record using provided coder."
+                    + " BadRecord will be published without encoded bytes",
+                e);
+          }
+        }
+        return this;
+      }
 
       public abstract Record build();
     }
@@ -127,6 +174,16 @@ public abstract class BadRecord implements Serializable {
       public abstract Builder setException(@Nullable String exception);
 
       public abstract Builder setExceptionStacktrace(@Nullable String stacktrace);
+
+      public Builder addExceptionStackTrace(Exception exception) throws IOException {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        PrintStream printStream = new PrintStream(stream, false, Charsets.UTF_8.name());
+        exception.printStackTrace(printStream);
+        printStream.close();
+
+        this.setExceptionStacktrace(new String(stream.toByteArray(), Charsets.UTF_8));
+        return this;
+      }
 
       public abstract Builder setDescription(String description);
 

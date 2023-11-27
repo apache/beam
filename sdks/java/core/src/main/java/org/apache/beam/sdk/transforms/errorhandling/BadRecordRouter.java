@@ -17,23 +17,14 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public interface BadRecordRouter extends Serializable {
 
@@ -65,13 +56,13 @@ public interface BadRecordRouter extends Serializable {
         throws Exception {
       if (exception != null) {
         throw exception;
+      } else {
+        throw new RuntimeException("Throwing default exception from Throwing Bad Record Router");
       }
     }
   }
 
   class RecordingBadRecordRouter implements BadRecordRouter {
-
-    private static final Logger LOG = LoggerFactory.getLogger(RecordingBadRecordRouter.class);
 
     @Override
     public <RecordT> void route(
@@ -83,36 +74,10 @@ public interface BadRecordRouter extends Serializable {
         String failingTransform)
         throws Exception {
       Preconditions.checkArgumentNotNull(record);
-      ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
       // Build up record information
       BadRecord.Record.Builder recordBuilder = Record.builder();
-      try {
-        recordBuilder.setJsonRecord(objectWriter.writeValueAsString(record));
-      } catch (Exception e) {
-        LOG.error(
-            "Unable to serialize record as JSON. Human readable record attempted via .toString", e);
-        try {
-          recordBuilder.setJsonRecord(record.toString());
-        } catch (Exception e2) {
-          LOG.error(
-              "Unable to serialize record via .toString. Human readable record will be null", e2);
-        }
-      }
-
-      // We will sometimes not have a coder for a failing record, for example if it has already been
-      // modified within the dofn.
-      if (coder != null) {
-        recordBuilder.setCoder(coder.toString());
-        try {
-          recordBuilder.setEncodedRecord(CoderUtils.encodeToByteArray(coder, record));
-        } catch (IOException e) {
-          LOG.error(
-              "Unable to encode failing record using provided coder."
-                  + " BadRecord will be published without encoded bytes",
-              e);
-        }
-      }
+      recordBuilder.addHumanReadableJson(record).addCoderAndEncodedRecord(coder, record);
 
       // Build up failure information
       BadRecord.Failure.Builder failureBuilder =
@@ -121,12 +86,7 @@ public interface BadRecordRouter extends Serializable {
       // It's possible for us to want to handle an error scenario where no actual exception object
       // exists
       if (exception != null) {
-        failureBuilder.setException(exception.toString());
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        PrintStream printStream = new PrintStream(stream, false, Charsets.UTF_8.name());
-        exception.printStackTrace(printStream);
-        printStream.close();
-        failureBuilder.setExceptionStacktrace(new String(stream.toByteArray(), Charsets.UTF_8));
+        failureBuilder.setException(exception.toString()).addExceptionStackTrace(exception);
       }
 
       BadRecord badRecord =

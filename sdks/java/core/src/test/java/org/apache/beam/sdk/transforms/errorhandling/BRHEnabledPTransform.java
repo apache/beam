@@ -21,7 +21,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.NoOpErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.TupleTagList;
  */
 public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
-  private ErrorHandler<BadRecord, ?> errorHandler = new NoOpErrorHandler<>();
+  private ErrorHandler<BadRecord, ?> errorHandler = new DefaultErrorHandler<>();
 
   private BadRecordRouter badRecordRouter = BadRecordRouter.THROWING_ROUTER;
 

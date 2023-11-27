@@ -124,10 +124,14 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
     @Override
     public void close() {
+      if (closed) {
+        throw new IllegalStateException(
+            "Error handler is already closed, and may not be closed twice");
+      }
       closed = true;
       PCollection<ErrorT> flattened;
       if (errorCollections.isEmpty()) {
-        LOG.warn("Empty list of error pcollections passed to ErrorHandler.");
+        LOG.info("Empty list of error pcollections passed to ErrorHandler.");
         flattened = pipeline.apply(Create.empty(coder));
       } else {
         flattened = PCollectionList.of(errorCollections).apply(Flatten.pCollections());
@@ -196,7 +200,8 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
    * configured an error handler or not.
    */
   @Internal
-  class NoOpErrorHandler<ErrorT, OutputT extends POutput> implements ErrorHandler<ErrorT, OutputT> {
+  class DefaultErrorHandler<ErrorT, OutputT extends POutput>
+      implements ErrorHandler<ErrorT, OutputT> {
 
     @Override
     public void addErrorCollection(PCollection<ErrorT> errorCollection) {}

@@ -92,17 +92,17 @@ public class ErrorHandlerTest {
 
                 Record r = null;
 
-                if (Objects.equals(badRecord.getRecord().getJsonRecord(), "1")) {
+                if (Objects.equals(badRecord.getRecord().getHumanReadableJsonRecord(), "1")) {
                   r =
                       Record.builder()
-                          .setJsonRecord("1")
+                          .setHumanReadableJsonRecord("1")
                           .setEncodedRecord(new byte[] {0, 0, 0, 1})
                           .setCoder("BigEndianIntegerCoder")
                           .build();
                 } else {
                   r =
                       Record.builder()
-                          .setJsonRecord("3")
+                          .setHumanReadableJsonRecord("3")
                           .setEncodedRecord(new byte[] {0, 0, 0, 3})
                           .setCoder("BigEndianIntegerCoder")
                           .build();

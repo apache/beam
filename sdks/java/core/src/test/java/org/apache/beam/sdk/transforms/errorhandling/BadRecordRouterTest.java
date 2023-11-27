@@ -96,7 +96,7 @@ public class BadRecordRouterTest {
         BadRecord.builder()
             .setRecord(
                 Record.builder()
-                    .setJsonRecord("5")
+                    .setHumanReadableJsonRecord("5")
                     .setEncodedRecord(new byte[] {0, 0, 0, 5})
                     .setCoder("BigEndianIntegerCoder")
                     .build());
@@ -120,7 +120,7 @@ public class BadRecordRouterTest {
     handler.route(outputReceiver, 5, null, new RuntimeException(), "desc", "transform");
 
     BadRecord.Builder expectedBuilder =
-        BadRecord.builder().setRecord(Record.builder().setJsonRecord("5").build());
+        BadRecord.builder().setRecord(Record.builder().setHumanReadableJsonRecord("5").build());
 
     BadRecord.Failure.Builder failure =
         BadRecord.Failure.builder()
@@ -165,7 +165,10 @@ public class BadRecordRouterTest {
     BadRecord.Builder expectedBuilder =
         BadRecord.builder()
             .setRecord(
-                Record.builder().setJsonRecord("5").setCoder(failingCoder.toString()).build());
+                Record.builder()
+                    .setHumanReadableJsonRecord("5")
+                    .setCoder(failingCoder.toString())
+                    .build());
 
     BadRecord.Failure.Builder failure =
         BadRecord.Failure.builder()
