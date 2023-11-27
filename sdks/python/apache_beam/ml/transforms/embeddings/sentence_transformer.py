@@ -65,15 +65,6 @@ def inference_fn(batch, model, inference_args, *args, **kwargs):
   return model.encode(batch, **inference_args)
 
 
-class _YieldElements(beam.PTransform):
-  def expand(self, pcoll):
-    def yield_elements(elements):
-      for element in elements:
-        yield [element]
-
-    return pcoll | beam.ParDo(yield_elements)
-
-
 # TODO: Use HuggingFaceModelHandlerTensor once the import issue is fixed.
 # Right now, the hugging face model handler import torch and tensorflow
 # at the same time, which adds too much weigth to the container unnecessarily.
@@ -155,12 +146,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     # wrap the model handler in a _TextEmbeddingHandler since
     # the SentenceTransformerEmbeddings works on text input data.
-    return (
-        RunInference(model_handler=_TextEmbeddingHandler(self))
-        # This is required since RunInference performs batching and returns
-        # batches. We need to decompose the batches and return the elements
-        # in their initial shape to the downstream transforms.
-        | _YieldElements())
+    return (RunInference(model_handler=_TextEmbeddingHandler(self)))
 
   def requires_chaining(self):
     return False

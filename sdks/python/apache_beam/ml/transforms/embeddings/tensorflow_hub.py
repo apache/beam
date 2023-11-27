@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
-from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 
@@ -35,25 +34,6 @@ from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 __all__ = ['TensorflowHubTextEmbeddings']
 
 
-class _YieldElements(beam.PTransform):
-  def expand(self, pcoll):
-    def yield_elements(elements: List[Dict[str, Any]]):
-      for element in elements:
-        for key, value in element.items():
-          if isinstance(value, PredictionResult):
-            # contains transposed numpy array where first dimension
-            # is the batch size. we need to send a list of
-            # predictions instead of list[list]
-            pred = value.inference.numpy().tolist()
-            if len(pred) == 1 and len(pred[0]) != 1:
-              element[key] = pred[0]
-            else:
-              element[key] = pred
-        yield [element]
-
-    return pcoll | beam.ParDo(yield_elements)
-
-
 class _TensorflowHubModelHandler(TFModelHandlerTensor):
   """
   Note: Intended for internal use only. No backwards compatibility guarantees.
@@ -68,15 +48,24 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
     model = hub.KerasLayer(self._model_uri)
     return model
 
+  def _convert_prediction_result_to_list(
+      self, predictions: Iterable[PredictionResult]):
+    result = []
+    for prediction in predictions:
+      inference = prediction.inference.numpy().tolist()
+      result.append(inference)
+    return result
+
   def run_inference(self, batch, model, inference_args, model_id=None):
     if not inference_args:
       inference_args = {}
     if not self.preprocessing_url:
-      return default_tensor_inference_fn(
+      predictions = default_tensor_inference_fn(
           model=model,
           batch=batch,
           inference_args=inference_args,
           model_id=model_id)
+      return self._convert_prediction_result_to_list(predictions)
 
     vectorized_batch = tf.stack(batch, axis=0)
     preprocessor_fn = hub.KerasLayer(self.preprocessing_url)
@@ -91,7 +80,8 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
     # pooled output is the embeedings as per the documentation. so let's use
     # that.
     embeddings = predictions['pooled_output']
-    return utils._convert_to_result(batch, embeddings, model_id)
+    predictions = utils._convert_to_result(batch, embeddings, model_id)
+    return self._convert_prediction_result_to_list(predictions)
 
 
 class TensorflowHubTextEmbeddings(EmbeddingsManager):
@@ -116,9 +106,4 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    return (
-        RunInference(model_handler=_TextEmbeddingHandler(self))
-        # This is required since RunInference performs batching and returns
-        # batches. We need to decompose the batches and return the elements
-        # in their initial shape to the downstream transforms.
-        | _YieldElements())
+    return (RunInference(model_handler=_TextEmbeddingHandler(self)))
