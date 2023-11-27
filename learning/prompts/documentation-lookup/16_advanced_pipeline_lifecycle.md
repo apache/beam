@@ -9,10 +9,10 @@ The Apache Beam pipeline development lifecycle is an iterative process that usua
 - Test your pipeline.
 - Deploy your pipeline.
 
-On each iteration, you may need to go back and forth between the different steps to refine your pipeline code and to fix any bugs that you find.
+On each iteration, you may need to go back and forth between the different steps to refine your pipeline code and fix any bugs you find.
 
-Desiging a pipeline addresses the following questions:
-- Where my data is stored?
+Designing a pipeline addresses the following questions:
+- Where is my data stored?
 - What does your data look like?
 - What do you want to do with your data?
 - What does your output data look like, and where should it go?

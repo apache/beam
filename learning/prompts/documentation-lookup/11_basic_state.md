@@ -5,7 +5,7 @@ Response:
 
 State is [scoped](https://beam.apache.org/documentation/programming-guide/#state-and-timers) to the current processing key within a window, meaning each key has its own state. It's particularly useful for complex aggregations across multiple elements.
 
-Beam provides several [types of state](https://beam.apache.org/documentation/programming-guide/#types-of-state) that can be used for different use cases including scalar and collection values:
+Beam provides several [types of state](https://beam.apache.org/documentation/programming-guide/#types-of-state) that can be used for different use cases, including scalar and collection values:
 - ValueState
 - BagState
 - SetState
@@ -13,8 +13,8 @@ Beam provides several [types of state](https://beam.apache.org/documentation/pro
 - OrderedListState
 - CombiningState
 
-Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact performance. See [here](https://beam.apache.org/documentation/programming-guide/#garbage-collecting-state) for more info on common strategies for garbage collecting state.
+The per-key state needs to be garbage collected, or eventually, the increasing size of the state may negatively impact performance. See [here](https://beam.apache.org/documentation/programming-guide/#garbage-collecting-state) for more info on common garbage collection strategies.
 
-See community blogpost on [Stateful Processing](https://beam.apache.org/blog/stateful-processing/) for more information.
+See the community blogpost on [Stateful Processing](https://beam.apache.org/blog/stateful-processing/) for more information.
 
 For additional examples of using State in Apache Beam see [State and Time examples](https://beam.apache.org/documentation/programming-guide/#state-timers-examples) section of the programming guide.

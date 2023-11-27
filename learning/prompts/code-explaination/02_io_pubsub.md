@@ -8,19 +8,18 @@ with beam.Pipeline(options=options) as p:
        | "Process" >> ParDo(ProcessMessage())
        | "Write" >> WriteToPubSub(topic=output_topic))
 ```
-
 Response:
-This code reads messages from a [PubSub](https://cloud.google.com/pubsub) subscription `input_subscription` using the `ReadFromPubSub`, processes them and writes the resulting collection to a PubSub topic `output_topic` using the `WriteToPubSub` transform.
+This code reads messages from a [PubSub](https://cloud.google.com/pubsub) subscription `input_subscription` using the `ReadFromPubSub`, processes them, and writes the resulting collection to a PubSub topic `output_topic` using the `WriteToPubSub` transform.
 
 PubSub is currently supported only in streaming pipelines.
 
-Reading messages directly from a topic is also supported. In this case a temporary subscription will be created automatically.
+Reading messages directly from a topic is also supported. In this case, a temporary subscription will be created automatically.
 
-`ReadFromPubSub` produces a `PCollection` of `PubsubMessage` objects or a `PCollection` of byte sequences. Behavior is controlled by the `with_attributes` parameter with byte sequences being the default.
+`ReadFromPubSub` produces a `PCollection` of `PubsubMessage` objects or a `PCollection` of byte sequences. Behavior is controlled by the `with_attributes` parameter, with byte sequences being the default.
 For more on PCollections see the [Beam Programming Guide](https://beam.apache.org/documentation/basics/#pcollection).
 
-Processing of the messages is done by the `ProcessMessage` class. This class is a subclass of the `DoFn` class.
-Simplest implementation of ProcessMesageclass could be something like:
+The `ProcessMessage` class processes the messages. This class is a subclass of the `DoFn` class.
+The Simplest implementation of ProcessMesageclass could be something like this:
 
 ```python
 class ProcessMessage(beam.DoFn):
@@ -31,4 +30,4 @@ More on `DoFn` class can be found [here](https://beam.apache.org/documentation/p
 
 See [PubSub IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html) transform documentation for more details.
 
-For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+For a common pattern for configuring pipeline options, see the [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).

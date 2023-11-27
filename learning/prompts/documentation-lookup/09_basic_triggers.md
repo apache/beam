@@ -1,12 +1,11 @@
 Prompt:
 What are Triggers in Apache Beam?
 Response:
-
 Beam uses triggers to determine when to emit the aggregated results of each [window](https://beam.apache.org/documentation/programming-guide/#windowing) (referred to as a pane)
 
-Triggers provide two additional capabilities compared to [outputting at the end of a window](https://beam.apache.org/documentation/programming-guide/#default-trigger): allow early results to be output before the end of the window or allow late data to be handled after the end of the window
+Triggers provide two additional capabilities compared to [outputting at the end of a window](https://beam.apache.org/documentation/programming-guide/#default-trigger), allowing early results to be output before the end of the window or allowing late data to be handled after the end of the window.
 
-This allows you to control the flow of your data and balance between completenes, latency and cost.
+This allows you to control the flow of your data and balance between completeness, latency, and cost.
 
 You set the triggers for a PCollection by setting the `trigger` parameter of the WindowInto transform.
 
@@ -20,7 +19,7 @@ You set the triggers for a PCollection by setting the `trigger` parameter of the
 When a trigger fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple times, the accumulation mode determines whether the system accumulates the window panes as the trigger fires, or discards them. This behavior is controlled by the [window accumulation mode](https://beam.apache.org/documentation/programming-guide/#window-accumulation-modes) parameter of the WindowInto transform.
 
 
-Beam provides a number of [built-in triggers](https://beam.apache.org/documentation/programming-guide/#triggers) that you can use to determine when to emit the results of your pipeline’s windowed computations:
+Beam provides several [built-in triggers](https://beam.apache.org/documentation/programming-guide/#triggers) that you can use to determine when to emit the results of your pipeline's windowed computations:
 - Event time triggers
 - Processing time triggers
 - Data-driven triggers

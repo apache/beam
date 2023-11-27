@@ -1,7 +1,7 @@
 Prompt:
 Write the python code to read data from BigQuery.
 Response:
-You can read data from BigQuery using the `ReadFromBigQuery` transform. The following python code reads data from a BigQuery table. The table is provided as a command line argument `table`. The data is logged to the console:
+You can read data from BigQuery using the `ReadFromBigQuery` transform. The following Python code reads data from a BigQuery table. The table name is provided as a command line argument `table`. The data is logged to the console:
 
 ```python
 import logging
@@ -38,8 +38,16 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     read_table()
 ```
+ReadFromBigQuery transform also supports reading from a BigQuery query. The following python code reads data from a BigQuery query. The query is provided as a command line argument `query`. The data is logged to the console:
 
-See [PubSub IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html) transform documentation for more details.
+```python
+with beam.Pipeline(options=options) as p:
+    p | "Read BigQuery table" >> ReadFromBigQuery(query='SELECT * FROM table')
+      | "Format data" >> Map(lambda row: f"Received row:\n{row}\n")
+      | Map(logging.info)
+ ```
 
-For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+See [BigQuery IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html) documentation for more details.
+
+For a common pattern for configuring pipeline options, see [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
 

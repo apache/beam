@@ -10,4 +10,4 @@ Here are some of the most common pipeline patterns:
 - [Windowing patterns](https://beam.apache.org/documentation/patterns/custom-windows/)
 - [State and Timers patterns](https://beam.apache.org/documentation/patterns/grouping-elements-for-efficient-external-service-calls/)
 
-For more information see the [Pipeline Patterns](https://beam.apache.org/documentation/patterns/overview/) section of the Beam programming guide.
+For more information, see the [Pipeline Patterns](https://beam.apache.org/documentation/patterns/overview/) section of the Beam programming guide.

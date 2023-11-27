@@ -1,8 +1,9 @@
 Prompt:
 What is Windowing in Apache Beam?
 Response:
-Windowing is a key concept in stream processing, as it allows you to divide streams of data into logical units for efficient and correct parallel processing.
-With an unbounded data set, it is impossible to collect all of the elements, since new elements are constantly being added. In the Beam model, any PCollection (including unbounded PCollections) can be subdivided into [logical windows](https://beam.apache.org/documentation/programming-guide/#windowing-basics). Grouping transforms then consider each PCollection’s elements on a per-window basis.
+Windowing is a key concept in stream processing, as it allows you to divide data streams into logical units for efficient and correct parallel processing.
+
+With an unbounded data set, collecting all of the elements is impossible since new elements are constantly being added. In the Beam model, any PCollection (including unbounded PCollections) can be subdivided into [logical windows](https://beam.apache.org/documentation/programming-guide/#windowing-basics). Grouping transforms then consider each PCollection’s elements on a per-window basis.
 
 Since Beam's default windowing strategy is to assign each element to a single, global window, you must explicitly specify a [windowing function](https://beam.apache.org/documentation/programming-guide/#setting-your-pcollections-windowing-function) for your pipeline.
 
@@ -25,4 +26,4 @@ You can also create your own custom windowing function [WindowFn](https://github
 
 You also need to specify a [triggering strategy](https://beam.apache.org/documentation/programming-guide/#triggers) to determine when to emit the results of your pipeline’s windowed computations.
 
-You can adjust the windowing strategy to allow for [late data](https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data), or data that arrives after the watermark has passed the end of the window. You can also specify how to handle late data, such as discarding it or adding it to the next window.
+You can adjust the windowing strategy to allow for [late data](https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data) or data that arrives after the watermark has passed the end of the window. You can also specify how to handle late data, such as discarding or adding it to the next window.

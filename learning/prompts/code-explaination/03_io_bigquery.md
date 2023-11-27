@@ -10,7 +10,7 @@ with beam.Pipeline(options=options) as p:
 ```
 
 Response:
-This code reads messages from a [PubSub](https://cloud.google.com/pubsub) subscription `input_subscription` using the `ReadFromPubSub`, processes them and writes the resulting collection to a PubSub topic `output_topic` using the `WriteToPubSub` transform.
+This code reads messages from a [PubSub](https://cloud.google.com/pubsub) subscription `input_subscription` using the `ReadFromPubSub`, processes them, and writes the resulting collection to a PubSub topic `output_topic` using the `WriteToPubSub` transform.
 
 PubSub is currently supported only in streaming pipelines.
 
