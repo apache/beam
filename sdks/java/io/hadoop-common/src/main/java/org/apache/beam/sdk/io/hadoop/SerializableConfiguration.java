@@ -25,6 +25,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -32,7 +33,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
  * serialization mechanisms.
+ *
+ * <p>SerializableConfiguration is not thread safe if {@link
+ * SerializableConfiguration#writeExternal} and {@link SerializableConfiguration#readExternal} are
+ * run at the same time, or the {@link Configuration} is changed outside in between writeExternal.
  */
+@NotThreadSafe
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -58,17 +64,15 @@ public class SerializableConfiguration implements Externalizable {
 
   public Configuration get() {
     // get() call returns the original conf, which is mutable by caller
-    synchronized (this) {
-      confMutated = true;
-    }
+    confMutated = true;
     return conf;
   }
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
     String canonicalName;
+    byte[] cached;
     synchronized (this) {
-      canonicalName = conf.getClass().getCanonicalName();
       if (confMutated) {
         confMutated = false;
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
@@ -78,18 +82,18 @@ public class SerializableConfiguration implements Externalizable {
           serializationCache = baos.toByteArray();
         }
       }
+      // assign local variable inside synchronized to ensure the name and bytes from same conf
+      canonicalName = conf.getClass().getCanonicalName();
+      cached = serializationCache;
     }
-    // we intentionally leave the following _out_ of synchronized block because they are
-    // thread safe as long as conf has not been mutated
+    // we intentionally leave the following _out_ of synchronized block because they are slow
     out.writeUTF(canonicalName);
-    out.write(serializationCache);
+    out.write(cached);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    synchronized (this) {
-      confMutated = true;
-    }
+    confMutated = true;
     String className = in.readUTF();
     try {
       conf =
