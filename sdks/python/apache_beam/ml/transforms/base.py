@@ -69,7 +69,7 @@ def _convert_list_of_dicts_to_dict_of_lists(
 
 def _convert_dict_of_lists_to_lists_of_dict(
     dict_of_lists: Dict[str, List[Any]],
-    batch_length: int) -> Sequence[Dict[str, Any]]:
+    batch_length: int) -> List[Dict[str, Any]]:
   result: List[Dict[str, Any]] = [{} for _ in range(batch_length)]
   for key, values in dict_of_lists.items():
     for i in range(len(values)):
