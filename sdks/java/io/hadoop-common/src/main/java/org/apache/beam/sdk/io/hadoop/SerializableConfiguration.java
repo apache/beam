@@ -41,6 +41,9 @@ public class SerializableConfiguration implements Externalizable {
 
   private transient Configuration conf;
 
+  // a flag marking conf might be changed so pending invalidate cache used by writeExternal
+  private transient boolean confMutated;
+
   private transient byte[] serializationCache;
 
   public SerializableConfiguration() {}
@@ -49,33 +52,43 @@ public class SerializableConfiguration implements Externalizable {
     if (conf == null) {
       throw new NullPointerException("Configuration must not be null.");
     }
+    this.confMutated = true;
     this.conf = conf;
   }
 
   public Configuration get() {
-    if (serializationCache != null) {
-      serializationCache = null;
+    // get() call returns the original conf, which is mutable by caller
+    synchronized (this) {
+      confMutated = true;
     }
     return conf;
   }
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    if (serializationCache == null) {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
-      try (DataOutputStream dos = new DataOutputStream(baos)) {
-        conf.write(dos);
-        serializationCache = baos.toByteArray();
+    String canonicalName;
+    synchronized (this) {
+      canonicalName = conf.getClass().getCanonicalName();
+      if (confMutated) {
+        confMutated = false;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+        try (DataOutputStream dos = new DataOutputStream(baos)) {
+          // this call is slow.
+          conf.write(dos);
+          serializationCache = baos.toByteArray();
+        }
       }
     }
-    out.writeUTF(conf.getClass().getCanonicalName());
+    // we intentionally leave the following _out_ of synchronized block because they are
+    // thread safe as long as conf has not been mutated
+    out.writeUTF(canonicalName);
     out.write(serializationCache);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    if (serializationCache != null) {
-      serializationCache = null;
+    synchronized (this) {
+      confMutated = true;
     }
     String className = in.readUTF();
     try {
