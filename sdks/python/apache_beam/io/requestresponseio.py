@@ -65,10 +65,12 @@ class SetupTeardown(metaclass=abc.ABCMeta):
     Called by ``RequestResponseIO`` as a context manager to instantiate
     and teardown clients.
     """
+  @abc.abstractmethod
   def __enter__(self):
     """Instantiates a connection to the API client."""
     pass
 
+  @abc.abstractmethod
   def __exit__(self, exc_type, exc_val, exc_tb):
     """Closes the connection to the API client."""
     pass
