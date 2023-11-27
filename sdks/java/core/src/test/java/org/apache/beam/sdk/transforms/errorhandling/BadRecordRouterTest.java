@@ -71,14 +71,16 @@ public class BadRecordRouterTest {
   public void testThrowingHandlerWithException() throws Exception {
     BadRecordRouter handler = BadRecordRouter.THROWING_ROUTER;
 
-    thrown.expect(RuntimeException.class);
+    thrown.expect(IOException.class);
 
-    handler.route(outputReceiver, new Object(), null, new RuntimeException(), "desc", "transform");
+    handler.route(outputReceiver, new Object(), null, new IOException(), "desc", "transform");
   }
 
   @Test
   public void testThrowingHandlerWithNoException() throws Exception {
     BadRecordRouter handler = BadRecordRouter.THROWING_ROUTER;
+
+    thrown.expect(RuntimeException.class);
 
     handler.route(outputReceiver, new Object(), null, null, "desc", "transform");
   }
