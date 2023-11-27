@@ -1394,8 +1394,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
       raise e
-    predictions = [result_generator]
-
+    predictions = list(result_generator)
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)

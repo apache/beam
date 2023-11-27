@@ -49,7 +49,7 @@ class _YieldElements(beam.PTransform):
               element[key] = pred[0]
             else:
               element[key] = pred
-        yield element
+        yield [element]
 
     return pcoll | beam.ParDo(yield_elements)
 

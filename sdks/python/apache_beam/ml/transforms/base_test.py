@@ -318,11 +318,11 @@ class FakeModelHandler(ModelHandler):
     return FakeModel()
 
 
-class _YieldPTransform(beam.PTransform):
+class _YieldElements(beam.PTransform):
   def expand(self, pcoll):
     def yield_elements(elements):
       for element in elements:
-        yield element
+        yield [element]
 
     return pcoll | beam.ParDo(yield_elements)
 
@@ -337,7 +337,7 @@ class FakeEmbeddingsManager(base.EmbeddingsManager):
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (
         RunInference(model_handler=base._TextEmbeddingHandler(self))
-        | _YieldPTransform())
+        | _YieldElements())
 
 
 class TextEmbeddingHandlerTest(unittest.TestCase):

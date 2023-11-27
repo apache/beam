@@ -49,13 +49,12 @@ TASK_TYPE_INPUTS = [
 ]
 
 
-def yield_elements(elements):
-  for element in elements:
-    yield element
-
-
-class _YieldPTransform(beam.PTransform):
+class _YieldElements(beam.PTransform):
   def expand(self, pcoll):
+    def yield_elements(elements):
+      for element in elements:
+        yield [element]
+
     return pcoll | beam.ParDo(yield_elements)
 
 
@@ -172,4 +171,4 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         # This is required since RunInference performs batching and returns
         # batches. We need to decompose the batches and return the elements
         # in their initial shape to the downstream transforms.
-        | _YieldPTransform())
+        | _YieldElements())

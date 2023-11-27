@@ -65,11 +65,11 @@ def inference_fn(batch, model, inference_args, *args, **kwargs):
   return model.encode(batch, **inference_args)
 
 
-class _YieldPTransform(beam.PTransform):
+class _YieldElements(beam.PTransform):
   def expand(self, pcoll):
     def yield_elements(elements):
       for element in elements:
-        yield element
+        yield [element]
 
     return pcoll | beam.ParDo(yield_elements)
 
@@ -160,7 +160,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
         # This is required since RunInference performs batching and returns
         # batches. We need to decompose the batches and return the elements
         # in their initial shape to the downstream transforms.
-        | _YieldPTransform())
+        | _YieldElements())
 
   def requires_chaining(self):
     return False
