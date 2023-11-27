@@ -81,6 +81,9 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
@@ -89,9 +92,11 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
@@ -626,6 +631,7 @@ public class KafkaIO {
   @AutoValue.CopyAnnotations
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
+
     @Pure
     abstract Map<String, Object> getConsumerConfig();
 
@@ -687,6 +693,9 @@ public class KafkaIO {
     @Pure
     abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
 
+    @Pure
+    abstract @Nullable ErrorHandler<BadRecord, ?> getErrorHandler();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -735,6 +744,8 @@ public class KafkaIO {
 
       abstract Builder<K, V> setCheckStopReadingFn(
           SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+
+      abstract Builder<K, V> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
 
       abstract Read<K, V> build();
 
@@ -1278,6 +1289,10 @@ public class KafkaIO {
       return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
     }
 
+    public Read<K, V> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setErrorHandler(errorHandler).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1541,6 +1556,9 @@ public class KafkaIO {
         }
         if (kafkaRead.getStopReadTime() != null) {
           readTransform = readTransform.withBounded();
+        }
+        if (kafkaRead.getErrorHandler() != null) {
+          readTransform = readTransform.withErrorHandler(kafkaRead.getErrorHandler());
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
@@ -1922,6 +1940,8 @@ public class KafkaIO {
   public abstract static class ReadSourceDescriptors<K, V>
       extends PTransform<PCollection<KafkaSourceDescriptor>, PCollection<KafkaRecord<K, V>>> {
 
+    private final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> RECORDS = new TupleTag<>();
+
     private static final Logger LOG = LoggerFactory.getLogger(ReadSourceDescriptors.class);
 
     @Pure
@@ -1963,6 +1983,12 @@ public class KafkaIO {
     @Pure
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
+    @Pure
+    abstract BadRecordRouter getBadRecordRouter();
+
+    @Pure
+    abstract ErrorHandler<BadRecord, ?> getErrorHandler();
+
     abstract boolean isBounded();
 
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
@@ -2002,6 +2028,10 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> policy);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setBadRecordRouter(BadRecordRouter badRecordRouter);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
+
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
       abstract ReadSourceDescriptors<K, V> build();
@@ -2013,6 +2043,8 @@ public class KafkaIO {
           .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
           .setCommitOffsetEnabled(false)
           .setBounded(false)
+          .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+          .setErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2255,6 +2287,10 @@ public class KafkaIO {
       return toBuilder().setConsumerConfig(consumerConfig).build();
     }
 
+    public ReadSourceDescriptors<K, V> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler){
+      return toBuilder().setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER).setErrorHandler(errorHandler).build();
+    }
+
     ReadAllFromRow<K, V> forExternalBuild() {
       return new ReadAllFromRow<>(this);
     }
@@ -2345,9 +2381,15 @@ public class KafkaIO {
       Coder<KafkaRecord<K, V>> recordCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
 
       try {
+        PCollectionTuple pCollectionTuple = input
+                .apply(ParDo.of(ReadFromKafkaDoFn.<K, V>create(this, RECORDS))
+                    .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
+        getErrorHandler().addErrorCollection(
+            pCollectionTuple
+                .get(BadRecordRouter.BAD_RECORD_TAG)
+                .setCoder(BadRecord.getCoder(input.getPipeline())));
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
-            input
-                .apply(ParDo.of(ReadFromKafkaDoFn.<K, V>create(this)))
+            pCollectionTuple.get(RECORDS)
                 .setCoder(
                     KvCoder.of(
                         input
