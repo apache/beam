@@ -58,7 +58,6 @@ public class SerializableConfiguration implements Externalizable {
     if (conf == null) {
       throw new NullPointerException("Configuration must not be null.");
     }
-    this.confMutated = true;
     this.conf = conf;
   }
 
@@ -73,7 +72,7 @@ public class SerializableConfiguration implements Externalizable {
     String canonicalName;
     byte[] cached;
     synchronized (this) {
-      if (confMutated) {
+      if (confMutated || serializationCache == null) {
         confMutated = false;
         ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
         try (DataOutputStream dos = new DataOutputStream(baos)) {
