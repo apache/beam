@@ -207,7 +207,7 @@ tasks.rat {
     "**/poetry.lock",
 
     // DuetAI training prompts
-    "learning/prompts/**/*.md", 
+    "learning/prompts/**/*.md",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
