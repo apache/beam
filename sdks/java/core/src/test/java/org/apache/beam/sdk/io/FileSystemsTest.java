@@ -328,10 +328,11 @@ public class FileSystemsTest {
             .add(KV.of("/abc/", KV.of("/abc", new String[] {})))
             .build();
     for (KV<String, KV<String, String[]>> testCase : testCases) {
-      ResourceId resourceId =
+      ResourceId expected = FileSystems.matchNewResource(testCase.getKey(), true);
+      ResourceId actual =
           FileSystems.matchNewDirectory(
               testCase.getValue().getKey(), testCase.getValue().getValue());
-      assertEquals(testCase.getKey(), resourceId.toString());
+      assertEquals(expected, actual);
     }
   }
 
