@@ -82,6 +82,9 @@ class EchoHTTPCaller(Caller):
   def __init__(self, url: str):
     self.url = url + _HTTP_PATH
 
+  def __enter__(self):
+    pass
+
   def __call__(self, request: EchoRequest, *args, **kwargs) -> EchoResponse:
     """Overrides ``Caller``'s call method invoking the
         ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
@@ -112,6 +115,9 @@ class EchoHTTPCaller(Caller):
     except urllib3.exceptions.HTTPError as e:
       raise UserCodeExecutionException(e)
 
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    pass
+
 
 class EchoHTTPCallerTestIT(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
@@ -121,6 +127,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
     http_endpoint_address = cls.options.http_endpoint_address
+    http_endpoint_address = 'http://localhost:8080'
     if not http_endpoint_address or http_endpoint_address == '':
       raise unittest.SkipTest(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
 

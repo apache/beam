@@ -18,8 +18,9 @@
 """``PTransform`` for reading from and writing to Web APIs."""
 import abc
 import concurrent.futures
+import contextlib
 import logging
-from typing import Callable
+import sys
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
@@ -49,8 +50,10 @@ class UserCodeTimeoutException(UserCodeExecutionException):
   """Extends ``UserCodeExecutionException`` to signal a user code timeout."""
 
 
-class Caller(metaclass=abc.ABCMeta):
-  """Interfaces user custom code intended for API calls."""
+class Caller(contextlib.AbstractContextManager, abc.ABC):
+  """Interface for user custom code intended for API calls.
+  For setup and teardown of clients when applicable, implement the
+  ``__enter__`` and ``__exit__`` methods"""
   @abc.abstractmethod
   def __call__(self, request: RequestT, *args, **kwargs) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
@@ -59,32 +62,6 @@ class Caller(metaclass=abc.ABCMeta):
     ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
     """
     pass
-
-
-class SetupTeardown(metaclass=abc.ABCMeta):
-  """Interfaces user custom code to set up and teardown the API clients.
-    Called by ``RequestResponseIO`` as a context manager to instantiate
-    and teardown clients.
-    """
-  @abc.abstractmethod
-  def __enter__(self):
-    """Instantiates a connection to the API client."""
-    pass
-
-  @abc.abstractmethod
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    """Closes the connection to the API client."""
-    pass
-
-
-class NoOpSetupTeardown(SetupTeardown):
-  def __enter__(self):
-    """Return an object for itself."""
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    """Closes the connection to the API client."""
-    return None
 
 
 class ShouldBackOff(abc.ABC):
@@ -125,11 +102,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   """
   def __init__(
       self,
-      caller: [Caller, Callable],
+      caller: [Caller],
       timeout: Optional[float] = DEFAULT_TIMEOUT,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
-      setup_teardown: Optional[SetupTeardown] = NoOpSetupTeardown,
       cache_reader: Optional[CacheReader] = None,
       cache_writer: Optional[CacheWriter] = None,
       throttler: Optional[PreCallThrottler] = None,
@@ -139,15 +115,12 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
 
     Args:
       caller (~apache_beam.io.requestresponseio.Caller): an implementation of
-        `Caller` or a callable object that makes call to the API.
+        `Caller` object that makes call to the API.
       timeout (float): timeout value in seconds to wait for response from API.
       should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
         (Optional) provides methods for backoff.
       repeater (~apache_beam.io.requestresponseio.Repeater): (Optional)
         provides methods to repeat requests to API.
-      setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
-        a context manager class implementing the `__enter__` and
-        `__exit`__` methods to set up and teardown the API clients.
       cache_reader (~apache_beam.io.requestresponseio.CacheReader): (Optional)
         provides methods to read external cache.
       cache_writer (~apache_beam.io.requestresponseio.CacheWriter): (Optional)
@@ -156,7 +129,6 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
         (Optional) provides methods to pre-throttle a request.
     """
     self._caller = caller
-    self._setup_teardown = setup_teardown
     self._timeout = timeout
     self._should_backoff = should_backoff
     self._repeater = repeater
@@ -170,8 +142,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
         caller=self._caller,
         timeout=self._timeout,
         should_backoff=self._should_backoff,
-        repeater=self._repeater,
-        setup_teardown=self._setup_teardown)
+        repeater=self._repeater)
 
 
 class _Call(beam.PTransform[beam.PCollection[RequestT],
@@ -187,8 +158,6 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
   Args:
       caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
         object that invokes API call.
-      setup_teardown (:class:`apache_beam.io.requestresponseio.SetupTeardown`):
-        a context manager class responsible for setup and teardown tasks.
       timeout (float): timeout value in seconds to wait for response from API.
   """
   def __init__(
@@ -197,7 +166,6 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       timeout: Optional[float] = DEFAULT_TIMEOUT,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
-      setup_teardown: Optional[SetupTeardown] = NoOpSetupTeardown,
   ):
     """Initialize the _Call transform.
     Args:
@@ -208,24 +176,22 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
         (Optional) provides methods for backoff.
       repeater (~apache_beam.io.requestresponseio.Repeater): (Optional) provides
         methods to repeat requests to API.
-      setup_teardown (~apache_beam.io.requestresponseio.SetupTeardown):
-        a context manager class implementing the `__enter__` and
-        `__exit`__` methods to set up and teardown the API clients.
     """
     self._caller = caller
     self._timeout = timeout
     self._should_backoff = should_backoff
     self._repeater = repeater
-    self._setup_teardown = setup_teardown
 
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
-    with self._setup_teardown():
-      return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
+    return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
 
 
 class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
+  def setup(self):
+    self._caller.__enter__()
+
   def __init__(self, caller: Caller, timeout: float):
     self._caller = caller
     self._timeout = timeout
@@ -241,3 +207,6 @@ class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
             f'while completing request: {request}')
       except RuntimeError:
         raise UserCodeExecutionException('could not complete request')
+
+  def teardown(self):
+    self._caller.__exit__(*sys.exc_info())

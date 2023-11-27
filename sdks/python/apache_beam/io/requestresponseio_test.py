@@ -28,22 +28,30 @@ from apache_beam.testing.test_pipeline import TestPipeline
 class AckCaller(Caller):
   """AckCaller acknowledges the incoming request by returning a
   request with ACK."""
+  def __enter__(self):
+    pass
+
   def __call__(self, request: str):
     return f"ACK: {request}"
 
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    return None
 
-def caller_with_timeout(request: str):
-  """caller_with_timeout sleeps for 2 seconds before responding.
+
+class CallerWithTimeout(AckCaller):
+  """CallerWithTimeout sleeps for 2 seconds before responding.
   Used to test timeout in RequestResponseIO."""
-  time.sleep(2)
-  return f"ACK: {request}"
+  def __call__(self, request: str, *args, **kwargs):
+    time.sleep(2)
+    return f"ACK: {request}"
 
 
-def caller_with_runtime_error(request: str):
-  """caller_with_runtime_error raises a `RuntimeError` for RequestResponseIO
+class CallerWithRuntimeError(AckCaller):
+  """CallerWithRuntimeError raises a `RuntimeError` for RequestResponseIO
   to raise a UserCodeExecutionException."""
-  if not request:
-    raise RuntimeError("Exception expected, not an error.")
+  def __call__(self, request: str, *args, **kwargs):
+    if not request:
+      raise RuntimeError("Exception expected, not an error.")
 
 
 class TestCaller(unittest.TestCase):
@@ -58,17 +66,19 @@ class TestCaller(unittest.TestCase):
     self.assertIsNotNone(output)
 
   def test_call_timeout(self):
+    caller = CallerWithTimeout()
     with self.assertRaises(UserCodeTimeoutException):
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
             | beam.Create(["timeout_request"])
-            | RequestResponseIO(caller=caller_with_timeout, timeout=1))
+            | RequestResponseIO(caller=caller, timeout=1))
 
   def test_call_runtime_error(self):
+    caller = CallerWithRuntimeError()
     with self.assertRaises(UserCodeExecutionException):
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
             | beam.Create([""])
-            | RequestResponseIO(caller=caller_with_runtime_error))
+            | RequestResponseIO(caller=caller))
