@@ -19,6 +19,7 @@
 import abc
 import concurrent.futures
 import logging
+from typing import Callable
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
@@ -124,7 +125,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   """
   def __init__(
       self,
-      caller: Caller,
+      caller: [Caller, Callable],
       timeout: Optional[float] = DEFAULT_TIMEOUT,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
@@ -235,6 +236,8 @@ class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
       try:
         yield future.result(timeout=self._timeout)
       except concurrent.futures.TimeoutError:
-        raise UserCodeTimeoutException
+        raise UserCodeTimeoutException(
+            f'Timeout {self._timeout} exceeded '
+            f'while completing request: {request}')
       except RuntimeError:
         raise UserCodeExecutionException('could not complete request')
