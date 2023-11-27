@@ -112,7 +112,7 @@ import org.slf4j.LoggerFactory;
  * </table>
  *
  * Nullable row columns are supported through Nullable type in ClickHouse.
- *
+ * Adding support for <a href="https://clickhouse.com/docs/en/sql-reference/data-types/lowcardinality">LowCardinality(DataType)</a> in ClickHouse.
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
