@@ -20,7 +20,12 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
-from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+except ImportError:
+  SentenceTransformerEmbeddings = None  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
@@ -46,6 +51,9 @@ def get_pipeline_wth_embedding_config(
   return transformed_pcoll
 
 
+@unittest.skipIf(
+    SentenceTransformerEmbeddings is None,
+    'sentence-transformers is not installed.')
 class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()

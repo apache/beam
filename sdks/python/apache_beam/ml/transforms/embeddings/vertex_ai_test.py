@@ -20,7 +20,11 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
-from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
+
+try:
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
+except ImportError:
+  VertexAITextEmbeddings = None  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
@@ -34,6 +38,8 @@ test_query_column = "feature_1"
 model_name: str = "textembedding-gecko@002"
 
 
+@unittest.skipIf(
+    VertexAITextEmbeddings is None, 'Vertex AI Python SDK is not installed.')
 class VertexAIEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
