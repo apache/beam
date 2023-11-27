@@ -157,7 +157,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
   def test_with_gcs_artifact_location(self):
-    artifact_location = 'gs://apache-beam-testing/testing/tensorflow_hub'
+    artifact_location = 'gs://apache-beam-ml/testing/tensorflow_hub'
     with beam.Pipeline() as p:
       embedding_config = TensorflowHubTextEmbeddings(
           hub_url=hub_url, columns=[test_query_column])

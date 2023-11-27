@@ -170,8 +170,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
   def test_with_gcs_artifact_location(self):
-    artifact_location = (
-        'gs://apache-beam-testing/testing/sentence_transformers')
+    artifact_location = ('gs://apache-beam-ml/testing/sentence_transformers')
     with beam.Pipeline() as p:
       model_name = DEFAULT_MODEL_NAME
       embedding_config = SentenceTransformerEmbeddings(
