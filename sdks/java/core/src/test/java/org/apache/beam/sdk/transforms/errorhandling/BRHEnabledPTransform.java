@@ -49,7 +49,7 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
 
   @Override
   public PCollection<Integer> expand(PCollection<Integer> input) {
-    //TODO this pattern is a clunky. Look to improve this once we have ParDo level error handling
+    //TODO this pattern is a clunky. Look to improve this once we have ParDo level error handling.
     PCollectionTuple pCollectionTuple =
         input.apply(
             "NoOpDoFn",
