@@ -1,5 +1,5 @@
 Prompt:
-Write the python code to read messages from a PubSub subscription.
+Write the python code to read messages from a Pub/Sub subscription.
 Response:
 You can read messages from a Pub/Sub subscription or topic using the `ReadFromPubSub` transform. Pub/Sub is only supported in streaming pipelines.
 
@@ -22,10 +22,10 @@ Configure pipeline options for PubSub read transform.
       parser.add_argument(
           "--subscription",
           required=True,
-          help="PubSub subscription to read from.")
+          help="Pub/Sub subscription to read from.")
 
 def read_subscription():
-  """Read from PubSub subscription function."""
+  """Read from Pub/Sub subscription function."""
 
   # Parse the pipeline options.
   # For streaming pipelines, you need to include streaming=True
@@ -33,7 +33,7 @@ def read_subscription():
 
   with beam.Pipeline(options=options) as p:
     # This pipeline reads from a Pub/Sub subscription and logs the messages to the console.
-    (p | "Read PubSub subscription" >> ReadFromPubSub(subscription=options.subscription)
+    (p | "Read Pub/Sub subscription" >> ReadFromPubSub(subscription=options.subscription)
        | "Format message" >> Map(lambda message: f"Received message:\n{message}\n")
        | Map(logging.info))
 

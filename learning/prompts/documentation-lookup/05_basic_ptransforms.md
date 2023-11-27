@@ -19,8 +19,14 @@ The Beam SDKs contain different transforms that you can apply to your pipeline�
 Transform processing logic is provided in the form of a function object, colloquially referred to as “user code.” This code is applied to each element of the input `PCollection` (or more than one `PCollection`). The `PCollection` objects can be linked together to create complex data processing sequences.
 User code for transforms must satisfy the [requirements of the Beam model](https://beam.apache.org/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms).
 
+Example below shows how to apply custom user code to a `PCollection` using the `ParDo` transform:
+
 ```python
 import apache_beam as beam
+
+def SomeUserCode(element):
+    # Do something with element
+    return element
 
 with beam.Pipeline() as pipeline:
     input_collection = pipeline | beam.Create([...])
