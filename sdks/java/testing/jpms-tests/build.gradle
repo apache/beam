@@ -21,7 +21,14 @@ import groovy.json.JsonOutput
 plugins {
   id 'org.apache.beam.module'
 }
-javaVersion="1.11"
+
+// overwrite javaVersion before applyJavaNature
+if (project.hasProperty("testJavaVersion")) {
+  javaVersion = "1.${project.getProperty('testJavaVersion')}" as String
+} else {
+  javaVersion = "1.11"
+}
+
 applyJavaNature(
   exportJavadoc: false,
   publish: false,
@@ -33,30 +40,16 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: Testing :: JPMS Tests"
 ext.summary = "E2E test for Java 9 modules"
 
-// Java 17 needs compileJava to add-exports and add-opens for error prone
-if (project.hasProperty("compileAndRunTestsWithJava17")) {
-  def java17Home = project.findProperty("java17Home")
-  project.tasks.withType(JavaCompile) {
+// direct compileJava to use specified java version.
+project.tasks.compileJava {
+  if (project.hasProperty('testJavaVersion')) {
     options.fork = true
-    options.forkOptions.javaHome = java17Home as File
-    options.compilerArgs += ['-Xlint:-path']
-    options.compilerArgs.addAll(['--release', '17'])
-    // Error prone requires some packages to be exported/opened for Java 17
-    // Disabling checks since this property is only used for Jenkins tests
-    // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-    options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-    options.forkOptions.jvmArgs += [
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-    ]
+    options.forkOptions.javaHome = project.findProperty("java${project.getProperty('testJavaVersion')}Home") as File
+    if (project.getProperty('testJavaVersion') == '17') {
+      setJavaVerOptions(options, '17')
+    } else if (project.getProperty('testJavaVersion') == '21') {
+      setJavaVerOptions(options, '21')
+    }
   }
 }
 
@@ -125,10 +118,12 @@ plugins.withType(JavaPlugin).configureEach{
   }
 }
 
-// JPMS requires JDK > 8
+// JPMS requires JDK > 8. Test tasks enabled when either
+// (i) testJavaVersion property specified (assumed to be >8) or;
+// (ii) current Java version is greater than 8
 project.tasks.each {
   it.onlyIf {
-    project.hasProperty("compileAndRunTestsWithJava17")
+    project.hasProperty('testJavaVersion')
             || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
   }
 }

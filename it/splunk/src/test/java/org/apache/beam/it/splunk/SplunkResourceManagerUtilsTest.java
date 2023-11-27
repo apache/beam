@@ -30,7 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link SplunkResourceManager}. */
+/** Unit tests for {@link SplunkResourceManagerUtils}. */
 @RunWith(JUnit4.class)
 public class SplunkResourceManagerUtilsTest {
 

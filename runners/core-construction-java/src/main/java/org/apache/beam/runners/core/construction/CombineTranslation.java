@@ -61,7 +61,7 @@ public class CombineTranslation {
     private CombinePerKeyPayloadTranslator() {}
 
     @Override
-    public String getUrn(Combine.PerKey<?, ?, ?> transform) {
+    public String getUrn() {
       return COMBINE_PER_KEY_TRANSFORM_URN;
     }
 
@@ -108,7 +108,7 @@ public class CombineTranslation {
     private CombineGloballyPayloadTranslator() {}
 
     @Override
-    public String getUrn(Combine.Globally<?, ?> transform) {
+    public String getUrn() {
       return COMBINE_GLOBALLY_TRANSFORM_URN;
     }
 
@@ -165,7 +165,7 @@ public class CombineTranslation {
     private CombineGroupedValuesPayloadTranslator() {}
 
     @Override
-    public String getUrn(Combine.GroupedValues<?, ?, ?> transform) {
+    public String getUrn() {
       return COMBINE_GROUPED_VALUES_TRANSFORM_URN;
     }
 

@@ -46,6 +46,11 @@ class ResourcesTest(unittest.TestCase):
           val='gpu',
           urn='beam:resources:accelerator:v1',
           bytestr=b'gpu'),
+      param(
+          name='cpu_count',
+          val='4',
+          urn='beam:resources:cpu_count:v1',
+          bytestr=b'4'),
   ])
   def test_known_resource_hints(self, name, val, urn, bytestr):
     t = PTransform()
@@ -56,6 +61,7 @@ class ResourcesTest(unittest.TestCase):
   @parameterized.expand([
       param(name='min_ram', val='3,500G'),
       param(name='accelerator', val=1),
+      param(name='cpu_count', val=1),
       param(name='unknown_hint', val=1)
   ])
   def test_resource_hint_parsing_fails_early(self, name, val):

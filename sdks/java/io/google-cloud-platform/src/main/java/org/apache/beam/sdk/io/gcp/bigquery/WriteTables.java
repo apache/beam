@@ -202,6 +202,7 @@ class WriteTables<DestinationT extends @NonNull Object>
       if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
         tableSchema = null;
       } else if (jsonSchemas.containsKey(destination)) {
+        // tableSchema for the destination stored in cache (jsonSchemas)
         tableSchema =
             BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
@@ -215,6 +216,7 @@ class WriteTables<DestinationT extends @NonNull Object>
             firstPaneCreateDisposition,
             dynamicDestinations,
             destination);
+        LOG.debug("Fetched TableSchema for table {}:\n\t{}", destination, tableSchema);
         jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 

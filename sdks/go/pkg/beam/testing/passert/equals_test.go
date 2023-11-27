@@ -184,7 +184,7 @@ func ExampleEqualsList_mismatch() {
 	err = unwrapError(err)
 
 	// Process error for cleaner example output, demonstrating the diff.
-	processedErr := strings.SplitAfter(err.Error(), "/passert.failIfBadEntries] failed:")
+	processedErr := strings.SplitAfter(err.Error(), ".failIfBadEntries] failed:")
 	fmt.Println(processedErr[1])
 
 	// Output:

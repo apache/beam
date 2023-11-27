@@ -72,14 +72,15 @@ pipeline:
     - type: ReadFromCsv
       config:
         path: /path/to/input*.csv
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
       input: ReadFromCsv
     - type: WriteToJson
       config:
         path: /path/to/output.json
-      input: PyFilter
+      input: Filter
 ```
 
 or two.
@@ -90,15 +91,16 @@ pipeline:
     - type: ReadFromCsv
       config:
         path: /path/to/input*.csv
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
       input: ReadFromCsv
     - type: Sql
       name: MySqlTransform
       config:
         query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
-      input: PyFilter
+      input: Filter
     - type: WriteToJson
       config:
         path: /path/to/output.json
@@ -116,9 +118,10 @@ pipeline:
     - type: ReadFromCsv
       config:
         path: /path/to/input*.csv
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
     - type: Sql
       name: MySqlTransform
       config:
@@ -141,9 +144,10 @@ pipeline:
       path: /path/to/input*.csv
 
   transforms:
-    - type: PyFilter
+    - type: Filter
       config:
-        keep: "lambda x: x.col3 > 100"
+        language: python
+        keep: "col3 > 100"
 
     - type: Sql
       name: MySqlTransform
@@ -162,40 +166,42 @@ Here we read two sources, join them, and write two outputs.
 
 ```
 pipeline:
-  - type: ReadFromCsv
-    name: ReadLeft
-    config:
-      path: /path/to/left*.csv
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLeft
+      config:
+        path: /path/to/left*.csv
 
-  - type: ReadFromCsv
-    name: ReadRight
-    config:
-      path: /path/to/right*.csv
+    - type: ReadFromCsv
+      name: ReadRight
+      config:
+        path: /path/to/right*.csv
 
-  - type: Sql
-    config:
-      query: select left.col1, right.col2 from left join right using (col3)
-    input:
-      left: ReadLeft
-      right: ReadRight
+    - type: Sql
+      config:
+        query: select left.col1, right.col2 from left join right using (col3)
+      input:
+        left: ReadLeft
+        right: ReadRight
 
-  - type: WriteToJson
-    name: WriteAll
-    input: Sql
-    config:
-      path: /path/to/all.json
+    - type: WriteToJson
+      name: WriteAll
+      input: Sql
+      config:
+        path: /path/to/all.json
 
-  - type: PyFilter
-    name: FilterToBig
-    input: Sql
-    config:
-      keep: "lambda x: x.col2 > 100"
+    - type: Filter
+      name: FilterToBig
+      input: Sql
+      config:
+        language: python
+        keep: "col2 > 100"
 
-  - type: WriteToCsv
-    name: WriteBig
-    input: FilterToBig
-    config:
-      path: /path/to/big.csv
+    - type: WriteToCsv
+      name: WriteBig
+      input: FilterToBig
+      config:
+        path: /path/to/big.csv
 ```
 
 One can, however, nest `chains` within a non-linear pipeline.
@@ -204,46 +210,50 @@ that has a single input and contains its own sink.
 
 ```
 pipeline:
-  - type: ReadFromCsv
-    name: ReadLeft
-    config:
-      path: /path/to/left*.csv
-
-  - type: ReadFromCsv
-    name: ReadRight
-    config:
-      path: /path/to/right*.csv
-
-  - type: Sql
-    config:
-      query: select left.col1, right.col2 from left join right using (col3)
-    input:
-      left: ReadLeft
-      right: ReadRight
-
-  - type: WriteToJson
-    name: WriteAll
-    input: Sql
-    config:
-      path: /path/to/all.json
-
-  - type: chain
-    name: ExtraProcessingForBigRows
-    input: Sql
-    transforms:
-      - type: PyFilter
-        config:
-          keep: "lambda x: x.col2 > 100"
-      - type: PyFilter
-        config:
-          keep: "lambda x: len(x.col1) > 10"
-      - type: PyFilter
-        config:
-          keep: "lambda x: x.col1 > 'z'"
-    sink:
-      type: WriteToCsv
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLeft
       config:
-        path: /path/to/big.csv
+        path: /path/to/left*.csv
+
+    - type: ReadFromCsv
+      name: ReadRight
+      config:
+        path: /path/to/right*.csv
+
+    - type: Sql
+      config:
+        query: select left.col1, right.col2 from left join right using (col3)
+      input:
+        left: ReadLeft
+        right: ReadRight
+
+    - type: WriteToJson
+      name: WriteAll
+      input: Sql
+      config:
+        path: /path/to/all.json
+
+    - type: chain
+      name: ExtraProcessingForBigRows
+      input: Sql
+      transforms:
+        - type: Filter
+          config:
+            language: python
+            keep: "col2 > 100"
+        - type: Filter
+          config:
+            language: python
+            keep: "len(col1) > 10"
+        - type: Filter
+          config:
+            language: python
+            keep: "col1 > 'z'"
+      sink:
+        type: WriteToCsv
+        config:
+          path: /path/to/big.csv
 ```
 
 ## Windowing
@@ -321,25 +331,26 @@ a join per window.
 
 ```
 pipeline:
-  - type: ReadFromPubSub
-    name: ReadLeft
-    config:
-      topic: leftTopic
+  transforms:
+    - type: ReadFromPubSub
+      name: ReadLeft
+      config:
+        topic: leftTopic
 
-  - type: ReadFromPubSub
-    name: ReadRight
-    config:
-      topic: rightTopic
+    - type: ReadFromPubSub
+      name: ReadRight
+      config:
+        topic: rightTopic
 
-  - type: Sql
-    config:
-      query: select left.col1, right.col2 from left join right using (col3)
-    input:
-      left: ReadLeft
-      right: ReadRight
-    windowing:
-      type: fixed
-      size: 60
+    - type: Sql
+      config:
+        query: select left.col1, right.col2 from left join right using (col3)
+      input:
+        left: ReadLeft
+        right: ReadRight
+      windowing:
+        type: fixed
+        size: 60
 ```
 
 For a transform with no inputs, the specified windowing is instead applied to
@@ -472,7 +483,7 @@ The Beam yaml parser is currently included as part of the Apache Beam Python SDK
 This can be installed (e.g. within a virtual environment) as
 
 ```
-pip install apache_beam
+pip install apache_beam[yaml,gcp]
 ```
 
 In addition, several of the provided transforms (such as SQL) are implemented

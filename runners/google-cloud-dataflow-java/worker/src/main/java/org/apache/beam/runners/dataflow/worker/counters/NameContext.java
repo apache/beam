@@ -31,7 +31,10 @@ public abstract class NameContext {
    * systemName} and a {@code userName}.
    */
   public static NameContext create(
-      String stageName, String originalName, String systemName, String userName) {
+      String stageName,
+      @Nullable String originalName,
+      String systemName,
+      @Nullable String userName) {
     return new AutoValue_NameContext(stageName, originalName, systemName, userName);
   }
 
@@ -44,7 +47,7 @@ public abstract class NameContext {
   }
 
   /** Returns the name of the stage this instruction is executing in. */
-  public abstract @Nullable String stageName();
+  public abstract String stageName();
 
   /**
    * Returns the "original" name of this instruction. This name is a short name assigned by the SDK

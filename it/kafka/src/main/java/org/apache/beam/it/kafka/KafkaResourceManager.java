@@ -19,7 +19,6 @@ package org.apache.beam.it.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -103,7 +102,7 @@ public class KafkaResourceManager extends TestContainerResourceManager<GenericCo
             : AdminClient.create(ImmutableMap.of("bootstrap.servers", this.connectionString));
   }
 
-  public static Builder builder(String testId) throws IOException {
+  public static Builder builder(String testId) {
     return new Builder(testId);
   }
 

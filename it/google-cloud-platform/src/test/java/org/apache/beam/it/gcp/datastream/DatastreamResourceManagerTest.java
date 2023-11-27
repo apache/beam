@@ -36,7 +36,6 @@ import com.google.cloud.datastream.v1.SourceConfig;
 import com.google.cloud.datastream.v1.Stream;
 import com.google.cloud.datastream.v1.Stream.State;
 import com.google.cloud.datastream.v1.UpdateStreamRequest;
-import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import org.junit.Before;
 import org.junit.Rule;
@@ -66,7 +65,7 @@ public class DatastreamResourceManagerTest {
   private DatastreamResourceManager testManager;
 
   @Before
-  public void setup() throws IOException {
+  public void setup() {
     testManager =
         new DatastreamResourceManager(
             datastreamClient, DatastreamResourceManager.builder(PROJECT_ID, LOCATION, null));

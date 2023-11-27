@@ -890,7 +890,7 @@ def model_bigqueryio(
 
   # [START model_bigqueryio_table_spec]
   # project-id:dataset_id.table_id
-  table_spec = 'clouddataflow-readonly:samples.weather_stations'
+  table_spec = 'apache-beam-testing.samples.weather_stations'
   # [END model_bigqueryio_table_spec]
 
   # [START model_bigqueryio_table_spec_without_project]
@@ -936,7 +936,7 @@ def model_bigqueryio(
       pipeline
       | 'QueryTable' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
-                '[clouddataflow-readonly:samples.weather_stations]')
+                '[apache-beam-testing.samples.weather_stations]')
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query]
@@ -1036,7 +1036,7 @@ def model_bigqueryio_xlang(
   # use a table that does not exist
   import uuid
   never_exists_table = str(uuid.uuid4())
-  table_spec = 'clouddataflow-readonly:samples.{}'.format(never_exists_table)
+  table_spec = 'apache-beam-testing.samples.{}'.format(never_exists_table)
 
   if write_project and write_dataset and write_table:
     table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)

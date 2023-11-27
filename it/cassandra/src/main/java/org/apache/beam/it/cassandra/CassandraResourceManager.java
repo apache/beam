@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
+import org.apache.beam.it.common.utils.ExceptionUtils;
 import org.apache.beam.it.testcontainers.TestContainerResourceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,12 +99,7 @@ public class CassandraResourceManager extends TestContainerResourceManager<Gener
 
     if (!usingStaticDatabase) {
       // Keyspace request may timeout on a few environments, if Cassandra is warming up
-      Failsafe.with(
-              RetryPolicy.builder()
-                  .withMaxRetries(5)
-                  .withDelay(Duration.ofSeconds(1))
-                  .handle(DriverTimeoutException.class)
-                  .build())
+      Failsafe.with(buildRetryPolicy())
           .run(
               () ->
                   this.cassandraClient.execute(
@@ -141,8 +137,11 @@ public class CassandraResourceManager extends TestContainerResourceManager<Gener
     LOG.info("Executing statement: {}", statement);
 
     try {
-      return cassandraClient.execute(
-          SimpleStatement.newInstance(statement).setKeyspace(this.keyspaceName));
+      return Failsafe.with(buildRetryPolicy())
+          .get(
+              () ->
+                  cassandraClient.execute(
+                      SimpleStatement.newInstance(statement).setKeyspace(this.keyspaceName)));
     } catch (Exception e) {
       throw new CassandraResourceManagerException("Error reading collection.", e);
     }
@@ -226,8 +225,9 @@ public class CassandraResourceManager extends TestContainerResourceManager<Gener
       } catch (Exception e) {
         LOG.error("Failed to drop Cassandra keyspace {}.", keyspaceName, e);
 
-        // Only bubble exception if the cause is not timeout, as it will be dropped with container.
-        if (e.getCause() == null || !(e.getCause() instanceof DriverTimeoutException)) {
+        // Only bubble exception if the cause is not timeout or does not exist
+        if (!ExceptionUtils.containsType(e, DriverTimeoutException.class)
+            && !ExceptionUtils.containsMessage(e, "does not exist")) {
           producedError = true;
         }
       }
@@ -275,6 +275,14 @@ public class CassandraResourceManager extends TestContainerResourceManager<Gener
     }
 
     return String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
+  }
+
+  private static RetryPolicy<Object> buildRetryPolicy() {
+    return RetryPolicy.builder()
+        .withMaxRetries(5)
+        .withDelay(Duration.ofSeconds(1))
+        .handle(DriverTimeoutException.class)
+        .build();
   }
 
   /** Builder for {@link CassandraResourceManager}. */

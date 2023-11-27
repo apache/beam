@@ -15,8 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
+ARG base_image
 ARG java_version
-FROM eclipse-temurin:${java_version}
+FROM ${base_image}:${java_version}
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH

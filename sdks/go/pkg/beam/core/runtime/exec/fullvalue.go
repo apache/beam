@@ -251,6 +251,9 @@ func (s *decodeStream) Read() (*FullValue, error) {
 	}
 	err := s.d.DecodeTo(s.r, &s.ret)
 	if err != nil {
+		if err == io.EOF {
+			return nil, io.EOF
+		}
 		return nil, errors.Wrap(err, "decodeStream value decode failed")
 	}
 	s.next++
@@ -342,6 +345,9 @@ func (s *decodeMultiChunkStream) Read() (*FullValue, error) {
 	if s.chunk == 0 && s.next == 0 {
 		chunk, err := coder.DecodeVarInt(s.r.reader)
 		if err != nil {
+			if err == io.EOF {
+				return nil, io.EOF
+			}
 			return nil, errors.Wrap(err, "decodeMultiChunkStream chunk size decoding failed")
 		}
 		s.chunk = chunk

@@ -27,7 +27,6 @@ dependencies {
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.jackson_annotations
   implementation library.java.gax
-  implementation library.java.google_ads
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.protobuf_java

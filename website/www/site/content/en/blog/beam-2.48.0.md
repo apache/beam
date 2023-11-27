@@ -66,6 +66,8 @@ For more information on changes in 2.48.0, check out the [detailed release notes
 ## Known Issues
 
 * PubsubIO writes will throw *SizeLimitExceededException* for any message above 100 bytes, when used in batch (bounded) mode. (Java) ([#27000](https://github.com/apache/beam/issues/27000)).
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+
 
 ## List of Contributors
 

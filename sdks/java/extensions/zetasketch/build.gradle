@@ -42,6 +42,7 @@ dependencies {
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.google_api_services_bigquery
     testImplementation library.java.proto_google_cloud_bigquery_storage_v1
+    testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
     testRuntimeOnly library.java.slf4j_simple
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")

@@ -30,7 +30,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -47,7 +46,7 @@ public class WindowIntoTranslation {
   static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {
 
     @Override
-    public String getUrn(Assign<?> transform) {
+    public String getUrn() {
       return PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
     }
 
@@ -116,7 +115,7 @@ public class WindowIntoTranslation {
     private WindowIntoPayloadTranslator() {}
 
     @Override
-    public String getUrn(Window.Assign<?> transform) {
+    public String getUrn() {
       return PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
     }
 

@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.equalTo;
 
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -199,5 +201,157 @@ public class HistogramDataTest {
     assertThat(data.getCount(1), equalTo(3L));
     assertThat(data.getTopBucketCount(), equalTo(4L));
     assertThat(data.getTotalCount(), equalTo(10L));
+  }
+
+  // The following tests cover exponential buckets.
+  @Test
+  public void testExponentialBuckets_PositiveScaleRecord() {
+    // Buckets will be:
+    // Index        Range
+    // Underflow    (-inf, 0)
+    // 0            [0, sqrt(2))
+    // 1            [sqrt(2), 2)
+    // i            [2^(i/2), 2^((i+1)/2))
+    HistogramData data = HistogramData.exponential(1, 40);
+
+    data.record(-1);
+    assertThat(data.getBottomBucketCount(), equalTo(1L));
+
+    data.record(0, 1);
+    assertThat(data.getCount(0), equalTo(2L));
+
+    data.record(2);
+    assertThat(data.getTotalCount(), equalTo(4L));
+    assertThat(data.getCount(2), equalTo(1L));
+
+    // 10th bucket contains range [2^5, 2^5.5) ~= [32, 45.25)
+    for (int i = 32; i <= 45; i++) {
+      data.record(i);
+    }
+    assertThat(data.getCount(10), equalTo(14L));
+
+    // 30th bucket contains range [2^15, 2^15.5) ~= [32768, 46340.9)
+    for (int i = 32768; i < 32768 + 100; i++) {
+      data.record(i);
+    }
+    assertThat(data.getCount(30), equalTo(100L));
+    for (int i = 46340; i > 46340 - 100; i--) {
+      data.record(i);
+    }
+    assertThat(data.getCount(30), equalTo(200L));
+  }
+
+  @Test
+  public void testExponentialBuckets_ZeroScaleRecord() {
+    // Buckets will be:
+    // Index        Range
+    // Underflow    (-inf, 0)
+    // 0            [0, 2)
+    // 1            [2, 2^2]
+    // i            [2^i, 2^(i+1))
+    HistogramData data = HistogramData.exponential(0, 20);
+
+    data.record(-1);
+    assertThat(data.getBottomBucketCount(), equalTo(1L));
+
+    data.record(0, 1);
+    assertThat(data.getCount(0), equalTo(2L));
+
+    data.record(4, 5, 6, 7);
+    assertThat(data.getCount(2), equalTo(4L));
+
+    for (int i = 32; i < 64; i++) {
+      data.record(i);
+    }
+    assertThat(data.getCount(5), equalTo(32L));
+
+    for (int i = IntMath.pow(2, 16); i < IntMath.pow(2, 16) + 100; i++) {
+      data.record(i);
+    }
+    assertThat(data.getCount(16), equalTo(100L));
+
+    Long expectedTotalCount = Long.valueOf(100 + 32 + 4 + 2 + 1);
+    assertThat(data.getTotalCount(), equalTo(expectedTotalCount));
+  }
+
+  @Test
+  public void testExponentialBuckets_NegativeScalesRecord() {
+    // Buckets will be:
+    // Index        Range
+    // Underflow    (-inf, 0)
+    // 0            [0, 4)
+    // 1            [4, 4^2]
+    // i            [4^i, 4^(i+1))
+    HistogramData data = HistogramData.exponential(-1, 20);
+
+    data.record(-1);
+    assertThat(data.getBottomBucketCount(), equalTo(1L));
+
+    data.record(0, 1, 2);
+    assertThat(data.getCount(0), equalTo(3L));
+
+    data.record(16, 17, 32, 33, 62, 63);
+    assertThat(data.getCount(2), equalTo(6L));
+
+    for (int i = IntMath.pow(4, 5); i < IntMath.pow(4, 5) + 20; i++) {
+      data.record(i);
+    }
+    assertThat(data.getCount(5), equalTo(20L));
+
+    Long expectedTotalCount = Long.valueOf(20 + 6 + 3 + 1);
+    assertThat(data.getTotalCount(), equalTo(expectedTotalCount));
+  }
+
+  @Test
+  public void testExponentialBuckets_BucketSize() {
+    HistogramData zeroScaleBucket = HistogramData.exponential(0, 20);
+    assertThat(zeroScaleBucket.getBucketType().getBucketSize(0), equalTo(2.0));
+    // 10th bucket contains [2^10, 2^11).
+    assertThat(zeroScaleBucket.getBucketType().getBucketSize(10), equalTo(1024.0));
+
+    HistogramData positiveScaleBucket = HistogramData.exponential(1, 20);
+    assertThat(positiveScaleBucket.getBucketType().getBucketSize(0), equalTo(Math.sqrt(2)));
+    // 10th bucket contains [2^5, 2^5.5).
+    assertThat(positiveScaleBucket.getBucketType().getBucketSize(10), closeTo(13.2, .1));
+
+    HistogramData negativeScaleBucket = HistogramData.exponential(-1, 20);
+    assertThat(negativeScaleBucket.getBucketType().getBucketSize(0), equalTo(4.0));
+    // 10th bucket contains [2^20, 2^22).
+    assertThat(negativeScaleBucket.getBucketType().getBucketSize(10), equalTo(3145728.0));
+  }
+
+  @Test
+  public void testExponentialBuckets_NumBuckets() {
+    // Validate that numBuckets clipping WAI.
+    HistogramData zeroScaleBucket = HistogramData.exponential(0, 200);
+    assertThat(zeroScaleBucket.getBucketType().getNumBuckets(), equalTo(32));
+
+    HistogramData positiveScaleBucket = HistogramData.exponential(3, 500);
+    assertThat(positiveScaleBucket.getBucketType().getNumBuckets(), equalTo(32 * 8));
+
+    HistogramData negativeScaleBucket = HistogramData.exponential(-3, 500);
+    assertThat(negativeScaleBucket.getBucketType().getNumBuckets(), equalTo(4));
+  }
+
+  @Test
+  public void testStatistics_mean() {
+    HistogramData histogram = HistogramData.linear(0, 10, 10);
+
+    for (int i = 0; i < 10; i++) {
+      histogram.record(i * 10.0);
+    }
+
+    assertThat(histogram.getMean(), equalTo(45.0));
+  }
+
+  @Test
+  public void testStatistics_sumOfSquaredDeviations() {
+    HistogramData histogram = HistogramData.linear(0, 10, 10);
+
+    for (int i = 0; i < 10; i++) {
+      histogram.record(i * 10.0);
+    }
+
+    assertThat(histogram.getSumOfSquaredDeviations(), equalTo(8250.0));
   }
 }

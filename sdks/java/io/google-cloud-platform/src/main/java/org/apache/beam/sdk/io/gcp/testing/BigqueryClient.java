@@ -292,6 +292,21 @@ public class BigqueryClient {
   public List<TableRow> queryUnflattened(
       String query, String projectId, boolean typed, boolean useStandardSql)
       throws IOException, InterruptedException {
+    return queryUnflattened(query, projectId, typed, useStandardSql, null);
+  }
+
+  /**
+   * Performs a query without flattening results. May choose a location (GCP region) to perform this
+   * operation in.
+   */
+  @Nonnull
+  public List<TableRow> queryUnflattened(
+      String query,
+      String projectId,
+      boolean typed,
+      boolean useStandardSql,
+      @Nullable String location)
+      throws IOException, InterruptedException {
     Random rnd = new Random(System.currentTimeMillis());
     String temporaryDatasetId =
         String.format("_dataflow_temporary_dataset_%s_%s", System.nanoTime(), rnd.nextInt(1000000));
@@ -302,9 +317,11 @@ public class BigqueryClient {
             .setDatasetId(temporaryDatasetId)
             .setTableId(temporaryTableId);
 
-    createNewDataset(projectId, temporaryDatasetId);
+    createNewDataset(projectId, temporaryDatasetId, null, location);
     createNewTable(
-        projectId, temporaryDatasetId, new Table().setTableReference(tempTableReference));
+        projectId,
+        temporaryDatasetId,
+        new Table().setTableReference(tempTableReference).setLocation(location));
 
     JobConfigurationQuery jcQuery =
         new JobConfigurationQuery()
@@ -325,6 +342,7 @@ public class BigqueryClient {
           bqClient
               .jobs()
               .getQueryResults(projectId, insertedJob.getJobReference().getJobId())
+              .setLocation(location)
               .execute();
 
     } while (!qResponse.getJobComplete());
@@ -395,6 +413,18 @@ public class BigqueryClient {
   public void createNewDataset(
       String projectId, String datasetId, @Nullable Long defaultTableExpirationMs)
       throws IOException, InterruptedException {
+    createNewDataset(projectId, datasetId, defaultTableExpirationMs, null);
+  }
+
+  /**
+   * Creates a new dataset with defaultTableExpirationMs and in a specified location (GCP region).
+   */
+  public void createNewDataset(
+      String projectId,
+      String datasetId,
+      @Nullable Long defaultTableExpirationMs,
+      @Nullable String location)
+      throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
     IOException lastException = null;
@@ -410,7 +440,8 @@ public class BigqueryClient {
                     projectId,
                     new Dataset()
                         .setDatasetReference(new DatasetReference().setDatasetId(datasetId))
-                        .setDefaultTableExpirationMs(defaultTableExpirationMs))
+                        .setDefaultTableExpirationMs(defaultTableExpirationMs)
+                        .setLocation(location))
                 .execute();
         if (response != null) {
           LOG.info("Successfully created new dataset : " + response.getId());

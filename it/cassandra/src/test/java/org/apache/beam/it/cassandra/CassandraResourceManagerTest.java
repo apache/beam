@@ -20,6 +20,7 @@ package org.apache.beam.it.cassandra;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -57,6 +58,8 @@ public class CassandraResourceManagerTest {
 
   @Before
   public void setUp() {
+    doReturn(container).when(container).withLogConsumer(any());
+
     testManager =
         new CassandraResourceManager(
             cassandraClient, container, CassandraResourceManager.builder(TEST_ID));
@@ -69,7 +72,8 @@ public class CassandraResourceManagerTest {
 
   @Test
   public void testGetKeyspaceNameShouldReturnCorrectValue() {
-    assertThat(testManager.getKeyspaceName()).matches(TEST_ID.replace('-', '_') + "_\\d{8}_\\d{6}");
+    assertThat(testManager.getKeyspaceName())
+        .matches(TEST_ID.replace('-', '_') + "_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test

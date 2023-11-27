@@ -54,14 +54,14 @@ import os
 import shutil
 import sys
 import tempfile
+from importlib.metadata import distribution
 from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-import pkg_resources
-from pkg_resources import parse_version
+from packaging import version
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -594,11 +594,9 @@ class Stager(object):
             '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
       if os.path.basename(package).endswith('.whl'):
         _LOGGER.warning(
-            'The .whl package "%s" is provided in --extra_package. '
-            'This functionality is not officially supported. Since wheel '
-            'packages are binary distributions, this package must be '
-            'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).' % package)
+            'The .whl package "%s" provided in --extra_package '
+            'must be binary-compatible with the worker runtime environment.' %
+            package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
@@ -704,8 +702,8 @@ class Stager(object):
     # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
-    pip_version = pkg_resources.get_distribution('pip').version
-    if parse_version(pip_version) >= parse_version('19.3'):
+    pip_version = distribution('pip').version
+    if version.parse(pip_version) >= version.parse('19.3'):
       # pip can only recognize manylinux2014_x86_64 wheels
       # from version 19.3.
       return 'manylinux2014_x86_64'
@@ -773,15 +771,30 @@ class Stager(object):
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
-        build_setup_args = [
-            Stager._get_python_executable(),
-            os.path.basename(setup_file),
-            'sdist',
-            '--dist-dir',
-            temp_dir
-        ]
-      _LOGGER.info('Executing command: %s', build_setup_args)
-      processes.check_output(build_setup_args)
+        # if build is installed in the user env, use it to
+        # build the sdist else fallback to legacy setup.py sdist call.
+        try:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              '-m',
+              'build',
+              '--sdist',
+              '--outdir',
+              temp_dir,
+              os.path.dirname(setup_file),
+          ]
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
+        except RuntimeError:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              os.path.basename(setup_file),
+              'sdist',
+              '--dist-dir',
+              temp_dir
+          ]
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(

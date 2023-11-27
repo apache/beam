@@ -51,12 +51,18 @@ dependencies {
   permitUnusedDeclared library.java.jackson_dataformat_csv
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
+  implementation project(":sdks:java:extensions:protobuf")
   implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation library.java.avro
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
+  if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
+    // this dependency is a provided dependency for kafka-avro-serializer. It is not needed to compile with Java<=17
+    // but needed for compile only under Java21, specifically, required for extending from AbstractKafkaAvroDeserializer
+    compileOnly library.java.kafka
+  }
   testImplementation library.java.kafka_clients
   implementation library.java.slf4j_api
   implementation library.java.joda_time
@@ -82,7 +88,7 @@ dependencies {
   provided library.java.everit_json_schema
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
-  testImplementation project(":sdks:java:extensions:avro")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   // For testing Cross-language transforms

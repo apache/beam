@@ -180,7 +180,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Note that configurations options for {@link ElasticsearchIO.Write} are a union of
- * configutation options for {@link ElasticsearchIO.DocToBulk} and {@link ElasticsearchIO.BulkIO}.
+ * configuration options for {@link ElasticsearchIO.DocToBulk} and {@link ElasticsearchIO.BulkIO}.
  *
  * <p>To configure {@link ElasticsearchIO#write ElasticsearchIO.write()}, similar to the read, you
  * have to provide a connection configuration. For instance:

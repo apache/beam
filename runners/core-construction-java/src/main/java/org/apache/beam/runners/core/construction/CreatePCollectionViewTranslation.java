@@ -90,7 +90,7 @@ public class CreatePCollectionViewTranslation {
   static class CreatePCollectionViewTranslator
       implements TransformPayloadTranslator<View.CreatePCollectionView<?, ?>> {
     @Override
-    public String getUrn(View.CreatePCollectionView<?, ?> transform) {
+    public String getUrn() {
       return PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
     }
 

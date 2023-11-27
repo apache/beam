@@ -33,11 +33,15 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.StorageType;
+import com.google.cloud.bigtable.admin.v2.models.Table.ReplicationState;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
@@ -70,7 +74,7 @@ public class BigtableResourceManagerTest {
   private static final StorageType CLUSTER_STORAGE_TYPE = StorageType.SSD;
 
   private BigtableResourceManager testManager;
-  private Iterable<BigtableResourceManagerCluster> cluster;
+  private List<BigtableResourceManagerCluster> cluster;
 
   @Before
   public void setUp() throws IOException {
@@ -96,13 +100,6 @@ public class BigtableResourceManagerTest {
   }
 
   @Test
-  public void testCreateInstanceShouldThrowExceptionWhenInstanceAlreadyExists() {
-    testManager.createInstance(cluster);
-
-    assertThrows(IllegalStateException.class, () -> testManager.createInstance(cluster));
-  }
-
-  @Test
   public void testCreateInstanceShouldThrowExceptionWhenClientFailsToCreateInstance() {
     when(bigtableResourceManagerClientFactory.bigtableInstanceAdminClient().createInstance(any()))
         .thenThrow(IllegalStateException.class);
@@ -120,20 +117,6 @@ public class BigtableResourceManagerTest {
   }
 
   @Test
-  public void testCreateInstanceShouldThrowErrorWhenUsingStaticInstance() throws IOException {
-    String instanceId = "static-instance";
-    testManager =
-        new BigtableResourceManager(
-            BigtableResourceManager.builder(TEST_ID, PROJECT_ID, null)
-                .setInstanceId(instanceId)
-                .useStaticInstance(),
-            bigtableResourceManagerClientFactory);
-
-    assertThrows(IllegalStateException.class, () -> testManager.createInstance(cluster));
-    assertThat(testManager.getInstanceId()).matches(instanceId);
-  }
-
-  @Test
   public void testCreateInstanceShouldWorkWhenBigtableDoesNotThrowAnyError() {
     testManager.createInstance(cluster);
 
@@ -143,6 +126,8 @@ public class BigtableResourceManagerTest {
 
   @Test
   public void testCreateTableShouldNotCreateInstanceWhenInstanceAlreadyExists() {
+    setupReadyTable();
+
     testManager.createInstance(cluster);
     Mockito.lenient()
         .when(
@@ -195,6 +180,7 @@ public class BigtableResourceManagerTest {
 
   @Test
   public void testCreateTableShouldThrowErrorWhenTableAdminClientFailsToClose() {
+    setupReadyTable();
     BigtableTableAdminClient mockClient =
         bigtableResourceManagerClientFactory.bigtableTableAdminClient();
     doThrow(RuntimeException.class).when(mockClient).close();
@@ -206,6 +192,8 @@ public class BigtableResourceManagerTest {
 
   @Test
   public void testCreateTableShouldWorkWhenBigtableDoesNotThrowAnyError() {
+    setupReadyTable();
+
     when(bigtableResourceManagerClientFactory.bigtableTableAdminClient().exists(anyString()))
         .thenReturn(false);
 
@@ -427,18 +415,35 @@ public class BigtableResourceManagerTest {
     when(bigtableResourceManagerClientFactory.bigtableTableAdminClient().exists(anyString()))
         .thenReturn(false);
 
+    setupReadyTable();
+
     testManager.createTable(TABLE_ID, ImmutableList.of("cf1"));
 
     testManager.cleanupAll();
     verify(bigtableResourceManagerClientFactory.bigtableTableAdminClient()).deleteTable(TABLE_ID);
     verify(bigtableResourceManagerClientFactory.bigtableTableAdminClient(), new Times(1))
         .deleteTable(anyString());
-    verify(bigtableResourceManagerClientFactory, never()).bigtableInstanceAdminClient();
+    verify(bigtableResourceManagerClientFactory.bigtableInstanceAdminClient(), never())
+        .deleteInstance(any());
+  }
+
+  private void setupReadyTable() {
+    Map<String, ReplicationState> allReplicated = new HashMap<>();
+    allReplicated.put(CLUSTER_ID, ReplicationState.READY);
+
+    when(bigtableResourceManagerClientFactory
+            .bigtableTableAdminClient()
+            .getTable(TABLE_ID)
+            .getReplicationStatesByClusterId())
+        .thenReturn(allReplicated);
   }
 
   @Test
   public void testCleanupAllShouldWorkWhenBigtableDoesNotThrowAnyError() {
+    setupReadyTable();
+
     testManager.createTable(TABLE_ID, ImmutableList.of("cf1"));
+
     when(bigtableResourceManagerClientFactory.bigtableTableAdminClient().exists(anyString()))
         .thenReturn(true);
     testManager.readTable(TABLE_ID);

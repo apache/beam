@@ -47,10 +47,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Input {@link PCollection} of broadcast side has to be the same instance
  *   <li>Key extractor of broadcast side has to be the same {@link UnaryFunction} instance
  * </ul>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
     extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 

@@ -379,7 +379,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
   def test_big_query_write_insert_errors_reporting(self):
     """
     Test that errors returned by beam.io.WriteToBigQuery
-    contain both the failed rows amd the reason for it failing.
+    contain both the failed rows and the reason for it failing.
     """
     table_name = 'python_write_table'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
@@ -452,6 +452,55 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       assert_that(
           errors[BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
           | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2])),
+          equal_to(bq_result_errors))
+
+  @pytest.mark.it_postcommit
+  def test_big_query_write_insert_non_transient_api_call_error(self):
+    """
+    Test that non-transient GoogleAPICallError errors returned 
+    by beam.io.WriteToBigQuery are not retried and result in
+    FAILED_ROWS containing both the failed rows and the reason
+    for failure.
+    """
+    table_name = 'this_table_does_not_exist'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    input_data = [{
+        'number': 1,
+        'str': 'some_string',
+    }]
+
+    table_schema = {
+        "fields": [{
+            "name": "number", "type": "INTEGER", 'mode': 'NULLABLE'
+        }, {
+            "name": "str", "type": "STRING", 'mode': 'NULLABLE'
+        }]
+    }
+
+    bq_result_errors = [({
+        'number': 1,
+        'str': 'some_string',
+    }, "Not Found")]
+
+    args = self.test_pipeline.get_full_options_as_args()
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      errors = (
+          p | 'create' >> beam.Create(input_data)
+          | 'write' >> beam.io.WriteToBigQuery(
+              table_id,
+              schema=table_schema,
+              method='STREAMING_INSERTS',
+              insert_retry_strategy='RETRY_ON_TRANSIENT_ERROR',
+              create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+
+      assert_that(
+          errors[BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
+          |
+          'ParseErrors' >> beam.Map(lambda err: (err[1], err[2][0]["reason"])),
           equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit

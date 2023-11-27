@@ -69,10 +69,11 @@ public class FlinkUnboundedSourceReader<T>
   private volatile boolean shouldEmitWatermark;
 
   public FlinkUnboundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<WindowedValue<ValueWithRecordId<T>>, Long> timestampExtractor) {
-    super(context, pipelineOptions, timestampExtractor);
+    super(stepName, context, pipelineOptions, timestampExtractor);
     this.readers = new ArrayList<>();
     this.dataAvailableFutureRef = new AtomicReference<>(DUMMY_FUTURE);
     this.currentReaderIndex = 0;
@@ -80,11 +81,12 @@ public class FlinkUnboundedSourceReader<T>
 
   @VisibleForTesting
   protected FlinkUnboundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       ScheduledExecutorService executor,
       @Nullable Function<WindowedValue<ValueWithRecordId<T>>, Long> timestampExtractor) {
-    super(executor, context, pipelineOptions, timestampExtractor);
+    super(stepName, executor, context, pipelineOptions, timestampExtractor);
     this.readers = new ArrayList<>();
     this.dataAvailableFutureRef = new AtomicReference<>(DUMMY_FUTURE);
     this.currentReaderIndex = 0;
@@ -124,6 +126,9 @@ public class FlinkUnboundedSourceReader<T>
     if (reader != null) {
       emitRecord(reader, output);
       return InputStatus.MORE_AVAILABLE;
+    } else if (noMoreSplits()) {
+      LOG.trace("No more splits.");
+      return InputStatus.END_OF_INPUT;
     } else {
       LOG.trace("No data available for now.");
       return InputStatus.NOTHING_AVAILABLE;

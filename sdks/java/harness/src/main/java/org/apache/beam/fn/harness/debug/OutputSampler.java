@@ -46,7 +46,7 @@ public class OutputSampler<T> {
   // Temporarily holds exceptional elements. These elements can also be duplicated in the main
   // buffer. This is in order to always track exceptional elements even if the number of samples in
   // the main buffer drops it.
-  private final Map<String, ElementSample<T>> exceptions = new HashMap<>();
+  private Map<String, ElementSample<T>> exceptions = new HashMap<>();
 
   // Maximum number of elements in buffer.
   private final int maxElements;
@@ -60,14 +60,19 @@ public class OutputSampler<T> {
   // Index into the buffer of where to overwrite samples.
   private int resampleIndex = 0;
 
+  // If true, only takes samples when exceptions in UDFs occur.
+  private final Boolean onlySampleExceptions;
+
   @Nullable private final Coder<T> valueCoder;
 
   @Nullable private final Coder<WindowedValue<T>> windowedValueCoder;
 
-  public OutputSampler(Coder<?> coder, int maxElements, int sampleEveryN) {
+  public OutputSampler(
+      Coder<?> coder, int maxElements, int sampleEveryN, boolean onlySampleExceptions) {
     this.maxElements = maxElements;
     this.sampleEveryN = sampleEveryN;
     this.buffer = new ArrayList<>(this.maxElements);
+    this.onlySampleExceptions = onlySampleExceptions;
 
     // The samples taken and encoded should match exactly to the specification from the
     // ProcessBundleDescriptor. The coder given can either be a WindowedValueCoder, in which the
@@ -103,7 +108,7 @@ public class OutputSampler<T> {
 
     ElementSample<T> elementSample =
         new ElementSample<>(ThreadLocalRandom.current().nextInt(), element);
-    if (samples > 10 && samples % sampleEveryN != 0) {
+    if (onlySampleExceptions || (samples > 10 && samples % sampleEveryN != 0)) {
       return elementSample;
     }
 
@@ -198,11 +203,16 @@ public class OutputSampler<T> {
     // Serializing can take a lot of CPU time for larger or complex elements. Copy the array here
     // so as to not slow down the main processing hot path.
     List<ElementSample<T>> bufferToSend;
+    Map<String, ElementSample<T>> exceptionsToSend;
     int sampleIndex = 0;
     synchronized (this) {
       bufferToSend = buffer;
-      sampleIndex = resampleIndex;
       buffer = new ArrayList<>(maxElements);
+
+      exceptionsToSend = exceptions;
+      exceptions = new HashMap<>(exceptions.size());
+
+      sampleIndex = resampleIndex;
       resampleIndex = 0;
     }
 
@@ -210,14 +220,13 @@ public class OutputSampler<T> {
     // to deduplicate samples.
     HashSet<Long> seen = new HashSet<>();
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    for (Map.Entry<String, ElementSample<T>> pair : exceptions.entrySet()) {
+    for (Map.Entry<String, ElementSample<T>> pair : exceptionsToSend.entrySet()) {
       String processBundleId = pair.getKey();
       ElementSample<T> sample = pair.getValue();
       seen.add(sample.id);
 
       ret.add(sampleToProto(sample, stream, processBundleId));
     }
-    exceptions.clear();
 
     for (int i = 0; i < bufferToSend.size(); i++) {
       int index = (sampleIndex + i) % bufferToSend.size();

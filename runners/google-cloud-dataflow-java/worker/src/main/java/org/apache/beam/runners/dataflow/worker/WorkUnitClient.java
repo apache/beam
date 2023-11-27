@@ -21,7 +21,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.io.IOException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import java.util.Optional;
 
 /** Abstract base class describing a client for WorkItem work units. */
 interface WorkUnitClient {
@@ -31,14 +31,14 @@ interface WorkUnitClient {
   Optional<WorkItem> getWorkItem() throws IOException;
 
   /**
-   * Returns a new global streaming config WorkItem, or returns {@link Optional#absent()} if no work
+   * Returns a new global streaming config WorkItem, or returns {@link Optional#empty()} if no work
    * was found.
    */
   Optional<WorkItem> getGlobalStreamingConfigWorkItem() throws IOException;
 
   /**
    * Returns a streaming config WorkItem for the given computation, or returns {@link
-   * Optional#absent()} if no work was found.
+   * Optional#empty()} if no work was found.
    */
   Optional<WorkItem> getStreamingConfigWorkItem(String computationId) throws IOException;
 

@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -399,10 +398,12 @@ class BatchLoads<DestinationT, ElementT>
                 "Window Into Global Windows",
                 Window.<KV<DestinationT, WriteTables.Result>>into(new GlobalWindows())
                     .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-            .apply("Add Void Key", WithKeys.of((Void) null))
-            .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-            .apply("GroupByKey", GroupByKey.create())
-            .apply("Extract Values", Values.create())
+            // We use this and the following GBK to aggregate by final destination.
+            // This way, each destination has its own pane sequence
+            .apply("AddDestinationKeys", WithKeys.of(result -> result.getKey()))
+            .setCoder(KvCoder.of(destinationCoder, tempTables.getCoder()))
+            .apply("GroupTempTablesByFinalDestination", GroupByKey.create())
+            .apply("ExtractTempTables", Values.create())
             .apply(
                 ParDo.of(
                         new UpdateSchemaDestination<DestinationT>(

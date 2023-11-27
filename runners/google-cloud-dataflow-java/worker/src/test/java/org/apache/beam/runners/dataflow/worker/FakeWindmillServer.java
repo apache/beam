@@ -53,6 +53,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
@@ -64,58 +69,6 @@ import org.slf4j.LoggerFactory;
 /** An in-memory Windmill server that offers provided work and data. */
 class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
-
-  static class ResponseQueue<T, U> {
-    private final Queue<Function<T, U>> responses = new ConcurrentLinkedQueue<>();
-    private Function<T, U> defaultResponse;
-    Duration sleep = Duration.ZERO;
-
-    // (Fluent) interface for response producers, accessible from tests.
-
-    ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
-      responses.add(mapFun);
-      return this;
-    }
-
-    ResponseQueue<T, U> thenReturn(U response) {
-      return thenAnswer((request) -> response);
-    }
-
-    ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
-      defaultResponse = mapFun;
-      return this;
-    }
-
-    ResponseQueue<T, U> returnByDefault(U response) {
-      return answerByDefault((request) -> response);
-    }
-
-    ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
-      this.sleep = sleep;
-      return this;
-    }
-
-    // Interface for response consumers, accessible from the enclosing class.
-
-    private U getOrDefault(T request) {
-      Function<T, U> mapFun = responses.poll();
-      U response = mapFun == null ? defaultResponse.apply(request) : mapFun.apply(request);
-      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
-      return response;
-    }
-
-    private U get(T request) {
-      Function<T, U> mapFun = responses.poll();
-      U response = mapFun == null ? null : mapFun.apply(request);
-      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
-      return response;
-    }
-
-    private boolean isEmpty() {
-      return responses.isEmpty();
-    }
-  }
-
   private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
@@ -123,13 +76,13 @@ class FakeWindmillServer extends WindmillServerStub {
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
   private final LinkedBlockingQueue<Windmill.Exception> exceptions;
-  private int commitsRequested = 0;
-  private int numGetDataRequests = 0;
   private final AtomicInteger expectedExceptionCount;
   private final ErrorCollector errorCollector;
+  private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
+  private int commitsRequested = 0;
+  private int numGetDataRequests = 0;
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
-  private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
     workToOffer =
@@ -243,7 +196,7 @@ class FakeWindmillServer extends WindmillServerStub {
 
   @Override
   public long getAndResetThrottleTime() {
-    return (long) 0;
+    return 0;
   }
 
   @Override
@@ -255,6 +208,19 @@ class FakeWindmillServer extends WindmillServerStub {
       @Override
       public void close() {
         done.countDown();
+      }
+
+      @Override
+      public void adjustBudget(long itemsDelta, long bytesDelta) {
+        // no-op.
+      }
+
+      @Override
+      public GetWorkBudget remainingBudget() {
+        return GetWorkBudget.builder()
+            .setItems(request.getMaxItems())
+            .setBytes(request.getMaxBytes())
+            .build();
       }
 
       @Override
@@ -484,5 +450,56 @@ class FakeWindmillServer extends WindmillServerStub {
 
   public void setIsReady(boolean ready) {
     this.isReady = ready;
+  }
+
+  static class ResponseQueue<T, U> {
+    private final Queue<Function<T, U>> responses = new ConcurrentLinkedQueue<>();
+    Duration sleep = Duration.ZERO;
+    private Function<T, U> defaultResponse;
+
+    // (Fluent) interface for response producers, accessible from tests.
+
+    ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
+      responses.add(mapFun);
+      return this;
+    }
+
+    ResponseQueue<T, U> thenReturn(U response) {
+      return thenAnswer((request) -> response);
+    }
+
+    ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
+      defaultResponse = mapFun;
+      return this;
+    }
+
+    ResponseQueue<T, U> returnByDefault(U response) {
+      return answerByDefault((request) -> response);
+    }
+
+    ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
+      this.sleep = sleep;
+      return this;
+    }
+
+    // Interface for response consumers, accessible from the enclosing class.
+
+    private U getOrDefault(T request) {
+      Function<T, U> mapFun = responses.poll();
+      U response = mapFun == null ? defaultResponse.apply(request) : mapFun.apply(request);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      return response;
+    }
+
+    private U get(T request) {
+      Function<T, U> mapFun = responses.poll();
+      U response = mapFun == null ? null : mapFun.apply(request);
+      Uninterruptibles.sleepUninterruptibly(sleep.getMillis(), TimeUnit.MILLISECONDS);
+      return response;
+    }
+
+    private boolean isEmpty() {
+      return responses.isEmpty();
+    }
   }
 }

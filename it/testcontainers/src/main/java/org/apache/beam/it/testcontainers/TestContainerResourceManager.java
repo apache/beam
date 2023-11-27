@@ -68,7 +68,12 @@ public abstract class TestContainerResourceManager<T extends GenericContainer<?>
     }
 
     if (!usingStaticContainer) {
-      container.start();
+      // TODO(pranavbhandari): Change this to use log.getUtf8StringWithoutLineEnding() when
+      // testcontainers dependency is updated.
+      container
+          .withLogConsumer(
+              log -> LOG.info("{}: {}", container.getDockerImageName(), log.getUtf8String()))
+          .start();
     } else if (builder.host == null || builder.port < 0) {
       throw new TestContainerResourceManagerException(
           "This manager was configured to use a static resource, but the host and port were not properly set.");

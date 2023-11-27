@@ -20,7 +20,6 @@ package org.apache.beam.it.gcp.datastore;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.datastore.Entity;
-import java.io.IOException;
 import java.util.List;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -30,7 +29,7 @@ import org.junit.Test;
 public class DatastoreResourceManagerIT {
 
   @Test
-  public void testInsert() throws IOException {
+  public void testInsert() {
     DatastoreResourceManager resourceManager =
         DatastoreResourceManager.builder(
                 TestProperties.project(),
@@ -51,7 +50,7 @@ public class DatastoreResourceManagerIT {
   }
 
   @Test
-  public void testInsertQuery() throws IOException {
+  public void testInsertQuery() {
     DatastoreResourceManager resourceManager =
         DatastoreResourceManager.builder(
                 TestProperties.project(),
@@ -75,7 +74,7 @@ public class DatastoreResourceManagerIT {
   }
 
   @Test
-  public void testInsertCleanUp() throws IOException {
+  public void testInsertCleanUp() {
     DatastoreResourceManager resourceManager =
         DatastoreResourceManager.builder(
                 TestProperties.project(),

@@ -43,7 +43,7 @@ public final class LaunchInfoSubject extends Subject {
   }
 
   /**
-   * Check if the subject reflects succeeded states. A successfully {@link LaunchInfo} does not mean
+   * Check if the subject reflects succeeded states. A successful {@link LaunchInfo} does not mean
    * that the pipeline finished and no errors happened, it just means that the job was able to get
    * itself into an active state (RUNNING, UPDATED).
    */

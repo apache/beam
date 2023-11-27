@@ -30,6 +30,7 @@ Be consistent with prior art:
 * If there is already a similar transform in some SDK, make the API of your transform similar, so that users' experience with one of them will transfer to the other. This applies to transforms in the same-language SDK and different-language SDKs.
 *Exception:* pre-existing transforms that clearly violate the current style guide for the sole reason that they were developed before this guide was ratified. In this case, the style guide takes priority over consistency with the existing transform.
 * When there is no existing similar transform, stay within what is idiomatic within your language of choice (e.g. Java or Python).
+* Please use this [design doc template](https://s.apache.org/ptransform-design-doc) if possible, when proposing new transforms.
 
 ### Exposing a PTransform vs. something else
 

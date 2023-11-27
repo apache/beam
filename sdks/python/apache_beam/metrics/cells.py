@@ -99,9 +99,9 @@ class CounterCell(MetricCell):
 
   Tracks the current value and delta of a counter metric.
 
-  Each cell tracks the state of a metric independently per context per bundle.
-  Therefore, each metric has a different cell in each bundle, cells are
-  aggregated by the runner.
+  Each cell tracks the state of an integer metric independently per context
+  per bundle. Therefore, each metric has a different cell in each bundle,
+  cells are aggregated by the runner.
 
   This class is thread safe.
   """
@@ -126,6 +126,7 @@ class CounterCell(MetricCell):
     self.update(-n)
 
   def update(self, value):
+    # type: (int) -> None
     if cython.compiled:
       ivalue = value
       # Since We hold the GIL, no need for another lock.

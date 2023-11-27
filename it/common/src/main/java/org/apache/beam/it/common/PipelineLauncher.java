@@ -115,12 +115,17 @@ public interface PipelineLauncher {
 
   /** Config for starting a Dataflow job. */
   class LaunchConfig {
+
+    /** The default number of random characters to use in the generated job names. */
+    public static final int JOB_NAME_DEFAULT_CHARS_SUFFIX = 8;
+
     private final String jobName;
     private final ImmutableMap<String, String> parameters;
     private final ImmutableMap<String, Object> environment;
     private final @Nullable String specPath;
     private final @Nullable Sdk sdk;
     private final @Nullable String executable;
+    private final @Nullable String requirementsFile;
     private final @Nullable Pipeline pipeline;
 
     private LaunchConfig(Builder builder) {
@@ -130,6 +135,7 @@ public interface PipelineLauncher {
       this.specPath = builder.specPath;
       this.sdk = builder.sdk;
       this.executable = builder.executable;
+      this.requirementsFile = builder.requirementsFile;
       this.pipeline = builder.pipeline;
     }
 
@@ -161,6 +167,10 @@ public interface PipelineLauncher {
       return executable;
     }
 
+    public @Nullable String requirementsFile() {
+      return requirementsFile;
+    }
+
     public @Nullable Pipeline pipeline() {
       return pipeline;
     }
@@ -170,7 +180,7 @@ public interface PipelineLauncher {
     }
 
     public static Builder builder(String testName, String specPath) {
-      return new Builder(createJobName(testName), specPath);
+      return new Builder(createJobName(testName, JOB_NAME_DEFAULT_CHARS_SUFFIX), specPath);
     }
 
     public static Builder builder(String jobName) {
@@ -185,6 +195,7 @@ public interface PipelineLauncher {
       private Map<String, String> parameters;
       private Sdk sdk;
       private String executable;
+      private String requirementsFile;
       private Pipeline pipeline;
 
       private Builder(String jobName, String specPath) {
@@ -240,6 +251,15 @@ public interface PipelineLauncher {
 
       public Builder setExecutable(String executable) {
         this.executable = executable;
+        return this;
+      }
+
+      public @Nullable String getRequirementsFile() {
+        return requirementsFile;
+      }
+
+      public Builder setRequirementsFile(String requirementsFile) {
+        this.requirementsFile = requirementsFile;
         return this;
       }
 

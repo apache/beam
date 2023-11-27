@@ -51,8 +51,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20230809'
-ext.dataflowFnapiContainerVersion = 'beam-master-20230809'
+ext.dataflowLegacyContainerVersion = 'beam-master-20231026'
+ext.dataflowFnapiContainerVersion = 'beam-master-20231026'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -279,10 +279,8 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   def javaVer = "java8"
-  if(project.hasProperty('compileAndRunTestsWithJava17')) {
-    javaVer = "java17"
-  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-    javaVer = "java11"
+  if(project.hasProperty('testJavaVersion')) {
+    javaVer = "java${project.getProperty('testJavaVersion')}"
   }
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
@@ -306,9 +304,11 @@ def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
       commandLine "docker", "rmi", "--force", "${dockerJavaImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
     }
   }
@@ -347,9 +347,11 @@ def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
       commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonImageName}"
     }
     exec {
+      ignoreExitValue true
       commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonImageContainer}"
     }
   }
@@ -562,12 +564,9 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/StorageApiSinkSchemaUpdateIT.class'  // IT based on test stream
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -608,7 +607,6 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/StorageApiSinkSchemaUpdateIT.class'  // IT based on test stream
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
@@ -616,8 +614,9 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
   exclude '**/FhirIOPatientEverythingIT.class'
-  // TODO(https://github.com/apache/beam/issues/25851) failing due to internal Firestore breaking change
-  exclude '**/FirestoreV1IT.class'
+  // failing due to pane index not incrementing after Reshuffle:
+  // https://github.com/apache/beam/issues/28219
+  exclude '**/FileLoadsStreamingIT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -625,24 +624,13 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
-task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
+task examplesJavaRunnerV2PreCommit(type: Test) {
   group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  dependsOn buildAndPushDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
 
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-  ])
-
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
-  // this postCommit integration test excludes them.
-  include '**/*IT.class'
-  exclude '**/WordCountIT.class'
-  exclude '**/WindowedWordCountIT.class'
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
@@ -655,7 +643,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // examplesJavaRunnerV2PreCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.
   include '**/*IT.class'
   exclude '**/WordCountIT.class'
@@ -713,7 +701,6 @@ task postCommit {
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
   dependsOn googleCloudPlatformLegacyWorkerKmsIntegrationTest
-  dependsOn examplesJavaLegacyWorkerIntegrationTest
   dependsOn coreSDKJavaLegacyWorkerIntegrationTest
 }
 
@@ -721,7 +708,6 @@ task postCommitRunnerV2 {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner V2."
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
-  dependsOn examplesJavaRunnerV2IntegrationTest
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
 

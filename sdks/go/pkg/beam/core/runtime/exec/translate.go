@@ -365,7 +365,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	}
 	wc, err := b.coders.WindowCoder(ws.GetWindowCoderId())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Errorf("could not unmarshal window coder for pcollection %v: %w", id, err)
 	}
 	return c, wc, nil
 }
@@ -822,6 +822,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 		}
 		u = sink
+
+	case graphx.URNToString:
+		u = &ToString{UID: b.idgen.New(), Out: out[0]}
 
 	default:
 		panic(fmt.Sprintf("Unexpected transform URN: %v", urn))

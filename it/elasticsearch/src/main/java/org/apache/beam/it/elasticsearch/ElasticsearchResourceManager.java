@@ -20,6 +20,7 @@ package org.apache.beam.it.elasticsearch;
 import static org.apache.beam.it.elasticsearch.ElasticsearchUtils.checkValidIndexName;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -48,6 +49,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -81,11 +83,28 @@ public class ElasticsearchResourceManager extends TestContainerResourceManager<G
   private final List<String> managedIndexNames = new ArrayList<>();
 
   private ElasticsearchResourceManager(Builder builder) {
-    this(
-        /* elasticsearchClient= */ null,
+    this(/* elasticsearchClient= */ null, buildContainer(builder), builder);
+  }
+
+  /**
+   * Create the {@link ElasticsearchContainer} instance for the given builder.
+   *
+   * <p>The method override the wait strategy from the base container using the same regex, but
+   * increase the timeout to 2 minutes.
+   */
+  private static ElasticsearchContainer buildContainer(Builder builder) {
+    ElasticsearchContainer container =
         new ElasticsearchContainer(
-            DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag)),
-        builder);
+            DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag));
+
+    //
+    // The regex is based on Elasticsearch container, but it's not exposed anywhere.
+    String regex = ".*(\"message\":\\s?\"started[\\s?|\"].*|] started\n$)";
+    Duration startupTimeout = Duration.ofMinutes(2);
+    container.setWaitStrategy(
+        new LogMessageWaitStrategy().withRegEx(regex).withStartupTimeout(startupTimeout));
+
+    return container;
   }
 
   @VisibleForTesting

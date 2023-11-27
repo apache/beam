@@ -134,7 +134,7 @@ final class FirestoreTestingHelper implements TestRule {
             .setCredentials(gcpOptions.getGcpCredential())
             .setProjectId(gcpOptions.getProject())
             .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
-            .setHost(firestoreBeamOptions.getHost())
+            .setHost(firestoreBeamOptions.getFirestoreHost())
             .build();
     fs = firestoreOptions.getService();
     rpc = (FirestoreRpc) firestoreOptions.getRpc();

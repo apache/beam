@@ -27,12 +27,37 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
   private final MetricName name;
   private final HistogramData.BucketType bucketType;
   private final boolean processWideContainer;
+  private final boolean perWorkerHistogram;
 
+  /**
+   * Create a {@code DelegatingHistogram} with {@code perWorkerHistogram} set to false.
+   *
+   * @param name Metric name for this metric.
+   * @param bucketType Histogram bucketing strategy.
+   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
+   *     current thread's container.
+   */
   public DelegatingHistogram(
       MetricName name, HistogramData.BucketType bucketType, boolean processWideContainer) {
+    this(name, bucketType, processWideContainer, false);
+  }
+
+  /**
+   * @param name Metric name for this metric.
+   * @param bucketType Histogram bucketing strategy.
+   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
+   *     current thread's container.
+   * @param perWorkerHistogram Whether this Histogram refers to a perWorker metric or not.
+   */
+  public DelegatingHistogram(
+      MetricName name,
+      HistogramData.BucketType bucketType,
+      boolean processWideContainer,
+      boolean perWorkerHistogram) {
     this.name = name;
     this.bucketType = bucketType;
     this.processWideContainer = processWideContainer;
+    this.perWorkerHistogram = perWorkerHistogram;
   }
 
   @Override
@@ -41,7 +66,12 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
         processWideContainer
             ? MetricsEnvironment.getProcessWideContainer()
             : MetricsEnvironment.getCurrentContainer();
-    if (container != null) {
+    if (container == null) {
+      return;
+    }
+    if (perWorkerHistogram) {
+      container.getPerWorkerHistogram(name, bucketType).update(value);
+    } else {
       container.getHistogram(name, bucketType).update(value);
     }
   }

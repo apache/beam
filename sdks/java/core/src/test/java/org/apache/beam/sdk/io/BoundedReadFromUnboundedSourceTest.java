@@ -322,7 +322,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable {
           throw new RuntimeException("failed during checkpoint");
         }
         // The checkpoint can assume all records read, including the current, have
-        // been commited.
+        // been committed.
         return new CounterMark(current);
       }
 

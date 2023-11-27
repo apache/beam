@@ -30,12 +30,14 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -268,7 +270,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * PCollection<TableRow> weatherData = pipeline.apply(
- *     BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations"));
+ *     BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations"));
  * }</pre>
  *
  * <b>Example: Reading rows of a table and parsing them into a custom type.</b>
@@ -281,7 +283,7 @@ import org.slf4j.LoggerFactory;
  *          return new WeatherRecord(...);
  *        }
  *      })
- *      .from("clouddataflow-readonly:samples.weather_stations"))
+ *      .from("apache-beam-testing.samples.weather_stations"))
  *      .withCoder(SerializableCoder.of(WeatherRecord.class));
  * }</pre>
  *
@@ -484,8 +486,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Upserts and deletes</h3>
  *
  * The connector also supports streaming row updates to BigQuery, with the following qualifications:
- * - The CREATE_IF_NEEDED CreateDisposition is not supported. Tables must be precreated with primary
- * keys. - Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
+ *
+ * <p>- Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
+ *
+ * <p>- If the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be
+ * specified using {@link Write#withPrimaryKey}.
  *
  * <p>Two types of updates are supported. UPSERT replaces the row with the matching primary key or
  * inserts the row if non exists. DELETE removes the row with the matching primary key. Row inserts
@@ -510,7 +515,8 @@ import org.slf4j.LoggerFactory;
  *    .apply(BigQueryIO.applyRowMutations()
  *           .to(my_project:my_dataset.my_table)
  *           .withSchema(schema)
- *           .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
+ *           .withPrimaryKey(ImmutableList.of("field1", "field2"))
+ *           .withCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED));
  * }</pre>
  *
  * <p>If writing a type other than TableRow (e.g. using {@link BigQueryIO#writeGenericRecords} or
@@ -523,12 +529,17 @@ import org.slf4j.LoggerFactory;
  * cdcEvent.apply(BigQueryIO.write()
  *          .to("my-project:my_dataset.my_table")
  *          .withSchema(schema)
+ *          .withPrimaryKey(ImmutableList.of("field1", "field2"))
  *          .withFormatFunction(CdcEvent::getTableRow)
  *          .withRowMutationInformationFn(cdc -> RowMutationInformation.of(cdc.getChangeType(),
  *                                                                         cdc.getSequenceNumber()))
  *          .withMethod(Write.Method.STORAGE_API_AT_LEAST_ONCE)
- *          .withCreateDisposition(Write.CreateDisposition.CREATE_NEVER));
+ *          .withCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED));
  * }</pre>
+ *
+ * <p>Note that in order to use inserts or deletes, the table must bet set up with a primary key. If
+ * the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be specified
+ * using {@link Write#withPrimaryKey}.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20506)
@@ -2136,6 +2147,8 @@ public class BigQueryIO {
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
         .setDirectWriteProtos(true)
+        .setDefaultMissingValueInterpretation(
+            AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
         .build();
   }
 
@@ -2157,9 +2170,10 @@ public class BigQueryIO {
    * apply row updates; directly calling {@link Write#withRowMutationInformationFn} is preferred
    * when writing non TableRows types (e.g. {@link #writeGenericRecords} or a custom user type).
    *
-   * <p>This is only supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
-   * method and {@link Write.CreateDisposition#CREATE_NEVER}. The tables must be precreated with a
-   * primary key.
+   * <p>This is supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
+   * method, and with either {@link Write.CreateDisposition#CREATE_NEVER} or {@link
+   * Write.CreateDisposition#CREATE_IF_NEEDED}. For CREATE_IF_NEEDED, a primary key must be
+   * specified using {@link Write#withPrimaryKey}.
    */
   public static Write<RowMutation> applyRowMutations() {
     return BigQueryIO.<RowMutation>write()
@@ -2318,6 +2332,10 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
+    abstract @Nullable List<String> getPrimaryKey();
+
+    abstract AppendRowsRequest.MissingValueInterpretation getDefaultMissingValueInterpretation();
+
     abstract Boolean getOptimizeWrites();
 
     abstract Boolean getUseBeamSchema();
@@ -2416,7 +2434,12 @@ public class BigQueryIO {
 
       abstract Builder<T> setIgnoreInsertIds(Boolean ignoreInsertIds);
 
-      abstract Builder<T> setKmsKey(String kmsKey);
+      abstract Builder<T> setKmsKey(@Nullable String kmsKey);
+
+      abstract Builder<T> setPrimaryKey(@Nullable List<String> primaryKey);
+
+      abstract Builder<T> setDefaultMissingValueInterpretation(
+          AppendRowsRequest.MissingValueInterpretation missingValueInterpretation);
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
@@ -2488,6 +2511,8 @@ public class BigQueryIO {
        * <p>The replacement may occur in multiple steps - for instance by first removing the
        * existing table, then creating a replacement, then filling it in. This is not an atomic
        * operation, and external programs may see the table in any of these intermediate steps.
+       *
+       * <p>Note: This write disposition is only supported for the FILE_LOADS write method.
        */
       WRITE_TRUNCATE,
 
@@ -2774,7 +2799,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Specfies a policy for handling failed inserts.
+     * Specifies a policy for handling failed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
      * collections are written using batch load jobs, so we don't get per-element failures.
@@ -2805,9 +2830,10 @@ public class BigQueryIO {
      * function that determines how a row is applied to BigQuery (upsert, or delete) along with a
      * sequence number for ordering operations.
      *
-     * <p>This is only supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE}
-     * insert method and {@link Write.CreateDisposition#CREATE_NEVER}. The tables must be precreated
-     * with a primary key.
+     * <p>This is supported when using the {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} insert
+     * method, and with either {@link Write.CreateDisposition#CREATE_NEVER} or {@link
+     * Write.CreateDisposition#CREATE_IF_NEEDED}. For CREATE_IF_NEEDED, a primary key must be
+     * specified using {@link Write#withPrimaryKey}.
      */
     public Write<T> withRowMutationInformationFn(
         SerializableFunction<T, RowMutationInformation> updateFn) {
@@ -2821,7 +2847,7 @@ public class BigQueryIO {
     /*
     When using {@link Write.Method#STORAGE_API} or {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} along with
     {@link BigQueryIO.writeProtos}, the sink will try to write the protos directly to BigQuery without modification.
-    In some cases this is not supported or BigQuery cannot directly interpet the proto. In these cases, the direct
+    In some cases this is not supported or BigQuery cannot directly interpret the proto. In these cases, the direct
     proto write
      */
     public Write<T> withDirectWriteProtos(boolean directWriteProtos) {
@@ -2945,6 +2971,25 @@ public class BigQueryIO {
 
     public Write<T> withKmsKey(String kmsKey) {
       return toBuilder().setKmsKey(kmsKey).build();
+    }
+
+    public Write<T> withPrimaryKey(List<String> primaryKey) {
+      return toBuilder().setPrimaryKey(primaryKey).build();
+    }
+
+    /**
+     * Specify how missing values should be interpreted when there is a default value in the schema.
+     * Options are to take the default value or to write an explicit null (not an option of the
+     * field is also required.). Note: this is only used when using one of the storage write API
+     * insert methods.
+     */
+    public Write<T> withDefaultMissingValueInterpretation(
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation) {
+      checkArgument(
+          missingValueInterpretation == AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE
+              || missingValueInterpretation
+                  == AppendRowsRequest.MissingValueInterpretation.NULL_VALUE);
+      return toBuilder().setDefaultMissingValueInterpretation(missingValueInterpretation).build();
     }
 
     /**
@@ -3235,12 +3280,13 @@ public class BigQueryIO {
         checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
-          LOG.warn("Storage API triggering frequency" + error);
+          LOG.warn("Setting a triggering frequency" + error);
         }
         if (getStorageApiNumStreams(bqOptions) != 0) {
           LOG.warn("Setting the number of Storage API streams" + error);
         }
       }
+
       if (method == Method.STORAGE_API_AT_LEAST_ONCE && getStorageApiNumStreams(bqOptions) != 0) {
         LOG.warn(
             "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
@@ -3250,13 +3296,18 @@ public class BigQueryIO {
         checkArgument(
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
+      } else if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
+        LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
       }
       if (getRowMutationInformationFn() != null) {
         checkArgument(getMethod() == Method.STORAGE_API_AT_LEAST_ONCE);
         checkArgument(
-            getCreateDisposition() == CreateDisposition.CREATE_NEVER,
-            "CREATE_IF_NEEDED is not supported when applying row updates. Tables must be precreated "
-                + "with a primary key specified.");
+            getCreateDisposition() == CreateDisposition.CREATE_NEVER || getPrimaryKey() != null,
+            "If specifying CREATE_IF_NEEDED along with row updates, a primary key needs to be specified");
+      }
+      if (getPrimaryKey() != null) {
+        checkArgument(
+            getMethod() != Method.FILE_LOADS, "Primary key not supported when using FILE_LOADS");
       }
 
       if (getAutoSchemaUpdate()) {
@@ -3310,6 +3361,14 @@ public class BigQueryIO {
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
                   StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+        }
+        if (getPrimaryKey() != null) {
+          dynamicDestinations =
+              new DynamicDestinationsHelpers.ConstantTableConstraintsDestinations<>(
+                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
+                  new TableConstraints()
+                      .setPrimaryKey(
+                          new TableConstraints.PrimaryKey().setColumns(getPrimaryKey())));
         }
       }
       return expandTyped(input, dynamicDestinations);
@@ -3654,7 +3713,8 @@ public class BigQueryIO {
                 getAutoSchemaUpdate(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
-                getRowMutationInformationFn() != null);
+                getRowMutationInformationFn() != null,
+                getDefaultMissingValueInterpretation());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

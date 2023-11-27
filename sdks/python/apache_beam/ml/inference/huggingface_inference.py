@@ -98,6 +98,7 @@ class PipelineTask(str, Enum):
   TextClassification = 'text-classification'
   TextGeneration = 'text-generation'
   Text2TextGeneration = 'text2text-generation'
+  TextToAudio = 'text-to-audio'
   TokenClassification = 'token-classification'
   Translation = 'translation'
   VideoClassification = 'video-classification'
@@ -289,6 +290,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     if self._framework == 'pt':
       if self._device == "GPU" and is_gpu_available_torch:
         model.to(torch.device("cuda"))
+      if callable(getattr(model, 'requires_grad_', None)):
+        model.requires_grad_(False)
     return model
 
   def run_inference(
@@ -465,6 +468,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     """Loads and initializes the model for processing."""
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
+    if callable(getattr(model, 'requires_grad_', None)):
+      model.requires_grad_(False)
     return model
 
   def run_inference(
@@ -566,8 +571,9 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
   def __init__(
       self,
       task: Union[str, PipelineTask] = "",
-      model=None,
+      model: str = "",
       *,
+      device: Optional[str] = None,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_pipeline_args: Optional[Dict[str, Any]] = None,
       inference_args: Optional[Dict[str, Any]] = None,
@@ -578,10 +584,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
 
-    **Note:** To specify which device to use (CPU/GPU),
-    use the load_pipeline_args with key-value as you would do in the usual
-    Hugging Face pipeline. Ex: load_pipeline_args={'device':0})
-
     Example Usage model::
       pcoll | RunInference(HuggingFacePipelineModelHandler(
         task="fill-mask"))
@@ -589,9 +591,23 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Args:
       task (str or enum.Enum): task supported by HuggingFace Pipelines.
         Accepts a string task or an enum.Enum from PipelineTask.
-      model : path to pretrained model on Hugging Face Models Hub to use custom
-        model for the chosen task. If the model already defines the task then
-        no need to specify the task parameter.
+      model (str): path to the pretrained *model-id* on Hugging Face Models Hub
+        to use custom model for the chosen task. If the `model` already defines
+        the task then no need to specify the `task` parameter.
+        Use the *model-id* string instead of an actual model here.
+        Model-specific kwargs for `from_pretrained(..., **model_kwargs)` can be
+        specified with `model_kwargs` using `load_pipeline_args`.
+
+        Example Usage::
+          model_handler = HuggingFacePipelineModelHandler(
+            task="text-generation", model="meta-llama/Llama-2-7b-hf",
+            load_pipeline_args={'model_kwargs':{'quantization_map':config}})
+
+      device (str): the device (`"CPU"` or `"GPU"`) on which you wish to run
+        the pipeline. Defaults to GPU. If GPU is not available then it falls
+        back to CPU. You can also use advanced option like `device_map` with
+        key-value pair as you would do in the usual Hugging Face pipeline using
+        `load_pipeline_args`. Ex: load_pipeline_args={'device_map':auto}).
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
@@ -624,7 +640,35 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
     self._large_model = large_model
+
+    # Check if the device is specified twice. If true then the device parameter
+    # of model handler is overridden.
+    self._deduplicate_device_value(device)
     _validate_constructor_args_hf_pipeline(self._task, self._model)
+
+  def _deduplicate_device_value(self, device: Optional[str]):
+    current_device = device.upper() if device else None
+    if (current_device and current_device != 'CPU' and current_device != 'GPU'):
+      raise ValueError(
+          f"Invalid device value: {device}. Please specify "
+          "either CPU or GPU. Defaults to GPU if no value "
+          "is provided.")
+    if 'device' not in self._load_pipeline_args:
+      if current_device == 'CPU':
+        self._load_pipeline_args['device'] = 'cpu'
+      else:
+        if is_gpu_available_torch():
+          self._load_pipeline_args['device'] = 'cuda:1'
+        else:
+          _LOGGER.warning(
+              "HuggingFaceModelHandler specified a 'GPU' device, "
+              "but GPUs are not available. Switching to CPU.")
+          self._load_pipeline_args['device'] = 'cpu'
+    else:
+      if current_device:
+        raise ValueError(
+            '`device` specified in `load_pipeline_args`. `device` '
+            'parameter for HuggingFacePipelineModelHandler will be ignored.')
 
   def load_model(self):
     """Loads and initializes the pipeline for processing."""

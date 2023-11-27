@@ -66,6 +66,8 @@ For more information on changes in 2.47.0, check out the [detailed release notes
 ### Known Issues
 
 * BigQueryIO Storage API write with autoUpdateSchema may cause data corruption for Beam SDKs 2.45.0 - 2.47.0 (inclusive) ([#26789](https://github.com/apache/beam/issues/26789))
+* Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+
 
 ## List of Contributors
 

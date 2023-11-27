@@ -58,6 +58,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -302,15 +303,15 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteDynamicDestinationsBatchWithSchemas() throws Exception {
-    writeDynamicDestinations(true, false);
-  }
-
-  @Test
   public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate); // STORAGE_API_AT_LEAST_ONCE ignores auto-sharding
     writeDynamicDestinations(true, true);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsWithBeamSchemas() throws Exception {
+    writeDynamicDestinations(true, false);
   }
 
   public void writeDynamicDestinations(boolean schemas, boolean autoSharding) throws Exception {
@@ -1329,8 +1330,12 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testSchemaWriteLoads() throws Exception {
-    assumeTrue(!useStreaming);
+  public void testBatchSchemaWriteLoads() throws Exception {
+    // This test is actually for batch!
+    // We test on the useStreaming parameter however because we need it as
+    // true to test STORAGE_API_AT_LEAST_ONCE
+    assumeTrue(useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
     // withMethod overrides the pipeline option, so we need to explicitly request
     // STORAGE_WRITE_API.
     BigQueryIO.Write.Method method =
@@ -1873,28 +1878,6 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
-  @Test
-  public void testStreamingWriteValidateFailsWithoutTriggeringFrequency() {
-    assumeTrue(useStreaming);
-    assumeTrue(!useStorageApiApproximate);
-    p.enableAbandonedNodeEnforcement(false);
-    Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API");
-    thrown.expectMessage("triggering frequency must be specified");
-
-    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
-    p.apply(Create.empty(INPUT_RECORD_CODER))
-        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply(
-            BigQueryIO.<InputRecord>write()
-                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
-                .to("dataset.table")
-                .withMethod(method)
-                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
-  }
-
   @SuppressWarnings({"unused"})
   static class UpdateTableSchemaDoFn extends DoFn<KV<String, TableRow>, TableRow> {
     @TimerId("updateTimer")
@@ -2078,6 +2061,103 @@ public class BigQueryIOWriteTest implements Serializable {
       }
     }
     return filtered;
+  }
+
+  @Test
+  public void testBatchStorageWriteWithIgnoreUnknownValues() throws Exception {
+    batchStorageWriteWithIgnoreUnknownValues(false);
+  }
+
+  @Test
+  public void testBatchStorageWriteWithIgnoreUnknownValuesWithInputSchema() throws Exception {
+    batchStorageWriteWithIgnoreUnknownValues(true);
+  }
+
+  public void batchStorageWriteWithIgnoreUnknownValues(boolean withInputSchema) throws Exception {
+    assumeTrue(!useStreaming);
+    // Make sure that GroupIntoBatches does not buffer data.
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
+
+    BigQueryIO.Write.Method method =
+        useStorageApi ? Method.STORAGE_WRITE_API : Method.STORAGE_API_AT_LEAST_ONCE;
+    p.enableAbandonedNodeEnforcement(false);
+
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING")));
+
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+
+    List<TableRow> rows =
+        Arrays.asList(
+            new TableRow().set("number", "1").set("name", "a"),
+            new TableRow().set("number", "2").set("name", "b").set("extra", "aaa"),
+            new TableRow()
+                .set("number", "3")
+                .set("name", "c")
+                .set("repeated", Arrays.asList("a", "a")),
+            new TableRow().set("number", "4").set("name", "d").set("req", "req_a"),
+            new TableRow()
+                .set("number", "5")
+                .set("name", "e")
+                .set("repeated", Arrays.asList("a", "a"))
+                .set("req", "req_a"));
+
+    BigQueryIO.Write<TableRow> writeTransform =
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .ignoreUnknownValues()
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (withInputSchema) {
+      writeTransform = writeTransform.withSchema(tableSchema);
+    }
+    WriteResult result = p.apply(Create.of(rows)).apply(writeTransform);
+    // we ignore extra values instead of sending to DLQ. check that it's empty:
+    PAssert.that(result.getFailedStorageApiInserts()).empty();
+    p.run().waitUntilFinish();
+
+    Iterable<TableRow> expectedDroppedValues =
+        rows.subList(1, 5).stream()
+            .map(tr -> filterUnknownValues(tr, tableSchema.getFields()))
+            .collect(Collectors.toList());
+
+    Iterable<TableRow> expectedFullValues = rows.subList(0, 1);
+
+    assertThat(
+        fakeDatasetService.getAllRows(
+            tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.concat(expectedDroppedValues, expectedFullValues), TableRow.class)));
+  }
+
+  @Test
+  public void testStreamingWriteValidateFailsWithoutTriggeringFrequency() {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate);
+    p.enableAbandonedNodeEnforcement(false);
+    Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API");
+    thrown.expectMessage("triggering frequency must be specified");
+
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withMethod(method)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
   }
 
   @Test
@@ -2964,12 +3044,11 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testBatchStorageWriteWithMultipleAppendsPerStream() throws Exception {
+  public void testStorageWriteWithMultipleAppendsPerStream() throws Exception {
     assumeTrue(useStorageApi);
-    assumeTrue(!useStreaming);
 
     // reduce threshold to trigger multiple stream appends
-    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
     // limit parallelism to limit the number of write streams we have open
     p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
 
@@ -2993,16 +3072,32 @@ public class BigQueryIOWriteTest implements Serializable {
     for (int i = 0; i < 100; i++) {
       rows.add(new TableRow().set("num", String.valueOf(i)).set("name", String.valueOf(i)));
     }
-    p.apply(Create.of(rows))
-        .apply(
-            "Save Events To BigQuery",
-            BigQueryIO.writeTableRows()
-                .to(ref)
-                .withMethod(Write.Method.STORAGE_WRITE_API)
-                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                .withTestServices(fakeBqServices));
+    PCollection<TableRow> tableRowPCollection;
+    if (useStreaming) {
+      TestStream<TableRow> testStream =
+          TestStream.create(TableRowJsonCoder.of())
+              .addElements(rows.get(0), Iterables.toArray(rows.subList(1, 25), TableRow.class))
+              .advanceProcessingTime(Duration.standardMinutes(1))
+              .addElements(rows.get(25), Iterables.toArray(rows.subList(26, 50), TableRow.class))
+              .advanceProcessingTime(Duration.standardMinutes(1))
+              .addElements(rows.get(50), Iterables.toArray(rows.subList(51, 75), TableRow.class))
+              .addElements(rows.get(75), Iterables.toArray(rows.subList(76, 100), TableRow.class))
+              .advanceWatermarkToInfinity();
+      tableRowPCollection = p.apply(testStream);
+    } else {
+      tableRowPCollection = p.apply(Create.of(rows));
+    }
+    Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    tableRowPCollection.apply(
+        "Save Events To BigQuery",
+        BigQueryIO.writeTableRows()
+            .to(ref)
+            .withMethod(method)
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withTestServices(fakeBqServices));
 
-    p.run();
+    p.run().waitUntilFinish();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),

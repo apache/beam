@@ -18,19 +18,29 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/container/tools"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
+const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
+
 // pipInstallRequirements installs the given requirement, if present.
-func pipInstallRequirements(files []string, dir, name string) error {
+func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []string, dir, name string) error {
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return err
+	}
+	bufLogger := tools.NewBufferedLogger(logger)
 	for _, file := range files {
 		if file == name {
 			// We run the install process in two rounds in order to avoid as much
@@ -38,14 +48,20 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
 			args := []string{"-m", "pip", "install", "-q", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
-			if err := execx.Execute("python", args...); err != nil {
-				fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
+			if err := execx.Execute(pythonVersion, args...); err != nil {
+				bufLogger.Printf(ctx, "Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 			}
 			// The second install round opens up the search for packages on PyPI and
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
 			args = []string{"-m", "pip", "install", "-q", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
-			return execx.Execute("python", args...)
+			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
+			if err != nil {
+				bufLogger.FlushAtError(ctx)
+				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
+			}
+			bufLogger.FlushAtDebug(ctx)
+			return nil
 		}
 	}
 	return nil
@@ -63,8 +79,15 @@ func isPackageInstalled(pkgName string) bool {
 	return true
 }
 
+const pipLogFlushInterval time.Duration = 15 * time.Second
+
 // pipInstallPackage installs the given package, if present.
-func pipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {
+func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string, dir, name string, force, optional bool, extras []string) error {
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return err
+	}
+	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
 	for _, file := range files {
 		if file == name {
 			var packageSpec = name
@@ -88,19 +111,34 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 				// installed version will match the package specified, the package itself
 				// will not be reinstalled, but its dependencies will now be resolved and
 				// installed if necessary.  This achieves our goal outlined above.
-				args := []string{"-m", "pip", "install", "-q", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
+				args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", "--upgrade", "--force-reinstall", "--no-deps",
 					filepath.Join(dir, packageSpec)}
-				err := execx.Execute("python", args...)
+				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 				if err != nil {
-					return err
+					bufLogger.FlushAtError(ctx)
+					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
+				} else {
+					bufLogger.FlushAtDebug(ctx)
 				}
-				args = []string{"-m", "pip", "install", "-q", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
-				return execx.Execute("python", args...)
+				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
+				if err != nil {
+					bufLogger.FlushAtError(ctx)
+					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
+				}
+				bufLogger.FlushAtDebug(ctx)
+				return nil
 			}
 
 			// Case when we do not perform a forced reinstall.
-			args := []string{"-m", "pip", "install", "-q", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
-			return execx.Execute("python", args...)
+			args := []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
+			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
+			if err != nil {
+				bufLogger.FlushAtError(ctx)
+				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
+			}
+			bufLogger.FlushAtDebug(ctx)
+			return nil
 		}
 	}
 	if optional {
@@ -111,7 +149,8 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 
 // installExtraPackages installs all the packages declared in the extra
 // packages manifest file.
-func installExtraPackages(files []string, extraPackagesFile, dir string) error {
+func installExtraPackages(ctx context.Context, logger *tools.Logger, files []string, extraPackagesFile, dir string) error {
+	bufLogger := tools.NewBufferedLogger(logger)
 	// First check that extra packages manifest file is present.
 	for _, file := range files {
 		if file != extraPackagesFile {
@@ -129,8 +168,8 @@ func installExtraPackages(files []string, extraPackagesFile, dir string) error {
 
 		for s.Scan() {
 			extraPackage := s.Text()
-			log.Printf("Installing extra package: %s", extraPackage)
-			if err = pipInstallPackage(files, dir, extraPackage, true, false, nil); err != nil {
+			bufLogger.Printf(ctx, "Installing extra package: %s", extraPackage)
+			if err = pipInstallPackage(ctx, logger, files, dir, extraPackage, true, false, nil); err != nil {
 				return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
 			}
 		}
@@ -139,12 +178,13 @@ func installExtraPackages(files []string, extraPackagesFile, dir string) error {
 	return nil
 }
 
-func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
+func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string, acceptableWhlSpecs []string) string {
+	bufLogger := tools.NewBufferedLogger(logger)
 	for _, file := range files {
 		if strings.HasPrefix(file, "apache_beam") {
 			for _, s := range acceptableWhlSpecs {
 				if strings.HasSuffix(file, s) {
-					log.Printf("Found Apache Beam SDK wheel: %v", file)
+					bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
 					return file
 				}
 			}
@@ -158,17 +198,17 @@ func findBeamSdkWhl(files []string, acceptableWhlSpecs []string) string {
 // assume that the pipleine was started with the Beam SDK found in the wheel
 // file, and we try to install it. If not successful, we fall back to installing
 // SDK from source tarball provided in sdkSrcFile.
-func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
-	sdkWhlFile := findBeamSdkWhl(files, acceptableWhlSpecs)
-
+func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
+	sdkWhlFile := findBeamSdkWhl(ctx, logger, files, acceptableWhlSpecs)
+	bufLogger := tools.NewBufferedLogger(logger)
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed
 		isDev := strings.Contains(sdkWhlFile, ".dev")
-		err := pipInstallPackage(files, workDir, sdkWhlFile, isDev, false, []string{"gcp"})
+		err := pipInstallPackage(ctx, logger, files, workDir, sdkWhlFile, isDev, false, []string{"gcp"})
 		if err == nil {
 			return nil
 		}
-		log.Printf("Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
+		bufLogger.Printf(ctx, "Could not install Apache Beam SDK from a wheel: %v, proceeding to install SDK from source tarball.", err)
 	}
 	if !required {
 		_, err := os.Stat(filepath.Join(workDir, sdkSrcFile))
@@ -176,6 +216,6 @@ func installSdk(files []string, workDir string, sdkSrcFile string, acceptableWhl
 			return nil
 		}
 	}
-	err := pipInstallPackage(files, workDir, sdkSrcFile, false, false, []string{"gcp"})
+	err := pipInstallPackage(ctx, logger, files, workDir, sdkSrcFile, false, false, []string{"gcp"})
 	return err
 }

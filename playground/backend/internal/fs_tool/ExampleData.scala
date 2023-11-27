@@ -26,8 +26,8 @@ object ExampleData {
     "gs://apache-beam-samples/traffic_sensor/Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv"
   val GAMING = "gs://apache-beam-samples/game/gaming_data*.csv"
 
-  val WEATHER_SAMPLES_TABLE = "clouddataflow-readonly:samples.weather_stations"
+  val WEATHER_SAMPLES_TABLE = "apache-beam-testing.samples.weather_stations"
   val SHAKESPEARE_TABLE = "bigquery-public-data:samples.shakespeare"
-  val EVENT_TABLE = "clouddataflow-readonly:samples.gdelt_sample"
+  val EVENT_TABLE = "apache-beam-testing.samples.gdelt_sample"
   val COUNTRY_TABLE = "gdelt-bq:full.crosswalk_geocountrycodetohuman"
 }

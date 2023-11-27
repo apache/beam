@@ -89,7 +89,8 @@ You can use Apache Beam for data validation and preprocessing by setting up data
 {{< table >}}
 | Task | Example |
 | ------- | ---------------|
-| I want to explore my data | [Data Processing Example](/documentation/ml/data-processing) |:
+| I want to transform my data for preprocessing| [Preprocess data with MLTransform](/documentation/ml/preprocess-data) |
+| I want to explore my data | [Data exploration workflow and example](/documentation/ml/data-processing) |:
 {{< /table >}}
 
 

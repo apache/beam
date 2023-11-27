@@ -210,6 +210,13 @@ public class BigtableChangeStreamAccessor implements AutoCloseable {
                 .setMaxAttempts(10)
                 .build());
 
+    final BigtableClientOverride clientOverride = bigtableConfig.getBigtableClientOverride();
+    if (clientOverride != null) {
+      clientOverride.updateTableAdminClientSettings(tableAdminSettingsBuilder);
+      clientOverride.updateInstanceAdminClientSettings(instanceAdminSettingsBuilder);
+      clientOverride.updateDataClientSettings(dataSettingsBuilder);
+    }
+
     BigtableDataClient dataClient = BigtableDataClient.create(dataSettingsBuilder.build());
     BigtableTableAdminClient tableAdminClient =
         BigtableTableAdminClient.create(tableAdminSettingsBuilder.build());

@@ -48,7 +48,6 @@ import logging
 import tempfile
 
 import apache_beam as beam
-from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.ml.transforms.tft import TFIDF
 from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary

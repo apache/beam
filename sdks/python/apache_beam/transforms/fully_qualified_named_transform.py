@@ -43,8 +43,10 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
   @contextlib.contextmanager
   def with_filter(cls, filter):
     old_filter, cls._FILTER_GLOB = cls._FILTER_GLOB, filter
-    yield
-    cls._FILTER_GLOB = old_filter
+    try:
+      yield
+    finally:
+      cls._FILTER_GLOB = old_filter
 
   def __init__(self, constructor, args, kwargs):
     self._constructor = constructor

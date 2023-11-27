@@ -371,7 +371,7 @@ project.tasks.register("inferencePostCommitIT") {
   'sklearnInferenceTest',
   'tensorflowInferenceTest',
   'xgboostInferenceTest',
-  'transformersInferenceTest'
+  'transformersInferenceTest',
   // (TODO) https://github.com/apache/beam/issues/25799
    // uncomment tfx bsl tests once tfx supports protobuf 4.x
   // 'tfxInferenceTest',

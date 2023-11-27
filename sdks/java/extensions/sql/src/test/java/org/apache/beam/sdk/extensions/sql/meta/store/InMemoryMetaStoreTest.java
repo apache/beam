@@ -22,10 +22,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -125,7 +125,7 @@ public class InMemoryMetaStoreTest {
                     Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type(type)
-        .properties(new JSONObject())
+        .properties(TableUtils.emptyProperties())
         .build();
   }
 

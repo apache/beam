@@ -43,7 +43,7 @@ public class FlattenTranslator implements TransformPayloadTranslator<Flatten.PCo
   private FlattenTranslator() {}
 
   @Override
-  public String getUrn(Flatten.PCollections<?> transform) {
+  public String getUrn() {
     return PTransformTranslation.FLATTEN_TRANSFORM_URN;
   }
 

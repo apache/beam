@@ -20,6 +20,7 @@ package org.apache.beam.it.jdbc;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
@@ -53,6 +54,7 @@ public class MSSQLResourceManagerTest<
     when(container.withPassword(any())).thenReturn(container);
     when(container.withDatabaseName(anyString())).thenReturn(container);
     when(container.getDatabaseName()).thenReturn(DATABASE_NAME);
+    doReturn(container).when(container).withLogConsumer(any());
     testManager = new MSSQLResourceManager(container, new MSSQLResourceManager.Builder(TEST_ID));
   }
 

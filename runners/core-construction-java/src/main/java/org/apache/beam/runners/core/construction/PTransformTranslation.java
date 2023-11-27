@@ -37,15 +37,20 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -54,6 +59,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
@@ -65,10 +72,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "keyfor"
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class PTransformTranslation {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PTransformTranslation.class);
+
   // We specifically copy the values here so that they can be used in switch case statements
   // and we validate that the value matches the actual URN in the static block below.
 
   // Primitives
+  public static final String CREATE_TRANSFORM_URN = "beam:transform:create:v1";
   public static final String PAR_DO_TRANSFORM_URN = "beam:transform:pardo:v1";
   public static final String FLATTEN_TRANSFORM_URN = "beam:transform:flatten:v1";
   public static final String GROUP_BY_KEY_TRANSFORM_URN = "beam:transform:group_by_key:v1";
@@ -82,6 +93,10 @@ public class PTransformTranslation {
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
       ImmutableSet.of(GROUP_BY_KEY_TRANSFORM_URN, IMPULSE_TRANSFORM_URN);
+
+  public static final String CONFIG_ROW_KEY = "config_row";
+
+  public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
 
   // DeprecatedPrimitives
   /**
@@ -435,10 +450,9 @@ public class PTransformTranslation {
       RunnerApi.PTransform.Builder transformBuilder =
           translateAppliedPTransform(appliedPTransform, subtransforms, components);
 
-      FunctionSpec spec =
-          KNOWN_PAYLOAD_TRANSLATORS
-              .get(appliedPTransform.getTransform().getClass())
-              .translate(appliedPTransform, components);
+      TransformPayloadTranslator payloadTranslator =
+          KNOWN_PAYLOAD_TRANSLATORS.get(appliedPTransform.getTransform().getClass());
+      FunctionSpec spec = payloadTranslator.translate(appliedPTransform, components);
       if (spec != null) {
         transformBuilder.setSpec(spec);
 
@@ -461,6 +475,33 @@ public class PTransformTranslation {
           }
         }
       }
+
+      Row configRow = null;
+      try {
+        configRow = payloadTranslator.toConfigRow(appliedPTransform.getTransform());
+      } catch (UnsupportedOperationException e) {
+        // Optional toConfigRow() has not been implemented. We can just ignore.
+      } catch (Exception e) {
+        LOG.warn(
+            "Could not attach the config row for transform "
+                + appliedPTransform.getTransform().getName()
+                + ": "
+                + e);
+        // Ignoring the error and continuing with the translation since attaching config rows is
+        // optional.
+      }
+      if (configRow != null) {
+        transformBuilder.putAnnotations(
+            CONFIG_ROW_KEY,
+            ByteString.copyFrom(
+                CoderUtils.encodeToByteArray(RowCoder.of(configRow.getSchema()), configRow)));
+
+        transformBuilder.putAnnotations(
+            CONFIG_ROW_SCHEMA_KEY,
+            ByteString.copyFrom(
+                SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
+      }
+
       return transformBuilder.build();
     }
   }
@@ -508,13 +549,62 @@ public class PTransformTranslation {
    *
    * <p>When going to a protocol buffer message, the translator produces a payload corresponding to
    * the Java representation while registering components that payload references.
+   *
+   * <p>Also, provides methods for generating a Row-based constructor config for the transform that
+   * can be later used to re-construct the transform.
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
-    String getUrn(T transform);
 
+    /**
+     * Provides a unique URN for transforms represented by this {@code TransformPayloadTranslator}.
+     */
+    String getUrn();
+
+    /**
+     * Same as {@link #getUrn()} but the returned URN may depend on the transform provided.
+     *
+     * <p>Only override this if the same {@code TransformPayloadTranslator} used for multiple
+     * transforms. Otherwise, use {@link #getUrn()}.
+     */
+    default String getUrn(T transform) {
+      return getUrn();
+    }
+
+    /** */
+    /**
+     * Translates the given transform represented by the provided {@code AppliedPTransform} to a
+     * {@code FunctionSpec} with a URN and a payload.
+     *
+     * @param application an {@code AppliedPTransform} that includes the transform to be expanded.
+     * @param components components of the pipeline that includes the transform.
+     * @return a generated spec for the transform to be included in the pipeline proto. If return
+     *     value is null, transform should include an empty spec.
+     * @throws IOException
+     */
     @Nullable
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
+
+    /**
+     * Generates a Row-based construction configuration for the provided transform.
+     *
+     * @param transform a transform represented by the current {@code TransformPayloadTranslator}.
+     * @return
+     */
+    default Row toConfigRow(T transform) {
+      throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /**
+     * Construts a transform from a provided Row-based construction configuration.
+     *
+     * @param configRow a construction configuration similar to what would be generated by the
+     *     {@link #toConfigRow(PTransform)} method.
+     * @return a transform represented by the current {@code TransformPayloadTranslator}.
+     */
+    default T fromConfigRow(Row configRow) {
+      throw new UnsupportedOperationException("Not implemented");
+    }
 
     /**
      * A {@link TransformPayloadTranslator} for transforms that contain no references to components,
@@ -526,7 +616,7 @@ public class PTransformTranslation {
       public static NotSerializable<?> forUrn(final String urn) {
         return new NotSerializable<PTransform<?, ?>>() {
           @Override
-          public String getUrn(PTransform<?, ?> transform) {
+          public String getUrn() {
             return urn;
           }
         };

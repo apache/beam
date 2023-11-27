@@ -32,7 +32,11 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * requiring flink on the classpath (e.g. to use with the direct runner).
  */
 public interface FlinkPipelineOptions
-    extends PipelineOptions, ApplicationNameOptions, StreamingOptions, FileStagingOptions {
+    extends PipelineOptions,
+        ApplicationNameOptions,
+        StreamingOptions,
+        FileStagingOptions,
+        VersionDependentFlinkPipelineOptions {
 
   String AUTO = "[auto]";
   String PIPELINED = "PIPELINED";
@@ -312,6 +316,21 @@ public interface FlinkPipelineOptions
   String getFlinkConfDir();
 
   void setFlinkConfDir(String confDir);
+
+  @Description(
+      "Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.")
+  @Default.Long(0)
+  Long getFileInputSplitMaxSizeMB();
+
+  void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
+
+  @Description(
+      "Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,"
+          + "the RequiresStableInput contract might be violated if there any processing related failures in the DoFn operator.")
+  @Default.Boolean(false)
+  Boolean getEnableStableInputDrain();
+
+  void setEnableStableInputDrain(Boolean enableStableInputDrain);
 
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);

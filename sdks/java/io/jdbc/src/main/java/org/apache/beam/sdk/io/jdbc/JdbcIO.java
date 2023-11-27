@@ -360,6 +360,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T, PartitionColumnT>()
         .setPartitionColumnType(partitioningColumnType)
         .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .setFetchSize(DEFAULT_FETCH_SIZE)
         .setUseBeamSchema(false)
         .build();
   }
@@ -786,7 +787,7 @@ public class JdbcIO {
 
     // Spotbugs seems to not understand the multi-statement try-with-resources
     @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
-    private static Schema inferBeamSchema(DataSource ds, String query) {
+    public static Schema inferBeamSchema(DataSource ds, String query) {
       try (Connection conn = ds.getConnection();
           PreparedStatement statement =
               conn.prepareStatement(
@@ -1196,6 +1197,9 @@ public class JdbcIO {
     abstract @Nullable String getPartitionColumn();
 
     @Pure
+    abstract int getFetchSize();
+
+    @Pure
     abstract boolean getUseBeamSchema();
 
     @Pure
@@ -1232,6 +1236,8 @@ public class JdbcIO {
       abstract Builder<T, PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
 
       abstract Builder<T, PartitionColumnT> setUseBeamSchema(boolean useBeamSchema);
+
+      abstract Builder<T, PartitionColumnT> setFetchSize(int fetchSize);
 
       abstract Builder<T, PartitionColumnT> setTable(String tableName);
 
@@ -1280,6 +1286,12 @@ public class JdbcIO {
     public ReadWithPartitions<T, PartitionColumnT> withPartitionColumn(String partitionColumn) {
       checkNotNull(partitionColumn, "partitionColumn can not be null");
       return toBuilder().setPartitionColumn(partitionColumn).build();
+    }
+
+    /** The number of rows to fetch from the database in the same {@link ResultSet} round-trip. */
+    public ReadWithPartitions<T, PartitionColumnT> withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetchSize can not be less than 1");
+      return toBuilder().setFetchSize(fetchSize).build();
     }
 
     /** Data output type is {@link Row}, and schema is auto-inferred from the database. */
@@ -1357,7 +1369,8 @@ public class JdbcIO {
                         .withRowMapper(
                             checkStateNotNull(
                                 JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-                                    getPartitionColumnType()))))
+                                    getPartitionColumnType())))
+                        .withFetchSize(getFetchSize()))
                 .apply(
                     MapElements.via(
                         new SimpleFunction<
@@ -1421,6 +1434,7 @@ public class JdbcIO {
                   String.format(
                       "select * from %1$s where %2$s >= ? and %2$s < ?", table, partitionColumn))
               .withRowMapper(rowMapper)
+              .withFetchSize(getFetchSize())
               .withParameterSetter(
                   checkStateNotNull(
                           JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(

@@ -59,3 +59,7 @@ see [Machine Learning](/documentation/sdks/python-machine-learning).
 ## Python multi-language pipelines quickstart
 
 Apache Beam lets you combine transforms written in any supported SDK language and use them in one multi-language pipeline. To learn how to create a multi-language pipeline using the Python SDK, see the [Python multi-language pipelines quickstart](/documentation/sdks/python-multi-language-pipelines).
+
+## Unrecoverable Errors in Beam Python
+
+Some common errors can occur during worker start-up and prevent jobs from starting. To learn about these errors and how to troubleshoot them in the Python SDK, see [Unrecoverable Errors in Beam Python](/documentation/sdks/python-unrecoverable-errors).

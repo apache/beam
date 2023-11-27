@@ -23,6 +23,7 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -178,6 +179,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
+      return inner.getTableConstraints(destination);
+    }
+
+    @Override
     public TableDestination getTable(DestinationT destination) {
       return inner.getTable(destination);
     }
@@ -211,6 +217,30 @@ class DynamicDestinationsHelpers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
+    }
+  }
+
+  static class ConstantTableConstraintsDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final String jsonTableConstraints;
+
+    ConstantTableConstraintsDestinations(
+        DynamicDestinations<T, DestinationT> inner, TableConstraints tableConstraints) {
+      super(inner);
+      this.jsonTableConstraints = BigQueryHelpers.toJsonString(tableConstraints);
+    }
+
+    @Override
+    public TableConstraints getTableConstraints(DestinationT destination) {
+      return BigQueryHelpers.fromJsonString(jsonTableConstraints, TableConstraints.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("tableConstraints", jsonTableConstraints)
+          .toString();
     }
   }
 

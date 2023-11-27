@@ -81,11 +81,11 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
     this.conversionOptions = options;
     this.bqLocation = table.getLocation();
 
-    if (table.getProperties().containsKey(METHOD_PROPERTY)) {
+    if (table.getProperties().has(METHOD_PROPERTY)) {
       List<String> validMethods =
           Arrays.stream(Method.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
-      String selectedMethod = table.getProperties().getString(METHOD_PROPERTY).toUpperCase();
+      String selectedMethod = table.getProperties().get(METHOD_PROPERTY).asText().toUpperCase();
 
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
@@ -105,12 +105,12 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     LOG.info("BigQuery method is set to: {}", method);
 
-    if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
+    if (table.getProperties().has(WRITE_DISPOSITION_PROPERTY)) {
       List<String> validWriteDispositions =
           Arrays.stream(WriteDisposition.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
       String selectedWriteDisposition =
-          table.getProperties().getString(WRITE_DISPOSITION_PROPERTY).toUpperCase();
+          table.getProperties().get(WRITE_DISPOSITION_PROPERTY).asText().toUpperCase();
 
       if (validWriteDispositions.contains(selectedWriteDisposition)) {
         writeDisposition = WriteDisposition.valueOf(selectedWriteDisposition);

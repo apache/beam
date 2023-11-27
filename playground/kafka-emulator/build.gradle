@@ -24,11 +24,11 @@ plugins {
 applyJavaNature(exportJavadoc: false, publish: false)
 
 distZip {
-   archiveName "${baseName}.zip"
+   archiveFileName = "${archiveBaseName.get()}.zip"
 }
 
 distTar {
-   archiveName "${baseName}.tar"
+   archiveFileName = "${archiveBaseName.get()}.tar"
 }
 
 dependencies {

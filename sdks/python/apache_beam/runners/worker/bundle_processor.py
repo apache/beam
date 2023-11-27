@@ -227,8 +227,13 @@ class DataInputOperation(RunnerIOOperation):
         if self.index == self.stop - 1:
           return
         self.index += 1
-      decoded_value = self.windowed_coder_impl.decode_from_stream(
-          input_stream, True)
+      try:
+        decoded_value = self.windowed_coder_impl.decode_from_stream(
+            input_stream, True)
+      except Exception as exn:
+        raise ValueError(
+            "Error decoding input stream with coder " +
+            str(self.windowed_coder)) from exn
       self.output(decoded_value)
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
@@ -828,6 +833,17 @@ def only_element(iterable):
   return element
 
 
+def _environments_compatible(submission, runtime):
+  # type: (str, str) -> bool
+  if submission == runtime:
+    return True
+  if 'rc' in submission and runtime in submission:
+    # TODO(https://github.com/apache/beam/issues/28084): Loosen
+    # the check for RCs until RC containers install the matching version.
+    return True
+  return False
+
+
 def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
   # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
 
@@ -836,7 +852,7 @@ def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
     env = process_bundle_descriptor.environments[t.environment_id]
     for c in env.capabilities:
       if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
-          c != runtime_sdk):
+          not _environments_compatible(c, runtime_sdk)):
         raise RuntimeError(
             "Pipeline construction environment and pipeline runtime "
             "environment are not compatible. If you use a custom "

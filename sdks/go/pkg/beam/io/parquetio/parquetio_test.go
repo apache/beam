@@ -95,7 +95,7 @@ func TestWrite(t *testing.T) {
 	}
 	p, s, sequence := ptest.CreateList(studentList)
 	parquetFile := "./write_student.parquet"
-	Write(s, parquetFile, reflect.TypeOf(Student{}), sequence)
+	Write(s, parquetFile, sequence)
 	t.Cleanup(func() {
 		os.Remove(parquetFile)
 	})

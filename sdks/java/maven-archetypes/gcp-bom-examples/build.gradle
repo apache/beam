@@ -71,6 +71,12 @@ task generateSources(type: Exec) {
     environment "HERE", "."
     commandLine '../examples/generate-sources.sh'
 }
+// add dependency BeamModulePlugin defined custom tasks
+// they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
+def sourcesJar = project.tasks.findByName('sourcesJar')
+if (sourcesJar != null) {
+    sourcesJar.dependsOn generateSources
+}
 
 sourceSets {
     main {

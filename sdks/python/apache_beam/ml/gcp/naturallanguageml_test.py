@@ -20,11 +20,7 @@
 
 import unittest
 
-import mock
-
-import apache_beam as beam
 from apache_beam.metrics import MetricsFilter
-from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where Google Cloud Natural Language client
 # is not available.
@@ -59,21 +55,6 @@ class NaturalLanguageMlTest(unittest.TestCase):
     dict_ = naturallanguageml.Document.to_dict(document)
     self.assertFalse('content' in dict_)
     self.assertTrue('gcs_content_uri' in dict_)
-
-  def test_annotate_test_called(self):
-    with mock.patch('apache_beam.ml.gcp.naturallanguageml._AnnotateTextFn'
-                    '._get_api_client'):
-      p = TestPipeline()
-      features = [
-          naturallanguageml.language_v1.AnnotateTextRequest.Features(
-              extract_syntax=True)
-      ]
-      _ = (
-          p | beam.Create([naturallanguageml.Document('Hello, world!')])
-          | naturallanguageml.AnnotateText(features))
-      result = p.run()
-      result.wait_until_finish()
-      self.assertCounterEqual(result, 'api_calls', 1)
 
 
 if __name__ == '__main__':

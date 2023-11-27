@@ -23,7 +23,7 @@ import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps.newHashMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.newHashSet;
 
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -84,9 +84,9 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
       this.emulatorHost = host;
     }
 
-    JSONObject properties = table.getProperties();
-    if (properties.containsKey(COLUMNS_MAPPING)) {
-      columnsMapping = parseColumnsMapping(properties.getString(COLUMNS_MAPPING));
+    ObjectNode properties = table.getProperties();
+    if (properties.has(COLUMNS_MAPPING)) {
+      columnsMapping = parseColumnsMapping(properties.get(COLUMNS_MAPPING).asText());
       validateColumnsMapping(columnsMapping, schema);
       useFlatSchema = true;
     }

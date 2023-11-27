@@ -834,9 +834,15 @@ func init() {
 
 ##### 4.2.1.1. Applying ParDo {#applying-pardo}
 
-{{< paragraph class="language-java language-py" >}}
+{{< paragraph class="language-java">}}
 Like all Beam transforms, you apply `ParDo` by calling the `apply` method on the
 input `PCollection` and passing `ParDo` as an argument, as shown in the
+following example code:
+{{< /paragraph >}}
+
+{{< paragraph class="language-py">}}
+Like all Beam transforms, you apply `ParDo` by calling the `beam.ParDo` on the
+input `PCollection` and passing the `DoFn` as an argument, as shown in the
 following example code:
 {{< /paragraph >}}
 
@@ -1206,10 +1212,13 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful
  information to pipeline developers such as the constraints that
  apply to the objects or particular cases such as failover or
- instance reuse. They also give instantiation use cases. Two key points
- to note are that (1) teardown is done on a best effort basis and thus
- isn't guaranteed and (2) the number of DoFn instances is runner
- dependent.
+ instance reuse. They also give instantiation use cases. Three key points
+ to note are that:
+ 1. Teardown is done on a best effort basis and thus
+ isn't guaranteed.
+ 2. The number of DoFn instances created at runtime is runner-dependent.
+ 3. For the Python SDK, the pipeline contents such as DoFn user code,
+ is [serialized into a bytecode](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pickling-and-managing-the-main-session). Therefore, `DoFn`s should not reference objects that are not serializable, such as locks. To manage a single instance of an object across multiple `DoFn` instances in the same process, use utilities in the [shared.py](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.shared.html) module.
 
 <!-- The source for the sequence diagram can be found in the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)
@@ -1589,10 +1598,12 @@ You should use a `CombineFn` if the combine function requires a more sophisticat
 accumulator, must perform additional pre- or post-processing, might change the
 output type, or takes the key into account.
 
-A general combining operation consists of four operations. When you create a
+A general combining operation consists of five operations. When you create a
 <span class="language-java language-py">subclass of</span>
-`CombineFn`, you must provide four operations by overriding the
-corresponding methods:
+`CombineFn`, you must provide five operations by overriding the
+corresponding methods. Only `MergeAccumulators` is a required method. The
+others will have a default interpretation based on the accumulator type. The
+lifecycle methods are:
 
 1. **Create Accumulator** creates a new "local" accumulator. In the example
    case, taking a mean average, a local accumulator tracks the running sum of
@@ -1613,6 +1624,14 @@ corresponding methods:
 4. **Extract Output** performs the final computation. In the case of computing a
    mean average, this means dividing the combined sum of all the values by the
    number of values summed. It is called once on the final, merged accumulator.
+
+5. **Compact** returns a more compact represenation of the accumulator. This is
+    called before an accumulator is sent across the wire, and can be useful in
+    cases where values are buffered or otherwise lazily kept unprocessed when
+    added to the accumulator.  Compact should return an equivalent, though
+    possibly modified, accumulator. In most cases, Compact is not necessary. For
+    a real world example of using Compact, see the Python SDK implementation of
+    [TopCombineFn](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/combiners.py#L523)
 
 The following example code shows how to define a `CombineFn` that computes a
 mean average:
@@ -1648,6 +1667,10 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
   public Double extractOutput(Accum accum) {
     return ((double) accum.sum) / accum.count;
   }
+
+  // No-op
+  @Override
+  public Accum compact(Accum accum) { return accum; }
 }
 {{< /highlight >}}
 
@@ -1665,9 +1688,6 @@ pc = ...
 {{< /highlight >}}
 
 <span class="language-go">
-
-> **Note**: Only `MergeAccumulators` is a required method. The others will have a default interpretation
-> based on the accumulator type.
 
 </span>
 
@@ -8082,37 +8102,43 @@ class RetrieveTimingDoFn(beam.DoFn):
     return input_type
 {{< /highlight >}}
 
-## 15 Transform Service {#transform-service}
+## 15 Transform service {#transform-service}
 
-Starting version 2.49.0, Beam introduced a [Docker Compose](https://docs.docker.com/compose/) based service named _Transform Service_. The Transform Service allows Beam portable
-pipelines to perform expansion of supported transforms using Docker.
+The Apache Beam SDK versions 2.49.0 and later include a [Docker Compose](https://docs.docker.com/compose/)
+service named _Transform service_. Use the Transform service to perform expansions of supported transforms
+on Beam portable pipelines by using Docker.
 
-The basic architecture of the Transform Service is given below.
+The following diagram illustrates the basic architecture of the Transform service.
 
-![Diagram of the transform service architecture](/images/transform_service.png)
+![Diagram of the Transform service architecture](/images/transform_service.png)
 
-The Transform Service can be useful in many contexts. We have identified two primary use-cases below. Note that to use the transform service, Docker (and Docker Compose) needs to be available in the machine where the service will be started at.
+To use the Transform service, Docker and Docker Compose must be available on the machine that starts the service.
+
+The Transform service has the following primary use cases:
 
 * Perform expansion of cross-language transforms without installing other language runtimes.
 
-Transforms Service allows multi-language pipelines to use/expand cross-language transforms implemented in other SDKs without installing runtimes for implementation languages of such SDKs.
-For example, with the Transform Service, a Beam Python pipeline can use Java GCP I/O transforms and Java Kafka I/O transforms without installing a Java runtime locally.
+  The Transform service allows multi-language pipelines to use and expand cross-language transforms implemented
+  in other SDKs without requiring you to install runtimes for the implementation languages of those SDKs.
+  For example, with the Transform service, a Beam Python pipeline can use the Google Cloud Java I/O transforms and Java Kafka I/O transforms
+  without a local Java runtime installation.
 
-* Upgrade transforms without upgrading the Beam version.
+* Upgrade transforms without upgrading the Apache Beam SDK version.
 
-The transform service can be used to upgrade individual transforms used by Beam pipelines to a new Beam version without upgrading the Beam version used by the pipeline.
-This feature is currently in development. Please see the [tracking issue](https://github.com/apache/beam/issues/27943) for more details.
+  Use the Transform service to upgrade the Beam SDK versions of individual transforms used by Beam pipelines without upgrading the Beam version of the pipeline.
+  This feature is currently in development. For more details, see
+  [GitHub issue #27943: Upgrade transforms without upgrading the pipeline using the Transform Service](https://github.com/apache/beam/issues/27943).
 
-### 15.1 Using the the Transform Service {#transform-service-usage}
+### 15.1 Use the Transform service {#transform-service-usage}
 
-Beam SDKs may automatically startup a transform service to perform expansion when using cross-language transforms. More specifically,
+In some cases, Apache Beam SDKs automatically start the Transform service, such as in the following scenarios:
 
-* Java [PythonExternalTransform API](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) will automatically
-startup the Transform Service for you if a Python runtime is not available locally but Docker is available.
+* The Java [`PythonExternalTransform` API](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) automatically
+starts the Transform service when a Python runtime isn't available locally, but Docker is.
 
-* Beam Python multi-language wrappers may automatically startup a Transform Service for you when using Java transforms, if a Java language runtime is not available locally but Docker is available.
+* The Apache Beam Python multi-language wrappers might automatically start the Transform service when you're using Java transforms, a Java language runtime isn't available locally, and Docker is available locally.
 
-Additionally, if needed, a Transform Service instance can be manually started using utilities provided with Beam SDKs.
+To manually start a Transform service instance by using utilities provided with the Apache Beam SDKs, use the following commands.
 
 {{< highlight java >}}
 java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command up
@@ -8126,7 +8152,7 @@ python -m apache_beam.utils.transform_service_launcher --port <port> --beam_vers
 This feature is currently in development.
 {{< /highlight >}}
 
-To stop the transform service use the following commands.
+To stop the transform service, use the following commands.
 
 {{< highlight java >}}
 java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command down
@@ -8140,14 +8166,17 @@ python -m apache_beam.utils.transform_service_launcher --port <port> --beam_vers
 This feature is currently in development.
 {{< /highlight >}}
 
-### 15.2 Portable Transforms included in the Transform Service {#transform-service-included-transforms}
+### 15.2 Portable transforms included in the Transform service {#transform-service-included-transforms}
 
-Transforms service includes a number of portable transforms implemented in Beam Java and Python SDKs.
+The Transform service includes portable transforms implemented in the Apache Beam Java and Python SDKs.
 
-Some of the transforms currently included in the Trasnform Service are given below.
+The following transforms are included in the Trasnform service:
 
-* Java transforms - GCP I/O connectors, Kafka I/O connector, JDBC I/O connector.
+* Java transforms: Google Cloud I/O connectors, the Kafka I/O connector, and the JDBC I/O connector
 
-* Python transforms - all portable transforms implemented within Beam Python SDK, for example, RunInference and Dataframe transforms.
+* Python transforms: all portable transforms implemented within the Apache Beam Python SDK, such as
+  [RunInference](/documentation/transforms/python/elementwise/runinference/) and
+  [DataFrame](/documentation/dsls/dataframes/overview/) transforms.
 
-For a more detailed list of available transforms, please see [here](https://cwiki.apache.org/confluence/display/BEAM/Transform+Service).
+For a more comprehensive list of available transforms, see the
+[Transform service](https://cwiki.apache.org/confluence/display/BEAM/Transform+Service) developer guide.

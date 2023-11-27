@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.SchemaTranslation.STANDARD_LOGICAL_TYPES;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
@@ -186,7 +188,8 @@ public class SchemaTranslationTest {
                   .withOptions(optionsBuilder))
           .add(
               Schema.of(
-                  Field.of("null_argument", FieldType.logicalType(new NullArgumentLogicalType()))))
+                  Field.of(
+                      "null_argument", FieldType.logicalType(new PortableNullArgLogicalType()))))
           .add(Schema.of(Field.of("logical_argument", FieldType.logicalType(new DateTime()))))
           .add(
               Schema.of(Field.of("single_arg_argument", FieldType.logicalType(FixedBytes.of(100)))))
@@ -348,14 +351,14 @@ public class SchemaTranslationTest {
           .add(simpleRow(FieldType.row(row.getSchema()), row))
           .add(simpleRow(FieldType.DATETIME, new Instant(23L)))
           .add(simpleRow(FieldType.DECIMAL, BigDecimal.valueOf(100000)))
-          .add(simpleRow(FieldType.logicalType(new NullArgumentLogicalType()), "str"))
+          .add(simpleRow(FieldType.logicalType(new PortableNullArgLogicalType()), "str"))
           .add(simpleRow(FieldType.logicalType(new DateTime()), LocalDateTime.of(2000, 1, 3, 3, 1)))
           .add(simpleNullRow(FieldType.STRING))
           .add(simpleNullRow(FieldType.INT32))
           .add(simpleNullRow(FieldType.map(FieldType.STRING, FieldType.INT32)))
           .add(simpleNullRow(FieldType.array(FieldType.STRING)))
           .add(simpleNullRow(FieldType.row(row.getSchema())))
-          .add(simpleNullRow(FieldType.logicalType(new NullArgumentLogicalType())))
+          .add(simpleNullRow(FieldType.logicalType(new PortableNullArgLogicalType())))
           .add(simpleNullRow(FieldType.logicalType(new DateTime())))
           .add(simpleNullRow(FieldType.DECIMAL))
           .add(simpleNullRow(FieldType.DATETIME))
@@ -419,6 +422,8 @@ public class SchemaTranslationTest {
           .add(FieldType.logicalType(FixedString.of(10)))
           .add(FieldType.logicalType(VariableString.of(10)))
           .add(FieldType.logicalType(FixedPrecisionNumeric.of(10)))
+          .add(FieldType.logicalType(new PortableNullArgLogicalType()))
+          .add(FieldType.logicalType(new NullArgumentLogicalType()))
           .build();
     }
 
@@ -426,7 +431,7 @@ public class SchemaTranslationTest {
     public Schema.FieldType fieldType;
 
     @Test
-    public void testPortableLogicalTypeSerializeDeserilizeCorrectly() {
+    public void testLogicalTypeSerializeDeserilizeCorrectly() {
       SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, true);
       Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
 
@@ -438,14 +443,64 @@ public class SchemaTranslationTest {
       assertThat(
           translated.getLogicalType().getArgument(),
           equalTo(fieldType.getLogicalType().getArgument()));
+      assertThat(
+          translated.getLogicalType().getIdentifier(),
+          equalTo(fieldType.getLogicalType().getIdentifier()));
+    }
+
+    @Test
+    public void testLogicalTypeFromToProtoCorrectly() {
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, false);
+      Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
+
+      if (STANDARD_LOGICAL_TYPES.containsKey(translated.getLogicalType().getIdentifier())) {
+        // standard logical type should be able to fully recover the original type
+        assertThat(
+            translated.getLogicalType().getClass(), equalTo(fieldType.getLogicalType().getClass()));
+      } else {
+        // non-standard type will get assembled to UnknownLogicalType
+        assertThat(translated.getLogicalType().getClass(), equalTo(UnknownLogicalType.class));
+      }
+      assertThat(
+          translated.getLogicalType().getArgumentType(),
+          equalTo(fieldType.getLogicalType().getArgumentType()));
+      assertThat(
+          translated.getLogicalType().getArgument(),
+          equalTo(fieldType.getLogicalType().getArgument()));
+      if (fieldType.getLogicalType().getIdentifier().startsWith("beam:logical_type:")) {
+        // portable logical type should fully recover the urn
+        assertThat(
+            translated.getLogicalType().getIdentifier(),
+            equalTo(fieldType.getLogicalType().getIdentifier()));
+      } else {
+        // non-portable logical type would have "javasdk_<IDENTIFIER>" urn
+        assertThat(
+            translated.getLogicalType().getIdentifier(),
+            equalTo(
+                String.format(
+                    "beam:logical_type:javasdk_%s:v1",
+                    fieldType
+                        .getLogicalType()
+                        .getIdentifier()
+                        .toLowerCase()
+                        .replaceAll("[^0-9A-Za-z_]", ""))));
+      }
     }
   }
 
-  /** A simple logical type that has no argument. */
-  private static class NullArgumentLogicalType implements Schema.LogicalType<String, String> {
+  /** A portable logical type that has no argument. */
+  private static class PortableNullArgLogicalType extends NullArgumentLogicalType {
     public static final String IDENTIFIER = "beam:logical_type:null_argument:v1";
 
-    public NullArgumentLogicalType() {}
+    @Override
+    public String getIdentifier() {
+      return IDENTIFIER;
+    }
+  }
+
+  /** A non-portable (Java SDK) logical type that has no argument. */
+  private static class NullArgumentLogicalType implements Schema.LogicalType<String, String> {
+    public static final String IDENTIFIER = "NULL_ARGUMENT";
 
     @Override
     public String toBaseType(String input) {

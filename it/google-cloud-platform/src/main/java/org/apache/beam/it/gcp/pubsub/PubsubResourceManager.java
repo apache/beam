@@ -20,6 +20,7 @@ package org.apache.beam.it.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.rpc.DeadlineExceededException;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.pubsub.v1.SchemaServiceClient;
 import com.google.cloud.pubsub.v1.SchemaServiceSettings;
@@ -28,6 +29,7 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.FieldMask;
 import com.google.pubsub.v1.Encoding;
 import com.google.pubsub.v1.ProjectName;
 import com.google.pubsub.v1.PubsubMessage;
@@ -41,12 +43,16 @@ import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.Topic;
 import com.google.pubsub.v1.TopicName;
 import com.google.pubsub.v1.UpdateTopicRequest;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.it.common.ResourceManager;
+import org.apache.beam.it.common.utils.ExceptionUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -64,6 +70,12 @@ public final class PubsubResourceManager implements ResourceManager {
 
   private static final int DEFAULT_ACK_DEADLINE_SECONDS = 600;
   private static final String RESOURCE_NAME_SEPARATOR = "-";
+
+  // Retry settings for client operations
+  private static final int FAILSAFE_MAX_RETRIES = 5;
+  private static final Duration FAILSAFE_RETRY_DELAY = Duration.ofSeconds(10);
+  private static final Duration FAILSAFE_RETRY_MAX_DELAY = Duration.ofSeconds(60);
+  private static final double FAILSAFE_RETRY_JITTER = 0.1;
 
   private final String testId;
   private final String projectId;
@@ -183,11 +195,14 @@ public final class PubsubResourceManager implements ResourceManager {
     LOG.info("Creating subscription '{}' for topic '{}'", subscriptionName, topicName);
 
     Subscription subscription =
-        subscriptionAdminClient.createSubscription(
-            getSubscriptionName(subscriptionName),
-            topicName,
-            PushConfig.getDefaultInstance(),
-            DEFAULT_ACK_DEADLINE_SECONDS);
+        Failsafe.with(retryOnDeadlineExceeded())
+            .get(
+                () ->
+                    subscriptionAdminClient.createSubscription(
+                        getSubscriptionName(subscriptionName),
+                        topicName,
+                        PushConfig.getDefaultInstance(),
+                        DEFAULT_ACK_DEADLINE_SECONDS));
     SubscriptionName reference = PubsubUtils.toSubscriptionName(subscription);
     createdSubscriptions.add(getSubscriptionName(subscriptionName));
 
@@ -271,6 +286,7 @@ public final class PubsubResourceManager implements ResourceManager {
     createdSchemas.add(SchemaName.parse(schema.getName()));
     topicAdminClient.updateTopic(
         UpdateTopicRequest.newBuilder()
+            .setUpdateMask(FieldMask.newBuilder().addPaths("schema_settings"))
             .setTopic(
                 Topic.newBuilder()
                     .setName(schemaTopic.toString())
@@ -297,17 +313,19 @@ public final class PubsubResourceManager implements ResourceManager {
     try {
       for (SubscriptionName subscription : createdSubscriptions) {
         LOG.info("Deleting subscription '{}'", subscription);
-        subscriptionAdminClient.deleteSubscription(subscription);
+        Failsafe.with(retryOnDeadlineExceeded())
+            .run(() -> subscriptionAdminClient.deleteSubscription(subscription));
       }
 
       for (TopicName topic : createdTopics) {
         LOG.info("Deleting topic '{}'", topic);
-        topicAdminClient.deleteTopic(topic);
+        Failsafe.with(retryOnDeadlineExceeded()).run(() -> topicAdminClient.deleteTopic(topic));
       }
 
       for (SchemaName schemaName : createdSchemas) {
         LOG.info("Deleting schema '{}'", schemaName);
-        schemaServiceClient.deleteSchema(schemaName);
+        Failsafe.with(retryOnDeadlineExceeded())
+            .run(() -> schemaServiceClient.deleteSchema(schemaName));
       }
     } finally {
       subscriptionAdminClient.close();
@@ -340,7 +358,8 @@ public final class PubsubResourceManager implements ResourceManager {
   private TopicName createTopicInternal(TopicName topicName) {
     LOG.info("Creating topic '{}'...", topicName.toString());
 
-    Topic topic = topicAdminClient.createTopic(topicName);
+    Topic topic =
+        Failsafe.with(retryOnDeadlineExceeded()).get(() -> topicAdminClient.createTopic(topicName));
     TopicName reference = PubsubUtils.toTopicName(topic);
     createdTopics.add(reference);
 
@@ -351,6 +370,16 @@ public final class PubsubResourceManager implements ResourceManager {
 
   private boolean isNotUsable() {
     return topicAdminClient.isShutdown() || subscriptionAdminClient.isShutdown();
+  }
+
+  private static <T> RetryPolicy<T> retryOnDeadlineExceeded() {
+    return RetryPolicy.<T>builder()
+        .handleIf(
+            exception -> ExceptionUtils.containsType(exception, DeadlineExceededException.class))
+        .withMaxRetries(FAILSAFE_MAX_RETRIES)
+        .withBackoff(FAILSAFE_RETRY_DELAY, FAILSAFE_RETRY_MAX_DELAY)
+        .withJitter(FAILSAFE_RETRY_JITTER)
+        .build();
   }
 
   /** Builder for {@link PubsubResourceManager}. */

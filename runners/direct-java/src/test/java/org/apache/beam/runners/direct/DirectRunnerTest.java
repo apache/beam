@@ -40,9 +40,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
@@ -334,6 +338,36 @@ public class DirectRunnerTest implements Serializable {
     assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
     // Ensure multiple calls complete
     assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
+  }
+
+  @Test
+  public void testNoBlockOnRunState() {
+
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    final Future handler =
+        executor.submit(
+            () -> {
+              PipelineOptions options =
+                  PipelineOptionsFactory.fromArgs("--blockOnRun=false").create();
+              Pipeline pipeline = Pipeline.create(options);
+              pipeline.apply(GenerateSequence.from(0).to(100));
+
+              PipelineResult result = pipeline.run();
+              while (true) {
+                if (result.getState() == State.DONE) {
+                  return result;
+                }
+                Thread.sleep(100);
+              }
+            });
+    try {
+      handler.get(10, TimeUnit.SECONDS);
+    } catch (ExecutionException | InterruptedException | TimeoutException e) {
+      // timeout means it never reaches DONE state
+      throw new RuntimeException(e);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);

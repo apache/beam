@@ -399,7 +399,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     jump_multiplier = 1
 
   last_pc = -1
+  last_real_opname = opname = None
   while pc < end:  # pylint: disable=too-many-nested-blocks
+    if opname not in ('PRECALL', 'CACHE'):
+      last_real_opname = opname
     start = pc
     instruction = ofs_table[pc]
     op = instruction.opcode
@@ -534,13 +537,13 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
             return_type = Any
         state.kw_names = None
       else:
-        # Handle lambdas always having an arg of 0 for CALL
+        # Handle comprehensions always having an arg of 0 for CALL
         # See https://github.com/python/cpython/issues/102403 for context.
-        if pop_count == 1:
-          while pop_count <= len(state.stack):
-            if isinstance(state.stack[-pop_count], Const):
-              break
-            pop_count += 1
+        if (pop_count == 1 and last_real_opname == 'GET_ITER' and
+            len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
+            getattr(state.stack[-2].value, '__name__', None) in (
+                '<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
+          pop_count += 1
         if depth <= 0 or pop_count > len(state.stack):
           return_type = Any
         elif isinstance(state.stack[-pop_count], Const):
