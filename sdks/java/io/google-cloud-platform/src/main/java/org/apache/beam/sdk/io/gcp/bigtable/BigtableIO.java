@@ -180,6 +180,27 @@ import org.slf4j.LoggerFactory;
  *         .withBatchElements(100)); // every batch will have 100 elements
  * }</pre>
  *
+ * <p>Configure timeout for writes:
+ *
+ * <pre>{@code
+ * // Let each attempt run for 1 second, retry if the attempt failed.
+ * // Give up after the request is retried for 60 seconds.
+ * Duration attemptTimeout = Duration.millis(1000);
+ * Duration operationTimeout = Duration.millis(60 * 1000);
+ * data.apply("write",
+ *     BigtableIO.write()
+ *         .withProjectId("project")
+ *         .withInstanceId("instance")
+ *         .withTableId("table")
+ *         .withAttemptTimeout(attemptTimeout)
+ *         .withOperationTimeout(operationTimeout));
+ * }</pre>
+ *
+ * <p>You can also limit the wait time in the finish bundle step by setting the
+ * bigtable_writer_wait_timeout_ms experimental flag when you run the pipeline. For example,
+ * --experiments=bigtable_writer_wait_timeout_ms=60000 will limit the wait time in finish bundle to
+ * be 10 minutes.
+ *
  * <p>Optionally, BigtableIO.write() may be configured to emit {@link BigtableWriteResult} elements
  * after each group of inputs is written to Bigtable. These can be used to then trigger user code
  * after writes have completed. See {@link org.apache.beam.sdk.transforms.Wait} for details on the
@@ -1227,7 +1248,11 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      bigtableWriter.flush();
+      if (bigtableWriter != null) {
+        bigtableWriter.close();
+        bigtableWriter = null;
+      }
+
       checkForFailures();
       LOG.debug("Wrote {} records", recordsWritten);
 
@@ -1241,10 +1266,6 @@ public class BigtableIO {
 
     @Teardown
     public void tearDown() throws Exception {
-      if (bigtableWriter != null) {
-        bigtableWriter.close();
-        bigtableWriter = null;
-      }
       if (serviceEntry != null) {
         serviceEntry.close();
         serviceEntry = null;

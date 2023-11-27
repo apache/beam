@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,8 @@ class BigtableServiceFactory implements Serializable {
 
   private static final String BIGTABLE_ENABLE_CLIENT_SIDE_METRICS =
       "bigtable_enable_client_side_metrics";
+
+  private static final String BIGTABLE_WRITER_WAIT_TIMEOUT_MS = "bigtable_writer_wait_timeout_ms";
 
   @AutoValue
   abstract static class ConfigId implements Serializable {
@@ -173,7 +176,26 @@ class BigtableServiceFactory implements Serializable {
         BigtableDataSettings.enableBuiltinMetrics();
       }
 
-      BigtableService service = new BigtableServiceImpl(settings);
+      String closeWaitTimeoutStr =
+          ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_WRITER_WAIT_TIMEOUT_MS);
+      Duration closeWaitTimeout = Duration.ZERO;
+      try {
+        long closeWaitTimeoutMs = Long.parseLong(closeWaitTimeoutStr);
+        if (closeWaitTimeoutMs < 0) {
+          LOG.warn(
+              "Invalid close wait timeout {}, will not set a wait timeout on close",
+              closeWaitTimeoutMs);
+        } else {
+          closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
+        }
+      } catch (NumberFormatException e) {
+        LOG.warn(
+            "Failed to parse close wait timeout {}, will not set a wait timeout on close",
+            closeWaitTimeoutStr,
+            e);
+      }
+
+      BigtableService service = new BigtableServiceImpl(settings, closeWaitTimeout);
       entry = BigtableServiceEntry.create(configId, service);
       entries.put(configId.id(), entry);
       refCounts.put(configId.id(), new AtomicInteger(1));

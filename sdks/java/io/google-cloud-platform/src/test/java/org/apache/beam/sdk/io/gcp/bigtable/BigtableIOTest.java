@@ -1930,9 +1930,6 @@ public class BigtableIOTest {
     }
 
     @Override
-    public void flush() {}
-
-    @Override
     public void close() {}
   }
 
