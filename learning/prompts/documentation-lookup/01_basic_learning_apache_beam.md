@@ -2,7 +2,7 @@ Prompt:
 What is Apache Beam?
 Response:
 Apache Beam is an open-source unified programming model for data processing pipelines. It provides a set of language-specific SDKs that allow you to define and execute data processing workflows.
-Apache Beam allows you to write pipelines in one of the supported languages (Java, Python, Go, and Scala). The pipelines can be executed on one of the supported runners (Apache Flink, Apache Spark, and Google Cloud Dataflow). 
+Apache Beam allows you to write pipelines in one of the supported languages (Java, Python, Go, and Scala). The pipelines can be executed on one of the supported runners (Apache Flink, Apache Spark, and Google Cloud Dataflow).
 Learning Apache Beam is a valuable skill for data processing and analysis. Here are some resources to get you started:
 [Get Started](https://beam.apache.org/get-started/) section of the Apache Beam website is a perfect place to start. It provides an overview of Apache Beam and its key concepts.
 For a hands-on introduction, you can start by exploring the [WordCount](https://beam.apache.org/get-started/wordcount-example/) - a simple example that demonstrates the basic concepts of Apache Beam.
