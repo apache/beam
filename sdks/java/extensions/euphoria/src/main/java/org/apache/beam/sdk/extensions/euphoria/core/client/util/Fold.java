@@ -27,6 +27,8 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.SingleValueContext;
 
 /** Apply a folding function. */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class Fold implements Serializable {
 
   /**

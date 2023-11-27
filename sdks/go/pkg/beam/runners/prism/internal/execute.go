@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -104,7 +105,6 @@ func makeWorker(env string, j *jobservices.Job) (*worker.W, error) {
 
 type transformExecuter interface {
 	ExecuteUrns() []string
-	ExecuteWith(t *pipepb.PTransform) string
 	ExecuteTransform(stageID, tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, data [][]byte) *worker.B
 }
 
@@ -147,7 +147,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	prepro := newPreprocessor(preppers)
 
-	topo := prepro.preProcessGraph(comps)
+	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
 
 	em := engine.NewElementManager(engine.Config{})
@@ -156,21 +156,12 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	stages := map[string]*stage{}
 	var impulses []string
 
-	// Inialize the "dataservice cache" to support side inputs.
-	// TODO(https://github.com/apache/beam/issues/28543), remove this concept.
-	ds := &worker.DataService{}
-
 	for i, stage := range topo {
 		tid := stage.transforms[0]
 		t := ts[tid]
 		urn := t.GetSpec().GetUrn()
 		stage.exe = proc.transformExecuters[urn]
 
-		// Stopgap until everythinng's moved to handlers.
-		stage.envID = t.GetEnvironmentId()
-		if stage.exe != nil {
-			stage.envID = stage.exe.ExecuteWith(t)
-		}
 		stage.ID = fmt.Sprintf("stage-%03d", i)
 		wk := wks[stage.envID]
 
@@ -212,7 +203,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 			switch urn {
 			case urns.TransformGBK:
-				em.AddStage(stage.ID, []string{getOnlyValue(t.GetInputs())}, nil, []string{getOnlyValue(t.GetOutputs())})
+				em.AddStage(stage.ID, []string{getOnlyValue(t.GetInputs())}, []string{getOnlyValue(t.GetOutputs())}, nil)
 				for _, global := range t.GetInputs() {
 					col := comps.GetPcollections()[global]
 					ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
@@ -227,22 +218,22 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				em.StageAggregates(stage.ID)
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
-				em.AddStage(stage.ID, nil, nil, []string{getOnlyValue(t.GetOutputs())})
+				em.AddStage(stage.ID, nil, []string{getOnlyValue(t.GetOutputs())}, nil)
 			case urns.TransformFlatten:
 				inputs := maps.Values(t.GetInputs())
 				sort.Strings(inputs)
-				em.AddStage(stage.ID, inputs, nil, []string{getOnlyValue(t.GetOutputs())})
+				em.AddStage(stage.ID, inputs, []string{getOnlyValue(t.GetOutputs())}, nil)
 			}
 			stages[stage.ID] = stage
 		case wk.Env:
-			if err := buildDescriptor(stage, comps, wk, ds); err != nil {
+			if err := buildDescriptor(stage, comps, wk, em); err != nil {
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
 			slog.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
-			em.AddStage(stage.ID, []string{stage.primaryInput}, stage.sides, outputs)
+			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 			slog.Error("Execute", err)
@@ -255,38 +246,34 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		em.Impulse(id)
 	}
 
-	// Use a channel to limit max parallelism for the pipeline.
-	maxParallelism := make(chan struct{}, 8)
-	// Execute stages here
-	bundleFailed := make(chan error)
+	// Use an errgroup to limit max parallelism for the pipeline.
+	eg, egctx := errgroup.WithContext(ctx)
+	eg.SetLimit(8)
 
 	var instID uint64
-	bundles := em.Bundles(ctx, func() string {
+	bundles := em.Bundles(egctx, func() string {
 		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
 	})
-
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		case rb, ok := <-bundles:
 			if !ok {
-				slog.Debug("pipeline done!", slog.String("job", j.String()))
-				return nil
+				err := eg.Wait()
+				slog.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err))
+				return err
 			}
-			maxParallelism <- struct{}{}
-			go func(rb engine.RunBundle) {
-				defer func() { <-maxParallelism }()
+			eg.Go(func() error {
 				s := stages[rb.StageID]
 				wk := wks[s.envID]
-				if err := s.Execute(ctx, j, wk, ds, comps, em, rb); err != nil {
+				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
 					em.FailBundle(rb)
-					bundleFailed <- err
+					return err
 				}
-			}(rb)
-		case err := <-bundleFailed:
-			return err
+				return nil
+			})
 		}
 	}
 }

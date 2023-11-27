@@ -126,6 +126,8 @@ class MutationSizeEstimator {
         return v.isNull() ? 0 : v.getNumeric().toString().length();
       case JSON:
         return v.isNull() ? 0 : v.getJson().length();
+      case PG_JSONB:
+        return v.isNull() ? 0 : v.getPgJsonb().length();
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
@@ -182,6 +184,15 @@ class MutationSizeEstimator {
       case JSON:
         totalLength = 0;
         for (String s : v.getJsonArray()) {
+          if (s == null) {
+            continue;
+          }
+          totalLength += s.length();
+        }
+        return totalLength;
+      case PG_JSONB:
+        totalLength = 0;
+        for (String s : v.getPgJsonbArray()) {
           if (s == null) {
             continue;
           }

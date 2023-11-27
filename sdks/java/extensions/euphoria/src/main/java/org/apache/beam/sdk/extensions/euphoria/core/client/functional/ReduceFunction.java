@@ -22,7 +22,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 
 /**
  * Reduce function reducing iterable of elements into single element (of possibly different type).
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface ReduceFunction<InputT, OutputT> extends UnaryFunction<Stream<InputT>, OutputT> {}

@@ -60,7 +60,7 @@ public abstract class DataflowExecutionStateRegistry {
    * Get an existing state or create a {@link DataflowOperationContext.DataflowExecutionState} that
    * represents the consumption of some kind of IO, such as reading of Side Input, or Shuffle data.
    *
-   * <p>An IO-related ExcecutionState may represent: * A Side Input collection as declaringStep +
+   * <p>An IO-related ExecutionState may represent: * A Side Input collection as declaringStep +
    * inputIndex. The consumption of the side input is represented by (declaringStep, inputIndex,
    * requestingStepName), where requestingStepName is the step that causes the IO to occur. * A
    * Shuffle IO as the GBK step for that shuffle. The consumption of the side input is represented

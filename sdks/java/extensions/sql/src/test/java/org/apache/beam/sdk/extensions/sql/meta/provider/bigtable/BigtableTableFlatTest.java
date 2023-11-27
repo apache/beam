@@ -139,7 +139,7 @@ public class BigtableTableFlatTest {
   }
 
   @Test
-  public void testSegementedInsert() {
+  public void testSegmentedInsert() {
     final String tableId = "beamWriteTableWithSegmentedRead";
     emulatorWrapper.createTable(tableId, FAMILY_TEST);
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());

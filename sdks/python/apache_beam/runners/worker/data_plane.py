@@ -499,7 +499,10 @@ class _GrpcDataChannel(DataChannel):
       raise RuntimeError('Instruction cleaned up already %s' % instruction_id)
     done_inputs = set()  # type: Set[Union[str, Tuple[str, str]]]
     abort_callback = abort_callback or (lambda: False)
+    log_interval_sec = 5 * 60
     try:
+      start_time = time.time()
+      next_waiting_log_time = start_time + log_interval_sec
       while len(done_inputs) < len(expected_inputs):
         try:
           element = received.get(timeout=1)
@@ -510,7 +513,21 @@ class _GrpcDataChannel(DataChannel):
             return
           if self._exception:
             raise self._exception from None
+          current_time = time.time()
+          if next_waiting_log_time <= current_time:
+            # If at the same time another instruction is waiting on input queue
+            # to become available, it is a sign of inefficiency in data plane.
+            _LOGGER.info(
+                'Detected input queue delay longer than %s seconds. '
+                'Waiting to receive elements in input queue '
+                'for instruction: %s for %.2f seconds.',
+                log_interval_sec,
+                instruction_id,
+                current_time - start_time)
+            next_waiting_log_time = current_time + log_interval_sec
         else:
+          start_time = time.time()
+          next_waiting_log_time = start_time + log_interval_sec
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
               done_inputs.add((element.transform_id, element.timer_family_id))

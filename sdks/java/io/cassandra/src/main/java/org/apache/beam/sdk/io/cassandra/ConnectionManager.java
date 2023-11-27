@@ -71,7 +71,8 @@ public class ConnectionManager {
                     read.localDc(),
                     read.consistencyLevel(),
                     read.connectTimeout(),
-                    read.readTimeout()));
+                    read.readTimeout(),
+                    read.sslOptions()));
     return sessionMap.computeIfAbsent(
         readToSessionHash(read),
         k -> cluster.connect(Objects.requireNonNull(read.keyspace()).get()));

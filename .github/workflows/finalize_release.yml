@@ -1,0 +1,159 @@
+name: finalize_release
+
+# Workflow added after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
+# If help is needed debugging issues, you can view the release guide at that commit for guidance on how to do this manually.
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/website/www/site/content/en/contribute/release-guide.md)
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release (e.g. 2.XX.0)
+        required: true
+        default: '2.XX.0'
+      RC:
+        description: Integer RC version for the release that we'd like to finalize (e.g. 3 for RC3)
+        required: true
+      PYPI_USER:
+        description: PyPi username to perform the PyPi upload with
+        required: false
+      PYPI_PASSWORD:
+        description: PyPi password to perform the PyPi upload with
+        required: false
+      PUSH_DOCKER_ARTIFACTS:
+        description: Whether to push SDK docker images to docker hub Apache organization. Should be yes unless you've already completed this step.
+        required: true
+        default: 'no'
+      PUBLISH_PYTHON_ARTIFACTS:
+        description: Whether to publish the python artifacts into PyPi. Should be yes unless you've already completed this step.
+        required: true
+        default: 'no'
+      TAG_RELEASE:
+        description: Whether to tag the release on GitHub. Should be yes unless you've already completed this step.
+        required: true
+        default: 'no'
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  push_docker_artifacts:
+    if: ${{github.event.inputs.PUSH_DOCKER_ARTIFACTS == 'yes'}}
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USER }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Publish to Docker
+      env:
+        RELEASE: "${{ github.event.inputs.RELEASE }}"
+        RC_NUM: "${{ github.event.inputs.RC }}"
+        RC_VERSION: "rc${{ github.event.inputs.RC }}"
+      run: |
+        
+        echo "Publish SDK docker images to Docker Hub."
+        
+        echo "================Pull RC Containers from DockerHub==========="
+        IMAGES=$(docker search apache/beam_ --format "{{.Name}}" --limit 100)
+        KNOWN_IMAGES=()
+        echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
+        while read IMAGE; do
+          # Try pull verified RC from dockerhub.
+          if docker pull "${IMAGE}:${RELEASE}${RC_VERSION}" 2>/dev/null ; then
+            KNOWN_IMAGES+=( $IMAGE )
+          fi
+        done < <(echo "${IMAGES}")
+        
+        echo "================Confirming Release and RC version==========="
+        echo "Publishing the following images:"
+        # Sort by name for easy examination
+        IFS=$'\n' KNOWN_IMAGES=($(sort <<<"${KNOWN_IMAGES[*]}"))
+        unset IFS
+        printf "%s\n" ${KNOWN_IMAGES[@]}
+
+        for IMAGE in "${KNOWN_IMAGES[@]}"; do
+          # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as ${RELEASE}.
+          docker buildx imagetools create --tag "${IMAGE}:${RELEASE}" "${IMAGE}:${RELEASE}${RC_VERSION}"
+      
+          # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as latest.
+          docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}"
+        done
+
+  publish_python_artifacts:
+    if: ${{github.event.inputs.PUBLISH_PYTHON_ARTIFACTS == 'yes'}}
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Mask and validate PyPi id/password
+      run: |
+        echo "::add-mask::${{ github.event.inputs.PYPI_USER }}"
+        echo "::add-mask::${{ github.event.inputs.PYPI_PASSWORD }}"
+        if [ "${{ github.event.inputs.PYPI_USER }}" == "" ]
+        then
+          echo "Must provide a PyPi username to publish artifacts to PyPi"
+          exit 1
+        fi
+        if [ "${{ github.event.inputs.PYPI_PASSWORD }}" == "" ]
+        then
+          echo "Must provide a PyPi password to publish artifacts to PyPi"
+          exit 1
+        fi
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
+      with:
+        python-version: 3.11
+    - name: Install dependencies
+      run: |
+        pip install python-dateutil
+        pip install requests
+        pip install twine
+    - name: Deploy to Pypi
+      env:
+        RELEASE: "${{ github.event.inputs.RELEASE }}"
+      run: |
+        wget -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
+        cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
+        echo "Will upload the following files to PyPI:"
+        ls
+        twine upload * -u ${{ github.event.inputs.PYPI_USER }} -p ${{ github.event.inputs.PYPI_PASSWORD }}
+
+  push_git_tags:
+    if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Set git config
+      run: |
+        git config user.name $GITHUB_ACTOR
+        git config user.email actions@"$RUNNER_NAME".local
+    - name: Import GPG key
+      id: import_gpg
+      uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+      with:
+        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+    - name: Push tags
+      env:
+        VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
+        RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+      run: |
+        # Ensure local tags are in sync. If there's a mismatch, it will tell you.
+        git fetch --all --tags --prune
+        
+        # If the tag exists, a commit number is produced, otherwise there's an error.
+        git rev-list $RC_TAG -n 1
+        
+        # Tag for Go SDK
+        git tag "sdks/$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+        
+        # Tag for repo root.
+        git tag "$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git push https://github.com/apache/beam "$VERSION_TAG"

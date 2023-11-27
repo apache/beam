@@ -20,6 +20,8 @@ name: PostCommit Java Examples Direct
 on:
   schedule:
     - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run Java Examples_Direct]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java Examples_Direct'
     steps:
       - uses: actions/checkout@v4

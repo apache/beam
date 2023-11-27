@@ -25,7 +25,7 @@ jobs:
     if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/github-script@v6
+    - uses: actions/github-script@v7
       with:
         script: |
           const body = context.payload.comment.body.replace( /\r\n/g, " " ).replace( /\n/g, " " ).split(' ');

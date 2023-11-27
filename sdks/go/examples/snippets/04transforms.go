@@ -332,6 +332,11 @@ func (fn *averageFn) ExtractOutput(a averageAccum) float64 {
 	return float64(a.Sum) / float64(a.Count)
 }
 
+func (fn *averageFn) Compact(a averageAccum) averageAccum {
+	// No-op
+	return a
+}
+
 func init() {
 	register.Combiner3[averageAccum, int, float64](&averageFn{})
 }

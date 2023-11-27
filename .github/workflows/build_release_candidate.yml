@@ -155,6 +155,8 @@ jobs:
     if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Validate and mask apache id/password
         run: |
           echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
@@ -175,33 +177,42 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Install dependencies
+        run: |
+          pip install python-dateutil
+          pip install requests
       - name: stage python artifacts
         env:
           RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           GIT_REPO_BASE_URL: https://github.com/apache/beam
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
+          RELEASE: "${{ github.event.inputs.RELEASE }}"
           SCRIPT_DIR: release/src/main/scripts
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/python"
         run: |
           svn co https://dist.apache.org/repos/dist/dev/beam
           mkdir -p "${SVN_ARTIFACTS_DIR}"
-          
+
+          git fetch --all --tags --prune
           RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
           
           python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
             --github-token-var GITHUB_TOKEN \
-            --repo-url "${GIT_REPO_BASE_URL}" \
+            --repo-url "apache/beam" \
             --rc-tag "${RC_TAG}" \
             --release-commit "${RELEASE_COMMIT}" \
-            --artifacts_dir "${RELEASE_DIR}/python"
+            --artifacts_dir "${RELEASE_DIR}/python" \
+            --yes True
         
           cd "${RELEASE_DIR}"/python
+          ls
+
+          echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
+          sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
         
-          echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
-          sha512sum -c "apache-beam-${RELEASE}.zip.sha512"
-        
-          echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
-          gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache-beam-${RELEASE}.zip"
+          echo "------Signing Source Release apache-beam-${RELEASE}.tar.gz------"
+          gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
         
           for artifact in *.whl; do
             echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -216,7 +227,7 @@ jobs:
           cd ..
           svn add --force python
           svn status
-          svn commit --no-auth-cache -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+          svn commit -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }}
         
 
   stage_docker:
@@ -291,7 +302,7 @@ jobs:
         with:
           python-version: '3.8'
       - name: Install node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Install Java 8
@@ -324,6 +335,11 @@ jobs:
         working-directory: beam
         run: |
             ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+      - name: Add canonical link into javadocs
+        uses: cicirello/javadoc-cleanup@v1
+        with:
+          path-to-root: ${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc
+          base-url-path: https://beam.apache.org/releases/javadoc/current/
       - name: Consolidate Release Docs to beam-site branch with symlinks
         working-directory: beam-site
         run: |

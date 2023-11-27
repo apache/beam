@@ -2503,6 +2503,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public void output(OutputT output) {
       // Don't need to check timestamp since we can always output using the input timestamp.
+      if (currentElement == null) {
+        throw new IllegalStateException(
+            "Attempting to emit an element outside of a @ProcessElement context.");
+      }
       outputTo(mainOutputConsumer, currentElement.withValue(output));
     }
 

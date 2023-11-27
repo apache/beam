@@ -28,12 +28,17 @@ from typing import Union
 import pandas as pd
 import yaml
 from google.api_core import exceptions
-from google.cloud import bigquery
 
 from apache_beam.testing.analyzers import constants
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
+
+# pylint: disable=ungrouped-imports
+try:
+  from google.cloud import bigquery
+except ImportError:
+  bigquery = None  # type: ignore
 
 
 @dataclass(frozen=True)
@@ -118,6 +123,8 @@ def get_existing_issues_data(table_name: str) -> Optional[pd.DataFrame]:
   LIMIT 10
   """
   try:
+    if bigquery is None:
+      raise ImportError('Bigquery dependencies are not installed.')
     client = bigquery.Client()
     query_job = client.query(query=query)
     existing_issue_data = query_job.result().to_dataframe()
@@ -354,6 +361,8 @@ class BigQueryMetricsFetcher(MetricsFetcher):
           ORDER BY {load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL} DESC
           LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
         """
+    if bigquery is None:
+      raise ImportError('Bigquery dependencies are not installed.')
     client = bigquery.Client()
     query_job = client.query(query=query)
     metric_data = query_job.result().to_dataframe()

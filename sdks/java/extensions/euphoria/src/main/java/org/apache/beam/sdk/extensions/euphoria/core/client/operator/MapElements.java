@@ -47,12 +47,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       to input elements
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class MapElements<InputT, OutputT> extends Operator<OutputT>
     implements CompositeOperator<InputT, OutputT>, TypeAware.Output<OutputT> {
 

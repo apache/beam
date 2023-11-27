@@ -19,10 +19,10 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**','.github/workflows/beam_PreCommit_GoPortable.yml']
+    paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', '.github/workflows/beam_PreCommit_GoPortable.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**', 'release/trigger_all_tests.json']
+    paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', 'release/trigger_all_tests.json']
   issue_comment:
     types: [created]
   schedule:
@@ -67,7 +67,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run GoPortable PreCommit'
     steps:

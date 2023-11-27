@@ -208,7 +208,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
         // TODO: (https://github.com/apache/beam/issues/18169) Update to use an accurate count
         // depending on size and count,
         // currently we are under estimating the size by up to 10 bytes per block of data since we
-        // are not encoding the count prefix which occurs at most once per 64k of data and is upto
+        // are not encoding the count prefix which occurs at most once per 64k of data and is up to
         // 10 bytes long. Since we include the total count we can upper bound the underestimate
         // to be 10 / 65536 ~= 0.0153% of the actual size.
         observer.update(4L);

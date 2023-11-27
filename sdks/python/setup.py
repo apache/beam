@@ -140,9 +140,15 @@ except ImportError:
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
-  pyarrow_dependency = ''
+  pyarrow_dependency = ['']
 else:
-  pyarrow_dependency = 'pyarrow>=3.0.0,<12.0.0'
+  pyarrow_dependency = [
+      'pyarrow>=3.0.0,<12.0.0',
+      # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
+      # once Beam increases the pyarrow lower bound to a version that fixes CVE.
+      'pyarrow-hotfix<1'
+  ]
+
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
@@ -297,7 +303,7 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<4.25.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.0,!=4.24.1,!=4.24.2',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<4.26.0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
@@ -308,7 +314,7 @@ if __name__ == '__main__':
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
-      ] + [pyarrow_dependency],
+      ] + pyarrow_dependency,
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
@@ -351,6 +357,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
+              'google-cloud-storage>=2.10.0,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -398,6 +405,9 @@ if __name__ == '__main__':
               'dask >= 2022.6',
               'distributed >= 2022.6',
           ],
+          'yaml': [
+              'pyyaml>=3.12,<7.0.0',
+          ] + dataframe_dependency
       },
       zip_safe=False,
       # PyPI package information.
