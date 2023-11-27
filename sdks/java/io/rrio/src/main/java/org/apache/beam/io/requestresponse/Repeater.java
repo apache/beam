@@ -66,11 +66,11 @@ public class Repeater<InputT, OutputT> {
   /**
    * Applies the {@link InputT} to the {@link ThrowableFunction}. If the function throws an
    * exception that {@link #REPEATABLE_ERROR_TYPES} contains, repeats the invocation up to the
-   * limit, otherwise throws immediately. Throws the last exception, if the limit reached.
+   * limit, otherwise throws the last exception.
    */
   public OutputT apply(InputT input) throws UserCodeExecutionException, InterruptedException {
     @MonotonicNonNull UserCodeExecutionException lastException = null;
-    for (int i = 0; i < limit - 1; i++) {
+    for (int numAttempts = 0; numAttempts < limit; numAttempts++) {
       try {
         return throwableFunction.apply(input);
       } catch (UserCodeExecutionException e) {
@@ -133,6 +133,10 @@ public class Repeater<InputT, OutputT> {
       }
       executorService.shutdown();
       boolean ignored = executorService.awaitTermination(1L, TimeUnit.SECONDS);
+    }
+
+    BackOff getBackOff() {
+      return backOff;
     }
   }
 }
