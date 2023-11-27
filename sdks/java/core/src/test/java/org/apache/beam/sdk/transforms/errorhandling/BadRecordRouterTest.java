@@ -106,8 +106,7 @@ public class BadRecordRouterTest {
     BadRecord.Failure.Builder failure =
         BadRecord.Failure.builder()
             .setException("java.lang.RuntimeException")
-            .setDescription("desc")
-            .setFailingTransform("transform");
+            .setDescription("desc");
 
     verify(badRecordOutputReceiver)
         .output(ArgumentMatchers.argThat(ignoreStacktraceMatcher.apply(expectedBuilder, failure)));
@@ -127,8 +126,7 @@ public class BadRecordRouterTest {
     BadRecord.Failure.Builder failure =
         BadRecord.Failure.builder()
             .setException("java.lang.RuntimeException")
-            .setDescription("desc")
-            .setFailingTransform("transform");
+            .setDescription("desc");
 
     verify(badRecordOutputReceiver)
         .output(ArgumentMatchers.argThat(ignoreStacktraceMatcher.apply(expectedBuilder, failure)));
@@ -175,8 +173,7 @@ public class BadRecordRouterTest {
     BadRecord.Failure.Builder failure =
         BadRecord.Failure.builder()
             .setException("java.lang.RuntimeException")
-            .setDescription("desc")
-            .setFailingTransform("transform");
+            .setDescription("desc");
 
     verify(badRecordOutputReceiver)
         .output(ArgumentMatchers.argThat(ignoreStacktraceMatcher.apply(expectedBuilder, failure)));

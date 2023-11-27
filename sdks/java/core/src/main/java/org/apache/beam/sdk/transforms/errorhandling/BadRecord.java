@@ -161,9 +161,6 @@ public abstract class BadRecord implements Serializable {
     /** The description of what was being attempted when the failure occurred. */
     public abstract String getDescription();
 
-    /** The particular sub-transform that failed. */
-    public abstract String getFailingTransform();
-
     public static Builder builder() {
       return new AutoValue_BadRecord_Failure.Builder();
     }
@@ -186,9 +183,6 @@ public abstract class BadRecord implements Serializable {
       }
 
       public abstract Builder setDescription(String description);
-
-      public abstract Builder setFailingTransform(String failingTransform);
-
       public abstract Failure build();
     }
   }

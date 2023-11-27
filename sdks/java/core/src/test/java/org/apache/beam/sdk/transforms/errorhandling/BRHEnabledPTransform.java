@@ -82,8 +82,7 @@ public class BRHEnabledPTransform extends PTransform<PCollection<Integer>, PColl
             element,
             BigEndianIntegerCoder.of(),
             new RuntimeException("Integer was odd"),
-            "Integer was odd",
-            "NoOpDoFn");
+            "Integer was odd");
       }
     }
   }

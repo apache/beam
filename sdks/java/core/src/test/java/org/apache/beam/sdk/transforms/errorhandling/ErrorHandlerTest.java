@@ -113,8 +113,7 @@ public class ErrorHandlerTest {
                 BadRecord.Failure.Builder failure =
                     BadRecord.Failure.builder()
                         .setException("java.lang.RuntimeException: Integer was odd")
-                        .setDescription("Integer was odd")
-                        .setFailingTransform("NoOpDoFn");
+                        .setDescription("Integer was odd");
 
                 failure.setExceptionStacktrace(badRecord.getFailure().getExceptionStacktrace());
                 expectedBuilder.setFailure(failure.build());

@@ -39,8 +39,7 @@ public interface BadRecordRouter extends Serializable {
       RecordT record,
       @Nullable Coder<RecordT> coder,
       @Nullable Exception exception,
-      String description,
-      String failingTransform)
+      String description)
       throws Exception;
 
   class ThrowingBadRecordRouter implements BadRecordRouter {
@@ -51,8 +50,7 @@ public interface BadRecordRouter extends Serializable {
         RecordT record,
         @Nullable Coder<RecordT> coder,
         @Nullable Exception exception,
-        String description,
-        String failingTransform)
+        String description)
         throws Exception {
       if (exception != null) {
         throw exception;
@@ -70,8 +68,7 @@ public interface BadRecordRouter extends Serializable {
         RecordT record,
         @Nullable Coder<RecordT> coder,
         @Nullable Exception exception,
-        String description,
-        String failingTransform)
+        String description)
         throws Exception {
       Preconditions.checkArgumentNotNull(record);
 
@@ -81,7 +78,7 @@ public interface BadRecordRouter extends Serializable {
 
       // Build up failure information
       BadRecord.Failure.Builder failureBuilder =
-          Failure.builder().setDescription(description).setFailingTransform(failingTransform);
+          Failure.builder().setDescription(description);
 
       // It's possible for us to want to handle an error scenario where no actual exception object
       // exists
