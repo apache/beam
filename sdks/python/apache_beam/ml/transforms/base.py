@@ -422,7 +422,7 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
       temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
       with open(temp_json_file, 'w+') as f:
         f.write(jsonpickle.encode(ptransform_list))
-      with open(temp_json_file, 'r') as f:
+      with open(temp_json_file, 'rb') as f:
         from apache_beam.runners.dataflow.internal import apiclient
         _LOGGER.info('Creating artifact location: %s', artifact_location)
         apiclient.DataflowApplicationClient(options=options).stage_file(
@@ -441,7 +441,7 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
   @staticmethod
   def load_attributes(artifact_location):
     with FileSystems.open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME),
-                          'r') as f:
+                          'rb') as f:
       return jsonpickle.decode(f.read())
 
 

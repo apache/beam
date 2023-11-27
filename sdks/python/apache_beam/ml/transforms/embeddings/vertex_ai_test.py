@@ -156,7 +156,8 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
   def test_with_gcs_artifact_location(self):
-    artifact_location = ('gs://apache-beam-ml/testing/vertex_ai')
+    # artifact_location = ('gs://apache-beam-ml/testing/vertex_ai')
+    artifact_location = 'gs://anandinguva-test/artifacts'
     with beam.Pipeline() as p:
       embedding_config = VertexAITextEmbeddings(
           model_name=model_name, columns=[test_query_column])
