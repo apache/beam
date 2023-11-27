@@ -1395,12 +1395,14 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         self._metrics_collector.failed_batches_counter.inc()
       raise e
     predictions = list(result_generator)
+
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
     if self._metrics_collector:
       self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+
     return predictions
 
   def process(
@@ -1430,7 +1432,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._side_input_path = si_model_metadata.model_id
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
-      with threading.Lock():
+      lock = threading.Lock()
+      with lock:
         self.update_model(si_model_metadata.model_id)
         return self._run_inference(batch, inference_args)
 

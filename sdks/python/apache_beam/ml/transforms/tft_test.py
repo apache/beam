@@ -712,10 +712,10 @@ class BagOfWordsTest(unittest.TestCase):
 
     def validate_count_per_key(key_vocab_filename):
       files = os.listdir(self.artifact_location)
-      transform_dir = [x for x in files if '.json' not in x][0]
+      files.remove(base._ATTRIBUTE_FILE_NAME)
       key_vocab_location = os.path.join(
           self.artifact_location,
-          transform_dir,
+          files[0],
           'transform_fn/assets',
           key_vocab_filename)
       with open(key_vocab_location, 'r') as f:
