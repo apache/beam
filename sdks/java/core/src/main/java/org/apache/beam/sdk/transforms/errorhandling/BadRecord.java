@@ -183,6 +183,7 @@ public abstract class BadRecord implements Serializable {
       }
 
       public abstract Builder setDescription(String description);
+
       public abstract Failure build();
     }
   }

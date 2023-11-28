@@ -77,8 +77,7 @@ public interface BadRecordRouter extends Serializable {
       recordBuilder.addHumanReadableJson(record).addCoderAndEncodedRecord(coder, record);
 
       // Build up failure information
-      BadRecord.Failure.Builder failureBuilder =
-          Failure.builder().setDescription(description);
+      BadRecord.Failure.Builder failureBuilder = Failure.builder().setDescription(description);
 
       // It's possible for us to want to handle an error scenario where no actual exception object
       // exists

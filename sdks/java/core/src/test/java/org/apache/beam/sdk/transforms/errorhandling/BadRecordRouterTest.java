@@ -91,8 +91,7 @@ public class BadRecordRouterTest {
 
     BadRecordRouter handler = BadRecordRouter.RECORDING_ROUTER;
 
-    handler.route(
-        outputReceiver, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc");
+    handler.route(outputReceiver, 5, BigEndianIntegerCoder.of(), new RuntimeException(), "desc");
 
     BadRecord.Builder expectedBuilder =
         BadRecord.builder()
