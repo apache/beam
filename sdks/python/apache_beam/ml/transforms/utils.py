@@ -20,8 +20,8 @@ __all__ = ['ArtifactsFetcher']
 import os
 import typing
 
-from apache_beam.ml.transforms import base
 import tensorflow_transform as tft
+from apache_beam.ml.transforms import base
 
 
 class ArtifactsFetcher():
