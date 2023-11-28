@@ -18,7 +18,7 @@ name: PreCommit Python Docs
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["sdks/python/**", 'release/trigger_all_tests.json']
+    paths: ["sdks/python/**", 'release/trigger_all_tests.json', 'beam_PreCommit_PythonDocs.json']
   issue_comment:
     types: [created]
   push:

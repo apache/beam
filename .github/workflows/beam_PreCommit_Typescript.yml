@@ -24,7 +24,7 @@ on:
     paths: ['sdks/python/apache_beam/runners/interactive/extensions/**', '.github/workflows/beam_PreCommit_Typescript.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**', 'release/trigger_all_tests.json']
+    paths: ['sdks/python/apache_beam/runners/interactive/extensions/**', 'release/trigger_all_tests.json', 'beam_PreCommit_Typescript.json']
   issue_comment:
     types: [created]
   schedule:

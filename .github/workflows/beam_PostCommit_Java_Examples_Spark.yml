@@ -21,7 +21,7 @@ on:
   schedule:
     - cron: '45 3/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', 'beam_PostCommit_Java_Examples_Spark.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs

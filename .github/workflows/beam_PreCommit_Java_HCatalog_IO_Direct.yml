@@ -29,6 +29,7 @@ on:
       - "sdks/java/io/hcatalog/**"
       - "sdks/java/io/hadoop-common/**"
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_HCatalog_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

@@ -27,6 +27,7 @@ on:
     paths:
       - "sdks/java/io/amqp/**"
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_Amqp_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

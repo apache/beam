@@ -38,6 +38,7 @@ on:
       - "sdks/java/io/common/**"
       - "sdks/java/core/src/main/**"
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_Amazon-Web-Services_IO_Direct.json'
       - "build.gradle"
       - "buildSrc/**"
       - "gradle/**"

@@ -22,7 +22,7 @@ on:
     paths: ['website/**','.github/workflows/beam_PreCommit_Website_Stage_GCS.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['website/**', 'release/trigger_all_tests.json']
+    paths: ['website/**', 'release/trigger_all_tests.json', 'beam_PreCommit_Website_Stage_GCS.json']
   issue_comment:
     types: [created]
   schedule:

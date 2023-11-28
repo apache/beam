@@ -22,7 +22,7 @@ on:
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java17.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json']
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json', 'beam_PreCommit_SQL_Java17.json']
   issue_comment:
     types: [created]
   schedule:

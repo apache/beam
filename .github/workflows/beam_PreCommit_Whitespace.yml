@@ -22,7 +22,7 @@ on:
     paths: ['**.md', '**.build.gradle', 'build.gradle.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['**.md', '**.build.gradle', 'build.gradle.kts', 'release/trigger_all_tests.json']
+    paths: ['**.md', '**.build.gradle', 'build.gradle.kts', 'release/trigger_all_tests.json', 'beam_PreCommit_Whitespace.json']
   issue_comment:
     types: [created]
   schedule:

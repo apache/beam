@@ -37,6 +37,7 @@ on:
       - "runners/core-construction-java/**"
       - "runners/core-java/**"
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_GCP_IO_Direct.json'
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
       - "sdks/java/extensions/google-cloud-platform-core/**"

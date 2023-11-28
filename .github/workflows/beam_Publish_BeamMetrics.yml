@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit BeamMetrics Publish
+name: Publish BeamMetrics
 
 on:
   schedule:
@@ -48,7 +48,7 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_BeamMetrics_Publish:
+  beam_Publish_BeamMetrics:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||

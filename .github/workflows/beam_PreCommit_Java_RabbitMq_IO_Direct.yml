@@ -27,6 +27,7 @@ on:
     paths:
       - "sdks/java/io/rabbitmq/**"
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_RabbitMq_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

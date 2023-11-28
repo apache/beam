@@ -29,6 +29,7 @@ on:
       - "sdks/java/io/common/**"
       - "sdks/java/core/src/main/**"
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_IOs_Direct.json'
   issue_comment:
     types: [created]
   workflow_dispatch:

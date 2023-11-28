@@ -29,6 +29,7 @@ on:
     paths:
       - 'it/**'
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_ItFramework.json'
   issue_comment:
     types: [created]
   schedule:

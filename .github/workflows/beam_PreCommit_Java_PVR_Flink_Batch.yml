@@ -33,6 +33,7 @@ on:
       - 'runners/java-fn-execution/**'
       - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
       - 'release/trigger_all_tests.json'
+      - 'beam_PreCommit_Java_PVR_Flink_Batch.json'
   issue_comment:
     types: [created]
   schedule:
