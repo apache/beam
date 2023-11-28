@@ -765,17 +765,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + failedContext.offset);
               }
 
-              boolean streamDoesNotExist =
+              boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
                       || statusCode.equals(Status.Code.NOT_FOUND)
                       || statusCode.equals(Status.Code.FAILED_PRECONDITION);
-              if (streamDoesNotExist) {
+              if (hasPersistentErrors) {
                 throw new RuntimeException(
-                    "Append to stream "
-                        + this.streamName
-                        + " failed with stream "
-                        + "doesn't exist");
+                    String.format(
+                        "Append to stream %s failed with Status Code %s. The stream may not exist.",
+                        this.streamName, statusCode),
+                    error);
               }
               // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces
               // them.

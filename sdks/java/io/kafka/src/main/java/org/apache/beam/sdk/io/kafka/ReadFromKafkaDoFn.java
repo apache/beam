@@ -31,6 +31,8 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
@@ -203,6 +205,10 @@ abstract class ReadFromKafkaDoFn<K, V>
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
+  @VisibleForTesting static final String METRIC_NAMESPACE = KafkaUnboundedReader.METRIC_NAMESPACE;
+
+  @VisibleForTesting
+  static final String RAW_SIZE_METRIC_PREFIX = KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX;
 
   /**
    * A {@link GrowableOffsetRangeTracker.RangeEndEstimator} which uses a Kafka {@link Consumer} to
@@ -362,6 +368,10 @@ abstract class ReadFromKafkaDoFn<K, V>
         Preconditions.checkStateNotNull(this.keyDeserializerInstance);
     final Deserializer<V> valueDeserializerInstance =
         Preconditions.checkStateNotNull(this.valueDeserializerInstance);
+    final Distribution rawSizes =
+        Metrics.distribution(
+            METRIC_NAMESPACE,
+            RAW_SIZE_METRIC_PREFIX + kafkaSourceDescriptor.getTopicPartition().toString());
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
         && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
@@ -437,6 +447,7 @@ abstract class ReadFromKafkaDoFn<K, V>
           avgRecordSize
               .getUnchecked(kafkaSourceDescriptor.getTopicPartition())
               .update(recordSize, rawRecord.offset() - expectedOffset);
+          rawSizes.update(recordSize);
           expectedOffset = rawRecord.offset() + 1;
           Instant outputTimestamp;
           // The outputTimestamp and watermark will be computed by timestampPolicy, where the

@@ -359,7 +359,7 @@ public class PAssert {
      *
      * <p>The assertion will concatenate all panes present in the provided window if the {@link
      * Trigger} produces multiple panes. If the windowing strategy accumulates fired panes and
-     * triggers fire multple times, consider using instead {@link #inFinalPane(BoundedWindow)} or
+     * triggers fire multiple times, consider using instead {@link #inFinalPane(BoundedWindow)} or
      * {@link #inOnTimePane(BoundedWindow)}.
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to

@@ -254,7 +254,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
       Join<LeftT, RightT, KeyT, OutputT> operator,
       PCollection<LeftT> left,
       PCollection<KV<KeyT, LeftT>> leftKeyed,
-      PCollection<RightT> reight,
+      PCollection<RightT> right,
       PCollection<KV<KeyT, RightT>> rightKeyed) {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(AccumulatorProvider.of(leftKeyed.getPipeline()));
