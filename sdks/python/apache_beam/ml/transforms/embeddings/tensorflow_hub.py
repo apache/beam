@@ -94,6 +94,21 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     super().__init__(columns=columns, **kwargs)
     self.model_uri = hub_url
     self.preprocessing_url = preprocessing_url
+    """
+    Embedding config for tensorflow hub models. This config can be used with
+    MLTransform to embed text data. Models are loaded using the RunInference
+    PTransform with the help of a ModelHandler.
+
+    Args:
+      columns: The columns containing the text to be embedded.
+      hub_url: The url of the tensorflow hub model.
+      preprocessing_url: The url of the preprocessing model. This is optional.
+        If provided, the preprocessing model will be used to preprocess the
+        text before feeding it to the main model.
+      min_batch_size: The minimum batch size to be used for inference.
+      max_batch_size: The maximum batch size to be used for inference.
+      large_model: Whether to share the model across processes.
+    """
 
   def get_model_handler(self) -> ModelHandler:
     # override the default inference function
