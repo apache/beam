@@ -196,7 +196,6 @@ public class StreamingEngineClientTest {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";
 
-    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -205,7 +204,6 @@ public class StreamingEngineClientTest {
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
-    streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     StreamingEngineConnectionState currentConnections = waitForWorkerMetadataToBeConsumed(1);
@@ -240,9 +238,6 @@ public class StreamingEngineClientTest {
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1L).setBytes(1L).build(), noOpProcessWorkItemFn());
 
-    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
-
-    streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(
         WorkerMetadataResponse.newBuilder()
@@ -266,7 +261,6 @@ public class StreamingEngineClientTest {
     String workerToken2 = "workerToken2";
     String workerToken3 = "workerToken3";
 
-    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -284,7 +278,6 @@ public class StreamingEngineClientTest {
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
-    streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
@@ -314,7 +307,6 @@ public class StreamingEngineClientTest {
     String workerToken2 = "workerToken2";
     String workerToken3 = "workerToken3";
 
-    Thread streamingEngineClientThread = new Thread(this::waitForFirstWorkerMetadata);
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -337,7 +329,6 @@ public class StreamingEngineClientTest {
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
-    streamingEngineClientThread.start();
     getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     Thread.sleep(50);
@@ -364,10 +355,6 @@ public class StreamingEngineClientTest {
     // Wait for metadata to be consumed and budgets to be redistributed.
     Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS);
     return connections.get();
-  }
-
-  private void waitForFirstWorkerMetadata() {
-    while (!Preconditions.checkNotNull(streamingEngineClient).isWorkerMetadataReady()) {}
   }
 
   private static class GetWorkerMetadataTestStub

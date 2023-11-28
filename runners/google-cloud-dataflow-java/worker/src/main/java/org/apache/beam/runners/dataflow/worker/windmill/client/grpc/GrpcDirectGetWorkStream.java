@@ -72,6 +72,9 @@ public final class GrpcDirectGetWorkStream
                   .build())
           .build();
 
+  private final AtomicReference<GetWorkBudget> inFlightBudget;
+  private final AtomicReference<GetWorkBudget> nextBudgetAdjustment;
+  private final AtomicReference<GetWorkBudget> pendingResponseBudget;
   private final GetWorkRequest request;
   private final WorkItemProcessor workItemProcessorFn;
   private final ThrottleTimer getWorkThrottleTimer;
@@ -83,10 +86,6 @@ public final class GrpcDirectGetWorkStream
    * buffer is cleared.
    */
   private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
-
-  private final AtomicReference<GetWorkBudget> inflightBudget;
-  private final AtomicReference<GetWorkBudget> nextBudgetAdjustment;
-  private final AtomicReference<GetWorkBudget> pendingResponseBudget;
 
   private GrpcDirectGetWorkStream(
       Function<
@@ -112,8 +111,7 @@ public final class GrpcDirectGetWorkStream
     // stream.
     this.getDataStream = Suppliers.memoize(getDataStream::get);
     this.commitWorkStream = Suppliers.memoize(commitWorkStream::get);
-
-    this.inflightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
+    this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
     this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
@@ -178,10 +176,11 @@ public final class GrpcDirectGetWorkStream
   @Override
   protected synchronized void onNewStream() {
     workItemBuffers.clear();
-    // Add the current inflight budget to the next adjustment. Only positive values are allowed here
+    // Add the current in-flight budget to the next adjustment. Only positive values are allowed
+    // here
     // with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative values.
-    GetWorkBudget budgetAdjustment = nextBudgetAdjustment.get().apply(inflightBudget.get());
-    inflightBudget.set(budgetAdjustment);
+    GetWorkBudget budgetAdjustment = nextBudgetAdjustment.get().apply(inFlightBudget.get());
+    inFlightBudget.set(budgetAdjustment);
     send(
         StreamingGetWorkRequest.newBuilder()
             .setRequest(
@@ -205,7 +204,7 @@ public final class GrpcDirectGetWorkStream
     // Number of buffers is same as distinct workers that sent work on this stream.
     writer.format(
         "GetWorkStream: %d buffers, %s inflight budget allowed.",
-        workItemBuffers.size(), inflightBudget.get());
+        workItemBuffers.size(), inFlightBudget.get());
   }
 
   @Override
@@ -224,7 +223,7 @@ public final class GrpcDirectGetWorkStream
     if (chunk.getRemainingBytesForWorkItem() == 0) {
       workItemBuffer.runAndReset();
       // Record the fact that there are now fewer outstanding messages and bytes on the stream.
-      inflightBudget.updateAndGet(budget -> budget.subtract(1, workItemBuffer.bufferedSize()));
+      inFlightBudget.updateAndGet(budget -> budget.subtract(1, workItemBuffer.bufferedSize()));
     }
   }
 
@@ -244,18 +243,11 @@ public final class GrpcDirectGetWorkStream
     // Snapshot the current budgets.
     GetWorkBudget currentPendingResponseBudget = pendingResponseBudget.get();
     GetWorkBudget currentNextBudgetAdjustment = nextBudgetAdjustment.get();
-    GetWorkBudget currentInflightBudget = inflightBudget.get();
+    GetWorkBudget currentInflightBudget = inFlightBudget.get();
 
-    return GetWorkBudget.builder()
-        .setItems(
-            currentNextBudgetAdjustment.items()
-                + currentPendingResponseBudget.items()
-                + currentInflightBudget.items())
-        .setBytes(
-            currentNextBudgetAdjustment.bytes()
-                + currentPendingResponseBudget.bytes()
-                + currentInflightBudget.bytes())
-        .build();
+    return currentPendingResponseBudget
+        .apply(currentNextBudgetAdjustment)
+        .apply(currentInflightBudget);
   }
 
   private synchronized void updatePendingResponseBudget(long itemsDelta, long bytesDelta) {
