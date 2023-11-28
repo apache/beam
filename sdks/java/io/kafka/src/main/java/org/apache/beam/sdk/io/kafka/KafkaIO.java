@@ -172,6 +172,10 @@ import org.slf4j.LoggerFactory;
  *      // signal.
  *      .withCheckStopReadingFn(new SerializedFunction<TopicPartition, Boolean>() {})
  *
+ *      //If you would like to send messages that fail to be parsed from Kafka to an alternate sink,
+ *      //use the error handler pattern as defined in {@link ErrorHandler}
+ *      .withErrorHandler(errorHandler)
+ *
  *      // finally, if you don't need Kafka metadata, you can drop it.g
  *      .withoutMetadata() // PCollection<KV<Long, String>>
  *   )
@@ -1978,7 +1982,7 @@ public class KafkaIO {
   public abstract static class ReadSourceDescriptors<K, V>
       extends PTransform<PCollection<KafkaSourceDescriptor>, PCollection<KafkaRecord<K, V>>> {
 
-    private final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> RECORDS = new TupleTag<>();
+    private final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> records = new TupleTag<>();
 
     private static final Logger LOG = LoggerFactory.getLogger(ReadSourceDescriptors.class);
 
@@ -2442,8 +2446,8 @@ public class KafkaIO {
       try {
         PCollectionTuple pCollectionTuple =
             input.apply(
-                ParDo.of(ReadFromKafkaDoFn.<K, V>create(this, RECORDS))
-                    .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
+                ParDo.of(ReadFromKafkaDoFn.<K, V>create(this, records))
+                    .withOutputTags(records, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
         getErrorHandler()
             .addErrorCollection(
                 pCollectionTuple
@@ -2451,7 +2455,7 @@ public class KafkaIO {
                     .setCoder(BadRecord.getCoder(input.getPipeline())));
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
             pCollectionTuple
-                .get(RECORDS)
+                .get(records)
                 .setCoder(
                     KvCoder.of(
                         input

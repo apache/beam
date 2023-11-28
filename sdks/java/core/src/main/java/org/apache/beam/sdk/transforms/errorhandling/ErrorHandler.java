@@ -49,17 +49,17 @@ import org.slf4j.LoggerFactory;
  *     <p>Simple usage with one DLQ
  *     <pre>{@code
  * PCollection<?> records = ...;
- * try (ErrorHandler<E,T> errorHandler = pipeline.registerErrorHandler(SomeSink.write())) {
- *  PCollection<?> results = records.apply(SomeIO.write().withDeadLetterQueue(errorHandler));
+ * try (BadRecordErrorHandler<T> errorHandler = pipeline.registerBadRecordErrorHandler(SomeSink.write())) {
+ *  PCollection<?> results = records.apply(SomeIO.write().withErrorHandler(errorHandler));
  * }
  * results.apply(SomeOtherTransform);
  * }</pre>
  *     Usage with multiple DLQ stages
  *     <pre>{@code
  * PCollection<?> records = ...;
- * try (ErrorHandler<E,T> errorHandler = pipeline.registerErrorHandler(SomeSink.write())) {
- *  PCollection<?> results = records.apply(SomeIO.write().withDeadLetterQueue(errorHandler))
- *                        .apply(OtherTransform.builder().withDeadLetterQueue(errorHandler));
+ * try (BadRecordErrorHandler<T> errorHandler = pipeline.registerBadRecordErrorHandler(SomeSink.write())) {
+ *  PCollection<?> results = records.apply(SomeIO.write().withErrorHandler(errorHandler))
+ *                        .apply(OtherTransform.builder().withErrorHandler(errorHandler));
  * }
  * results.apply(SomeOtherTransform);
  * }</pre>
