@@ -20,6 +20,7 @@ import collections
 import hashlib
 import os
 import typing
+import uuid
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -134,7 +135,9 @@ class ComputeAndAttachHashKey(beam.DoFn):
         hash_object.update(str(list(value)).encode())
       else:  # assume value is a primitive that can be turned into str
         hash_object.update(str(value).encode())
-    yield (hash_object.hexdigest(), element)
+    # add a unique suffix to the hash key to avoid collisions.
+    unique_suffix = uuid.uuid4().hex
+    yield (hash_object.hexdigest() + unique_suffix, element)
 
 
 class GetMissingColumnsPColl(beam.DoFn):
