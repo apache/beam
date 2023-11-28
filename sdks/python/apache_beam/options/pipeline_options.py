@@ -64,7 +64,7 @@ _FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
-  """"Helper function to plug a ValueProvider into argparse.
+  """Helper function to plug a ValueProvider into argparse.
 
   Args:
     value_type: the type of the value. Since the type param of argparse's
@@ -334,6 +334,10 @@ class PipelineOptions(HasDisplayData):
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if retain_unknown_options:
+      if unknown_args:
+        _LOGGER.warning(
+            'Unknown pipeline options received: %s. Ignore if flags are '
+            'used for internal purposes.' % (','.join(unknown_args)))
       i = 0
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
