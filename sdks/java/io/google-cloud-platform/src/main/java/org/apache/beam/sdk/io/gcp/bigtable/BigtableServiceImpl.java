@@ -106,7 +106,7 @@ class BigtableServiceImpl implements BigtableService {
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
     this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
-    LOG.info("Started Bigtable service with settings " + settings);
+    LOG.info("Started Bigtable service with settings {}", settings);
     this.client = BigtableDataClient.create(settings);
   }
 
