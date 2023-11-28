@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
-import static org.apache.beam.sdk.transforms.Count.combineFn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
@@ -73,10 +72,10 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -99,7 +98,10 @@ import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -358,28 +360,44 @@ public class KafkaIOIT {
     }
   }
 
-  //This test verifies that bad data from Kafka is properly sent to the error handler
+  // This test verifies that bad data from Kafka is properly sent to the error handler
   @Test
   public void testKafkaIOSDFWithErrorHandler() throws IOException {
-    writePipeline.apply(Create.of(KV.of("key", "val")))
-        .apply("Write to Kafka", KafkaIO.<String, String>write()
-            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-            .withKeySerializer(StringSerializer.class)
-            .withValueSerializer(StringSerializer.class)
-            .withTopic(options.getKafkaTopic() + "-failingDeserialization"));
+    writePipeline
+        .apply(Create.of(KV.of("key", "val")))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<String, String>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withKeySerializer(StringSerializer.class)
+                .withValueSerializer(StringSerializer.class)
+                .withTopic(options.getKafkaTopic() + "-failingDeserialization"));
 
     PipelineResult writeResult = writePipeline.run();
     PipelineResult.State writeState = writeResult.waitUntilFinish();
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
-    BadRecordErrorHandler<PCollection<Long>> eh = sdfReadPipeline.registerBadRecordErrorHandler(Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
-    sdfReadPipeline.apply(KafkaIO.<String, String>read()
-        .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-        .withTopic(options.getKafkaTopic() + "-failingDeserialization")
-        .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-        .withKeyDeserializer(FailingDeserializer.class)
-        .withValueDeserializer(FailingDeserializer.class)
-        .withErrorHandler(eh));
+    PTransform<PCollection<BadRecord>, PCollection<Long>> sinkTransform =
+        new PTransform<PCollection<BadRecord>, PCollection<Long>>() {
+          @Override
+          public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
+              PCollection<BadRecord> input) {
+            return input
+                .apply("Window", Window.into(CalendarWindows.years(1)))
+                .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
+          }
+        };
+
+    BadRecordErrorHandler<PCollection<Long>> eh =
+        sdfReadPipeline.registerBadRecordErrorHandler(sinkTransform);
+    sdfReadPipeline.apply(
+        KafkaIO.<String, String>read()
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopic(options.getKafkaTopic() + "-failingDeserialization")
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withKeyDeserializer(FailingDeserializer.class)
+            .withValueDeserializer(FailingDeserializer.class)
+            .withErrorHandler(eh));
     eh.close();
 
     PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(1L);
