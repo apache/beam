@@ -135,7 +135,7 @@ public class ReadFromKafkaDoFnTest {
         .withBootstrapServers("bootstrap_server");
   }
 
-  private static class FailingDeserializer implements Deserializer<String> {
+  public static class FailingDeserializer implements Deserializer<String> {
 
     public FailingDeserializer() {}
 

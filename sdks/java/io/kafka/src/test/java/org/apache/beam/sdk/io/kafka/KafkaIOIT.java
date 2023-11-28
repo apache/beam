@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
+import static org.apache.beam.sdk.transforms.Count.combineFn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +45,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.kafka.ReadFromKafkaDoFnTest.FailingDeserializer;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.Default;
@@ -72,6 +75,9 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -350,6 +356,39 @@ public class KafkaIOIT {
       LOG.error(element);
       outputReceiver.output(element);
     }
+  }
+
+  //This test verifies that bad data from Kafka is properly sent to the error handler
+  @Test
+  public void testKafkaIOSDFWithErrorHandler() throws IOException {
+    writePipeline.apply(Create.of(KV.of("key", "val")))
+        .apply("Write to Kafka", KafkaIO.<String, String>write()
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withKeySerializer(StringSerializer.class)
+            .withValueSerializer(StringSerializer.class)
+            .withTopic(options.getKafkaTopic() + "-failingDeserialization"));
+
+    PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
+
+    BadRecordErrorHandler<PCollection<Long>> eh = sdfReadPipeline.registerBadRecordErrorHandler(Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
+    sdfReadPipeline.apply(KafkaIO.<String, String>read()
+        .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+        .withTopic(options.getKafkaTopic() + "-failingDeserialization")
+        .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+        .withKeyDeserializer(FailingDeserializer.class)
+        .withValueDeserializer(FailingDeserializer.class)
+        .withErrorHandler(eh));
+    eh.close();
+
+    PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(1L);
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    cancelIfTimeouted(readResult, readState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
   // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata

@@ -1543,6 +1543,10 @@ public class KafkaIO {
 
       @Override
       public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
+        if (kafkaRead.getErrorHandler() != null) {
+          LOG.warn("The Legacy implementation of Kafka Read does not support writing malformed"
+              + "messages to an error handler. Use the SDF implementation instead.");
+        }
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
