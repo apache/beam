@@ -1,9 +1,9 @@
 package org.apache.beam.io.iceberg;
 
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
+@SuppressWarnings({"dereference.of.nullable"})
 public class SchemaHelper {
 
     public static Schema.Field convert(final Types.NestedField field) {
@@ -26,11 +26,7 @@ public class SchemaHelper {
                 f = Schema.Field.of(field.name(), Schema.FieldType.DOUBLE);
                 break;
             case DATE:
-                f = Schema.Field.of(field.name(), Schema.FieldType.DATETIME);
-                break;
             case TIME:
-                f = Schema.Field.of(field.name(), Schema.FieldType.DATETIME);
-                break;
             case TIMESTAMP:
                 f = Schema.Field.of(field.name(), Schema.FieldType.DATETIME);
                 break;
@@ -38,14 +34,10 @@ public class SchemaHelper {
                 f = Schema.Field.of(field.name(), Schema.FieldType.STRING);
                 break;
             case UUID:
-                f = Schema.Field.of(field.name(), Schema.FieldType.BYTES);
-                break;
-            case FIXED:
-                f = Schema.Field.of(field.name(), Schema.FieldType.DECIMAL);
-                break;
             case BINARY:
                 f = Schema.Field.of(field.name(), Schema.FieldType.BYTES);
                 break;
+            case FIXED:
             case DECIMAL:
                 f = Schema.Field.of(field.name(), Schema.FieldType.DECIMAL);
                 break;
@@ -102,5 +94,6 @@ public class SchemaHelper {
         for(Schema.Field f : schema.getFields()) {
             fields[fieldId++] = convert(fieldId,f);
         }
+        return new org.apache.iceberg.Schema(fields);
     }
 }

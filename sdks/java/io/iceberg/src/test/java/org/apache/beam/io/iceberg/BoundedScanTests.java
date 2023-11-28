@@ -1,6 +1,7 @@
 package org.apache.beam.io.iceberg;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -45,7 +46,7 @@ public class BoundedScanTests {
                 ))
                 .table(simpleTable.name().replace("hadoop.","")) // Catalog name shouldn't be included
                 .scanType(IcebergScan.ScanType.TABLE) // Do a normal scan.
-                .build()))
+                .build()).withCoder(SerializableCoder<IcebergScan>))
         .apply(ParDo.of(new IcebergScanGeneratorFn()));
     PAssert.that(output);
     testPipeline.run();
