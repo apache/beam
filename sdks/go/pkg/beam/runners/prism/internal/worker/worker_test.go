@@ -233,12 +233,10 @@ func TestWorker_State_Iterable(t *testing.T) {
 
 	instID := wk.NextInst()
 	wk.activeInstructions[instID] = &B{
-		IterableSideInputData: map[string]map[string]map[typex.Window][][]byte{
-			"transformID": {
-				"i1": {
-					window.GlobalWindow{}: [][]byte{
-						{42},
-					},
+		IterableSideInputData: map[SideInputKey]map[typex.Window][][]byte{
+			{TransformID: "transformID", Local: "i1"}: {
+				window.GlobalWindow{}: [][]byte{
+					{42},
 				},
 			},
 		},

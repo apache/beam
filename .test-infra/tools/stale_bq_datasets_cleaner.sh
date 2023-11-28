@@ -41,7 +41,12 @@ for dataset in ${BQ_DATASETS[@]}; do
       LAST_MODIFIED=$(($LAST_MODIFIED_MS / 1000))
       if [[ $GRACE_PERIOD -gt $LAST_MODIFIED ]]; then
         if bq --project_id=$PROJECT rm -r -f $dataset; then
-          echo "Deleted $dataset (modified `date -d @$LAST_MODIFIED`)"
+          if [[ $OSTYPE == "linux-gnu"* ]]; then
+            # date command usage depending on OS
+            echo "Deleted $dataset (modified `date -d @$LAST_MODIFIED`)"
+          elif [[ $OSTYPE == "darwin"* ]]; then
+            echo "Deleted $dataset (modified `date -r @$LAST_MODIFIED`)"
+          fi
         else
           failed_calls+=1
         fi

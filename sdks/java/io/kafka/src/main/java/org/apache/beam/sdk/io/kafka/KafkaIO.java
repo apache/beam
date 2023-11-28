@@ -632,66 +632,69 @@ public class KafkaIO {
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
 
-    @Pure
-    abstract Map<String, Object> getConsumerConfig();
+    public static final Class<AutoValue_KafkaIO_Read> AUTOVALUE_CLASS =
+        AutoValue_KafkaIO_Read.class;
 
     @Pure
-    abstract @Nullable List<String> getTopics();
+    public abstract Map<String, Object> getConsumerConfig();
 
     @Pure
-    abstract @Nullable List<TopicPartition> getTopicPartitions();
+    public abstract @Nullable List<String> getTopics();
 
     @Pure
-    abstract @Nullable Pattern getTopicPattern();
+    public abstract @Nullable List<TopicPartition> getTopicPartitions();
 
     @Pure
-    abstract @Nullable Coder<K> getKeyCoder();
+    public abstract @Nullable Pattern getTopicPattern();
 
     @Pure
-    abstract @Nullable Coder<V> getValueCoder();
+    public abstract @Nullable Coder<K> getKeyCoder();
 
     @Pure
-    abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+    public abstract @Nullable Coder<V> getValueCoder();
+
+    @Pure
+    public abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
+    public abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
     @Pure
-    abstract long getMaxNumRecords();
+    public abstract long getMaxNumRecords();
 
     @Pure
-    abstract @Nullable Duration getMaxReadTime();
+    public abstract @Nullable Duration getMaxReadTime();
 
     @Pure
-    abstract @Nullable Instant getStartReadTime();
+    public abstract @Nullable Instant getStartReadTime();
 
     @Pure
-    abstract @Nullable Instant getStopReadTime();
+    public abstract @Nullable Instant getStopReadTime();
 
     @Pure
-    abstract boolean isCommitOffsetsInFinalizeEnabled();
+    public abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     @Pure
-    abstract boolean isDynamicRead();
+    public abstract boolean isDynamicRead();
 
     @Pure
-    abstract @Nullable Duration getWatchTopicPartitionDuration();
+    public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
-    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+    public abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     @Pure
-    abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
+    public abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
 
     @Pure
-    abstract @Nullable DeserializerProvider<K> getKeyDeserializerProvider();
+    public abstract @Nullable DeserializerProvider<K> getKeyDeserializerProvider();
 
     @Pure
-    abstract @Nullable DeserializerProvider<V> getValueDeserializerProvider();
+    public abstract @Nullable DeserializerProvider<V> getValueDeserializerProvider();
 
     @Pure
-    abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
+    public abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
     abstract @Nullable ErrorHandler<BadRecord, ?> getErrorHandler();
@@ -742,8 +745,12 @@ public class KafkaIO {
       abstract Builder<K, V> setValueDeserializerProvider(
           DeserializerProvider<V> deserializerProvider);
 
-      abstract Builder<K, V> setCheckStopReadingFn(
-          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+      abstract Builder<K, V> setCheckStopReadingFn(@Nullable CheckStopReadingFn checkStopReadingFn);
+
+      Builder<K, V> setCheckStopReadingFn(
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
+      }
 
       abstract Builder<K, V> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
 
@@ -1003,6 +1010,14 @@ public class KafkaIO {
       return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
     }
 
+    public Read<K, V> withKeyDeserializerProviderAndCoder(
+        DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
+      return toBuilder()
+          .setKeyDeserializerProvider(deserializerProvider)
+          .setKeyCoder(keyCoder)
+          .build();
+    }
+
     /**
      * Sets a Kafka {@link Deserializer} to interpret value bytes read from Kafka.
      *
@@ -1029,6 +1044,14 @@ public class KafkaIO {
 
     public Read<K, V> withValueDeserializer(DeserializerProvider<V> deserializerProvider) {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    public Read<K, V> withValueDeserializerProviderAndCoder(
+        DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+      return toBuilder()
+          .setValueDeserializerProvider(deserializerProvider)
+          .setValueCoder(valueCoder)
+          .build();
     }
 
     /**
@@ -1281,12 +1304,22 @@ public class KafkaIO {
     }
 
     /**
+     * A custom {@link CheckStopReadingFn} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public Read<K, V> withCheckStopReadingFn(CheckStopReadingFn checkStopReadingFn) {
+      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
+    /**
      * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
      * should stop reading from the given {@link TopicPartition}.
      */
     public Read<K, V> withCheckStopReadingFn(
         SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
-      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+      return toBuilder()
+          .setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn))
+          .build();
     }
 
     public Read<K, V> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
@@ -1777,10 +1810,10 @@ public class KafkaIO {
   static class KafkaHeader {
 
     String key;
-    byte[] value;
+    byte @Nullable [] value;
 
     @SchemaCreate
-    public KafkaHeader(String key, byte[] value) {
+    public KafkaHeader(String key, byte @Nullable [] value) {
       this.key = key;
       this.value = value;
     }
@@ -1967,7 +2000,7 @@ public class KafkaIO {
         getConsumerFactoryFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
+    abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
     abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
@@ -2004,7 +2037,12 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
 
       abstract ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
-          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+          @Nullable CheckStopReadingFn checkStopReadingFn);
+
+      ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
+      }
 
       abstract ReadSourceDescriptors.Builder<K, V> setKeyDeserializerProvider(
           @Nullable DeserializerProvider<K> deserializerProvider);
@@ -2129,12 +2167,23 @@ public class KafkaIO {
     }
 
     /**
+     * A custom {@link CheckStopReadingFn} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
+        @Nullable CheckStopReadingFn checkStopReadingFn) {
+      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
+    /**
      * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
      * should stop reading from the given {@link TopicPartition}.
      */
     public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
         @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
-      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+      return toBuilder()
+          .setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn))
+          .build();
     }
 
     /**
@@ -2497,37 +2546,37 @@ public class KafkaIO {
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
     @Pure
-    abstract @Nullable String getTopic();
+    public abstract @Nullable String getTopic();
 
     @Pure
-    abstract Map<String, Object> getProducerConfig();
+    public abstract Map<String, Object> getProducerConfig();
 
     @Pure
-    abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
+    public abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
         getProducerFactoryFn();
 
     @Pure
-    abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
+    public abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
 
     @Pure
-    abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
+    public abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
     @Pure
-    abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
+    public abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
         getPublishTimestampFunction();
 
     // Configuration for EOS sink
     @Pure
-    abstract boolean isEOS();
+    public abstract boolean isEOS();
 
     @Pure
-    abstract @Nullable String getSinkGroupId();
+    public abstract @Nullable String getSinkGroupId();
 
     @Pure
-    abstract int getNumShards();
+    public abstract int getNumShards();
 
     @Pure
-    abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+    public abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
         getConsumerFactoryFn();
 
     abstract Builder<K, V> toBuilder();
@@ -2789,9 +2838,12 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
+    public static final Class<AutoValue_KafkaIO_Write> AUTOVALUE_CLASS =
+        AutoValue_KafkaIO_Write.class;
+
     abstract @Nullable String getTopic();
 
-    abstract WriteRecords<K, V> getWriteRecordsTransform();
+    public abstract WriteRecords<K, V> getWriteRecordsTransform();
 
     abstract Builder<K, V> toBuilder();
 

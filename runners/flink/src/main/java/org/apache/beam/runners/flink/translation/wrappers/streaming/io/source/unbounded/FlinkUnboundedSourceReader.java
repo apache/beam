@@ -126,6 +126,9 @@ public class FlinkUnboundedSourceReader<T>
     if (reader != null) {
       emitRecord(reader, output);
       return InputStatus.MORE_AVAILABLE;
+    } else if (noMoreSplits()) {
+      LOG.trace("No more splits.");
+      return InputStatus.END_OF_INPUT;
     } else {
       LOG.trace("No data available for now.");
       return InputStatus.NOTHING_AVAILABLE;

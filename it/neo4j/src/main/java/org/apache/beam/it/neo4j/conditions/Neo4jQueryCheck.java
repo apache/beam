@@ -20,6 +20,9 @@ package org.apache.beam.it.neo4j.conditions;
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.it.conditions.ConditionCheck;
 import org.apache.beam.it.neo4j.Neo4jResourceManager;
@@ -55,9 +58,17 @@ public abstract class Neo4jQueryCheck extends ConditionCheck {
     if (actualResult == null) {
       return new CheckResult(expectedResult == null);
     }
+
+    Set<Map<String, Object>> sortedActualResult = sort(actualResult);
+    Set<Map<String, Object>> sortedExpectedResult = sort(expectedResult);
+
     return new CheckResult(
-        actualResult.equals(expectedResult),
-        String.format("Expected %s to equal %s", actualResult, expectedResult));
+        sortedActualResult.equals(sortedExpectedResult),
+        String.format("Expected %s to equal %s", sortedActualResult, sortedExpectedResult));
+  }
+
+  private static Set<Map<String, Object>> sort(List<Map<String, Object>> list) {
+    return list.stream().map(TreeMap::new).collect(Collectors.toSet());
   }
 
   public static Builder builder(Neo4jResourceManager resourceManager) {

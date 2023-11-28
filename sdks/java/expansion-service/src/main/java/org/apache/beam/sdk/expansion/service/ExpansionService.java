@@ -626,7 +626,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
         rehydratedComponents
-            .getSdkComponents(Collections.emptyList())
+            .getSdkComponents(request.getRequirementsList())
             .withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(
@@ -719,14 +719,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         DiscoverSchemaTransformResponse.newBuilder();
     for (org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider provider :
         transformProvider.getAllProviders()) {
-      SchemaTransformConfig.Builder schemaTransformConfigBuider =
+      SchemaTransformConfig.Builder schemaTransformConfigBuilder =
           SchemaTransformConfig.newBuilder();
-      schemaTransformConfigBuider.setConfigSchema(
+      schemaTransformConfigBuilder.setConfigSchema(
           SchemaTranslation.schemaToProto(provider.configurationSchema(), true));
-      schemaTransformConfigBuider.addAllInputPcollectionNames(provider.inputCollectionNames());
-      schemaTransformConfigBuider.addAllOutputPcollectionNames(provider.outputCollectionNames());
+      schemaTransformConfigBuilder.addAllInputPcollectionNames(provider.inputCollectionNames());
+      schemaTransformConfigBuilder.addAllOutputPcollectionNames(provider.outputCollectionNames());
       responseBuilder.putSchemaTransformConfigs(
-          provider.identifier(), schemaTransformConfigBuider.build());
+          provider.identifier(), schemaTransformConfigBuilder.build());
     }
 
     return responseBuilder.build();

@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
@@ -109,6 +110,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
+  private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
   /**
    * The Guava cache object is thread-safe. However our protocol requires that client pin the
@@ -166,7 +168,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
-      boolean usesCdc) {
+      boolean usesCdc,
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -178,6 +181,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
+    this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
   }
 
   @Override
@@ -210,7 +214,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         ignoreUnknownValues,
                         createDisposition,
                         kmsKey,
-                        usesCdc))
+                        usesCdc,
+                        defaultMissingValueInterpretation))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -240,6 +245,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final BigQueryIO.Write.CreateDisposition createDisposition;
     private final @Nullable String kmsKey;
     private final boolean usesCdc;
+    private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
     static class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
       long offset;
@@ -259,6 +265,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     class DestinationState {
       private final String tableUrn;
+      private final String shortTableUrn;
       private String streamName = "";
       private @Nullable AppendClientInfo appendClientInfo = null;
       private long currentOffset = 0;
@@ -289,6 +296,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       public DestinationState(
           String tableUrn,
+          String shortTableUrn,
           MessageConverter<ElementT> messageConverter,
           DatasetService datasetService,
           boolean useDefaultStream,
@@ -299,6 +307,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           boolean includeCdcColumns)
           throws Exception {
         this.tableUrn = tableUrn;
+        this.shortTableUrn = shortTableUrn;
         this.pendingMessages = Lists.newArrayList();
         this.pendingTimestamps = Lists.newArrayList();
         this.maybeDatasetService = datasetService;
@@ -390,7 +399,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       .withAppendClient(
                           Preconditions.checkStateNotNull(maybeDatasetService),
                           () -> streamName,
-                          usingMultiplexing));
+                          usingMultiplexing,
+                          defaultMissingValueInterpretation));
               Preconditions.checkStateNotNull(appendClientInfo.get().getStreamAppendClient());
               return null;
             },
@@ -601,7 +611,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                 timestamp);
           }
-          rowsSentToFailedRowsCollection.inc(inserts.getSerializedRowsCount());
+          int numRowsFailed = inserts.getSerializedRowsCount();
+          BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                  BigQuerySinkMetrics.RowStatus.FAILED,
+                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                  shortTableUrn)
+              .inc(numRowsFailed);
+          rowsSentToFailedRowsCollection.inc(numRowsFailed);
           return 0;
         }
 
@@ -643,11 +659,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             contexts -> {
               AppendRowsContext failedContext =
                   Preconditions.checkStateNotNull(Iterables.getFirst(contexts, null));
+              BigQuerySinkMetrics.reportFailedRPCMetrics(
+                  failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableUrn);
+              String errorCode =
+                  BigQuerySinkMetrics.throwableToGRPCCodeString(failedContext.getError());
+
               if (failedContext.getError() != null
                   && failedContext.getError() instanceof Exceptions.AppendSerializtionError) {
                 Exceptions.AppendSerializtionError error =
                     Preconditions.checkStateNotNull(
                         (Exceptions.AppendSerializtionError) failedContext.getError());
+
                 Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
                 for (int failedIndex : failedRowIndices) {
                   // Convert the message to a TableRow and send it to the failedRows collection.
@@ -670,7 +692,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     LOG.error("Failed to insert row and could not parse the result!", e);
                   }
                 }
-                rowsSentToFailedRowsCollection.inc(failedRowIndices.size());
+                int numRowsFailed = failedRowIndices.size();
+                rowsSentToFailedRowsCollection.inc(numRowsFailed);
+                BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                        BigQuerySinkMetrics.RowStatus.FAILED, errorCode, shortTableUrn)
+                    .inc(numRowsFailed);
 
                 // Remove the failed row from the payload, so we retry the batch without the failed
                 // rows.
@@ -685,6 +711,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 }
                 failedContext.protoRows = retryRows.build();
                 failedContext.timestamps = retryTimestamps;
+                int numRowsRetried = failedContext.protoRows.getSerializedRowsCount();
+                BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                        BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableUrn)
+                    .inc(numRowsRetried);
 
                 // Since we removed rows, we need to update the insert offsets for all remaining
                 // rows.
@@ -704,7 +734,19 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   retrieveErrorDetails(contexts));
               failedContext.failureCount += 1;
 
-              invalidateWriteStream();
+              boolean quotaError = false;
+              Throwable error = failedContext.getError();
+              Status.Code statusCode = Status.Code.OK;
+              if (error != null) {
+                statusCode = Status.fromThrowable(error).getCode();
+                quotaError = statusCode.equals(Status.Code.RESOURCE_EXHAUSTED);
+              }
+
+              if (!quotaError) {
+                // This forces us to close and reopen all gRPC connections to Storage API on error,
+                // which empirically fixes random stuckness issues.
+                invalidateWriteStream();
+              }
 
               // Maximum number of times we retry before we fail the work item.
               if (failedContext.failureCount > 5) {
@@ -713,8 +755,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               // The following errors are known to be persistent, so always fail the work item in
               // this case.
-              Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
-              Status.Code statusCode = Status.fromThrowable(error).getCode();
               if (statusCode.equals(Status.Code.OUT_OF_RANGE)
                   || statusCode.equals(Status.Code.ALREADY_EXISTS)) {
                 throw new RuntimeException(
@@ -725,17 +765,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + failedContext.offset);
               }
 
-              boolean streamDoesNotExist =
+              boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
                       || statusCode.equals(Status.Code.NOT_FOUND)
                       || statusCode.equals(Status.Code.FAILED_PRECONDITION);
-              if (streamDoesNotExist) {
+              if (hasPersistentErrors) {
                 throw new RuntimeException(
-                    "Append to stream "
-                        + this.streamName
-                        + " failed with stream "
-                        + "doesn't exist");
+                    String.format(
+                        "Append to stream %s failed with Status Code %s. The stream may not exist.",
+                        this.streamName, statusCode),
+                    error);
               }
               // TODO: Only do this on explicit NOT_FOUND errors once BigQuery reliably produces
               // them.
@@ -745,11 +785,26 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 throw new RuntimeException(e);
               }
 
+              int numRowsRetried = failedContext.protoRows.getSerializedRowsCount();
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableUrn)
+                  .inc(numRowsRetried);
+
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
             },
             c -> {
-              recordsAppended.inc(c.protoRows.getSerializedRowsCount());
+              int numRecordsAppended = c.protoRows.getSerializedRowsCount();
+              recordsAppended.inc(numRecordsAppended);
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.SUCCESSFUL,
+                      BigQuerySinkMetrics.OK,
+                      shortTableUrn)
+                  .inc(numRecordsAppended);
+
+              BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                  c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableUrn);
+
               if (successfulRowsReceiver != null) {
                 for (int i = 0; i < c.protoRows.getSerializedRowsCount(); ++i) {
                   ByteString rowBytes = c.protoRows.getSerializedRowsList().get(i);
@@ -839,7 +894,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         boolean ignoreUnknownValues,
         BigQueryIO.Write.CreateDisposition createDisposition,
         @Nullable String kmsKey,
-        boolean usesCdc) {
+        boolean usesCdc,
+        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -855,6 +911,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.createDisposition = createDisposition;
       this.kmsKey = kmsKey;
       this.usesCdc = usesCdc;
+      this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
     }
 
     boolean shouldFlush() {
@@ -884,7 +941,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
-            new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
+            new RetryManager<>(
+                Duration.standardSeconds(1),
+                Duration.standardSeconds(10),
+                1000,
+                BigQuerySinkMetrics.throttledTimeCounter(
+                    BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
         retryManagers.add(retryManager);
         numRowsWritten +=
             destinationState.flush(retryManager, failedRowsReceiver, successfulRowsReceiver);
@@ -955,6 +1017,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
         return new DestinationState(
             tableDestination1.getTableUrn(bigQueryOptions),
+            tableDestination1.getShortTableUrn(),
             messageConverter,
             datasetService,
             useDefaultStream,

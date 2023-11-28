@@ -46,6 +46,40 @@
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
+- type: renaming
+  transforms:
+    'ReadFromKafka': 'ReadFromKafka'
+    'WriteToKafka': 'WriteToKafka'
+  config:
+    mappings:
+      'ReadFromKafka':
+        'schema': 'schema'
+        'consumer_config': 'consumerConfigUpdates'
+        'format': 'format'
+        'topic': 'topic'
+        'bootstrap_servers': 'bootstrapServers'
+        'confluent_schema_registry_url': 'confluentSchemaRegistryUrl'
+        'confluent_schema_registry_subject': 'confluentSchemaRegistrySubject'
+        'auto_offset_reset_config': 'autoOffsetResetConfig'
+        'error_handling': 'errorHandling'
+        'file_descriptor_path': 'fileDescriptorPath'
+        'message_name': 'messageName'
+      'WriteToKafka':
+        'format': 'format'
+        'topic': 'topic'
+        'bootstrap_servers': 'bootstrapServers'
+        'producer_config_updates': 'ProducerConfigUpdates'
+        'error_handling': 'errorHandling'
+        'file_descriptor_path': 'fileDescriptorPath'
+        'message_name': 'messageName'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromKafka': 'beam:schematransform:org.apache.beam:kafka_read:v1'
+        'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
 - type: python
   transforms:
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
@@ -112,3 +146,77 @@
     'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+
+- type: renaming
+  transforms:
+    'ReadFromJdbc': 'ReadFromJdbc'
+    'WriteToJdbc': 'WriteToJdbc'
+    'ReadFromMySql': 'ReadFromJdbc'
+    'WriteToMySql': 'WriteToJdbc'
+    'ReadFromPostgres': 'ReadFromJdbc'
+    'WriteToPostgres': 'WriteToJdbc'
+    'ReadFromOracle': 'ReadFromJdbc'
+    'WriteToOracle': 'WriteToJdbc'
+    'ReadFromSqlServer': 'ReadFromJdbc'
+    'WriteToSqlServer': 'WriteToJdbc'
+  config:
+    mappings:
+      'ReadFromJdbc':
+        driver_class_name: 'driverClassName'
+        url: 'jdbcUrl'
+        username: 'username'
+        password: 'password'
+        table: 'location'
+        query: 'readQuery'
+        driver_jars: 'driverJars'
+        connection_properties: 'connectionProperties'
+        connection_init_sql: 'connectionInitSql'
+      'WriteToJdbc':
+        driver_class_name: 'driverClassName'
+        url: 'jdbcUrl'
+        username: 'username'
+        password: 'password'
+        table: 'location'
+        driver_jars: 'driverJars'
+        connection_properties: 'connectionProperties'
+        connection_init_sql: 'connectionInitSql'
+      'ReadFromMySql': 'ReadFromJdbc'
+      'WriteToMySql': 'WriteToJdbc'
+      'ReadFromPostgres': 'ReadFromJdbc'
+      'WriteToPostgres': 'WriteToJdbc'
+      'ReadFromOracle':  'ReadFromJdbc'
+      'WriteToOracle': 'WriteToJdbc'
+      'ReadFromSqlServer': 'ReadFromJdbc'
+      'WriteToSqlServer': 'WriteToJdbc'
+    defaults:
+      'ReadFromMySql':
+        driverClassName: 'com.mysql.jdbc.Driver'
+      'WriteToMySql':
+        driverClassName: 'com.mysql.jdbc.Driver'
+      'ReadFromPostgres':
+        driverClassName: 'org.postgresql.Driver'
+      'WriteToPostgres':
+        driverClassName: 'org.postgresql.Driver'
+      'ReadFromOracle':
+        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+      'WriteToOracle':
+        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+      'ReadFromSqlServer':
+        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+      'WriteToSqlServer':
+        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromJdbc': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromMySql': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToMySql': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromPostgres': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToPostgres': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromOracle': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToOracle': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'ReadFromSqlServer': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToSqlServer': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+      config:
+        gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'

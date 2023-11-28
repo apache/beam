@@ -40,6 +40,8 @@ labels:
       - kennknowles
       - robertwb
       - bvolpato
+      - m-trieu
+      - damondouglas
     exclusionList: []
   - name: IO
     reviewers:
@@ -48,6 +50,7 @@ labels:
       - Abacn
       - ahmedabu98
       - bvolpato
+      - damondouglas
     exclusionList: []
   - name: spanner
     reviewers:
@@ -62,11 +65,20 @@ labels:
       - damccorm
       - Abacn
     exclusionList: []
+  - name: website
+    reviewers:
+      - rszper
+      - melap
+      - damccorm
+      - liferoad
+      - kennknowles
+    exclusionList: []
 fallbackReviewers:
   - Abacn
   - AnandInguva
   - chamikaramj
   - damccorm
+  - damondouglas
   - johnjcasey
   - jrmccluskey
   - kennknowles

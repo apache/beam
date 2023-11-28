@@ -16,6 +16,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync/atomic"
@@ -25,6 +26,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"golang.org/x/exp/slog"
 )
+
+// SideInputKey is for data lookups for a given bundle.
+type SideInputKey struct {
+	TransformID, Local string
+}
 
 // B represents an extant ProcessBundle instruction sent to an SDK worker.
 // Generally manipulated by another package to interact with a worker.
@@ -36,11 +42,10 @@ type B struct {
 	InputTransformID string
 	InputData        [][]byte // Data specifically for this bundle.
 
-	// TODO change to a single map[tid] -> map[input] -> map[window] -> struct { Iter data, MultiMap data } instead of all maps.
 	// IterableSideInputData is a map from transformID, to inputID, to window, to data.
-	IterableSideInputData map[string]map[string]map[typex.Window][][]byte
+	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
 	// MultiMapSideInputData is a map from transformID, to inputID, to window, to data key, to data values.
-	MultiMapSideInputData map[string]map[string]map[typex.Window]map[string][][]byte
+	MultiMapSideInputData map[SideInputKey]map[typex.Window]map[string][][]byte
 
 	// OutputCount is the number of data or timer outputs this bundle has.
 	// We need to see this many closed data channels before the bundle is complete.
@@ -126,22 +131,21 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	}
 
 	// TODO: make batching decisions.
-	for i, d := range b.InputData {
-		select {
-		case wk.DataReqs <- &fnpb.Elements{
-			Data: []*fnpb.Elements_Data{
-				{
-					InstructionId: b.InstID,
-					TransformId:   b.InputTransformID,
-					Data:          d,
-					IsLast:        i+1 == len(b.InputData),
-				},
+	dataBuf := bytes.Join(b.InputData, []byte{})
+	select {
+	case wk.DataReqs <- &fnpb.Elements{
+		Data: []*fnpb.Elements_Data{
+			{
+				InstructionId: b.InstID,
+				TransformId:   b.InputTransformID,
+				Data:          dataBuf,
+				IsLast:        true,
 			},
-		}:
-		case <-ctx.Done():
-			b.DataDone()
-			return b.DataWait
-		}
+		},
+	}:
+	case <-ctx.Done():
+		b.DataDone()
+		return b.DataWait
 	}
 	return b.DataWait
 }

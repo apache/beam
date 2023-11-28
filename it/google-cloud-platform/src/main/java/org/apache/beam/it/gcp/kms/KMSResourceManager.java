@@ -72,9 +72,8 @@ public class KMSResourceManager implements ResourceManager {
     this.keyRing = null;
   }
 
-  public static KMSResourceManager.Builder builder(
-      String projectId, CredentialsProvider credentialsProvider) {
-    return new KMSResourceManager.Builder(projectId, credentialsProvider);
+  public static Builder builder(String projectId, CredentialsProvider credentialsProvider) {
+    return new Builder(projectId, credentialsProvider);
   }
 
   /**

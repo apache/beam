@@ -17,11 +17,16 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
+import java.util.Optional;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 /** {@link ApiIOError} is a data class for storing details about an error. */
@@ -30,12 +35,31 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class ApiIOError {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  /**
+   * Instantiate an {@link ApiIOError} from an {@link ErrorT} {@link T} element. The {@link T}
+   * element is converted to a JSON string.
+   */
+  static <T, ErrorT extends Exception> ApiIOError of(@NonNull ErrorT e, @NonNull T element)
+      throws JsonProcessingException {
+
+    String json = OBJECT_MAPPER.writeValueAsString(element);
+
+    return ApiIOError.builder()
+        .setRequestAsJsonString(json)
+        .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
+        .setObservedTimestamp(Instant.now())
+        .setStackTrace(Throwables.getStackTraceAsString(e))
+        .build();
+  }
+
   static Builder builder() {
     return new AutoValue_ApiIOError.Builder();
   }
 
-  /** The encoded UTF-8 string representation of the related processed element. */
-  public abstract String getEncodedElementAsUtfString();
+  /** The JSON string representation of the request associated with the error. */
+  public abstract String getRequestAsJsonString();
 
   /** The observed timestamp of the error. */
   public abstract Instant getObservedTimestamp();
@@ -49,13 +73,13 @@ public abstract class ApiIOError {
   @AutoValue.Builder
   abstract static class Builder {
 
-    public abstract Builder setEncodedElementAsUtfString(String value);
+    abstract Builder setRequestAsJsonString(String value);
 
-    public abstract Builder setObservedTimestamp(Instant value);
+    abstract Builder setObservedTimestamp(Instant value);
 
-    public abstract Builder setMessage(String value);
+    abstract Builder setMessage(String value);
 
-    public abstract Builder setStackTrace(String value);
+    abstract Builder setStackTrace(String value);
 
     abstract ApiIOError build();
   }

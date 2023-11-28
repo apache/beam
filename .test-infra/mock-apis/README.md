@@ -51,10 +51,6 @@ flowchart LR
     end
 ```
 
-# Writing Integration Tests
-
-TODO: See https://github.com/apache/beam/issues/28859
-
 # Development Dependencies
 
 | Dependency                                          | Reason                                                                                 |
@@ -62,6 +58,7 @@ TODO: See https://github.com/apache/beam/issues/28859
 | [go](https://go.dev)                                | For making code changes in this directory. See [go.mod](go.mod) for required version.  |
 | [buf](https://github.com/bufbuild/buf#installation) | Optional for when making changes to proto.                                             |
 | [ko](https://ko.build/install/)                     | To easily build Go container images.                                                   |
+| [poetry](https://python-poetry.org/)                     | To manage python dependencies.                                                   |
 
 # Testing
 
@@ -75,7 +72,45 @@ go test ./src/main/go/internal/...
 
 ## Integration
 
-TODO: See https://github.com/apache/beam/issues/28859
+Integration tests require the following values.
+
+### Quota ID
+
+Each allocated quota corresponds to a unique ID known as the Quota ID.
+There exists a one-to-one relationship between the allocated quota and
+the
+[infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays).
+
+To query the Kubernetes cluster for allocated Quota IDs:
+```
+kubectl get deploy --selector=app.kubernetes.io/name=refresher -o custom-columns='QUOTA_ID:.metadata.labels.quota-id'
+```
+
+### Service Endpoint
+
+To list available endpoints, run:
+
+```
+kubectl get svc -o=custom-columns='NAME:.metadata.name,HOST:.status.loadBalancer.ingress[*].ip,PORT_NAME:.spec.ports[*].name,PORT:.spec.ports[*].port'
+```
+
+You should see something similar to:
+
+```
+NAME             HOST          PORT_NAME   PORT
+echo             10.n.n.n      grpc,http   50051,8080
+```
+
+When running tests locally, you will need to first run:
+```
+kubectl port-forward service/echo 50051:50051 8080:8080
+```
+
+which allows you to access the gRPC via `localhost:50051` and the HTTP via
+`http://localhost:8080/v1/echo`.
+
+When running tests on Dataflow, you supply `10.n.n.n:50051` for gRPC and
+`http://10.n.n.n:8080/v1/echo` for HTTP.
 
 # Local Usage
 
@@ -113,4 +148,87 @@ Follow these steps to run the services on your local machine.
 
 # Deployment
 
-TODO: See https://github.com/apache/beam/issues/28709
+The following has already been performed for the `apache-beam-testing` project
+and only needs to be done for a different Google Cloud project.
+
+To deploy the APIs and dependent services, run the following commands.
+
+## 1. Provision dependent resources in Google Cloud.
+
+```
+terraform -chdir=infrastructure/terraform init
+terraform -chdir=infrastructure/terraform apply -var-file=apache-beam-testing.tfvars
+```
+
+## 2. Set the KO_DOCKER_REPO environment variable.
+
+After the terraform module completes, you will need to set the following:
+
+```
+export KO_DOCKER_REPO=<region>-docker.pkg.dev/<project>/<repository>
+```
+
+where:
+
+- `region` - is the GCP compute region
+- `project` - is the GCP project id i.e. `apache-beam-testing`
+- `repository` - is the repository name created by the terraform module. To
+find this run:
+`gcloud artifacts repositories list --project=<project> --location=<region>`.
+For example,
+`gcloud artifacts repositories list --project=apache-beam-testing --location=us-west1`
+
+## 3. Connect to the Kubernetes cluster
+
+Run the following command to setup credentials to the Kubernetes cluster.
+
+```
+gcloud container clusters get-credentials <cluster> --region <region> --project <project>
+```
+
+where:
+- `region` - is the GCP compute region
+- `project` - is the GCP project id i.e. `apache-beam-testing`
+- `<cluster>` - is the name of the cluster created by the terraform module.
+You can find this by running `gcloud container clusters list --project=<project> --region=<region>`
+
+## 4. Provision the Redis instance
+
+```
+kubectl kustomize --enable-helm infrastructure/kubernetes/redis | kubectl apply -f -
+```
+
+**You will initially see "Unschedulable" while the cluster is applying the helm
+chart. It's important to wait until the helm chart completely provisions resources
+before proceeding. Using Google Kubernetes Engine (GKE) autopilot may take some
+time before this autoscales appropriately. **
+
+## 5. Provision the Echo service
+
+Run the following command to provision the Echo service.
+
+```
+kubectl kustomize infrastructure/kubernetes/echo | ko resolve -f - | kubectl apply -f -
+```
+
+Like previously, you may see "Does not have minimum availability" message
+showing on the status. It may take some time for GKE autopilot
+to scale the node pool.
+
+## 6. Provision the Refresher services
+
+The Refresher service relies on [kustomize](https://kustomize.io) overlays
+which are located at [infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays).
+
+Each folder contained in [infrastructure/kubernetes/refresher/overlays](infrastructure/kubernetes/refresher/overlays)
+corresponds to an individual Refresher instance that is identified by a unique
+string id. You will need to deploy each one individually.
+
+For example:
+```
+kubectl kustomize infrastructure/kubernetes/refresher/overlays/echo-should-never-exceed-quota | ko resolve -f - | kubectl apply -f -
+```
+
+Like previously, you may see "Does not have minimum availability" message
+showing on the status. It may take some time for GKE autopilot
+to scale the node pool.

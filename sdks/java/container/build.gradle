@@ -31,7 +31,7 @@ description = "Apache Beam :: SDKs :: Java :: Container"
 
 configurations {
   dockerDependency
-  sdkHarnessLauncher
+  javaHarnessLauncher
 }
 
 dependencies {
@@ -76,11 +76,12 @@ task downloadCloudProfilerAgent(type: Exec) {
 }
 
 artifacts {
-  sdkHarnessLauncher file: file('./build/target'), builtBy: goBuild
+  javaHarnessLauncher file: file('./build/target'), builtBy: goBuild
 }
 
 task pushAll {
   dependsOn ":sdks:java:container:java8:docker"
   dependsOn ":sdks:java:container:java11:docker"
   dependsOn ":sdks:java:container:java17:docker"
+  dependsOn ":sdks:java:container:java21:docker"
 }
