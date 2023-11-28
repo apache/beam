@@ -1432,7 +1432,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._side_input_path = si_model_metadata.model_id
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
-      with threading.Lock():
+      lock = threading.Lock()
+      with lock:
         self.update_model(si_model_metadata.model_id)
         return self._run_inference(batch, inference_args)
 

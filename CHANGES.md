@@ -65,10 +65,12 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
 * Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
+* Adding support for LowCardinality DataType in ClickHouse (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* The Python SDK now type checks `collections.abc.Collections` types properly. Some type hints that were erroneously allowed by the SDK may now fail. ([#29272](https://github.com/apache/beam/pull/29272))
 
 ## Breaking Changes
 
@@ -89,7 +91,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.52.0] - Unreleased
+# [2.52.0] - 2023-11-17
 
 ## Highlights
 

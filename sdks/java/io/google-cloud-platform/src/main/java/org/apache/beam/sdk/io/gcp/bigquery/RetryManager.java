@@ -47,7 +47,7 @@ import org.joda.time.Duration;
 /**
  * Retry manager used by Storage API operations. This class manages a sequence of operations (e.g.
  * sequential appends to a stream) and retries of those operations. If any one operation fails, then
- * all subsequent operations are expected to fail true and will alll be retried.
+ * all subsequent operations are expected to fail true and will all be retried.
  */
 class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private Queue<Operation<ResultT, ContextT>> operations;

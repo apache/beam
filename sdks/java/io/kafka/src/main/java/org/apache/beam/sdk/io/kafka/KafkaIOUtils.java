@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Common utility functions and default configurations for {@link KafkaIO.Read} and {@link
  * KafkaIO.ReadSourceDescriptors}.
  */
-final class KafkaIOUtils {
+public final class KafkaIOUtils {
   // A set of config defaults.
   static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
       ImmutableMap.of(
@@ -61,7 +61,7 @@ final class KafkaIOUtils {
           false);
 
   // A set of properties that are not required or don't make sense for our consumer.
-  static final Map<String, String> DISALLOWED_CONSUMER_PROPERTIES =
+  public static final Map<String, String> DISALLOWED_CONSUMER_PROPERTIES =
       ImmutableMap.of(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
           ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"

@@ -485,6 +485,41 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
+  public void testGetTableNullProjectSucceeds() throws Exception {
+    TableReference tableRef =
+        new TableReference().setProjectId(null).setDatasetId("datasetId").setTableId("tableId");
+
+    Table testTable = new Table();
+    testTable.setTableReference(tableRef.clone().setProjectId("projectId"));
+
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(403);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)));
+        },
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(testTable));
+        });
+
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryProject("projectId");
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, null, options);
+
+    Table table =
+        datasetService.getTable(
+            tableRef, Collections.emptyList(), null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+
+    assertEquals(testTable, table);
+    verifyAllResponsesAreRead();
+  }
+
+  @Test
   public void testGetTableNotFound() throws IOException, InterruptedException {
     setupMockResponses(
         response -> {
