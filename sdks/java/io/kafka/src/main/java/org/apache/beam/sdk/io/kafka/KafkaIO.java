@@ -2066,9 +2066,11 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> policy);
 
-      abstract ReadSourceDescriptors.Builder<K, V> setBadRecordRouter(BadRecordRouter badRecordRouter);
+      abstract ReadSourceDescriptors.Builder<K, V> setBadRecordRouter(
+          BadRecordRouter badRecordRouter);
 
-      abstract ReadSourceDescriptors.Builder<K, V> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
+      abstract ReadSourceDescriptors.Builder<K, V> setErrorHandler(
+          ErrorHandler<BadRecord, ?> errorHandler);
 
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
@@ -2336,8 +2338,11 @@ public class KafkaIO {
       return toBuilder().setConsumerConfig(consumerConfig).build();
     }
 
-    public ReadSourceDescriptors<K, V> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler){
-      return toBuilder().setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER).setErrorHandler(errorHandler).build();
+    public ReadSourceDescriptors<K, V> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder()
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .setErrorHandler(errorHandler)
+          .build();
     }
 
     ReadAllFromRow<K, V> forExternalBuild() {
@@ -2430,15 +2435,18 @@ public class KafkaIO {
       Coder<KafkaRecord<K, V>> recordCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
 
       try {
-        PCollectionTuple pCollectionTuple = input
-                .apply(ParDo.of(ReadFromKafkaDoFn.<K, V>create(this, RECORDS))
+        PCollectionTuple pCollectionTuple =
+            input.apply(
+                ParDo.of(ReadFromKafkaDoFn.<K, V>create(this, RECORDS))
                     .withOutputTags(RECORDS, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
-        getErrorHandler().addErrorCollection(
-            pCollectionTuple
-                .get(BadRecordRouter.BAD_RECORD_TAG)
-                .setCoder(BadRecord.getCoder(input.getPipeline())));
+        getErrorHandler()
+            .addErrorCollection(
+                pCollectionTuple
+                    .get(BadRecordRouter.BAD_RECORD_TAG)
+                    .setCoder(BadRecord.getCoder(input.getPipeline())));
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
-            pCollectionTuple.get(RECORDS)
+            pCollectionTuple
+                .get(RECORDS)
                 .setCoder(
                     KvCoder.of(
                         input

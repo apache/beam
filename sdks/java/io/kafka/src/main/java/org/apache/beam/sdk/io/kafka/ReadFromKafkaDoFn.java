@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
@@ -148,7 +147,9 @@ import org.slf4j.LoggerFactory;
 abstract class ReadFromKafkaDoFn<K, V>
     extends DoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> {
 
-  static <K, V> ReadFromKafkaDoFn<K, V> create(ReadSourceDescriptors<K, V> transform, TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
+  static <K, V> ReadFromKafkaDoFn<K, V> create(
+      ReadSourceDescriptors<K, V> transform,
+      TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
     if (transform.isBounded()) {
       return new Bounded<>(transform, recordTag);
     } else {
@@ -158,19 +159,25 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   @UnboundedPerElement
   private static class Unbounded<K, V> extends ReadFromKafkaDoFn<K, V> {
-    Unbounded(ReadSourceDescriptors<K, V> transform, TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
+    Unbounded(
+        ReadSourceDescriptors<K, V> transform,
+        TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
       super(transform, recordTag);
     }
   }
 
   @BoundedPerElement
   private static class Bounded<K, V> extends ReadFromKafkaDoFn<K, V> {
-    Bounded(ReadSourceDescriptors<K, V> transform,TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
+    Bounded(
+        ReadSourceDescriptors<K, V> transform,
+        TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
       super(transform, recordTag);
     }
   }
 
-  private ReadFromKafkaDoFn(ReadSourceDescriptors<K, V> transform, TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
+  private ReadFromKafkaDoFn(
+      ReadSourceDescriptors<K, V> transform,
+      TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
     this.consumerConfig = transform.getConsumerConfig();
     this.offsetConsumerConfig = transform.getOffsetConsumerConfig();
     this.keyDeserializerProvider =
@@ -371,7 +378,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,
       RestrictionTracker<OffsetRange, Long> tracker,
       WatermarkEstimator<Instant> watermarkEstimator,
-      MultiOutputReceiver receiver) throws Exception {
+      MultiOutputReceiver receiver)
+      throws Exception {
     final LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize =
         Preconditions.checkStateNotNull(this.avgRecordSize);
     final Deserializer<K> keyDeserializerInstance =
@@ -442,7 +450,7 @@ abstract class ReadFromKafkaDoFn<K, V>
             return ProcessContinuation.stop();
           }
           try {
-            KafkaRecord<K, V>kafkaRecord =
+            KafkaRecord<K, V> kafkaRecord =
                 new KafkaRecord<>(
                     rawRecord.topic(),
                     rawRecord.partition(),
@@ -471,17 +479,19 @@ abstract class ReadFromKafkaDoFn<K, V>
               Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
               outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
             }
-            receiver.get(recordTag).outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
+            receiver
+                .get(recordTag)
+                .outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
           } catch (SerializationException e) {
-            //This exception should only occur during the key and value deserialization when creating the Kafka Record
+            // This exception should only occur during the key and value deserialization when
+            // creating the Kafka Record
             badRecordRouter.route(
                 receiver,
                 rawRecord,
                 null,
                 e,
-                "Failure deserializing Key or Value of Kakfa record reading from Kafka",
-                "ReadFromKafkaDoFn");
-            if (timestampPolicy != null){
+                "Failure deserializing Key or Value of Kakfa record reading from Kafka");
+            if (timestampPolicy != null) {
               updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
             }
           }

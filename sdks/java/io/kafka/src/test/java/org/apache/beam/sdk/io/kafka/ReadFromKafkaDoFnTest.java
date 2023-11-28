@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,7 +70,9 @@ import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -85,7 +88,8 @@ public class ReadFromKafkaDoFnTest {
 
   private final TopicPartition topicPartition = new TopicPartition("topic", 0);
 
-  private static final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> RECORDS = new TupleTag<>();
+  private static final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> RECORDS =
+      new TupleTag<>();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -114,6 +118,31 @@ public class ReadFromKafkaDoFnTest {
               }
             })
         .withBootstrapServers("bootstrap_server");
+  }
+
+  private ReadSourceDescriptors<String, String> makeFailingReadSourceDescriptor(
+      Consumer<byte[], byte[]> kafkaMockConsumer) {
+    return ReadSourceDescriptors.<String, String>read()
+        .withKeyDeserializer(FailingDeserializer.class)
+        .withValueDeserializer(FailingDeserializer.class)
+        .withConsumerFactoryFn(
+            new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
+              @Override
+              public Consumer<byte[], byte[]> apply(Map<String, Object> input) {
+                return kafkaMockConsumer;
+              }
+            })
+        .withBootstrapServers("bootstrap_server");
+  }
+
+  private static class FailingDeserializer implements Deserializer<String> {
+
+    public FailingDeserializer() {}
+
+    @Override
+    public String deserialize(String topic, byte[] data) {
+      throw new SerializationException("Intentional serialization exception");
+    }
   }
 
   private static class ExceptionMockKafkaConsumer extends MockConsumer<byte[], byte[]> {
@@ -261,9 +290,10 @@ public class ReadFromKafkaDoFnTest {
     }
   }
 
-  private static class MockMultiOutputReceiver implements MultiOutputReceiver{
+  private static class MockMultiOutputReceiver implements MultiOutputReceiver {
 
-    MockOutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> mockOutputReceiver = new MockOutputReceiver<>();
+    MockOutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> mockOutputReceiver =
+        new MockOutputReceiver<>();
 
     MockOutputReceiver<BadRecord> badOutputReceiver = new MockOutputReceiver<>();
 
@@ -279,25 +309,25 @@ public class ReadFromKafkaDoFnTest {
       }
     }
 
-    public List<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> getGoodRecords(){
+    public List<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> getGoodRecords() {
       return mockOutputReceiver.getOutputs();
     }
 
-    public List<BadRecord> getBadRecords(){
+    public List<BadRecord> getBadRecords() {
       return badOutputReceiver.getOutputs();
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized <T> OutputReceiver<@UnknownKeyFor @NonNull @Initialized Row> getRowReceiver(
-        @UnknownKeyFor @NonNull @Initialized TupleTag<T> tag) {
+    public @UnknownKeyFor @NonNull @Initialized <T>
+        OutputReceiver<@UnknownKeyFor @NonNull @Initialized Row> getRowReceiver(
+            @UnknownKeyFor @NonNull @Initialized TupleTag<T> tag) {
       return null;
     }
   }
 
   private static class MockOutputReceiver<T> implements OutputReceiver<T> {
 
-    private final List<T> records =
-        new ArrayList<>();
+    private final List<T> records = new ArrayList<>();
 
     @Override
     public void output(T output) {
@@ -306,8 +336,7 @@ public class ReadFromKafkaDoFnTest {
 
     @Override
     public void outputWithTimestamp(
-        T output,
-        @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
+        T output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
       records.add(output);
     }
 
@@ -437,7 +466,8 @@ public class ReadFromKafkaDoFnTest {
     ProcessContinuation result = dofnInstance.processElement(descriptor, tracker, null, receiver);
     assertEquals(ProcessContinuation.stop(), result);
     assertEquals(
-        createExpectedRecords(descriptor, startOffset, 3, "key", "value"), receiver.getGoodRecords());
+        createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
+        receiver.getGoodRecords());
   }
 
   @Test
@@ -447,7 +477,7 @@ public class ReadFromKafkaDoFnTest {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
 
-    MockOutputReceiver receiver = new MockOutputReceiver();
+    MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setNumOfRecordsPerPoll(numElements);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, numElements));
     KafkaSourceDescriptor descriptor =
@@ -511,7 +541,8 @@ public class ReadFromKafkaDoFnTest {
                         return true;
                       }
                     })
-                .build(), RECORDS);
+                .build(),
+            RECORDS);
     instance.setup();
     consumer.setNumOfRecordsPerPoll(10);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
@@ -540,6 +571,60 @@ public class ReadFromKafkaDoFnTest {
         receiver);
   }
 
+  @Test
+  public void testProcessElementWithDeserializationExceptionDefaultRecordHandler()
+      throws Exception {
+    thrown.expect(SerializationException.class);
+    thrown.expectMessage("Intentional serialization exception");
+
+    MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
+
+    consumer.setNumOfRecordsPerPoll(1);
+
+    ReadFromKafkaDoFn<String, String> dofnInstance =
+        ReadFromKafkaDoFn.create(makeFailingReadSourceDescriptor(consumer), RECORDS);
+
+    dofnInstance.setup();
+
+    dofnInstance.processElement(
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
+        tracker,
+        null,
+        receiver);
+
+    Assert.assertEquals("OutputRecordSize", 0, receiver.getGoodRecords().size());
+    Assert.assertEquals("OutputErrorSize", 0, receiver.getBadRecords().size());
+  }
+
+  @Test
+  public void testProcessElementWithDeserializationExceptionRecordingRecordHandler()
+      throws Exception {
+    MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, 1L));
+
+    consumer.setNumOfRecordsPerPoll(1);
+
+    // Because we never actually execute the pipeline, no data will actually make it to the error
+    // handler. This will just configure the ReadSourceDesriptors to route the errors to the output
+    // PCollection instead of rethrowing.
+    ReadSourceDescriptors<String, String> descriptors =
+        makeFailingReadSourceDescriptor(consumer).withErrorHandler(new DefaultErrorHandler<>());
+
+    ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
+
+    dofnInstance.setup();
+
+    dofnInstance.processElement(
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
+        tracker,
+        null,
+        receiver);
+
+    Assert.assertEquals("OutputRecordSize", 0, receiver.getGoodRecords().size());
+    Assert.assertEquals("OutputErrorSize", 1, receiver.getBadRecords().size());
+  }
+
   private static final TypeDescriptor<KafkaSourceDescriptor>
       KAFKA_SOURCE_DESCRIPTOR_TYPE_DESCRIPTOR = new TypeDescriptor<KafkaSourceDescriptor>() {};
 
@@ -563,7 +648,8 @@ public class ReadFromKafkaDoFnTest {
         .apply(
             ParDo.of(
                 ReadFromKafkaDoFn.<String, String>create(
-                    readSourceDescriptorsDecorator.apply(makeReadSourceDescriptor(consumer)), RECORDS)))
+                    readSourceDescriptorsDecorator.apply(makeReadSourceDescriptor(consumer)),
+                    RECORDS)))
         .setCoder(
             KvCoder.of(
                 SerializableCoder.of(KafkaSourceDescriptor.class),
