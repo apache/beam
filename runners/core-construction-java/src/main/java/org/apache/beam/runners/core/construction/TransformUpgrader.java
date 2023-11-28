@@ -104,6 +104,14 @@ public class TransformUpgrader implements AutoCloseable {
                 })
             .collect(Collectors.toList());
 
+    if (!urnsToOverride.isEmpty() && transformsToOverride.isEmpty()) {
+      throw new IllegalArgumentException(
+          "A list of URNs for overriding transforms was provided but the pipeline did not contain "
+              + "any matching transforms. Either make sure to include at least one matching "
+              + "transform in the pipeline or avoid setting the 'transformsToOverride' "
+              + "PipelineOption. Provided list of URNs: " + urnsToOverride);
+    }
+
     String serviceAddress;
     TransformServiceLauncher service = null;
 
@@ -232,11 +240,11 @@ public class TransformUpgrader implements AutoCloseable {
           expandedTransform.getOutputsMap().values().iterator().next());
     } else {
       for (Map.Entry<String, String> entry : transformToUpgrade.getOutputsMap().entrySet()) {
-        if (expandedTransform.getOutputsMap().keySet().contains(entry.getKey())) {
+        if (!expandedTransform.getOutputsMap().keySet().contains(entry.getKey())) {
           throw new IllegalArgumentException(
-              "Original transform did not have an output with tag "
+              "Original transform had an output with tag "
                   + entry.getKey()
-                  + " but upgraded transform did.");
+                  + " but upgraded transform did not.");
         }
         String newOutput = expandedTransform.getOutputsMap().get(entry.getKey());
         if (newOutput == null) {
