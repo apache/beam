@@ -141,6 +141,18 @@ toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
 test.dependsOn "testPy38transformers-430"
 preCommitPyCoverage.dependsOn "testPy38transformers-430"
 
+toxTask "testPy38sentenceTransformers-222", "py38-sentence-transformers-222", "${posargs}"
+test.dependsOn "testPy38sentenceTransformers-222"
+preCommitPyCoverage.dependsOn "testPy38sentenceTransformers-222"
+
+toxTask "testPy38tensorflowHub-014", "py38-tfhub-014", "${posargs}"
+test.dependsOn "testPy38tensorflowHub-014"
+preCommitPyCoverage.dependsOn "testPy38tensorflowHub-014"
+
+toxTask "testPy38tensorflowHub-015", "py38-tfhub-015", "${posargs}"
+test.dependsOn "testPy38tensorflowHub-015"
+preCommitPyCoverage.dependsOn "testPy38tensorflowHub-015"
+
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
 task archiveFilesToLint(type: Zip) {
