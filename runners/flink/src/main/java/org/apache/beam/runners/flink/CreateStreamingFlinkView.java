@@ -59,8 +59,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
     PCollection<List<ElemT>> iterable;
     // See https://github.com/apache/beam/pull/25940
     if (view.getViewFn() instanceof PCollectionViews.IsSingletonView) {
-      TypeDescriptor<ElemT> inputType = input.getTypeDescriptor();
-      Preconditions.checkStateNotNull(inputType);
+      TypeDescriptor<ElemT> inputType = Preconditions.checkStateNotNull(input.getTypeDescriptor());
       iterable =
           input
               .apply(MapElements.into(TypeDescriptors.lists(inputType)).via(Lists::newArrayList))
