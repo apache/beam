@@ -286,6 +286,7 @@ if __name__ == '__main__':
           'httplib2>=0.8,<0.23.0',
           'js2py>=0.74,<1',
           'jsonschema>=4.0.0,<5.0.0',
+          'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
