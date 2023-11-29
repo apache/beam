@@ -104,12 +104,10 @@ class VertexAITextEmbeddings(EmbeddingsManager):
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
-      **kwargs,
-  ):
+      **kwargs):
     """
     Embedding Config for Vertex AI Text Embedding models following
     https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings # pylint: disable=line-too-long
-
     Text Embeddings are generated for a batch of text using the Vertex AI SDK.
     Embeddings are returned in a list for each text in the batch. Look at
     https://cloud.google.com/vertex-ai/docs/generative-ai/learn/model-versioning#stable-versions-available.md # pylint: disable=line-too-long
