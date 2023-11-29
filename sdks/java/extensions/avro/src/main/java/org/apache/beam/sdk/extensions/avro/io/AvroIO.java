@@ -924,7 +924,7 @@ public class AvroIO {
       PCollection<T> read =
           input.apply(
               "Read all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
+              ReadAllViaFileBasedSource.create(
                   getDesiredBundleSizeBytes(),
                   new CreateSourceFn<>(
                       getRecordClass(), getSchema().toString(), coder, getDatumReaderFactory()),
@@ -1266,7 +1266,7 @@ public class AvroIO {
           new CreateParseSourceFn<>(parseFn, coder);
       return input.apply(
           "Parse Files via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(
+          ReadAllViaFileBasedSource.create(
               getDesiredBundleSizeBytes(),
               createSource,
               coder,

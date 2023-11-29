@@ -612,7 +612,7 @@ public class ContextualTextIO {
       PCollection<Row> rows =
           input.apply(
               "Read all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
+              ReadAllViaFileBasedSource.create(
                   getDesiredBundleSizeBytes(),
                   new CreateTextSourceFn(getDelimiter(), getHasMultilineCSVRecords()),
                   SchemaCoder.of(RecordWithMetadata.getSchema())));
