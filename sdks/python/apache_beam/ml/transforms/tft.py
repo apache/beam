@@ -42,6 +42,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform as tft
 from apache_beam.ml.transforms.base import BaseOperation
@@ -94,6 +95,27 @@ class TFTOperation(BaseOperation[common_types.TensorType,
       raise RuntimeError(
           "Columns are not specified. Please specify the column for the "
           " op %s" % self.__class__.__name__)
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    from apache_beam.ml.transforms.handlers import TFTProcessHandler
+    params = {}
+    artifact_location = kwargs.get('artifact_location')
+    if not artifact_location:
+      raise RuntimeError(
+          "artifact_location is not specified. Please specify the "
+          "artifact_location for the op %s" % self.__class__.__name__)
+
+    transforms = kwargs.get('transforms')
+    if transforms:
+      params['transforms'] = transforms
+
+    artifact_mode = kwargs.get('artifact_mode')
+    if artifact_mode:
+      params['artifact_mode'] = artifact_mode
+    return TFTProcessHandler(artifact_location=artifact_location, **params)
+
+  def requires_chaining(self):
+    return True
 
   @tf.function
   def _split_string_with_delimiter(self, data, delimiter):
