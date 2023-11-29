@@ -352,11 +352,7 @@ public class KafkaIOExternalTest {
     RunnerApi.PTransform writeParDo =
         result
             .getComponents()
-            .getTransformsOrThrow(
-                result
-                    .getComponents()
-                    .getTransformsOrThrow(writeComposite.getSubtransforms(0))
-                    .getSubtransforms(0));
+            .getTransformsOrThrow(writeComposite.getSubtransforms(0));
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
