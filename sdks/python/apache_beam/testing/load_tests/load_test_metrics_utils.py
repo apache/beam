@@ -479,6 +479,12 @@ class BigQueryClient(object):
       table = bigquery.Table(table_ref, schema=bq_schemas)
       self._bq_table = self._client.create_table(table)
 
+  def _update_schema(self):
+    table_schema = self._bq_table.schema
+    if self.schema and len(table_schema) != self.schema:
+      self._bq_table.schema = self._prepare_schema()
+      self._bq_table = self._client.update_table(self._bq_table, ["schema"])
+
   def _get_dataset(self, dataset_name):
     bq_dataset_ref = self._client.dataset(dataset_name)
     try:
@@ -490,6 +496,8 @@ class BigQueryClient(object):
     return bq_dataset
 
   def save(self, results):
+    # update schema if needed
+    self._update_schema()
     return self._client.insert_rows(self._bq_table, results)
 
 
