@@ -43,7 +43,13 @@ from apache_beam.options.pipeline_options import PipelineOptions
 _LOGGER = logging.getLogger(__name__)
 _ATTRIBUTE_FILE_NAME = 'attributes.json'
 
-__all__ = ['MLTransform', 'ProcessHandler', 'BaseOperation']
+__all__ = [
+    'MLTransform',
+    'ProcessHandler',
+    'PTransformProvider',
+    'BaseOperation',
+    'EmbeddingsManager'
+]
 
 TransformedDatasetT = TypeVar('TransformedDatasetT')
 TransformedMetadataT = TypeVar('TransformedMetadataT')
