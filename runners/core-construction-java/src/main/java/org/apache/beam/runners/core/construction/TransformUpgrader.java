@@ -109,7 +109,8 @@ public class TransformUpgrader implements AutoCloseable {
           "A list of URNs for overriding transforms was provided but the pipeline did not contain "
               + "any matching transforms. Either make sure to include at least one matching "
               + "transform in the pipeline or avoid setting the 'transformsToOverride' "
-              + "PipelineOption. Provided list of URNs: " + urnsToOverride);
+              + "PipelineOption. Provided list of URNs: "
+              + urnsToOverride);
     }
 
     String serviceAddress;

@@ -458,15 +458,18 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           i++;
         }
         return indexToPCollection.build();
-      } else if(output instanceof  POutput) {
+      } else if (output instanceof POutput) {
         // This is needed to support custom output types.
         Map<TupleTag<?>, PValue> values = output.expand();
         Map<String, PCollection<?>> returnMap = new HashMap<>();
         for (Map.Entry<TupleTag<?>, PValue> entry : values.entrySet()) {
           if (!(entry.getValue() instanceof PCollection)) {
             throw new UnsupportedOperationException(
-                "Unable to parse the output type " + output.getClass() +
-                    " due to key " + entry.getKey() + " not mapping to a PCollection");
+                "Unable to parse the output type "
+                    + output.getClass()
+                    + " due to key "
+                    + entry.getKey()
+                    + " not mapping to a PCollection");
           }
           returnMap.put(entry.getKey().getId(), (PCollection<?>) entry.getValue());
         }
