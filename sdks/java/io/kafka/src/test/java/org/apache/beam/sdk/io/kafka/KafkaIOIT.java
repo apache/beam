@@ -397,7 +397,7 @@ public class KafkaIOIT {
             .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
             .withKeyDeserializer(FailingDeserializer.class)
             .withValueDeserializer(FailingDeserializer.class)
-            .withErrorHandler(eh));
+            .withBadRecordErrorHandler(eh));
     eh.close();
 
     PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(1L);

@@ -609,7 +609,8 @@ public class ReadFromKafkaDoFnTest {
     // handler. This will just configure the ReadSourceDesriptors to route the errors to the output
     // PCollection instead of rethrowing.
     ReadSourceDescriptors<String, String> descriptors =
-        makeFailingReadSourceDescriptor(consumer).withErrorHandler(new DefaultErrorHandler<>());
+        makeFailingReadSourceDescriptor(consumer)
+            .withBadRecordErrorHandler(new DefaultErrorHandler<>());
 
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
 
