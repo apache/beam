@@ -114,7 +114,6 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
         model_class=SentenceTransformer,
         max_seq_length=self.max_seq_length,
         model_name=self.model_name,
-        inference_fn=inference_fn,
         load_model_args=self.load_model_args,
         min_batch_size=self.min_batch_size,
         max_batch_size=self.max_batch_size,
