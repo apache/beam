@@ -611,7 +611,7 @@ public class TextIO {
     public PCollection<String> expand(PCollection<FileIO.ReadableFile> input) {
       return input.apply(
           "Read all via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(
+          ReadAllViaFileBasedSource.create(
               getDesiredBundleSizeBytes(),
               new CreateTextSourceFn(getDelimiter(), getSkipHeaderLines()),
               StringUtf8Coder.of()));
