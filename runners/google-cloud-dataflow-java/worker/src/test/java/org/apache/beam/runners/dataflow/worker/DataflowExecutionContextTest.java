@@ -17,14 +17,23 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.io.IOException;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
+import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -110,5 +119,33 @@ public class DataflowExecutionContextTest {
 
     // AutoRegistrationClassNotActive class is not registered as registrar for the same is disabled.
     assertFalse(AutoRegistrationClassNotActive.WAS_CALLED);
+  }
+
+  @Test
+  public void testDataflowExecutionStateTrackerRecordsActiveMessageMetadata() throws IOException {
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.instance(),
+            null,
+            null,
+            PipelineOptionsFactory.create(),
+            "");
+    StreamingModeExecutionState state = new StreamingModeExecutionState(
+        NameContextsForTests.nameContextForTest(), PROCESS_STATE_NAME, null, NoopProfileScope.NOOP,
+        null);
+
+    Closeable closure = tracker.enterState(state);
+
+    // After entering a process state, we should have an active message tracked.
+    ActiveMessageMetadata expectedMetadata = new ActiveMessageMetadata(
+        NameContextsForTests.nameContextForTest().userName(), 1l);
+    Assert.assertEquals(expectedMetadata.userStepName,
+        tracker.getActiveMessageMetadata().userStepName);
+
+    closure.close();
+
+    // Once the state closes, the active message should get cleared.
+    Assert.assertEquals(null,
+        tracker.getActiveMessageMetadata());
   }
 }
