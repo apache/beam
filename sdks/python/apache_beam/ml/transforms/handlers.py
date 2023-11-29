@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 # pytype: skip-file
+# pylint: skip-file
 
 import collections
 import hashlib
@@ -217,6 +218,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def append_transform(self, transform):
     self.transforms.append(transform)
 
+  def get_transforms(self):
+    return self.transforms
+
   def _map_column_names_to_types(self, row_type):
     """
     Return a dictionary of column names and types.
@@ -319,6 +323,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           f"Please provide a valid type from the following: "
           f"{_default_type_to_tensor_type_map.keys()}")
     return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
+    # return tf.io.VarLenFeature()
 
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
@@ -387,7 +392,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
-  def process_data(
+  def expand(
       self, raw_data: beam.PCollection[tft_process_handler_input_type]
   ) -> beam.PCollection[tft_process_handler_output_type]:
     """
@@ -512,7 +517,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
 
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
-          transformed_dataset | "ConvertToRowType" >>
+          transformed_dataset
+          | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
-
       return transformed_dataset
