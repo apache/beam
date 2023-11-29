@@ -96,6 +96,7 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
     Embedding config for sentence-transformers. This config can be used with
     MLTransform to embed text data. Models are loaded using the RunInference
     PTransform with the help of ModelHandler.
+
     Args:
       model_name: Name of the model to use. The model should be hosted on
         HuggingFace Hub or compatible with sentence_transformers.
