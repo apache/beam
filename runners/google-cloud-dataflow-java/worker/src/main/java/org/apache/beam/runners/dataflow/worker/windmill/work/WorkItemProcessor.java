@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work;
 
-import com.google.errorprone.annotations.CheckReturnValue;
 import java.util.Collection;
 import java.util.function.Consumer;
+import javax.annotation.CheckReturnValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.annotations.Internal;
