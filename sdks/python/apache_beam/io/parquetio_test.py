@@ -336,7 +336,7 @@ class TestParquet(unittest.TestCase):
 
   @unittest.skipIf(
       ARROW_MAJOR_VERSION >= 13,
-  )
+      'pyarrow 13.x and above does not throw ArrowInvalid error')
   def test_sink_transform_int96(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
