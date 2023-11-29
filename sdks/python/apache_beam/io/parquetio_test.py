@@ -334,6 +334,9 @@ class TestParquet(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  @unittest.skipIf(
+      ARROW_MAJOR_VERSION >= 13,
+  )
   def test_sink_transform_int96(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
