@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -35,13 +37,10 @@ import org.hamcrest.TypeSafeMatcher;
  *              jsonStringLike("{\"height\": 80, \"name\": \"person\"}"));
  * </pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class JsonMatcher<T> extends TypeSafeMatcher<T> {
-  private Matcher<Map<String, Object>> mapMatcher;
+  private final Matcher<Map<String, Object>> mapMatcher;
   private static final ObjectMapper MAPPER = new ObjectMapper();
-  private Map<String, Object> actualMap;
+  private @MonotonicNonNull Map<String, Object> actualMap;
 
   public JsonMatcher(Map<String, Object> expectedMap) {
     this.mapMatcher = is(expectedMap);
@@ -86,7 +85,7 @@ public abstract class JsonMatcher<T> extends TypeSafeMatcher<T> {
     } catch (IOException e) {
       return false;
     }
-    return mapMatcher.matches(actualMap);
+    return mapMatcher.matches(checkStateNotNull(actualMap));
   }
 
   @Override
@@ -96,6 +95,6 @@ public abstract class JsonMatcher<T> extends TypeSafeMatcher<T> {
 
   @Override
   protected void describeMismatchSafely(T item, Description mismatchDescription) {
-    mapMatcher.describeMismatch(actualMap, mismatchDescription);
+    mapMatcher.describeMismatch(checkStateNotNull(actualMap), mismatchDescription);
   }
 }

@@ -1352,18 +1352,18 @@ After new Beam Release is published, Beam Playground can be updated following th
     6. Click the Run Trigger button
     7. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
 3. Find the trigger "Playground-CD-stable-manual-stg", it will be run twice, once with default variables, and once with some overridden:
-    8. Click the RUN button next to the trigger name
-    9. In the panel that opened, click the Run Trigger button (with default variable values)
-    10. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
-    11. Click the RUN button next to the trigger name
-    12. In the panel that opened, change values for the variables:
+    1. Click the RUN button next to the trigger name
+    2. In the panel that opened, click the Run Trigger button (with default variable values)
+    3. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    4. Click the RUN button next to the trigger name
+    5. In the panel that opened, change values for the variables:
         * _ORIGIN = PG_BEAMDOC
         * _SUBDIRS = ./learning/beamdoc
-    13. Click the Run Trigger button
-    14. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    6. Click the Run Trigger button
+    7. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
 4. Test updated [staging Playground](https://play-dev.beam.apache.org/) in a browser
-    15. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
-    16. For each of the supported SDKs (Java, Python, Go, SCIO):
+    1. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
+    2. For each of the supported SDKs (Java, Python, Go, SCIO):
         * Switch to the SDK
         * Make any changes to the loaded default example
         * Click the Run button
