@@ -245,6 +245,10 @@ class SchemaTranslation(object):
     if isinstance(type_, schema_pb2.Schema):
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
 
+    if hasattr(type_, '_beam_schema_proto'):
+      return schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(schema=type_._beam_schema_proto))
+
     if isinstance(type_, row_type.RowTypeConstraint):
       if type_.schema_id is None:
         schema_id = SCHEMA_REGISTRY.generate_new_id()
@@ -557,6 +561,7 @@ class SchemaTranslation(object):
         '__reduce__',
         _named_tuple_reduce_method(schema.SerializeToString()))
     setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
+    user_type._beam_schema_proto = schema
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)

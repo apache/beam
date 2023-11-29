@@ -418,6 +418,7 @@ if __name__ == '__main__':
               'distributed >= 2022.6',
           ],
           'yaml': [
+              'docstring-parser>=0.15<1.0'
               'pyyaml>=3.12,<7.0.0',
           ] + dataframe_dependency
       },

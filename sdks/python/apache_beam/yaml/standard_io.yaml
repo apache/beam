@@ -68,8 +68,7 @@
         'format': 'format'
         'topic': 'topic'
         'bootstrap_servers': 'bootstrapServers'
-        'producer_config_updates': 'ProducerConfigUpdates'
-        'error_handling': 'errorHandling'
+        'producer_config_updates': 'producerConfigUpdates'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
     underlying_provider:
