@@ -60,7 +60,7 @@ public class GenericTranslatorProvider implements TranslatorProvider {
         .register(Union.class, new UnionTranslator<>())
         .register(ReduceByKey.class, new ReduceByKeyTranslator<>())
         .register(Join.class, new JoinTranslator<>())
-        // register fallback operator translator to decompose composit operators
+        // register fallback operator translator to decompose composite operators
         .register(op -> op instanceof CompositeOperator, new CompositeOperatorTranslator<>())
         .build();
   }

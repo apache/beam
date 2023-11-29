@@ -1228,6 +1228,24 @@ Ping [dev@](mailto:dev@beam.apache.org) mailing list for assistance if you need 
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
+```
+svn co https://dist.apache.org/repos/dist/dev/beam dev  # Checkout the `dev` artifact repo.
+
+svn co https://dist.apache.org/repos/dist/release/beam release  # Checkout the `release` artifact repo.
+
+mkdir release/$RELEASE_VERSION
+
+# Copy files from the `dev` artifact repo to the `release` artifact repo.
+
+cd release
+
+svn add $RELEASE_VERSION
+
+svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
+
+svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
+```
+
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
@@ -1334,18 +1352,18 @@ After new Beam Release is published, Beam Playground can be updated following th
     6. Click the Run Trigger button
     7. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
 3. Find the trigger "Playground-CD-stable-manual-stg", it will be run twice, once with default variables, and once with some overridden:
-    8. Click the RUN button next to the trigger name
-    9. In the panel that opened, click the Run Trigger button (with default variable values)
-    10. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
-    11. Click the RUN button next to the trigger name
-    12. In the panel that opened, change values for the variables:
+    1. Click the RUN button next to the trigger name
+    2. In the panel that opened, click the Run Trigger button (with default variable values)
+    3. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    4. Click the RUN button next to the trigger name
+    5. In the panel that opened, change values for the variables:
         * _ORIGIN = PG_BEAMDOC
         * _SUBDIRS = ./learning/beamdoc
-    13. Click the Run Trigger button
-    14. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    6. Click the Run Trigger button
+    7. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
 4. Test updated [staging Playground](https://play-dev.beam.apache.org/) in a browser
-    15. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
-    16. For each of the supported SDKs (Java, Python, Go, SCIO):
+    1. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
+    2. For each of the supported SDKs (Java, Python, Go, SCIO):
         * Switch to the SDK
         * Make any changes to the loaded default example
         * Click the Run button

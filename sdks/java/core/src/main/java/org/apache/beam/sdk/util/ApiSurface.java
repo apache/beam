@@ -179,10 +179,10 @@ public class ApiSurface {
         // <helper_lambdas>
 
         final Function<Matcher<Class<?>>, String> toMessage =
-            abandonedClassMacther -> {
+            abandonedClassMatcher -> {
               final StringDescription description = new StringDescription();
               description.appendText("No ");
-              abandonedClassMacther.describeTo(description);
+              abandonedClassMatcher.describeTo(description);
               return description.toString();
             };
 
@@ -471,7 +471,7 @@ public class ApiSurface {
    * A map from exposed types to place where they are exposed, in the sense of being a part of a
    * public-facing API surface.
    *
-   * <p>This map is the adjencency list representation of a directed graph, where an edge from type
+   * <p>This map is the adjacency list representation of a directed graph, where an edge from type
    * {@code T1} to type {@code T2} indicates that {@code T2} directly exposes {@code T1} in its API
    * surface.
    *
@@ -527,7 +527,7 @@ public class ApiSurface {
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 
-  /** Whether a type has already beens sufficiently processed. */
+  /** Whether a type has already been sufficiently processed. */
   private boolean done(Type type) {
     return visited.contains(type);
   }

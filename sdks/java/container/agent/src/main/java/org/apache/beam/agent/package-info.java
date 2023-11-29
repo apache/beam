@@ -16,24 +16,8 @@
  * limitations under the License.
  */
 
-import CommonTestProperties
-import PrecommitJobBuilder
-
-// This job runs the suite of ValidatesRunner tests against the Flink runner.
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Java_PVR_Flink_Batch',
-    gradleTask: ":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesPortableRunnerBatch",
-    timeoutMins: 240,
-    triggerPathPatterns: [
-      '^sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/.*$',
-      '^runners/flink/.*$',
-      '^runners/java-fn-execution/.*$',
-    ],
-    )
-builder.build {
-  // Publish all test results to Jenkins.
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-}
+/**
+ * Utilities used by Beam to open modules to JAMM, required to measure object sizes, which are used
+ * to estimate/weigh cache footprints.
+ */
+package org.apache.beam.agent;

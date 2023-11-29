@@ -36,7 +36,7 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
 @RunWith(JUnit4.class)
-public class BlockingCommmitterImplTest {
+public class BlockingCommitterImplTest {
 
   @Rule public MockitoRule mockito = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 

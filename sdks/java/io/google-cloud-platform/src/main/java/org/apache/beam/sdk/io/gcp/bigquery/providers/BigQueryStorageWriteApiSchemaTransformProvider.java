@@ -177,7 +177,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             invalidConfigMessage + "Output must not be empty if error handling specified.");
       }
 
-      if (this.getAutoSharding() != null && this.getAutoSharding()) {
+      if (this.getAutoSharding() != null
+          && this.getAutoSharding()
+          && this.getNumStreams() != null) {
         checkArgument(
             this.getNumStreams() == 0,
             invalidConfigMessage
@@ -350,7 +352,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       : Duration.standardSeconds(triggeringFrequency));
         }
         // set num streams if specified, otherwise default to autoSharding
-        if (numStreams > 0) {
+        if (numStreams != null && numStreams > 0) {
           write = write.withNumStorageWriteApiStreams(numStreams);
         } else if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();

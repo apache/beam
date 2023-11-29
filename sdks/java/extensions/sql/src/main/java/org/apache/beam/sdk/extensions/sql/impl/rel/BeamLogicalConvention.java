@@ -24,7 +24,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTrait;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 
-/** Convertion for Beam SQL. */
+/** Convention for Beam SQL. */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })

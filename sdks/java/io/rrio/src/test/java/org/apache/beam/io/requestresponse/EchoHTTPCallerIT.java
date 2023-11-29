@@ -17,45 +17,50 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.EchoITOptions.HTTP_ENDPOINT_ADDRESS_NAME;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import java.net.URI;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoRequest;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoResponse;
 import org.apache.beam.testinfra.mockapis.echo.v1.EchoServiceGrpc;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link EchoGRPCCallerWithSetupTeardown} on a deployed {@link EchoServiceGrpc} instance.
+ * Tests for {@link EchoHTTPCallerIT} on a deployed {@link EchoServiceGrpc} instance's HTTP handler.
  * See {@link EchoITOptions} for details on the required parameters and how to provide these for
  * running integration tests.
  */
 @RunWith(JUnit4.class)
-public class EchoGRPCCallerWithSetupTeardownTestIT {
+public class EchoHTTPCallerIT {
 
   private static @MonotonicNonNull EchoITOptions options;
-  private static @MonotonicNonNull EchoGRPCCallerWithSetupTeardown client;
+  private static @MonotonicNonNull EchoHTTPCaller client;
   private static final ByteString PAYLOAD = ByteString.copyFromUtf8("payload");
 
   @BeforeClass
   public static void setUp() throws UserCodeExecutionException {
     options = readIOTestPipelineOptions(EchoITOptions.class);
-    if (options.getgRPCEndpointAddress().isEmpty()) {
+    if (Strings.isNullOrEmpty(options.getHttpEndpointAddress())) {
       throw new RuntimeException(
-          "--gRPCEndpointAddress is missing. See " + EchoITOptions.class + "for details.");
+          "--"
+              + HTTP_ENDPOINT_ADDRESS_NAME
+              + " is missing. See "
+              + EchoITOptions.class
+              + "for details.");
     }
-    client = EchoGRPCCallerWithSetupTeardown.of(URI.create(options.getgRPCEndpointAddress()));
-    checkStateNotNull(client).setup();
+    client = EchoHTTPCaller.of(URI.create(options.getHttpEndpointAddress()));
 
     EchoRequest request = createShouldExceedQuotaRequest();
 
@@ -69,16 +74,12 @@ public class EchoGRPCCallerWithSetupTeardownTestIT {
       EchoResponse ignored = client.call(request);
       client.call(request);
       client.call(request);
+      client.call(request);
     } catch (UserCodeExecutionException e) {
       if (!(e instanceof UserCodeQuotaException)) {
         throw e;
       }
     }
-  }
-
-  @AfterClass
-  public static void tearDown() throws UserCodeExecutionException {
-    checkStateNotNull(client).teardown();
   }
 
   @Test
@@ -105,9 +106,8 @@ public class EchoGRPCCallerWithSetupTeardownTestIT {
                         .setId("i-dont-exist-quota-id")
                         .setPayload(PAYLOAD)
                         .build()));
-    assertEquals(
-        "io.grpc.StatusRuntimeException: NOT_FOUND: error: source not found: i-dont-exist-quota-id, err resource does not exist",
-        error.getMessage());
+
+    assertTrue(error.getMessage().contains("404 Not Found"));
   }
 
   private static @NonNull EchoRequest createShouldNeverExceedQuotaRequest() {

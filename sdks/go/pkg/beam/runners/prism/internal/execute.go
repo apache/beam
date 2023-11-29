@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -146,7 +147,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	prepro := newPreprocessor(preppers)
 
-	topo := prepro.preProcessGraph(comps)
+	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
 
 	em := engine.NewElementManager(engine.Config{})
@@ -245,38 +246,34 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		em.Impulse(id)
 	}
 
-	// Use a channel to limit max parallelism for the pipeline.
-	maxParallelism := make(chan struct{}, 8)
-	// Execute stages here
-	bundleFailed := make(chan error)
+	// Use an errgroup to limit max parallelism for the pipeline.
+	eg, egctx := errgroup.WithContext(ctx)
+	eg.SetLimit(8)
 
 	var instID uint64
-	bundles := em.Bundles(ctx, func() string {
+	bundles := em.Bundles(egctx, func() string {
 		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
 	})
-
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		case rb, ok := <-bundles:
 			if !ok {
-				slog.Debug("pipeline done!", slog.String("job", j.String()))
-				return nil
+				err := eg.Wait()
+				slog.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err))
+				return err
 			}
-			maxParallelism <- struct{}{}
-			go func(rb engine.RunBundle) {
-				defer func() { <-maxParallelism }()
+			eg.Go(func() error {
 				s := stages[rb.StageID]
 				wk := wks[s.envID]
 				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
 					em.FailBundle(rb)
-					bundleFailed <- err
+					return err
 				}
-			}(rb)
-		case err := <-bundleFailed:
-			return err
+				return nil
+			})
 		}
 	}
 }

@@ -335,6 +335,11 @@ jobs:
         working-directory: beam
         run: |
             ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+      - name: Add canonical link into javadocs
+        uses: cicirello/javadoc-cleanup@v1
+        with:
+          path-to-root: ${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc
+          base-url-path: https://beam.apache.org/releases/javadoc/current/
       - name: Consolidate Release Docs to beam-site branch with symlinks
         working-directory: beam-site
         run: |

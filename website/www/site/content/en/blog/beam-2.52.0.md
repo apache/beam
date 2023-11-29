@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.52.0"
-date:   2023-11-17 14:00:00 Z
+date:   2023-11-17 09:00:00 -0400
 categories:
   - blog
   - release
