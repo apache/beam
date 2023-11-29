@@ -30,7 +30,7 @@ on:
       - 'runners/java-fn-execution/**'
       - 'runners/reference/**'
       - 'release/trigger_all_tests.json'
-      - 'beam_PreCommit_Python_PVR_Flink.json'
+      - '.github/trigger_files/beam_PreCommit_Python_PVR_Flink.json'
   issue_comment:
     types: [created]
   push:

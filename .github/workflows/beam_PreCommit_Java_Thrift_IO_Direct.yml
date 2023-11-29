@@ -27,7 +27,7 @@ on:
     paths:
       - "sdks/java/io/thrift/**"
       - 'release/trigger_all_tests.json'
-      - 'beam_PreCommit_Java_Thrift_IO_Direct.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Thrift_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

@@ -29,7 +29,7 @@ on:
       - "sdks/java/io/neo4j/**"
       - "sdks/java/testing/test-utils/**"
       - 'release/trigger_all_tests.json'
-      - 'beam_PreCommit_Java_Neo4j_IO_Direct.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Neo4j_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

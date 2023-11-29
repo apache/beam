@@ -36,7 +36,7 @@ on:
       - 'examples/kotlin/**'
       - '.test-infra/jenkins/'
       - 'release/trigger_all_tests.json'
-      - 'beam_PreCommit_Spotless.json'
+      - '.github/trigger_files/beam_PreCommit_Spotless.json'
   issue_comment:
     types: [created]
   schedule:

@@ -60,7 +60,7 @@ task check {
         // TODO(https://github.com/apache/beam/issues/28909)
         //  remove file match trigger once a better trigger (e.g. comment trigger) is implemented
         if (fname.startsWith("beam_PostCommit")) {
-          String triggerFile = fname.take(fname.lastIndexOf('.')) + '.json'
+          String triggerFile = '.github/trigger_files/' + fname.take(fname.lastIndexOf('.')) + '.json'
           if (paths != null && !paths.contains(triggerFile)) {
             errors.add("Error validating ${fname}: " +
                     "Please add ${triggerFile} to the trigger path")
