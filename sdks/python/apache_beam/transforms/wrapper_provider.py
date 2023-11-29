@@ -46,7 +46,8 @@ def get_config_with_descriptions(schematransform: SchemaTransformsConfig):
 STANDARD_EXPANSION_SERVICES = [
     BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build'),
-    BeamJarExpansionService('sdks:java:io:expansion-service:build')
+  BeamJarExpansionService('sdks:java:core:expansion-service:build'),
+  # BeamJarExpansionService('sdks:java:io:expansion-service:build')
 ]
 
 
@@ -63,12 +64,6 @@ class Wrapper(PTransform):
     self.schematransform: SchemaTransformsConfig = SchemaAwareExternalTransform.discover_config(
         self._expansion_service, self.identifier)
 
-  @property
-  def configuration_schema(self):
-    """Returns a configuration schema that includes
-    field names, types, and descriptions"""
-    return get_config_with_descriptions(self.schematransform)
-
   def expand(self, input):
     camel_case_kwargs = {
         snake_case_to_lower_camel_case(k): v
@@ -76,7 +71,7 @@ class Wrapper(PTransform):
     }
 
     external_schematransform = SchemaAwareExternalTransform(
-        identifier=self.schematransform.identifier,
+        identifier=self.identifier,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
         **camel_case_kwargs)
@@ -135,7 +130,8 @@ class WrapperProvider:
               dict(
                   identifier=config.identifier,
                   default_expansion_service=service,
-                  schematransform=config))
+                  schematransform=config,
+                  configuration_schema=get_config_with_descriptions(config)))
           self.urn_to_wrapper_name[config.identifier] = name
 
     for name, wrapper in self.wrappers.items():
