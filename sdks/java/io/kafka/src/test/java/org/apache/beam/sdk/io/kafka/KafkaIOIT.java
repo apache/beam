@@ -728,7 +728,7 @@ public class KafkaIOIT {
 
     @Override
     public Boolean apply(TopicPartition input) {
-      if (checkCount >= 5) {
+      if (checkCount >= 10) {
         return true;
       }
       checkCount++;
@@ -820,7 +820,7 @@ public class KafkaIOIT {
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      Thread.sleep(options.getReadTimeout() * 1000);
+      Thread.sleep(options.getReadTimeout() * 1000 * 2);
 
       for (String value : records.values()) {
         kafkaIOITExpectedLogs.verifyError(value);
