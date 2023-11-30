@@ -55,9 +55,13 @@ message ExpansionRequest {
   // may not be fulfilled.
   map<string, string> output_coder_requests = 4;
 
+  // A set of requirements that must be used by the expansion service to
+  // interpret the components provided with this request.
+  repeated string requirements = 5;
+
   // (Optional) A set of Pipeline Options that should be used
   // when expanding this transform.
-  google.protobuf.Struct pipeline_options = 5;
+  google.protobuf.Struct pipeline_options = 6;
 }
 
 message ExpansionResponse {

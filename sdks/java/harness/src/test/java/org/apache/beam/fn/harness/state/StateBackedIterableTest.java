@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness.state;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,11 +37,13 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -212,6 +215,61 @@ public class StateBackedIterableTest {
           results.get(current).add(iterators.get(current).next());
         }
       }
+    }
+
+    private static class TestByteObserver extends ElementByteSizeObserver {
+      public long total = 0;
+
+      @Override
+      protected void reportElementSize(long elementByteSize) {
+        total += elementByteSize;
+      }
+    };
+
+    @Test
+    public void testByteObservingStateBackedIterable() throws Exception {
+      FakeBeamFnStateClient fakeBeamFnStateClient =
+          new FakeBeamFnStateClient(
+              StringUtf8Coder.of(),
+              ImmutableMap.of(
+                  key("nonEmptySuffix"), asList("C", "D", "E", "F", "G", "H", "I", "J", "K"),
+                  key("emptySuffix"), asList()));
+
+      StateBackedIterable<String> iterable =
+          new StateBackedIterable<>(
+              Caches.noop(),
+              fakeBeamFnStateClient,
+              "instruction",
+              key(suffixKey),
+              StringUtf8Coder.of(),
+              prefix);
+      StateBackedIterable.Coder<String> coder =
+          new StateBackedIterable.Coder<>(
+              () -> Caches.noop(),
+              fakeBeamFnStateClient,
+              () -> "instructionId",
+              StringUtf8Coder.of());
+
+      assertTrue(coder.isRegisterByteSizeObserverCheap(iterable));
+      TestByteObserver observer = new TestByteObserver();
+      coder.registerByteSizeObserver(iterable, observer);
+      assertTrue(observer.getIsLazy());
+
+      long iterateBytes =
+          Streams.stream(iterable)
+              .mapToLong(
+                  s -> {
+                    try {
+                      // 1 comes from hasNext = true flag (see IterableLikeCoder)
+                      return 1 + StringUtf8Coder.of().getEncodedElementByteSize(s);
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  })
+              .sum();
+      observer.advance();
+      // 5 comes from size and hasNext (see IterableLikeCoder)
+      assertEquals(iterateBytes + 5, observer.total);
     }
   }
 

@@ -99,7 +99,7 @@ final class BigQueryIOMetadata {
   /**
    * Returns true if label_value is a valid cloud label string. This function can return false in
    * cases where the label value is valid. However, it will not return true in a case where the
-   * lavel value is invalid. This is because a stricter set of allowed characters is used in this
+   * label value is invalid. This is because a stricter set of allowed characters is used in this
    * validator, because foreign language characters are not accepted. Thus, this should not be used
    * as a generic validator for all cloud labels.
    *

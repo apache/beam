@@ -50,7 +50,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html">native</a>
     </td>
-    <td>Not available</td>
+     <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/fileio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -158,7 +161,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/parquetio">native</a>
+    </td>
     <td class="present">
       ✔
       <a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/parquetio.ts">via X-language</a>
@@ -536,6 +542,9 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">
       ✔
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio">native</a>
+      <br>
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio">via X-language</a>
     </td>
     <td class="present">
       ✔
@@ -559,7 +568,13 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">via X-language</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigtableio">native</a> (sink)
+      <br>
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio">via X-language</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -613,7 +628,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html">via X-language</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -670,7 +688,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.mongodbio.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/mongodbio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -781,7 +802,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio">native</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>

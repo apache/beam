@@ -39,7 +39,7 @@ import (
 const (
 	metricsNamePrefix = "echo"
 	echoPath          = "/proto.echo.v1.EchoService/Echo"
-	echoPathAlias     = "/v1/echo"
+	PathAlias         = "/v1/echo"
 	healthPath        = "/grpc.health.v1.Health/Check"
 	healthPathAlias   = "/v1/healthz"
 )
@@ -58,6 +58,11 @@ func Register(s *grpc.Server, opts *Options) (http.Handler, error) {
 			Name: reflect.TypeOf((*echo)(nil)).PkgPath(),
 		})
 	}
+	var attrs []any
+	for _, attr := range opts.LoggingAttrs {
+		attrs = append(attrs, attr)
+	}
+	opts.Logger = opts.Logger.With(attrs...)
 	srv := &echo{
 		opts: opts,
 	}
@@ -77,7 +82,7 @@ type echo struct {
 // ServeHTTP implements http.Handler, allowing echo to support HTTP clients in addition to gRPC.
 func (srv *echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
-	case echoPath, echoPathAlias:
+	case echoPath, PathAlias:
 		srv.httpHandler(w, r)
 	case healthPath, healthPathAlias:
 		srv.checkHandler(w, r)
@@ -104,7 +109,7 @@ func (srv *echo) checkHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
+		srv.opts.Logger.Log(r.Context(), slog.LevelError, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -113,7 +118,7 @@ func (srv *echo) checkHandler(w http.ResponseWriter, r *http.Request) {
 func (srv *echo) Watch(request *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
 	resp, err := srv.Check(server.Context(), request)
 	if err != nil {
-		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
+		srv.opts.Logger.Log(server.Context(), slog.LevelError, err.Error())
 		return err
 	}
 	return server.Send(resp)
@@ -128,7 +133,7 @@ func (srv *echo) Echo(ctx context.Context, request *echov1.EchoRequest) (*echov1
 		return nil, status.Errorf(codes.NotFound, "error: source not found: %s, err %v", request.Id, err)
 	}
 	if err != nil {
-		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
+		srv.opts.Logger.Log(ctx, slog.LevelError, err.Error())
 		return nil, status.Errorf(codes.Internal, "error: encountered from cache for resource: %srv, err %v", request.Id, err)
 	}
 
@@ -137,7 +142,7 @@ func (srv *echo) Echo(ctx context.Context, request *echov1.EchoRequest) (*echov1
 	}
 
 	if v < 0 {
-		return nil, status.Errorf(codes.ResourceExhausted, "error: resource exhausted for: %srv", request.Id)
+		return nil, status.Errorf(codes.ResourceExhausted, "error: resource exhausted for: %s", request.Id)
 	}
 
 	return &echov1.EchoResponse{
@@ -154,7 +159,7 @@ func (srv *echo) writeMetric(ctx context.Context, id string, value int64) error 
 		Timestamp: time.Now(),
 		Value:     value + 1,
 	}); err != nil {
-		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
+		srv.opts.Logger.Log(ctx, slog.LevelError, err.Error())
 	}
 	return nil
 }
@@ -163,23 +168,29 @@ func (srv *echo) httpHandler(w http.ResponseWriter, r *http.Request) {
 	var body *echov1.EchoRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		err = fmt.Errorf("error decoding request body, payload field of %T needs to be base64 encoded, error: %w", body, err)
-		srv.opts.Logger.LogAttrs(context.Background(), slog.LevelError, err.Error(), srv.opts.LoggingAttrs...)
+		srv.opts.Logger.Log(r.Context(), slog.LevelError, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	resp, err := srv.Echo(r.Context(), body)
-	if status.Code(err) == http.StatusNotFound {
+
+	switch status.Code(err) {
+	case codes.OK:
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			srv.opts.Logger.Log(r.Context(), slog.LevelError, err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	case codes.InvalidArgument:
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	case codes.DeadlineExceeded:
+		http.Error(w, err.Error(), http.StatusRequestTimeout)
+	case codes.NotFound:
 		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	case codes.ResourceExhausted:
+		http.Error(w, err.Error(), http.StatusTooManyRequests)
+	default:
+		srv.opts.Logger.Log(r.Context(), slog.LevelError, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

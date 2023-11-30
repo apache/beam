@@ -104,7 +104,12 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
     DatasetService datasetService = getDatasetService(pipelineOptions);
 
     RetryManager<FinalizeWriteStreamResponse, Context<FinalizeWriteStreamResponse>> retryManager =
-        new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
+        new RetryManager<>(
+            Duration.standardSeconds(1),
+            Duration.standardMinutes(1),
+            3,
+            BigQuerySinkMetrics.throttledTimeCounter(
+                BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
     retryManager.addOperation(
         c -> {
           finalizeOperationsSent.inc();
@@ -115,6 +120,9 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
               Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
           LOG.error("Finalize of stream " + streamId + " failed with " + firstContext.getError());
           finalizeOperationsFailed.inc();
+          BigQuerySinkMetrics.reportFailedRPCMetrics(
+              firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+
           return RetryType.RETRY_ALL_OPERATIONS;
         },
         c -> {
@@ -126,6 +134,9 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
           rowsFinalized.inc(response.getRowCount());
 
           finalizeOperationsSucceeded.inc();
+          BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+              c, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+
           commitStreams.computeIfAbsent(tableId, d -> Lists.newArrayList()).add(streamId);
         },
         new Context<>());

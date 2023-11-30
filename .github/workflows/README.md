@@ -49,7 +49,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Job Phrase'
     steps:
@@ -78,7 +78,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startsWith(github.event.comment.body, 'Run Job With Matrix')
     steps:
       - uses: actions/checkout@v3
@@ -154,6 +154,17 @@ with the main and ubuntu labels to execute ([example](https://github.com/apache/
 If you are testing on a fork, you likely will not have self-hosted runners set up.
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
 You can do this by changing `runs-on: [self-hosted, ubuntu-20.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
+
+Note when using `ubuntu-20.04` as the host, you might need to choose the Java version since some gradle tasks only work with a certain Java version.
+One example is below to use Java 8 when testing your workflow:
+```
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+```
 
 ## Testing Workflow Updates
 
@@ -269,11 +280,11 @@ Please note that jobs with matrix need to have matrix element in the comment. Ex
 | [ PostCommit Java Avro Versions ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Avro_Versions.yml) | N/A |`Run Java Avro Versions PostCommit`| [![.github/workflows/beam_PostCommit_Java_Avro_Versions.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Avro_Versions.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Avro_Versions.yml?query=event%3Aschedule) |
 | [ PostCommit Java Dataflow V1 ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV1.yml) | N/A |`Run PostCommit_Java_Dataflow`| [![.github/workflows/beam_PostCommit_Java_DataflowV1.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV1.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV1.yml?query=event%3Aschedule) |
 | [ PostCommit Java Dataflow V2 ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV2.yml) | N/A |`Run PostCommit_Java_DataflowV2`| [![.github/workflows/beam_PostCommit_Java_DataflowV2.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV2.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV2.yml?query=event%3Aschedule) |
-| [ PostCommit Java Examples Dataflow ARM ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml) | ['8','11','17'] |`Run Java_Examples_Dataflow_ARM PostCommit (matrix_element)`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml?query=event%3Aschedule) |
+| [ PostCommit Java Examples Dataflow ARM ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml) | ['8','11','17','21'] |`Run Java_Examples_Dataflow_ARM PostCommit (matrix_element)`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Dataflow](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow.yml) | N/A |`Run Java examples on Dataflow`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Dataflow Java ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml) | ['11','17','21'] |`Run Java examples on Dataflow Java (matrix_element)`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Dataflow V2 ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2.yml) | N/A |`Run Java Examples on Dataflow Runner V2`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_V2.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2.yml?query=event%3Aschedule) |
-| [ PostCommit Java Examples Dataflow V2 Java ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml) | ['11','17'] |`Run Java (matrix_element) Examples on Dataflow Runner V2`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml?query=event%3Aschedule) |
+| [ PostCommit Java Examples Dataflow V2 Java ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml) | ['11','17','21'] |`Run Java (matrix_element) Examples on Dataflow Runner V2`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_V2_Java.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Direct ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Direct.yml) | N/A |`Run Java Examples_Direct`| [![.github/workflows/beam_PostCommit_Java_Examples_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Direct.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Flink ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Flink.yml) | N/A |`Run Java Examples_Flink`| [![.github/workflows/beam_PostCommit_Java_Examples_Flink.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Flink.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Flink.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Spark ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Spark.yml) | N/A |`Run Java Examples_Spark`| [![.github/workflows/beam_PostCommit_Java_Examples_Spark.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Spark.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Spark.yml?query=event%3Aschedule) |
@@ -294,6 +305,7 @@ Please note that jobs with matrix need to have matrix element in the comment. Ex
 | [ PostCommit Java Nexmark Spark ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Nexmark_Spark.yml) | N/A |`Run Spark Runner Nexmark Tests`| [![.github/workflows/beam_PostCommit_Java_Nexmark_Spark.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Nexmark_Spark.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Nexmark_Spark.yml?query=event%3Aschedule) |
 | [ PostCommit Java PVR Flink Streaming ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Flink_Streaming.yml) | N/A |`Run Java Flink PortableValidatesRunner Streaming`| [![.github/workflows/beam_PostCommit_Java_PVR_Flink_Streaming.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Flink_Streaming.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Flink_Streaming.yml?query=event%3Aschedule) |
 | [ PostCommit Java PVR Samza ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Samza.yml) | N/A |`Run Java Samza PortableValidatesRunner`| [![.github/workflows/beam_PostCommit_Java_PVR_Samza.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Samza.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Samza.yml?query=event%3Aschedule) |
+| [ PostCommit Java SingleStoreIO IT ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml) | N/A |`Run Java SingleStoreIO_IT`| [![.github/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_SingleStoreIO_IT.yml?query=event%3Aschedule) |
 | [ PostCommit Java PVR Spark3 Streaming ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml) | N/A |`Run Java Spark v3 PortableValidatesRunner Streaming`| [![.github/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark3_Streaming.yml?query=event%3Aschedule) |
 | [ PostCommit Java PVR Spark Batch ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml) | N/A |`Run Java Spark PortableValidatesRunner Batch`| [![.github/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_PVR_Spark_Batch.yml?query=event%3Aschedule) |
 | [ PostCommit Java Sickbay ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Sickbay.yml) | N/A |`Run Java Sickbay`| [![.github/workflows/beam_PostCommit_Java_Sickbay.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Sickbay.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Sickbay.yml?query=event%3Aschedule) |

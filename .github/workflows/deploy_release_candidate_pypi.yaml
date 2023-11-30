@@ -1,0 +1,89 @@
+name: deploy_release_candidate_pypi
+
+# Workflow added after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
+# If help is needed debugging issues, you can view the release guide at that commit for guidance on how to do this manually.
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/website/www/site/content/en/contribute/release-guide.md)
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release (e.g. 2.XX.0)
+        required: true
+        default: '2.XX.0'
+      RC:
+        description: Integer RC version for the release (e.g. 3 for RC3)
+        required: true
+      PYPI_USER:
+        description: PyPi username to perform the upload with
+        required: true
+      PYPI_PASSWORD:
+        description: PyPi password to perform the upload with
+        required: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+jobs:
+  deploy_release_candidate_pypi:
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+    - name: Mask PyPi id/password
+      run: |
+        echo "::add-mask::${{ github.event.inputs.PYPI_USER }}"
+        echo "::add-mask::${{ github.event.inputs.PYPI_PASSWORD }}"
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
+      with:
+        python-version: 3.11
+    - name: Install dependencies
+      run: |
+        pip install python-dateutil
+        pip install requests
+        pip install twine
+    - name: Deploy to Pypi
+      env:
+        RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+        GIT_REPO_BASE_URL: https://github.com/apache/beam
+        RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
+        RELEASE: "${{ github.event.inputs.RELEASE }}"
+        SCRIPT_DIR: release/src/main/scripts
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/python"
+      run: |
+        git fetch --all --tags --prune
+        RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
+
+        PYTHON_ARTIFACTS_DIR="./python"
+        python "release/src/main/scripts/download_github_actions_artifacts.py" \
+          --github-token-var GITHUB_TOKEN \
+          --repo-url "apache/beam" \
+          --rc-tag "${RC_TAG}" \
+          --release-commit "${RELEASE_COMMIT}" \
+          --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
+          --rc_number "${{ github.event.inputs.RC }}" \
+          --yes True
+
+        cd "${PYTHON_ARTIFACTS_DIR}"
+        ls
+
+        echo "------Checking Hash Value for apache-beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
+        sha512sum -c "apache-beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
+        
+        for artifact in *.whl; do
+          echo "----------Checking Hash Value for ${artifact} wheel-----------"
+          sha512sum -c "${artifact}.sha512"
+        done
+        
+        echo "===================Removing sha512 files======================="
+        rm $(ls | grep -i ".*.sha512$")
+
+        echo "====================Upload rc to pypi========================"
+        mkdir dist && mv $(ls | grep apache) dist && cd dist
+        echo "Will upload the following files to PyPI:"
+        ls
+
+        twine upload * -u ${{ github.event.inputs.PYPI_USER }} -p ${{ github.event.inputs.PYPI_PASSWORD }}

@@ -86,7 +86,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
  *     encodeDelegate(FIELD_CODERS, value, outStream);
  *   }
  *
- *  {@literal @}Overide
+ *  {@literal @}Override
  *   public abstract T decode(InputStream inStream) {
  *     // Delegate to a method that evaluates each coder in the static array.
  *     return decodeDelegate(FIELD_CODERS, inStream);

@@ -125,7 +125,7 @@ public class AutoComplete {
               // First count how often each token appears.
               .apply(Count.perElement())
 
-              // Map the KV outputs of Count into our own CompletionCandiate class.
+              // Map the KV outputs of Count into our own CompletionCandidate class.
               .apply(
                   "CreateCompletionCandidates",
                   ParDo.of(
@@ -168,7 +168,7 @@ public class AutoComplete {
           // For each completion candidate, map it to all prefixes.
           .apply(ParDo.of(new AllPrefixes(minPrefix)))
 
-          // Find and return the top candiates for each prefix.
+          // Find and return the top candidates for each prefix.
           .apply(
               Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
                   .withHotKeyFanout(new HotKeyFanout()));
@@ -227,7 +227,7 @@ public class AutoComplete {
             .apply(Partition.of(2, new KeySizePartitionFn()));
       } else {
         // If a candidate is in the top N for prefix a...b, it must also be in the top
-        // N for a...bX for every X, which is typlically a much smaller set to consider.
+        // N for a...bX for every X, which is typically a much smaller set to consider.
         // First, compute the top candidate for prefixes of size at least minPrefix + 1.
         PCollectionList<KV<String, List<CompletionCandidate>>> larger =
             input.apply(new ComputeTopRecursive(candidatesPerPrefix, minPrefix + 1));

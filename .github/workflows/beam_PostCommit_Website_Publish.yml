@@ -50,7 +50,7 @@ jobs:
   beam_PostCommit_Website_Publish:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 30
     name: beam_PostCommit_Website_Publish
@@ -58,8 +58,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          disable-cache: true
       - name: run PostCommit Website Publish script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :website:clean :website:publishWebsite
           arguments: -PgitPublishRemote="https://github.com/apache/beam.git"
+      - uses: actions/checkout@v4 # Extra checkout to make sure we're on master for post steps.

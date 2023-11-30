@@ -19,7 +19,6 @@ package org.apache.beam.it.jdbc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.it.common.ResourceManager;
@@ -102,7 +101,7 @@ public interface JDBCResourceManager extends ResourceManager {
    * @param sql The SQL query to run.
    * @return A ResultSet containing the result of the execution.
    */
-  ResultSet runSQLQuery(String sql);
+  List<Map<String, Object>> runSQLQuery(String sql);
 
   /**
    * Run the given SQL DML statement (INSERT, UPDATE and DELETE).
@@ -110,6 +109,14 @@ public interface JDBCResourceManager extends ResourceManager {
    * @param sql The SQL DML statement to run.
    */
   void runSQLUpdate(String sql);
+
+  /**
+   * Gets the number of rows in table.
+   *
+   * @param tableName The name of the table.
+   * @return a count of number of rows in the table.
+   */
+  long getRowCount(String tableName);
 
   /** Object for managing JDBC table schemas in {@link JDBCResourceManager} instances. */
   class JDBCSchema {

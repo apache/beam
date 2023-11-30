@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
+  id("com.gradle.enterprise") version "3.15.1"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.11.3"
 }
 
@@ -62,7 +62,7 @@ buildCache {
       username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
-    isEnabled = true
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
     isPush = isCi
   }
 }
@@ -247,6 +247,7 @@ include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")

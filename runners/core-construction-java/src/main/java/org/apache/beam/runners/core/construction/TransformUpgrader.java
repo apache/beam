@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -32,8 +34,9 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -41,6 +44,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A utility class that allows upgrading transforms of a given pipeline using the Beam Transform
@@ -145,7 +149,7 @@ public class TransformUpgrader implements AutoCloseable {
           String transformId,
           Endpoints.ApiServiceDescriptor transformServiceEndpoint)
           throws IOException {
-    PTransform transformToUpgrade =
+    RunnerApi.PTransform transformToUpgrade =
         runnerAPIpipeline.getComponents().getTransformsMap().get(transformId);
     if (transformToUpgrade == null) {
       throw new IllegalArgumentException("Could not find a transform with the ID " + transformId);
@@ -187,6 +191,7 @@ public class TransformUpgrader implements AutoCloseable {
             .setComponents(runnerAPIpipeline.getComponents())
             .setTransform(ptransformBuilder.build())
             .setNamespace(UPGRADE_NAMESPACE)
+            .addAllRequirements(runnerAPIpipeline.getRequirementsList())
             .build();
 
     ExpansionApi.ExpansionResponse response =
@@ -251,7 +256,7 @@ public class TransformUpgrader implements AutoCloseable {
     recursivelyFindSubTransforms(
         transformId, runnerAPIpipeline.getComponents(), transformsToRemove);
 
-    Map<String, PTransform> updatedExpandedTransformMap =
+    Map<String, RunnerApi.PTransform> updatedExpandedTransformMap =
         expandedComponents.getTransformsMap().entrySet().stream()
             .filter(
                 entry -> {
@@ -264,7 +269,7 @@ public class TransformUpgrader implements AutoCloseable {
                     entry -> {
                       // Fix inputs
                       Map<String, String> inputsMap = entry.getValue().getInputsMap();
-                      PTransform.Builder transformBuilder = entry.getValue().toBuilder();
+                      RunnerApi.PTransform.Builder transformBuilder = entry.getValue().toBuilder();
                       if (!Collections.disjoint(inputsMap.values(), inputReplacements.keySet())) {
                         Map<String, String> updatedInputsMap = new HashMap<>();
                         for (Map.Entry<String, String> inputEntry : inputsMap.entrySet()) {
@@ -296,7 +301,7 @@ public class TransformUpgrader implements AutoCloseable {
   private static void recursivelyFindSubTransforms(
       String transformId, RunnerApi.Components components, List<String> results) {
     results.add(transformId);
-    PTransform transform = components.getTransformsMap().get(transformId);
+    RunnerApi.PTransform transform = components.getTransformsMap().get(transformId);
     if (transform == null) {
       throw new IllegalArgumentException("Could not find a transform with id " + transformId);
     }
@@ -326,5 +331,40 @@ public class TransformUpgrader implements AutoCloseable {
   @Override
   public void close() throws Exception {
     clientFactory.close();
+  }
+
+  /**
+   * A utility to find the registered URN for a given transform.
+   *
+   * <p>This URN can be used to upgrade this transform to a new Beam version without upgrading the
+   * rest of the pipeline. Please see <a
+   * href="https://beam.apache.org/documentation/programming-guide/#transform-service">Beam
+   * Transform Service documentation</a> for more details.
+   *
+   * <p>For this lookup to work, the a {@link TransformPayloadTranslatorRegistrar} for the transform
+   * has to be available in the classpath.
+   *
+   * @param transform transform to lookup.
+   * @return a URN if discovered. Returns {@code null} otherwise.
+   */
+  @SuppressWarnings({
+    "rawtypes",
+    "EqualsIncompatibleType",
+  })
+  public static @Nullable String findUpgradeURN(PTransform transform) {
+    for (TransformPayloadTranslatorRegistrar registrar :
+        ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
+
+      for (Entry<
+              ? extends Class<? extends org.apache.beam.sdk.transforms.PTransform>,
+              ? extends TransformPayloadTranslator>
+          entry : registrar.getTransformPayloadTranslators().entrySet()) {
+        if (entry.getKey().equals(transform.getClass())) {
+          return entry.getValue().getUrn();
+        }
+      }
+    }
+
+    return null;
   }
 }

@@ -37,7 +37,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
 )
 
-func initRunner(t *testing.T) {
+func initRunner(t testing.TB) {
 	t.Helper()
 	if *jobopts.Endpoint == "" {
 		s := jobservices.NewServer(0, internal.RunPipeline)
@@ -64,7 +64,8 @@ func execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	return universal.Execute(ctx, p)
 }
 
-func executeWithT(ctx context.Context, t *testing.T, p *beam.Pipeline) (beam.PipelineResult, error) {
+func executeWithT(ctx context.Context, t testing.TB, p *beam.Pipeline) (beam.PipelineResult, error) {
+	t.Helper()
 	t.Log("startingTest - ", t.Name())
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
@@ -586,4 +587,105 @@ func init() {
 
 func TestMain(m *testing.M) {
 	ptest.MainWithDefault(m, "testlocal")
+}
+
+func init() {
+	// Basic Registration
+	// beam.RegisterFunction(identity)
+	// beam.RegisterType(reflect.TypeOf((*source)(nil)))
+	// beam.RegisterType(reflect.TypeOf((*discard)(nil)))
+
+	// Generic registration
+	register.Function2x0(identity)
+	register.DoFn2x0[[]byte, func(int)]((*source)(nil))
+	register.DoFn1x0[int]((*discard)(nil))
+	register.Emitter1[int]()
+}
+
+type source struct {
+	Count int
+}
+
+func (fn *source) ProcessElement(_ []byte, emit func(int)) {
+	for i := 0; i < fn.Count; i++ {
+		emit(i)
+	}
+}
+
+func identity(v int, emit func(int)) {
+	emit(v)
+}
+
+type discard struct {
+	processed int
+}
+
+func (fn *discard) ProcessElement(int) {
+	fn.processed++
+}
+
+// BenchmarkPipe checks basic throughput and exec overhead with everything registered.
+//
+// No fusion (all elements encoded) (generic registration):
+//
+//		~2000ns per call, 2000B per DoFn, across 22 allocs per DoFn
+//	 (using Basic regsitration adds 3 allocs per DoFn, a ~200 bytes, and ~200-400ns/elm)
+//
+// goos: linux
+// goarch: amd64
+// pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct
+// cpu: 12th Gen Intel(R) Core(TM) i7-1260P
+// BenchmarkPipe/dofns=0-16         	  885811	      1333 ns/op	      1333 ns/elm	    1993 B/op	      22 allocs/op
+// BenchmarkPipe/dofns=1-16         	  457683	      2636 ns/op	      2636 ns/elm	    3986 B/op	      44 allocs/op
+// BenchmarkPipe/dofns=2-16         	  283699	      3975 ns/op	      1988 ns/elm	    6138 B/op	      66 allocs/op
+// BenchmarkPipe/dofns=3-16         	  212767	      5689 ns/op	      1896 ns/elm	    8504 B/op	      88 allocs/op
+// BenchmarkPipe/dofns=5-16         	  121842	      8279 ns/op	      1656 ns/elm	   11994 B/op	     132 allocs/op
+// BenchmarkPipe/dofns=10-16        	   22059	     52877 ns/op	      5288 ns/elm	   30614 B/op	     443 allocs/op
+// BenchmarkPipe/dofns=100-16       	    6614	    166364 ns/op	      1664 ns/elm	  192961 B/op	    2261 allocs/op
+//
+// With fusion (generic registration):
+// ~200ns per call, 150B per DoFn, across 2 allocs per DoFn
+// AKA comparible to Direct Runner, as expected.
+//
+// goos: linux
+// goarch: amd64
+// pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct
+// cpu: 12th Gen Intel(R) Core(TM) i7-1260P
+// BenchmarkPipe/dofns=0-16         	   7660638	       145.8 ns/op	       145.8 ns/elm	     152 B/op	       2 allocs/op
+// BenchmarkPipe/dofns=1-16         	   3676358	       313.3 ns/op	       313.3 ns/elm	     304 B/op	       4 allocs/op
+// BenchmarkPipe/dofns=2-16         	   2242688	       507.4 ns/op	       253.7 ns/elm	     457 B/op	       6 allocs/op
+// BenchmarkPipe/dofns=3-16         	   1726969	       662.6 ns/op	       220.9 ns/elm	     610 B/op	       8 allocs/op
+// BenchmarkPipe/dofns=5-16         	   1198765	      1005 ns/op	       201.0 ns/elm	     915 B/op	      12 allocs/op
+// BenchmarkPipe/dofns=10-16        	    631459	      1874 ns/op	       187.4 ns/elm	    1679 B/op	      22 allocs/op
+// BenchmarkPipe/dofns=100-16       	     57926	     19890 ns/op	       198.9 ns/elm	   15660 B/op	     206 allocs/op
+func BenchmarkPipe(b *testing.B) {
+	initRunner(b)
+	makeBench := func(numDoFns int) func(b *testing.B) {
+		return func(b *testing.B) {
+			b.ReportAllocs()
+			disc := &discard{}
+			p, s := beam.NewPipelineWithRoot()
+			imp := beam.Impulse(s)
+			src := beam.ParDo(s, &source{Count: b.N}, imp)
+			iden := src
+			for i := 0; i < numDoFns; i++ {
+				iden = beam.ParDo(s, identity, iden)
+			}
+			beam.ParDo0(s, disc, iden)
+			_, err := execute(context.Background(), p)
+			if err != nil {
+				b.Fatal(err)
+			}
+			d := b.Elapsed()
+			div := numDoFns
+			if div == 0 {
+				div = 1
+			}
+			div = div * b.N
+			b.ReportMetric(float64(d)/float64(div), "ns/elm")
+		}
+	}
+	for _, numDoFns := range []int{0, 1, 2, 3, 5, 10, 100} {
+		b.Run(fmt.Sprintf("dofns=%d", numDoFns), makeBench(numDoFns))
+	}
 }

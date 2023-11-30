@@ -636,7 +636,7 @@ public class WindowTest implements Serializable {
     pipeline.run();
   }
 
-  //  This test is usefull because some runners have a special merge implementation
+  //  This test is useful because some runners have a special merge implementation
   // for keyed collections
   @Test
   @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
