@@ -1,12 +1,15 @@
 package org.apache.beam.io.iceberg;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
@@ -16,9 +19,13 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class BoundedScanTests {
+
+  private static Logger LOG = LoggerFactory.getLogger(BoundedScanTests.class);
   @ClassRule
   public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -27,6 +34,15 @@ public class BoundedScanTests {
 
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();
+
+  static class PrintRow extends DoFn<Row,Row> {
+
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<Row> output) throws Exception {
+      LOG.info("Got row {}",row);
+      output.output(row);
+    }
+  }
 
   @Test
   public void testSimpleScan() throws Exception {
@@ -37,7 +53,7 @@ public class BoundedScanTests {
         .appendFile(warehouse.writeRecords("file3s1.parquet",simpleTable.schema(),TestFixtures.FILE3SNAPSHOT1))
         .commit();
 
-    PCollection<IcebergScanTask> output = testPipeline
+    PCollection<Row> output = testPipeline
         .apply(Create.of(IcebergScan.builder()
                 .catalogName("hadoop")
                 .catalogConfiguration(ImmutableMap.of(
@@ -46,8 +62,12 @@ public class BoundedScanTests {
                 ))
                 .table(simpleTable.name().replace("hadoop.","")) // Catalog name shouldn't be included
                 .scanType(IcebergScan.ScanType.TABLE) // Do a normal scan.
-                .build()).withCoder(SerializableCoder<IcebergScan>))
-        .apply(ParDo.of(new IcebergScanGeneratorFn()));
+                .build()).withCoder(SerializableCoder.of(IcebergScan.class)))
+        .apply(ParDo.of(new IcebergScanGeneratorFn()))
+        .apply(ParDo.of(new IcebergFileScanFn(TestFixtures.SCHEMA)))
+        .setCoder(RowCoder.of(SchemaHelper.convert(TestFixtures.SCHEMA)))
+        .apply(ParDo.of(new PrintRow()))
+        .setCoder(RowCoder.of(SchemaHelper.convert(TestFixtures.SCHEMA)));
     PAssert.that(output);
     testPipeline.run();
 

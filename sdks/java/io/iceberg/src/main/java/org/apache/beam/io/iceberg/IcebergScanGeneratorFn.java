@@ -2,10 +2,7 @@ package org.apache.beam.io.iceberg;
 
 import java.io.IOException;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.iceberg.BatchScan;
-import org.apache.iceberg.ChangelogScanTask;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.IncrementalAppendScan;
 import org.apache.iceberg.IncrementalChangelogScan;
@@ -28,31 +25,41 @@ public class IcebergScanGeneratorFn extends DoFn<IcebergScan,IcebergScanTask> {
   Logger LOG = LoggerFactory.getLogger(IcebergScanGeneratorFn.class);
 
   private void processTableScan(TableScan scan,FileIO io,EncryptionManager encryptionManager, ProcessContext c) {
+    LOG.info("Starting a table scan with table {}",scan.table().name());
+    int counter = 0;
     try(CloseableIterable<CombinedScanTask> tasks = scan.planTasks()) {
       for(CombinedScanTask task : tasks) {
         c.output(new IcebergScanTask(task,io,encryptionManager));
+        counter++;
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+    LOG.info("Produced {} scan tasks from table scan",counter);
   }
 
   private void processBatchScan(BatchScan scan,ProcessContext c) {
     //TODO: Decide if this is even necessary to implement.
+    LOG.info("Starting a batch scan for table {}",scan.table().name());
   }
 
   private void processAppendScan(IncrementalAppendScan scan,FileIO io,EncryptionManager encryptionManager, ProcessContext c) {
+    LOG.info("Starting an incremental append scan");
+    int counter = 0;
     try(CloseableIterable<CombinedScanTask> tasks = scan.planTasks()) {
       for(CombinedScanTask task : tasks) {
         c.output(new IcebergScanTask(task,io,encryptionManager));
+        counter++;
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+    LOG.info("Produced {} scan tasks from incremental table scan",counter);
   }
 
   private void processChangelogScan(IncrementalChangelogScan scan,ProcessContext c) {
     //TODO: Changelog scans operate differently than table or incremental append scans.
+    LOG.info("Starting a changelog scan");
   }
 
   @ProcessElement

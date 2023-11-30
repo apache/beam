@@ -64,7 +64,7 @@ public class TestFixtures {
       genericRecord.copy(ImmutableMap.of("id",25L,"data","zen")),
       genericRecord.copy(ImmutableMap.of("id",26L,"data","sky"))
   );
-  public static final ImmutableList<Record> FILE23NAPSHOT3 = ImmutableList.of(
+  public static final ImmutableList<Record> FILE3SNAPSHOT3 = ImmutableList.of(
       genericRecord.copy(ImmutableMap.of("id",26L,"data","belleview")),
       genericRecord.copy(ImmutableMap.of("id",27L,"data","overview")),
       genericRecord.copy(ImmutableMap.of("id",28L,"data","tender"))
