@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
@@ -109,29 +112,10 @@ public class BigQueryIOTranslation {
     public RunnerApi.@Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, TypedRead<?>> application, SdkComponents components)
         throws IOException {
-      // Setting an empty payload since Kafka transform payload is not actually used by runners
+      // Setting an empty payload since BigQuery transform payload is not actually used by runners
       // currently.
-      // This can be implemented if runners started actually using the Kafka transform payload.
+      // This can be implemented if runners started actually using the BigQuery transform payload.
       return FunctionSpec.newBuilder().setUrn(getUrn()).setPayload(ByteString.empty()).build();
-    }
-
-    private static byte[] toByteArray(Object object) {
-      try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-          ObjectOutputStream out = new ObjectOutputStream(bos)) {
-        out.writeObject(object);
-        return bos.toByteArray();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    private static Object fromByteArray(byte[] bytes) {
-      try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-          ObjectInputStream in = new ObjectInputStream(bis)) {
-        return in.readObject();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     }
 
     @Override
@@ -405,9 +389,9 @@ public class BigQueryIOTranslation {
     public @Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, Write<?>> application, SdkComponents components)
         throws IOException {
-      // Setting an empty payload since Kafka transform payload is not actually used by runners
+      // Setting an empty payload since BigQuery transform payload is not actually used by runners
       // currently.
-      // This can be implemented if runners started actually using the Kafka transform payload.
+      // This can be implemented if runners started actually using the Kafka BigQuery payload.
       return FunctionSpec.newBuilder().setUrn(getUrn()).setPayload(ByteString.empty()).build();
     }
 
