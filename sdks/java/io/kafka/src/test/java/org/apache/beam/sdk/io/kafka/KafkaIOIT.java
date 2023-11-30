@@ -736,7 +736,8 @@ public class KafkaIOIT {
     }
   }
 
-  private void runWithStopReadingFn(CheckStopReadingFn function, String topicSuffix, Long expectedCount) {
+  private void runWithStopReadingFn(
+      CheckStopReadingFn function, String topicSuffix, Long expectedCount) {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
@@ -745,17 +746,19 @@ public class KafkaIOIT {
             writeToKafka().withTopic(options.getKafkaTopic() + "-" + topicSuffix));
 
     readPipeline.getOptions().as(Options.class).setStreaming(true);
-    PCollection<Long> count = readPipeline
-        .apply(
-            "Read from unbounded Kafka",
-            readFromKafka()
-                .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
-                .withCheckStopReadingFn(function))
-        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Window", Window.into(CalendarWindows.years(1)))
-        .apply(
-            "Counting element",
-            Combine.globally(Count.<KafkaRecord<byte[], byte[]>>combineFn()).withoutDefaults());
+    PCollection<Long> count =
+        readPipeline
+            .apply(
+                "Read from unbounded Kafka",
+                readFromKafka()
+                    .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
+                    .withCheckStopReadingFn(function))
+            .apply(
+                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+            .apply("Window", Window.into(CalendarWindows.years(1)))
+            .apply(
+                "Counting element",
+                Combine.globally(Count.<KafkaRecord<byte[], byte[]>>combineFn()).withoutDefaults());
 
     if (expectedCount == 0L) {
       PAssert.that(count).empty();
