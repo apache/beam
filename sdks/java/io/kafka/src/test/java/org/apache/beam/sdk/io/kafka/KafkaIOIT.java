@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.kafka.KafkaIOTest.FailingLongSerializer;
 import org.apache.beam.sdk.io.kafka.ReadFromKafkaDoFnTest.FailingDeserializer;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
@@ -362,7 +363,7 @@ public class KafkaIOIT {
 
   // This test verifies that bad data from Kafka is properly sent to the error handler
   @Test
-  public void testKafkaIOSDFWithErrorHandler() throws IOException {
+  public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
     writePipeline
         .apply(Create.of(KV.of("key", "val")))
         .apply(
@@ -407,6 +408,40 @@ public class KafkaIOIT {
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
     cancelIfTimeouted(readResult, readState);
     assertNotEquals(PipelineResult.State.FAILED, readState);
+  }
+
+  @Test
+  public void testKafkaIOWriteWithErrorHandler() throws IOException {
+    PTransform<PCollection<BadRecord>, PCollection<Long>> sinkTransform =
+        new PTransform<PCollection<BadRecord>, PCollection<Long>>() {
+          @Override
+          public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
+              PCollection<BadRecord> input) {
+            return input
+                .apply("Window", Window.into(CalendarWindows.years(1)))
+                .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
+          }
+        };
+
+    BadRecordErrorHandler<PCollection<Long>> eh =
+        writePipeline.registerBadRecordErrorHandler(sinkTransform);
+    writePipeline
+        .apply("Create single KV", Create.of(KV.of("key", 4L)))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<String, Long>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withKeySerializer(StringSerializer.class)
+                .withValueSerializer(FailingLongSerializer.class)
+                .withTopic(options.getKafkaTopic() + "-failingSerialization")
+                .withBadRecordErrorHandler(eh));
+    eh.close();
+
+    PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(1L);
+
+    PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
   }
 
   // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata

@@ -93,7 +93,8 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
       elementsWritten.inc();
     } catch (SerializationException e) {
       // This exception should only occur during the key and value deserialization when
-      // creating the Kafka Record
+      // creating the Kafka Record. We can catch the exception here as producer.send serializes
+      // the record before starting the future.
       badRecordRouter.route(
           receiver,
           record,
