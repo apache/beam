@@ -24,6 +24,11 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IntSummaryStatistics;
+import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
@@ -147,5 +152,39 @@ public class DataflowExecutionContextTest {
     // Once the state closes, the active message should get cleared.
     Assert.assertEquals(null,
         tracker.getActiveMessageMetadata());
+  }
+
+  @Test
+  public void testDataflowExecutionStateTrackerRecordsCompletedProcessingTimes()
+      throws IOException {
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.instance(),
+            null,
+            null,
+            PipelineOptionsFactory.create(),
+            "");
+
+    // Enter a processing state
+    StreamingModeExecutionState state = new StreamingModeExecutionState(
+        NameContextsForTests.nameContextForTest(), PROCESS_STATE_NAME, null, NoopProfileScope.NOOP,
+        null);
+    tracker.enterState(state);
+    // Enter a new processing state
+    StreamingModeExecutionState newState = new StreamingModeExecutionState(
+        NameContextsForTests.nameContextForTest(), PROCESS_STATE_NAME, null, NoopProfileScope.NOOP,
+        null);
+    tracker.enterState(newState);
+
+    // The first completed state should be recorded and the new state should be active.
+    Map<String, IntSummaryStatistics> gotProcessingTimes = tracker.getProcessingTimesByStep();
+    Assert.assertEquals(1, gotProcessingTimes.size());
+    Assert.assertEquals(
+        new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
+        gotProcessingTimes.keySet());
+    ActiveMessageMetadata expectedMetadata = new ActiveMessageMetadata(
+        NameContextsForTests.nameContextForTest().userName(), 1l);
+    Assert.assertEquals(expectedMetadata.userStepName,
+        tracker.getActiveMessageMetadata().userStepName);
   }
 }

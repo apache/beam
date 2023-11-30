@@ -24,6 +24,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.NullSideInputReader;
@@ -254,6 +256,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     private MillisProvider clock = System::currentTimeMillis;
 
+    private Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
+
     public DataflowExecutionStateTracker(
         ExecutionStateSampler sampler,
         DataflowOperationContext.DataflowExecutionState otherState,
@@ -307,10 +311,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           newState.isProcessElementState && newState instanceof DataflowExecutionState;
       if (isDataflowProcessElementState) {
         DataflowExecutionState newDFState = (DataflowExecutionState) newState;
-        if (newDFState.getStepName() != null) {
+        if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
+          if (this.activeMessageMetadata != null) {
+            recordActiveMessageInProcessingTimesMap();
+          }
           this.activeMessageMetadata = new ActiveMessageMetadata(
-              newDFState.getStepName().userName(),
-              clock.getMillis());
+              newDFState.getStepName().userName(), clock.getMillis());
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
@@ -318,7 +324,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return () -> {
         if (isDataflowProcessElementState) {
           if (this.activeMessageMetadata != null) {
-            this.activeMessageMetadata = null;
+            recordActiveMessageInProcessingTimesMap();
           }
           elementExecutionTracker.exit();
         }
@@ -332,6 +338,31 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     public ActiveMessageMetadata getActiveMessageMetadata() {
       return activeMessageMetadata;
+    }
+
+    public Map<String, IntSummaryStatistics> getProcessingTimesByStep() {
+      return processingTimesByStep;
+    }
+    
+    /**
+     * Transitions the metadata for the currently active message to an entry in the completed
+     * processing times map. Sets the activeMessageMetadata to null after the entry has been
+     * recorded.
+     */
+    private void recordActiveMessageInProcessingTimesMap() {
+      if (this.activeMessageMetadata == null) {
+        return;
+      }
+      this.processingTimesByStep.compute(
+          this.activeMessageMetadata.userStepName, (k, v) -> {
+            if (v == null) {
+              v = new IntSummaryStatistics();
+            }
+            v.accept(
+                (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime));
+            return v;
+          });
+      this.activeMessageMetadata = null;
     }
   }
 }
