@@ -37,13 +37,13 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTransform<T, K> {
 
-  private final SerializableFunction<OutputFromFileArguments<T>, K> outputFn;
+  private final SerializableFunction<OutputContextFromFile<T>, K> outputFn;
 
   protected ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<K> coder,
-      SerializableFunction<OutputFromFileArguments<T>, K> outputFn) {
+      SerializableFunction<OutputContextFromFile<T>, K> outputFn) {
     super(
         desiredBundleSizeBytes,
         createSource,
@@ -59,7 +59,7 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
       Coder<K> coder,
       boolean usesReshuffle,
       ReadAllViaFileBasedSourceTransform.ReadFileRangesFnExceptionHandler exceptionHandler,
-      SerializableFunction<OutputFromFileArguments<T>, K> outputFn) {
+      SerializableFunction<OutputContextFromFile<T>, K> outputFn) {
     super(desiredBundleSizeBytes, createSource, coder, usesReshuffle, exceptionHandler);
     this.outputFn = outputFn;
   }
@@ -83,11 +83,19 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<InputT>> createSource,
       Coder<InputT> coder) {
-    return new ReadAllViaFileBasedSource<>(
+    return create(
         desiredBundleSizeBytes,
         createSource,
         coder,
         outputArguments -> outputArguments.reader().getCurrent());
+  }
+
+  public static <InputT, OutputT> ReadAllViaFileBasedSource<InputT, OutputT> create(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<InputT>> createSource,
+      Coder<OutputT> coder,
+      SerializableFunction<OutputContextFromFile<InputT>, OutputT> outputFn) {
+    return new ReadAllViaFileBasedSource<>(desiredBundleSizeBytes, createSource, coder, outputFn);
   }
 
   @Override
@@ -96,10 +104,10 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
   }
 
   private static class ReadFileRangesFn<T, K> extends AbstractReadFileRangesFn<T, K> {
-    private final SerializableFunction<OutputFromFileArguments<T>, K> outputFn;
+    private final SerializableFunction<OutputContextFromFile<T>, K> outputFn;
 
     public ReadFileRangesFn(
-        final SerializableFunction<OutputFromFileArguments<T>, K> outputFn,
+        final SerializableFunction<OutputContextFromFile<T>, K> outputFn,
         final SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
         final ReadAllViaFileBasedSourceTransform.ReadFileRangesFnExceptionHandler
             exceptionHandler) {
@@ -113,13 +121,13 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
         final OffsetRange range,
         final FileBasedSource<T> fileBasedSource,
         final BoundedSource.BoundedReader<T> reader) {
-      return outputFn.apply(OutputFromFileArguments.create(file, range, fileBasedSource, reader));
+      return outputFn.apply(OutputContextFromFile.create(file, range, fileBasedSource, reader));
     }
   }
 
-  /** Data carrier for the arguments of an output construction method. */
+  /** Data carrier for the arguments of the {@link ReadFileRangesFn#makeOutput} method. */
   @AutoValue
-  public abstract static class OutputFromFileArguments<ReadT> {
+  public abstract static class OutputContextFromFile<ReadT> {
     public abstract FileIO.ReadableFile file();
 
     public abstract OffsetRange range();
@@ -128,12 +136,12 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
 
     public abstract BoundedSource.BoundedReader<ReadT> reader();
 
-    public static <ReadT> OutputFromFileArguments<ReadT> create(
+    public static <ReadT> OutputContextFromFile<ReadT> create(
         final ReadableFile file,
         final OffsetRange range,
         final FileBasedSource<ReadT> fileBasedSource,
         final BoundedSource.BoundedReader<ReadT> reader) {
-      return new AutoValue_ReadAllViaFileBasedSource_OutputFromFileArguments<>(
+      return new AutoValue_ReadAllViaFileBasedSource_OutputContextFromFile<>(
           file, range, fileBasedSource, reader);
     }
   }

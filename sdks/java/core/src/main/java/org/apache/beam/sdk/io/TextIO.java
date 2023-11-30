@@ -34,12 +34,14 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
+import org.apache.beam.sdk.io.ReadAllViaFileBasedSource.OutputContextFromFile;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -113,7 +115,36 @@ import org.joda.time.Duration;
  *         .apply(TextIO.readFiles());
  * }</pre>
  *
- * <p>Example 3: streaming new files matching a filepattern.
+ * <p>Example 3: read data from a set of files and include the specific file name on every read
+ * line:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // E.g. the filenames might be computed from other data in the pipeline, or
+ * // read from a data source.
+ * PCollection<String> filenames = ...;
+ *
+ * // Read all files in the collection.
+ * PCollection<KV<String, String>> linesWithFileName =
+ *     filenames
+ *         .apply(FileIO.matchAll())
+ *         .apply(FileIO.readMatches())
+ *         .apply(
+ *            TextIO
+ *              .readTypeFromFiles(
+ *                outputArguments ->
+ *                  KV.of(
+ *                    outputArguments.file().getMetadata().resourceId().toString(),
+ *                    outputArguments.reader().getCurrent()),
+ *                KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())));
+ * }</pre>
+ *
+ * <p>Similar approaches can be followed to include other file attributes (size, other metadata,
+ * etc.) as part of the output type and use them to predicate downstream when selecting different
+ * pipeline branches.
+ *
+ * <p>Example 4: streaming new files matching a filepattern.
  *
  * <pre>{@code
  * Pipeline p = ...;
@@ -224,13 +255,34 @@ public class TextIO {
    * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
    * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
    */
-  public static ReadFiles readFiles() {
-    return new AutoValue_TextIO_ReadFiles.Builder()
+  public static ReadFiles<String> readFiles() {
+    return new AutoValue_TextIO_ReadFiles.Builder<String>()
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setSkipHeaderLines(0)
+        .setOutputCoder(StringUtf8Coder.of())
+        .build();
+  }
+
+  /**
+   * Like {@link #readFiles}, but enables the customization for the read output type, by capturing
+   * an output data carrier containing information about the read file, the current range being read
+   * from the file, file based source in use and the actual reader instance. It can be used to read
+   * each file in a {@link PCollection} of {@link FileIO.ReadableFile}, returned by {@link
+   * FileIO#readMatches}.
+   */
+  public static <TypeT> ReadFiles<TypeT> readTypeFromFiles(
+      SerializableFunction<OutputContextFromFile<String>, TypeT> outputFn, Coder<TypeT> coder) {
+    return new AutoValue_TextIO_ReadFiles.Builder<TypeT>()
+        // 64MB is a reasonable value that allows to amortize the cost of opening files,
+        // but is not so large as to exhaust a typical runner's maximum amount of output per
+        // ProcessElement call.
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setSkipHeaderLines(0)
+        .setOutputFn(outputFn)
+        .setOutputCoder(coder)
         .build();
   }
 
@@ -571,8 +623,8 @@ public class TextIO {
 
   /** Implementation of {@link #readFiles}. */
   @AutoValue
-  public abstract static class ReadFiles
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<String>> {
+  public abstract static class ReadFiles<OutT>
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<OutT>> {
     abstract long getDesiredBundleSizeBytes();
 
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
@@ -580,41 +632,51 @@ public class TextIO {
 
     abstract int getSkipHeaderLines();
 
-    abstract Builder toBuilder();
+    abstract SerializableFunction<OutputContextFromFile<String>, OutT> getOutputFn();
+
+    abstract Coder<OutT> getOutputCoder();
+
+    abstract Builder<OutT> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+    abstract static class Builder<OutT> {
+      abstract Builder<OutT> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
-      abstract Builder setDelimiter(byte @Nullable [] delimiter);
+      abstract Builder<OutT> setDelimiter(byte @Nullable [] delimiter);
 
-      abstract Builder setSkipHeaderLines(int skipHeaderLines);
+      abstract Builder<OutT> setSkipHeaderLines(int skipHeaderLines);
 
-      abstract ReadFiles build();
+      abstract Builder<OutT> setOutputFn(
+          SerializableFunction<OutputContextFromFile<String>, OutT> outputFn);
+
+      abstract Builder<OutT> setOutputCoder(Coder<OutT> coder);
+
+      abstract ReadFiles<OutT> build();
     }
 
     @VisibleForTesting
-    ReadFiles withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+    ReadFiles<OutT> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
     /** Like {@link Read#withDelimiter}. */
-    public ReadFiles withDelimiter(byte[] delimiter) {
+    public ReadFiles<OutT> withDelimiter(byte[] delimiter) {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
-    public ReadFiles withSkipHeaderLines(int skipHeaderLines) {
+    public ReadFiles<OutT> withSkipHeaderLines(int skipHeaderLines) {
       return toBuilder().setSkipHeaderLines(skipHeaderLines).build();
     }
 
     @Override
-    public PCollection<String> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<OutT> expand(PCollection<FileIO.ReadableFile> input) {
       return input.apply(
           "Read all via FileBasedSource",
           ReadAllViaFileBasedSource.create(
               getDesiredBundleSizeBytes(),
               new CreateTextSourceFn(getDelimiter(), getSkipHeaderLines()),
-              StringUtf8Coder.of()));
+              getOutputCoder(),
+              getOutputFn()));
     }
 
     @Override

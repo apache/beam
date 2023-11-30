@@ -1054,6 +1054,41 @@ public class TextIOReadTest {
     }
 
     @Test
+    @Category(NeedsRunner.class)
+    public void testReadFilesWithFilenameUsingOutputFn() throws IOException {
+      Path tempFolderPath = tempFolder.getRoot().toPath();
+      writeToFile(TINY, tempFolder, "readAllTiny1.zip", ZIP);
+      writeToFile(TINY, tempFolder, "readAllTiny2.txt", UNCOMPRESSED);
+      writeToFile(LARGE, tempFolder, "readAllLarge1.zip", ZIP);
+      writeToFile(LARGE, tempFolder, "readAllLarge2.txt", UNCOMPRESSED);
+
+      PCollection<KV<String, String>> lines =
+          p.apply(
+                  Create.of(
+                      tempFolderPath.resolve("readAllTiny*").toString(),
+                      tempFolderPath.resolve("readAllLarge*").toString()))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches().withCompression(AUTO))
+              .apply(
+                  TextIO.readTypeFromFiles(
+                          output ->
+                              KV.of(
+                                  output.file().getMetadata().resourceId().toString(),
+                                  output.reader().getCurrent()),
+                          KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+                      .withDesiredBundleSizeBytes(10));
+
+      PAssert.that(lines)
+          .containsInAnyOrder(
+              Iterables.concat(
+                  filenameKV(tempFolderPath, "readAllTiny1.zip", TINY),
+                  filenameKV(tempFolderPath, "readAllTiny2.txt", TINY),
+                  filenameKV(tempFolderPath, "readAllLarge1.zip", LARGE),
+                  filenameKV(tempFolderPath, "readAllLarge2.txt", LARGE)));
+      p.run();
+    }
+
+    @Test
     @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
