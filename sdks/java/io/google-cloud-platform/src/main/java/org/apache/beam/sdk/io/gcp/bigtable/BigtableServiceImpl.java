@@ -103,18 +103,12 @@ class BigtableServiceImpl implements BigtableService {
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
   BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
-    this(settings, Duration.ZERO);
-  }
-
-  BigtableServiceImpl(BigtableDataSettings settings, Duration writeCloseWaitTimeout)
-      throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
     this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
     this.client = BigtableDataClient.create(settings);
-    this.writeCloseWaitTimeout = writeCloseWaitTimeout;
     LOG.info("Started Bigtable service with settings {}", settings);
   }
 
@@ -126,11 +120,14 @@ class BigtableServiceImpl implements BigtableService {
 
   private final Duration readOperationTimeout;
 
-  @VisibleForTesting final Duration writeCloseWaitTimeout;
-
   @Override
-  public BigtableWriterImpl openForWriting(String tableId) {
-    return new BigtableWriterImpl(client, projectId, instanceId, tableId, writeCloseWaitTimeout);
+  public BigtableWriterImpl openForWriting(BigtableWriteOptions writeOptions) {
+    return new BigtableWriterImpl(
+        client,
+        projectId,
+        instanceId,
+        writeOptions.getTableId().get(),
+        writeOptions.getCloseWaitTimeout());
   }
 
   @VisibleForTesting

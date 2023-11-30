@@ -81,7 +81,7 @@ interface BigtableService extends Serializable {
   Reader createReader(BigtableSource source) throws IOException;
 
   /** Returns a {@link Writer} that will write to the specified table. */
-  Writer openForWriting(String tableId) throws IOException;
+  Writer openForWriting(BigtableWriteOptions writeOptions) throws IOException;
 
   /**
    * Returns a set of row keys sampled from the underlying table. These contain information about

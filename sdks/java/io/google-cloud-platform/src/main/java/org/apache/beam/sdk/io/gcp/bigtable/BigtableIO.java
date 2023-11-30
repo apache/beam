@@ -60,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEsti
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1139,6 +1140,8 @@ public class BigtableIO {
       extends PTransform<
           PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<BigtableWriteResult>> {
 
+    private static final String BIGTABLE_WRITER_WAIT_TIMEOUT_MS = "bigtable_writer_wait_timeout_ms";
+
     private final BigtableConfig bigtableConfig;
     private final BigtableWriteOptions bigtableWriteOptions;
 
@@ -1159,8 +1162,35 @@ public class BigtableIO {
       bigtableConfig.validate();
       bigtableWriteOptions.validate();
 
+      // Get experimental flag and set on BigtableWriteOptions
+      PipelineOptions pipelineOptions = input.getPipeline().getOptions();
+      String closeWaitTimeoutStr =
+          ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_WRITER_WAIT_TIMEOUT_MS);
+      Duration closeWaitTimeout = Duration.ZERO;
+      if (closeWaitTimeoutStr != null) {
+        try {
+          long closeWaitTimeoutMs = Long.parseLong(closeWaitTimeoutStr);
+          if (closeWaitTimeoutMs < 0) {
+            LOG.warn(
+                "Invalid close wait timeout {}, will not set a wait timeout on close",
+                closeWaitTimeoutMs);
+          } else {
+            closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
+          }
+        } catch (NumberFormatException e) {
+          LOG.warn(
+              "Failed to parse close wait timeout {}, will not set a wait timeout on close",
+              closeWaitTimeoutStr,
+              e);
+        }
+      }
+
       return input.apply(
-          ParDo.of(new BigtableWriterFn(factory, bigtableConfig, bigtableWriteOptions)));
+          ParDo.of(
+              new BigtableWriterFn(
+                  factory,
+                  bigtableConfig,
+                  bigtableWriteOptions.toBuilder().setCloseWaitTimeout(closeWaitTimeout).build())));
     }
 
     @Override
@@ -1216,6 +1246,7 @@ public class BigtableIO {
       this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
       this.id = factory.newId();
+      LOG.info("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
     }
 
     @StartBundle
@@ -1226,7 +1257,7 @@ public class BigtableIO {
       if (bigtableWriter == null) {
         serviceEntry =
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
-        bigtableWriter = serviceEntry.getService().openForWriting(writeOptions.getTableId().get());
+        bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
     }
 
