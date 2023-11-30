@@ -189,7 +189,7 @@ class ExtractHashAndKeyPColl(beam.DoFn):
   def process(self, element):
     hashkey = element[_HASH_KEY][0]
     del element[_HASH_KEY]
-    yield (hashkey.decode('utf-8'), element)
+    yield (hashkey, element)
 
 
 class MergeDicts(beam.DoFn):
@@ -334,7 +334,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
-    raw_data_feature_spec[_HASH_KEY] = tf.io.VarLenFeature(dtype=bytes)
+    raw_data_feature_spec[_HASH_KEY] = tf.io.VarLenFeature(dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
         raw_data_feature_spec)
 
