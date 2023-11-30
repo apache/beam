@@ -514,11 +514,7 @@ public class StreamingDataflowWorker {
 
   /** Sets the stage name and workId of the current Thread for logging. */
   private static void setUpWorkLoggingContext(Windmill.WorkItem workItem, String computationId) {
-    String workIdBuilder =
-        Long.toHexString(workItem.getShardingKey())
-            + '-'
-            + Long.toHexString(workItem.getWorkToken());
-    DataflowWorkerLoggingMDC.setWorkId(workIdBuilder);
+    DataflowWorkerLoggingMDC.setWorkId(constructWorkId(workItem));
     DataflowWorkerLoggingMDC.setStageName(computationId);
   }
 
@@ -1007,7 +1003,7 @@ public class StreamingDataflowWorker {
                         ScopedProfiler.INSTANCE.emptyScope()),
                 stageInfo.deltaCounters(),
                 options,
-                computationId);
+                constructWorkId(workItem));
         StreamingModeExecutionContext context =
             new StreamingModeExecutionContext(
                 pendingDeltaCounters,
@@ -1890,6 +1886,14 @@ public class StreamingDataflowWorker {
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
       entry.getValue().invalidateStuckCommits(stuckCommitDeadline);
     }
+  }
+
+  private static String constructWorkId(Windmill.WorkItem workItem) {
+    StringBuilder workIdBuilder = new StringBuilder(33);
+    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
+    workIdBuilder.append('-');
+    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
+    return workIdBuilder.toString();
   }
 
   private class HarnessDataProvider implements StatusDataProvider {
