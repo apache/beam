@@ -25,11 +25,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -306,25 +302,6 @@ public class BigQueryIOTranslation {
   }
 
   static class BigQueryIOWriteTranslator implements TransformPayloadTranslator<Write<?>> {
-
-    private static byte[] toByteArray(Object object) {
-      try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-          ObjectOutputStream out = new ObjectOutputStream(bos)) {
-        out.writeObject(object);
-        return bos.toByteArray();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    private static Object fromByteArray(byte[] bytes) {
-      try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-          ObjectInputStream in = new ObjectInputStream(bis)) {
-        return in.readObject();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
 
     static Schema schema =
         Schema.builder()
