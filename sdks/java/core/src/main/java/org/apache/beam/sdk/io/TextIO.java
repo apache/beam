@@ -263,6 +263,7 @@ public class TextIO {
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .setSkipHeaderLines(0)
         .setOutputCoder(StringUtf8Coder.of())
+        .setOutputFn(outputArguments -> outputArguments.reader().getCurrent())
         .build();
   }
 
