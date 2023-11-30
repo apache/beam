@@ -122,7 +122,7 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-class ComputeAndAttachHashKey(beam.DoFn):
+class ComputeAndAttachUniqueID(beam.DoFn):
   """
   Computes and attaches a hash key to the element.
   Only for internal use. No backwards compatibility guarantees.
@@ -448,7 +448,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 
-    keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachHashKey()))
+    keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachUniqueID()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
     columns_not_in_schema_with_hash = (
