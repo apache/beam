@@ -437,7 +437,7 @@ public class XmlIO {
     @Override
     public PCollection<T> expand(PCollection<ReadableFile> input) {
       return input.apply(
-          new ReadAllViaFileBasedSource.create(
+          ReadAllViaFileBasedSource.create(
               64 * 1024L * 1024L,
               new CreateSourceFn<>(getConfiguration()),
               JAXBCoder.of(getConfiguration().getRecordClass())));
