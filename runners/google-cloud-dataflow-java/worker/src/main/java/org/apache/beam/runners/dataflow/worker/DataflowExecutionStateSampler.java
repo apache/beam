@@ -1,0 +1,115 @@
+package org.apache.beam.runners.dataflow.worker;
+
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.HashMap;
+import java.util.IntSummaryStatistics;
+import java.util.Map;
+import java.util.Map.Entry;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.joda.time.DateTimeUtils.MillisProvider;
+
+public class DataflowExecutionStateSampler extends ExecutionStateSampler {
+
+  private static final MillisProvider SYSTEM_MILLIS_PROVIDER = System::currentTimeMillis;
+  private static final DataflowExecutionStateSampler INSTANCE =
+      new DataflowExecutionStateSampler(SYSTEM_MILLIS_PROVIDER);
+
+  private HashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId = new HashMap<>();
+  private HashMap<String, Map<String, IntSummaryStatistics>> completedProcessingMetrics = new HashMap<>();
+
+  public static DataflowExecutionStateSampler instance() {
+    return INSTANCE;
+  }
+
+  @VisibleForTesting
+  public static DataflowExecutionStateSampler newForTest(MillisProvider clock) {
+    return new DataflowExecutionStateSampler(checkNotNull(clock));
+  }
+
+  public DataflowExecutionStateSampler(MillisProvider clock) {
+    super(clock);
+  }
+
+  @Override
+  public void addTracker(ExecutionStateTracker tracker) {
+    if (!(tracker instanceof DataflowExecutionStateTracker)) {
+      return;
+    }
+    DataflowExecutionStateTracker dfTracker = (DataflowExecutionStateTracker) tracker;
+    this.activeTrackersByWorkId.put(dfTracker.getWorkItemId(), dfTracker);
+  }
+
+  private Map<String, IntSummaryStatistics> mergeStepStatsMaps(
+      Map<String, IntSummaryStatistics> map1, Map<String, IntSummaryStatistics> map2) {
+    for (Entry<String, IntSummaryStatistics> steps : map2
+        .entrySet()) {
+      map1.compute(steps.getKey(), (k, v) -> {
+        if (v == null) {
+          return steps.getValue();
+        }
+        v.combine(steps.getValue());
+        return v;
+      });
+    }
+    return map1;
+  }
+
+  @Override
+  public void removeTracker(ExecutionStateTracker tracker) {
+    if (!(tracker instanceof DataflowExecutionContext.DataflowExecutionStateTracker)) {
+      return;
+    }
+    DataflowExecutionStateTracker dfTracker = (DataflowExecutionStateTracker) tracker;
+    completedProcessingMetrics.put(dfTracker.getWorkItemId(), dfTracker.getProcessingTimesByStep());
+    activeTrackersByWorkId.remove(dfTracker.getWorkItemId());
+
+    // Attribute any remaining time since the last sampling while removing the tracker.
+    //
+    // There is a race condition here; if sampling happens in the time between when we remove the
+    // tracker from activeTrackers and read the lastSampleTicks value, the sampling time will
+    // be lost for the tracker being removed. This is acceptable as sampling is already an
+    // approximation of actual execution time.
+    long millisSinceLastSample = clock.getMillis() - this.lastSampleTimeMillis;
+    if (millisSinceLastSample > 0) {
+      tracker.takeSample(millisSinceLastSample);
+    }
+  }
+
+  @Override
+  public void doSampling(long millisSinceLastSample) {
+    for (DataflowExecutionStateTracker tracker : activeTrackersByWorkId.values()) {
+      tracker.takeSample(millisSinceLastSample);
+    }
+  }
+
+  @Nullable
+  public ActiveMessageMetadata getActiveMessageMetadataForWorkId(String workId) {
+    if (activeTrackersByWorkId.containsKey(workId)) {
+      return activeTrackersByWorkId.get(workId).getActiveMessageMetadata();
+    }
+    return null;
+  }
+
+  @Nullable
+  public Map<String, IntSummaryStatistics> getProcessingDistributionsForWorkId(
+      String workId) {
+    if (!activeTrackersByWorkId.containsKey(workId)) {
+      if (completedProcessingMetrics.containsKey(workId)) {
+        return completedProcessingMetrics.get(workId);
+      }
+      return null;
+    }
+    DataflowExecutionStateTracker tracker = activeTrackersByWorkId.get(workId);
+    return mergeStepStatsMaps(completedProcessingMetrics.getOrDefault(workId, new HashMap<>()),
+        tracker.getProcessingTimesByStep());
+  }
+
+  public synchronized void resetForWorkId(String workId) {
+    completedProcessingMetrics.remove(workId);
+  }
+}

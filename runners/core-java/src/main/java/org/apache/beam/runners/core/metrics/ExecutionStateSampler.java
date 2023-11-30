@@ -34,7 +34,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
 
-/** Monitors the execution of one or more execution threads. */
+/**
+ * Monitors the execution of one or more execution threads.
+ */
 public class ExecutionStateSampler {
 
   private final Set<ExecutionStateTracker> activeTrackers = ConcurrentHashMap.newKeySet();
@@ -44,10 +46,11 @@ public class ExecutionStateSampler {
   private static final ExecutionStateSampler INSTANCE =
       new ExecutionStateSampler(SYSTEM_MILLIS_PROVIDER);
 
-  private final MillisProvider clock;
-  @VisibleForTesting volatile long lastSampleTimeMillis;
+  protected final MillisProvider clock;
+  @VisibleForTesting
+  protected volatile long lastSampleTimeMillis;
 
-  private ExecutionStateSampler(MillisProvider clock) {
+  protected ExecutionStateSampler(MillisProvider clock) {
     this.clock = clock;
   }
 
@@ -146,13 +149,17 @@ public class ExecutionStateSampler {
     }
   }
 
-  /** Add the tracker to the sampling set. */
-  void addTracker(ExecutionStateTracker tracker) {
+  /**
+   * Add the tracker to the sampling set.
+   */
+  protected void addTracker(ExecutionStateTracker tracker) {
     this.activeTrackers.add(tracker);
   }
 
-  /** Remove the tracker from the sampling set. */
-  void removeTracker(ExecutionStateTracker tracker) {
+  /**
+   * Remove the tracker from the sampling set.
+   */
+  protected void removeTracker(ExecutionStateTracker tracker) {
     activeTrackers.remove(tracker);
 
     // Attribute any remaining time since the last sampling while removing the tracker.

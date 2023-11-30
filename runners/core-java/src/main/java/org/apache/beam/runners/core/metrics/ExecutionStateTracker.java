@@ -304,7 +304,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return nextLullReportMs;
   }
 
-  void takeSample(long millisSinceLastSample) {
+  public void takeSample(long millisSinceLastSample) {
     if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
       try {
         takeSampleOnce(millisSinceLastSample);
