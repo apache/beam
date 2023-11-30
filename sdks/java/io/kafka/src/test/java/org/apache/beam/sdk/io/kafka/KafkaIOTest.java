@@ -1424,6 +1424,11 @@ public class KafkaIOTest {
     public byte[] serialize(String topic, Long data) {
       throw new SerializationException("ExpectedSerializationException");
     }
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      // intentionally left blank for compatibility with older kafka versions
+    }
   }
 
   @Test

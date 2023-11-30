@@ -133,8 +133,6 @@ public class KafkaIOIT {
 
   private static final String RUN_TIME_METRIC_NAME = "run_time";
 
-  private static final String READ_ELEMENT_METRIC_NAME = "kafka_read_element_count";
-
   private static final String NAMESPACE = KafkaIOIT.class.getName();
 
   private static final String TEST_ID = UUID.randomUUID().toString();
@@ -576,9 +574,7 @@ public class KafkaIOIT {
   public void testKafkaWithStopReadingFunction() {
     AlwaysStopCheckStopReadingFn checkStopReadingFn = new AlwaysStopCheckStopReadingFn();
 
-    PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "stop-reading");
-
-    assertEquals(-1, readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    runWithStopReadingFn(checkStopReadingFn, "stop-reading", 0L);
   }
 
   private static class AlwaysStopCheckStopReadingFn implements CheckStopReadingFn {
@@ -592,11 +588,7 @@ public class KafkaIOIT {
   public void testKafkaWithDelayedStopReadingFunction() {
     DelayedCheckStopReadingFn checkStopReadingFn = new DelayedCheckStopReadingFn();
 
-    PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading");
-
-    assertEquals(
-        sourceOptions.numRecords,
-        readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading", sourceOptions.numRecords);
   }
 
   public static final Schema KAFKA_TOPIC_SCHEMA =
@@ -744,7 +736,7 @@ public class KafkaIOIT {
     }
   }
 
-  private PipelineResult runWithStopReadingFn(CheckStopReadingFn function, String topicSuffix) {
+  private void runWithStopReadingFn(CheckStopReadingFn function, String topicSuffix, Long expectedCount) {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
@@ -753,21 +745,29 @@ public class KafkaIOIT {
             writeToKafka().withTopic(options.getKafkaTopic() + "-" + topicSuffix));
 
     readPipeline.getOptions().as(Options.class).setStreaming(true);
-    readPipeline
+    PCollection<Long> count = readPipeline
         .apply(
             "Read from unbounded Kafka",
             readFromKafka()
                 .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
                 .withCheckStopReadingFn(function))
-        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
+        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Window", Window.into(CalendarWindows.years(1)))
+        .apply(
+            "Counting element",
+            Combine.globally(Count.<KafkaRecord<byte[], byte[]>>combineFn()).withoutDefaults());
+
+    if (expectedCount == 0L) {
+      PAssert.that(count).empty();
+    } else {
+      PAssert.thatSingleton(count).isEqualTo(expectedCount);
+    }
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
 
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
-
-    return readResult;
   }
 
   @Test
@@ -843,11 +843,6 @@ public class KafkaIOIT {
         OutputReceiver<KV<Integer, KafkaRecord<Integer, String>>> receiver) {
       receiver.output(KV.of(record.getPartition(), record));
     }
-  }
-
-  private long readElementMetric(PipelineResult result, String namespace, String name) {
-    MetricsReader metricsReader = new MetricsReader(result, namespace);
-    return metricsReader.getCounterMetric(name);
   }
 
   private Set<NamedTestResult> readMetrics(PipelineResult writeResult, PipelineResult readResult) {
