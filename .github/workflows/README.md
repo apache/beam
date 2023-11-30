@@ -138,6 +138,8 @@ In order to make it easier for non-committers to interact with workflows, workfl
 2) Each job should have the rerun action immediately after its checkout step. You can add a step that uses the `setup-action` action in your workflow, which encapsulates the checkout and rerun logic in one place. This should be gated on the comment trigger (example: https://github.com/apache/beam/blob/0ee2dc73ec6f555a5bf1a643dffd37f4927be67e/.github/workflows/beam_PreCommit_Go.yml#L65-L70)
 3) Each job should have a descriptive name that includes the comment trigger (example: https://github.com/apache/beam/blob/ba8fc935222aeb070668fbafd588bc58e7a21289/.github/workflows/beam_PreCommit_CommunityMetrics.yml#L48)
 
+**Note:** this approach is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and currently only enabled for PreCommit workflows. For PostCommit jobs, it is currently replaced by a temporary approach of `pull_request_target` trigger with specific path `.github/trigger_files/<workflow_file_name_stem.json>`.
+
 # Testing new workflows or workflow updates
 
 ## Testing New Workflows
