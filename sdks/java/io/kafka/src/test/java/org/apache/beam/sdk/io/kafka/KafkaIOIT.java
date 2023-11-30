@@ -778,7 +778,7 @@ public class KafkaIOIT {
 
     String topicName = "SparseDataTopicPartition-" + UUID.randomUUID();
     Map<Integer, String> records = new HashMap<>();
-    for (int i = 0; i < 5; i++) {
+    for (int i = 1; i <= 5; i++) {
       records.put(i, String.valueOf(i));
     }
 
