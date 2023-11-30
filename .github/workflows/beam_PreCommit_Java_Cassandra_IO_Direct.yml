@@ -27,6 +27,7 @@ on:
     paths:
       - "sdks/java/io/cassandra/**"
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Cassandra_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

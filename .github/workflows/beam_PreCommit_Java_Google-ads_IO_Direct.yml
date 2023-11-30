@@ -27,6 +27,7 @@ on:
     paths:
     - "sdks/java/io/google-ads/**"
     - 'release/trigger_all_tests.json'
+    - '.github/trigger_files/beam_PreCommit_Java_Google-ads_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:
