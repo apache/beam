@@ -155,7 +155,7 @@ if sys.platform == 'win32' or sys.platform == 'cygwin':
     ]
 else:
   pyarrow_dependency = [
-      'pyarrow>=14.0.0,<15.0.0',
+      'pyarrow>=3.0.0,<15.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       'pyarrow-hotfix<1'
