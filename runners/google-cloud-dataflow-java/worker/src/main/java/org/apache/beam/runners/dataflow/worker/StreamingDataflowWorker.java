@@ -57,7 +57,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
@@ -286,6 +285,8 @@ public class StreamingDataflowWorker {
   private ScheduledExecutorService globalConfigRefreshTimer;
   // Possibly overridden by streaming engine config.
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
+
+  private DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
 
   @VisibleForTesting
   StreamingDataflowWorker(
@@ -575,7 +576,7 @@ public class StreamingDataflowWorker {
     memoryMonitorThread.start();
     dispatchThread.start();
     commitThread.start();
-    ExecutionStateSampler.instance().start();
+    sampler.start();
 
     // Periodically report workers counters and other updates.
     globalWorkerUpdatesTimer = executorSupplier.apply("GlobalWorkerUpdatesTimer");
@@ -993,7 +994,7 @@ public class StreamingDataflowWorker {
             (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
         DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
             new DataflowExecutionContext.DataflowExecutionStateTracker(
-                ExecutionStateSampler.instance(),
+                sampler,
                 stageInfo
                     .executionStateRegistry()
                     .getState(
@@ -1292,6 +1293,7 @@ public class StreamingDataflowWorker {
         stageInfo.timerProcessingMsecs().addValue(processingTimeMsecs);
       }
 
+      sampler.resetForWorkId(constructWorkId(work.getWorkItem()));
       DataflowWorkerLoggingMDC.setWorkId(null);
       DataflowWorkerLoggingMDC.setStageName(null);
     }
