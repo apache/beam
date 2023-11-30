@@ -124,7 +124,9 @@ class ConvertNamedTupleToDict(
 
 class ComputeAndAttachUniqueID(beam.DoFn):
   """
-  Computes and attaches a hash key to the element.
+  Computes and attaches a unique id to each element in the PCollection.
+  unique id is computed by hashing the element and adding a unique suffix
+  to the hash key to avoid possible collisions.
   Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
@@ -135,9 +137,11 @@ class ComputeAndAttachUniqueID(beam.DoFn):
         hash_object.update(str(list(value)).encode())
       else:  # assume value is a primitive that can be turned into str
         hash_object.update(str(value).encode())
-    # add a unique suffix to the hash key to avoid collisions.
     unique_suffix = uuid.uuid4().hex
-    yield (hash_object.hexdigest() + unique_suffix, element)
+    # over multpile docker containers, the uuid might generate
+    # same uuid. So we will add the process id to the hash key
+    # along with the unique suffix to avoid possible collisions.
+    yield (hash_object.digest() + str(os.getpid()) + unique_suffix, element)
 
 
 class GetMissingColumnsPColl(beam.DoFn):
