@@ -20,7 +20,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.gcp.expansion.service',
+        automaticModuleName: 'org.apache.beam.sdk.core.expansion.service',
         exportJavadoc: false,
         validateShadowJar: false,
         shadowClosure: {},
