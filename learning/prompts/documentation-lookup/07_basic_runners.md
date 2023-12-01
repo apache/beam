@@ -1,11 +1,11 @@
 Prompt:
 What is a Runner in Apache Beam?
 Response:
-Apache Beam Runners are the execution engines that execute the pipelines. They translate or adapt the pipeline into a form that can be executed on a massively parallel big data processing system, such as Apache Flink, Apache Spark, Google Cloud Dataflow, and more.
+Apache Beam Runners are the execution engines that run the pipelines. They translate or adapt the pipeline into a form that can be executed on a massively parallel big data processing system, such as Apache Flink, Apache Spark, Google Cloud Dataflow, and more.
 
-Choosing a runner is an important step in the pipeline development process. The runner you choose determines where and how your pipeline runs. See the [capabilities matrix](https://beam.apache.org/documentation/runners/capability-matrix/) for more information on available runners and their capabilities.
+Choosing a runner is an important step in the pipeline development process. The runner you choose determines where and how your pipeline runs. For more information about available runners and their capabilities, see the [capabilities matrix](https://beam.apache.org/documentation/runners/capability-matrix/).
 
-Runner is specified using the `--runner` flag when executing the pipeline. For example, to run the WordCount pipeline on Google Cloud Dataflow, you would run the following command:
+To specify a runner, when you execute the pipeline, use the `--runner` flag . For example, to run the WordCount pipeline on Google Cloud Dataflow, you would run the following command:
 
 ```python
 python -m apache_beam.examples.wordcount \
@@ -16,8 +16,8 @@ python -m apache_beam.examples.wordcount \
   --project PROJECT_ID \
   --temp_location gs://STORAGE_BUCKET/tmp/
   ```
-Source code for the WordCount example can be found [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).
+For more details about the WordCount example, see the [WordCount source code in GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).
 
-A [Direct Runner](https://beam.apache.org/documentation/runners/direct/) stands out as a special runner that executes the pipeline on the local machine. It is helpful for testing and debugging purposes.
+The [Direct Runner](https://beam.apache.org/documentation/runners/direct/) executes the pipeline on your local machine. It is helpful for testing and debugging purposes.
 
-You might also want to refer back to the Quickstart for [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py) or [Go](https://beam.apache.org/get-started/quickstart-go) for instructions on how to configure your development environment and runner.
+For instructions about how to configure your development environment and runner, see the quickstarts for [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py) and [Go](https://beam.apache.org/get-started/quickstart-go).
