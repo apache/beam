@@ -56,13 +56,10 @@ def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
     startJobServer = setupTask
     cleanupJobServer = cleanupTask
 }
-xlangTasks.add(gcpXlangCommon)
-
-def ioExpansionProject = project.project(':sdks:java:io:expansion-service')
 
 def ioXlangCommon = new CrossLanguageTaskCommon().tap {
     name = "ioCrossLanguage"
-    expansionProjectPath = ioExpansionProject.getPath()
+    expansionProjectPath = project.project(':sdks:java:io:expansion-service').getPath()
     collectMarker = "uses_io_expansion_service"
     startJobServer = setupTask
     cleanupJobServer = cleanupTask
@@ -70,6 +67,14 @@ def ioXlangCommon = new CrossLanguageTaskCommon().tap {
     additionalEnvs = ["KAFKA_BOOTSTRAP_SERVER":project.findProperty('kafkaBootstrapServer')]
 }
 
-xlangTasks.add(ioXlangCommon)
+def coreXlangCommon = new CrossLanguageTaskCommon().tap {
+    name = "coreCrossLanguage"
+    expansionProjectPath = project.project(':sdks:java:core:expansion-service').getPath()
+    collectMarker = "uses_core_java_expansion_service"
+    startJobServer = setupTask
+    cleanupJobServer = cleanupTask
+}
+
+xlangTasks.addAll(gcpXlangCommon, ioXlangCommon, coreXlangCommon)
 
 ext.xlangTasks = xlangTasks
