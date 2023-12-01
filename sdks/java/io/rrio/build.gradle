@@ -37,8 +37,6 @@ dependencies {
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation "redis.clients:jedis:$jedisVersion"
-    implementation platform(library.java.google_cloud_platform_libraries_bom)
-    implementation library.java.google_http_client
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
@@ -49,7 +47,10 @@ dependencies {
     testImplementation "io.grpc:grpc-stub:${grpcVersion}"
     testImplementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
 
+    testImplementation platform(library.java.google_cloud_platform_libraries_bom)
+    testImplementation library.java.google_http_client
     testImplementation library.java.junit
+    testImplementation library.java.hamcrest
     testImplementation library.java.testcontainers_base
 
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

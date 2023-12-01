@@ -17,71 +17,83 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.ExponentialBackOff;
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-/** Repeats a method invocation when it encounters an error. */
-public class Repeater<InputT, OutputT> {
+/**
+ * Repeats a method invocation when it encounters an error, pausing invocations using {@link
+ * Sleeper} for a {@link BackOff#nextBackOffMillis}.
+ */
+@AutoValue
+abstract class Repeater<InputT, OutputT> {
 
-  /**
-   * {@link Set} of {@link UserCodeExecutionException}s that warrant repeating. A public modifier is
-   * applied to communicate to users of this class which {@link UserCodeExecutionException}s
-   * constitute warrant repeat execution.
-   */
-  public static final Set<Class<? extends UserCodeExecutionException>> REPEATABLE_ERROR_TYPES =
+  /** {@link Set} of {@link UserCodeExecutionException}s that warrant repeating. */
+  static final Set<Class<? extends UserCodeExecutionException>> REPEATABLE_ERROR_TYPES =
       ImmutableSet.of(
           UserCodeRemoteSystemException.class,
           UserCodeTimeoutException.class,
           UserCodeQuotaException.class);
 
-  /** Instantiates a {@link Repeater}. */
-  public static <InputT, OutputT> Repeater<InputT, OutputT> of(
-      ThrowableFunction<InputT, OutputT> throwableFunction, Sleeper sleeper, Integer limit) {
-    return new Repeater<>(throwableFunction, sleeper, limit);
-  }
-
-  private final ThrowableFunction<InputT, OutputT> throwableFunction;
-
-  private final Sleeper sleeper;
-  private final int limit;
-
-  private Repeater(
-      ThrowableFunction<InputT, OutputT> throwableFunction, Sleeper sleeper, int limit) {
-    this.throwableFunction = throwableFunction;
-    this.sleeper = sleeper;
-    this.limit = limit;
+  static <InputT, OutputT> Builder<InputT, OutputT> builder() {
+    return new AutoValue_Repeater.Builder<>();
   }
 
   /**
-   * Applies the {@link InputT} to the {@link ThrowableFunction}. If the function throws an
-   * exception that {@link #REPEATABLE_ERROR_TYPES} contains, repeats the invocation up to the
-   * limit, otherwise throws the last exception.
+   * The {@link ThrowableFunction} to invoke repeatedly until it succeeds, throws a {@link
+   * UserCodeExecutionException} that is not {@link #REPEATABLE_ERROR_TYPES}, or {@link
+   * BackOff#STOP}.
    */
-  public OutputT apply(InputT input) throws UserCodeExecutionException, InterruptedException {
-    @MonotonicNonNull UserCodeExecutionException lastException = null;
-    for (int numAttempts = 0; numAttempts < limit; numAttempts++) {
+  abstract ThrowableFunction<InputT, OutputT> getThrowableFunction();
+
+  /**
+   * The {@link Sleeper} that pauses execution of the {@link #getThrowableFunction} when it throws a
+   * {@link #REPEATABLE_ERROR_TYPES} {@link UserCodeExecutionException}. Uses {@link
+   * Sleeper#DEFAULT} by default.
+   */
+  abstract Sleeper getSleeper();
+
+  /**
+   * The {@link BackOff} that reports to {@link #getSleeper} how long to pause execution. It reports
+   * a {@link BackOff#STOP} to stop repeating invocation attempts. Uses {@link
+   * FluentBackoff#DEFAULT#getBackOff} by default.
+   */
+  abstract BackOff getBackOff();
+
+  /**
+   * Applies the {@link InputT} to the {@link ThrowableFunction}, returning the {@link OutputT} if
+   * successful. If the function throws an exception that {@link #REPEATABLE_ERROR_TYPES} contains,
+   * repeats the invocation after {@link Sleeper#sleep} for the amount of time reported by {@link
+   * BackOff#nextBackOffMillis}. Throws the latest encountered {@link UserCodeExecutionException}
+   * when {@link BackOff} reports a {@link BackOff#STOP}.
+   */
+  OutputT apply(InputT input) throws UserCodeExecutionException {
+    Optional<UserCodeExecutionException> latestError = Optional.empty();
+    long waitFor = 0L;
+    while (waitFor != BackOff.STOP) {
       try {
-        return throwableFunction.apply(input);
+        getSleeper().sleep(waitFor);
+        return getThrowableFunction().apply(input);
       } catch (UserCodeExecutionException e) {
         if (!REPEATABLE_ERROR_TYPES.contains(e.getClass())) {
           throw e;
         }
-        lastException = e;
-        sleeper.sleep();
+        latestError = Optional.of(e);
+      } catch (InterruptedException ignored) {
+      }
+      try {
+        waitFor = getBackOff().nextBackOffMillis();
+      } catch (IOException e) {
+        throw new UserCodeExecutionException(e);
       }
     }
-    throw checkStateNotNull(lastException);
+    throw latestError.orElse(
+        new UserCodeExecutionException("failed to process for input: " + input));
   }
 
   /**
@@ -89,54 +101,40 @@ public class Repeater<InputT, OutputT> {
    * function.
    */
   @FunctionalInterface
-  public interface ThrowableFunction<InputT, OutputT> {
+  interface ThrowableFunction<InputT, OutputT> {
     /** Returns the result of invoking this function on the given input. */
     OutputT apply(InputT input) throws UserCodeExecutionException;
   }
 
-  /** Interfaces implementation details for pausing an execution. */
-  public interface Sleeper {
+  @AutoValue.Builder
+  abstract static class Builder<InputT, OutputT> {
 
-    /** Pauses the execution. */
-    void sleep() throws InterruptedException;
-  }
+    /** See {@link #getThrowableFunction}. */
+    abstract Builder<InputT, OutputT> setThrowableFunction(
+        ThrowableFunction<InputT, OutputT> value);
 
-  /**
-   * A {@link Sleeper} implementation that uses a {@link BackOff} to determine how long to pause
-   * execution.
-   */
-  public static class DefaultSleeper implements Sleeper {
+    /** See {@link #getSleeper}. */
+    abstract Builder<InputT, OutputT> setSleeper(Sleeper value);
 
-    public static DefaultSleeper of() {
-      return of(new ExponentialBackOff());
-    }
+    abstract Optional<Sleeper> getSleeper();
 
-    public static DefaultSleeper of(BackOff backOff) {
-      return new DefaultSleeper(backOff);
-    }
+    /** See {@link #getBackOff}. */
+    abstract Builder<InputT, OutputT> setBackOff(BackOff value);
 
-    private final BackOff backOff;
+    abstract Optional<BackOff> getBackOff();
 
-    private DefaultSleeper(BackOff backOff) {
-      this.backOff = backOff;
-    }
+    abstract Repeater<InputT, OutputT> autoBuild();
 
-    @Override
-    public void sleep() throws InterruptedException {
-      ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-      try {
-        Future<?> future =
-            executorService.schedule(() -> {}, backOff.nextBackOffMillis(), TimeUnit.MILLISECONDS);
-        future.get();
-      } catch (IOException | ExecutionException e) {
-        throw new RuntimeException(e);
+    final Repeater<InputT, OutputT> build() {
+      if (!getSleeper().isPresent()) {
+        setSleeper(Sleeper.DEFAULT);
       }
-      executorService.shutdown();
-      boolean ignored = executorService.awaitTermination(1L, TimeUnit.SECONDS);
-    }
 
-    BackOff getBackOff() {
-      return backOff;
+      if (!getBackOff().isPresent()) {
+        setBackOff(FluentBackoff.DEFAULT.backoff());
+      }
+
+      return autoBuild();
     }
   }
 }

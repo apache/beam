@@ -20,26 +20,22 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.io.requestresponse.Repeater.REPEATABLE_ERROR_TYPES;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThrows;
 
-import com.google.api.client.util.ExponentialBackOff;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,17 +46,19 @@ public class RepeaterTest {
 
   private static final TupleTag<Integer> OUTPUT_TAG = new TupleTag<Integer>() {};
   private static final TupleTag<String> FAILURE_TAG = new TupleTag<String>() {};
+
   private static final int LIMIT = 3;
+  private static final FluentBackoff FLUENT_BACKOFF = FluentBackoff.DEFAULT.withMaxRetries(LIMIT);
 
   @Test
-  public void givenCallerQuotaErrorsAtLimit_emitsIntoFailurePCollection() {
+  public void givenCallerQuotaErrorsExceedsLimit_emitsIntoFailurePCollection() {
     PCollectionTuple pct =
         pipeline
             .apply(Create.of(1))
             .apply(
                 ParDo.of(
                         new DoFnWithRepeaters(
-                            new CallerImpl(LIMIT, UserCodeQuotaException.class),
+                            new CallerImpl(LIMIT + 1, UserCodeQuotaException.class),
                             new SetupTeardownImpl(0)))
                     .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
@@ -71,14 +69,14 @@ public class RepeaterTest {
   }
 
   @Test
-  public void givenSetupQuotaErrorsAtLimit_throws() {
+  public void givenSetupQuotaErrorsExceedsLimit_throws() {
     pipeline
         .apply(Create.of(1))
         .apply(
             ParDo.of(
                     new DoFnWithRepeaters(
                         new CallerImpl(0),
-                        new SetupTeardownImpl(LIMIT, UserCodeQuotaException.class)))
+                        new SetupTeardownImpl(LIMIT + 1, UserCodeQuotaException.class)))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
     UncheckedExecutionException thrown =
@@ -90,14 +88,14 @@ public class RepeaterTest {
   }
 
   @Test
-  public void givenCallerTimeoutErrorsAtLimit_emitsIntoFailurePCollection() {
+  public void givenCallerTimeoutErrorsExceedsLimit_emitsIntoFailurePCollection() {
     PCollectionTuple pct =
         pipeline
             .apply(Create.of(1))
             .apply(
                 ParDo.of(
                         new DoFnWithRepeaters(
-                            new CallerImpl(LIMIT, UserCodeTimeoutException.class),
+                            new CallerImpl(LIMIT + 1, UserCodeTimeoutException.class),
                             new SetupTeardownImpl(0)))
                     .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
@@ -108,14 +106,14 @@ public class RepeaterTest {
   }
 
   @Test
-  public void givenSetupTimeoutErrorsAtLimit_throws() {
+  public void givenSetupTimeoutErrorsExceedsLimit_throws() {
     pipeline
         .apply(Create.of(1))
         .apply(
             ParDo.of(
                     new DoFnWithRepeaters(
                         new CallerImpl(0),
-                        new SetupTeardownImpl(LIMIT, UserCodeTimeoutException.class)))
+                        new SetupTeardownImpl(LIMIT + 1, UserCodeTimeoutException.class)))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
     UncheckedExecutionException thrown =
@@ -127,14 +125,14 @@ public class RepeaterTest {
   }
 
   @Test
-  public void givenCallerRemoteSystemExceptionAtLimit_emitsIntoFailurePCollection() {
+  public void givenCallerRemoteSystemExceptionExceedsLimit_emitsIntoFailurePCollection() {
     PCollectionTuple pct =
         pipeline
             .apply(Create.of(1))
             .apply(
                 ParDo.of(
                         new DoFnWithRepeaters(
-                            new CallerImpl(LIMIT, UserCodeRemoteSystemException.class),
+                            new CallerImpl(LIMIT + 1, UserCodeRemoteSystemException.class),
                             new SetupTeardownImpl(0)))
                     .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
@@ -146,14 +144,14 @@ public class RepeaterTest {
   }
 
   @Test
-  public void givenSetupRemoteSystemErrorsAtLimit_throws() {
+  public void givenSetupRemoteSystemErrorsExceedsLimit_throws() {
     pipeline
         .apply(Create.of(1))
         .apply(
             ParDo.of(
                     new DoFnWithRepeaters(
                         new CallerImpl(0),
-                        new SetupTeardownImpl(LIMIT, UserCodeRemoteSystemException.class)))
+                        new SetupTeardownImpl(LIMIT + 1, UserCodeRemoteSystemException.class)))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(FAILURE_TAG)));
 
     UncheckedExecutionException thrown =
@@ -220,37 +218,6 @@ public class RepeaterTest {
     pipeline.run();
   }
 
-  @Test
-  public void givenDefaultSleeper_incrementsBackoff() throws IOException {
-    int testInitialInterval = 500;
-    double testRandomizationFactor = 0.1;
-    double testMultiplier = 2.0;
-    int testMaxInterval = 5000;
-    int testMaxElapsedTime = 900000;
-    ExponentialBackOff backOffPolicy =
-        new ExponentialBackOff.Builder()
-            .setInitialIntervalMillis(testInitialInterval)
-            .setRandomizationFactor(testRandomizationFactor)
-            .setMultiplier(testMultiplier)
-            .setMaxIntervalMillis(testMaxInterval)
-            .setMaxElapsedTimeMillis(testMaxElapsedTime)
-            .build();
-    List<Long> expectedResults =
-        ImmutableList.of(500L, 1000L, 2000L, 4000L, 5000L, 5000L, 5000L, 5000L, 5000L, 5000L);
-    List<Long> expectedDiff =
-        ImmutableList.of(50L, 100L, 200L, 400L, 500L, 500L, 500L, 500L, 500L, 500L);
-    Repeater.DefaultSleeper sleeper = Repeater.DefaultSleeper.of(backOffPolicy);
-    for (int i = 0; i < expectedResults.size(); i++) {
-      long expected = expectedResults.get(i);
-      long diff = expectedDiff.get(i);
-      long expectedMin = expected - diff;
-      long expectedMax = expected + diff;
-      assertThat(
-          sleeper.getBackOff().nextBackOffMillis(),
-          allOf(greaterThanOrEqualTo(expectedMin), lessThan(expectedMax)));
-    }
-  }
-
   private static class DoFnWithRepeaters extends DoFn<Integer, Integer> {
     private final CallerImpl caller;
     private final SetupTeardownImpl setupTeardown;
@@ -261,26 +228,33 @@ public class RepeaterTest {
     }
 
     @Setup
-    public void setup() throws UserCodeExecutionException, InterruptedException {
+    public void setup() throws UserCodeExecutionException {
       Repeater<Void, Void> repeater =
-          Repeater.of(
-              ignored -> {
-                setupTeardown.setup();
-                return null;
-              },
-              new SleeperImpl(0L),
-              LIMIT);
+          Repeater.<Void, Void>builder()
+              .setSleeper(new NoOpSleeper())
+              .setBackOff(FLUENT_BACKOFF.backoff())
+              .setThrowableFunction(
+                  input -> {
+                    setupTeardown.setup();
+                    return null;
+                  })
+              .build();
       repeater.apply(null);
     }
 
     @ProcessElement
     public void process(@Element Integer element, MultiOutputReceiver receiver) {
-      Repeater<Integer, Integer> repeater = Repeater.of(caller::call, new SleeperImpl(0L), LIMIT);
+      Repeater<Integer, Integer> repeater =
+          Repeater.<Integer, Integer>builder()
+              .setSleeper(new NoOpSleeper())
+              .setBackOff(FLUENT_BACKOFF.backoff())
+              .setThrowableFunction(caller::call)
+              .build();
       try {
-        receiver.get(OUTPUT_TAG).output(repeater.apply(element));
+        Integer output = repeater.apply(element);
+        receiver.get(OUTPUT_TAG).output(output);
       } catch (UserCodeExecutionException e) {
-        receiver.get(FAILURE_TAG).output(e.getMessage());
-      } catch (InterruptedException ignored) {
+        receiver.get(FAILURE_TAG).output(getRepeatableErrorTypeName(e.getClass()));
       }
     }
   }
@@ -354,19 +328,6 @@ public class RepeaterTest {
     public void teardown() throws UserCodeExecutionException {}
   }
 
-  private static class SleeperImpl implements Repeater.Sleeper {
-    private final long sleepFor;
-
-    private SleeperImpl(long sleepFor) {
-      this.sleepFor = sleepFor;
-    }
-
-    @Override
-    public void sleep() throws InterruptedException {
-      Thread.sleep(sleepFor);
-    }
-  }
-
   private static String getRepeatableErrorTypeName(Class<? extends UserCodeExecutionException> e) {
     for (Class<? extends UserCodeExecutionException> ex : REPEATABLE_ERROR_TYPES) {
       if (ex.equals(e)) {
@@ -374,5 +335,11 @@ public class RepeaterTest {
       }
     }
     return e.getName();
+  }
+
+  // We don't want to wait for sleep to delay test invocations.
+  private static class NoOpSleeper implements Sleeper {
+    @Override
+    public void sleep(long millis) throws InterruptedException {}
   }
 }
