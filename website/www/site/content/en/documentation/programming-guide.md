@@ -8160,7 +8160,7 @@ starts the Transform service when a Python runtime isn't available locally, but 
 
 Beam users also have the option to [manually start](/documentation/programming-guide/#transform-service-usage-muanual) a stransform service and use that as the expansion service used by multi-language pipelines.
 
-### 15.2 Manually starting the transform service {#transform-service-usage-muanual}
+### 15.3 Manually starting the transform service {#transform-service-usage-muanual}
 
 A Beam Transform service instance can be manually started by by using utilities provided with Apache Beam SDKs.
 
@@ -8190,7 +8190,7 @@ python -m apache_beam.utils.transform_service_launcher --port <port> --beam_vers
 This feature is currently in development.
 {{< /highlight >}}
 
-### 15.2 Portable transforms included in the Transform service {#transform-service-included-transforms}
+### 15.4 Portable transforms included in the Transform service {#transform-service-included-transforms}
 
 Beam Transform service includes a number of transforms implemented in the Apache Beam Java and Python SDKs.
 
