@@ -1,4 +1,6 @@
 import logging
+import typing
+from collections import namedtuple
 
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
@@ -29,13 +31,17 @@ def camel_case_to_snake_case(string):
   return ''.join(arr).lstrip('_')
 
 
+# Information regarding a Wrapper parameter.
+ParamInfo = namedtuple('ParamInfo', ['type', 'description', 'original_name'])
+
+
 def get_config_with_descriptions(schematransform: SchemaTransformsConfig):
   # Prepare a configuration schema that includes types and descriptions
   schema = named_tuple_to_schema(schematransform.configuration_schema)
   descriptions = schematransform.configuration_schema._field_descriptions
   fields_with_descriptions = {}
   for field in schema.fields:
-    fields_with_descriptions[camel_case_to_snake_case(field.name)] = (
+    fields_with_descriptions[camel_case_to_snake_case(field.name)] = ParamInfo(
         typing_from_runner_api(field.type),
         descriptions[field.name],
         field.name)
@@ -46,8 +52,7 @@ def get_config_with_descriptions(schematransform: SchemaTransformsConfig):
 STANDARD_EXPANSION_SERVICES = [
     BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build'),
-  BeamJarExpansionService('sdks:java:core:expansion-service:build'),
-  # BeamJarExpansionService('sdks:java:io:expansion-service:build')
+    BeamJarExpansionService('sdks:java:io:expansion-service:build')
 ]
 
 
@@ -137,17 +142,17 @@ class WrapperProvider:
     for name, wrapper in self.wrappers.items():
       setattr(self, name, wrapper)
 
-  def get_available(self):
+  def get_available(self) -> typing.Set[str]:
     """Get a set of all available wrappers (by name)"""
     self._maybe_create_wrappers()
     return set(self.wrappers.keys())
 
-  def get(self, name):
+  def get(self, name) -> Wrapper:
     """Get a wrapper by its name"""
     self._maybe_create_wrappers()
     return self.wrappers[name]
 
-  def get_urn(self, identifier):
+  def get_urn(self, identifier) -> Wrapper:
     """Get a wrapper by its URN"""
     self._maybe_create_wrappers()
     return self.wrappers[self.urn_to_wrapper_name[identifier]]
