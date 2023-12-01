@@ -82,3 +82,7 @@ class TestCaller(unittest.TestCase):
             test_pipeline
             | beam.Create([""])
             | RequestResponseIO(caller=caller))
+
+
+if __name__ == '__main__':
+  unittest.main()
