@@ -40,6 +40,7 @@ import (
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
@@ -49,6 +50,7 @@ const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 type Options struct {
 	RunnerCapabilities []string // URNs for what runners are able to understand over the FnAPI.
 	StatusEndpoint     string   // Endpoint for worker status reporting.
+	EnableDataSampling bool     // Enable data sampling feature
 }
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -155,6 +157,11 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
 		runnerCapabilities:   rcMap,
+	}
+
+	if opts.EnableDataSampling {
+		ctrl.dataSampler = exec.NewDataSampler(ctx)
+		go ctrl.dataSampler.Process()
 	}
 
 	// if the runner supports worker status api then expose SDK harness status
@@ -304,6 +311,7 @@ type control struct {
 	// TODO(BEAM-11097): Cache is currently unused.
 	cache              *statecache.SideInputCache
 	runnerCapabilities map[string]bool
+	dataSampler        *exec.DataSampler
 }
 
 func (c *control) metStoreToString(statusInfo *strings.Builder) {
@@ -345,7 +353,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 		}
 		desc = newDesc.(*fnpb.ProcessBundleDescriptor)
 	}
-	newPlan, err := exec.UnmarshalPlan(desc)
+	newPlan, err := exec.UnmarshalPlan(desc, c.dataSampler)
 	if err != nil {
 		return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
 	}
@@ -654,7 +662,28 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
+	case req.GetSampleData() != nil:
+		msg := req.GetSampleData()
+		var samples = make(map[string]*fnpb.SampleDataResponse_ElementList)
+		var elementsMap = c.dataSampler.GetSamples(msg.GetPcollectionIds())
 
+		for pid, elements := range elementsMap {
+			var elementList fnpb.SampleDataResponse_ElementList
+			for i := range elements {
+				var sampledElement = &fnpb.SampledElement{
+					Element:         elements[i].Element,
+					SampleTimestamp: timestamppb.New(elements[i].Timestamp),
+				}
+				elementList.Elements = append(elementList.Elements, sampledElement)
+			}
+			samples[pid] = &elementList
+		}
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_SampleData{
+				SampleData: &fnpb.SampleDataResponse{ElementSamples: samples},
+			},
+		}
 	default:
 		return fail(ctx, instID, "Unexpected request: %v", req)
 	}

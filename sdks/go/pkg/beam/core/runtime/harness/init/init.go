@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"slices"
 	"strings"
 	"time"
 
@@ -84,6 +85,7 @@ func hook() {
 	// will be captured by the framework -- which may not be functional if
 	// harness.Main returns. We want to be sure any error makes it out.
 
+	var enableDataSampling = false
 	if *options != "" {
 		var opt runtime.RawOptionsWrapper
 		if err := json.Unmarshal([]byte(*options), &opt); err != nil {
@@ -91,6 +93,9 @@ func hook() {
 			os.Exit(1)
 		}
 		runtime.GlobalOptions.Import(opt.Options)
+		if slices.Contains(opt.AdditionalOptions.Experiments, "enable_data_sampling") {
+			enableDataSampling = true
+		}
 	}
 
 	defer func() {
@@ -129,6 +134,7 @@ func hook() {
 	options := harness.Options{
 		StatusEndpoint:     statusEndpoint,
 		RunnerCapabilities: runnerCapabilities,
+		EnableDataSampling: enableDataSampling,
 	}
 	if err := harness.MainWithOptions(ctx, *loggingEndpoint, *controlEndpoint, options); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
